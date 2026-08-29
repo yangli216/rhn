@@ -1,0 +1,9 @@
+-- Oracle variant: registration status no longer mirrors queue or encounter progress.
+
+alter table patient_registrations drop constraint ck_registration_status;
+
+update patient_registrations
+set status = case when status = 'CANCELLED' then 'CANCELLED' else 'REGISTERED' end;
+
+alter table patient_registrations add constraint ck_registration_status
+    check (status in ('REGISTERED', 'CANCELLED'));

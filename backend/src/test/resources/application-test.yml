@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:rhn;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,classpath:db/local,classpath:db/h2
+rhn:
+  id:
+    allow-default-node: true
+  security:
+    dev-user-enabled: true
+    dev-username: doctor
+    dev-password: test-password
+  crypto:
+    active-provider: development-jca
+    enforce-compliance: false
+  eventing:
+    outbox:
+      enabled: false
+springdoc:
+  api-docs:
+    enabled: true

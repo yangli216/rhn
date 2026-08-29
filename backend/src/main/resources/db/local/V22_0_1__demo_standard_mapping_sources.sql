@@ -1,0 +1,33 @@
+insert into code_systems (
+    id, scope_type, scope_id, code, name, canonical_uri, version_code, status,
+    effective_from, effective_to, created_at, system_type, publisher, description,
+    source_type, revision, updated_at, authority_type, source_uri, content_hash
+) values
+    (362387869798001, 'PRODUCT', 0, 'CN.NHC.MEDICAL_SERVICE', '国家医疗服务项目规范',
+     'urn:cn:nhc:medical-service', '2026', 'ACTIVE', '2026-01-01', null, current_timestamp,
+     'SERVICE', '国家卫生健康委员会', '用于诊疗项目临床与监管标准映射的体验发布版',
+     'EXTERNAL_IMPORT', 0, current_timestamp, 'NATIONAL', null, 'DEMO-NHC-SERVICE-2026'),
+    (362387869798002, 'PRODUCT', 0, 'CN.NHSA.MEDICAL_SERVICE', '国家医保医疗服务目录',
+     'urn:cn:nhsa:medical-service', '2026', 'ACTIVE', '2026-01-01', null, current_timestamp,
+     'SERVICE', '国家医疗保障局', '用于诊疗项目医保映射的体验发布版',
+     'EXTERNAL_IMPORT', 0, current_timestamp, 'INSURANCE', null, 'DEMO-NHSA-SERVICE-2026'),
+    (362387869798003, 'PRODUCT', 0, 'CN.NHSA.DRUG', '国家医保药品目录',
+     'urn:cn:nhsa:drug', '2026', 'ACTIVE', '2026-01-01', null, current_timestamp,
+     'MEDICATION', '国家医疗保障局', '用于通用药品医保映射的体验发布版',
+     'EXTERNAL_IMPORT', 0, current_timestamp, 'INSURANCE', null, 'DEMO-NHSA-DRUG-2026'),
+    (362387869798004, 'PRODUCT', 0, 'CN.NMPA.DRUG', '国家药品监管标准目录',
+     'urn:cn:nmpa:drug', '2026', 'ACTIVE', '2026-01-01', null, current_timestamp,
+     'MEDICATION', '国家药品监督管理局', '用于通用药品监管映射的体验发布版',
+     'EXTERNAL_IMPORT', 0, current_timestamp, 'REGULATORY', null, 'DEMO-NMPA-DRUG-2026');
+
+insert into concepts (
+    id, code_system_id, code, display, definition, status, effective_from, effective_to, created_at,
+    concept_type, short_display, chapter_code, chapter_name, search_code, source_type,
+    replacement_concept_id, revision, updated_at
+) values
+    (362387869798011, 362387869798001, 'NHC-LAB-CBC', '全血细胞计数及分类', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'SERVICE', '血细胞分析', 'LAB', '临床检验', 'QXXBJSJFL', 'EXTERNAL_IMPORT', null, 0, current_timestamp),
+    (362387869798012, 362387869798001, 'NHC-LAB-GLU', '葡萄糖测定', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'SERVICE', null, 'LAB', '临床检验', 'PTTCD', 'EXTERNAL_IMPORT', null, 0, current_timestamp),
+    (362387869798013, 362387869798002, 'NHSA-SRV-001', '血细胞分析', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'SERVICE', null, 'LAB', '检验类', 'XXBFX', 'EXTERNAL_IMPORT', null, 0, current_timestamp),
+    (362387869798021, 362387869798003, 'NHSA-DRUG-AMOX', '阿莫西林口服常释剂型', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'MEDICATION', '阿莫西林', 'ANTIBACTERIAL', '抗微生物药', 'AMXL', 'EXTERNAL_IMPORT', null, 0, current_timestamp),
+    (362387869798022, 362387869798003, 'NHSA-DRUG-MET', '二甲双胍口服常释剂型', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'MEDICATION', '二甲双胍', 'ENDOCRINE', '内分泌用药', 'JSEJG', 'EXTERNAL_IMPORT', null, 0, current_timestamp),
+    (362387869798023, 362387869798004, 'NMPA-AMOXICILLIN', '阿莫西林', null, 'ACTIVE', '2026-01-01', null, current_timestamp, 'MEDICATION', null, null, null, 'AMXL', 'EXTERNAL_IMPORT', null, 0, current_timestamp);

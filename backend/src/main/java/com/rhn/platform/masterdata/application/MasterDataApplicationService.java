@@ -1,0 +1,661 @@
+package com.rhn.platform.masterdata.application;
+
+import com.rhn.platform.dictionary.api.DictionaryDirectory;
+import com.rhn.platform.masterdata.api.MasterDataCommands.AdoptionCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.ManufacturerCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.PackageCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.PriceCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.ProductCommand;
+import com.rhn.platform.masterdata.api.MasterDataCommands.ServiceCommand;
+import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
+import com.rhn.platform.masterdata.api.MasterDataItemTypes;
+import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
+import com.rhn.platform.masterdata.api.ServiceCatalogDirectory.ServiceCatalogSnapshot;
+import com.rhn.platform.masterdata.api.MasterDataViews.ManufacturerView;
+import com.rhn.platform.masterdata.api.MasterDataViews.ItemTypeView;
+import com.rhn.platform.masterdata.api.MasterDataViews.LaboratoryServiceView;
+import com.rhn.platform.masterdata.api.MasterDataViews.LaboratorySpecimenView;
+import com.rhn.platform.masterdata.api.MasterDataViews.ExaminationServiceView;
+import com.rhn.platform.masterdata.api.MasterDataViews.ServiceVariantView;
+import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductView;
+import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
+import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
+import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
+import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
+import com.rhn.platform.masterdata.api.MasterDataViews.ServiceView;
+import com.rhn.platform.masterdata.domain.CatalogPrice;
+import com.rhn.platform.masterdata.domain.ItemPackage;
+import com.rhn.platform.masterdata.domain.ItemType;
+import com.rhn.platform.masterdata.domain.ItemAttributeSubject;
+import com.rhn.platform.masterdata.domain.LaboratoryService;
+import com.rhn.platform.masterdata.domain.LaboratoryServiceSpecimen;
+import com.rhn.platform.masterdata.domain.ExaminationService;
+import com.rhn.platform.masterdata.domain.ServiceVariant;
+import com.rhn.platform.masterdata.domain.Manufacturer;
+import com.rhn.platform.masterdata.domain.Medication;
+import com.rhn.platform.masterdata.domain.MedicationProduct;
+import com.rhn.platform.masterdata.domain.OrganizationCatalogItem;
+import com.rhn.platform.masterdata.domain.ServiceCatalogItem;
+import com.rhn.platform.masterdata.infrastructure.CatalogPriceRepository;
+import com.rhn.platform.masterdata.infrastructure.ItemPackageRepository;
+import com.rhn.platform.masterdata.infrastructure.ItemTypeRepository;
+import com.rhn.platform.masterdata.infrastructure.ItemAttributeSubjectRepository;
+import com.rhn.platform.masterdata.infrastructure.LaboratoryServiceRepository;
+import com.rhn.platform.masterdata.infrastructure.LaboratoryServiceSpecimenRepository;
+import com.rhn.platform.masterdata.infrastructure.ExaminationServiceRepository;
+import com.rhn.platform.masterdata.infrastructure.ExaminationAttachmentItemRepository;
+import com.rhn.platform.masterdata.infrastructure.ServiceVariantRepository;
+import com.rhn.platform.masterdata.infrastructure.ManufacturerRepository;
+import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
+import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
+import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemRepository;
+import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
+import com.rhn.platform.masterdata.infrastructure.SupplyItemRepository;
+import com.rhn.platform.organization.api.OrganizationDirectory;
+import com.rhn.shared.context.ExecutionContext;
+import com.rhn.shared.context.ExecutionContextProvider;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collection;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import static com.rhn.shared.api.BusinessErrors.badRequest;
+import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.notFound;
+
+@Service
+public class MasterDataApplicationService implements ServiceCatalogDirectory {
+    private final ServiceCatalogItemRepository serviceRepository;
+    private final SupplyItemRepository supplyRepository;
+    private final MedicationRepository medicationRepository;
+    private final ManufacturerRepository manufacturerRepository;
+    private final MedicationProductRepository productRepository;
+    private final ItemPackageRepository packageRepository;
+    private final ItemTypeRepository itemTypeRepository;
+    private final ItemAttributeSubjectRepository attributeSubjectRepository;
+    private final LaboratoryServiceRepository laboratoryServiceRepository;
+    private final LaboratoryServiceSpecimenRepository laboratorySpecimenRepository;
+    private final ExaminationServiceRepository examinationServiceRepository;
+    private final ExaminationAttachmentItemRepository examinationAttachmentRepository;
+    private final ServiceVariantRepository serviceVariantRepository;
+    private final OrganizationCatalogItemRepository adoptionRepository;
+    private final CatalogPriceRepository priceRepository;
+    private final DictionaryDirectory dictionaryDirectory;
+    private final OrganizationDirectory organizationDirectory;
+    private final ExecutionContextProvider contextProvider;
+
+    public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
+                                        SupplyItemRepository supplyRepository,
+                                        MedicationRepository medicationRepository,
+                                        ManufacturerRepository manufacturerRepository,
+                                        MedicationProductRepository productRepository,
+                                        ItemPackageRepository packageRepository,
+                                        ItemTypeRepository itemTypeRepository,
+                                        ItemAttributeSubjectRepository attributeSubjectRepository,
+                                        LaboratoryServiceRepository laboratoryServiceRepository,
+                                        LaboratoryServiceSpecimenRepository laboratorySpecimenRepository,
+                                        ExaminationServiceRepository examinationServiceRepository,
+                                        ExaminationAttachmentItemRepository examinationAttachmentRepository,
+                                        ServiceVariantRepository serviceVariantRepository,
+                                        OrganizationCatalogItemRepository adoptionRepository,
+                                        CatalogPriceRepository priceRepository,
+                                        DictionaryDirectory dictionaryDirectory,
+                                        OrganizationDirectory organizationDirectory,
+                                        ExecutionContextProvider contextProvider) {
+        this.serviceRepository = serviceRepository;
+        this.supplyRepository = supplyRepository;
+        this.medicationRepository = medicationRepository;
+        this.manufacturerRepository = manufacturerRepository;
+        this.productRepository = productRepository;
+        this.packageRepository = packageRepository;
+        this.itemTypeRepository = itemTypeRepository;
+        this.attributeSubjectRepository = attributeSubjectRepository;
+        this.laboratoryServiceRepository = laboratoryServiceRepository;
+        this.laboratorySpecimenRepository = laboratorySpecimenRepository;
+        this.examinationServiceRepository = examinationServiceRepository;
+        this.examinationAttachmentRepository = examinationAttachmentRepository;
+        this.serviceVariantRepository = serviceVariantRepository;
+        this.adoptionRepository = adoptionRepository;
+        this.priceRepository = priceRepository;
+        this.dictionaryDirectory = dictionaryDirectory;
+        this.organizationDirectory = organizationDirectory;
+        this.contextProvider = contextProvider;
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemTypeView> listItemTypes(String subjectType) {
+        Long tenantId = current().tenantId();
+        List<ItemType> values = blank(subjectType)
+                ? itemTypeRepository.findByStatusOrderBySubjectTypeAscSortOrderAscNameAsc("ACTIVE")
+                : itemTypeRepository.findBySubjectTypeAndStatusOrderBySortOrderAscNameAsc(subjectType, "ACTIVE");
+        return values.stream()
+                .filter(value -> value.tenantId() == null || value.tenantId().equals(tenantId))
+                .map(value -> new ItemTypeView(value.id(), value.revision(), value.scopeType(), value.tenantId(),
+                        value.parentId(), value.code(), value.name(), value.description(), value.subjectType(),
+                        value.sortOrder(), value.status()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ServiceView> listServices(String query, String serviceType, String status, Long organizationId) {
+        ExecutionContext context = current();
+        List<ServiceCatalogItem> items = serviceRepository
+                .findByTenantIdAndItemTypeOrderByName(context.tenantId(), "SERVICE").stream()
+                .filter(value -> blank(serviceType) || serviceType.equals(value.serviceType()))
+                .filter(value -> blank(status) || status.equals(value.status()))
+                .limit(500).toList();
+        return serviceViews(context.tenantId(), items, organizationId).stream()
+                .filter(value -> matchesServiceView(query, value))
+                .limit(500)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate) {
+        ServiceCatalogItem item = requireService(tenantId, catalogItemId);
+        LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
+        if (!"ACTIVE".equals(item.status()) || item.validFrom().isAfter(date)
+                || item.validTo() != null && item.validTo().isBefore(date)) {
+            throw badRequest("SCHEDULE_SERVICE_INACTIVE", "所选诊疗项目在排班日期范围内不可用");
+        }
+        return new ServiceCatalogSnapshot(item.id(), item.code(), item.name(), item.unitCode(),
+                item.serviceType(), item.validFrom(), item.validTo());
+    }
+
+    @Transactional
+    public ServiceView createService(ServiceCommand command, Long organizationId) {
+        ExecutionContext context = current();
+        validateService(command);
+        if (serviceRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("SERVICE_CODE_DUPLICATE", "当前租户已存在相同诊疗项目编码");
+        }
+        ServiceCatalogItem item = serviceRepository.save(new ServiceCatalogItem(context.tenantId(),
+                context.subjectId(), MasterDataItemTypes.forService(command.serviceType()), command.code(),
+                command.name(), command.unitCode(), command.orderable(),
+                command.chargeable(), command.status(), command.validFrom(), command.validTo(),
+                command.serviceType(), command.serviceSubtype(), command.usageType(), command.medicalTechnology(),
+                command.combinationItem(), command.singleOrder(), command.specimenType(), command.examinationType(),
+                command.accountingCategory(), command.duplicateRule(), command.multiSitePrice(), command.freeSiteCount(),
+                command.maxBodySiteCount(), command.mutualRecognitionCode(), command.pregnancyAlert(),
+                command.attention(), command.examinationNotes()));
+        synchronizeServiceTypeExtension(item, command);
+        attributeSubjectRepository.save(ItemAttributeSubject.catalogItem(
+                context.tenantId(), item.id(), context.subjectId()));
+        return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public void validateServiceForImport(ServiceCommand command) {
+        ExecutionContext context = current();
+        validateService(command);
+        if (serviceRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("SERVICE_CODE_DUPLICATE", "当前租户已存在相同诊疗项目编码");
+        }
+    }
+
+    @Transactional
+    public ServiceView updateService(Long id, long expectedRevision, ServiceCommand command, Long organizationId) {
+        ExecutionContext context = current();
+        validateService(command);
+        ServiceCatalogItem item = requireService(context.tenantId(), id);
+        requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
+        item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forService(command.serviceType()),
+                command.name(), command.unitCode(), command.orderable(),
+                command.chargeable(), command.status(), command.validFrom(), command.validTo(), command.serviceType(),
+                command.serviceSubtype(), command.usageType(), command.medicalTechnology(), command.combinationItem(),
+                command.singleOrder(), command.specimenType(), command.examinationType(), command.accountingCategory(),
+                command.duplicateRule(), command.multiSitePrice(), command.freeSiteCount(),
+                command.maxBodySiteCount(), command.mutualRecognitionCode(), command.pregnancyAlert(),
+                command.attention(), command.examinationNotes());
+        synchronizeServiceTypeExtension(item, command);
+        return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional
+    public ServiceView changeServiceStatus(Long id, long expectedRevision, String status, Long organizationId) {
+        ExecutionContext context = current();
+        requireCode(MasterDataDictionaryCodes.STATUS, status);
+        ServiceCatalogItem item = requireService(context.tenantId(), id);
+        requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
+        item.changeStatus(expectedRevision, context.subjectId(), status);
+        return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public List<MedicationView> listMedications(String query, String medicationType, String status,
+                                                Long organizationId) {
+        ExecutionContext context = current();
+        List<Medication> items = medicationRepository.findByTenantIdOrderByName(context.tenantId()).stream()
+                .filter(value -> blank(medicationType) || medicationType.equals(value.medicationType()))
+                .filter(value -> blank(status) || status.equals(value.status()))
+                .filter(value -> matches(query, value.code(), value.name(), value.aliasName(), value.doseForm(),
+                        value.preparationSpec()))
+                .limit(500).toList();
+        return medicationViews(context.tenantId(), items, organizationId);
+    }
+
+    @Transactional
+    public MedicationView createMedication(MedicationCommand command, Long organizationId) {
+        ExecutionContext context = current();
+        validateMedication(command);
+        if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
+        }
+        Medication item = medicationRepository.save(new Medication(context.tenantId(), context.subjectId(),
+                MasterDataItemTypes.forMedication(command.medicationType()), command.code(), command.name(),
+                command.aliasName(), command.medicationType(), command.doseForm(),
+                command.preparationSpec(), command.preparationUnit(), command.strengthValue(), command.strengthUnit(),
+                command.storageType(), command.prescriptionDrug(), command.essentialDrug(), command.antimicrobial(),
+                command.antimicrobialLevel(), command.skinTestRequired(), command.defaultDose(),
+                command.defaultDoseUnit(), command.defaultRoute(), command.defaultFrequency(),
+                command.chronicDiseaseDrug(), command.singleOrder(), command.status()));
+        attributeSubjectRepository.save(ItemAttributeSubject.medication(
+                context.tenantId(), item.id(), context.subjectId()));
+        return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public void validateMedicationForImport(MedicationCommand command) {
+        ExecutionContext context = current();
+        validateMedication(command);
+        if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
+        }
+    }
+
+    @Transactional
+    public MedicationView updateMedication(Long id, long expectedRevision, MedicationCommand command,
+                                           Long organizationId) {
+        ExecutionContext context = current();
+        validateMedication(command);
+        Medication item = requireMedication(context.tenantId(), id);
+        requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
+        item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
+                command.name(), command.aliasName(),
+                command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
+                command.strengthValue(), command.strengthUnit(), command.storageType(), command.prescriptionDrug(),
+                command.essentialDrug(), command.antimicrobial(), command.antimicrobialLevel(),
+                command.skinTestRequired(), command.defaultDose(), command.defaultDoseUnit(),
+                command.defaultRoute(), command.defaultFrequency(), command.chronicDiseaseDrug(),
+                command.singleOrder(), command.status());
+        return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional
+    public MedicationView changeMedicationStatus(Long id, long expectedRevision, String status, Long organizationId) {
+        ExecutionContext context = current();
+        requireCode(MasterDataDictionaryCodes.STATUS, status);
+        Medication item = requireMedication(context.tenantId(), id);
+        requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
+        item.changeStatus(expectedRevision, context.subjectId(), status);
+        return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public List<ManufacturerView> listManufacturers(String query) {
+        Long tenantId = current().tenantId();
+        return manufacturerRepository.findByTenantIdOrderByName(tenantId).stream()
+                .filter(value -> matches(query, value.code(), value.name(), value.shortName()))
+                .map(this::manufacturerView).toList();
+    }
+
+    @Transactional
+    public ManufacturerView createManufacturer(ManufacturerCommand command) {
+        ExecutionContext context = current();
+        requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
+        if (!blank(command.productionPlace())) {
+            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+        }
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (manufacturerRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("MANUFACTURER_CODE_DUPLICATE", "当前租户已存在相同生产企业编码");
+        }
+        return manufacturerView(manufacturerRepository.save(new Manufacturer(context.tenantId(), context.subjectId(),
+                command.code(), command.name(), command.shortName(), command.manufacturerType(),
+                command.productionPlace(), command.countryCode(), command.address(), command.status())));
+    }
+
+    @Transactional
+    public MedicationProductView createProduct(ProductCommand command, Long organizationId) {
+        ExecutionContext context = current();
+        Medication medication = requireMedication(context.tenantId(), command.medicationId());
+        Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
+                .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (!blank(command.marketStatus())) {
+            requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
+        }
+        if (!blank(command.productionPlace())) {
+            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+        }
+        if (!blank(command.shelfLifeUnit())) {
+            requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
+        }
+        requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
+                "产品有效期数值和单位必须同时填写");
+        if (productRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
+            throw conflict("MEDICATION_PRODUCT_CODE_DUPLICATE", "当前租户已存在相同药品产品编码");
+        }
+        MedicationProduct product = productRepository.save(new MedicationProduct(context.tenantId(), context.subjectId(),
+                MasterDataItemTypes.MEDICATION_PRODUCT, medication.id(), manufacturer.id(), command.code(),
+                command.name(), command.unitCode(), command.tradeName(),
+                command.approvalCode(), command.approvalFrom(), command.approvalTo(), command.registrationCode(),
+                command.registrationFrom(), command.registrationTo(), command.purchaseCode(), command.marketStatus(),
+                command.productionPlace(), command.otc(), command.centralPurchase(), command.importAllowed(),
+                command.traceSplitRequired(), command.orderable(), command.chargeable(), command.stocked(),
+                command.shelfLifeValue(), command.shelfLifeUnit(), command.status(), command.validFrom(),
+                command.validTo(), command.indication(), command.instruction()));
+        attributeSubjectRepository.save(ItemAttributeSubject.catalogItem(
+                context.tenantId(), product.id(), context.subjectId()));
+        return productViews(context.tenantId(), List.of(product), Map.of(manufacturer.id(), manufacturer),
+                organizationId).getFirst();
+    }
+
+    @Transactional
+    public PackageView createPackage(Long catalogItemId, PackageCommand command) {
+        ExecutionContext context = current();
+        requireProduct(context.tenantId(), catalogItemId);
+        requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        ItemPackage value = packageRepository.save(new ItemPackage(context.tenantId(), catalogItemId,
+                command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
+                command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
+                command.defaultSale(), command.defaultDispense(), command.status(), command.validFrom(), command.validTo()));
+        return packageView(value);
+    }
+
+    @Transactional
+    public OrganizationAdoptionView adopt(Long catalogItemId, AdoptionCommand command) {
+        ExecutionContext context = current();
+        requireCatalogItem(context.tenantId(), catalogItemId);
+        organizationDirectory.requireOrganization(context.tenantId(), command.organizationId());
+        if (command.defaultDepartmentId() != null) {
+            organizationDirectory.requireDepartment(context.tenantId(), command.organizationId(), command.defaultDepartmentId());
+        }
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (adoptionRepository.findFirstByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
+                context.tenantId(), command.organizationId(), catalogItemId).isPresent()) {
+            throw conflict("ORGANIZATION_CATALOG_ITEM_EXISTS", "该机构已经采用此目录项，请在后续版本中维护状态");
+        }
+        return adoptionView(adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(),
+                context.subjectId(), command.organizationId(), catalogItemId, command.defaultDepartmentId(),
+                command.localCode(), command.localName(), command.orderable(), command.executable(),
+                command.chargeable(), command.purchasable(), command.stocked(), command.dispensable(),
+                command.returnable(), command.status(), command.validFrom(), command.validTo())));
+    }
+
+    @Transactional
+    public PriceView createPrice(Long catalogItemId, PriceCommand command) {
+        ExecutionContext context = current();
+        requireCatalogItem(context.tenantId(), catalogItemId);
+        if (command.organizationId() != null) {
+            organizationDirectory.requireOrganization(context.tenantId(), command.organizationId());
+        }
+        requireCode(MasterDataDictionaryCodes.PRICE_TYPE, command.priceType());
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        return priceView(priceRepository.save(new CatalogPrice(context.tenantId(), context.subjectId(),
+                catalogItemId, command.organizationId(), command.packageId(), command.priceType(), command.price(),
+                command.currencyCode(), command.priceDocumentCode(), command.priceReason(), command.validFrom(),
+                command.validTo(), command.status())));
+    }
+
+    private List<ServiceView> serviceViews(Long tenantId, List<ServiceCatalogItem> items, Long organizationId) {
+        List<Long> ids = items.stream().map(ServiceCatalogItem::id).toList();
+        Map<Long, OrganizationCatalogItem> adoptions = adoptionMap(tenantId, organizationId, ids);
+        Map<Long, List<CatalogPrice>> prices = priceMap(tenantId, ids);
+        Map<Long, LaboratoryService> laboratories = laboratoryServiceRepository
+                .findByTenantIdAndCatalogItemIdIn(tenantId, ids).stream()
+                .collect(Collectors.toMap(LaboratoryService::catalogItemId, Function.identity()));
+        Map<Long, List<LaboratoryServiceSpecimen>> specimens = laboratorySpecimenRepository
+                .findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscSortOrderAsc(tenantId, ids).stream()
+                .collect(Collectors.groupingBy(LaboratoryServiceSpecimen::catalogItemId));
+        Map<Long, ExaminationService> examinations = examinationServiceRepository
+                .findByTenantIdAndCatalogItemIdIn(tenantId, ids).stream()
+                .collect(Collectors.toMap(ExaminationService::catalogItemId, Function.identity()));
+        Map<Long, List<ServiceVariant>> variants = serviceVariantRepository
+                .findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscSortOrderAsc(tenantId, ids).stream()
+                .collect(Collectors.groupingBy(ServiceVariant::catalogItemId));
+        return items.stream().map(value -> new ServiceView(value.id(), value.revision(), value.itemTypeId(),
+                value.itemMasterId(), value.code(), value.name(),
+                value.unitCode(), value.orderable(), value.chargeable(), value.status(), value.validFrom(), value.validTo(),
+                value.serviceType(), value.serviceSubtype(), value.usageType(), value.medicalTechnology(),
+                value.combinationItem(), value.singleOrder(), value.specimenType(), value.examinationType(),
+                value.accountingCategory(), value.duplicateRule(), value.multiSitePrice(), value.freeSiteCount(),
+                value.maxBodySiteCount(), value.mutualRecognitionCode(), value.pregnancyAlert(),
+                value.attention(), value.examinationNotes(), laboratoryView(laboratories.get(value.id()),
+                        specimens.getOrDefault(value.id(), List.of())),
+                examinationView(examinations.get(value.id()), variants.getOrDefault(value.id(), List.of())),
+                adoptionView(adoptions.get(value.id())), priceViews(prices.get(value.id())))).toList();
+    }
+
+    private LaboratoryServiceView laboratoryView(LaboratoryService value,
+                                                  List<LaboratoryServiceSpecimen> specimens) {
+        if (value == null) return null;
+        return new LaboratoryServiceView(value.laboratoryMethod(), value.reportDuration(),
+                value.reportDurationUnit(), value.fastingRequired(), value.pointOfCare(),
+                value.collectionDescription(), specimens.stream().map(specimen -> new LaboratorySpecimenView(
+                        specimen.id(), specimen.specimenItemId(), specimen.containerItemId(),
+                        specimen.minimumQuantity(), specimen.minimumQuantityUnit(), specimen.defaultSpecimen(),
+                        specimen.requiredSpecimen(), specimen.sortOrder(), specimen.collectionDescription(),
+                        specimen.status())).toList());
+    }
+
+    private ExaminationServiceView examinationView(ExaminationService value, List<ServiceVariant> variants) {
+        if (value == null) return null;
+        return new ExaminationServiceView(value.examinationType(), value.bodySiteRequired(), value.multiBodySite(),
+                value.maxBodySiteCount(), value.preparationDescription(), variants.stream()
+                .map(variant -> new ServiceVariantView(variant.id(), variant.bodySiteConceptId(), variant.code(),
+                        variant.name(), variant.methodType(), variant.bodySiteRequired(),
+                        variant.mutualRecognitionCode(), variant.sortOrder(), variant.status()))
+                .toList());
+    }
+
+    private void synchronizeServiceTypeExtension(ServiceCatalogItem item, ServiceCommand command) {
+        if ("LABORATORY".equals(command.serviceType())) {
+            serviceVariantRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+            examinationAttachmentRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+            examinationServiceRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+            LaboratoryService laboratory = laboratoryServiceRepository
+                    .findByTenantIdAndCatalogItemId(item.tenantId(), item.id())
+                    .orElseGet(() -> new LaboratoryService(item.tenantId(), item.id(), command.attention()));
+            laboratory.synchronizeLegacy(command.attention());
+            laboratoryServiceRepository.save(laboratory);
+            return;
+        }
+        laboratorySpecimenRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+        laboratoryServiceRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+        if ("EXAMINATION".equals(command.serviceType())) {
+            ExaminationService examination = examinationServiceRepository
+                    .findByTenantIdAndCatalogItemId(item.tenantId(), item.id())
+                    .orElseGet(() -> new ExaminationService(item.tenantId(), item.id(), command.examinationType(),
+                            command.maxBodySiteCount(), command.attention()));
+            examination.synchronizeLegacy(command.examinationType(), command.maxBodySiteCount(), command.attention());
+            examination.synchronizeLegacyPricing(command.multiSitePrice(), command.freeSiteCount(),
+                    command.maxBodySiteCount());
+            examinationServiceRepository.save(examination);
+        } else {
+            serviceVariantRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+            examinationAttachmentRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+            examinationServiceRepository.deleteByTenantIdAndCatalogItemId(item.tenantId(), item.id());
+        }
+    }
+
+    private List<MedicationView> medicationViews(Long tenantId, List<Medication> items, Long organizationId) {
+        List<Long> medicationIds = items.stream().map(Medication::id).toList();
+        List<MedicationProduct> products = medicationIds.isEmpty() ? List.of()
+                : productRepository.findByTenantIdAndMedicationIdIn(tenantId, medicationIds);
+        Map<Long, Manufacturer> manufacturers = manufacturerRepository.findByTenantIdOrderByName(tenantId).stream()
+                .collect(Collectors.toMap(Manufacturer::id, Function.identity()));
+        Map<Long, List<MedicationProductView>> productViews = productViews(tenantId, products, manufacturers,
+                organizationId).stream().collect(Collectors.groupingBy(MedicationProductView::medicationId));
+        return items.stream().map(value -> new MedicationView(value.id(), value.revision(), value.itemTypeId(),
+                value.itemMasterId(), value.code(), value.name(),
+                value.aliasName(), value.medicationType(), value.doseForm(), value.preparationSpec(),
+                value.preparationUnit(), value.strengthValue(), value.strengthUnit(), value.storageType(),
+                value.prescriptionDrug(), value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),
+                value.skinTestRequired(), value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(),
+                value.defaultFrequency(), value.chronicDiseaseDrug(), value.singleOrder(), value.status(),
+                productViews.getOrDefault(value.id(), List.of()))).toList();
+    }
+
+    private List<MedicationProductView> productViews(Long tenantId, List<MedicationProduct> products,
+                                                     Map<Long, Manufacturer> manufacturers, Long organizationId) {
+        List<Long> ids = products.stream().map(MedicationProduct::id).toList();
+        Map<Long, List<ItemPackage>> packages = ids.isEmpty() ? Map.of() : packageRepository
+                .findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscQuantityFactorAsc(tenantId, ids).stream()
+                .collect(Collectors.groupingBy(ItemPackage::catalogItemId));
+        Map<Long, OrganizationCatalogItem> adoptions = adoptionMap(tenantId, organizationId, ids);
+        Map<Long, List<CatalogPrice>> prices = priceMap(tenantId, ids);
+        return products.stream().map(value -> new MedicationProductView(value.id(), value.revision(),
+                value.itemTypeId(), value.itemMasterId(), value.medicationId(), value.manufacturerId(),
+                nameOf(manufacturers.get(value.manufacturerId())),
+                value.code(), value.name(), value.unitCode(), value.tradeName(), value.approvalCode(),
+                value.approvalFrom(), value.approvalTo(), value.registrationCode(), value.registrationFrom(),
+                value.registrationTo(), value.purchaseCode(), value.marketStatus(), value.productionPlace(),
+                value.otc(), value.centralPurchase(), value.importAllowed(), value.traceSplitRequired(),
+                value.orderable(), value.chargeable(), value.stocked(), value.shelfLifeValue(), value.shelfLifeUnit(),
+                value.status(), value.validFrom(), value.validTo(), value.indication(), value.instruction(),
+                packages.getOrDefault(value.id(), List.of()).stream().map(this::packageView).toList(),
+                adoptionView(adoptions.get(value.id())), priceViews(prices.get(value.id())))).toList();
+    }
+
+    private Map<Long, OrganizationCatalogItem> adoptionMap(Long tenantId, Long organizationId, Collection<Long> itemIds) {
+        if (organizationId == null || itemIds.isEmpty()) return Map.of();
+        return adoptionRepository.findByTenantIdAndOrganizationIdAndCatalogItemIdIn(tenantId, organizationId, itemIds)
+                .stream().filter(value -> value.effectiveAt(java.time.LocalDate.now()))
+                .collect(Collectors.toMap(OrganizationCatalogItem::catalogItemId, Function.identity(),
+                        (left, right) -> left.validFrom().isAfter(right.validFrom()) ? left : right));
+    }
+
+    private Map<Long, List<CatalogPrice>> priceMap(Long tenantId, Collection<Long> itemIds) {
+        if (itemIds.isEmpty()) return Map.of();
+        return priceRepository.findByTenantIdAndCatalogItemIdInOrderByValidFromDesc(tenantId, itemIds).stream()
+                .collect(Collectors.groupingBy(CatalogPrice::catalogItemId));
+    }
+
+    private ManufacturerView manufacturerView(Manufacturer value) {
+        return new ManufacturerView(value.id(), value.revision(), value.code(), value.name(), value.shortName(),
+                value.manufacturerType(), value.productionPlace(), value.countryCode(), value.address(), value.status());
+    }
+
+    private PackageView packageView(ItemPackage value) {
+        return new PackageView(value.id(), value.basePackageId(), value.unitCode(), value.unitName(), value.packageSpec(),
+                value.quantityFactor(), value.usageType(), value.barcode(), value.defaultPurchase(), value.defaultSale(),
+                value.defaultDispense(), value.status(), value.validFrom(), value.validTo());
+    }
+
+    private OrganizationAdoptionView adoptionView(OrganizationCatalogItem value) {
+        if (value == null) return null;
+        return new OrganizationAdoptionView(value.id(), value.revision(), value.organizationId(), value.catalogItemId(),
+                value.defaultDepartmentId(), value.localCode(), value.localName(), value.orderable(), value.executable(),
+                value.chargeable(), value.purchasable(), value.stocked(), value.dispensable(), value.returnable(),
+                value.status(), value.validFrom(), value.validTo(), value.replacesAdoptionId());
+    }
+
+    private List<PriceView> priceViews(List<CatalogPrice> values) {
+        return values == null ? List.of() : values.stream().map(this::priceView).toList();
+    }
+
+    private PriceView priceView(CatalogPrice value) {
+        return new PriceView(value.id(), value.revision(), value.organizationId(), value.packageId(), value.priceType(),
+                value.price(), value.currencyCode(), value.priceDocumentCode(), value.priceReason(), value.validFrom(),
+                value.validTo(), value.status(), value.replacesPriceId());
+    }
+
+    private String nameOf(Manufacturer value) { return value == null ? "未知厂家" : value.name(); }
+
+    private void validateService(ServiceCommand command) {
+        requireCode(MasterDataDictionaryCodes.SERVICE_TYPE, command.serviceType());
+        requireCode(MasterDataDictionaryCodes.SERVICE_USE, command.usageType());
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (!blank(command.duplicateRule())) {
+            requireCode(MasterDataDictionaryCodes.SERVICE_DUPLICATE_RULE, command.duplicateRule());
+        }
+        if (!command.singleOrder() && command.orderable() && !command.combinationItem()) {
+            throw badRequest("SERVICE_SINGLE_ORDER_CONFLICT", "非单开项目不能作为普通独立开立项");
+        }
+    }
+
+    private void validateMedication(MedicationCommand command) {
+        requireCode(MasterDataDictionaryCodes.MEDICATION_TYPE, command.medicationType());
+        if (!blank(command.doseForm())) requireCode(MasterDataDictionaryCodes.DOSE_FORM, command.doseForm());
+        if (!blank(command.storageType())) requireCode(MasterDataDictionaryCodes.STORAGE_TYPE, command.storageType());
+        if (!blank(command.antimicrobialLevel())) {
+            requireCode(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL, command.antimicrobialLevel());
+        }
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (command.strengthValue() != null && blank(command.strengthUnit())) {
+            throw badRequest("MEDICATION_STRENGTH_UNIT_REQUIRED", "填写药品含量时必须同时填写含量单位");
+        }
+        requirePair(command.defaultDose(), command.defaultDoseUnit(), "MEDICATION_DEFAULT_DOSE_UNIT_REQUIRED",
+                "填写默认剂量时必须同时填写剂量单位");
+        if (!command.antimicrobial() && !blank(command.antimicrobialLevel())) {
+            throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_CONFLICT", "非抗菌药物不能设置抗菌药等级");
+        }
+    }
+
+    private void requirePair(Object value, String unit, String code, String message) {
+        if ((value == null) != blank(unit)) throw badRequest(code, message);
+    }
+
+    private void requireCode(String dictionary, String code) {
+        if (blank(code) || dictionaryDirectory.resolveActiveItems(current().tenantId(), dictionary).stream()
+                .noneMatch(value -> value.code().equals(code))) {
+            throw badRequest("MASTER_DATA_CODE_INVALID", "代码 " + code + " 不属于字典 " + dictionary);
+        }
+    }
+
+    private void requireCatalogItem(Long tenantId, Long id) {
+        if (serviceRepository.findByIdAndTenantIdAndItemType(id, tenantId, "SERVICE").isEmpty()
+                && productRepository.findByIdAndTenantIdAndItemType(id, tenantId, "MED_PRODUCT").isEmpty()
+                && supplyRepository.findByIdAndTenantId(id, tenantId).isEmpty()) {
+            throw notFound("CATALOG_ITEM_NOT_FOUND", "未找到目录项目");
+        }
+    }
+
+    private ServiceCatalogItem requireService(Long tenantId, Long id) {
+        return serviceRepository.findByIdAndTenantIdAndItemType(id, tenantId, "SERVICE")
+                .orElseThrow(() -> notFound("SERVICE_NOT_FOUND", "未找到诊疗项目"));
+    }
+
+    private Medication requireMedication(Long tenantId, Long id) {
+        return medicationRepository.findByIdAndTenantId(id, tenantId)
+                .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到药品知识"));
+    }
+
+    private MedicationProduct requireProduct(Long tenantId, Long id) {
+        return productRepository.findByIdAndTenantIdAndItemType(id, tenantId, "MED_PRODUCT")
+                .orElseThrow(() -> notFound("MEDICATION_PRODUCT_NOT_FOUND", "未找到药品产品"));
+    }
+
+    private void requireRevision(long current, long expected, String code, String message) {
+        if (current != expected) throw conflict(code, message);
+    }
+
+    private boolean matches(String query, String... values) {
+        if (blank(query)) return true;
+        String normalized = query.trim().toLowerCase(Locale.ROOT);
+        for (String value : values) {
+            if (value != null && value.toLowerCase(Locale.ROOT).contains(normalized)) return true;
+        }
+        return false;
+    }
+
+    private boolean matchesServiceView(String query, ServiceView value) {
+        OrganizationAdoptionView adoption = value.organizationAdoption();
+        return matches(query, value.code(), value.name(), value.serviceSubtype(), value.specimenType(),
+                value.examinationType(), value.accountingCategory(),
+                adoption == null ? null : adoption.localCode(), adoption == null ? null : adoption.localName());
+    }
+
+    private boolean blank(String value) { return value == null || value.isBlank(); }
+    private ExecutionContext current() { return contextProvider.requireCurrent(); }
+}

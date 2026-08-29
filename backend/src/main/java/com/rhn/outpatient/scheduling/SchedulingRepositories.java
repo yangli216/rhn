@@ -1,0 +1,49 @@
+package com.rhn.outpatient.scheduling;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
+
+import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+
+interface ServiceResourceRepository extends JpaRepository<ServiceResource, Long> {
+    Optional<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
+            Long tenantId, Long organizationId, Long departmentId, Long practitionerId, Long catalogItemId);
+}
+
+interface ScheduleTemplateRepository extends JpaRepository<ScheduleTemplate, Long> {}
+
+interface ScheduleTemplatePeriodRepository extends JpaRepository<ScheduleTemplatePeriod, Long> {}
+
+interface ScheduleGenerationRunRepository extends JpaRepository<ScheduleGenerationRun, Long> {
+    Optional<ScheduleGenerationRun> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
+}
+
+interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule, Long> {
+    Optional<ServiceSchedule> findByIdAndTenantId(Long id, Long tenantId);
+    boolean existsByTenantIdAndResourceIdAndStartAtAndEndAt(
+            Long tenantId, Long resourceId, Instant startAt, Instant endAt);
+
+    List<ServiceSchedule> findByTenantIdAndGenerationRunIdOrderByStartAt(
+            Long tenantId, Long generationRunId);
+
+    List<ServiceSchedule> findByTenantIdAndOrganizationIdAndDepartmentIdAndServiceDateBetweenOrderByStartAt(
+            Long tenantId, Long organizationId, Long departmentId, LocalDate dateFrom, LocalDate dateTo);
+}
+
+interface ScheduleSlotPoolRepository extends JpaRepository<ScheduleSlotPool, Long> {
+    List<ScheduleSlotPool> findByTenantIdAndScheduleIdIn(Long tenantId, Collection<Long> scheduleIds);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    Optional<ScheduleSlotPool> findByTenantIdAndScheduleId(Long tenantId, Long scheduleId);
+}
+
+interface ServiceScheduleEventRepository extends JpaRepository<ServiceScheduleEvent, Long> {}
+
+interface SlotEventRepository extends JpaRepository<SlotEvent, Long> {
+    Optional<SlotEvent> findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(Long tenantId, Long poolId);
+}

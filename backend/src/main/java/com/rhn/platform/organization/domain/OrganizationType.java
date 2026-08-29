@@ -1,0 +1,13 @@
+package com.rhn.platform.organization.domain;
+
+public enum OrganizationType {
+    TOWNSHIP_HEALTH_CENTER,
+    COMMUNITY_HEALTH_CENTER,
+    HOSPITAL,
+    CLINIC,
+    CAMPUS,
+    CLINICAL_DEPARTMENT,
+    ADMINISTRATIVE_DEPARTMENT,
+    MEDICAL_TECHNOLOGY_DEPARTMENT,
+    NURSING_UNIT
+}

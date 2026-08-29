@@ -1,0 +1,3 @@
+package com.rhn.pharmacy.infrastructure;
+import com.rhn.pharmacy.domain.StockCountLine;import jakarta.persistence.LockModeType;import org.springframework.data.jpa.repository.*;import org.springframework.data.repository.query.Param;import java.util.*;
+public interface StockCountLineRepository extends JpaRepository<StockCountLine,Long>{List<StockCountLine>findByTenantIdAndStockCountIdOrderBySortOrder(Long tenantId,Long countId);@Lock(LockModeType.PESSIMISTIC_WRITE)@Query("select v from StockCountLine v where v.tenantId=:tenantId and v.stockCountId=:countId order by v.sortOrder")List<StockCountLine>lockByCount(@Param("tenantId")Long tenantId,@Param("countId")Long countId);}

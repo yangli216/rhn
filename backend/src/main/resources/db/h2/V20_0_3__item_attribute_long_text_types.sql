@@ -1,0 +1,10 @@
+alter table item_attribute_definitions alter column schema_json clob;
+alter table item_attribute_definitions alter column default_json clob;
+alter table item_attribute_definitions alter column allowed_scope_json clob;
+alter table item_type_attributes alter column default_json clob;
+alter table item_type_attributes alter column visible_condition_json clob;
+alter table item_type_attributes alter column required_condition_json clob;
+alter table item_attribute_values alter column value_json clob;
+alter table item_attribute_overrides alter column value_json clob;
+alter table item_attribute_changes alter column before_json clob;
+alter table item_attribute_changes alter column after_json clob;

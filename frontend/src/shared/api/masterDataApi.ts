@@ -1,0 +1,1322 @@
+import type { ApiClient } from './httpClient'
+
+export type MasterDataStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'ACTIVE' | 'SUSPENDED' | 'RETIRED' | 'REPLACED'
+
+export interface ItemType {
+  id: string
+  revision: number
+  scopeType: 'PLATFORM' | 'TENANT'
+  tenantId?: string
+  parentId?: string
+  code: string
+  name: string
+  description?: string
+  subjectType: 'MEDICATION' | 'CATALOG_ITEM'
+  sortOrder: number
+  status: MasterDataStatus
+}
+
+export interface CodeSystemSummary {
+  id: string
+  revision: number
+  code: string
+  name: string
+  version: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  effectiveFrom: string
+  effectiveTo?: string
+  publisher?: string
+}
+
+export interface ConceptAlias {
+  id: string
+  sdAliasType: string
+  sdAliasTypeText: string
+  name: string
+  searchCode?: string
+}
+
+export interface DiseaseConcept {
+  id: string
+  revision: number
+  codeSystemId: string
+  systemCode: string
+  systemName: string
+  systemVersion: string
+  code: string
+  display: string
+  shortDisplay?: string
+  sdConceptType: string
+  sdConceptTypeText: string
+  chapterCode?: string
+  chapterName?: string
+  definition?: string
+  searchCode?: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  effectiveFrom: string
+  effectiveTo?: string
+  replacementConceptId?: string
+  aliases: ConceptAlias[]
+}
+
+export interface OrganizationAdoption {
+  id: string
+  revision: number
+  organizationId: string
+  catalogItemId: string
+  defaultDepartmentId?: string
+  localCode?: string
+  localName?: string
+  orderable: boolean
+  executable: boolean
+  chargeable: boolean
+  purchasable: boolean
+  stocked: boolean
+  dispensable: boolean
+  returnable: boolean
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  validFrom: string
+  validTo?: string
+  replacesAdoptionId?: string
+}
+
+export interface CatalogPrice {
+  id: string
+  revision: number
+  organizationId?: string
+  packageId?: string
+  sdPriceType: string
+  sdPriceTypeText: string
+  price: number
+  currencyCode: string
+  priceDocumentCode?: string
+  priceReason?: string
+  validFrom: string
+  validTo?: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  replacesPriceId?: string
+}
+
+export interface CatalogLifecycle {
+  catalogItemId: string
+  organizationId?: string
+  businessDate: string
+  currentAdoption?: OrganizationAdoption
+  adoptionHistory: OrganizationAdoption[]
+  currentPrices: CatalogPrice[]
+  priceHistory: CatalogPrice[]
+}
+
+export interface CatalogChangeBatchRow {
+  id: string
+  rowNumber: number
+  catalogItemId: string
+  packageId?: string
+  status: 'SUCCEEDED' | 'FAILED'
+  targetResourceType?: string
+  targetId?: string
+  errorCode?: string
+  errorMessage?: string
+}
+
+export interface CatalogChangeBatch {
+  id: string
+  revision: number
+  batchType: 'ADOPTION' | 'PRICE'
+  operationType: 'ADOPT' | 'RETIRE' | 'PRICE_UPSERT'
+  organizationId?: string
+  requestCode: string
+  businessDate: string
+  status: 'PROCESSING' | 'COMPLETED' | 'PARTIAL' | 'FAILED'
+  totalRows: number
+  succeededRows: number
+  failedRows: number
+  createdAt: string
+  createdBy: string
+  updatedAt: string
+  rows: CatalogChangeBatchRow[]
+}
+
+export interface ServiceCatalogItem {
+  id: string
+  revision: number
+  itemTypeId: string
+  itemMasterId?: string
+  code: string
+  name: string
+  unitCode?: string
+  orderable: boolean
+  chargeable: boolean
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  validFrom: string
+  validTo?: string
+  sdServiceType: string
+  sdServiceTypeText: string
+  serviceSubtype?: string
+  sdUsageType: string
+  sdUsageTypeText: string
+  medicalTechnology: boolean
+  combinationItem: boolean
+  singleOrder: boolean
+  specimenType?: string
+  examinationType?: string
+  accountingCategory?: string
+  sdDuplicateRule?: string
+  sdDuplicateRuleText?: string
+  multiSitePrice?: number
+  freeSiteCount?: number
+  maxBodySiteCount?: number
+  mutualRecognitionCode?: string
+  pregnancyAlert: boolean
+  attention?: string
+  examinationNotes?: string
+  laboratory?: LaboratoryServiceDetail
+  examination?: ExaminationServiceDetail
+  organizationAdoption?: OrganizationAdoption
+  prices: CatalogPrice[]
+}
+
+export interface LaboratoryServiceDetail {
+  sdLaboratoryMethod?: string
+  sdLaboratoryMethodText?: string
+  reportDuration?: number
+  reportDurationUnit?: string
+  fastingRequired: boolean
+  pointOfCare: boolean
+  collectionDescription?: string
+  specimens: LaboratorySpecimen[]
+}
+
+export interface LaboratorySpecimen {
+  id: string
+  specimenItemId: string
+  containerItemId?: string
+  minimumQuantity?: number
+  minimumQuantityUnit?: string
+  defaultSpecimen: boolean
+  requiredSpecimen: boolean
+  sortOrder: number
+  collectionDescription?: string
+  status: string
+}
+
+export interface ExaminationServiceDetail {
+  sdExaminationType?: string
+  sdExaminationTypeText?: string
+  bodySiteRequired: boolean
+  multiBodySite: boolean
+  maxBodySiteCount?: number
+  preparationDescription?: string
+  variants: ServiceVariant[]
+}
+
+export interface ServiceVariant {
+  id: string
+  bodySiteConceptId?: string
+  code: string
+  name: string
+  sdMethodType?: string
+  sdMethodTypeText?: string
+  bodySiteRequired: boolean
+  mutualRecognitionCode?: string
+  sortOrder: number
+  status: string
+}
+
+export interface ItemPackage {
+  id: string
+  basePackageId?: string
+  unitCode: string
+  unitName: string
+  packageSpec?: string
+  quantityFactor: number
+  sdUsageType: string
+  sdUsageTypeText: string
+  barcode?: string
+  defaultPurchase: boolean
+  defaultSale: boolean
+  defaultDispense: boolean
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  validFrom: string
+  validTo?: string
+}
+
+export interface MedicationProduct {
+  id: string
+  revision: number
+  itemTypeId: string
+  itemMasterId?: string
+  medicationId: string
+  manufacturerId: string
+  manufacturerName: string
+  code: string
+  name: string
+  unitCode?: string
+  tradeName?: string
+  approvalCode?: string
+  approvalFrom?: string
+  approvalTo?: string
+  registrationCode?: string
+  registrationFrom?: string
+  registrationTo?: string
+  purchaseCode?: string
+  sdMarketStatus?: string
+  sdMarketStatusText?: string
+  sdProductionPlace?: string
+  sdProductionPlaceText?: string
+  otc: boolean
+  centralPurchase: boolean
+  importAllowed: boolean
+  traceSplitRequired: boolean
+  orderable: boolean
+  chargeable: boolean
+  stocked: boolean
+  shelfLifeValue?: number
+  sdShelfLifeUnit?: string
+  sdShelfLifeUnitText?: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  validFrom: string
+  validTo?: string
+  indication?: string
+  instruction?: string
+  packages: ItemPackage[]
+  organizationAdoption?: OrganizationAdoption
+  prices: CatalogPrice[]
+}
+
+export interface MedicationKnowledge {
+  id: string
+  revision: number
+  itemTypeId: string
+  itemMasterId?: string
+  code: string
+  name: string
+  aliasName?: string
+  sdMedicationType: string
+  sdMedicationTypeText: string
+  sdDoseForm?: string
+  sdDoseFormText?: string
+  preparationSpec?: string
+  preparationUnit?: string
+  strengthValue?: number
+  strengthUnit?: string
+  sdStorageType?: string
+  sdStorageTypeText?: string
+  prescriptionDrug: boolean
+  essentialDrug: boolean
+  antimicrobial: boolean
+  sdAntimicrobialLevel?: string
+  sdAntimicrobialLevelText?: string
+  skinTestRequired: boolean
+  defaultDose?: number
+  defaultDoseUnit?: string
+  defaultRoute?: string
+  defaultFrequency?: string
+  chronicDiseaseDrug: boolean
+  singleOrder: boolean
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  products: MedicationProduct[]
+}
+
+export interface Manufacturer {
+  id: string
+  revision: number
+  code: string
+  name: string
+  shortName?: string
+  sdManufacturerType: string
+  sdManufacturerTypeText: string
+  sdProductionPlace?: string
+  sdProductionPlaceText?: string
+  countryCode?: string
+  address?: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+}
+
+export interface DiseaseInput {
+  codeSystemId: string
+  code: string
+  display: string
+  shortDisplay?: string
+  sdConceptType: string
+  chapterCode?: string
+  chapterName?: string
+  definition?: string
+  searchCode?: string
+  effectiveFrom: string
+  effectiveTo?: string
+  sdStatus: MasterDataStatus
+  aliases: string[]
+}
+
+export interface ServiceInput {
+  code: string
+  name: string
+  unitCode?: string
+  orderable: boolean
+  chargeable: boolean
+  sdStatus: MasterDataStatus
+  validFrom: string
+  validTo?: string
+  sdServiceType: string
+  serviceSubtype?: string
+  sdUsageType: string
+  medicalTechnology: boolean
+  combinationItem: boolean
+  singleOrder: boolean
+  specimenType?: string
+  examinationType?: string
+  accountingCategory?: string
+  sdDuplicateRule?: string
+  multiSitePrice?: number
+  freeSiteCount?: number
+  maxBodySiteCount?: number
+  mutualRecognitionCode?: string
+  pregnancyAlert: boolean
+  attention?: string
+  examinationNotes?: string
+}
+
+export interface MedicationInput {
+  code: string
+  name: string
+  aliasName?: string
+  sdMedicationType: string
+  sdDoseForm?: string
+  preparationSpec?: string
+  preparationUnit?: string
+  strengthValue?: number
+  strengthUnit?: string
+  sdStorageType?: string
+  prescriptionDrug: boolean
+  essentialDrug: boolean
+  antimicrobial: boolean
+  sdAntimicrobialLevel?: string
+  skinTestRequired: boolean
+  defaultDose?: number
+  defaultDoseUnit?: string
+  defaultRoute?: string
+  defaultFrequency?: string
+  chronicDiseaseDrug: boolean
+  singleOrder: boolean
+  sdStatus: MasterDataStatus
+}
+
+export interface ProductInput {
+  medicationId: string
+  manufacturerId: string
+  code: string
+  name: string
+  unitCode?: string
+  tradeName?: string
+  approvalCode?: string
+  approvalFrom?: string
+  approvalTo?: string
+  registrationCode?: string
+  registrationFrom?: string
+  registrationTo?: string
+  purchaseCode?: string
+  sdMarketStatus?: string
+  sdProductionPlace?: string
+  otc: boolean
+  centralPurchase: boolean
+  importAllowed: boolean
+  traceSplitRequired: boolean
+  orderable: boolean
+  chargeable: boolean
+  stocked: boolean
+  shelfLifeValue?: number
+  sdShelfLifeUnit?: string
+  sdStatus: MasterDataStatus
+  validFrom: string
+  validTo?: string
+  indication?: string
+  instruction?: string
+}
+
+export interface ManufacturerInput {
+  code: string
+  name: string
+  shortName?: string
+  sdManufacturerType: string
+  sdProductionPlace?: string
+  countryCode?: string
+  address?: string
+  sdStatus: MasterDataStatus
+}
+
+export interface PackageInput {
+  basePackageId?: string
+  unitCode: string
+  unitName: string
+  packageSpec?: string
+  quantityFactor: number
+  sdUsageType: string
+  barcode?: string
+  defaultPurchase: boolean
+  defaultSale: boolean
+  defaultDispense: boolean
+  sdStatus: MasterDataStatus
+  validFrom: string
+  validTo?: string
+}
+
+export interface AdoptionInput {
+  organizationId: string
+  defaultDepartmentId?: string
+  localCode?: string
+  localName?: string
+  orderable: boolean
+  executable: boolean
+  chargeable: boolean
+  purchasable: boolean
+  stocked: boolean
+  dispensable: boolean
+  returnable: boolean
+  sdStatus: MasterDataStatus
+  validFrom: string
+  validTo?: string
+}
+
+export interface PriceInput {
+  organizationId?: string
+  packageId?: string
+  sdPriceType: string
+  price: number
+  currencyCode: string
+  priceDocumentCode?: string
+  priceReason?: string
+  validFrom: string
+  validTo?: string
+  sdStatus: MasterDataStatus
+}
+
+export interface LifecycleAdoptionInput extends Omit<AdoptionInput, 'sdStatus'> {
+  status: Extract<MasterDataStatus, 'ACTIVE' | 'SUSPENDED' | 'RETIRED'>
+}
+
+export interface LifecyclePriceInput extends Omit<PriceInput, 'sdPriceType' | 'sdStatus'> {
+  priceType: string
+  status: Extract<MasterDataStatus, 'ACTIVE' | 'SUSPENDED' | 'RETIRED'>
+}
+
+export type OperationalStatus = 'ACTIVE' | 'INACTIVE'
+export interface DictionaryItemOption { id: string; code: string; name: string; sortOrder: number }
+export interface SpecimenConfiguration {
+  id: string; revision: number; specimenItemId: string; specimenCode: string; specimenName: string
+  containerItemId?: string; containerCode?: string; containerName?: string; minimumQuantity?: number
+  minimumQuantityUnit?: string; defaultSpecimen: boolean; requiredSpecimen: boolean; sortOrder: number
+  collectionDescription?: string; status: OperationalStatus; tubeGroupCode?: string
+  tubeSharingMode: 'SEPARATE' | 'SHARE' | 'BY_TEST_COUNT'; baseTubeCount: number
+  maxTestsPerTube?: number; tubeChargeMode: 'NONE' | 'PER_TUBE' | 'EXCESS_TUBE'
+  tubeChargeItemId?: string; tubeChargeItemCode?: string; tubeChargeItemName?: string
+  includedTubeCount: number; tubeChargeQuantity: number
+}
+export interface LaboratoryProfile {
+  serviceId: string; revision: number; laboratoryMethod?: string; reportDuration?: number
+  reportDurationUnit?: string; fastingRequired: boolean; pointOfCare: boolean
+  collectionDescription?: string; specimens: SpecimenConfiguration[]
+}
+export interface ExaminationVariantConfiguration {
+  id: string; revision: number; bodySiteConceptId?: string; code: string; name: string
+  methodType?: string; bodySiteRequired: boolean; mutualRecognitionCode?: string
+  sortOrder: number; status: OperationalStatus
+}
+export interface ExaminationProfile {
+  serviceId: string; revision: number; examinationType?: string; bodySiteRequired: boolean
+  multiBodySite: boolean; maxBodySiteCount?: number; preparationDescription?: string
+  sitePricingMode: 'SINGLE' | 'PER_SITE' | 'BASE_PLUS_FIXED' | 'BASE_PLUS_ITEM'
+  includedSiteCount: number; additionalSitePrice?: number; additionalSiteItemId?: string
+  additionalSiteItemCode?: string; additionalSiteItemName?: string; additionalSiteQuantity: number
+  maxChargeableSiteCount?: number; variants: ExaminationVariantConfiguration[]
+  attachments: ExaminationAttachmentConfiguration[]
+}
+export type ExaminationProfileInput = Omit<ExaminationProfile,
+  'serviceId' | 'revision' | 'variants' | 'attachments' | 'additionalSiteItemCode' | 'additionalSiteItemName'>
+export interface ExaminationAttachmentConfiguration {
+  id: string; revision: number; attachmentCatalogItemId: string; attachmentItemCode: string
+  attachmentItemName: string; triggerType: 'ALWAYS' | 'OPTIONAL' | 'MULTI_SITE'
+  quantityBasis: 'FIXED' | 'PER_SITE' | 'PER_EXTRA_SITE'; quantity: number
+  requiredAttachment: boolean; separatelyChargeable: boolean; sortOrder: number
+  description?: string; status: OperationalStatus
+}
+export interface ClinicalConfiguration {
+  serviceId: string; serviceCode: string; serviceName: string; serviceType: string
+  laboratory?: LaboratoryProfile; examination?: ExaminationProfile
+  specimenOptions: DictionaryItemOption[]; containerOptions: DictionaryItemOption[]
+}
+export interface SpecimenConfigurationInput {
+  specimenItemId: string; containerItemId?: string; minimumQuantity?: number
+  minimumQuantityUnit?: string; defaultSpecimen: boolean; requiredSpecimen: boolean
+  sortOrder: number; collectionDescription?: string; status: OperationalStatus; tubeGroupCode?: string
+  tubeSharingMode: 'SEPARATE' | 'SHARE' | 'BY_TEST_COUNT'; baseTubeCount: number
+  maxTestsPerTube?: number; tubeChargeMode: 'NONE' | 'PER_TUBE' | 'EXCESS_TUBE'
+  tubeChargeItemId?: string; includedTubeCount: number; tubeChargeQuantity: number
+}
+export type ExaminationAttachmentInput = Omit<ExaminationAttachmentConfiguration,
+  'id' | 'revision' | 'attachmentItemCode' | 'attachmentItemName'>
+export interface DiagnosticChargeLine {
+  catalogItemId: string; itemCode: string; itemName: string; quantity: number; unitCode?: string
+  sourceType: string; separatelyChargeable: boolean; fixedAmount?: number; description?: string
+}
+export interface ExaminationChargePlan {
+  serviceId: string; siteCount: number; sitePricingMode: ExaminationProfile['sitePricingMode']
+  includedSiteCount: number; extraSiteCount: number; lines: DiagnosticChargeLine[]
+}
+export interface LaboratoryTubePlan {
+  groups: Array<{ groupCode: string; specimenItemId: string; specimenCode: string; specimenName: string
+    containerItemId?: string; containerCode?: string; containerName?: string
+    sharingMode: SpecimenConfiguration['tubeSharingMode']; tubeCount: number; serviceIds: string[]
+    chargeLines: DiagnosticChargeLine[] }>
+  chargeLines: DiagnosticChargeLine[]
+}
+export interface ExaminationVariantInput {
+  bodySiteConceptId?: string; code: string; name: string; methodType?: string
+  bodySiteRequired: boolean; mutualRecognitionCode?: string; sortOrder: number; status: OperationalStatus
+}
+export interface SupplyItem {
+  id: string; revision: number; itemTypeId: string; supplyType: 'CONSUMABLE' | 'DEVICE'
+  code: string; name: string; unitCode: string; orderable: boolean; chargeable: boolean; stocked: boolean
+  status: OperationalStatus; validFrom: string; validTo?: string; udiDi?: string; genericCode?: string
+  genericName?: string; modelName?: string; specification?: string; materialType?: string
+  deviceClass?: 'I' | 'II' | 'III'; highValue: boolean; implant: boolean; intervention: boolean
+  sterile: boolean; singleUse: boolean; registrationCode?: string; registrationName?: string
+  registrantName?: string; registrationFrom?: string; registrationTo?: string; manufacturerId?: string
+  manufacturerName?: string; structureDescription?: string; scopeDescription?: string; instruction?: string
+}
+export type SupplyInput = Omit<SupplyItem, 'id' | 'revision' | 'itemTypeId' | 'manufacturerName'>
+export interface ItemGroupMember {
+  id: string; catalogItemId: string; itemCode: string; itemName: string; serviceType: string
+  sortOrder: number; quantity: number; unitCode?: string; requiredMember: boolean; memberDescription?: string
+}
+export interface ItemGroup {
+  id: string; revision: number; organizationId?: string; executionDepartmentId?: string
+  code: string; name: string; groupType: 'LIS' | 'PACS' | 'ORDER_SET' | 'PACKAGE'
+  usageType?: string; pointOfCare: boolean; status: OperationalStatus; validFrom: string
+  validTo?: string; members: ItemGroupMember[]
+}
+export interface ItemGroupInput extends Omit<ItemGroup, 'id' | 'revision' | 'members'> {
+  members: Array<Omit<ItemGroupMember, 'id' | 'itemCode' | 'itemName' | 'serviceType'>>
+}
+export interface UnitDefinition {
+  id: string; revision: number; code: string; name: string; symbol?: string
+  dimension: 'COUNT' | 'MASS' | 'VOLUME' | 'TIME' | 'LENGTH' | 'AREA' | 'ACTIVITY' | 'TEMPERATURE' | 'OTHER'
+  decimalScale: number; status: OperationalStatus
+}
+export interface UnitConversion {
+  id: string; revision: number; catalogItemId?: string; scopeCode: string
+  fromUnitId: string; fromUnitCode: string; toUnitId: string; toUnitCode: string
+  factor: number; offset: number; validFrom: string; validTo?: string; status: OperationalStatus
+}
+export interface UnitConversionInput {
+  catalogItemId?: string; fromUnitCode: string; toUnitCode: string; factor: number
+  offset?: number; validFrom: string; validTo?: string; status: OperationalStatus
+}
+export interface UnitConversionResult {
+  input: number; fromUnitCode: string; result: number; toUnitCode: string
+  catalogItemId?: string; effectiveDate: string; path: string[]
+}
+
+export interface AdoptionBatchInput {
+  requestCode: string
+  operationType: 'ADOPT' | 'RETIRE'
+  organizationId: string
+  businessDate: string
+  catalogItemIds: string[]
+  template?: Omit<LifecycleAdoptionInput, 'organizationId' | 'validFrom'>
+}
+
+export interface PriceBatchInput {
+  requestCode: string
+  organizationId?: string
+  businessDate: string
+  entries: Array<Omit<LifecyclePriceInput, 'organizationId' | 'validFrom'> & { catalogItemId: string;
+    replacesPriceId?: string; expectedReplacesRevision?: number }>
+}
+
+export type ItemAttributeSubjectType = 'MEDICATION' | 'CATALOG_ITEM' | 'SERVICE_VARIANT'
+export type ItemAttributeJson = string | number | boolean | null | ItemAttributeJson[] | { [key: string]: ItemAttributeJson }
+
+export interface ItemAttributeSchema {
+  assignmentId: string
+  definitionId: string
+  definitionRevision: number
+  code: string
+  name: string
+  description?: string
+  dataType: string
+  cardinality: 'SINGLE' | 'MULTIPLE'
+  dictionaryId?: string
+  unitCode?: string
+  schema: Record<string, ItemAttributeJson>
+  defaultValue?: ItemAttributeJson
+  variability: 'BASE_ONLY' | 'SCOPE_OVERRIDE' | 'LOCAL_ONLY'
+  overridePolicy: 'ANY' | 'RESTRICTIVE_ONLY' | 'NO_OVERRIDE'
+  allowedScopes: string[]
+  contextBasis: string
+  storageMode: 'EXTENSION' | 'PROJECTED'
+  projectionField?: string
+  sensitivity: string
+  required: boolean
+  widgetType: string
+  groupName?: string
+  groupSortOrder: number
+  attributeSortOrder: number
+  searchable: boolean
+  listDisplay: boolean
+}
+
+export interface ItemAttributeSchemaResponse {
+  subjectId: string
+  subjectType: ItemAttributeSubjectType
+  targetId: string
+  itemTypeId: string
+  attributes: ItemAttributeSchema[]
+}
+
+export interface ItemAttributeValue {
+  id: string
+  revision: number
+  definitionId: string
+  attributeCode: string
+  value: ItemAttributeJson
+  validFrom: string
+  validTo?: string
+  status: string
+}
+
+export interface ItemAttributeOverride {
+  id: string
+  revision: number
+  definitionId: string
+  attributeCode: string
+  scopeType: 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'
+  scopeKey: string
+  organizationId?: string
+  departmentId?: string
+  valueMode: 'OVERRIDE' | 'EXPLICIT_NULL'
+  value?: ItemAttributeJson
+  validFrom: string
+  validTo?: string
+  status: string
+}
+
+export interface ItemAttributeMaintenance {
+  schema: ItemAttributeSchemaResponse
+  baseValues: ItemAttributeValue[]
+  overrides: ItemAttributeOverride[]
+}
+
+export type ItemAttributeDataType = 'BOOLEAN' | 'INTEGER' | 'DECIMAL' | 'TEXT' | 'ENUM' | 'DATE' |
+  'DATETIME' | 'DURATION' | 'DICT_REF' | 'TERM_REF' | 'OBJECT'
+
+export interface ItemAttributeTypeOption {
+  id: string
+  code: string
+  name: string
+  subjectType: 'MEDICATION' | 'CATALOG_ITEM'
+  parentId?: string
+  scopeType: 'PLATFORM' | 'TENANT'
+  sortOrder: number
+}
+
+export interface ItemAttributeDefinitionConfiguration {
+  id: string
+  revision: number
+  scopeType: 'PLATFORM' | 'TENANT'
+  tenantId?: string
+  code: string
+  name: string
+  description: string
+  dataType: ItemAttributeDataType
+  cardinality: 'SINGLE' | 'MULTIPLE'
+  dictionaryId?: string
+  unitCode?: string
+  schema: Record<string, ItemAttributeJson>
+  defaultValue?: ItemAttributeJson
+  variability: 'BASE_ONLY' | 'SCOPE_OVERRIDE' | 'LOCAL_ONLY'
+  overridePolicy: 'ANY' | 'RESTRICTIVE_ONLY' | 'NO_OVERRIDE'
+  allowedScopes: Array<'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'>
+  contextBasis: 'NONE' | 'ORDERING' | 'EXECUTING' | 'DISPENSING' | 'STOCKING'
+  storageMode: 'EXTENSION' | 'PROJECTED'
+  projectionField?: string
+  sensitivity: string
+  status: 'ACTIVE' | 'INACTIVE'
+  editable: boolean
+}
+
+export interface ItemTypeAttributeConfiguration {
+  id: string
+  revision: number
+  itemTypeId: string
+  definitionId: string
+  required: boolean
+  defaultValue?: ItemAttributeJson
+  widgetType: string
+  groupName?: string
+  groupSortOrder: number
+  attributeSortOrder: number
+  visibleCondition?: Record<string, ItemAttributeJson>
+  requiredCondition?: Record<string, ItemAttributeJson>
+  searchable: boolean
+  listDisplay: boolean
+  status: 'ACTIVE' | 'INACTIVE'
+  editable: boolean
+}
+
+export interface ItemAttributeConfiguration {
+  tenantNamespace: string
+  itemTypes: ItemAttributeTypeOption[]
+  definitions: ItemAttributeDefinitionConfiguration[]
+  assignments: ItemTypeAttributeConfiguration[]
+}
+
+export interface ItemAttributeDefinitionInput {
+  code: string
+  name: string
+  description: string
+  dataType: ItemAttributeDataType
+  cardinality: 'SINGLE' | 'MULTIPLE'
+  dictionaryId?: string
+  unitCode?: string
+  schema: Record<string, ItemAttributeJson>
+  defaultValue?: ItemAttributeJson
+  variability: 'BASE_ONLY' | 'SCOPE_OVERRIDE' | 'LOCAL_ONLY'
+  overridePolicy: 'ANY' | 'NO_OVERRIDE'
+  allowedScopes: Array<'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'>
+  contextBasis: 'NONE' | 'ORDERING' | 'EXECUTING' | 'DISPENSING' | 'STOCKING'
+  sensitivity: string
+  reason: string
+  requestCode: string
+}
+
+export interface ItemTypeAttributeInput {
+  itemTypeId: string
+  definitionId: string
+  required: boolean
+  defaultValue?: ItemAttributeJson
+  widgetType: string
+  groupName?: string
+  groupSortOrder: number
+  attributeSortOrder: number
+  visibleCondition?: Record<string, ItemAttributeJson>
+  requiredCondition?: Record<string, ItemAttributeJson>
+  searchable: boolean
+  listDisplay: boolean
+  reason: string
+  requestCode: string
+}
+
+export interface SaveItemAttributeValueInput {
+  subjectType: ItemAttributeSubjectType
+  targetId: string
+  definitionId: string
+  valueId?: string
+  expectedRevision?: number
+  value: ItemAttributeJson
+  validFrom: string
+  validTo?: string
+  reason: string
+  requestCode: string
+}
+
+export interface SaveItemAttributeOverrideInput {
+  subjectType: ItemAttributeSubjectType
+  targetId: string
+  definitionId: string
+  overrideId?: string
+  expectedRevision?: number
+  scopeType: 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'
+  organizationId?: string
+  departmentId?: string
+  valueMode: 'OVERRIDE' | 'EXPLICIT_NULL'
+  value?: ItemAttributeJson
+  validFrom: string
+  validTo?: string
+  reason: string
+  requestCode: string
+}
+
+export type MasterDataImportType = 'SERVICE' | 'MEDICATION'
+export type MasterDataImportStatus = 'PREFLIGHTING' | 'READY' | 'INVALID' | 'IMPORTING' | 'PARTIAL' | 'COMPLETED' | 'CANCELLED'
+export type MasterDataImportRowStatus = 'READY' | 'INVALID' | 'IMPORTED' | 'FAILED'
+
+export interface MasterDataImportError {
+  field: string
+  code: string
+  message: string
+}
+
+export interface MasterDataImportRow {
+  id: string
+  revision: number
+  rowNumber: number
+  sourceKey?: string
+  source: Record<string, string>
+  normalized: Record<string, unknown>
+  errors: MasterDataImportError[]
+  status: MasterDataImportRowStatus
+  targetId?: string
+  updatedAt: string
+}
+
+export interface MasterDataImportBatch {
+  id: string
+  revision: number
+  importType: MasterDataImportType
+  fileName: string
+  fileHash: string
+  requestCode: string
+  status: MasterDataImportStatus
+  totalRows: number
+  readyRows: number
+  invalidRows: number
+  importedRows: number
+  failedRows: number
+  createdAt: string
+  createdBy: string
+  updatedAt: string
+  updatedBy: string
+  rows: MasterDataImportRow[]
+}
+
+export type StandardAuthorityType = 'NATIONAL' | 'INSURANCE' | 'REGULATORY' | 'LOCAL' | 'INTERNAL' | 'OTHER'
+export type StandardMappingType = 'CLINICAL' | 'INSURANCE' | 'REGULATORY' | 'LOCAL'
+export type StandardEquivalence = 'EXACT' | 'EQUIVALENT' | 'WIDER' | 'NARROWER' | 'RELATED'
+export type StandardMappingStatus = 'ACTIVE' | 'SUSPENDED' | 'RETIRED' | 'SUPERSEDED'
+
+export interface StandardCodeSystem {
+  id: string
+  code: string
+  name: string
+  version: string
+  systemType: string
+  authorityType: StandardAuthorityType
+  publisher?: string
+  status: string
+  effectiveFrom: string
+  effectiveTo?: string
+  canonicalUri?: string
+  sourceUri?: string
+  contentHash?: string
+}
+
+export interface StandardTerm {
+  id: string
+  codeSystemId: string
+  systemCode: string
+  systemName: string
+  systemVersion: string
+  authorityType: StandardAuthorityType
+  code: string
+  display: string
+  shortDisplay?: string
+  conceptType?: string
+  status: string
+  effectiveFrom: string
+  effectiveTo?: string
+}
+
+export interface ItemTermMapping {
+  id: string
+  revision: number
+  subjectId: string
+  subjectType: ItemAttributeSubjectType
+  targetId: string
+  conceptId: string
+  codeSystemId: string
+  systemCode: string
+  systemName: string
+  systemVersion: string
+  authorityType: StandardAuthorityType
+  termCode: string
+  termDisplay: string
+  mappingType: StandardMappingType
+  equivalence: StandardEquivalence
+  primaryMapping: boolean
+  limitation?: string
+  validFrom: string
+  validTo?: string
+  status: StandardMappingStatus
+  replacesMappingId?: string
+  createdAt: string
+  createdBy: string
+  updatedAt: string
+  updatedBy: string
+}
+
+export interface ItemTermMappingMaintenance {
+  subjectId: string
+  subjectType: ItemAttributeSubjectType
+  targetId: string
+  businessDate: string
+  effectiveMappings: ItemTermMapping[]
+  history: ItemTermMapping[]
+}
+
+export interface SaveItemTermMappingInput {
+  conceptId: string
+  mappingType: StandardMappingType
+  equivalence: StandardEquivalence
+  primaryMapping: boolean
+  limitation?: string
+  validFrom: string
+  validTo?: string
+  replacesMappingId?: string
+  expectedReplacesRevision?: number
+}
+
+function queryString(values: Record<string, string | undefined>) {
+  const params = new URLSearchParams()
+  Object.entries(values).forEach(([key, value]) => { if (value) params.set(key, value) })
+  return params.size ? `?${params}` : ''
+}
+
+export function createMasterDataApi(client: ApiClient) {
+  return {
+    itemTypes: (subjectType = '') => client.request<ItemType[]>(
+      `/api/platform/master-data/item-types${queryString({ subjectType })}`,
+    ),
+    itemAttributeConfigurations: (subjectType = '', itemTypeId = '', status = '') =>
+      client.request<ItemAttributeConfiguration>(
+        `/api/platform/master-data/item-attribute-configurations${queryString({ subjectType, itemTypeId, status })}`,
+      ),
+    createItemAttributeDefinition: (input: ItemAttributeDefinitionInput) =>
+      client.request<ItemAttributeDefinitionConfiguration>(
+        '/api/platform/master-data/item-attribute-configurations/definitions',
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    updateItemAttributeDefinition: (id: string, revision: number, input: Omit<ItemAttributeDefinitionInput, 'code'>) =>
+      client.request<ItemAttributeDefinitionConfiguration>(
+        `/api/platform/master-data/item-attribute-configurations/definitions/${id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }) },
+      ),
+    changeItemAttributeDefinitionStatus: (value: ItemAttributeDefinitionConfiguration, status: 'ACTIVE' | 'INACTIVE',
+      reason: string) => client.request<ItemAttributeDefinitionConfiguration>(
+      `/api/platform/master-data/item-attribute-configurations/definitions/${value.id}/status`,
+      { method: 'POST', body: JSON.stringify({ expectedRevision: value.revision, status, reason,
+        requestCode: crypto.randomUUID() }) },
+    ),
+    createItemTypeAttribute: (input: ItemTypeAttributeInput) => client.request<ItemTypeAttributeConfiguration>(
+      '/api/platform/master-data/item-attribute-configurations/assignments',
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateItemTypeAttribute: (id: string, revision: number,
+      input: Omit<ItemTypeAttributeInput, 'itemTypeId' | 'definitionId'>) =>
+      client.request<ItemTypeAttributeConfiguration>(
+        `/api/platform/master-data/item-attribute-configurations/assignments/${id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }) },
+      ),
+    changeItemTypeAttributeStatus: (value: ItemTypeAttributeConfiguration, status: 'ACTIVE' | 'INACTIVE',
+      reason: string) => client.request<ItemTypeAttributeConfiguration>(
+      `/api/platform/master-data/item-attribute-configurations/assignments/${value.id}/status`,
+      { method: 'POST', body: JSON.stringify({ expectedRevision: value.revision, status, reason,
+        requestCode: crypto.randomUUID() }) },
+    ),
+    itemAttributeMaintenance: (subjectType: ItemAttributeSubjectType, targetId: string, businessDate = '') =>
+      client.request<ItemAttributeMaintenance>(`/api/platform/master-data/item-attributes/maintenance${queryString({
+        subjectType, targetId, businessDate,
+      })}`),
+    saveItemAttributeValue: (input: SaveItemAttributeValueInput) => client.request<ItemAttributeMaintenance>(
+      '/api/platform/master-data/item-attributes/base-value', { method: 'PUT', body: JSON.stringify(input) },
+    ),
+    saveItemAttributeOverride: (input: SaveItemAttributeOverrideInput) => client.request<ItemAttributeMaintenance>(
+      '/api/platform/master-data/item-attributes/override', { method: 'PUT', body: JSON.stringify(input) },
+    ),
+    disableItemAttributeValue: (input: {
+      subjectType: ItemAttributeSubjectType; targetId: string; definitionId: string; recordId: string
+      expectedRevision: number; reason: string; requestCode: string
+    }) => client.request<ItemAttributeMaintenance>('/api/platform/master-data/item-attributes/base-value/disable', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    disableItemAttributeOverride: (input: {
+      subjectType: ItemAttributeSubjectType; targetId: string; definitionId: string; recordId: string
+      expectedRevision: number; reason: string; requestCode: string
+    }) => client.request<ItemAttributeMaintenance>('/api/platform/master-data/item-attributes/override/disable', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    importBatches: () => client.request<MasterDataImportBatch[]>('/api/platform/master-data/imports'),
+    importBatch: (batchId: string) => client.request<MasterDataImportBatch>(
+      `/api/platform/master-data/imports/${batchId}`,
+    ),
+    preflightImport: (importType: MasterDataImportType, file: File) => {
+      const body = new FormData()
+      body.append('file', file)
+      return client.request<MasterDataImportBatch>(`/api/platform/master-data/imports/preflight${queryString({
+        importType, requestCode: crypto.randomUUID(),
+      })}`, { method: 'POST', body })
+    },
+    correctImportRow: (batchId: string, row: MasterDataImportRow, values: Record<string, string>) =>
+      client.request<MasterDataImportBatch>(`/api/platform/master-data/imports/${batchId}/rows/${row.id}`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision: row.revision, values }),
+      }),
+    commitImport: (batchId: string) => client.request<MasterDataImportBatch>(
+      `/api/platform/master-data/imports/${batchId}/commit`, { method: 'POST' },
+    ),
+    cancelImport: (batchId: string) => client.request<MasterDataImportBatch>(
+      `/api/platform/master-data/imports/${batchId}/cancel`, { method: 'POST' },
+    ),
+    downloadImportTemplate: (importType: MasterDataImportType, format: 'XLSX' | 'CSV' = 'XLSX') =>
+      client.download(`/api/platform/master-data/imports/template${queryString({ importType, format })}`),
+    downloadImportErrors: (batchId: string) => client.download(
+      `/api/platform/master-data/imports/${batchId}/errors.csv`,
+    ),
+    standardCodeSystems: (systemType = '', authorityType = '', businessDate = '', query = '') =>
+      client.request<StandardCodeSystem[]>(`/api/platform/master-data/standard-mappings/code-systems${queryString({
+        systemType, authorityType, businessDate, query,
+      })}`),
+    standardTerms: (codeSystemId: string, businessDate = '', query = '') => client.request<StandardTerm[]>(
+      `/api/platform/master-data/standard-mappings/terms${queryString({ codeSystemId, businessDate, query })}`,
+    ),
+    itemTermMappings: (subjectType: ItemAttributeSubjectType, targetId: string, businessDate = '') =>
+      client.request<ItemTermMappingMaintenance>(
+        `/api/platform/master-data/standard-mappings/${subjectType}/${targetId}${queryString({ businessDate })}`,
+      ),
+    saveItemTermMapping: (subjectType: ItemAttributeSubjectType, targetId: string,
+      input: SaveItemTermMappingInput) => client.request<ItemTermMappingMaintenance>(
+      `/api/platform/master-data/standard-mappings/${subjectType}/${targetId}`,
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+    changeItemTermMappingStatus: (mappingId: string, expectedRevision: number,
+      status: Exclude<StandardMappingStatus, 'SUPERSEDED'>, validTo?: string) =>
+      client.request<ItemTermMappingMaintenance>(
+        `/api/platform/master-data/standard-mappings/mappings/${mappingId}/status`,
+        { method: 'POST', body: JSON.stringify({ expectedRevision, status, validTo }) },
+      ),
+    diseaseCodeSystems: () => client.request<CodeSystemSummary[]>('/api/platform/terminology/disease-code-systems'),
+    diseases: (query = '', conceptType = '', status = '') => client.request<DiseaseConcept[]>(
+      `/api/platform/terminology/diseases${queryString({ query, conceptType, status })}`,
+    ),
+    createDisease: (input: DiseaseInput) => client.request<DiseaseConcept>('/api/platform/terminology/diseases', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    updateDisease: (id: string, revision: number, input: Omit<DiseaseInput, 'codeSystemId' | 'code' | 'sdStatus'>) =>
+      client.request<DiseaseConcept>(`/api/platform/terminology/diseases/${id}`, {
+        method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+      }),
+    diseaseStatus: (id: string, revision: number, sdStatus: MasterDataStatus) =>
+      client.request<DiseaseConcept>(`/api/platform/terminology/diseases/${id}/status`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
+      }),
+    services: (query = '', serviceType = '', status = '', organizationId = '') =>
+      client.request<ServiceCatalogItem[]>(`/api/platform/master-data/services${queryString({
+        query, serviceType, status, organizationId,
+      })}`),
+    createService: (input: ServiceInput, organizationId = '') => client.request<ServiceCatalogItem>(
+      `/api/platform/master-data/services${queryString({ organizationId })}`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    updateService: (id: string, revision: number, input: ServiceInput, organizationId = '') =>
+      client.request<ServiceCatalogItem>(
+        `/api/platform/master-data/services/${id}${queryString({ organizationId })}`, {
+          method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+        },
+      ),
+    serviceStatus: (id: string, revision: number, sdStatus: MasterDataStatus, organizationId = '') =>
+      client.request<ServiceCatalogItem>(
+        `/api/platform/master-data/services/${id}/status${queryString({ organizationId })}`, {
+          method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
+        },
+      ),
+    medications: (query = '', medicationType = '', status = '', organizationId = '') =>
+      client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
+        query, medicationType, status, organizationId,
+      })}`),
+    createMedication: (input: MedicationInput, organizationId = '') => client.request<MedicationKnowledge>(
+      `/api/platform/master-data/medications${queryString({ organizationId })}`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    updateMedication: (id: string, revision: number, input: MedicationInput, organizationId = '') =>
+      client.request<MedicationKnowledge>(
+        `/api/platform/master-data/medications/${id}${queryString({ organizationId })}`, {
+          method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+        },
+      ),
+    medicationStatus: (id: string, revision: number, sdStatus: MasterDataStatus, organizationId = '') =>
+      client.request<MedicationKnowledge>(
+        `/api/platform/master-data/medications/${id}/status${queryString({ organizationId })}`, {
+          method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
+        },
+      ),
+    manufacturers: (query = '') => client.request<Manufacturer[]>(
+      `/api/platform/master-data/manufacturers${queryString({ query })}`,
+    ),
+    createManufacturer: (input: ManufacturerInput) => client.request<Manufacturer>(
+      '/api/platform/master-data/manufacturers', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    createProduct: (input: ProductInput, organizationId = '') => client.request<MedicationProduct>(
+      `/api/platform/master-data/medication-products${queryString({ organizationId })}`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    createPackage: (catalogItemId: string, input: PackageInput) => client.request<ItemPackage>(
+      `/api/platform/master-data/catalog-items/${catalogItemId}/packages`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    adopt: (catalogItemId: string, input: AdoptionInput) => client.request<OrganizationAdoption>(
+      `/api/platform/master-data/catalog-items/${catalogItemId}/organization-adoptions`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    createPrice: (catalogItemId: string, input: PriceInput) => client.request<CatalogPrice>(
+      `/api/platform/master-data/catalog-items/${catalogItemId}/prices`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    catalogLifecycle: (catalogItemId: string, organizationId = '', businessDate = '') =>
+      client.request<CatalogLifecycle>(
+        `/api/platform/master-data/catalog-lifecycle/catalog-items/${catalogItemId}${queryString({
+          organizationId, businessDate,
+        })}`,
+      ),
+    createLifecycleAdoption: (catalogItemId: string, input: LifecycleAdoptionInput) =>
+      client.request<CatalogLifecycle>(
+        `/api/platform/master-data/catalog-lifecycle/catalog-items/${catalogItemId}/adoptions`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    replaceLifecycleAdoption: (adoptionId: string, expectedRevision: number, input: LifecycleAdoptionInput) =>
+      client.request<CatalogLifecycle>(
+        `/api/platform/master-data/catalog-lifecycle/adoptions/${adoptionId}/replace`,
+        { method: 'POST', body: JSON.stringify({ ...input, expectedRevision }) },
+      ),
+    changeLifecycleAdoptionStatus: (adoptionId: string, expectedRevision: number,
+      status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED', validTo?: string) => client.request<CatalogLifecycle>(
+      `/api/platform/master-data/catalog-lifecycle/adoptions/${adoptionId}/status`,
+      { method: 'POST', body: JSON.stringify({ expectedRevision, status, validTo }) },
+    ),
+    createLifecyclePrice: (catalogItemId: string, input: LifecyclePriceInput) =>
+      client.request<CatalogLifecycle>(
+        `/api/platform/master-data/catalog-lifecycle/catalog-items/${catalogItemId}/prices`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    replaceLifecyclePrice: (priceId: string, expectedRevision: number, input: LifecyclePriceInput) =>
+      client.request<CatalogLifecycle>(
+        `/api/platform/master-data/catalog-lifecycle/prices/${priceId}/replace`,
+        { method: 'POST', body: JSON.stringify({ ...input, expectedRevision }) },
+      ),
+    changeLifecyclePriceStatus: (priceId: string, expectedRevision: number,
+      status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED', validTo?: string) => client.request<CatalogLifecycle>(
+      `/api/platform/master-data/catalog-lifecycle/prices/${priceId}/status`,
+      { method: 'POST', body: JSON.stringify({ expectedRevision, status, validTo }) },
+    ),
+    adoptionBatch: (input: AdoptionBatchInput) => client.request<CatalogChangeBatch>(
+      '/api/platform/master-data/catalog-lifecycle/adoption-batches',
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+    priceBatch: (input: PriceBatchInput) => client.request<CatalogChangeBatch>(
+      '/api/platform/master-data/catalog-lifecycle/price-batches',
+      { method: 'POST', body: JSON.stringify(input) },
+    ),
+    catalogChangeBatch: (batchId: string) => client.request<CatalogChangeBatch>(
+      `/api/platform/master-data/catalog-lifecycle/batches/${batchId}`,
+    ),
+    clinicalConfiguration: (serviceId: string) => client.request<ClinicalConfiguration>(
+      `/api/platform/master-data/operations/services/${serviceId}/clinical-configuration`,
+    ),
+    updateLaboratoryProfile: (serviceId: string, revision: number,
+      input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) =>
+      client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/laboratory-profile`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }) },
+      ),
+    createSpecimenConfiguration: (serviceId: string, input: SpecimenConfigurationInput) =>
+      client.request<ClinicalConfiguration>(`/api/platform/master-data/operations/services/${serviceId}/specimens`,
+        { method: 'POST', body: JSON.stringify(input) }),
+    updateSpecimenConfiguration: (serviceId: string, value: SpecimenConfiguration,
+      input: SpecimenConfigurationInput) => client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/specimens/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+      ),
+    updateExaminationProfile: (serviceId: string, revision: number,
+      input: ExaminationProfileInput) =>
+      client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-profile`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }) },
+      ),
+    createExaminationVariant: (serviceId: string, input: ExaminationVariantInput) =>
+      client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-variants`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    updateExaminationVariant: (serviceId: string, value: ExaminationVariantConfiguration,
+      input: ExaminationVariantInput) => client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-variants/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+      ),
+    createExaminationAttachment: (serviceId: string, input: ExaminationAttachmentInput) =>
+      client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-attachments`,
+        { method: 'POST', body: JSON.stringify(input) },
+      ),
+    updateExaminationAttachment: (serviceId: string, value: ExaminationAttachmentConfiguration,
+      input: ExaminationAttachmentInput) => client.request<ClinicalConfiguration>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-attachments/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+      ),
+    examinationChargePlan: (serviceId: string, bodySiteCodes: string[], selectedAttachmentIds: string[] = []) =>
+      client.request<ExaminationChargePlan>(
+        `/api/platform/master-data/operations/services/${serviceId}/examination-charge-plan`,
+        { method: 'POST', body: JSON.stringify({ bodySiteCodes, selectedAttachmentIds }) },
+      ),
+    laboratoryTubePlan: (items: Array<{ serviceId: string; specimenConfigurationId?: string; quantity: number }>) =>
+      client.request<LaboratoryTubePlan>('/api/platform/master-data/operations/laboratory-tube-plan',
+        { method: 'POST', body: JSON.stringify({ items }) }),
+    supplies: (query = '', supplyType = '', status = '') => client.request<SupplyItem[]>(
+      `/api/platform/master-data/operations/supplies${queryString({ query, supplyType, status })}`,
+    ),
+    createSupply: (input: SupplyInput) => client.request<SupplyItem>(
+      '/api/platform/master-data/operations/supplies', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateSupply: (value: SupplyItem, input: SupplyInput) => client.request<SupplyItem>(
+      `/api/platform/master-data/operations/supplies/${value.id}`,
+      { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+    ),
+    itemGroups: (query = '', groupType = '', status = '') => client.request<ItemGroup[]>(
+      `/api/platform/master-data/operations/item-groups${queryString({ query, groupType, status })}`,
+    ),
+    createItemGroup: (input: ItemGroupInput) => client.request<ItemGroup>(
+      '/api/platform/master-data/operations/item-groups', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateItemGroup: (value: ItemGroup, input: ItemGroupInput) => client.request<ItemGroup>(
+      `/api/platform/master-data/operations/item-groups/${value.id}`,
+      { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+    ),
+    units: (dimension = '', status = '') => client.request<UnitDefinition[]>(
+      `/api/platform/master-data/operations/units${queryString({ dimension, status })}`,
+    ),
+    createUnit: (input: Omit<UnitDefinition, 'id' | 'revision'>) => client.request<UnitDefinition>(
+      '/api/platform/master-data/operations/units', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateUnit: (value: UnitDefinition, input: Omit<UnitDefinition, 'id' | 'revision'>) =>
+      client.request<UnitDefinition>(`/api/platform/master-data/operations/units/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) }),
+    unitConversions: (catalogItemId = '') => client.request<UnitConversion[]>(
+      `/api/platform/master-data/operations/unit-conversions${queryString({ catalogItemId })}`,
+    ),
+    createUnitConversion: (input: UnitConversionInput) => client.request<UnitConversion>(
+      '/api/platform/master-data/operations/unit-conversions', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateUnitConversion: (value: UnitConversion, input: UnitConversionInput) =>
+      client.request<UnitConversion>(`/api/platform/master-data/operations/unit-conversions/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) }),
+    convertUnit: (quantity: number, fromUnitCode: string, toUnitCode: string,
+      catalogItemId?: string, effectiveDate = '') => client.request<UnitConversionResult>(
+        '/api/platform/master-data/operations/unit-conversions/convert', {
+          method: 'POST', body: JSON.stringify({ quantity, fromUnitCode, toUnitCode,
+            catalogItemId: catalogItemId || undefined, effectiveDate: effectiveDate || undefined }),
+        },
+      ),
+  }
+}

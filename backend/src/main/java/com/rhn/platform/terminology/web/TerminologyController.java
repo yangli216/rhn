@@ -1,0 +1,206 @@
+package com.rhn.platform.terminology.web;
+
+import com.rhn.platform.tenant.TenantContext;
+import com.rhn.platform.terminology.api.ConceptView;
+import com.rhn.platform.terminology.api.CodeSystemSummary;
+import com.rhn.platform.terminology.api.DiseaseConceptView;
+import com.rhn.platform.terminology.application.TerminologyApplicationService;
+import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.time.LocalDate;
+import java.math.BigInteger;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/platform/terminology")
+public class TerminologyController {
+    private final TerminologyApplicationService service;
+
+    public TerminologyController(TerminologyApplicationService service) {
+        this.service = service;
+    }
+
+    @GetMapping("/value-sets/{code}/expand")
+    List<ConceptView> expand(@PathVariable String code,
+                             @RequestParam(required = false) LocalDate at) {
+        return service.expandValueSet(TenantContext.requireTenantId(), code,
+                at == null ? LocalDate.now() : at);
+    }
+
+    @GetMapping("/disease-code-systems")
+    List<CodeSystemSummary> diseaseCodeSystems() {
+        return service.listDiseaseCodeSystems(TenantContext.requireTenantId());
+    }
+
+    @GetMapping("/diseases")
+    List<DiseaseConceptView> diseases(@RequestParam(required = false) String query,
+                                      @RequestParam(required = false) String conceptType,
+                                      @RequestParam(required = false)
+                                      com.rhn.platform.terminology.domain.TerminologyStatus status) {
+        return service.listDiseases(TenantContext.requireTenantId(), query, conceptType, status);
+    }
+
+    @PostMapping("/diseases")
+    @ResponseStatus(HttpStatus.CREATED)
+    DiseaseConceptView createDisease(@Valid @RequestBody DiseaseRequest request) {
+        return service.createDisease(TenantContext.requireTenantId(), request.codeSystemId(), request.code().trim(),
+                request.display().trim(), trimToNull(request.shortDisplay()), request.sdConceptType(),
+                trimToNull(request.chapterCode()), trimToNull(request.chapterName()), trimToNull(request.definition()),
+                trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.sdStatus(),
+                request.aliases());
+    }
+
+    @PutMapping("/diseases/{id}")
+    DiseaseConceptView updateDisease(@PathVariable Long id, @Valid @RequestBody UpdateDiseaseRequest request) {
+        return service.updateDisease(TenantContext.requireTenantId(), id, revision(request.expectedRevision()),
+                request.display().trim(), trimToNull(request.shortDisplay()), request.sdConceptType(),
+                trimToNull(request.chapterCode()), trimToNull(request.chapterName()), trimToNull(request.definition()),
+                trimToNull(request.searchCode()), request.effectiveFrom(), request.effectiveTo(), request.aliases());
+    }
+
+    @PostMapping("/diseases/{id}/status")
+    DiseaseConceptView changeDiseaseStatus(@PathVariable Long id, @Valid @RequestBody DiseaseStatusRequest request) {
+        return service.changeDiseaseStatus(TenantContext.requireTenantId(), id, revision(request.expectedRevision()),
+                request.sdStatus(), request.replacementConceptId());
+    }
+
+    @PostMapping("/code-systems")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, Long> createCodeSystem(@Valid @RequestBody CreateCodeSystemRequest request) {
+        Long id = service.createCodeSystem(TenantContext.requireTenantId(), request.productScope(),
+                request.code().trim(), request.name().trim(), trimToNull(request.canonicalUri()),
+                request.version().trim(), request.systemType() == null ? "COMMON" : request.systemType(),
+                trimToNull(request.publisher()), trimToNull(request.description()),
+                request.authorityType() == null ? "INTERNAL" : request.authorityType(),
+                trimToNull(request.sourceUri()), trimToNull(request.contentHash()),
+                request.effectiveFrom(), request.effectiveTo());
+        return Map.of("id", id);
+    }
+
+    @PostMapping("/code-systems/{id}/concepts")
+    @ResponseStatus(HttpStatus.CREATED)
+    ConceptView addConcept(@PathVariable Long id, @Valid @RequestBody AddConceptRequest request) {
+        return service.addConcept(id, request.code().trim(), request.display().trim(),
+                trimToNull(request.definition()), request.effectiveFrom(), request.effectiveTo());
+    }
+
+    @PostMapping("/code-systems/{id}/activate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void activateCodeSystem(@PathVariable Long id) { service.activateCodeSystem(id); }
+
+    @PostMapping("/concepts/{id}/activate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void activateConcept(@PathVariable Long id) { service.activateConcept(id); }
+
+    @PostMapping("/value-sets")
+    @ResponseStatus(HttpStatus.CREATED)
+    Map<String, Long> createValueSet(@Valid @RequestBody CreateValueSetRequest request) {
+        Long id = service.createValueSet(TenantContext.requireTenantId(), request.productScope(),
+                request.code().trim(), request.name().trim(), request.version().trim(),
+                request.effectiveFrom(), request.effectiveTo());
+        return Map.of("id", id);
+    }
+
+    @PostMapping("/value-sets/{id}/members")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void addMember(@PathVariable Long id, @Valid @RequestBody AddMemberRequest request) {
+        service.addValueSetMember(id, request.conceptId(), request.sortOrder());
+    }
+
+    @PostMapping("/value-sets/{id}/activate")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    void activateValueSet(@PathVariable Long id) { service.activateValueSet(id); }
+
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    record CreateCodeSystemRequest(boolean productScope,
+                                   @NotBlank @Size(max = 100)
+                                   @Pattern(regexp = TerminologyCodePolicy.CODE_SYSTEM_REGEX,
+                                           message = "编码体系登记键格式不正确") String code,
+                                   @NotBlank @Size(max = 200) String name,
+                                   @Size(max = 500) String canonicalUri,
+                                   @NotBlank @Size(max = 64) String version,
+                                   @Size(max = 32) String systemType,
+                                   @Size(max = 300) String publisher,
+                                   @Size(max = 2000) String description,
+                                   @Pattern(regexp = "NATIONAL|INSURANCE|REGULATORY|LOCAL|INTERNAL|OTHER")
+                                   String authorityType,
+                                   @Size(max = 1000) String sourceUri,
+                                   @Size(max = 128) String contentHash,
+                                   @NotNull LocalDate effectiveFrom, LocalDate effectiveTo) {}
+
+    record DiseaseRequest(
+            @NotNull Long codeSystemId,
+            @NotBlank @Size(max = 100) String code,
+            @NotBlank @Size(max = 300) String display,
+            @Size(max = 300) String shortDisplay,
+            @NotBlank @Pattern(regexp = "DISEASE|SYMPTOM|SIGN|CONDITION|SYNDROME") String sdConceptType,
+            @Size(max = 64) String chapterCode,
+            @Size(max = 300) String chapterName,
+            @Size(max = 1000) String definition,
+            @Size(max = 128) String searchCode,
+            @NotNull LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            @NotNull com.rhn.platform.terminology.domain.TerminologyStatus sdStatus,
+            @Size(max = 30) List<@NotBlank @Size(max = 300) String> aliases) {}
+
+    record UpdateDiseaseRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotBlank @Size(max = 300) String display,
+            @Size(max = 300) String shortDisplay,
+            @NotBlank @Pattern(regexp = "DISEASE|SYMPTOM|SIGN|CONDITION|SYNDROME") String sdConceptType,
+            @Size(max = 64) String chapterCode,
+            @Size(max = 300) String chapterName,
+            @Size(max = 1000) String definition,
+            @Size(max = 128) String searchCode,
+            @NotNull LocalDate effectiveFrom,
+            LocalDate effectiveTo,
+            @Size(max = 30) List<@NotBlank @Size(max = 300) String> aliases) {}
+
+    record DiseaseStatusRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull com.rhn.platform.terminology.domain.TerminologyStatus sdStatus,
+            Long replacementConceptId) {}
+
+    record AddConceptRequest(@NotBlank @Size(max = 100) String code,
+                             @NotBlank @Size(max = 300) String display,
+                             @Size(max = 1000) String definition,
+                             @NotNull LocalDate effectiveFrom, LocalDate effectiveTo) {}
+
+    record CreateValueSetRequest(boolean productScope,
+                                 @NotBlank @Size(max = 100)
+                                 @Pattern(regexp = TerminologyCodePolicy.VALUE_SET_REGEX,
+                                         message = "值域登记键格式不正确") String code,
+                                 @NotBlank @Size(max = 200) String name,
+                                 @NotBlank @Size(max = 64) String version,
+                                 @NotNull LocalDate effectiveFrom, LocalDate effectiveTo) {}
+
+    record AddMemberRequest(@NotNull Long conceptId, @Min(0) int sortOrder) {}
+
+    private long revision(BigInteger value) {
+        try {
+            return value.longValueExact();
+        } catch (ArithmeticException exception) {
+            throw new IllegalArgumentException("修订号超出BIGINT范围");
+        }
+    }
+}

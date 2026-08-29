@@ -1,0 +1,349 @@
+package com.rhn;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.http.MediaType;
+import org.springframework.test.annotation.DirtiesContext;
+import tools.jackson.databind.JsonNode;
+
+import java.util.UUID;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
+class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
+    private static final String PRODUCT_ID = "362387869795113";
+    private static final String MEDICATION_ID = "362387869795203";
+    private static final String PACKAGE_ID = "362387869795403";
+
+    @Test
+    void non_virtual_stock_site_requires_department() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "organizationId":"%s","code":"NO-DEPT-%s","name":"未绑定科室药房",
+                                  "siteType":"PHARMACY","serviceScope":"OUTPATIENT","validFrom":"2026-01-01"
+                                }
+                                """.formatted(ORGANIZATION, suffix)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("STOCK_SITE_DEPARTMENT_REQUIRED"));
+    }
+
+    @Test
+    void department_inventory_profile_inherits_department_identity_and_is_unique() throws Exception {
+        String body = """
+                {
+                  "organizationId":"%s","departmentId":"%s",
+                  "code":"IGNORED-CODE","name":"不应形成第二套名称",
+                  "siteType":"DEPARTMENT_STORE","serviceScope":"MIXED",
+                  "validFrom":"2026-08-28"
+                }
+                """.formatted(ORGANIZATION, DEPARTMENT);
+        mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value("GENERAL"))
+                .andExpect(jsonPath("$.name").value("全科门诊"))
+                .andExpect(jsonPath("$.validFrom").value("2026-01-01"));
+
+        mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STOCK_SITE_DEPARTMENT_DUPLICATE"));
+    }
+
+    @Test
+    void stock_items_can_be_imported_as_one_atomic_batch() throws Exception {
+        JsonNode site = json(mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "organizationId":"%s","departmentId":"%s","code":"IGNORED","name":"IGNORED",
+                                  "siteType":"DEPARTMENT_STORE","serviceScope":"MIXED","validFrom":"2026-01-01"
+                                }
+                                """.formatted(ORGANIZATION, DEPARTMENT)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"items":[
+                                  {"catalogItemId":"362387869795111","packageId":"362387869795401","issuePolicy":"FEFO",
+                                   "negativeAllowed":false,"lotRequired":true,"traceRequired":true,"splitAllowed":false,
+                                   "coldChain":false,"controlled":false,"highAlert":false},
+                                  {"catalogItemId":"362387869795112","packageId":"362387869795402","issuePolicy":"FEFO",
+                                   "negativeAllowed":false,"lotRequired":true,"traceRequired":true,"splitAllowed":false,
+                                   "coldChain":false,"controlled":false,"highAlert":false}
+                                ]}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.length()").value(2));
+
+        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"items":[
+                                  {"catalogItemId":"362387869795113","packageId":"362387869795403","issuePolicy":"FEFO",
+                                   "negativeAllowed":false,"lotRequired":true,"traceRequired":true,"splitAllowed":false,
+                                   "coldChain":false,"controlled":false,"highAlert":false},
+                                  {"catalogItemId":"362387869795111","packageId":"362387869795401","issuePolicy":"FEFO",
+                                   "negativeAllowed":false,"lotRequired":true,"traceRequired":true,"splitAllowed":false,
+                                   "coldChain":false,"controlled":false,"highAlert":false}
+                                ]}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("STOCK_ITEM_DUPLICATE"));
+
+        mockMvc.perform(get("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.catalogItemId == '362387869795113')]").isEmpty());
+    }
+
+    @Test
+    void outpatient_request_intake_preserves_attribute_snapshot_and_records_append_only_reviews() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createActiveEncounter(residentId);
+        JsonNode request = createMedicationRequest(encounterId);
+        OverrideRecord changedOverride = changeCurrentAttributeAfterOrdering(suffix, request.get("itemAttributeHash").asText());
+
+        mockMvc.perform(get("/api/pharmacy/inbox").with(rhnWorkContext())
+                        .queryParam("organizationId", ORGANIZATION))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].taskId".formatted(request.get("id").asText()))
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.nullValue())));
+
+        JsonNode site = json(mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "organizationId":"%s","departmentId":"%s",
+                                  "code":"OPH-%s","name":"门诊药房%s",
+                                  "siteType":"PHARMACY","serviceScope":"OUTPATIENT",
+                                  "validFrom":"2026-01-01"
+                                }
+                                """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode stockItem = json(mockMvc.perform(post(
+                                "/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
+                                  "negativeAllowed":false,"lotRequired":true,"traceRequired":true,
+                                  "splitAllowed":true,"coldChain":false,"controlled":false,
+                                  "highAlert":false
+                                }
+                                """.formatted(PRODUCT_ID, PACKAGE_ID)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.medicationId").value(MEDICATION_ID))
+                .andReturn().getResponse().getContentAsString());
+
+        JsonNode task = json(mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake",
+                                request.get("id").asText()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"stockItemId":"%s","description":"窗口接方"}
+                                """.formatted(stockItem.get("id").asText())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
+                .andExpect(jsonPath("$.lines[0].requestId").value(request.get("id").asText()))
+                .andExpect(jsonPath("$.lines[0].plannedQuantity").value(2))
+                .andExpect(jsonPath("$.lines[0].dispenseUnitCode").value("BOX"))
+                .andExpect(jsonPath("$.lines[0].baseQuantityFactor").value(14))
+                .andExpect(jsonPath("$.lines[0].split").value(false))
+                .andExpect(jsonPath("$.lines[0].itemAttributeHash")
+                        .value(request.get("itemAttributeHash").asText()))
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(request.get("itemAttributeSnapshot"), task.get("lines").get(0).get("itemAttributeSnapshot"));
+
+        mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake", request.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"stockItemId\":\"%s\"}".formatted(stockItem.get("id").asText())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(task.get("id").asText()))
+                .andExpect(jsonPath("$.lines.length()").value(1));
+
+        Reviewer clinicalReviewer = createReviewer(suffix + "C", "CLINICAL");
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "result":"PASS",
+                                  "pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"
+                                }
+                                """.formatted(clinicalReviewer.practitionerId(), clinicalReviewer.assignmentId())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("PHARMACY_POSITION_TYPE_REQUIRED"));
+
+        Reviewer reviewer = createReviewer(suffix);
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "result":"INTERVENE","reasonCode":"DOSE_CONFIRM",
+                                  "description":"请确认剂量后继续",
+                                  "pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"
+                                }
+                                """.formatted(reviewer.practitionerId(), reviewer.assignmentId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("INTERVENTION"))
+                .andExpect(jsonPath("$.lines[0].status").value("PENDING"))
+                .andExpect(jsonPath("$.reviews.length()").value(1))
+                .andExpect(jsonPath("$.reviews[0].result").value("INTERVENE"));
+
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "result":"PASS",
+                                  "pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"
+                                }
+                                """.formatted(reviewer.practitionerId(), reviewer.assignmentId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("READY_TO_PICK"))
+                .andExpect(jsonPath("$.lines[0].status").value("READY"))
+                .andExpect(jsonPath("$.reviews.length()").value(2))
+                .andExpect(jsonPath("$.reviews[0].result").value("INTERVENE"))
+                .andExpect(jsonPath("$.reviews[1].result").value("PASS"))
+                .andExpect(jsonPath("$.lines[0].itemAttributeHash")
+                        .value(request.get("itemAttributeHash").asText()));
+
+        mockMvc.perform(get("/api/pharmacy/inbox").with(rhnWorkContext())
+                        .queryParam("organizationId", ORGANIZATION))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].taskStatus"
+                        .formatted(request.get("id").asText())).value("READY_TO_PICK"))
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].latestReviewResult"
+                        .formatted(request.get("id").asText())).value("PASS"));
+
+        disableOverride(changedOverride, suffix);
+    }
+
+    private OverrideRecord changeCurrentAttributeAfterOrdering(String suffix, String orderedHash) throws Exception {
+        JsonNode maintenance = json(mockMvc.perform(put("/api/platform/master-data/item-attributes/override")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "subjectType":"MEDICATION","targetId":"%s",
+                                  "definitionId":"362387869797501","scopeType":"ORGANIZATION",
+                                  "organizationId":"%s","valueMode":"OVERRIDE","value":"DILUTED_SOLUTION",
+                                  "validFrom":"2026-08-27","reason":"验证开立后配置变化不改写药房任务",
+                                  "requestCode":"PHARM-OVERRIDE-%s"
+                                }
+                                """.formatted(MEDICATION_ID, ORGANIZATION, suffix)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.overrides[0].value").value("DILUTED_SOLUTION"))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode override = maintenance.get("overrides").get(0);
+        JsonNode current = json(mockMvc.perform(post("/api/platform/master-data/item-attributes/snapshot")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "subjectType":"MEDICATION","targetId":"%s","businessDate":"2026-08-27",
+                                  "ordering":{"organizationId":"%s","departmentId":"%s"},
+                                  "executing":null,"dispensing":null,"stocking":null
+                                }
+                                """.formatted(MEDICATION_ID, ORGANIZATION, DEPARTMENT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jsonItemAttrSnapshot.attributes['MED.SKIN_TEST.SOLUTION_MODE'].value")
+                        .value("DILUTED_SOLUTION"))
+                .andReturn().getResponse().getContentAsString());
+        assertNotEquals(orderedHash, current.get("hashItemAttrSnapshot").asText());
+        return new OverrideRecord(override.get("id").asText(), override.get("revision").asLong());
+    }
+
+    private void disableOverride(OverrideRecord value, String suffix) throws Exception {
+        mockMvc.perform(post("/api/platform/master-data/item-attributes/override/disable")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "subjectType":"MEDICATION","targetId":"%s",
+                                  "definitionId":"362387869797501","recordId":"%s","expectedRevision":%d,
+                                  "reason":"药房跨模块验收完成后清理测试覆盖值",
+                                  "requestCode":"PHARM-OVERRIDE-CLEAN-%s"
+                                }
+                                """.formatted(MEDICATION_ID, value.id(), value.revision(), suffix)))
+                .andExpect(status().isOk());
+    }
+
+    private JsonNode createMedicationRequest(String encounterId) throws Exception {
+        return json(mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "catalogItemId":"%s","packageId":"%s","quantity":2,
+                                  "substitutionAllowed":false,"selfProvided":false,
+                                  "businessDate":"2026-08-27","reason":"药房接方验收"
+                                }
+                                """.formatted(PRODUCT_ID, PACKAGE_ID)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.medicationId").value(MEDICATION_ID))
+                .andExpect(jsonPath("$.itemAttributeSnapshot.subjectType").value("MEDICATION"))
+                .andExpect(jsonPath("$.itemAttributeHash").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+    }
+
+    private String createResident(String suffix) throws Exception {
+        String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
+        return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"药房验收患者","nationalId":"33010219881212%s",
+                                  "gender":"FEMALE","birthDate":"1988-12-12"
+                                }
+                                """.formatted(digits)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+    }
+
+    private String createActiveEncounter(String residentId) throws Exception {
+        JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(post("/api/encounters/{id}/start", encounter.get("id").asText()).with(rhnWorkContext()))
+                .andExpect(status().isOk());
+        return encounter.get("id").asText();
+    }
+
+    private Reviewer createReviewer(String suffix) throws Exception {
+        return createReviewer(suffix, "PHARMACY");
+    }
+
+    private Reviewer createReviewer(String suffix, String positionType) throws Exception {
+        JsonNode practitioner = json(mockMvc.perform(post("/api/platform/practitioners").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"code":"PHARM-%s","fullName":"验收药师%s","sdPractGender":"FEMALE"}
+                                """.formatted(suffix, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode position = json(mockMvc.perform(post("/api/platform/positions").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "code":"PHARM-POS-%s","name":"门诊药师%s",
+                                  "sdPositionType":"%s","dutyDescription":"门诊审方"
+                                }
+                                """.formatted(suffix, suffix, positionType)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode employment = json(mockMvc.perform(post("/api/platform/employments").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "practitionerId":"%s","organizationId":"%s","code":"PHARM-EMP-%s",
+                                  "sdEmploymentType":"PERMANENT","primaryEmployment":true,
+                                  "hireDate":"2026-01-01"
+                                }
+                                """.formatted(practitioner.get("id").asText(), ORGANIZATION, suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "employmentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "positionId":"%s","code":"PHARM-ASN-%s","sdAssignmentType":"PRIMARY",
+                                  "primaryAssignment":true,"validFrom":"2026-01-01"
+                                }
+                                """.formatted(employment.get("id").asText(), ORGANIZATION, DEPARTMENT,
+                                position.get("id").asText(), suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        return new Reviewer(practitioner.get("id").asText(), assignment.get("id").asText());
+    }
+
+    private record Reviewer(String practitionerId, String assignmentId) {}
+    private record OverrideRecord(String id, long revision) {}
+}

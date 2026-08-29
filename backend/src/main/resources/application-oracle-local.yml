@@ -1,0 +1,28 @@
+spring:
+  datasource:
+    url: ${RHN_ORACLE_URL}
+    username: ${RHN_ORACLE_USER}
+    password: ${RHN_ORACLE_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+  jpa:
+    hibernate:
+      # Oracle reports compatible CLOB/text mappings differently from Hibernate.
+      # Flyway remains the authoritative schema contract for this development profile.
+      ddl-auto: none
+  flyway:
+    locations: classpath:db/oracle,classpath:db/oracle-local
+
+rhn:
+  id:
+    allow-default-node: true
+  security:
+    dev-user-enabled: true
+    dev-username: ${RHN_DEV_USERNAME:doctor}
+    dev-password: ${RHN_DEV_PASSWORD:rhn-dev-2026}
+  crypto:
+    active-provider: development-jca
+    enforce-compliance: false
+
+springdoc:
+  api-docs:
+    enabled: true
