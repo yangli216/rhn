@@ -9,6 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -64,6 +66,17 @@ public class ApiExceptionHandler {
                                                   HttpServletRequest request) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error(
                 "DATA_INTEGRITY_CONFLICT", "数据约束冲突，请刷新后重试", request, List.of()));
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthorizationDeniedException.class})
+    ResponseEntity<ApiError> handleAccessDenied(RuntimeException exception, HttpServletRequest request) {
+        boolean missingWorkContext = request.getRequestURI().startsWith("/api/")
+                && (request.getHeader("X-Organization-Id") == null
+                || request.getHeader("X-Organization-Id").isBlank());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error(
+                missingWorkContext ? "WORK_CONTEXT_REQUIRED" : "ACCESS_DENIED",
+                missingWorkContext ? "请选择机构和科室工作上下文" : "当前账号没有执行此操作的权限",
+                request, List.of()));
     }
 
     @ExceptionHandler(Exception.class)

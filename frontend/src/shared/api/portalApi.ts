@@ -6,6 +6,7 @@ export interface WorkContextOption extends WorkContextSelection {
   workContextType: WorkContextType
   dataScopeType: string
   roleCodes: string[]
+  authorities?: string[]
 }
 
 export type WorkContextType = 'CLINICAL' | 'PHARMACY' | 'INVENTORY' | 'GENERAL'

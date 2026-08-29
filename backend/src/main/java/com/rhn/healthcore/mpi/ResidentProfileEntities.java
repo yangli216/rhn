@@ -217,7 +217,8 @@ class ResidentCoverage {
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
     }
 
-    Long id() { return id; } String coverageTypeCode() { return coverageTypeCode; } String payerName() { return payerName; }
+    Long id() { return id; } Long residentId() { return residentId; } String coverageTypeCode() { return coverageTypeCode; }
+    String payerName() { return payerName; } String status() { return status; }
     String memberNo() { return memberNo; } boolean primary() { return primary; }
     LocalDate validFrom() { return validFrom; } LocalDate validTo() { return validTo; }
     private static String text(String value) { return value == null || value.isBlank() ? null : value.trim(); }

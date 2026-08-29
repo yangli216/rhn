@@ -363,8 +363,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString();
 
         String encounterId = extract(encounterBody, "id");
-        mockMvc.perform(post("/api/encounters/{id}/start", encounterId)
-                        .with(rhn()))
+        mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
 
@@ -468,7 +467,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String encounterId = extract(body, "id");
-        mockMvc.perform(post("/api/encounters/{id}/start", encounterId).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
         return encounterId;
     }

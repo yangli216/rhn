@@ -15,7 +15,7 @@ public class PortalSummaryController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('PORTAL.ACCESS') or hasRole('CLINICIAN')")
+    @PreAuthorize("hasAuthority('PORTAL.ACCESS')")
     PortalSummaryResponse current() {
         return service.current();
     }

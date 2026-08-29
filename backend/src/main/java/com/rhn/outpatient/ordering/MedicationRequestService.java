@@ -2,6 +2,7 @@ package com.rhn.outpatient.ordering;
 
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
+import com.rhn.healthcore.api.AllergyDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
@@ -39,6 +40,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final ItemAttributeSnapshotDirectory attributeDirectory;
     private final ItemStandardMappingDirectory mappingDirectory;
     private final OrganizationDirectory organizationDirectory;
+    private final AllergyDirectory allergyDirectory;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
@@ -50,12 +52,14 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              ItemAttributeSnapshotDirectory attributeDirectory,
                              ItemStandardMappingDirectory mappingDirectory,
                              OrganizationDirectory organizationDirectory,
+                             AllergyDirectory allergyDirectory,
                              DomainEventPublisher eventPublisher,
                              ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
         this.encounterDirectory = encounterDirectory; this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory; this.mappingDirectory = mappingDirectory;
-        this.organizationDirectory = organizationDirectory; this.eventPublisher = eventPublisher;
+        this.organizationDirectory = organizationDirectory; this.allergyDirectory = allergyDirectory;
+        this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
     }
 
@@ -160,6 +164,24 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 "疗程时长与时长单位必须同时填写");
         String route = clean(input.routeCode()) == null ? medication.defaultRoute() : clean(input.routeCode());
         String frequency = clean(input.frequencyCode()) == null ? medication.defaultFrequency() : clean(input.frequencyCode());
+        String administrationGroupNo = clean(input.administrationGroupNo());
+        if (prescription != null) {
+            requirePrescriptionDirections(doseValue, doseUnit, route, frequency, input.medicationInstruction());
+            requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
+        }
+        if (administrationGroupNo != null && !isInfusionRoute(route)) {
+            throw badRequest("MEDICATION_ADMINISTRATION_GROUP_ROUTE_INVALID", "只有输液给药途径可以设置输液组号");
+        }
+        var drugAllergies = allergyDirectory.activeForResident(encounter.residentId()).stream()
+                .filter(com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
+        if (!drugAllergies.isEmpty() && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
+            throw conflict("MEDICATION_ALLERGY_REVIEW_REQUIRED", "患者存在有效药物过敏记录，请核对后再加入处方");
+        }
+        var matchedAllergies = drugAllergies.stream().filter(allergy -> allergy.substanceCode() != null
+                && allergy.substanceCode().equalsIgnoreCase(medication.code())).toList();
+        if (!matchedAllergies.isEmpty() && clean(input.allergyOverrideReason()) == null) {
+            throw conflict("MEDICATION_ALLERGY_MATCH", "所选药品命中患者过敏原，继续开立必须填写临床理由");
+        }
         BigDecimal priceQuantity = resolvedPrice == null ? null
                 : resolvedPrice.packageId() == null ? baseQuantity : input.quantity();
         BigDecimal totalAmount = resolvedPrice == null ? null : resolvedPrice.price().multiply(priceQuantity);
@@ -186,6 +208,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 resolvedPrice == null ? null : resolvedPrice.currencyCode(),
                 jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
                 attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit, route, frequency,
+                administrationGroupNo,
                 input.durationValue(), clean(input.durationUnit()), input.quantity(), baseQuantity, baseUnit, packageFactor,
                 itemPackage == null ? null : itemPackage.unitName(), itemPackage == null ? null : itemPackage.packageSpec(),
                 priceQuantity, input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
@@ -196,10 +219,19 @@ class MedicationRequestService implements MedicationRequestDirectory {
         eventDetails.put("medicationId", value.medicationId());
         if (value.catalogItemId() != null) eventDetails.put("catalogItemId", value.catalogItemId());
         if (value.requestGroupId() != null) eventDetails.put("prescriptionId", value.requestGroupId());
+        if (value.administrationGroupNo() != null) {
+            eventDetails.put("administrationGroupNo", value.administrationGroupNo());
+        }
         eventDetails.put("medicationCode", value.medicationCodeSnapshot());
         eventDetails.put("medicationName", value.medicationNameSnapshot());
         eventDetails.put("quantity", value.quantity()); eventDetails.put("quantityUnit", value.quantityUnit());
         eventDetails.put("baseQuantity", value.baseQuantity()); eventDetails.put("baseUnit", value.baseUnit());
+        eventDetails.put("allergyReviewConfirmed", Boolean.TRUE.equals(input.allergyReviewConfirmed()));
+        eventDetails.put("activeDrugAllergyCount", drugAllergies.size());
+        eventDetails.put("matchedAllergyCount", matchedAllergies.size());
+        if (clean(input.allergyOverrideReason()) != null) {
+            eventDetails.put("allergyOverrideReason", clean(input.allergyOverrideReason()));
+        }
         publish(value, prescription == null ? "MEDICATION_REQUEST_AUTHORED" : "MEDICATION_REQUEST_DRAFTED",
                 prescription == null ? "开立药品" : "处方草稿添加药品", eventDetails);
         return response(value);
@@ -284,7 +316,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.medicationTypeSnapshot(), value.doseFormSnapshot(), value.preparationSpecSnapshot(),
                 value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(), value.antimicrobialSnapshot(),
                 value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeCode(),
-                value.frequencyCode(), value.durationValue(), value.durationUnit(), value.quantity(), value.quantityUnit(),
+                value.frequencyCode(), value.administrationGroupNo(), value.durationValue(), value.durationUnit(),
+                value.quantity(), value.quantityUnit(),
                 value.baseQuantity(), value.baseUnit(), value.packageFactorSnapshot(), value.packageUnitNameSnapshot(),
                 value.packageSpecSnapshot(), value.substitutionAllowed(), value.selfProvided(), value.medicationInstruction(),
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
@@ -298,6 +331,31 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     private void requirePair(BigDecimal value, String unit, String code, String message) {
         if ((value == null) != (unit == null)) throw badRequest(code, message);
+    }
+
+    private void requirePrescriptionDirections(BigDecimal doseValue, String doseUnit, String route,
+                                               String frequency, String instruction) {
+        if (doseValue == null || doseUnit == null) {
+            throw badRequest("PRESCRIPTION_DOSE_REQUIRED", "处方药品必须填写单次剂量和剂量单位");
+        }
+        if (route == null) throw badRequest("PRESCRIPTION_ROUTE_REQUIRED", "处方药品必须填写给药途径");
+        if (frequency == null) throw badRequest("PRESCRIPTION_FREQUENCY_REQUIRED", "处方药品必须填写用药频次");
+        if (clean(instruction) == null) throw badRequest("PRESCRIPTION_INSTRUCTION_REQUIRED", "处方药品必须填写用药嘱托");
+    }
+
+    private void requirePrescriptionCategory(String categoryCode, String medicationType) {
+        if (categoryCode == null || "OUTPATIENT".equals(categoryCode)) return;
+        if (!categoryCode.equals(medicationType)) {
+            throw badRequest("PRESCRIPTION_MEDICATION_TYPE_MISMATCH",
+                    "药品类型与当前自动分方的处方类型不一致");
+        }
+    }
+
+    private boolean isInfusionRoute(String route) {
+        if (route == null) return false;
+        String normalized = route.trim().toUpperCase();
+        return normalized.equals("IV") || normalized.equals("IVGTT") || normalized.equals("IV_DRIP")
+                || normalized.equals("INTRAVENOUS") || normalized.contains("输液") || normalized.contains("静滴");
     }
 
     private void publish(MedicationRequest value, String type, String summary, Map<String, Object> details) {

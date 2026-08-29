@@ -16,6 +16,7 @@ import { createBillingApi } from './billingApi'
 import { createHealthPlanningApi } from './healthPlanningApi'
 import { createSchedulingApi } from './schedulingApi'
 import { createGridAddressApi } from './gridAddressApi'
+import { createIdentityAccessApi } from './identityAccessApi'
 
 export * from './encountersApi'
 export * from './dictionaryApi'
@@ -33,6 +34,7 @@ export * from './billingApi'
 export * from './healthPlanningApi'
 export * from './schedulingApi'
 export * from './gridAddressApi'
+export * from './identityAccessApi'
 
 function createApiModules(client: ApiClient) {
   return {
@@ -53,6 +55,7 @@ function createApiModules(client: ApiClient) {
     healthPlanning: createHealthPlanningApi(client),
     scheduling: createSchedulingApi(client),
     gridAddresses: createGridAddressApi(client),
+    identityAccess: createIdentityAccessApi(client),
   }
 }
 

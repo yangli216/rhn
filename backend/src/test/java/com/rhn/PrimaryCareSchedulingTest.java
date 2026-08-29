@@ -13,6 +13,7 @@ import java.time.temporal.TemporalAdjusters;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,6 +67,8 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.schedules[0].availableCount").value(30))
                 .andReturn().getResponse().getContentAsString();
         String generationRunId = json(response).get("generationRunId").asText();
+        String morningScheduleId = json(response).at("/schedules/0/id").asText();
+        String afternoonScheduleId = json(response).at("/schedules/1/id").asText();
 
         mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
@@ -82,11 +85,72 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].practitionerId").value("362387869790223"))
                 .andExpect(jsonPath("$[1].locationName").value("全科门诊一诊室"));
 
+        String updateCommandCode = "test-schedule-update-" + GlobalIds.next();
+        String updateBody = """
+                {
+                  "startTime":"08:00",
+                  "endTime":"12:00",
+                  "capacity":35,
+                  "locationName":"全科门诊二诊室",
+                  "commandCode":"%s",
+                  "reason":"测试调整门诊容量"
+                }
+                """.formatted(updateCommandCode);
+        mockMvc.perform(put("/api/outpatient/scheduling/schedules/{scheduleId}", morningScheduleId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(35))
+                .andExpect(jsonPath("$.availableCount").value(35))
+                .andExpect(jsonPath("$.locationName").value("全科门诊二诊室"));
+        mockMvc.perform(put("/api/outpatient/scheduling/schedules/{scheduleId}", morningScheduleId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalCount").value(35));
+
+        performAction(morningScheduleId, "SUSPEND", "暂停接诊").andExpect(status().isOk())
+                .andExpect(jsonPath("$.sdStatus").value("SUSPENDED"))
+                .andExpect(jsonPath("$.sdStatusText").value("已停诊"));
+        performAction(morningScheduleId, "RESUME", "恢复接诊").andExpect(status().isOk())
+                .andExpect(jsonPath("$.sdStatus").value("PUBLISHED"))
+                .andExpect(jsonPath("$.sdStatusText").value("可预约"));
+        performAction(afternoonScheduleId, "CANCEL", "当日停诊").andExpect(status().isOk())
+                .andExpect(jsonPath("$.sdStatus").value("CANCELLED"))
+                .andExpect(jsonPath("$.sdStatusText").value("已取消"));
+
+        String overlappingBody = body
+                .replace("362387869795101", "362387869795102")
+                .replace(requestCode, "test-schedule-overlap-" + GlobalIds.next())
+                .replace("[\"MORNING\",\"AFTERNOON\"]", "[\"MORNING\"]");
+        mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(overlappingBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.generatedCount").value(0))
+                .andExpect(jsonPath("$.skippedCount").value(1));
+
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from schedule_slot_pools where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
-        assertEquals(2, jdbcTemplate.queryForObject(
+        assertEquals(6, jdbcTemplate.queryForObject(
                 "select count(*) from service_schedule_events where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
-        assertEquals(2, jdbcTemplate.queryForObject(
+        assertEquals(6, jdbcTemplate.queryForObject(
                 "select count(*) from slot_events where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "select count(*) from schedule_slot_pools where tenant_id = ? and status = 'ACTIVE'",
+                Integer.class, Long.valueOf(TENANT)));
+        assertEquals(1, jdbcTemplate.queryForObject(
+                "select count(*) from schedule_slot_pools where tenant_id = ? and status = 'CLOSED'",
+                Integer.class, Long.valueOf(TENANT)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions performAction(
+            String scheduleId, String action, String reason) throws Exception {
+        String body = """
+                {
+                  "action":"%s",
+                  "commandCode":"test-schedule-action-%s",
+                  "reason":"%s"
+                }
+                """.formatted(action, GlobalIds.next(), reason);
+        return mockMvc.perform(post("/api/outpatient/scheduling/schedules/{scheduleId}/actions", scheduleId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body));
     }
 }

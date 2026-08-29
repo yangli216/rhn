@@ -1,17 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type {
-  ClinicalConfiguration, DictionaryValue, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
+  ClinicalConfiguration, DiagnosticChargeLine, DictionaryValue, ExaminationChargePlan, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
   ExaminationAttachmentConfiguration, ExaminationAttachmentInput,
   ItemGroup, ItemGroupInput, LaboratoryProfile, Manufacturer, RhnApi, ServiceCatalogItem,
-  SpecimenConfiguration, SpecimenConfigurationInput, SupplyInput, SupplyItem, UnitConversion,
+  LaboratoryTubePlan, SpecimenConfiguration, SpecimenConfigurationInput, SupplyInput, SupplyItem, UnitConversion,
   UnitConversionInput, UnitDefinition,
 } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { Organization } from '../../shared/model'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from '../../shared/ui'
 
-type Area = 'clinical' | 'group' | 'supply' | 'unit'
+type Area = 'group' | 'supply' | 'unit'
 const today = () => new Date().toISOString().slice(0, 10)
 const activeStatus = [{ value: 'ACTIVE', label: '启用' }, { value: 'INACTIVE', label: '停用' }]
 const dimensions = [
@@ -19,12 +19,11 @@ const dimensions = [
   ['AREA', '面积'], ['ACTIVITY', '活度'], ['TEMPERATURE', '温度'], ['OTHER', '其它'],
 ].map(([value, label]) => ({ value, label }))
 
-export function OperationalMasterDataPanel({ api, organization, dictionaries, manufacturers }: {
-  api: RhnApi; organization: Organization; dictionaries: Record<string, DictionaryValue[]>; manufacturers: Manufacturer[]
+export function OperationalMasterDataPanel({ api, organization, manufacturers }: {
+  api: RhnApi; organization: Organization; manufacturers: Manufacturer[]
 }) {
   const client = useQueryClient()
-  const [area, setArea] = useState<Area>('clinical')
-  const [selectedServiceId, setSelectedServiceId] = useState('')
+  const [area, setArea] = useState<Area>('group')
   const [dialog, setDialog] = useState<ReactNode>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
@@ -32,61 +31,24 @@ export function OperationalMasterDataPanel({ api, organization, dictionaries, ma
     queryFn: () => api.masterData.services('', '', '', organization.id) })
   const supplies = useQuery({ queryKey: ['master-data-operational-supplies'], queryFn: () => api.masterData.supplies(), enabled: area === 'supply' || area === 'unit' })
   const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: () => api.masterData.itemGroups(), enabled: area === 'group' })
-  const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units(), enabled: area === 'unit' || area === 'supply' || area === 'clinical' })
+  const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units(), enabled: area === 'unit' || area === 'supply' })
   const conversions = useQuery({ queryKey: ['master-data-operational-conversions'], queryFn: () => api.masterData.unitConversions(), enabled: area === 'unit' })
-  const configuration = useQuery({ queryKey: ['master-data-clinical-configuration', selectedServiceId],
-    queryFn: () => api.masterData.clinicalConfiguration(selectedServiceId), enabled: Boolean(selectedServiceId) })
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
     await client.invalidateQueries({ predicate: ({ queryKey }) => String(queryKey[0] ?? '').startsWith('master-data-operational') })
-    await client.invalidateQueries({ queryKey: ['master-data-clinical-configuration'] })
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
   const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message)).catch((error) => setOperationError(errorMessage(error)))
-  const activeServices = (services.data ?? []).filter((value) => ['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType))
-  const serviceOptions = activeServices.map((value) => ({ value: value.id, label: value.name,
-    secondaryText: value.code, searchKeywords: [value.sdServiceTypeText] }))
 
   return <div className="operational-master-data">
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
     <div className="operational-master-data__nav" role="tablist" aria-label="运营主数据类型">
-      <AreaButton active={area === 'clinical'} onClick={() => setArea('clinical')} title="标本与部位" copy="检验标本、容器、检查部位方式" />
       <AreaButton active={area === 'group'} onClick={() => setArea('group')} title="项目组套" copy="LIS/PACS 组套与组合项目" />
       <AreaButton active={area === 'supply'} onClick={() => setArea('supply')} title="耗材与器械" copy="UDI、注册证、型号与库存属性" />
       <AreaButton active={area === 'unit'} onClick={() => setArea('unit')} title="计量与换算" copy="统一单位、全局/项目换算" />
     </div>
-    {area === 'clinical' && <section className="operational-master-data__body">
-      <div className="operational-master-data__toolbar">
-        <div><h3>检验/检查执行配置</h3><p>先选择诊疗项目，再维护其可用标本、容器和部位方式。</p></div>
-        <Select value={selectedServiceId} onChange={setSelectedServiceId} loading={services.isPending}
-          placeholder="搜索项目名称或编码" showValue options={serviceOptions} />
-      </div>
-      {!selectedServiceId ? <EmptyState icon="clinical" title="请选择检验或检查项目" copy="选择后可维护该项目的执行约束。" />
-        : configuration.isPending ? <LoadingState label="正在加载项目执行配置…" />
-          : configuration.data && <ClinicalWorkspace value={configuration.data} dictionaries={dictionaries}
-            unitCodes={(units.data ?? []).filter((v) => v.status === 'ACTIVE')}
-            onEditProfile={() => setDialog(configuration.data?.laboratory
-              ? <LaboratoryProfileDialog value={configuration.data.laboratory} dictionaries={dictionaries}
-                units={units.data ?? []} onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目配置已更新', api.masterData.updateLaboratoryProfile(selectedServiceId, configuration.data!.laboratory!.revision, input))} />
-              : <ExaminationProfileDialog value={configuration.data!.examination!} dictionaries={dictionaries}
-                services={services.data ?? []} currentServiceId={selectedServiceId}
-                onClose={() => setDialog(undefined)} onSave={(input) => execute('检查项目配置已更新', api.masterData.updateExaminationProfile(selectedServiceId, configuration.data!.examination!.revision, input))} />)}
-            onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={configuration.data!}
-              units={units.data ?? []} services={services.data ?? []} onClose={() => setDialog(undefined)} onSave={(input) => execute(row ? '标本配置已更新' : '标本配置已新增', row
-                ? api.masterData.updateSpecimenConfiguration(selectedServiceId, row, input)
-                : api.masterData.createSpecimenConfiguration(selectedServiceId, input))} />)}
-            onVariant={(row) => setDialog(<VariantDialog value={row} dictionaries={dictionaries}
-              onClose={() => setDialog(undefined)} onSave={(input) => execute(row ? '检查部位方式已更新' : '检查部位方式已新增', row
-                ? api.masterData.updateExaminationVariant(selectedServiceId, row, input)
-                : api.masterData.createExaminationVariant(selectedServiceId, input))} />)}
-            onAttachment={(row) => setDialog(<AttachmentDialog value={row} services={services.data ?? []}
-              currentServiceId={selectedServiceId} onClose={() => setDialog(undefined)}
-              onSave={(input) => execute(row ? '检查附件项目已更新' : '检查附件项目已新增', row
-                ? api.masterData.updateExaminationAttachment(selectedServiceId, row, input)
-                : api.masterData.createExaminationAttachment(selectedServiceId, input))} />)} />}
-    </section>}
     {area === 'group' && <ListSection title="项目组套" copy="LIS 只能选检验项目，PACS 只能选检查项目；服务端会再次校验。"
       action={<Button onClick={() => setDialog(<GroupDialog services={services.data ?? []} organization={organization} units={units.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
@@ -119,6 +81,84 @@ export function OperationalMasterDataPanel({ api, organization, dictionaries, ma
   </div>
 }
 
+export function ClinicalServiceConfigurationDialog({ api, service, organizationId, dictionaries, onClose }: {
+  api: RhnApi; service: ServiceCatalogItem; organizationId: string
+  dictionaries: Record<string, DictionaryValue[]>; onClose: () => void
+}) {
+  const client = useQueryClient()
+  const [dialog, setDialog] = useState<ReactNode>()
+  const [feedback, setFeedback] = useState('')
+  const [operationError, setOperationError] = useState('')
+  const configuration = useQuery({
+    queryKey: ['master-data-clinical-configuration', service.id],
+    queryFn: () => api.masterData.clinicalConfiguration(service.id),
+  })
+  const services = useQuery({
+    queryKey: ['master-data-services-project-configuration', organizationId],
+    queryFn: () => api.masterData.services('', '', '', organizationId),
+  })
+  const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units() })
+  const invalidate = async (message: string) => {
+    setDialog(undefined); setFeedback(message); setOperationError('')
+    await client.invalidateQueries({ queryKey: ['master-data-clinical-configuration', service.id] })
+    await client.invalidateQueries({ queryKey: ['master-data-services'] })
+  }
+  const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message))
+    .catch((error) => setOperationError(errorMessage(error)))
+  const value = configuration.data
+  const allServices = services.data ?? []
+  const allUnits = units.data ?? []
+  const laboratory = service.sdServiceType === 'LABORATORY'
+  const examination = service.sdServiceType === 'EXAMINATION'
+  const supportedType = laboratory || examination
+  const configurationMatchesType = Boolean(value && (laboratory
+    ? value.serviceType === 'LABORATORY' && value.laboratory && !value.examination
+    : examination && value.serviceType === 'EXAMINATION' && value.examination && !value.laboratory))
+  const description = laboratory
+    ? '统一维护检验方法、报告要求、标本容器、分管规则和试管加收；这里是该检验项目的唯一业务配置入口。'
+    : '统一维护检查准备、允许部位与方式、多部位计价和附加收费；这里是该检查项目的唯一业务配置入口。'
+
+  if (dialog) return <>{dialog}</>
+  return <Dialog title={`${service.name} · 项目配置`} eyebrow="诊疗项目 · 执行与收费" size="xwide"
+    className="clinical-project-dialog" onClose={onClose}
+    description={description}
+    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    {feedback && <Alert tone="success">{feedback}</Alert>}
+    {operationError && <Alert>{operationError}</Alert>}
+    {(configuration.error || services.error || units.error) && <Alert>
+      {errorMessage(configuration.error || services.error || units.error)}
+    </Alert>}
+    {configuration.isPending || services.isPending || units.isPending
+      ? <LoadingState label="正在加载项目执行与收费配置…" />
+      : !supportedType ? <Alert>当前项目类型不支持检验检查业务配置。</Alert>
+        : value && !configurationMatchesType ? <Alert>项目类型与执行配置不一致，已停止展示和编辑，请联系管理员修复主数据。</Alert>
+          : value && <ClinicalWorkspace api={api} value={value} services={allServices} dictionaries={dictionaries}
+          unitCodes={allUnits.filter((item) => item.status === 'ACTIVE')}
+          onEditProfile={() => setDialog(laboratory
+            ? <LaboratoryProfileDialog value={value.laboratory!} dictionaries={dictionaries} units={allUnits}
+              onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目配置已更新',
+                api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))} />
+            : <ExaminationProfileDialog value={value.examination!} dictionaries={dictionaries}
+              services={allServices} currentServiceId={service.id} onClose={() => setDialog(undefined)}
+              onSave={(input) => execute('检查项目配置已更新',
+                api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))} />)}
+          onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={value}
+            units={allUnits} services={allServices} onClose={() => setDialog(undefined)}
+            onSave={(input) => execute(row ? '标本配置已更新' : '标本配置已新增', row
+              ? api.masterData.updateSpecimenConfiguration(service.id, row, input)
+              : api.masterData.createSpecimenConfiguration(service.id, input))} />)}
+          onVariant={(row) => setDialog(<VariantDialog value={row} dictionaries={dictionaries}
+            onClose={() => setDialog(undefined)} onSave={(input) => execute(row ? '检查部位或方式已更新' : '检查部位或方式已新增', row
+              ? api.masterData.updateExaminationVariant(service.id, row, input)
+              : api.masterData.createExaminationVariant(service.id, input))} />)}
+        onAttachment={(row) => setDialog(<AttachmentDialog value={row} services={allServices}
+          currentServiceId={service.id} onClose={() => setDialog(undefined)}
+          onSave={(input) => execute(row ? '附加收费规则已更新' : '附加收费规则已新增', row
+            ? api.masterData.updateExaminationAttachment(service.id, row, input)
+            : api.masterData.createExaminationAttachment(service.id, input))} />)} />}
+  </Dialog>
+}
+
 function AreaButton({ active, onClick, title, copy }: { active: boolean; onClick: () => void; title: string; copy: string }) {
   return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}><strong>{title}</strong><small>{copy}</small></button>
 }
@@ -132,48 +172,141 @@ function DataTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }
     <tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, i) => <td key={i}>{cell}</td>)}</tr>)}</tbody></table></div>
 }
 
-function ClinicalWorkspace({ value, dictionaries, unitCodes, onEditProfile, onSpecimen, onVariant, onAttachment }: {
-  value: ClinicalConfiguration; dictionaries: Record<string, DictionaryValue[]>; unitCodes: UnitDefinition[]
+function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEditProfile, onSpecimen, onVariant, onAttachment }: {
+  api: RhnApi; value: ClinicalConfiguration; services: ServiceCatalogItem[]
+  dictionaries: Record<string, DictionaryValue[]>; unitCodes: UnitDefinition[]
   onEditProfile: () => void; onSpecimen: (value?: SpecimenConfiguration) => void
   onVariant: (value?: ExaminationVariantConfiguration) => void
   onAttachment: (value?: ExaminationAttachmentConfiguration) => void
 }) {
-  void dictionaries; void unitCodes
+  void unitCodes
+  const laboratory = value.serviceType === 'LABORATORY'
+  const [tab, setTab] = useState<'requirements' | 'options' | 'charge'>('requirements')
   const profile = value.laboratory ?? value.examination
+  const dictionaryName = (dictionaryCode: string, code?: string) =>
+    code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? code : '未设置'
+  const tabs = laboratory
+    ? ([['requirements', '执行要求'], ['options', '标本与分管'], ['charge', '分管试算']] as const)
+    : ([['requirements', '执行要求'], ['options', '允许部位与方式'], ['charge', '收费规则与试算']] as const)
   return <div className="clinical-configuration">
     <header><div><strong>{value.serviceName}</strong><code>{value.serviceCode}</code></div><State value="ACTIVE" />
       <Button variant="secondary" onClick={onEditProfile}>编辑项目执行配置</Button></header>
     <div className="clinical-configuration__facts">
-      {value.laboratory ? <><span>检验方法<strong>{value.laboratory.laboratoryMethod || '未设置'}</strong></span>
-        <span>报告时长<strong>{value.laboratory.reportDuration ? `${value.laboratory.reportDuration} ${value.laboratory.reportDurationUnit}` : '未设置'}</strong></span>
-        <span>执行属性<strong>{[value.laboratory.fastingRequired && '空腹', value.laboratory.pointOfCare && 'POCT'].filter(Boolean).join(' · ') || '常规'}</strong></span></>
-        : <><span>检查类型<strong>{value.examination?.examinationType || '未设置'}</strong></span>
-          <span>部位规则<strong>{value.examination?.bodySiteRequired ? `必选 · 最多 ${value.examination.maxBodySiteCount} 个` : '不要求'}</strong></span>
+      {laboratory ? <><span>检验方法<strong>{dictionaryName('BD_LAB_METHOD', value.laboratory!.laboratoryMethod)}</strong></span>
+        <span>报告时长<strong>{value.laboratory!.reportDuration ? `${value.laboratory!.reportDuration} ${value.laboratory!.reportDurationUnit ?? ''}`.trim() : '未设置'}</strong></span>
+        <span>执行属性<strong>{[value.laboratory!.fastingRequired && '空腹', value.laboratory!.pointOfCare && 'POCT'].filter(Boolean).join(' · ') || '常规'}</strong></span></>
+        : <><span>检查类型<strong>{dictionaryName('BD_EXAM_TYPE', value.examination?.examinationType)}</strong></span>
+          <span>部位规则<strong>{value.examination?.bodySiteRequired ? `必选 · ${value.examination.maxBodySiteCount ? `最多 ${value.examination.maxBodySiteCount} 个` : '数量不限'}` : '不要求'}</strong></span>
           <span>多部位计价<strong>{sitePricingLabel(value.examination!)}</strong></span></>}
     </div>
-    <div className="clinical-configuration__section"><div className="section-heading"><div><h4>{value.laboratory ? '可用标本与容器' : '检查部位与方式'}</h4>
-      <p>{value.laboratory ? '开立与采集时将按此限定标本。' : '作为检查申请的可选变体。'}</p></div>
-      <Button onClick={() => value.laboratory ? onSpecimen() : onVariant()}><Icon name="add" />新增</Button></div>
-      {value.laboratory ? <DataTable headers={['标本', '容器', '最小采集量', '分管/加收', '状态', '操作']} rows={value.laboratory.specimens.map((row) => [
-        <b>{row.specimenName}<code>{row.specimenCode}</code></b>, row.containerName || '—', row.minimumQuantity ? `${row.minimumQuantity} ${row.minimumQuantityUnit}` : '—',
+    <nav className="clinical-configuration__tabs" aria-label="项目配置内容">
+      {tabs.map(([key, label]) => <button type="button" key={key} className={tab === key ? 'is-active' : ''} onClick={() => setTab(key)}>{label}</button>)}
+    </nav>
+    {tab === 'requirements' && <div className="clinical-requirement-card">
+      <div><span>开立与执行说明</span><strong>{laboratory ? value.laboratory!.collectionDescription || '暂未维护' : value.examination!.preparationDescription || '暂未维护'}</strong></div>
+      <div><span>配置完整度</span><strong>{profile ? '已建立项目配置' : '待初始化'}</strong></div>
+      <p>执行要求用于开立校验与{laboratory ? '采集' : '检查'}提示；收费结果请在“{laboratory ? '分管试算' : '收费规则与试算'}”中验证。</p>
+    </div>}
+    {tab === 'options' && <div className="clinical-configuration__section"><div className="section-heading"><div><h4>{laboratory ? '可用标本、容器与分管规则' : '允许部位与检查方式'}</h4>
+      <p>{laboratory ? '维护标本、容器和同次申请的合管拆管依据。' : '部位与执行方式按独立业务含义维护，编码用于开立与执行交换。'}</p></div>
+      <Button onClick={() => laboratory ? onSpecimen() : onVariant()}><Icon name="add" />{laboratory ? '新增标本规则' : '新增部位或方式'}</Button></div>
+      {laboratory ? <DataTable headers={['标本', '容器', '最小采集量', '分管/加收', '状态', '操作']} rows={value.laboratory!.specimens.map((row) => [
+        <b>{row.specimenName}<code>{row.specimenCode}</code></b>, row.containerName || '未限定', row.minimumQuantity ? `${row.minimumQuantity} ${row.minimumQuantityUnit}` : '未设置',
         <span>{tubeRuleLabel(row)}<small>{[row.defaultSpecimen && '默认', row.requiredSpecimen && '必需'].filter(Boolean).join(' · ') || '可选'}</small></span>, <State value={row.status} />,
         <Button size="sm" variant="text" onClick={() => onSpecimen(row)}>编辑</Button>,
-      ])} /> : <DataTable headers={['部位/方式', '方式类型', '部位选择', '排序', '状态', '操作']} rows={(value.examination?.variants ?? []).map((row) => [
-        <b>{row.name}<code>{row.code}</code></b>, row.methodType || '常规', row.bodySiteRequired ? '必选部位' : '固定方式', row.sortOrder,
+      ])} /> : <DataTable headers={['配置项', '执行方式', '申请要求', '排序', '状态', '操作']} rows={(value.examination?.variants ?? []).map((row) => [
+        <b>{row.name}<code>{row.code}</code></b>, dictionaryName('BD_SERVICE_VARIANT_METHOD', row.methodType), row.bodySiteRequired ? '需选择标准部位' : '无需另选部位', row.sortOrder,
         <State value={row.status} />, <Button size="sm" variant="text" onClick={() => onVariant(row)}>编辑</Button>,
       ])} />}
-    </div>
-    {value.examination && <div className="clinical-configuration__section"><div className="section-heading"><div>
-      <h4>附件项目</h4><p>配置胶片、造影、麻醉等随检查带出的项目及计费数量。</p></div>
-      <Button onClick={() => onAttachment()}><Icon name="add" />新增附件</Button></div>
-      {!value.examination.attachments.length ? <EmptyState icon="clinical" title="暂无附件项目" copy="按需配置必带、可选或多部位触发的附件。" />
-        : <DataTable headers={['附件项目', '触发条件', '数量规则', '计费', '状态', '操作']} rows={value.examination.attachments.map((row) => [
+    </div>}
+    {tab === 'charge' && !laboratory && value.examination && <><div className="clinical-configuration__section"><div className="section-heading"><div>
+      <h4>附加收费规则</h4><p>以“触发条件 → 收费动作”展示胶片、造影、麻醉和多部位加收。</p></div>
+      <Button onClick={() => onAttachment()}><Icon name="add" />新增收费规则</Button></div>
+      {!value.examination.attachments.length ? <EmptyState icon="clinical" title="暂无附加收费规则" copy="可配置始终带出、按需选择或多部位触发的收费动作。" />
+        : <DataTable headers={['规则项目', '触发条件', '收费动作', '要求', '状态', '操作']} rows={value.examination.attachments.map((row) => [
           <b>{row.attachmentItemName}<code>{row.attachmentItemCode}</code></b>, attachmentTriggerLabel(row.triggerType),
-          `${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`, row.separatelyChargeable ? '单独计费' : '随主项',
+          `${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`, [row.requiredAttachment && '必须', row.separatelyChargeable ? '独立收费行' : '随主项'].filter(Boolean).join(' · '),
           <State value={row.status} />, <Button size="sm" variant="text" onClick={() => onAttachment(row)}>编辑</Button>,
         ])} />}
-    </div>}{!profile && <Alert>当前项目未初始化执行配置。</Alert>}
+    </div><ExaminationChargeSimulator api={api} value={value} /></>}
+    {tab === 'charge' && laboratory && <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} />}
+    {!profile && <Alert>当前项目未初始化执行配置。</Alert>}
   </div>
+}
+
+function ExaminationChargeSimulator({ api, value }: { api: RhnApi; value: ClinicalConfiguration }) {
+  const examination = value.examination!
+  const availableSites = examination.variants.filter((item) => item.status === 'ACTIVE')
+  const optionalRules = examination.attachments.filter((item) => item.status === 'ACTIVE' && item.triggerType === 'OPTIONAL')
+  const [selectedSites, setSelectedSites] = useState<string[]>([])
+  const [selectedRules, setSelectedRules] = useState<string[]>([])
+  const [result, setResult] = useState<ExaminationChargePlan>()
+  const [error, setError] = useState('')
+  const [running, setRunning] = useState(false)
+  const toggle = (items: string[], value: string, setter: (next: string[]) => void) =>
+    setter(items.includes(value) ? items.filter((item) => item !== value) : [...items, value])
+  const run = () => {
+    setRunning(true); setError('')
+    api.masterData.examinationChargePlan(value.serviceId, selectedSites, selectedRules)
+      .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
+  }
+  return <section className="rule-simulator" aria-label="检查收费规则试算">
+    <header><div><h4>收费规则试算</h4><p>选择本次实际执行部位和按需项目，核对收费行与计算依据。</p></div>
+      <Button onClick={run} disabled={running || examination.bodySiteRequired && selectedSites.length === 0}>{running ? '计算中…' : '开始试算'}</Button></header>
+    {error && <Alert>{error}</Alert>}
+    <div className="rule-simulator__inputs">
+      <div><strong>实际执行部位</strong><div className="rule-option-grid">
+        {availableSites.map((site) => <Check key={site.id} label={`${site.name} · ${site.code}`} checked={selectedSites.includes(site.code)} onChange={() => toggle(selectedSites, site.code, setSelectedSites)} />)}
+        {!availableSites.length && <span>请先在“允许部位与方式”中配置启用项。</span>}
+      </div></div>
+      <div><strong>本次按需收费项</strong><div className="rule-option-grid">
+        {optionalRules.map((rule) => <Check key={rule.id} label={`${rule.attachmentItemName} · ${rule.attachmentItemCode}`} checked={selectedRules.includes(rule.id)} onChange={() => toggle(selectedRules, rule.id, setSelectedRules)} />)}
+        {!optionalRules.length && <span>当前没有需要人工选择的附加收费规则。</span>}
+      </div></div>
+    </div>
+    {result && <div className="rule-simulator__result"><div className="rule-simulator__summary">
+      <span>实际部位 <strong>{result.siteCount}</strong></span><span>包含部位 <strong>{result.includedSiteCount}</strong></span><span>加收部位 <strong>{result.extraSiteCount}</strong></span>
+    </div><ChargeLines lines={result.lines} /></div>}
+  </section>
+}
+
+function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: RhnApi; currentServiceId: string; services: ServiceCatalogItem[] }) {
+  const laboratoryServices = services.filter((service) => service.sdServiceType === 'LABORATORY' && service.sdStatus === 'ACTIVE')
+  const [selected, setSelected] = useState<string[]>([currentServiceId])
+  const [quantities, setQuantities] = useState<Record<string, string>>({ [currentServiceId]: '1' })
+  const [result, setResult] = useState<LaboratoryTubePlan>()
+  const [error, setError] = useState('')
+  const [running, setRunning] = useState(false)
+  useEffect(() => { setSelected([currentServiceId]); setQuantities({ [currentServiceId]: '1' }); setResult(undefined) }, [currentServiceId])
+  const toggle = (serviceId: string) => setSelected((items) => items.includes(serviceId)
+    ? items.filter((item) => item !== serviceId) : [...items, serviceId])
+  const run = () => {
+    setRunning(true); setError('')
+    api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({ serviceId, quantity: Number(quantities[serviceId] || 1) })))
+      .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
+  }
+  return <section className="rule-simulator" aria-label="检验分管规则试算">
+    <header><div><h4>同次申请分管试算</h4><p>组合多个检验项目，核对建议试管数、每管项目与试管加收。</p></div>
+      <Button onClick={run} disabled={running || selected.length === 0}>{running ? '计算中…' : '开始试算'}</Button></header>
+    {error && <Alert>{error}</Alert>}
+    <div className="tube-service-picker">{laboratoryServices.map((service) => <div key={service.id} className={selected.includes(service.id) ? 'is-selected' : ''}>
+      <Check label={`${service.name} · ${service.code}`} checked={selected.includes(service.id)} onChange={() => toggle(service.id)} />
+      {selected.includes(service.id) && <input type="number" min="1" aria-label={`${service.name}数量`} value={quantities[service.id] ?? '1'} onChange={(event) => setQuantities({ ...quantities, [service.id]: event.target.value })} />}
+    </div>)}</div>
+    {result && <div className="tube-plan-result">{result.groups.map((group) => <article key={group.groupCode}>
+      <div><strong>{group.specimenName || '未命名标本'} · {group.containerName || '未限定容器'}</strong><code>{group.groupCode.startsWith('ITEM:') ? '独立分管' : group.groupCode}</code></div>
+      <b>{group.tubeCount} 管</b><small>{group.serviceIds.length} 个项目 · {tubeSharingModeLabel(group.sharingMode)}</small>
+    </article>)}<ChargeLines lines={result.chargeLines} /></div>}
+  </section>
+}
+
+function ChargeLines({ lines }: { lines: DiagnosticChargeLine[] }) {
+  if (!lines.length) return <p className="rule-simulator__empty">本次没有生成收费行。</p>
+  return <DataTable headers={['收费项目', '来源', '数量/金额', '说明']} rows={lines.map((line) => [
+    <b>{line.itemName}<code>{line.itemCode}</code></b>, chargeSourceLabel(line.sourceType),
+    line.fixedAmount != null ? `¥ ${line.fixedAmount}` : `${line.quantity}${line.unitCode ? ` ${line.unitCode}` : ''}`,
+    line.description || '—',
+  ])} />
 }
 
 const sitePricingLabel = (value: NonNullable<ClinicalConfiguration['examination']>) => ({
@@ -187,6 +320,8 @@ const tubeRuleLabel = (value: SpecimenConfiguration) => {
 }
 const attachmentTriggerLabel = (value: ExaminationAttachmentConfiguration['triggerType']) => ({ ALWAYS: '始终带出', OPTIONAL: '按需选择', MULTI_SITE: '多部位时' }[value])
 const attachmentQuantityLabel = (value: ExaminationAttachmentConfiguration['quantityBasis']) => ({ FIXED: '固定', PER_SITE: '每部位', PER_EXTRA_SITE: '每超出部位' }[value])
+const tubeSharingModeLabel = (value: SpecimenConfiguration['tubeSharingMode']) => ({ SEPARATE: '独立分管', SHARE: '同组共管', BY_TEST_COUNT: '按项目数拆管' }[value])
+const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI_SITE_FIXED: '多部位固定加收', MULTI_SITE_ITEM: '多部位加收项目', ATTACHMENT: '附加收费规则', TUBE_SURCHARGE: '试管加收' }[value] ?? value)
 
 function FormDialog({ title, description, onClose, onSubmit, children }: { title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void; children: ReactNode }) {
   return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size="wide" onClose={onClose}>
@@ -194,8 +329,8 @@ function FormDialog({ title, description, onClose, onSubmit, children }: { title
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div></form>
   </Dialog>
 }
-function Check({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return <label className="operational-check"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>
+function Check({ label, checked, disabled = false, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
+  return <label className={`operational-check${disabled ? ' is-disabled' : ''}`}><input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>
 }
 
 function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }: { value: LaboratoryProfile; dictionaries: Record<string, DictionaryValue[]>; units: UnitDefinition[]; onClose: () => void; onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void }) {
@@ -269,11 +404,11 @@ function SpecimenDialog({ value, configuration, units, services, onClose, onSave
 
 function VariantDialog({ value, dictionaries, onClose, onSave }: { value?: ExaminationVariantConfiguration; dictionaries: Record<string, DictionaryValue[]>; onClose: () => void; onSave: (input: ExaminationVariantInput) => void }) {
   const [form, setForm] = useState({ code: value?.code ?? '', name: value?.name ?? '', methodType: value?.methodType ?? '', bodySiteRequired: value?.bodySiteRequired ?? true, mutualRecognitionCode: value?.mutualRecognitionCode ?? '', sortOrder: String(value?.sortOrder ?? 10), status: value?.status ?? 'ACTIVE' })
-  return <FormDialog title={value ? '编辑检查部位方式' : '新增检查部位方式'} description="可先维护本地编码与名称，后续再关联标准部位术语。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ code: form.code, name: form.name, methodType: form.methodType || undefined, bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined, sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE' }) }}>
-    <FormField label="方式编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField><FormField label="方式名称" required><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField>
-    <FormField label="方式类型"><Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })} showValue options={(dictionaries.BD_SERVICE_VARIANT_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField><FormField label="互认编码"><input value={form.mutualRecognitionCode} onChange={(e) => setForm({ ...form, mutualRecognitionCode: e.target.value })} /></FormField>
+  return <FormDialog title={value ? '编辑允许部位或检查方式' : '新增允许部位或检查方式'} description="维护申请可选项及其执行方式；部位名称与方式名称不要合并为一个长名称。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ code: form.code, name: form.name, methodType: form.methodType || undefined, bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined, sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE' }) }}>
+    <FormField label="配置编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField><FormField label="配置名称" required><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField>
+    <FormField label="检查方式"><Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })} showValue placeholder="未限定检查方式" options={(dictionaries.BD_SERVICE_VARIANT_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField><FormField label="标准/互认编码"><input value={form.mutualRecognitionCode} onChange={(e) => setForm({ ...form, mutualRecognitionCode: e.target.value })} /></FormField>
     <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' })} options={activeStatus} /></FormField>
-    <Check label="申请时仍需选择标准部位" checked={form.bodySiteRequired} onChange={(v) => setForm({ ...form, bodySiteRequired: v })} />
+    <Check label="选择此项后仍需指定标准部位" checked={form.bodySiteRequired} onChange={(v) => setForm({ ...form, bodySiteRequired: v })} />
   </FormDialog>
 }
 
@@ -288,14 +423,14 @@ function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }
     description: value?.description ?? '', status: value?.status ?? 'ACTIVE' })
   const options = services.filter((v) => v.id !== currentServiceId && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: `${v.code}${v.chargeable ? ' · 可收费' : ''}` }))
-  return <FormDialog title={value ? '编辑检查附件项目' : '新增检查附件项目'}
-    description="附件项目引用统一诊疗目录，可按固定、每部位或每超出部位计算数量。"
+  return <FormDialog title={value ? '编辑附加收费规则' : '新增附加收费规则'}
+    description="以触发条件和数量依据生成胶片、造影、麻醉、耗材等收费动作。"
     onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ attachmentCatalogItemId: form.attachmentCatalogItemId,
       triggerType: form.triggerType, quantityBasis: form.quantityBasis, quantity: Number(form.quantity),
       requiredAttachment: form.triggerType === 'OPTIONAL' ? false : form.requiredAttachment,
       separatelyChargeable: form.separatelyChargeable, sortOrder: Number(form.sortOrder),
       description: form.description || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}>
-    <FormField label="附件项目" required><Select disabled={Boolean(value)} value={form.attachmentCatalogItemId} onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} showValue options={options} /></FormField>
+    <FormField label="收费项目" required><Select disabled={Boolean(value)} value={form.attachmentCatalogItemId} onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} showValue options={options} /></FormField>
     <FormField label="触发条件"><Select value={form.triggerType} onChange={(v) => setForm({ ...form, triggerType: v as typeof form.triggerType })} options={[
       { value: 'ALWAYS', label: '始终带出' }, { value: 'OPTIONAL', label: '申请时按需选择' }, { value: 'MULTI_SITE', label: '选择多个部位时' },
     ]} /></FormField>
@@ -305,8 +440,8 @@ function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }
     <FormField label="数量"><input type="number" min="0.0001" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></FormField>
     <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} /></FormField>
     <FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as typeof form.status })} options={activeStatus} /></FormField>
-    <FormField label="说明" className="span-2"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></FormField>
-    <Check label="必带附件" checked={form.requiredAttachment} onChange={(v) => setForm({ ...form, requiredAttachment: v })} />
+    <FormField label="规则说明" className="span-2"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="说明适用条件、人工调整约束或收费依据" /></FormField>
+    <Check label="命中后必须带出" checked={form.requiredAttachment} disabled={form.triggerType === 'OPTIONAL'} onChange={(v) => setForm({ ...form, requiredAttachment: v })} />
     <Check label="生成独立收费行" checked={form.separatelyChargeable} onChange={(v) => setForm({ ...form, separatelyChargeable: v })} />
   </FormDialog>
 }

@@ -10,4 +10,5 @@ public interface ManufacturerRepository extends JpaRepository<Manufacturer, Long
     List<Manufacturer> findByTenantIdOrderByName(Long tenantId);
     Optional<Manufacturer> findByIdAndTenantId(Long id, Long tenantId);
     boolean existsByTenantIdAndCode(Long tenantId, String code);
+    boolean existsByTenantIdAndCodeAndIdNot(Long tenantId, String code, Long id);
 }

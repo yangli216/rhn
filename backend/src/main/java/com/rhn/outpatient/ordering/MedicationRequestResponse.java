@@ -19,6 +19,7 @@ record MedicationRequestResponse(
         String preparationSpec, String preparationUnit, boolean skinTestRequired,
         boolean antimicrobial, String antimicrobialLevel,
         BigDecimal doseValue, String doseUnit, String routeCode, String frequencyCode,
+        String administrationGroupNo,
         BigDecimal durationValue, String durationUnit,
         BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, String baseUnit,
         BigDecimal packageFactor, String packageUnitName, String packageSpec,

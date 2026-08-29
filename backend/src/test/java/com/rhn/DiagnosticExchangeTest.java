@@ -185,7 +185,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String encounterId = encounter.get("id").asText();
-        mockMvc.perform(post("/api/encounters/{id}/start", encounterId).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
         return encounterId;
     }

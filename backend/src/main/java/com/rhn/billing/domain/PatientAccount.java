@@ -35,6 +35,16 @@ public class PatientAccount {
         this.openedAt = Instant.now();
     }
 
+    public static PatientAccount registration(Long tenantId, Long residentId, Long organizationId,
+                                              Long departmentId, String currencyCode) {
+        PatientAccount value = new PatientAccount();
+        value.id = GlobalIds.next(); value.tenantId = tenantId; value.residentId = residentId;
+        value.organizationId = organizationId; value.departmentId = departmentId;
+        value.accountType = "REGISTRATION"; value.currencyCode = currencyCode;
+        value.status = "OPEN"; value.openedAt = Instant.now();
+        return value;
+    }
+
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }

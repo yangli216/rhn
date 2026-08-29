@@ -21,8 +21,6 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
-import com.rhn.platform.organization.domain.PersonnelStatus;
-import com.rhn.platform.organization.domain.PositionType;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
@@ -278,7 +276,7 @@ public class PharmacyApplicationService {
         if (!"PASS".equals(result) && (reason == null || description == null)) {
             throw badRequest("PHARMACY_REVIEW_REASON_REQUIRED", "非通过审方必须填写原因编码和说明");
         }
-        if ("OVERRIDE".equals(result) && !context.hasAuthority("PHARMACY_OVERRIDE")
+        if ("OVERRIDE".equals(result) && !context.hasAuthority("PHARMACY.OVERRIDE")
                 && !context.hasAuthority("ROLE_ADMIN")) {
             throw conflict("PHARMACY_OVERRIDE_NOT_AUTHORIZED", "当前账号没有强制通过审方的权限");
         }
@@ -301,16 +299,16 @@ public class PharmacyApplicationService {
         var staff = organizationDirectory.requireStaff(context.tenantId(), practitionerId);
         LocalDate today = LocalDate.now();
         boolean employed = staff.employments().stream().anyMatch(value ->
-                value.organizationId().equals(site.organizationId()) && value.sdPersonnelStatus() == PersonnelStatus.ACTIVE
+                value.organizationId().equals(site.organizationId()) && "ACTIVE".equals(value.sdPersonnelStatus())
                         && !value.hireDate().isAfter(today)
                         && (value.leaveDate() == null || !value.leaveDate().isBefore(today)));
         var assignment = staff.assignments().stream().filter(value -> value.id().equals(assignmentId)).findFirst()
                 .orElseThrow(() -> badRequest("PHARMACY_REVIEW_ASSIGNMENT_INVALID", "审方任职不属于当前药师"));
-        if (assignment.sdPositionType() != PositionType.PHARMACY) {
+        if (!"PHARMACY".equals(assignment.sdPositionType())) {
             throw conflict("PHARMACY_POSITION_TYPE_REQUIRED", "审方任职必须使用药学岗位");
         }
         boolean assignmentActive = assignment.organizationId().equals(site.organizationId())
-                && assignment.sdPersonnelStatus() == PersonnelStatus.ACTIVE
+                && "ACTIVE".equals(assignment.sdPersonnelStatus())
                 && !assignment.validFrom().isAfter(today)
                 && (assignment.validTo() == null || !assignment.validTo().isBefore(today));
         if (!employed || !assignmentActive) {

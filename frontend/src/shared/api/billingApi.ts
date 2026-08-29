@@ -58,13 +58,86 @@ export interface Invoice {
   lines: InvoiceLine[]
 }
 
+export interface SettlementLine {
+  id: string
+  chargeItemId: string
+  lineNo: number
+  settledQuantity: number
+  grossAmount: number
+  discountAmount: number
+  insuranceAmount: number
+  patientAmount: number
+  otherAmount: number
+  netAmount: number
+}
+
+export interface SettlementTender {
+  id: string
+  paymentId?: string
+  claimResponseId?: string
+  lineNo: number
+  tenderType: string
+  payerCode?: string
+  payerName?: string
+  amount: number
+  currencyCode: string
+}
+
+export interface SettlementEvent {
+  id: string
+  eventType: string
+  statusFrom?: string
+  statusTo: string
+  commandCode: string
+  actorId?: string
+  errorCode?: string
+  errorMessage?: string
+  occurredAt: string
+}
+
+export interface Settlement {
+  id: string
+  revision: number
+  patientAccountId: string
+  reversesSettlementId?: string
+  legacyInvoiceId?: string
+  settlementNo: string
+  commandCode: string
+  settlementType: 'NORMAL' | 'REVERSAL' | 'SUPPLEMENT'
+  settlementScene: 'REGISTRATION' | 'OUTPATIENT' | 'INPATIENT' | 'HOME_BED' | 'PHARMACY'
+  terminalScene: 'CASHIER' | 'DOCTOR_STATION' | 'SELF_SERVICE' | 'MOBILE' | 'ONLINE'
+  status: 'DRAFT' | 'PRICED' | 'PAYMENT_PENDING' | 'PARTIAL' | 'SETTLED' | 'REVERSING' | 'REVERSED' | 'FAILED'
+  grossAmount: number
+  discountAmount: number
+  insuranceAmount: number
+  patientAmount: number
+  otherAmount: number
+  roundingAmount: number
+  netAmount: number
+  tenderedAmount: number
+  outstandingAmount: number
+  currencyCode: string
+  terminalCode?: string
+  createdBy: string
+  createdAt: string
+  finalizedBy?: string
+  finalizedAt?: string
+  errorCode?: string
+  errorMessage?: string
+  lines: SettlementLine[]
+  tenders: SettlementTender[]
+  events: SettlementEvent[]
+}
+
 export interface Payment {
   id: string
   patientAccountId: string
   invoiceId?: string
+  paymentOrderId?: string
   paymentNo: string
   paymentType: 'PAYMENT' | 'REFUND'
   paymentMethodCode: string
+  paymentSceneCode?: string
   status: string
   amount: number
   currencyCode: string
@@ -73,6 +146,81 @@ export interface Payment {
   reversesPaymentId?: string
   enteredBy: string
   description?: string
+}
+
+export interface PaymentOrderEvent {
+  id: string
+  externalMessageId?: string
+  eventType: string
+  statusFrom?: string
+  statusTo: string
+  commandCode: string
+  externalTransactionNo?: string
+  eventAmount?: number
+  errorCode?: string
+  errorMessage?: string
+  occurredAt: string
+}
+
+export interface PaymentOrder {
+  id: string
+  revision: number
+  patientAccountId: string
+  settlementId: string
+  originalPaymentId?: string
+  orderNo: string
+  idempotencyKey: string
+  businessScene: 'REGISTRATION' | 'OUTPATIENT' | 'INPATIENT' | 'HOME_BED' | 'PHARMACY'
+  paymentSceneCode: string
+  paymentMethodCode: string
+  paymentMethodName: string
+  orderType: string
+  status: 'CREATED' | 'PENDING' | 'PROCESSING' | 'PARTIAL' | 'SUCCEEDED' | 'FAILED' | 'CANCELLED' | 'EXPIRED' | 'REFUNDING' | 'REFUNDED'
+  requestedAmount: number
+  capturedAmount: number
+  refundedAmount: number
+  currencyCode: string
+  externalOrderNo?: string
+  correlationId?: string
+  terminalCode?: string
+  expiresAt?: string
+  createdAt: string
+  updatedAt: string
+  errorCode?: string
+  errorMessage?: string
+  duplicate: boolean
+  events: PaymentOrderEvent[]
+}
+
+export interface RegistrationBillingIntent {
+  id: string
+  revision: number
+  residentId: string
+  organizationId: string
+  departmentId: string
+  scheduleId?: string
+  catalogItemId?: string
+  slotHoldId?: string
+  patientAccountId?: string
+  settlementId?: string
+  paymentOrderId?: string
+  encounterId?: string
+  idempotencyCode: string
+  registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY'
+  visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'
+  status: 'PAYMENT_PENDING' | 'PAID' | 'COMPLETING' | 'COMPLETED' | 'COMPLETION_FAILED' | 'CANCELLED' | 'EXPIRED'
+  feeAmount: number
+  currencyCode: string
+  itemCode?: string
+  itemName?: string
+  expiresAt?: string
+  completionAttempts: number
+  lastErrorCode?: string
+  lastErrorMessage?: string
+  createdAt: string
+  updatedAt: string
+  completedAt?: string
+  duplicate: boolean
 }
 
 export interface LedgerEntry {
@@ -85,6 +233,7 @@ export interface LedgerEntry {
   chargeItemId?: string
   invoiceId?: string
   paymentId?: string
+  claimResponseId?: string
   reversesLedgerEntryId?: string
   occurredAt: string
   recordedAt: string
@@ -110,6 +259,7 @@ export interface AccountStatement {
   accountBalance: number
   charges: ChargeItem[]
   invoices: Invoice[]
+  settlements: Settlement[]
   payments: Payment[]
   ledgerEntries: LedgerEntry[]
 }
@@ -172,6 +322,59 @@ export function createBillingApi(client: ApiClient) {
       paymentSceneCode?: string
       externalTransactionNo?: string; description?: string
     }) => client.request<Payment>(`/api/billing/invoices/${invoiceId}/payments`, {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    createPaymentOrder: (settlementId: string, input: {
+      idempotencyKey: string
+      businessScene: PaymentOrder['businessScene']
+      paymentSceneCode: string
+      paymentMethodCode: string
+      amount: number
+      correlationId?: string
+      terminalCode?: string
+      expiresAt?: string
+    }) => client.request<PaymentOrder>(`/api/billing/settlements/${settlementId}/payment-orders`, {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    createRegistrationIntent: (input: {
+      residentId: string
+      organizationId: string
+      departmentId: string
+      scheduleId?: string
+      idempotencyCode: string
+      registrationSource?: RegistrationBillingIntent['registrationSource']
+      visitType?: RegistrationBillingIntent['visitType']
+    }) => client.request<RegistrationBillingIntent>('/api/billing/registration-intents', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    registrationIntent: (intentId: string) => client.request<RegistrationBillingIntent>(
+      `/api/billing/registration-intents/${intentId}`,
+    ),
+    retryRegistrationCompletion: (intentId: string) => client.request<RegistrationBillingIntent>(
+      `/api/billing/registration-intents/${intentId}/completion/retry`, { method: 'POST' },
+    ),
+    cancelRegistrationIntent: (intentId: string) => client.request<RegistrationBillingIntent>(
+      `/api/billing/registration-intents/${intentId}/cancel`, { method: 'POST' },
+    ),
+    retryBusinessCompletion: (paymentOrderId: string) => client.request<PaymentOrder>(
+      `/api/billing/payment-orders/${paymentOrderId}/business-completion/retry`, { method: 'POST' },
+    ),
+    paymentOrder: (paymentOrderId: string) => client.request<PaymentOrder>(
+      `/api/billing/payment-orders/${paymentOrderId}`,
+    ),
+    settlement: (settlementId: string) => client.request<Settlement>(
+      `/api/billing/settlements/${settlementId}`,
+    ),
+    paymentOrders: (accountId: string) => client.request<PaymentOrder[]>(
+      `/api/billing/accounts/${accountId}/payment-orders`,
+    ),
+    createRefundOrder: (paymentId: string, input: {
+      idempotencyKey: string
+      amount: number
+      reason: string
+      correlationId?: string
+      terminalCode?: string
+    }) => client.request<PaymentOrder>(`/api/billing/payments/${paymentId}/refund-orders`, {
       method: 'POST', body: JSON.stringify(input),
     }),
     refund: (paymentId: string, input: {

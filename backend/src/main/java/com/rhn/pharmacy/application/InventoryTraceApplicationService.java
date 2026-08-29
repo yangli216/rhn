@@ -143,7 +143,7 @@ public class InventoryTraceApplicationService {
                         receipt.receiptNo(), receipt.receivedAt(), context.subjectId());
                 eventRepository.save(event(context, code, "RECEIVED", from, code.status(), null, receipt.stockSiteId(),
                         null, line.destinationBinId(), "GOODS_RECEIPT", receipt.id(), receipt.receiptNo(), null,
-                        code.baseQuantity(), code.remainingBaseQuantity()));
+                        code.baseQuantity(), code.remainingBaseQuantity(), receipt.receivedAt()));
             }
         }
     }

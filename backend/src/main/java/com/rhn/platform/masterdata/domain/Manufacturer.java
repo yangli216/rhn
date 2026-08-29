@@ -40,6 +40,25 @@ public class Manufacturer {
         this.updatedAt = this.createdAt; this.updatedBy = actorId;
     }
 
+    public void update(long expectedRevision, Long actorId, String code, String name, String shortName,
+                       String manufacturerType, String productionPlace, String countryCode,
+                       String address, String status) {
+        requireRevision(expectedRevision);
+        this.code = code; this.name = name; this.shortName = shortName;
+        this.manufacturerType = manufacturerType; this.productionPlace = productionPlace;
+        this.countryCode = countryCode; this.address = address; this.status = status;
+        this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
+    public void changeStatus(long expectedRevision, Long actorId, String status) {
+        requireRevision(expectedRevision);
+        this.status = status; this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
+    private void requireRevision(long expectedRevision) {
+        if (revision != expectedRevision) throw new IllegalStateException("生产企业已被其他用户修改，请刷新后重试");
+    }
+
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
     public String code() { return code; } public String name() { return name; } public String shortName() { return shortName; }
     public String manufacturerType() { return manufacturerType; } public String productionPlace() { return productionPlace; }

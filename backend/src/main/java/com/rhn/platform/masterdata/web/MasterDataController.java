@@ -123,6 +123,16 @@ public class MasterDataController {
         return service.createManufacturer(request.command());
     }
 
+    @PutMapping("/manufacturers/{id}")
+    ManufacturerView updateManufacturer(@PathVariable Long id, @Valid @RequestBody UpdateManufacturerRequest request) {
+        return service.updateManufacturer(id, revision(request.expectedRevision()), request.command());
+    }
+
+    @PostMapping("/manufacturers/{id}/status")
+    ManufacturerView manufacturerStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
+        return service.changeManufacturerStatus(id, revision(request.expectedRevision()), request.sdStatus());
+    }
+
     @PostMapping("/medication-products")
     @ResponseStatus(HttpStatus.CREATED)
     MedicationProductView createProduct(@Valid @RequestBody ProductRequest request,
@@ -271,6 +281,20 @@ public class MasterDataController {
     }
 
     record ManufacturerRequest(
+            @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
+            @NotBlank @Size(max = 300) String name,
+            @Size(max = 160) String shortName,
+            @NotBlank @Size(max = 32) String sdManufacturerType,
+            @Size(max = 32) String sdProductionPlace,
+            @Size(max = 32) String countryCode,
+            @Size(max = 1000) String address,
+            @NotBlank @Size(max = 32) String sdStatus) {
+        ManufacturerCommand command() { return new ManufacturerCommand(clean(code), clean(name), optional(shortName),
+                sdManufacturerType, optional(sdProductionPlace), optional(countryCode), optional(address), sdStatus); }
+    }
+
+    record UpdateManufacturerRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
             @NotBlank @Size(max = 300) String name,
             @Size(max = 160) String shortName,

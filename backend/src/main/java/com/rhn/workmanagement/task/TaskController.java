@@ -22,25 +22,25 @@ public class TaskController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAuthority('TASK.READ') or hasRole('CLINICIAN')")
+    @PreAuthorize("hasAuthority('TASK.READ')")
     List<TaskResponse> queue() {
         return service.myQueue();
     }
 
     @GetMapping("/summary")
-    @PreAuthorize("hasAuthority('TASK.READ') or hasRole('CLINICIAN')")
+    @PreAuthorize("hasAuthority('TASK.READ')")
     TaskSummaryResponse summary() {
         return service.summary();
     }
 
     @PostMapping("/{id}/claim")
-    @PreAuthorize("hasAuthority('TASK.MANAGE') or hasRole('CLINICIAN')")
+    @PreAuthorize("hasAuthority('TASK.MANAGE')")
     TaskResponse claim(@PathVariable Long id) {
         return service.claim(id);
     }
 
     @PostMapping("/{id}/complete")
-    @PreAuthorize("hasAuthority('TASK.MANAGE') or hasRole('CLINICIAN')")
+    @PreAuthorize("hasAuthority('TASK.MANAGE')")
     TaskResponse complete(@PathVariable Long id, @Valid @RequestBody(required = false) CompleteTaskRequest request) {
         return service.complete(id, request == null ? null : request.comment());
     }

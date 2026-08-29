@@ -590,13 +590,13 @@ public class OrganizationApplicationService implements OrganizationDirectory {
 
     private EmploymentView employmentView(Employment value, String organizationName) {
         return new EmploymentView(value.id(), value.revision(), value.practitionerId(), value.organizationId(),
-                organizationName, value.code(), value.employmentType(), value.primaryEmployment(),
-                value.hireDate(), value.leaveDate(), value.status());
+                organizationName, value.code(), value.employmentType().name(), value.primaryEmployment(),
+                value.hireDate(), value.leaveDate(), value.status().name());
     }
 
     private PositionView positionView(Position value) {
-        return new PositionView(value.id(), value.revision(), value.code(), value.name(), value.positionType(),
-                value.dutyDescription(), value.status());
+        return new PositionView(value.id(), value.revision(), value.code(), value.name(), value.positionType().name(),
+                value.dutyDescription(), value.status().name());
     }
 
     private StaffAssignmentView assignmentView(PersonnelAssignment value, String organizationName,
@@ -604,8 +604,8 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                                                PositionType positionType) {
         return new StaffAssignmentView(value.id(), value.revision(), value.employmentId(), value.organizationId(),
                 organizationName, value.departmentId(), departmentName, value.positionId(), positionName,
-                positionType, value.code(), value.assignmentType(),
-                value.specialtyCode(), value.primaryAssignment(), value.workloadPercent(), value.status(),
+                positionType.name(), value.code(), value.assignmentType().name(),
+                value.specialtyCode(), value.primaryAssignment(), value.workloadPercent(), value.status().name(),
                 value.validFrom(), value.validTo());
     }
 

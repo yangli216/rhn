@@ -98,6 +98,20 @@ export function PanelHead({ title, meta, actions }: { title: string; meta?: Reac
   </header>
 }
 
+export function Pagination({ page, totalPages, onChange, label = '列表分页' }: {
+  page: number
+  totalPages: number
+  onChange: (page: number) => void
+  label?: string
+}) {
+  if (totalPages <= 1) return null
+  return <nav className="ui-pagination" aria-label={label}>
+    <button type="button" disabled={page <= 0} onClick={() => onChange(page - 1)}>上一页</button>
+    <span><strong>{page + 1}</strong> / {totalPages}</span>
+    <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>下一页</button>
+  </nav>
+}
+
 export function EmptyState({ icon, title, copy, action }: {
   icon: IconName
   title: string

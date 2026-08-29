@@ -4,13 +4,17 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleRequest;
 import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleResult;
 import com.rhn.outpatient.scheduling.SchedulingContracts.ScheduleView;
 import com.rhn.outpatient.scheduling.SchedulingContracts.SchedulingBootstrap;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ChangeScheduleStatusRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.UpdateScheduleRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +45,16 @@ class SchedulingController {
     @ResponseStatus(HttpStatus.CREATED)
     QuickScheduleResult quickCreate(@Valid @RequestBody QuickScheduleRequest request) {
         return service.quickCreate(request);
+    }
+
+    @PutMapping("/schedules/{scheduleId}")
+    ScheduleView update(@PathVariable Long scheduleId, @Valid @RequestBody UpdateScheduleRequest request) {
+        return service.update(scheduleId, request);
+    }
+
+    @PostMapping("/schedules/{scheduleId}/actions")
+    ScheduleView changeStatus(@PathVariable Long scheduleId,
+                              @Valid @RequestBody ChangeScheduleStatusRequest request) {
+        return service.changeStatus(scheduleId, request);
     }
 }

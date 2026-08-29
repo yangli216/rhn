@@ -296,6 +296,24 @@ class ServiceSchedule {
     String status() { return status; }
     String managementMode() { return managementMode; }
     String bookingPolicy() { return bookingPolicy; }
+    String timezoneCode() { return timezoneCode; }
+
+    void update(Instant startAt, Instant endAt, int totalCapacity, String locationName, Long actorId) {
+        this.startAt = startAt;
+        this.endAt = endAt;
+        this.totalCapacity = totalCapacity;
+        this.locationName = locationName;
+        this.updatedAt = Instant.now();
+        this.updatedBy = actorId;
+    }
+
+    String changeStatus(String target, Long actorId) {
+        String previous = status;
+        this.status = target;
+        this.updatedAt = Instant.now();
+        this.updatedBy = actorId;
+        return previous;
+    }
 }
 
 @Entity
@@ -339,6 +357,57 @@ class ScheduleSlotPool {
         updatedAt = Instant.now();
     }
 
+    void holdOne() {
+        if (!"ACTIVE".equals(status) || heldCount + occupiedCount + frozenCount >= totalCount) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_SLOT_UNAVAILABLE", "所选排班已无可用号源");
+        }
+        heldCount++;
+        updatedAt = Instant.now();
+    }
+
+    void consumeHeldOne() {
+        if (heldCount <= 0) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_SLOT_HOLD_MISSING", "号源暂占已失效，请重新选择排班");
+        }
+        heldCount--;
+        occupiedCount++;
+        updatedAt = Instant.now();
+    }
+
+    void releaseHeldOne() {
+        if (heldCount <= 0) return;
+        heldCount--;
+        updatedAt = Instant.now();
+    }
+
+    void changeCapacity(int capacity) {
+        if (capacity < heldCount + occupiedCount + frozenCount) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_CAPACITY_BELOW_USAGE",
+                    "号源上限不能小于已暂占、已挂号和已冻结数量之和");
+        }
+        totalCount = capacity;
+        updatedAt = Instant.now();
+    }
+
+    void freeze() {
+        status = "FROZEN";
+        updatedAt = Instant.now();
+    }
+
+    void activate() {
+        status = "ACTIVE";
+        updatedAt = Instant.now();
+    }
+
+    void close() {
+        if (heldCount + occupiedCount + frozenCount > 0) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_CANCEL_HAS_USAGE",
+                    "班次已有暂占、挂号或冻结号源，请先完成影响处理");
+        }
+        status = "CLOSED";
+        updatedAt = Instant.now();
+    }
+
     Long id() { return id; }
     Long scheduleId() { return scheduleId; }
     String slotMode() { return slotMode; }
@@ -375,6 +444,20 @@ class ServiceScheduleEvent {
         this.actorUserId = actorUserId;
         this.occurredAt = Instant.now();
         this.description = "简易排班生成并发布";
+    }
+
+    ServiceScheduleEvent(Long tenantId, Long scheduleId, String eventType, String statusFrom,
+                         String statusTo, String commandCode, Long actorUserId, String description) {
+        this.id = GlobalIds.next();
+        this.tenantId = tenantId;
+        this.scheduleId = scheduleId;
+        this.eventType = eventType;
+        this.statusFrom = statusFrom;
+        this.statusTo = statusTo;
+        this.commandCode = commandCode;
+        this.actorUserId = actorUserId;
+        this.occurredAt = Instant.now();
+        this.description = description;
     }
 }
 
@@ -418,6 +501,23 @@ class SlotEvent {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.poolId = poolId;
         this.scheduleId = scheduleId; this.eventType = "OCCUPIED"; this.sequenceNo = sequenceNo;
         this.occupiedDelta = 1; this.commandCode = commandCode; this.actorUserId = actorUserId;
+        this.occurredAt = Instant.now(); this.description = description;
+    }
+
+    SlotEvent(Long tenantId, Long poolId, Long scheduleId, String eventType, int sequenceNo,
+              int heldDelta, int occupiedDelta, String commandCode, Long actorUserId, String description) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.poolId = poolId;
+        this.scheduleId = scheduleId; this.eventType = eventType; this.sequenceNo = sequenceNo;
+        this.heldDelta = heldDelta; this.occupiedDelta = occupiedDelta;
+        this.commandCode = commandCode; this.actorUserId = actorUserId;
+        this.occurredAt = Instant.now(); this.description = description;
+    }
+
+    SlotEvent(Long tenantId, Long poolId, Long scheduleId, int sequenceNo, int totalDelta,
+              String commandCode, Long actorUserId, String description) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.poolId = poolId;
+        this.scheduleId = scheduleId; this.eventType = "CAPACITY_CHANGED"; this.sequenceNo = sequenceNo;
+        this.totalDelta = totalDelta; this.commandCode = commandCode; this.actorUserId = actorUserId;
         this.occurredAt = Instant.now(); this.description = description;
     }
 

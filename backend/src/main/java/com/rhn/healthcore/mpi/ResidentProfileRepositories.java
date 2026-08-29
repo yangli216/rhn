@@ -21,6 +21,7 @@ interface ResidentRelatedPersonRepository extends JpaRepository<ResidentRelatedP
 }
 
 interface ResidentCoverageRepository extends JpaRepository<ResidentCoverage, Long> {
+    Optional<ResidentCoverage> findByIdAndTenantId(Long id, Long tenantId);
     List<ResidentCoverage> findByTenantIdAndResidentIdAndStatusOrderByPrimaryDescIdAsc(Long tenantId, Long residentId, String status);
     void deleteByTenantIdAndResidentId(Long tenantId, Long residentId);
 }

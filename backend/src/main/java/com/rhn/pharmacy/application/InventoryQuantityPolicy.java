@@ -1,7 +1,6 @@
 package com.rhn.pharmacy.application;
 
-import com.rhn.platform.masterdata.domain.UnitDefinition;
-import com.rhn.platform.masterdata.infrastructure.UnitDefinitionRepository;
+import com.rhn.platform.masterdata.api.UnitDefinitionDirectory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -19,10 +18,10 @@ public class InventoryQuantityPolicy {
             "EA", "BOX", "TAB", "TABLET", "CAP", "CAPSULE", "VIAL", "AMP", "AMPOULE",
             "BOTTLE", "BAG", "PACK", "PIECE", "DOSE", "支", "片", "粒", "瓶", "袋", "盒", "个");
 
-    private final UnitDefinitionRepository unitRepository;
+    private final UnitDefinitionDirectory unitDirectory;
 
-    public InventoryQuantityPolicy(UnitDefinitionRepository unitRepository) {
-        this.unitRepository = unitRepository;
+    public InventoryQuantityPolicy(UnitDefinitionDirectory unitDirectory) {
+        this.unitDirectory = unitDirectory;
     }
 
     public BigDecimal require(Long tenantId, String unitCode, BigDecimal value, String errorCode, String label) {
@@ -51,8 +50,8 @@ public class InventoryQuantityPolicy {
 
     public int allowedScale(Long tenantId, String unitCode) {
         String code = unitCode == null ? "" : unitCode.trim();
-        UnitDefinition definition = code.isEmpty() ? null
-                : unitRepository.findByTenantIdAndCode(tenantId, code).orElse(null);
+        UnitDefinitionDirectory.UnitDefinitionSnapshot definition = code.isEmpty() ? null
+                : unitDirectory.findByCode(tenantId, code).orElse(null);
         if (definition != null) return Math.min(definition.decimalScale(), STORAGE_SCALE);
         return LEGACY_INTEGER_UNITS.contains(code.toUpperCase(Locale.ROOT)) ? 0 : STORAGE_SCALE;
     }

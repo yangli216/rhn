@@ -100,6 +100,43 @@ export interface ResidentProfile {
   employments: ResidentEmploymentInput[]
 }
 
+export interface AllergyIntolerance {
+  id: string
+  revision: number
+  residentId: string
+  encounterId?: string
+  assertionType: 'ALLERGY' | 'NO_KNOWN_ALLERGY' | 'NO_KNOWN_DRUG_ALLERGY'
+  categoryCode?: 'DRUG' | 'FOOD' | 'ENVIRONMENT' | 'BIOLOGIC' | 'OTHER'
+  clinicalStatus: 'ACTIVE' | 'INACTIVE'
+  verificationStatus: 'UNCONFIRMED' | 'CONFIRMED' | 'REFUTED' | 'ENTERED_IN_ERROR'
+  criticalityCode?: 'LOW' | 'HIGH' | 'UNABLE_TO_ASSESS'
+  reactionSeverity?: 'MILD' | 'MODERATE' | 'SEVERE'
+  informationSource: 'PATIENT' | 'FAMILY' | 'MEDICAL_RECORD' | 'CLINICIAN'
+  substanceCodeSystemUri?: string
+  substanceCode?: string
+  substanceDisplay?: string
+  reactionText?: string
+  onsetAt?: string
+  recordedAt: string
+  verifiedAt?: string
+  inactivatedAt?: string
+  inactivationReason?: string
+}
+
+export interface RecordAllergyInput {
+  encounterId?: string
+  assertionType: AllergyIntolerance['assertionType']
+  categoryCode?: AllergyIntolerance['categoryCode']
+  criticalityCode?: AllergyIntolerance['criticalityCode']
+  reactionSeverity?: AllergyIntolerance['reactionSeverity']
+  informationSource: AllergyIntolerance['informationSource']
+  substanceCodeSystemUri?: string
+  substanceCode?: string
+  substanceDisplay?: string
+  reactionText?: string
+  onsetAt?: string
+}
+
 export interface UpdateResidentProfileInput {
   expectedVersion: number
   fullName: string
@@ -121,6 +158,20 @@ export function createResidentsApi(client: ApiClient) {
     profile: (residentId: string) => client.request<ResidentProfile>(
       `/api/residents/${encodeURIComponent(residentId)}/profile`,
     ),
+    allergies: (residentId: string, activeOnly = true) => client.request<AllergyIntolerance[]>(
+      `/api/residents/${encodeURIComponent(residentId)}/allergies?activeOnly=${activeOnly}`,
+    ),
+    recordAllergy: (residentId: string, input: RecordAllergyInput) => client.request<AllergyIntolerance>(
+      `/api/residents/${encodeURIComponent(residentId)}/allergies`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    inactivateAllergy: (residentId: string, allergyId: string, expectedRevision: number, reason: string) =>
+      client.request<AllergyIntolerance>(
+        `/api/residents/${encodeURIComponent(residentId)}/allergies/${encodeURIComponent(allergyId)}/inactivate`, {
+          method: 'POST', body: JSON.stringify({ expectedRevision, reason }),
+        },
+      ),
     search: (query: string) => client.request<Resident[]>(
       `/api/residents?query=${encodeURIComponent(query)}`,
     ),

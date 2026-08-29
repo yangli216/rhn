@@ -1,23 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { DICTIONARY_SYSTEM_ENUM, errorMessage, systemEnumItems,
   type DictionaryCategory, type DictionaryChange, type DictionaryDetail, type DictionaryItem, type DictionaryScopeType,
   type RhnApi, type SystemEnumItem } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
+  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead,
   Select, StatusBadge, TreePanel,
 } from '../../shared/ui'
-import { DictionaryAttributeConfiguration } from './DictionaryAttributeConfiguration'
 
 type DictionaryDialogState = 'create' | 'edit' | undefined
 type CategoryDialogState = { mode: 'create'; parentId?: string } | { mode: 'edit'; category: DictionaryCategory } | undefined
-
-export function DictionaryManagement({ api }: { api: RhnApi }) {
+export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
+  api: RhnApi
+  onOpenAttributeConfiguration: (dictionaryId: string) => void
+}) {
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedDictionaryId = searchParams.get('dictionaryId') ?? ''
   const [dictionaryQuery, setDictionaryQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
   const [scopeFilter, setScopeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [catalogPage, setCatalogPage] = useState(0)
+  const directoryPageSize = useDictionaryDirectoryPageSize()
   const [selectedId, setSelectedId] = useState<string>()
   const [itemQuery, setItemQuery] = useState('')
   const [itemStatus, setItemStatus] = useState('')
@@ -51,11 +57,21 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
 
   useEffect(() => {
     const list = dictionaries.data ?? []
-    if (list.length && (!selectedId || !list.some((item) => item.id === selectedId))) {
+    const requestedIndex = list.findIndex((item) => item.id === requestedDictionaryId)
+    if (requestedDictionaryId && requestedIndex >= 0) {
+      if (selectedId !== requestedDictionaryId) setSelectedId(requestedDictionaryId)
+      setCatalogPage(Math.floor(requestedIndex / directoryPageSize))
+      return
+    }
+    const selectedIndex = list.findIndex((item) => item.id === selectedId)
+    if (list.length && selectedIndex < 0) {
       setSelectedId(list[0].id)
     }
+    if (selectedIndex >= 0) setCatalogPage(Math.floor(selectedIndex / directoryPageSize))
     if (!list.length) setSelectedId(undefined)
-  }, [dictionaries.data, selectedId])
+  }, [dictionaries.data, directoryPageSize, requestedDictionaryId, selectedId])
+
+  useEffect(() => { setCatalogPage(0) }, [dictionaryQuery, categoryFilter, scopeFilter, statusFilter])
 
   async function acceptChange(next: DictionaryDetail, message: string) {
     queryClient.setQueryData(['dictionary', next.id], next)
@@ -167,9 +183,14 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
     || saveItem.isPending || itemState.isPending || createCategory.isPending || updateCategory.isPending
     || categoryStatus.isPending
   const selected = detail.data
+  const dictionaryList = dictionaries.data ?? []
+  const catalogPageCount = Math.max(1, Math.ceil(dictionaryList.length / directoryPageSize))
+  const safeCatalogPage = Math.min(catalogPage, catalogPageCount - 1)
+  const pageDictionaries = dictionaryList.slice(safeCatalogPage * directoryPageSize,
+    (safeCatalogPage + 1) * directoryPageSize)
   const queryError = dictionaries.error || categories.error || detail.error || systemEnums.error
 
-  return <>
+  return <div className="dictionary-page">
     <PageHeader eyebrow="平台管理 · 基础设置" title="字典管理"
       description="按平台或租户分类维护普通枚举字典；分类只用于治理和检索，不改变字典解析规则。"
       actions={<><Button variant="secondary" onClick={() => {
@@ -208,10 +229,11 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
         </div>
         <div className="dictionary-catalog__list" role="listbox" aria-label="字典目录">
           {dictionaries.isPending && <LoadingState label="正在加载字典…" />}
-          {dictionaries.data?.map((dictionary) => <button key={dictionary.id} type="button" role="option"
+          {pageDictionaries.map((dictionary) => <button key={dictionary.id} type="button" role="option"
             aria-selected={dictionary.id === selectedId}
             className={`dictionary-card ${dictionary.id === selectedId ? 'is-selected' : ''}`}
-            onClick={() => { setSelectedId(dictionary.id); setItemQuery(''); setFeedback(''); setOperationError('') }}>
+            onClick={() => { setSelectedId(dictionary.id); setSearchParams({ dictionaryId: dictionary.id })
+              setItemQuery(''); setFeedback(''); setOperationError('') }}>
             <span className="dictionary-card__icon"><Icon name="tasks" /></span>
             <span className="dictionary-card__content">
               <span className="dictionary-card__title"><strong>{dictionary.name}</strong>
@@ -227,6 +249,15 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
           {!dictionaries.isPending && dictionaries.data?.length === 0 && <EmptyState icon="search"
             title="未找到匹配字典" copy="请调整名称、编码、范围或状态条件。" />}
         </div>
+        <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="字典目录分页"
+          onChange={(nextPage) => {
+            setCatalogPage(nextPage)
+            const first = dictionaryList[nextPage * directoryPageSize]
+            if (first) {
+              setSelectedId(first.id)
+              setSearchParams({ dictionaryId: first.id })
+            }
+          }} />
       </Panel>
 
       <Panel className="dictionary-detail">
@@ -245,6 +276,7 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
               <p>{selected.description || '暂无用途说明'}</p>
             </div>
             <div className="dictionary-detail__actions">
+              <Button variant="secondary" onClick={() => onOpenAttributeConfiguration(selected.id)}>扩展配置</Button>
               <Button variant="secondary" onClick={() => setShowChanges(true)}>变更记录</Button>
               {!selected.systemManaged && <><Button variant="secondary" onClick={() => setDictionaryDialog('edit')}>编辑定义</Button>
                 <Button variant={selected.sdDictStatus === 'ACTIVE' ? 'danger' : 'secondary'} busy={dictionaryStatus.isPending}
@@ -259,8 +291,6 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
             <div><dt>当前修订号</dt><dd>{selected.revision}</dd></div>
             <div><dt>最近更新</dt><dd>{formatDate(selected.updatedAt)}</dd></div>
           </dl>
-          <DictionaryAttributeConfiguration api={api} dictionary={selected} items={selectedItems}
-            onChanged={(message) => { setFeedback(message); setOperationError('') }} />
           <div className="dictionary-items__toolbar">
             <div><h3>字典项</h3><span>{selected.systemManaged
               ? '系统托管内容与代码枚举、数据库约束保持一致，仅供查看。'
@@ -320,7 +350,24 @@ export function DictionaryManagement({ api }: { api: RhnApi }) {
       busy={saveItem.isPending} onClose={() => setEditingItem(undefined)} onSave={(input) => saveItem.mutateAsync(input)} />}
     {showChanges && selected && <DictionaryChangesDialog dictionary={selected} changes={changes.data ?? []}
       loading={changes.isPending} error={changes.error ? errorMessage(changes.error) : ''} onClose={() => setShowChanges(false)} />}
-  </>
+  </div>
+}
+
+function useDictionaryDirectoryPageSize() {
+  const calculate = () => {
+    if (typeof window === 'undefined') return 4
+    if (window.innerHeight < 800) return 2
+    if (window.innerHeight < 1000) return 4
+    if (window.innerHeight < 1250) return 6
+    return 8
+  }
+  const [pageSize, setPageSize] = useState(calculate)
+  useEffect(() => {
+    function update() { setPageSize(calculate()) }
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+  return pageSize
 }
 
 function DictionaryDefinitionDialog({ mode, dictionary, scopeOptions, categories, busy, onClose, onSave }: {

@@ -34,9 +34,10 @@ type ReceiptDraft = {
   operationQuantity: number; unitCost?: number; sourceCode: string; description?: string
 }
 
-export function WarehouseManagement({ api, clinicalContext }: {
+export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   api: RhnApi
   clinicalContext: ClinicalContext
+  onNavigate: (path: string) => void
 }) {
   const queryClient = useQueryClient()
   const organizationId = clinicalContext.organization.id
@@ -171,7 +172,7 @@ export function WarehouseManagement({ api, clinicalContext }: {
             items={items.data ?? []} bins={bins.data ?? []} />}
           {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) &&
             <WarehouseOperations tab={tab as OperationTab} api={api} site={selectedSite}
-              sites={sites.data ?? []} items={items.data ?? []} bins={bins.data ?? []} />}
+              sites={sites.data ?? []} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} />}
         </>}
       </Panel>
     </div>
@@ -229,7 +230,8 @@ function ItemSection({ items, loading, onAdd, onInspect }: {
         <td>{item.packageSpec || item.packageUnitName}<small>1 {item.packageUnitName} = {item.packageFactor} {item.baseUnitCode}</small></td>
         <td>{issuePolicyText[item.issuePolicy]}</td>
         <td><div className="warehouse-tags">{item.lotRequired && <span>批号</span>}{item.traceRequired && <span>追溯</span>}
-          {item.coldChain && <span>冷链</span>}{item.controlled && <span>受控</span>}{item.highAlert && <span>高警示</span>}</div></td>
+          {item.splitAllowed && <span>可拆零</span>}{item.coldChain && <span>冷链</span>}{item.controlled && <span>受控</span>}
+          {item.highAlert && <span>高警示</span>}</div></td>
         <td><StatusBadge tone={item.status === 'ACTIVE' ? 'success' : 'neutral'}>{item.status === 'ACTIVE' ? '启用' : item.status}</StatusBadge></td>
         <td><Button variant="text" size="sm" onClick={() => onInspect(item.id)}>看库存</Button></td>
       </tr>)}</tbody></table></div>}
@@ -244,6 +246,8 @@ function InventorySection({ items, itemId, onItemChange, item, loading, balances
   totals: { onHand: number; available: number; expiring: number }
   canReceive: boolean; onReceive: () => void
 }) {
+  const [showTransactions, setShowTransactions] = useState(false)
+  const itemTransactions = transactions.filter(transaction => transaction.lines.some(line => line.stockItemId === itemId))
   return <section className="warehouse-section">
     <header className="warehouse-inventory-toolbar"><div><strong>实时库存</strong><span>按经营项目聚合至批次和库位</span></div>
       <div className="warehouse-inventory-actions"><Select value={itemId} onChange={onItemChange} searchable showValue placeholder="选择经营项目"
@@ -253,16 +257,30 @@ function InventorySection({ items, itemId, onItemChange, item, loading, balances
       <div className="warehouse-metrics"><div><span>账面数量</span><strong>{totals.onHand}</strong><small>{item?.baseUnitCode}</small></div>
         <div><span>可用数量</span><strong>{totals.available}</strong><small>{item?.baseUnitCode}</small></div>
         <div><span>90 天内到期批次</span><strong>{totals.expiring}</strong><small>批</small></div>
-        <div><span>本期流水</span><strong>{transactions.length}</strong><small>笔</small></div></div>
+        <div><span>本期流水</span><strong>{itemTransactions.length}</strong><small>笔 · <button className="warehouse-inline-action" type="button"
+          onClick={() => setShowTransactions(current => !current)}>{showTransactions ? '收起' : '查看'}</button></small></div></div>
       {loading ? <LoadingState label="正在汇总库存…" /> : !balances.length
         ? <EmptyState icon="pharmacy" title="尚无库存余额" copy="该经营项目完成首次入库记账后，将在这里按批次和库位展示。" />
         : <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr>
-          <th>库位</th><th>批号 / 效期</th><th>库存状态</th><th>账面</th><th>预留</th><th>冻结</th><th>可用</th>
-        </tr></thead><tbody>{balances.map((row) => <tr key={row.id}><td><code>{row.stockBinCode}</code></td>
-          <td><strong>{row.lotNo}</strong><small>{row.expiryDate || '无效期'}</small></td>
-          <td>{stockStatusText[row.stockStatus] ?? row.stockStatus}</td><td>{row.quantityOnHand}</td>
+          <th>库位</th><th>批号 / 效期</th><th>库存状态</th><th>账面 / 包装</th><th>预留</th><th>冻结</th><th>可用</th><th>平均成本</th><th>更新时间</th>
+        </tr></thead><tbody>{balances.map((row) => { const nearExpiry = row.expiryDate
+          && new Date(row.expiryDate).getTime() <= Date.now() + 90 * 86400000
+          return <tr key={row.id}><td><code>{row.stockBinCode}</code></td>
+          <td><strong>{row.lotNo}</strong><small>{row.expiryDate || '无效期'}{nearExpiry && <StatusBadge tone="warning">临期</StatusBadge>}</small></td>
+          <td>{stockStatusText[row.stockStatus] ?? row.stockStatus}</td><td><strong>{row.quantityOnHand} {row.baseUnitCode}</strong>
+            <small>≈ {item?.packageFactor ? formatWarehouseQuantity(row.quantityOnHand / item.packageFactor) : '—'} {item?.packageUnitName ?? '包装'}</small></td>
           <td>{row.quantityReserved}</td><td>{row.quantityFrozen}</td><td><strong>{row.quantityAvailable}</strong></td>
-        </tr>)}</tbody></table></div>}
+          <td>{row.averageUnitCost === undefined ? '—' : formatWarehouseMoney(row.averageUnitCost)}</td><td>{formatWarehouseTime(row.projectedAt)}</td>
+        </tr>})}</tbody></table></div>}
+      {showTransactions && <section className="warehouse-transaction-panel"><header><strong>库存流水</strong>
+        <span>仅显示当前经营项目相关流水，共 {itemTransactions.length} 笔</span></header>
+        {!itemTransactions.length ? <EmptyState icon="pharmacy" title="暂无相关流水" copy="首次库存记账后将在这里展示来源单据、数量变化和记账时间。" />
+          : <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr><th>流水号</th><th>业务类型</th><th>来源单据</th><th>数量变化</th><th>记账时间</th><th>记账人</th></tr></thead>
+            <tbody>{itemTransactions.map(transaction => <tr key={transaction.id}><td><strong>{transaction.transactionNo}</strong></td>
+              <td>{transaction.transactionType}</td><td><strong>{transaction.sourceCode}</strong><small>{transaction.description}</small></td>
+              <td>{formatWarehouseQuantity(transaction.lines.filter(line => line.stockItemId === itemId)
+                .reduce((sum, line) => sum + Number(line.quantityDelta), 0))} {item?.baseUnitCode}</td>
+              <td>{formatWarehouseTime(transaction.postedAt)}</td><td>{transaction.postedBy}</td></tr>)}</tbody></table></div>}</section>}
     </>}
   </section>
 }
@@ -422,4 +440,16 @@ function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, e
     ].map(([checked, setter, label]) => <label key={String(label)}><input type="checkbox" checked={checked as boolean}
       onChange={(event) => (setter as (value: boolean) => void)(event.target.checked)} /><span>{label as string}</span></label>)}</div></section>
   </Dialog>
+}
+
+function formatWarehouseQuantity(value: number) {
+  return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(Number(value))
+}
+
+function formatWarehouseMoney(value: number) {
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 6 }).format(Number(value))
+}
+
+function formatWarehouseTime(value: string) {
+  return new Date(value).toLocaleString('zh-CN', { hour12: false })
 }

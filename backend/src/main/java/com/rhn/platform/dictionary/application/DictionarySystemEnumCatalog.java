@@ -49,6 +49,8 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String SC_BOOKING_POLICY = "SC_BOOKING_POLICY";
     public static final String SC_SLOT_MODE = "SC_SLOT_MODE";
     public static final String SC_QUOTA_MODE = "SC_QUOTA_MODE";
+    public static final String SC_VISIT_TYPE = "SC_VISIT_TYPE";
+    public static final String SC_RECEPTION_STATUS = "SC_RECEPTION_STATUS";
     public static final Set<String> PERSISTED_SYSTEM_ENUM_CODES = Set.of(
             PARAM_SCOPE_TYPE, PARAM_VALUE_TYPE, PARAM_CONTROL_TYPE, PARAM_CONFIG_TYPE,
             PARAM_SENSITIVITY, PARAM_DISPLAY_POLICY, PARAM_STATUS, PARAM_VALUE_MODE,
@@ -217,7 +219,16 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("TIMED", "分时模式", "每个号源对应具体可预约时间", 20))),
             definition(SC_QUOTA_MODE, "号源配额模式", "号源是否按渠道拆分配额", List.of(
                             item("SHARED", "统一共享", "预约、窗口等渠道共用可用量", 10),
-                            item("CHANNEL_QUOTA", "渠道配额", "各渠道在分配额度内使用号源", 20)))
+                            item("CHANNEL_QUOTA", "渠道配额", "各渠道在分配额度内使用号源", 20))),
+            definition(SC_VISIT_TYPE, "门诊就诊类型", "挂号时选择的门诊就诊类型", List.of(
+                            item("GENERAL", "普通门诊", "普通门诊首次就诊", 10),
+                            item("FOLLOW_UP", "复诊", "同一健康问题的后续复诊", 20),
+                            item("EMERGENCY", "急诊", "需要按急诊流程接诊", 30))),
+            definition(SC_RECEPTION_STATUS, "门诊候诊状态", "挂号后在接诊队列中的当前状态", List.of(
+                            item("WAITING", "候诊中", "已挂号并等待接诊", 10),
+                            item("IN_SERVICE", "接诊中", "医生已经开始接诊", 20),
+                            item("COMPLETED", "已诊毕", "本次门诊接诊已经完成", 30),
+                            item("CANCELLED", "已取消", "挂号或候诊已经取消", 40)))
     );
     private final Map<String, SystemEnumDefinition> definitionsByCode = definitions.stream()
             .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity()));

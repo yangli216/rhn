@@ -15,10 +15,12 @@ import com.rhn.pharmacy.application.InventoryOperationApplicationService.GoodsRe
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.InspectGoodsReceiptCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.InspectLineCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.PurchaseLineCommand;
+import com.rhn.pharmacy.application.InventoryOperationApplicationService.UpdateSupplierCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -31,8 +33,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PutMapping;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
@@ -51,8 +55,20 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/suppliers")
-    List<SupplierView> suppliers(@RequestParam(required = false) Long organizationId) {
-        return service.suppliers(organizationId);
+    List<SupplierView> suppliers(@RequestParam(required = false) Long organizationId,
+                                 @RequestParam(required = false) String query,
+                                 @RequestParam(required = false) String status) {
+        return service.suppliers(organizationId, query, status);
+    }
+
+    @PutMapping("/suppliers/{supplierId}")
+    SupplierView updateSupplier(@PathVariable Long supplierId, @Valid @RequestBody UpdateSupplierRequest input) {
+        return service.updateSupplier(supplierId, revision(input.expectedRevision()), input.command());
+    }
+
+    @PostMapping("/suppliers/{supplierId}/status")
+    SupplierView supplierStatus(@PathVariable Long supplierId, @Valid @RequestBody SupplierStatusRequest input) {
+        return service.changeSupplierStatus(supplierId, revision(input.expectedRevision()), input.status());
     }
 
     @PostMapping("/suppliers/{supplierId}/supply-items")
@@ -128,6 +144,25 @@ public class InventoryOperationController {
             LocalDate validFrom, LocalDate validTo) {
         CreateSupplierCommand command() { return new CreateSupplierCommand(organizationId, code, name,
                 unifiedCreditCode, licenseNo, licenseValidTo, contactName, contactPhone, validFrom, validTo); }
+    }
+
+    record UpdateSupplierRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotBlank @Size(max = 64) String code, @NotBlank @Size(max = 300) String name,
+            @Size(max = 64) String unifiedCreditCode, @Size(max = 128) String licenseNo,
+            LocalDate licenseValidTo, @Size(max = 100) String contactName, @Size(max = 64) String contactPhone,
+            @NotNull LocalDate validFrom, LocalDate validTo,
+            @NotBlank @Size(max = 32) String status) {
+        UpdateSupplierCommand command() { return new UpdateSupplierCommand(code, name, unifiedCreditCode,
+                licenseNo, licenseValidTo, contactName, contactPhone, validFrom, validTo, status); }
+    }
+
+    record SupplierStatusRequest(@NotNull @Min(0) BigInteger expectedRevision,
+                                 @NotBlank @Size(max = 32) String status) {}
+
+    private static long revision(BigInteger value) {
+        try { return value.longValueExact(); }
+        catch (ArithmeticException exception) { throw new IllegalArgumentException("修订号超出可支持范围"); }
     }
 
     record CreateSupplyItemRequest(

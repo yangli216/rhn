@@ -72,6 +72,7 @@ public class Practitioner {
     public long revision() { return revision; }
 
     public StaffView toView() {
-        return new StaffView(id, revision, code, fullName, gender, status, createdAt, updatedAt);
+        return new StaffView(id, revision, code, fullName, gender == null ? null : gender.name(),
+                status.name(), createdAt, updatedAt);
     }
 }

@@ -14,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/notifications")
-@PreAuthorize("hasAuthority('NOTIFICATION.READ') or hasRole('CLINICIAN')")
+@PreAuthorize("hasAuthority('NOTIFICATION.READ')")
 public class NotificationController {
     private final NotificationService service;
 

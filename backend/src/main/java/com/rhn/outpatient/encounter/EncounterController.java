@@ -30,8 +30,9 @@ public class EncounterController {
     }
 
     @PostMapping("/{encounterId}/start")
-    EncounterResponse start(@PathVariable Long encounterId) {
-        return encounterService.start(encounterId);
+    EncounterResponse start(@PathVariable Long encounterId,
+                            @Valid @RequestBody StartEncounterRequest request) {
+        return encounterService.start(encounterId, request);
     }
 
     @PutMapping("/{encounterId}/clinical-record")
@@ -55,4 +56,3 @@ public class EncounterController {
         return encounterService.byResident(residentId);
     }
 }
-

@@ -785,6 +785,85 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void medication_type_controls_specialized_attributes_and_is_immutable() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+
+        mockMvc.perform(post("/api/platform/master-data/medications")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"HERBAL-INVALID-%s","name":"错误抗菌草药","aliasName":null,
+                                  "sdMedicationType":"HERBAL","sdDoseForm":"GRANULE",
+                                  "preparationSpec":"净制","preparationUnit":"g",
+                                  "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
+                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
+                                  "sdAntimicrobialLevel":null,"skinTestRequired":false,
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEDICATION_ANTIMICROBIAL_TYPE_INVALID"));
+
+        mockMvc.perform(post("/api/platform/master-data/medications")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"VACCINE-INVALID-%s","name":"错误频次疫苗","aliasName":null,
+                                  "sdMedicationType":"VACCINE","sdDoseForm":"INJECTION",
+                                  "preparationSpec":"0.5ml/支","preparationUnit":"支",
+                                  "strengthValue":0.5,"strengthUnit":"ml","sdStorageType":"REFRIGERATED",
+                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                                  "sdAntimicrobialLevel":null,"skinTestRequired":false,
+                                  "defaultDose":0.5,"defaultDoseUnit":"ml","defaultRoute":"肌内注射",
+                                  "defaultFrequency":"每月一次","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEDICATION_VACCINE_FREQUENCY_INVALID"));
+
+        JsonNode herbal = json(mockMvc.perform(post("/api/platform/master-data/medications")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "code":"HERBAL-VALID-%s","name":"类型锁定草药","aliasName":null,
+                                  "sdMedicationType":"HERBAL","sdDoseForm":"GRANULE",
+                                  "preparationSpec":"切片","preparationUnit":"g",
+                                  "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
+                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                                  "sdAntimicrobialLevel":null,"skinTestRequired":false,
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.itemTypeId").value("362387869797014"))
+                .andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(put("/api/platform/master-data/medications/{id}", herbal.get("id").asText())
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedRevision":0,
+                                  "code":"HERBAL-VALID-%s","name":"类型锁定草药","aliasName":null,
+                                  "sdMedicationType":"WESTERN","sdDoseForm":"GRANULE",
+                                  "preparationSpec":"切片","preparationUnit":"g",
+                                  "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
+                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                                  "sdAntimicrobialLevel":null,"skinTestRequired":false,
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEDICATION_TYPE_IMMUTABLE"));
+    }
+
+    @Test
     void tenant_attribute_definitions_and_type_assignments_are_configurable_isolated_and_audited() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         int attributeOrder = 1000 + Math.abs(suffix.hashCode() % 1000000);

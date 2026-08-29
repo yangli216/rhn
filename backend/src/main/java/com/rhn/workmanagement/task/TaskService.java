@@ -1,7 +1,7 @@
 package com.rhn.workmanagement.task;
 
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
-import com.rhn.platform.eventing.application.IdempotentEventConsumer;
+import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.context.event.EventListener;
@@ -23,10 +23,10 @@ public class TaskService {
     private final WorkTaskRepository repository;
     private final WorkTaskHistoryRepository historyRepository;
     private final ExecutionContextProvider contextProvider;
-    private final IdempotentEventConsumer eventConsumer;
+    private final IdempotentDomainEventConsumer eventConsumer;
 
     public TaskService(WorkTaskRepository repository, WorkTaskHistoryRepository historyRepository,
-                       ExecutionContextProvider contextProvider, IdempotentEventConsumer eventConsumer) {
+                       ExecutionContextProvider contextProvider, IdempotentDomainEventConsumer eventConsumer) {
         this.repository = repository;
         this.historyRepository = historyRepository;
         this.contextProvider = contextProvider;
@@ -141,7 +141,7 @@ public class TaskService {
                 textPayload(event, "summary", "门诊病历当前版本等待签署"), TaskPriority.HIGH,
                 longPayload(event, "residentId"), longPayload(event, "encounterId"),
                 event.aggregateType(), event.aggregateId(),
-                "/residents?residentId=" + longPayload(event, "residentId")
+                "/outpatient/reception?residentId=" + longPayload(event, "residentId")
                         + "&encounterId=" + longPayload(event, "encounterId"),
                 dedupKey, Instant.now().plus(Duration.ofHours(4)), actorId(event));
         repository.save(task);

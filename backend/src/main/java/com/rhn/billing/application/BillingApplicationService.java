@@ -30,14 +30,8 @@ import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapshot;
-import com.rhn.pharmacy.domain.DispenseTaskLine;
-import com.rhn.pharmacy.domain.MedicationDispense;
-import com.rhn.pharmacy.domain.StockItem;
-import com.rhn.pharmacy.domain.StockSite;
-import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
-import com.rhn.pharmacy.infrastructure.MedicationDispenseRepository;
-import com.rhn.pharmacy.infrastructure.StockItemRepository;
-import com.rhn.pharmacy.infrastructure.StockSiteRepository;
+import com.rhn.pharmacy.api.DispenseBillingDirectory;
+import com.rhn.pharmacy.api.DispenseBillingDirectory.DispenseBillingFact;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.dictionary.api.DictionaryAttributeDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
@@ -74,38 +68,36 @@ public class BillingApplicationService {
     private final InvoiceCategorySummaryRepository categoryRepository;
     private final PaymentRepository paymentRepository;
     private final LedgerEntryRepository ledgerRepository;
-    private final MedicationDispenseRepository dispenseRepository;
-    private final DispenseTaskLineRepository taskLineRepository;
-    private final StockItemRepository stockItemRepository;
-    private final StockSiteRepository stockSiteRepository;
+    private final DispenseBillingDirectory dispenseDirectory;
     private final EncounterDirectory encounterDirectory;
     private final MedicationRequestDirectory medicationRequestDirectory;
     private final CatalogLifecycleDirectory catalogDirectory;
     private final DomainEventPublisher eventPublisher;
     private final DictionaryAttributeDirectory dictionaryAttributeDirectory;
     private final ExecutionContextProvider contextProvider;
+    private final SettlementApplicationService settlements;
 
     public BillingApplicationService(
             PatientAccountRepository accountRepository, ChargeItemRepository chargeRepository,
             ChargeItemComponentRepository componentRepository, InvoiceRepository invoiceRepository,
             InvoiceLineRepository invoiceLineRepository, InvoiceCategorySummaryRepository categoryRepository,
             PaymentRepository paymentRepository, LedgerEntryRepository ledgerRepository,
-            MedicationDispenseRepository dispenseRepository, DispenseTaskLineRepository taskLineRepository,
-            StockItemRepository stockItemRepository, StockSiteRepository stockSiteRepository,
+            DispenseBillingDirectory dispenseDirectory,
             EncounterDirectory encounterDirectory, MedicationRequestDirectory medicationRequestDirectory,
             CatalogLifecycleDirectory catalogDirectory, DomainEventPublisher eventPublisher,
             DictionaryAttributeDirectory dictionaryAttributeDirectory,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider,
+            SettlementApplicationService settlements) {
         this.accountRepository = accountRepository; this.chargeRepository = chargeRepository;
         this.componentRepository = componentRepository; this.invoiceRepository = invoiceRepository;
         this.invoiceLineRepository = invoiceLineRepository; this.categoryRepository = categoryRepository;
         this.paymentRepository = paymentRepository; this.ledgerRepository = ledgerRepository;
-        this.dispenseRepository = dispenseRepository; this.taskLineRepository = taskLineRepository;
-        this.stockItemRepository = stockItemRepository; this.stockSiteRepository = stockSiteRepository;
+        this.dispenseDirectory = dispenseDirectory;
         this.encounterDirectory = encounterDirectory; this.medicationRequestDirectory = medicationRequestDirectory;
         this.catalogDirectory = catalogDirectory; this.eventPublisher = eventPublisher;
         this.dictionaryAttributeDirectory = dictionaryAttributeDirectory;
         this.contextProvider = contextProvider;
+        this.settlements = settlements;
     }
 
     @Transactional
@@ -113,12 +105,11 @@ public class BillingApplicationService {
         ExecutionContext context = requireWorkContext(); String requestCode = required(input.requestCode(),
                 "BILLING_SYNCHRONIZE_REQUEST_CODE_REQUIRED", "计费同步请求编码不能为空");
         EncounterSnapshot encounter = requireEncounter(context, encounterId);
-        List<MedicationDispense> events = dispenseRepository
-                .findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(context.tenantId(), encounterId);
+        List<DispenseBillingFact> events = dispenseDirectory.findByEncounter(context.tenantId(), encounterId);
         if (events.isEmpty()) throw conflict("BILLING_NO_DISPENSE_FACT", "当前就诊尚无可计费的实际发退药事实");
 
         PatientAccount account = null; String currency = null; int created = 0; int existing = 0;
-        for (MedicationDispense event : events) {
+        for (DispenseBillingFact event : events) {
             String sourceType = sourceType(event);
             ChargeItem current = chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
                     context.tenantId(), sourceType, event.id()).orElse(null);
@@ -178,13 +169,13 @@ public class BillingApplicationService {
     @Transactional(readOnly = true)
     public List<BillingWorkItemView> worklist() {
         ExecutionContext context = requireWorkContext();
-        Map<Long, List<MedicationDispense>> grouped = new LinkedHashMap<>();
-        for (MedicationDispense event : dispenseRepository.findWorklist(context.tenantId(), context.organizationId())) {
+        Map<Long, List<DispenseBillingFact>> grouped = new LinkedHashMap<>();
+        for (DispenseBillingFact event : dispenseDirectory.findWorklist(context.tenantId(), context.organizationId())) {
             grouped.computeIfAbsent(event.encounterId(), ignored -> new ArrayList<>()).add(event);
         }
         List<BillingWorkItemView> result = new ArrayList<>();
-        for (Map.Entry<Long, List<MedicationDispense>> entry : grouped.entrySet()) {
-            List<MedicationDispense> events = entry.getValue(); MedicationDispense latest = events.getFirst();
+        for (Map.Entry<Long, List<DispenseBillingFact>> entry : grouped.entrySet()) {
+            List<DispenseBillingFact> events = entry.getValue(); DispenseBillingFact latest = events.getFirst();
             List<ChargeItem> charges = events.stream().map(event -> chargeRepository
                             .findByTenantIdAndSourceTypeAndSourceId(context.tenantId(), sourceType(event), event.id())
                             .orElse(null)).filter(Objects::nonNull).toList();
@@ -227,11 +218,13 @@ public class BillingApplicationService {
         Instant issuedAt = input.issuedAt() == null ? Instant.now() : input.issuedAt();
         Invoice invoice = invoiceRepository.save(new Invoice(context.tenantId(), account.id(), invoiceNo,
                 account.currencyCode(), total, issuedAt, context.subjectId()));
-        int lineNo = 1;
-        for (ChargeItem charge : charges) invoiceLineRepository.save(new InvoiceLine(
-                context.tenantId(), invoice.id(), charge.id(), lineNo++, charge.totalAmount()));
+        int lineNo = 1; List<InvoiceLine> invoiceLines = new ArrayList<>();
+        for (ChargeItem charge : charges) invoiceLines.add(invoiceLineRepository.save(new InvoiceLine(
+                context.tenantId(), invoice.id(), charge.id(), lineNo++, charge.totalAmount())));
         categoryRepository.save(new InvoiceCategorySummary(context.tenantId(), invoice.id(),
                 "MEDICATION", "药品费", total));
+        settlements.createFromInvoice(context, account, invoice, charges, invoiceLines,
+                input.settlementScene(), input.terminalScene(), input.terminalCode(), "MEDICATION", "药品费");
         eventPublisher.publish(context.tenantId(), account.organizationId(), "BILLING_INVOICE_ISSUED", 1,
                 "Invoice", invoice.id(), 1L, account.residentId(), issuedAt,
                 Map.of("accountId", account.id(), "invoiceNo", invoiceNo, "netAmount", total));
@@ -261,10 +254,11 @@ public class BillingApplicationService {
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
         Payment payment = paymentRepository.save(new Payment(context.tenantId(), account.id(), invoice.id(),
-                paymentNo, "PAYMENT", method, amount, account.currencyCode(), paidAt,
+                input.paymentOrderId(), paymentNo, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
                 clean(input.externalTransactionNo()), null, context.subjectId(), clean(input.description())));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT", "CREDIT", amount,
                 account.currencyCode(), null, invoice.id(), payment.id(), null, paidAt, context.subjectId()));
+        settlements.recordPayment(context, invoice, payment, paid.add(amount));
         eventPublisher.publish(context.tenantId(), account.organizationId(), "BILLING_PAYMENT_COMPLETED", 1,
                 "Payment", payment.id(), 1L, account.residentId(), paidAt,
                 Map.of("invoiceId", invoice.id(), "paymentNo", paymentNo, "amount", amount,
@@ -294,8 +288,10 @@ public class BillingApplicationService {
                 "REFUND_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退药等反向收费形成的可退余额");
         Instant paidAt = input.refundedAt() == null ? Instant.now() : input.refundedAt();
         Payment refund = paymentRepository.save(new Payment(context.tenantId(), account.id(), original.invoiceId(),
-                refundNo, "REFUND", original.paymentMethodCode(), amount, account.currencyCode(), paidAt,
-                clean(input.externalTransactionNo()), original.id(), context.subjectId(), clean(input.reason())));
+                input.paymentOrderId(), refundNo, "REFUND", original.paymentMethodCode(),
+                input.paymentSceneCode() == null ? original.paymentSceneCode() : upper(input.paymentSceneCode()),
+                amount, account.currencyCode(), paidAt, clean(input.externalTransactionNo()), original.id(),
+                context.subjectId(), clean(input.reason())));
         Long originalLedgerId = ledgerRepository.findByTenantIdAndPaymentId(context.tenantId(), original.id())
                 .map(LedgerEntry::id).orElseThrow(() -> conflict("PAYMENT_LEDGER_MISSING", "原支付缺少可冲正账务分录"));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT_REFUND", "DEBIT", amount,
@@ -311,7 +307,8 @@ public class BillingApplicationService {
     public DailyReconciliationView dailyReconciliation(LocalDate businessDate) {
         ExecutionContext context = requireWorkContext(); LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
         Instant from = date.atStartOfDay().toInstant(ZoneOffset.UTC); Instant to = date.plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC);
-        List<MedicationDispense> events = dispenseRepository.findDaily(context.tenantId(), context.organizationId(), from, to);
+        List<DispenseBillingFact> events = dispenseDirectory.findOccurredBetween(
+                context.tenantId(), context.organizationId(), from, to);
         List<PatientAccount> accounts = accountRepository.findByTenantIdAndOrganizationId(
                 context.tenantId(), context.organizationId());
         List<Long> accountIds = accounts.stream().map(PatientAccount::id).toList();
@@ -323,7 +320,7 @@ public class BillingApplicationService {
                 : ledgerRepository.findDaily(context.tenantId(), accountIds, from, to);
         List<ReconciliationLineView> lines = new ArrayList<>(); int matched = 0;
         Set<Long> eventIds = new HashSet<>();
-        for (MedicationDispense event : events) {
+        for (DispenseBillingFact event : events) {
             eventIds.add(event.id()); String type = sourceType(event);
             ChargeItem charge = chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
                     context.tenantId(), type, event.id()).orElse(null);
@@ -362,7 +359,7 @@ public class BillingApplicationService {
                 money(debit.subtract(credit)), lines);
     }
 
-    private BigDecimal expectedAmount(ExecutionContext context, MedicationDispense event, ChargeItem current) {
+    private BigDecimal expectedAmount(ExecutionContext context, DispenseBillingFact event, ChargeItem current) {
         if ("RETURN".equals(event.dispenseType())) {
             ChargeItem original = requireOriginalCharge(context, event);
             return returnAmount(context, original, event.operationQuantity(), current == null ? null : current.id())
@@ -371,48 +368,41 @@ public class BillingApplicationService {
         return pricing(context, event).amount();
     }
 
-    private ChargePricing reversalPricing(ExecutionContext context, MedicationDispense event, ChargeItem original) {
-        DispenseTaskLine line = taskLineRepository.findByTenantIdAndTaskId(context.tenantId(), event.taskId())
-                .orElseThrow(() -> notFound("BILLING_DISPENSE_TASK_LINE_NOT_FOUND", "未找到退药对应的发药任务行"));
-        return new ChargePricing(line.requestId(), original.catalogItemId(), original.priceId(),
+    private ChargePricing reversalPricing(ExecutionContext context, DispenseBillingFact event, ChargeItem original) {
+        return new ChargePricing(event.requestId(), original.catalogItemId(), original.priceId(),
                 original.priceRevision(), original.priceType(), original.unitPrice(),
                 returnAmount(context, original, event.operationQuantity(), null), original.currencyCode(),
-                line.baseQuantityFactor(), original.itemCodeSnapshot(), original.itemNameSnapshot());
+                event.baseQuantityFactor(), original.itemCodeSnapshot(), original.itemNameSnapshot());
     }
 
-    private ChargePricing pricing(ExecutionContext context, MedicationDispense event) {
-        DispenseTaskLine line = taskLineRepository.findByTenantIdAndTaskId(context.tenantId(), event.taskId())
-                .orElseThrow(() -> notFound("BILLING_DISPENSE_TASK_LINE_NOT_FOUND", "未找到发药任务行"));
-        MedicationRequestSnapshot request = medicationRequestDirectory.requireForPharmacy(line.requestId());
+    private ChargePricing pricing(ExecutionContext context, DispenseBillingFact event) {
+        MedicationRequestSnapshot request = medicationRequestDirectory.requireForPharmacy(event.requestId());
         if (request.selfProvided()) throw conflict("SELF_PROVIDED_MEDICATION_NOT_CHARGEABLE", "自备药不能形成药房收费事项");
-        StockItem stockItem = stockItemRepository.findByIdAndTenantId(line.stockItemId(), context.tenantId())
-                .orElseThrow(() -> notFound("BILLING_STOCK_ITEM_NOT_FOUND", "未找到发药经营项目"));
         if (request.totalAmount() != null && request.quantity() != null && request.quantity().signum() > 0
-                && Objects.equals(request.catalogItemId(), stockItem.catalogItemId())) {
+                && Objects.equals(request.catalogItemId(), event.catalogItemId())) {
             BigDecimal amount = money(request.totalAmount().multiply(event.operationQuantity())
                     .divide(request.quantity(), 12, RoundingMode.HALF_UP));
             BigDecimal rate = event.operationQuantity().signum() == 0 ? BigDecimal.ZERO
                     : money(amount.divide(event.operationQuantity(), 12, RoundingMode.HALF_UP));
-            return new ChargePricing(line.requestId(), stockItem.catalogItemId(), request.priceId(),
+            return new ChargePricing(event.requestId(), event.catalogItemId(), request.priceId(),
                     request.priceRevision(), request.priceType(), rate, amount,
-                    requiredCurrency(request.currencyCode()), line.baseQuantityFactor(),
-                    line.productCodeSnapshot(), line.productNameSnapshot());
+                    requiredCurrency(request.currencyCode()), event.baseQuantityFactor(),
+                    event.productCodeSnapshot(), event.productNameSnapshot());
         }
-        StockSite site = stockSiteRepository.findByIdAndTenantId(event.stockSiteId(), context.tenantId())
-                .orElseThrow(() -> notFound("BILLING_STOCK_SITE_NOT_FOUND", "未找到发药药房"));
-        CatalogOperationalSnapshot catalog = catalogDirectory.resolve(context.tenantId(), stockItem.catalogItemId(),
-                site.organizationId(), line.packageId(), "SALE", event.occurredAt().atZone(ZoneOffset.UTC).toLocalDate());
+        CatalogOperationalSnapshot catalog = catalogDirectory.resolve(context.tenantId(), event.catalogItemId(),
+                event.siteOrganizationId(), event.packageId(), "SALE",
+                event.occurredAt().atZone(ZoneOffset.UTC).toLocalDate());
         if (catalog.item() == null || !catalog.item().chargeable() || catalog.adoption() == null
                 || !catalog.adoption().chargeable()) throw conflict(
                 "BILLING_CATALOG_ITEM_NOT_CHARGEABLE", "实际发放的药品产品未开放收费能力");
         if (catalog.price() == null) throw conflict("BILLING_PRICE_NOT_CONFIGURED", "实际发放产品缺少有效价格");
         BigDecimal rate = catalog.price().packageId() == null
-                ? catalog.price().price().multiply(line.baseQuantityFactor()) : catalog.price().price();
+                ? catalog.price().price().multiply(event.baseQuantityFactor()) : catalog.price().price();
         rate = money(rate); BigDecimal amount = money(rate.multiply(event.operationQuantity()));
-        return new ChargePricing(line.requestId(), stockItem.catalogItemId(), catalog.price().id(),
+        return new ChargePricing(event.requestId(), event.catalogItemId(), catalog.price().id(),
                 catalog.price().revision(), catalog.price().sdPriceType(), rate, amount,
-                requiredCurrency(catalog.price().currencyCode()), line.baseQuantityFactor(),
-                line.productCodeSnapshot(), line.productNameSnapshot());
+                requiredCurrency(catalog.price().currencyCode()), event.baseQuantityFactor(),
+                event.productCodeSnapshot(), event.productNameSnapshot());
     }
 
     private BigDecimal returnAmount(ExecutionContext context, ChargeItem original, BigDecimal quantity,
@@ -459,6 +449,7 @@ public class BillingApplicationService {
                 money(ledgerRepository.balance(context.tenantId(), account.id())),
                 charges.stream().map(this::chargeView).toList(),
                 invoices.stream().map(value -> invoiceView(context, value)).toList(),
+                settlements.listByAccount(context, account.id()),
                 payments.stream().map(this::paymentView).toList(), ledger.stream().map(this::ledgerView).toList());
     }
 
@@ -483,8 +474,8 @@ public class BillingApplicationService {
     }
 
     private PaymentView paymentView(Payment value) {
-        return new PaymentView(value.id(), value.patientAccountId(), value.invoiceId(), value.paymentNo(),
-                value.paymentType(), value.paymentMethodCode(), value.status(), value.amount(), value.currencyCode(),
+        return new PaymentView(value.id(), value.patientAccountId(), value.invoiceId(), value.paymentOrderId(), value.paymentNo(),
+                value.paymentType(), value.paymentMethodCode(), value.paymentSceneCode(), value.status(), value.amount(), value.currencyCode(),
                 value.paidAt(), value.externalTransactionNo(), value.reversesPaymentId(), value.enteredBy(),
                 value.description());
     }
@@ -492,7 +483,7 @@ public class BillingApplicationService {
     private LedgerEntryView ledgerView(LedgerEntry value) {
         return new LedgerEntryView(value.id(), value.patientAccountId(), value.entryType(), value.direction(),
                 value.amount(), value.currencyCode(), value.chargeItemId(), value.invoiceId(), value.paymentId(),
-                value.reversesLedgerEntryId(), value.occurredAt(), value.recordedAt(), value.recordedBy());
+                value.claimResponseId(), value.reversesLedgerEntryId(), value.occurredAt(), value.recordedAt(), value.recordedBy());
     }
 
     private InvoiceView verifyInvoice(ExecutionContext context, Invoice value, Long accountId) {
@@ -505,6 +496,7 @@ public class BillingApplicationService {
         if (!"PAYMENT".equals(value.paymentType()) || !Objects.equals(value.invoiceId(), invoiceId)
                 || value.amount().compareTo(input.amount()) != 0
                 || !value.paymentMethodCode().equals(upper(input.paymentMethodCode()))
+                || !Objects.equals(value.paymentOrderId(), input.paymentOrderId())
                 || !Objects.equals(value.externalTransactionNo(), clean(input.externalTransactionNo()))) {
             throw conflict("PAYMENT_NO_REUSED", "支付编码已被不同支付内容使用");
         }
@@ -515,6 +507,7 @@ public class BillingApplicationService {
         requireAccount(context, value.patientAccountId());
         if (!"REFUND".equals(value.paymentType()) || !Objects.equals(value.reversesPaymentId(), paymentId)
                 || value.amount().compareTo(input.amount()) != 0
+                || !Objects.equals(value.paymentOrderId(), input.paymentOrderId())
                 || !Objects.equals(value.externalTransactionNo(), clean(input.externalTransactionNo()))) {
             throw conflict("REFUND_NO_REUSED", "退款编码已被不同退款内容使用");
         }
@@ -551,7 +544,7 @@ public class BillingApplicationService {
         requireAccount(context, payment.patientAccountId()); return payment;
     }
 
-    private ChargeItem requireOriginalCharge(ExecutionContext context, MedicationDispense event) {
+    private ChargeItem requireOriginalCharge(ExecutionContext context, DispenseBillingFact event) {
         if (event.originalDispenseId() == null) throw conflict("RETURN_CHARGE_ORIGINAL_MISSING", "退药事件缺少原发药关联");
         ChargeItem original = chargeRepository.findByTenantIdAndSourceTypeAndSourceId(
                         context.tenantId(), "MEDICATION_DISPENSE", event.originalDispenseId())
@@ -580,7 +573,7 @@ public class BillingApplicationService {
                 "BILLING_ACCOUNT_SCOPE_INVALID", "当前工作上下文不能访问该费用账户");
     }
 
-    private String sourceType(MedicationDispense event) {
+    private String sourceType(DispenseBillingFact event) {
         return "RETURN".equals(event.dispenseType()) ? "MEDICATION_RETURN" : "MEDICATION_DISPENSE";
     }
 
@@ -611,9 +604,12 @@ public class BillingApplicationService {
                                  BigDecimal unitFactor, String itemCode, String itemName) {}
 
     public record SynchronizeCommand(String requestCode) {}
-    public record IssueInvoiceCommand(String invoiceNo, Instant issuedAt) {}
+    public record IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
+                                      String terminalScene, String terminalCode) {}
     public record PaymentCommand(String paymentNo, String paymentMethodCode, String paymentSceneCode, BigDecimal amount,
-                                 Instant paidAt, String externalTransactionNo, String description) {}
+                                 Instant paidAt, String externalTransactionNo, String description,
+                                 Long paymentOrderId) {}
     public record RefundCommand(String refundNo, BigDecimal amount, Instant refundedAt,
-                                String externalTransactionNo, String reason) {}
+                                String externalTransactionNo, String reason, Long paymentOrderId,
+                                String paymentSceneCode) {}
 }

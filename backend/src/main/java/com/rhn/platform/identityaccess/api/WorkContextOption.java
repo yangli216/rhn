@@ -9,9 +9,11 @@ public record WorkContextOption(
         String departmentName,
         WorkContextType workContextType,
         String dataScopeType,
-        Set<String> roleCodes
+        Set<String> roleCodes,
+        Set<String> authorities
 ) {
     public WorkContextOption {
         roleCodes = roleCodes == null ? Set.of() : Set.copyOf(roleCodes);
+        authorities = authorities == null ? Set.of() : Set.copyOf(authorities);
     }
 }

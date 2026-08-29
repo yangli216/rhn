@@ -1155,6 +1155,16 @@ export function createMasterDataApi(client: ApiClient) {
     createManufacturer: (input: ManufacturerInput) => client.request<Manufacturer>(
       '/api/platform/master-data/manufacturers', { method: 'POST', body: JSON.stringify(input) },
     ),
+    updateManufacturer: (id: string, revision: number, input: ManufacturerInput) => client.request<Manufacturer>(
+      `/api/platform/master-data/manufacturers/${id}`, {
+        method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+      },
+    ),
+    manufacturerStatus: (id: string, revision: number, sdStatus: MasterDataStatus) => client.request<Manufacturer>(
+      `/api/platform/master-data/manufacturers/${id}/status`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
+      },
+    ),
     createProduct: (input: ProductInput, organizationId = '') => client.request<MedicationProduct>(
       `/api/platform/master-data/medication-products${queryString({ organizationId })}`, {
         method: 'POST', body: JSON.stringify(input),

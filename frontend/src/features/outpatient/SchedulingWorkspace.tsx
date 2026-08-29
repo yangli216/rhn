@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { ScheduleDayPart } from '../../shared/api/schedulingApi'
+import type { ScheduleDayPart, ServiceSchedule, UpdateScheduleInput } from '../../shared/api/schedulingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 
 const weekdayOptions = [
   { value: 1, label: '周一' }, { value: 2, label: '周二' }, { value: 3, label: '周三' },
@@ -58,6 +58,10 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
   const [afternoonStart, setAfternoonStart] = useState('14:00')
   const [afternoonEnd, setAfternoonEnd] = useState('17:00')
   const [success, setSuccess] = useState('')
+  const [editing, setEditing] = useState<ServiceSchedule | null>(null)
+  const [statusChange, setStatusChange] = useState<{
+    schedule: ServiceSchedule; action: 'SUSPEND' | 'RESUME' | 'CANCEL'
+  } | null>(null)
 
   const bootstrap = useQuery({ queryKey: ['scheduling-bootstrap', clinicalContext.department.id], queryFn: api.scheduling.bootstrap })
   const services = useQuery({
@@ -101,12 +105,34 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
       locationName: locationName.trim() || undefined, idempotencyCode: crypto.randomUUID(),
     }),
     onSuccess: async (result) => {
-      setSuccess(`已生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复时段` : ''}`)
+      setSuccess(`已生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复或冲突时段` : ''}`)
+      await queryClient.invalidateQueries({ queryKey: ['service-schedules', clinicalContext.department.id] })
+    },
+  })
+
+  const updateSchedule = useMutation({
+    mutationFn: ({ scheduleId, input }: { scheduleId: string; input: UpdateScheduleInput }) =>
+      api.scheduling.update(scheduleId, input),
+    onSuccess: async () => {
+      setEditing(null)
+      setSuccess('班次信息已更新')
+      await queryClient.invalidateQueries({ queryKey: ['service-schedules', clinicalContext.department.id] })
+    },
+  })
+
+  const changeScheduleStatus = useMutation({
+    mutationFn: ({ scheduleId, action, reason }: { scheduleId: string; action: 'SUSPEND' | 'RESUME' | 'CANCEL'; reason: string }) =>
+      api.scheduling.changeStatus(scheduleId, { action, reason, commandCode: crypto.randomUUID() }),
+    onSuccess: async (value) => {
+      setStatusChange(null)
+      setSuccess(value.sdStatus === 'PUBLISHED' ? '班次已恢复预约'
+        : value.sdStatus === 'SUSPENDED' ? '班次已暂停预约' : '班次已取消')
       await queryClient.invalidateQueries({ queryKey: ['service-schedules', clinicalContext.department.id] })
     },
   })
 
   const error = bootstrap.error || services.error || schedules.error || createSchedules.error
+    || updateSchedule.error || changeScheduleStatus.error
   const canSubmit = practitionerId && catalogItemId && dateFrom && dateTo && weekdays.length > 0
     && dayParts.length > 0 && Number(capacity) > 0
 
@@ -172,7 +198,7 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
             <strong>下午</strong><small>{afternoonStart}–{afternoonEnd}</small></button>
         </div></div>
       </div>
-      <footer className="quick-schedule-actions"><span>系统会自动避开同一医生、项目和时段的重复排班。</span>
+      <footer className="quick-schedule-actions"><span>系统会自动避开同一医生时间重叠的排班。</span>
         <Button busy={createSchedules.isPending} busyLabel="正在生成" disabled={!canSubmit}
           onClick={() => { setSuccess(''); createSchedules.mutate() }}>生成排班</Button></footer>
     </Panel>}
@@ -183,14 +209,92 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
       {schedules.isPending ? <LoadingState label="正在加载排班…" /> : !schedules.data?.length
         ? <EmptyState icon="clinical" title="当前日期范围暂无排班" copy="使用上方快速排班，几步即可建立日常门诊号源。" />
         : <div className="schedule-list"><div className="schedule-list__head"><span>日期时段</span><span>医生与服务</span>
-          <span>地点</span><span>号源</span><span>状态</span></div>{schedules.data.map((item) => <article key={item.id}>
+          <span>地点</span><span>号源</span><span>状态</span><span>操作</span></div>{schedules.data.map((item) => <article key={item.id}>
           <div><strong>{dateLabel(item.serviceDate)} · {item.sdDayPartText}</strong>
             <small>{shortTime(item.startAt)}–{shortTime(item.endAt)}</small></div>
           <div><strong>{item.practitionerName}</strong><small>{item.serviceName} · {item.serviceCode}</small></div>
           <span>{item.locationName || '未指定'}</span>
           <div className="schedule-capacity"><strong>{item.availableCount}</strong><small>可用 / 共 {item.totalCount}</small></div>
           <StatusBadge tone={scheduleTone(item.sdStatus)}>{item.sdStatusText}</StatusBadge>
+          <div className="schedule-row-actions">
+            {['PUBLISHED', 'SUSPENDED'].includes(item.sdStatus) && <Button size="sm" variant="text"
+              onClick={() => { setSuccess(''); setEditing(item) }}>修改</Button>}
+            {item.sdStatus === 'PUBLISHED' && <Button size="sm" variant="text"
+              onClick={() => { setSuccess(''); setStatusChange({ schedule: item, action: 'SUSPEND' }) }}>暂停</Button>}
+            {item.sdStatus === 'SUSPENDED' && <Button size="sm" variant="text"
+              onClick={() => { setSuccess(''); setStatusChange({ schedule: item, action: 'RESUME' }) }}>恢复</Button>}
+            {['PUBLISHED', 'SUSPENDED'].includes(item.sdStatus) && <Button size="sm" variant="text"
+              onClick={() => { setSuccess(''); setStatusChange({ schedule: item, action: 'CANCEL' }) }}>取消</Button>}
+          </div>
         </article>)}</div>}
     </Panel>
+    {editing && <ScheduleEditDialog schedule={editing} busy={updateSchedule.isPending}
+      onClose={() => setEditing(null)} onSave={(input) => updateSchedule.mutate({ scheduleId: editing.id, input })} />}
+    {statusChange && <ScheduleStatusDialog value={statusChange} busy={changeScheduleStatus.isPending}
+      onClose={() => setStatusChange(null)} onConfirm={(reason) => changeScheduleStatus.mutate({
+        scheduleId: statusChange.schedule.id, action: statusChange.action, reason,
+      })} />}
   </>
+}
+
+function ScheduleEditDialog({ schedule, busy, onClose, onSave }: {
+  schedule: ServiceSchedule
+  busy: boolean
+  onClose: () => void
+  onSave: (input: UpdateScheduleInput) => void
+}) {
+  const [startTime, setStartTime] = useState(shortTime(schedule.startAt))
+  const [endTime, setEndTime] = useState(shortTime(schedule.endAt))
+  const [capacity, setCapacity] = useState(String(schedule.totalCount))
+  const [locationName, setLocationName] = useState(schedule.locationName ?? '')
+  const [reason, setReason] = useState('调整基层门诊班次')
+  const used = schedule.heldCount + schedule.occupiedCount + schedule.frozenCount
+  const valid = startTime && endTime && endTime > startTime && Number(capacity) >= Math.max(1, used) && reason.trim()
+  const timeLocked = schedule.heldCount + schedule.occupiedCount > 0
+  return <Dialog title="修改班次" eyebrow={`${dateLabel(schedule.serviceDate)} · ${schedule.practitionerName}`}
+    description={timeLocked ? '班次已有暂占或挂号记录，本次只能调整号源上限和诊室。' : '调整将立即影响该班次后续挂号。'}
+    onClose={onClose} closeOnBackdrop={false} footer={<>
+      <Button variant="secondary" onClick={onClose}>取消</Button>
+      <Button busy={busy} disabled={!valid} onClick={() => onSave({
+        startTime, endTime, capacity: Number(capacity), locationName: locationName.trim() || undefined,
+        reason: reason.trim(), commandCode: crypto.randomUUID(),
+      })}>保存调整</Button>
+    </>}>
+    <div className="schedule-edit-form">
+      <FormField label="开始时间" required><input type="time" value={startTime} disabled={timeLocked}
+        onChange={(event) => setStartTime(event.target.value)} /></FormField>
+      <FormField label="结束时间" required><input type="time" value={endTime} disabled={timeLocked}
+        onChange={(event) => setEndTime(event.target.value)} /></FormField>
+      <FormField label="号源上限" required><input type="number" min={Math.max(1, used)} max="500" value={capacity}
+        onChange={(event) => setCapacity(event.target.value)} /></FormField>
+      <FormField label="诊室/地点"><input value={locationName} maxLength={200}
+        onChange={(event) => setLocationName(event.target.value)} /></FormField>
+      <FormField label="调整原因" required className="schedule-edit-form__wide"><input value={reason} maxLength={500}
+        onChange={(event) => setReason(event.target.value)} /></FormField>
+    </div>
+  </Dialog>
+}
+
+function ScheduleStatusDialog({ value, busy, onClose, onConfirm }: {
+  value: { schedule: ServiceSchedule; action: 'SUSPEND' | 'RESUME' | 'CANCEL' }
+  busy: boolean
+  onClose: () => void
+  onConfirm: (reason: string) => void
+}) {
+  const [reason, setReason] = useState(value.action === 'SUSPEND' ? '临时停诊'
+    : value.action === 'RESUME' ? '恢复正常出诊' : '取消本次排班')
+  const label = value.action === 'SUSPEND' ? '暂停班次' : value.action === 'RESUME' ? '恢复班次' : '取消班次'
+  const hasUsage = value.schedule.heldCount + value.schedule.occupiedCount + value.schedule.frozenCount > 0
+  return <Dialog title={label} eyebrow={`${dateLabel(value.schedule.serviceDate)} · ${value.schedule.practitionerName}`}
+    description={value.action === 'CANCEL' && hasUsage
+      ? '该班次已有暂占、挂号或冻结号源，系统将拒绝直接取消，请先完成影响处理。'
+      : '操作原因将记录到排班事件中。'} onClose={onClose} footer={<>
+      <Button variant="secondary" onClick={onClose}>返回</Button>
+      <Button variant={value.action === 'CANCEL' ? 'danger' : 'primary'} busy={busy}
+        disabled={!reason.trim() || (value.action === 'CANCEL' && hasUsage)}
+        onClick={() => onConfirm(reason.trim())}>确认{label}</Button>
+    </>}>
+    <FormField label="操作原因" required><input value={reason} maxLength={500}
+      onChange={(event) => setReason(event.target.value)} /></FormField>
+  </Dialog>
 }

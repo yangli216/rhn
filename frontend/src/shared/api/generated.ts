@@ -260,6 +260,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/manufacturers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateManufacturer"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/item-attributes/override": {
         parameters: {
             query?: never;
@@ -333,6 +349,38 @@ export interface paths {
         };
         get?: never;
         put: operations["correctRow"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/roles/{roleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateRole"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/roles/{roleId}/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["replacePermissions"];
         post?: never;
         delete?: never;
         options?: never;
@@ -500,6 +548,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pharmacy/suppliers/{supplierId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["updateSupplier"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/outpatient/scheduling/schedules/{scheduleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["update_3"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/encounters/{encounterId}/clinical-record": {
         parameters: {
             query?: never;
@@ -590,6 +670,38 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/residents/{residentId}/allergies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["record_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/residents/{residentId}/allergies/{allergyId}/inactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["inactivate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1332,6 +1444,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/manufacturers/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["manufacturerStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/item-attributes/snapshot": {
         parameters: {
             query?: never;
@@ -1684,6 +1812,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/iam/users/{userId}/role-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["assignments"];
+        put?: never;
+        post: operations["assignRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/roles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["roles"];
+        put?: never;
+        post: operations["createRole"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/grid-addresses": {
         parameters: {
             query?: never;
@@ -1691,7 +1851,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         post: operations["create_2"];
         delete?: never;
@@ -1739,7 +1899,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_1"];
+        get: operations["list_2"];
         put?: never;
         post: operations["create_3"];
         delete?: never;
@@ -2180,6 +2340,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pharmacy/suppliers/{supplierId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["supplierStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pharmacy/stock-transfers": {
         parameters: {
             query?: never;
@@ -2187,7 +2363,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_2"];
+        get: operations["list_3"];
         put?: never;
         post: operations["create_4"];
         delete?: never;
@@ -2363,7 +2539,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_3"];
+        get: operations["list_4"];
         put?: never;
         post: operations["create_5"];
         delete?: never;
@@ -2475,7 +2651,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_4"];
+        get: operations["list_5"];
         put?: never;
         post: operations["create_6"];
         delete?: never;
@@ -2541,7 +2717,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["record_1"];
+        post: operations["record_2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2868,6 +3044,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/outpatient/scheduling/schedules/{scheduleId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["changeStatus_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/outpatient/scheduling/quick-schedules": {
         parameters: {
             query?: never;
@@ -2900,6 +3092,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/integration/payments/outbound-messages/{messageId}/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["delivery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/integration/diagnostics/requests/{requestId}/outbound-messages": {
         parameters: {
             query?: never;
@@ -2925,7 +3133,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        post: operations["delivery"];
+        post: operations["delivery_1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3003,7 +3211,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_5"];
+        get: operations["list_6"];
         put?: never;
         post: operations["create_7"];
         delete?: never;
@@ -3035,7 +3243,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_6"];
+        get: operations["list_7"];
         put?: never;
         post: operations["create_8"];
         delete?: never;
@@ -3099,7 +3307,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_7"];
+        get: operations["list_8"];
         put?: never;
         post: operations["create_9"];
         delete?: never;
@@ -3220,6 +3428,246 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/settlements/{settlementId}/receipts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_9"];
+        put?: never;
+        post: operations["issue_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/settlements/{settlementId}/payment-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createPaymentOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/settlements/{settlementId}/insurance/pre-settlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["preSettle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/registration-intents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create_11"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/registration-intents/{intentId}/completion/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/registration-intents/{intentId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cancel_4"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation-items/{id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["resolve_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation-batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list_10"];
+        put?: never;
+        post: operations["create_12"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation-batches/{id}/statement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}/void": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["voidReceipt"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}/red-flush": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["redFlush"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}/prints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["print_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}/issue/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retry_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}/issue/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recover"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/payments/{paymentId}/refunds": {
         parameters: {
             query?: never;
@@ -3230,6 +3678,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["refund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payments/{paymentId}/refund-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createRefundOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-orders/{paymentOrderId}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["queryPaymentOrder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-orders/{paymentOrderId}/business-completion/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["retryBusinessCompletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-orders/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recoverPayments"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3252,6 +3764,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/insurance-claims/{claimId}/settle": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["settle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance-claims/{claimId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reverse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance-claims/{claimId}/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance-claims/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["recover_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/encounters/{encounterId}/charges/synchronize": {
         parameters: {
             query?: never;
@@ -3262,6 +3838,54 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["synchronize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/cashier-closes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listMine"];
+        put?: never;
+        post: operations["calculate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/cashier-closes/{closeId}/reverse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["reverse_1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/cashier-closes/{closeId}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3611,7 +4235,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list_8"];
+        get: operations["list_11"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3700,6 +4324,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/iam/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["users"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["permissions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/dictionaries/{id}/items/{itemId}/attributes": {
         parameters: {
             query?: never;
@@ -3708,6 +4364,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["itemAttributes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/dictionaries/{id}/item-attribute-configurations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["itemAttributeConfigurations"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3771,7 +4443,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["resolve_1"];
+        get: operations["resolve_2"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3835,7 +4507,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["resolve_2"];
+        get: operations["resolve_3"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4132,7 +4804,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/integration/diagnostics/outbound-messages": {
+    "/api/integration/payments/outbound-messages": {
         parameters: {
             query?: never;
             header?: never;
@@ -4140,6 +4812,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["outbound"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/integration/diagnostics/outbound-messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["outbound_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4228,6 +4916,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/billing/settlements/{settlementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["settlement"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/registration-intents/{intentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_5"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/billing/reconciliation/daily": {
         parameters: {
             query?: never;
@@ -4236,6 +4956,118 @@ export interface paths {
             cookie?: never;
         };
         get: operations["reconcile_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/reconciliation-batches/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_6"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/{receiptId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_7"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/receipts/recovery-worklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recoveryWorklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-orders/{paymentOrderId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentOrder"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/payment-orders/recovery-worklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentRecoveryWorklist"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance-claims/{claimId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_8"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/insurance-claims/recovery-worklist": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recoveryWorklist_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4255,6 +5087,54 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/cashier-closes/{closeId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get_9"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/billing/accounts/{accountId}/payment-orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["paymentOrders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/iam/user-role-assignments/{assignmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revoke"];
         options?: never;
         head?: never;
         patch?: never;
@@ -4398,16 +5278,16 @@ export interface components {
             sdOccupationType?: string;
             sdBloodType?: string;
             sdRhType?: string;
-            /** @description 字典 PI_BLOOD_TYPE 的显示文本 */
-            readonly sdBloodTypeText?: string;
-            /** @description 字典 PI_MARITAL_STATUS 的显示文本 */
-            readonly sdMaritalStatusText?: string;
-            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
-            readonly sdOccupationTypeText?: string;
-            /** @description 字典 PI_RH_TYPE 的显示文本 */
-            readonly sdRhTypeText?: string;
             /** @description 字典 PI_EDUCATION_LEVEL 的显示文本 */
             readonly sdEducationLevelText?: string;
+            /** @description 字典 PI_RH_TYPE 的显示文本 */
+            readonly sdRhTypeText?: string;
+            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
+            readonly sdOccupationTypeText?: string;
+            /** @description 字典 PI_MARITAL_STATUS 的显示文本 */
+            readonly sdMaritalStatusText?: string;
+            /** @description 字典 PI_BLOOD_TYPE 的显示文本 */
+            readonly sdBloodTypeText?: string;
             /** @description 字典 PI_RESIDENCY_TYPE 的显示文本 */
             readonly sdResidencyTypeText?: string;
         };
@@ -4424,12 +5304,12 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
+            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
+            readonly sdOccupationTypeText?: string;
             /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
             readonly sdEmploymentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
-            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
-            readonly sdOccupationTypeText?: string;
         };
         IdentifierView: {
             /** @example 824633720832983041 */
@@ -4574,18 +5454,16 @@ export interface components {
             revision?: number;
             code?: string;
             fullName?: string;
-            /** @enum {string} */
-            sdPractGender?: "MALE" | "FEMALE" | "UNKNOWN";
-            /** @enum {string} */
-            sdPersonnelStatus?: "ACTIVE" | "INACTIVE";
+            sdPractGender?: string;
+            sdPersonnelStatus?: string;
             /** Format: date-time */
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 PRACT_GENDER 的显示文本 */
-            readonly sdPractGenderText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 PRACT_GENDER 的显示文本 */
+            readonly sdPractGenderText?: string;
         };
         UpdateOrganizationUnitRequest: {
             /** Format: int64 */
@@ -4622,12 +5500,9 @@ export interface components {
             name?: string;
             shortName?: string;
             description?: string;
-            /** @enum {string} */
-            sdOrgKind?: "LEGAL_ORGANIZATION" | "ORG_UNIT";
-            /** @enum {string} */
-            sdOrgType?: "TOWNSHIP_HEALTH_CENTER" | "COMMUNITY_HEALTH_CENTER" | "HOSPITAL" | "CLINIC" | "CAMPUS" | "CLINICAL_DEPARTMENT" | "ADMINISTRATIVE_DEPARTMENT" | "MEDICAL_TECHNOLOGY_DEPARTMENT" | "NURSING_UNIT";
-            /** @enum {string} */
-            sdOrgStatus?: "DRAFT" | "PENDING_ACTIVE" | "ACTIVE" | "SUSPENDED" | "INACTIVE" | "MERGED";
+            sdOrgKind?: string;
+            sdOrgType?: string;
+            sdOrgStatus?: string;
             sdOrgProperty?: string;
             virtual?: boolean;
             /** Format: int32 */
@@ -4643,18 +5518,18 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 DEPT_TYPE 的显示文本 */
-            readonly sdDepartmentTypeText?: string;
-            /** @description 字典 ORG_PROPERTY 的显示文本 */
-            readonly sdOrgPropertyText?: string;
-            /** @description 字典 ORG_STATUS 的显示文本 */
-            readonly sdOrgStatusText?: string;
             /** @description 字典 ORG_KIND 的显示文本 */
             readonly sdOrgKindText?: string;
-            /** @description 字典 DEPT_PROPERTY 的显示文本 */
-            readonly sdDepartmentPropertyText?: string;
+            /** @description 字典 ORG_STATUS 的显示文本 */
+            readonly sdOrgStatusText?: string;
+            /** @description 字典 ORG_PROPERTY 的显示文本 */
+            readonly sdOrgPropertyText?: string;
+            /** @description 字典 DEPT_TYPE 的显示文本 */
+            readonly sdDepartmentTypeText?: string;
             /** @description 字典 ORG_TYPE 的显示文本 */
             readonly sdOrgTypeText?: string;
+            /** @description 字典 DEPT_PROPERTY 的显示文本 */
+            readonly sdDepartmentPropertyText?: string;
         };
         UpdateServiceRequest: {
             expectedRevision: number;
@@ -4777,10 +5652,10 @@ export interface components {
             sdStatus?: string;
             /** @example 824633720832983041 */
             replacesPriceId?: string;
-            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
-            readonly sdPriceTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
+            /** @description 字典 BD_PRICE_TYPE 的显示文本 */
+            readonly sdPriceTypeText?: string;
         };
         ServiceVariantView: {
             /** @example 824633720832983041 */
@@ -4840,14 +5715,14 @@ export interface components {
             examination?: components["schemas"]["ExaminationServiceView"];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_SERVICE_USE 的显示文本 */
-            readonly sdUsageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
-            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
-            readonly sdServiceTypeText?: string;
+            /** @description 字典 BD_SERVICE_USE 的显示文本 */
+            readonly sdUsageTypeText?: string;
             /** @description 字典 BD_SERVICE_DUPLICATE_RULE 的显示文本 */
             readonly sdDuplicateRuleText?: string;
+            /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
+            readonly sdServiceTypeText?: string;
         };
         UpdateUnitRequest: {
             expectedRevision: number;
@@ -5340,12 +6215,12 @@ export interface components {
             packages?: components["schemas"]["PackageView"][];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
-            readonly sdShelfLifeUnitText?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
             readonly sdProductionPlaceText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
+            readonly sdShelfLifeUnitText?: string;
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
         };
@@ -5381,16 +6256,16 @@ export interface components {
             singleOrder?: boolean;
             sdStatus?: string;
             products?: components["schemas"]["MedicationProductView"][];
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
-            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
-            readonly sdMedicationTypeText?: string;
-            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
-            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
+            /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
+            readonly sdAntimicrobialLevelText?: string;
+            /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
+            readonly sdMedicationTypeText?: string;
         };
         PackageView: {
             /** @example 824633720832983041 */
@@ -5411,8 +6286,39 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
             /** @description 字典 BD_PACKAGE_USE 的显示文本 */
             readonly sdUsageTypeText?: string;
+        };
+        UpdateManufacturerRequest: {
+            expectedRevision: number;
+            code: string;
+            name: string;
+            shortName?: string;
+            sdManufacturerType: string;
+            sdProductionPlace?: string;
+            countryCode?: string;
+            address?: string;
+            sdStatus: string;
+        };
+        ManufacturerView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            code?: string;
+            name?: string;
+            shortName?: string;
+            sdManufacturerType?: string;
+            sdProductionPlace?: string;
+            countryCode?: string;
+            address?: string;
+            sdStatus?: string;
+            /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
+            readonly sdManufacturerTypeText?: string;
+            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
+            readonly sdProductionPlaceText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
         };
@@ -5421,14 +6327,15 @@ export interface components {
             empty?: boolean;
             null?: boolean;
             float?: boolean;
+            number?: boolean;
+            valueNode?: boolean;
+            container?: boolean;
+            missingNode?: boolean;
+            object?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
             string?: boolean;
             integralNumber?: boolean;
-            missingNode?: boolean;
-            valueNode?: boolean;
-            container?: boolean;
-            object?: boolean;
             pojo?: boolean;
             floatingPointNumber?: boolean;
             short?: boolean;
@@ -5441,7 +6348,6 @@ export interface components {
             textual?: boolean;
             boolean?: boolean;
             binary?: boolean;
-            number?: boolean;
             embeddedValue?: boolean;
         };
         SaveOverrideRequest: {
@@ -5725,6 +6631,28 @@ export interface components {
             targetId?: string;
             /** Format: date-time */
             updatedAt?: string;
+        };
+        UpdateRoleRequest: {
+            /** Format: int64 */
+            expectedVersion?: number;
+            name: string;
+            status: string;
+        };
+        RoleView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            roleType?: string;
+            status?: string;
+            /** Format: int64 */
+            version?: number;
+            permissionCodes?: string[];
+        };
+        ReplaceRolePermissionsRequest: {
+            /** Format: int64 */
+            expectedVersion?: number;
+            permissionIds: string[];
         };
         UpdateGridAddressRequest: {
             /** Format: int64 */
@@ -6023,16 +6951,16 @@ export interface components {
             /** @example 824633720832983041 */
             updatedBy?: string;
             values?: components["schemas"]["ParameterValueResponse"][];
-            /** @description 字典 PARAM_STATUS 的显示文本 */
-            readonly sdParamStatusText?: string;
-            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
-            readonly sdParamValueTypeText?: string;
-            /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
-            readonly sdParamSensitivityText?: string;
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
             /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
             readonly sdParamDisplayPolicyText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
+            /** @description 字典 PARAM_SENSITIVITY 的显示文本 */
+            readonly sdParamSensitivityText?: string;
+            /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
+            readonly sdParamValueTypeText?: string;
+            /** @description 字典 PARAM_STATUS 的显示文本 */
+            readonly sdParamStatusText?: string;
             /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
             readonly sdParamConfigTypeText?: string;
         };
@@ -6063,10 +6991,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
-            readonly sdParamValueModeText?: string;
             /** @description 字典 PARAM_SCOPE_TYPE 的显示文本 */
             readonly sdParamScopeTypeText?: string;
+            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
+            readonly sdParamValueModeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
         };
@@ -6129,6 +7057,96 @@ export interface components {
         ReorderCategoriesRequest: {
             categories: components["schemas"]["CategoryOrderRequest"][];
         };
+        UpdateSupplierRequest: {
+            expectedRevision: number;
+            code: string;
+            name: string;
+            unifiedCreditCode?: string;
+            licenseNo?: string;
+            /** Format: date */
+            licenseValidTo?: string;
+            contactName?: string;
+            contactPhone?: string;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string;
+            status: string;
+        };
+        SupplierView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            code?: string;
+            name?: string;
+            unifiedCreditCode?: string;
+            licenseNo?: string;
+            /** Format: date */
+            licenseValidTo?: string;
+            contactName?: string;
+            contactPhone?: string;
+            status?: string;
+            /** Format: date */
+            validFrom?: string;
+            /** Format: date */
+            validTo?: string;
+        };
+        UpdateScheduleRequest: {
+            startTime: string;
+            endTime: string;
+            /** Format: int32 */
+            capacity: number;
+            locationName?: string;
+            commandCode: string;
+            reason: string;
+        };
+        ScheduleView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            scheduleCode?: string;
+            /** Format: date */
+            serviceDate?: string;
+            sdDayPart?: string;
+            /** Format: date-time */
+            startAt?: string;
+            /** Format: date-time */
+            endAt?: string;
+            /** @example 824633720832983041 */
+            practitionerId?: string;
+            practitionerName?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            serviceCode?: string;
+            serviceName?: string;
+            locationName?: string;
+            /** Format: int32 */
+            totalCount?: number;
+            /** Format: int32 */
+            heldCount?: number;
+            /** Format: int32 */
+            occupiedCount?: number;
+            /** Format: int32 */
+            frozenCount?: number;
+            /** Format: int32 */
+            availableCount?: number;
+            sdStatus?: string;
+            sdManagementMode?: string;
+            sdBookingPolicy?: string;
+            sdSlotMode?: string;
+            /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
+            readonly sdManagementModeText?: string;
+            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 SC_SLOT_MODE 的显示文本 */
+            readonly sdSlotModeText?: string;
+            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
+            readonly sdBookingPolicyText?: string;
+            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
+            readonly sdDayPartText?: string;
+        };
         DiagnosisInput: {
             code: string;
             display: string;
@@ -6137,10 +7155,23 @@ export interface components {
         };
         RecordClinicalDataRequest: {
             chiefComplaint: string;
+            presentIllness?: string;
+            medicalHistory?: string;
+            physicalExam?: string;
+            treatmentPlan?: string;
             /** Format: int32 */
             systolic: number;
             /** Format: int32 */
             diastolic: number;
+            temperature?: number;
+            /** Format: int32 */
+            pulseRate?: number;
+            /** Format: int32 */
+            respiratoryRate?: number;
+            heightCm?: number;
+            weightKg?: number;
+            /** Format: int32 */
+            oxygenSaturation?: number;
             diagnoses: components["schemas"]["DiagnosisInput"][];
         };
         DiagnosisResponse: {
@@ -6285,6 +7316,60 @@ export interface components {
         MergeRequest: {
             /** @example 824633720832983041 */
             mergedResidentId: string;
+            reason: string;
+        };
+        RecordAllergyRequest: {
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            assertionType: string;
+            categoryCode?: string;
+            criticalityCode?: string;
+            reactionSeverity?: string;
+            informationSource: string;
+            substanceCodeSystemUri?: string;
+            substanceCode?: string;
+            substanceDisplay?: string;
+            reactionText?: string;
+            /** Format: date-time */
+            onsetAt?: string;
+        };
+        AllergyResponse: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            assertionType?: string;
+            categoryCode?: string;
+            clinicalStatus?: string;
+            verificationStatus?: string;
+            criticalityCode?: string;
+            reactionSeverity?: string;
+            informationSource?: string;
+            substanceCodeSystemUri?: string;
+            substanceCode?: string;
+            substanceDisplay?: string;
+            reactionText?: string;
+            /** Format: date-time */
+            onsetAt?: string;
+            /** Format: date-time */
+            recordedAt?: string;
+            /** @example 824633720832983041 */
+            recorderPractitionerId?: string;
+            /** Format: date-time */
+            verifiedAt?: string;
+            /** @example 824633720832983041 */
+            verifierPractitionerId?: string;
+            /** Format: date-time */
+            inactivatedAt?: string;
+            inactivationReason?: string;
+        };
+        InactivateAllergyRequest: {
+            /** Format: int64 */
+            expectedRevision?: number;
             reason: string;
         };
         CreateSourceRecordRequest: {
@@ -6469,15 +7554,13 @@ export interface components {
             revision?: number;
             code?: string;
             name?: string;
-            /** @enum {string} */
-            sdPositionType?: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "ADMINISTRATIVE";
+            sdPositionType?: string;
             dutyDescription?: string;
-            /** @enum {string} */
-            sdPersonnelStatus?: "ACTIVE" | "INACTIVE";
-            /** @description 字典 POSITION_TYPE 的显示文本 */
-            readonly sdPositionTypeText?: string;
+            sdPersonnelStatus?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 POSITION_TYPE 的显示文本 */
+            readonly sdPositionTypeText?: string;
         };
         LegacyOrganizationRequest: {
             /** @example 824633720832983041 */
@@ -6548,10 +7631,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_ADDRESS_TYPE 的显示文本 */
             readonly sdAddressTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         Capability: {
             /** @example 824633720832983041 */
@@ -6565,10 +7648,10 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
             /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
             readonly sdCapabilityTypeText?: string;
         };
@@ -6586,10 +7669,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
-            readonly sdContactUseText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
+            readonly sdContactUseText?: string;
             /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
             readonly sdContactTypeText?: string;
         };
@@ -6612,10 +7695,10 @@ export interface components {
             /** @example 824633720832983041 */
             verifiedBy?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
             /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
             readonly sdIdentifierTypeText?: string;
         };
@@ -6660,10 +7743,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_RESPONSIBILITY_TYPE 的显示文本 */
             readonly sdResponsibilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         CreateRelationRequest: {
             /** @example 824633720832983041 */
@@ -7111,26 +8194,6 @@ export interface components {
             address?: string;
             sdStatus: string;
         };
-        ManufacturerView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            code?: string;
-            name?: string;
-            shortName?: string;
-            sdManufacturerType?: string;
-            sdProductionPlace?: string;
-            countryCode?: string;
-            address?: string;
-            sdStatus?: string;
-            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
-            readonly sdProductionPlaceText?: string;
-            /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
-            readonly sdManufacturerTypeText?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-        };
         ContextRequest: {
             /** @example 824633720832983041 */
             organizationId: string;
@@ -7427,6 +8490,51 @@ export interface components {
             /** Format: date */
             validTo?: string;
         };
+        AssignRoleRequest: {
+            /** @example 824633720832983041 */
+            roleId: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            dataScopeType: string;
+            /** Format: date-time */
+            validFrom?: string;
+            /** Format: date-time */
+            validTo?: string;
+        };
+        UserRoleAssignmentView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            userId?: string;
+            username?: string;
+            /** @example 824633720832983041 */
+            roleId?: string;
+            roleCode?: string;
+            roleName?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            organizationName?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            departmentName?: string;
+            dataScopeType?: string;
+            /** Format: date-time */
+            validFrom?: string;
+            /** Format: date-time */
+            validTo?: string;
+            /** @example 824633720832983041 */
+            grantedBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            effective?: boolean;
+        };
+        CreateRoleRequest: {
+            code: string;
+            name: string;
+            roleType: string;
+        };
         CreateGridAddressRequest: {
             /** @example 824633720832983041 */
             parentId?: string;
@@ -7573,13 +8681,11 @@ export interface components {
             description?: string;
             sdDepartmentType?: string;
             sdDepartmentProperty?: string;
-            /** @enum {string} */
-            sdOrgType?: "TOWNSHIP_HEALTH_CENTER" | "COMMUNITY_HEALTH_CENTER" | "HOSPITAL" | "CLINIC" | "CAMPUS" | "CLINICAL_DEPARTMENT" | "ADMINISTRATIVE_DEPARTMENT" | "MEDICAL_TECHNOLOGY_DEPARTMENT" | "NURSING_UNIT";
+            sdOrgType?: string;
             virtual?: boolean;
             /** Format: int32 */
             sortOrder?: number;
-            /** @enum {string} */
-            sdOrgStatus?: "DRAFT" | "PENDING_ACTIVE" | "ACTIVE" | "SUSPENDED" | "INACTIVE" | "MERGED";
+            sdOrgStatus?: string;
             /** Format: date */
             validFrom?: string;
             /** Format: date */
@@ -7588,14 +8694,14 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 DEPT_PROPERTY 的显示文本 */
-            readonly sdDepartmentPropertyText?: string;
             /** @description 字典 DEPT_TYPE 的显示文本 */
             readonly sdDepartmentTypeText?: string;
-            /** @description 字典 ORG_TYPE 的显示文本 */
-            readonly sdOrgTypeText?: string;
+            /** @description 字典 DEPT_PROPERTY 的显示文本 */
+            readonly sdDepartmentPropertyText?: string;
             /** @description 字典 ORG_STATUS 的显示文本 */
             readonly sdOrgStatusText?: string;
+            /** @description 字典 ORG_TYPE 的显示文本 */
+            readonly sdOrgTypeText?: string;
         };
         DepartmentCapability: {
             /** @example 824633720832983041 */
@@ -7609,10 +8715,10 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
-            readonly sdVerifyStatusText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
+            readonly sdVerifyStatusText?: string;
             /** @description 字典 DEPT_CAPABILITY_TYPE 的显示文本 */
             readonly sdCapabilityTypeText?: string;
         };
@@ -7630,10 +8736,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
-            readonly sdContactUseText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_CONTACT_USE 的显示文本 */
+            readonly sdContactUseText?: string;
             /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
             readonly sdContactTypeText?: string;
         };
@@ -7676,10 +8782,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
-            readonly sdDetailStatusText?: string;
             /** @description 字典 DEPT_RESPONSIBILITY_TYPE 的显示文本 */
             readonly sdResponsibilityTypeText?: string;
+            /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
+            readonly sdDetailStatusText?: string;
         };
         CreateDepartmentRelationRequest: {
             /** @example 824633720832983041 */
@@ -7737,26 +8843,23 @@ export interface components {
             /** @example 824633720832983041 */
             positionId?: string;
             positionName?: string;
-            /** @enum {string} */
-            sdPositionType?: "CLINICAL" | "NURSING" | "PHARMACY" | "MEDICAL_TECHNOLOGY" | "ADMINISTRATIVE";
+            sdPositionType?: string;
             code?: string;
-            /** @enum {string} */
-            sdAssignmentType?: "PRIMARY" | "PART_TIME" | "SECONDMENT" | "ROTATION";
+            sdAssignmentType?: string;
             specialtyCode?: string;
             primaryAssignment?: boolean;
             workloadPercent?: number;
-            /** @enum {string} */
-            sdPersonnelStatus?: "ACTIVE" | "INACTIVE";
+            sdPersonnelStatus?: string;
             /** Format: date */
             validFrom?: string;
             /** Format: date */
             validTo?: string;
             /** @description 字典 POSITION_TYPE 的显示文本 */
             readonly sdPositionTypeText?: string;
-            /** @description 字典 ASSIGNMENT_TYPE 的显示文本 */
-            readonly sdAssignmentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 ASSIGNMENT_TYPE 的显示文本 */
+            readonly sdAssignmentTypeText?: string;
         };
         CreateSupplierRequest: {
             /** @example 824633720832983041 */
@@ -7769,27 +8872,6 @@ export interface components {
             licenseValidTo?: string;
             contactName?: string;
             contactPhone?: string;
-            /** Format: date */
-            validFrom?: string;
-            /** Format: date */
-            validTo?: string;
-        };
-        SupplierView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            /** Format: int64 */
-            revision?: number;
-            /** @example 824633720832983041 */
-            organizationId?: string;
-            code?: string;
-            name?: string;
-            unifiedCreditCode?: string;
-            licenseNo?: string;
-            /** Format: date */
-            licenseValidTo?: string;
-            contactName?: string;
-            contactPhone?: string;
-            status?: string;
             /** Format: date */
             validFrom?: string;
             /** Format: date */
@@ -7825,6 +8907,10 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
+        };
+        SupplierStatusRequest: {
+            expectedRevision: number;
+            status: string;
         };
         CreateRequest: {
             /** @example 824633720832983041 */
@@ -8884,6 +9970,12 @@ export interface components {
             description?: string;
             lines?: components["schemas"]["MedicationDispenseLineView"][];
         };
+        ChangeScheduleStatusRequest: {
+            /** @enum {string} */
+            action: "SUSPEND" | "RESUME" | "CANCEL";
+            commandCode: string;
+            reason: string;
+        };
         QuickScheduleRequest: {
             /** @example 824633720832983041 */
             practitionerId: string;
@@ -8914,50 +10006,6 @@ export interface components {
             skippedCount?: number;
             schedules?: components["schemas"]["ScheduleView"][];
         };
-        ScheduleView: {
-            /** @example 824633720832983041 */
-            id?: string;
-            scheduleCode?: string;
-            /** Format: date */
-            serviceDate?: string;
-            sdDayPart?: string;
-            /** Format: date-time */
-            startAt?: string;
-            /** Format: date-time */
-            endAt?: string;
-            /** @example 824633720832983041 */
-            practitionerId?: string;
-            practitionerName?: string;
-            /** @example 824633720832983041 */
-            catalogItemId?: string;
-            serviceCode?: string;
-            serviceName?: string;
-            locationName?: string;
-            /** Format: int32 */
-            totalCount?: number;
-            /** Format: int32 */
-            heldCount?: number;
-            /** Format: int32 */
-            occupiedCount?: number;
-            /** Format: int32 */
-            frozenCount?: number;
-            /** Format: int32 */
-            availableCount?: number;
-            sdStatus?: string;
-            sdManagementMode?: string;
-            sdBookingPolicy?: string;
-            sdSlotMode?: string;
-            /** @description 字典 SC_SLOT_MODE 的显示文本 */
-            readonly sdSlotModeText?: string;
-            /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
-            readonly sdManagementModeText?: string;
-            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
-            readonly sdDayPartText?: string;
-            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
-            readonly sdBookingPolicyText?: string;
-        };
         NotificationResponse: {
             /** @example 824633720832983041 */
             id?: string;
@@ -8977,8 +10025,10 @@ export interface components {
             /** Format: int64 */
             revision?: number;
         };
-        DispatchRequest: {
-            endpointCode: string;
+        DeliveryRequest: {
+            delivered?: boolean;
+            errorCode?: string;
+            errorMessage?: string;
         };
         ExternalMessageReceipt: {
             /** @example 824633720832983041 */
@@ -9014,10 +10064,8 @@ export interface components {
             errorMessage?: string;
             duplicate?: boolean;
         };
-        DeliveryRequest: {
-            delivered?: boolean;
-            errorCode?: string;
-            errorMessage?: string;
+        DispatchRequest: {
+            endpointCode: string;
         };
         DiagnosticReportRequest: {
             endpointCode: string;
@@ -9141,9 +10189,18 @@ export interface components {
             departmentId: string;
             /** @example 824633720832983041 */
             scheduleId?: string;
+            /** @example 824633720832983041 */
+            slotHoldId?: string;
             idempotencyCode?: string;
             registrationSource?: string;
             visitType?: string;
+        };
+        StartEncounterRequest: {
+            commandCode?: string;
+            factorResults: {
+                [key: string]: boolean;
+            };
+            terminalCode?: string;
         };
         CreateServiceRequest: {
             /** @example 824633720832983041 */
@@ -9381,6 +10438,8 @@ export interface components {
             substitutionAllowed?: boolean;
             selfProvided?: boolean;
             medicationInstruction?: string;
+            allergyReviewConfirmed?: boolean;
+            allergyOverrideReason?: string;
             priceType?: string;
             pricingRequired?: boolean;
             /** Format: date */
@@ -9401,6 +10460,384 @@ export interface components {
             /** Format: int32 */
             copies?: number;
         };
+        IssueReceiptRequest: {
+            idempotencyKey: string;
+            receiptType: string;
+            issueChannel: string;
+            fiscalAuthorityCode?: string;
+            payerName?: string;
+            payerIdentityDigest?: string;
+            correlationId?: string;
+        };
+        ReceiptEventView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            externalMessageId?: string;
+            eventType?: string;
+            statusFrom?: string;
+            statusTo?: string;
+            commandCode?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            errorCode?: string;
+            actionReason?: string;
+            errorMessage?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        ReceiptView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            /** @example 824633720832983041 */
+            reversesReceiptId?: string;
+            receiptNo?: string;
+            commandCode?: string;
+            receiptType?: string;
+            status?: string;
+            fiscalAuthorityCode?: string;
+            externalReceiptNo?: string;
+            fiscalCode?: string;
+            fiscalNumber?: string;
+            verificationCode?: string;
+            controlledObjectReference?: string;
+            amount?: number;
+            currencyCode?: string;
+            issueChannel?: string;
+            payerName?: string;
+            correlationId?: string;
+            /** @example 824633720832983041 */
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            issuedAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            duplicate?: boolean;
+            events?: components["schemas"]["ReceiptEventView"][];
+        };
+        PaymentOrderRequest: {
+            idempotencyKey: string;
+            businessScene: string;
+            paymentSceneCode: string;
+            paymentMethodCode: string;
+            amount: number;
+            correlationId?: string;
+            terminalCode?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+        };
+        PaymentEventView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            externalMessageId?: string;
+            eventType?: string;
+            statusFrom?: string;
+            statusTo?: string;
+            commandCode?: string;
+            externalTransactionNo?: string;
+            eventAmount?: number;
+            errorCode?: string;
+            errorMessage?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        PaymentOrderView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            patientAccountId?: string;
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            /** @example 824633720832983041 */
+            originalPaymentId?: string;
+            orderNo?: string;
+            idempotencyKey?: string;
+            businessScene?: string;
+            paymentSceneCode?: string;
+            paymentMethodCode?: string;
+            paymentMethodName?: string;
+            orderType?: string;
+            status?: string;
+            requestedAmount?: number;
+            capturedAmount?: number;
+            refundedAmount?: number;
+            currencyCode?: string;
+            externalOrderNo?: string;
+            correlationId?: string;
+            terminalCode?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            duplicate?: boolean;
+            events?: components["schemas"]["PaymentEventView"][];
+        };
+        LineMappingRequest: {
+            /** @example 824633720832983041 */
+            settlementLineId: string;
+            insuranceItemCode: string;
+            traceAttributes?: {
+                [key: string]: string;
+            };
+        };
+        PreSettleRequest: {
+            /** @example 824633720832983041 */
+            coverageId: string;
+            idempotencyKey: string;
+            regionCode: string;
+            insuranceTypeCode: string;
+            organizationCode: string;
+            departmentCode: string;
+            practitionerCode: string;
+            diagnosisPayloadDigest: string;
+            /** Format: date-time */
+            serviceStartedAt?: string;
+            /** Format: date-time */
+            serviceEndedAt?: string;
+            correlationId?: string;
+            lines: components["schemas"]["LineMappingRequest"][];
+        };
+        InsuranceClaimLineView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            settlementLineId?: string;
+            /** Format: int32 */
+            lineNo?: number;
+            itemCode?: string;
+            insuranceItemCode?: string;
+            itemName?: string;
+            categoryCode?: string;
+            quantity?: number;
+            unitPrice?: number;
+            claimedAmount?: number;
+            approvedAmount?: number;
+            rejectionCode?: string;
+        };
+        InsuranceClaimResponseView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            externalMessageId?: string;
+            responseNo?: string;
+            commandCode?: string;
+            operation?: string;
+            status?: string;
+            externalSettlementNo?: string;
+            insuranceFundAmount?: number;
+            personalAccountAmount?: number;
+            patientCashAmount?: number;
+            otherFundAmount?: number;
+            errorCode?: string;
+            errorMessage?: string;
+            /** Format: date-time */
+            respondedAt?: string;
+        };
+        InsuranceSettlementView: {
+            /** @example 824633720832983041 */
+            claimId?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            /** @example 824633720832983041 */
+            patientAccountId?: string;
+            /** @example 824633720832983041 */
+            coverageId?: string;
+            claimNo?: string;
+            settlementNo?: string;
+            status?: string;
+            currentOperation?: string;
+            regionCode?: string;
+            insuranceTypeCode?: string;
+            externalPreSettlementNo?: string;
+            externalSettlementNo?: string;
+            grossAmount?: number;
+            insuranceFundAmount?: number;
+            personalAccountAmount?: number;
+            patientCashAmount?: number;
+            otherFundAmount?: number;
+            currencyCode?: string;
+            reversalReason?: string;
+            /** Format: date-time */
+            reversedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            duplicate?: boolean;
+            lines?: components["schemas"]["InsuranceClaimLineView"][];
+            responses?: components["schemas"]["InsuranceClaimResponseView"][];
+        };
+        CreateRegistrationIntentRequest: {
+            /** @example 824633720832983041 */
+            residentId: string;
+            /** @example 824633720832983041 */
+            organizationId: string;
+            /** @example 824633720832983041 */
+            departmentId: string;
+            /** @example 824633720832983041 */
+            scheduleId?: string;
+            idempotencyCode: string;
+            registrationSource?: string;
+            visitType?: string;
+        };
+        RegistrationIntentView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            residentId?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** @example 824633720832983041 */
+            scheduleId?: string;
+            /** @example 824633720832983041 */
+            catalogItemId?: string;
+            /** @example 824633720832983041 */
+            slotHoldId?: string;
+            /** @example 824633720832983041 */
+            patientAccountId?: string;
+            /** @example 824633720832983041 */
+            settlementId?: string;
+            /** @example 824633720832983041 */
+            paymentOrderId?: string;
+            /** @example 824633720832983041 */
+            encounterId?: string;
+            idempotencyCode?: string;
+            registrationSource?: string;
+            visitType?: string;
+            status?: string;
+            feeAmount?: number;
+            currencyCode?: string;
+            itemCode?: string;
+            itemName?: string;
+            /** Format: date-time */
+            expiresAt?: string;
+            /** Format: int32 */
+            completionAttempts?: number;
+            lastErrorCode?: string;
+            lastErrorMessage?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            duplicate?: boolean;
+        };
+        BatchView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            batchNo?: string;
+            commandCode?: string;
+            reconciliationType?: string;
+            status?: string;
+            sourceCode?: string;
+            paymentMethodCode?: string;
+            externalBatchNo?: string;
+            /** Format: date */
+            businessDate?: string;
+            /** Format: int32 */
+            localCount?: number;
+            /** Format: int32 */
+            externalCount?: number;
+            /** Format: int32 */
+            differenceCount?: number;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            duplicate?: boolean;
+            items?: components["schemas"]["ItemView"][];
+        };
+        ItemView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            paymentId?: string;
+            externalTransactionNo?: string;
+            matchType?: string;
+            status?: string;
+            localAmount?: number;
+            externalAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+            /** Format: date-time */
+            resolvedAt?: string;
+            resolution?: string;
+        };
+        StatementRequest: {
+            externalBatchNo?: string;
+            /** Format: date-time */
+            generatedAt?: string;
+            transactions: components["schemas"]["TransactionRequest"][];
+        };
+        TransactionRequest: {
+            externalTransactionNo: string;
+            externalOrderNo?: string;
+            transactionType: string;
+            status: string;
+            amount: number;
+            currencyCode: string;
+            /** Format: date-time */
+            occurredAt?: string;
+            payerReferenceDigest?: string;
+            memo?: string;
+        };
+        VoidReceiptRequest: {
+            commandCode: string;
+            reason: string;
+        };
+        RedFlushReceiptRequest: {
+            commandCode: string;
+            reason: string;
+            correlationId?: string;
+        };
+        PrintReceiptRequest: {
+            commandCode: string;
+        };
+        ReceiptOperationRequest: {
+            commandCode: string;
+            reason?: string;
+        };
+        RecoveryRequest: {
+            batchCode: string;
+            /** Format: int32 */
+            limit?: number;
+        };
+        RecoveryResult: {
+            /** @example 824633720832983041 */
+            receiptId?: string;
+            status?: string;
+            accepted?: boolean;
+            errorCode?: string;
+            errorMessage?: string;
+        };
         RefundRequest: {
             refundNo: string;
             amount: number;
@@ -9416,9 +10853,12 @@ export interface components {
             patientAccountId?: string;
             /** @example 824633720832983041 */
             invoiceId?: string;
+            /** @example 824633720832983041 */
+            paymentOrderId?: string;
             paymentNo?: string;
             paymentType?: string;
             paymentMethodCode?: string;
+            paymentSceneCode?: string;
             status?: string;
             amount?: number;
             currencyCode?: string;
@@ -9431,6 +10871,18 @@ export interface components {
             enteredBy?: string;
             description?: string;
         };
+        RefundOrderRequest: {
+            idempotencyKey: string;
+            amount: number;
+            reason: string;
+            correlationId?: string;
+            terminalCode?: string;
+        };
+        PaymentRecoveryRequest: {
+            batchCode: string;
+            /** Format: int32 */
+            limit: number;
+        };
         PaymentRequest: {
             paymentNo: string;
             paymentMethodCode: string;
@@ -9440,6 +10892,13 @@ export interface components {
             paidAt?: string;
             externalTransactionNo?: string;
             description?: string;
+        };
+        OperationRequest: {
+            commandCode: string;
+        };
+        ReversalRequest: {
+            commandCode: string;
+            reason: string;
         };
         SynchronizeRequest: {
             requestCode: string;
@@ -9470,6 +10929,7 @@ export interface components {
             accountBalance?: number;
             charges?: components["schemas"]["ChargeItemView"][];
             invoices?: components["schemas"]["InvoiceView"][];
+            settlements?: components["schemas"]["SettlementView"][];
             payments?: components["schemas"]["PaymentView"][];
             ledgerEntries?: components["schemas"]["LedgerEntryView"][];
         };
@@ -9562,6 +11022,8 @@ export interface components {
             /** @example 824633720832983041 */
             paymentId?: string;
             /** @example 824633720832983041 */
+            claimResponseId?: string;
+            /** @example 824633720832983041 */
             reversesLedgerEntryId?: string;
             /** Format: date-time */
             occurredAt?: string;
@@ -9570,10 +11032,166 @@ export interface components {
             /** @example 824633720832983041 */
             recordedBy?: string;
         };
+        SettlementEventView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            eventType?: string;
+            statusFrom?: string;
+            statusTo?: string;
+            commandCode?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            /** Format: date-time */
+            occurredAt?: string;
+        };
+        SettlementLineView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            chargeItemId?: string;
+            /** Format: int32 */
+            lineNo?: number;
+            settledQuantity?: number;
+            grossAmount?: number;
+            discountAmount?: number;
+            insuranceAmount?: number;
+            patientAmount?: number;
+            otherAmount?: number;
+            netAmount?: number;
+        };
+        SettlementTenderView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            paymentId?: string;
+            /** @example 824633720832983041 */
+            claimResponseId?: string;
+            /** Format: int32 */
+            lineNo?: number;
+            tenderType?: string;
+            payerCode?: string;
+            payerName?: string;
+            amount?: number;
+            currencyCode?: string;
+        };
+        SettlementView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            patientAccountId?: string;
+            /** @example 824633720832983041 */
+            reversesSettlementId?: string;
+            /** @example 824633720832983041 */
+            legacyInvoiceId?: string;
+            settlementNo?: string;
+            commandCode?: string;
+            settlementType?: string;
+            settlementScene?: string;
+            terminalScene?: string;
+            status?: string;
+            grossAmount?: number;
+            discountAmount?: number;
+            insuranceAmount?: number;
+            patientAmount?: number;
+            otherAmount?: number;
+            roundingAmount?: number;
+            netAmount?: number;
+            tenderedAmount?: number;
+            outstandingAmount?: number;
+            currencyCode?: string;
+            terminalCode?: string;
+            /** @example 824633720832983041 */
+            createdBy?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** @example 824633720832983041 */
+            finalizedBy?: string;
+            /** Format: date-time */
+            finalizedAt?: string;
+            errorCode?: string;
+            errorMessage?: string;
+            lines?: components["schemas"]["SettlementLineView"][];
+            tenders?: components["schemas"]["SettlementTenderView"][];
+            events?: components["schemas"]["SettlementEventView"][];
+        };
+        ActualAmountRequest: {
+            paymentMethodCode: string;
+            paymentType: string;
+            amount: number;
+        };
+        CalculateRequest: {
+            commandCode: string;
+            terminalCode: string;
+            /** Format: date-time */
+            rangeFrom: string;
+            /** Format: date-time */
+            rangeTo: string;
+            actualAmounts?: components["schemas"]["ActualAmountRequest"][];
+        };
+        CashierCloseLineView: {
+            /** Format: int32 */
+            lineNo?: number;
+            paymentMethodCode?: string;
+            paymentType?: string;
+            /** Format: int32 */
+            transactionCount?: number;
+            expectedAmount?: number;
+            actualAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+        };
+        CashierCloseView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** Format: int64 */
+            revision?: number;
+            /** @example 824633720832983041 */
+            reversesCloseId?: string;
+            closeNo?: string;
+            commandCode?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            cashierUserId?: string;
+            terminalCode?: string;
+            status?: string;
+            /** Format: date-time */
+            rangeFrom?: string;
+            /** Format: date-time */
+            rangeTo?: string;
+            /** Format: int32 */
+            transactionCount?: number;
+            expectedAmount?: number;
+            actualAmount?: number;
+            differenceAmount?: number;
+            currencyCode?: string;
+            differenceReason?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            confirmedAt?: string;
+            duplicate?: boolean;
+            lines?: components["schemas"]["CashierCloseLineView"][];
+        };
+        ReverseRequest: {
+            commandCode: string;
+            reason: string;
+        };
+        ConfirmRequest: {
+            commandCode: string;
+            differenceReason?: string;
+        };
         IssueInvoiceRequest: {
             invoiceNo: string;
             /** Format: date-time */
             issuedAt?: string;
+            settlementScene?: string;
+            terminalScene?: string;
+            terminalCode?: string;
         };
         TaskSummaryResponse: {
             /** Format: int64 */
@@ -9612,6 +11230,7 @@ export interface components {
             workContextType?: "CLINICAL" | "PHARMACY" | "INVENTORY" | "GENERAL";
             dataScopeType?: string;
             roleCodes?: string[];
+            authorities?: string[];
         };
         TimelineEventResponse: {
             /** @example 824633720832983041 */
@@ -9625,15 +11244,15 @@ export interface components {
             occurredAt?: string;
             recordedBy?: string;
         };
-        NotificationSummaryResponse: {
+        NotificationSummary: {
             /** Format: int64 */
             unread?: number;
             /** Format: int64 */
             total?: number;
         };
         PortalSummaryResponse: {
-            tasks?: components["schemas"]["TaskSummaryResponse"];
-            notifications?: components["schemas"]["NotificationSummaryResponse"];
+            tasks?: components["schemas"]["TaskSummary"];
+            notifications?: components["schemas"]["NotificationSummary"];
             /** Format: int64 */
             registeredToday?: number;
             /** Format: int64 */
@@ -9642,6 +11261,16 @@ export interface components {
             completedToday?: number;
             /** Format: int64 */
             activeResidents?: number;
+        };
+        TaskSummary: {
+            /** Format: int64 */
+            ready?: number;
+            /** Format: int64 */
+            inProgress?: number;
+            /** Format: int64 */
+            overdue?: number;
+            /** Format: int64 */
+            totalOpen?: number;
         };
         CodeSystemSummary: {
             /** @example 824633720832983041 */
@@ -9784,6 +11413,26 @@ export interface components {
             /** @example 824633720832983041 */
             changedBy?: string;
         };
+        UserView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            username?: string;
+            status?: string;
+        };
+        PermissionView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            resourceCode?: string;
+            actionCode?: string;
+            status?: string;
+            /** @example 824633720832983041 */
+            moduleId?: string;
+            moduleCode?: string;
+            moduleName?: string;
+            routePath?: string;
+        };
         DictionarySummaryResponse: {
             /** @example 824633720832983041 */
             id?: string;
@@ -9919,14 +11568,14 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
-            readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
             readonly sdParamControlTypeText?: string;
-            /** @description 字典 PARAM_STATUS 的显示文本 */
-            readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
+            readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
+            /** @description 字典 PARAM_STATUS 的显示文本 */
+            readonly sdParamStatusText?: string;
         };
         ParameterChangeResponse: {
             /** @example 824633720832983041 */
@@ -9947,10 +11596,10 @@ export interface components {
             changedAt?: string;
             /** @example 824633720832983041 */
             changedBy?: string;
-            /** @description 字典 PARAM_CHANGE_TYPE 的显示文本 */
-            readonly sdParamChangeTypeText?: string;
             /** @description 字典 PARAM_CHANGE_TARGET_TYPE 的显示文本 */
             readonly sdParamChangeTargetTypeText?: string;
+            /** @description 字典 PARAM_CHANGE_TYPE 的显示文本 */
+            readonly sdParamChangeTypeText?: string;
         };
         TraceCodeView: {
             /** @example 824633720832983041 */
@@ -10220,6 +11869,12 @@ export interface components {
             registeredAt?: string;
             /** Format: date-time */
             calledAt?: string;
+        };
+        NotificationSummaryResponse: {
+            /** Format: int64 */
+            unread?: number;
+            /** Format: int64 */
+            total?: number;
         };
         EvidenceEventView: {
             /** @example 824633720832983041 */
@@ -11001,6 +12656,41 @@ export interface operations {
             };
         };
     };
+    updateManufacturer: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateManufacturerRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManufacturerView"];
+                };
+            };
+        };
+    };
     saveOverride: {
         parameters: {
             query?: never;
@@ -11169,6 +12859,76 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ImportBatchView"];
+                };
+            };
+        };
+    };
+    updateRole: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"];
+                };
+            };
+        };
+    };
+    replacePermissions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                roleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReplaceRolePermissionsRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"];
                 };
             };
         };
@@ -11587,6 +13347,76 @@ export interface operations {
             };
         };
     };
+    updateSupplier: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                supplierId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateSupplierRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SupplierView"];
+                };
+            };
+        };
+    };
+    update_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateScheduleRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScheduleView"];
+                };
+            };
+        };
+    };
     record: {
         parameters: {
             query?: never;
@@ -11820,6 +13650,110 @@ export interface operations {
                     "*/*": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                activeOnly?: boolean;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                residentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AllergyResponse"][];
+                };
+            };
+        };
+    };
+    record_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                residentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordAllergyRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AllergyResponse"];
+                };
+            };
+        };
+    };
+    inactivate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                residentId: string;
+                allergyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InactivateAllergyRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AllergyResponse"];
                 };
             };
         };
@@ -13830,6 +15764,41 @@ export interface operations {
             };
         };
     };
+    manufacturerStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ManufacturerView"];
+                };
+            };
+        };
+    };
     snapshot: {
         parameters: {
             query?: never;
@@ -14580,7 +16549,135 @@ export interface operations {
             };
         };
     };
-    list: {
+    assignments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserRoleAssignmentView"][];
+                };
+            };
+        };
+    };
+    assignRole: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserRoleAssignmentView"];
+                };
+            };
+        };
+    };
+    roles: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"][];
+                };
+            };
+        };
+    };
+    createRole: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RoleView"];
+                };
+            };
+        };
+    };
+    list_1: {
         parameters: {
             query?: {
                 maxLevel?: number;
@@ -14714,7 +16811,7 @@ export interface operations {
             };
         };
     };
-    list_1: {
+    list_2: {
         parameters: {
             query?: {
                 query?: string;
@@ -15813,6 +17910,8 @@ export interface operations {
         parameters: {
             query?: {
                 organizationId?: string;
+                query?: string;
+                status?: string;
             };
             header: {
                 /** @description 当前县域医共体租户标识 */
@@ -15939,7 +18038,42 @@ export interface operations {
             };
         };
     };
-    list_2: {
+    supplierStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                supplierId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupplierStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SupplierView"];
+                };
+            };
+        };
+    };
+    list_3: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -16433,7 +18567,7 @@ export interface operations {
             };
         };
     };
-    list_3: {
+    list_4: {
         parameters: {
             query: {
                 sourceSiteId: string;
@@ -16726,7 +18860,7 @@ export interface operations {
             };
         };
     };
-    list_4: {
+    list_5: {
         parameters: {
             query: {
                 stockSiteId: string;
@@ -16887,7 +19021,7 @@ export interface operations {
             };
         };
     };
-    record_1: {
+    record_2: {
         parameters: {
             query?: never;
             header: {
@@ -17723,6 +19857,41 @@ export interface operations {
             };
         };
     };
+    changeStatus_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                scheduleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeScheduleStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ScheduleView"];
+                };
+            };
+        };
+    };
     quickCreate: {
         parameters: {
             query?: never;
@@ -17787,6 +19956,41 @@ export interface operations {
             };
         };
     };
+    delivery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                messageId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExternalMessageReceipt"];
+                };
+            };
+        };
+    };
     dispatch_1: {
         parameters: {
             query?: never;
@@ -17822,7 +20026,7 @@ export interface operations {
             };
         };
     };
-    delivery: {
+    delivery_1: {
         parameters: {
             query?: never;
             header: {
@@ -18005,7 +20209,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartEncounterRequest"];
+            };
+        };
         responses: {
             /** @description OK */
             200: {
@@ -18018,7 +20226,7 @@ export interface operations {
             };
         };
     };
-    list_5: {
+    list_6: {
         parameters: {
             query?: never;
             header: {
@@ -18120,7 +20328,7 @@ export interface operations {
             };
         };
     };
-    list_6: {
+    list_7: {
         parameters: {
             query?: never;
             header: {
@@ -18294,7 +20502,7 @@ export interface operations {
             };
         };
     };
-    list_7: {
+    list_8: {
         parameters: {
             query?: never;
             header: {
@@ -18628,6 +20836,577 @@ export interface operations {
             };
         };
     };
+    list_9: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"][];
+                };
+            };
+        };
+    };
+    issue_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IssueReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    createPaymentOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"];
+                };
+            };
+        };
+    };
+    preSettle: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PreSettleRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"];
+                };
+            };
+        };
+    };
+    create_11: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRegistrationIntentRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RegistrationIntentView"];
+                };
+            };
+        };
+    };
+    retry: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RegistrationIntentView"];
+                };
+            };
+        };
+    };
+    cancel_4: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RegistrationIntentView"];
+                };
+            };
+        };
+    };
+    resolve_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BatchView"];
+                };
+            };
+        };
+    };
+    list_10: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BatchView"][];
+                };
+            };
+        };
+    };
+    create_12: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BatchView"];
+                };
+            };
+        };
+    };
+    apply: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatementRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BatchView"];
+                };
+            };
+        };
+    };
+    voidReceipt: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoidReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    redFlush: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RedFlushReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    print_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PrintReceiptRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    retry_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptOperationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    query: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReceiptOperationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    recover: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryResult"][];
+                };
+            };
+        };
+    };
     refund: {
         parameters: {
             query?: never;
@@ -18659,6 +21438,136 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["PaymentView"];
+                };
+            };
+        };
+    };
+    createRefundOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                paymentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RefundOrderRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"];
+                };
+            };
+        };
+    };
+    queryPaymentOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"];
+                };
+            };
+        };
+    };
+    retryBusinessCompletion: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"];
+                };
+            };
+        };
+    };
+    recoverPayments: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PaymentRecoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryResult"][];
                 };
             };
         };
@@ -18698,6 +21607,144 @@ export interface operations {
             };
         };
     };
+    settle: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"];
+                };
+            };
+        };
+    };
+    reverse: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReversalRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"];
+                };
+            };
+        };
+    };
+    query_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OperationRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"];
+                };
+            };
+        };
+    };
+    recover_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecoveryRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RecoveryResult"][];
+                };
+            };
+        };
+    };
     synchronize: {
         parameters: {
             query?: never;
@@ -18729,6 +21776,138 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChargeSynchronizationView"];
+                };
+            };
+        };
+    };
+    listMine: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierCloseView"][];
+                };
+            };
+        };
+    };
+    calculate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierCloseView"];
+                };
+            };
+        };
+    };
+    reverse_1: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                closeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReverseRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierCloseView"];
+                };
+            };
+        };
+    };
+    confirm: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                closeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierCloseView"];
                 };
             };
         };
@@ -19387,7 +22566,7 @@ export interface operations {
             };
         };
     };
-    list_8: {
+    list_11: {
         parameters: {
             query?: never;
             header: {
@@ -19575,6 +22754,64 @@ export interface operations {
             };
         };
     };
+    users: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["UserView"][];
+                };
+            };
+        };
+    };
+    permissions: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PermissionView"][];
+                };
+            };
+        };
+    };
     itemAttributes: {
         parameters: {
             query?: {
@@ -19607,6 +22844,41 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ItemAttributeConfigurationView"];
+                };
+            };
+        };
+    };
+    itemAttributeConfigurations: {
+        parameters: {
+            query?: {
+                scopeType?: "PLATFORM" | "TENANT" | "ORGANIZATION" | "DEPARTMENT";
+                organizationId?: string;
+                departmentId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ItemAttributeConfigurationView"][];
                 };
             };
         };
@@ -19702,7 +22974,7 @@ export interface operations {
             };
         };
     };
-    resolve_1: {
+    resolve_2: {
         parameters: {
             query?: never;
             header: {
@@ -19831,7 +23103,7 @@ export interface operations {
             };
         };
     };
-    resolve_2: {
+    resolve_3: {
         parameters: {
             query?: {
                 userId?: string;
@@ -20460,6 +23732,38 @@ export interface operations {
             };
         };
     };
+    outbound_1: {
+        parameters: {
+            query: {
+                endpointCode: string;
+                status?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ExternalMessageReceipt"][];
+                };
+            };
+        };
+    };
     candidates: {
         parameters: {
             query?: {
@@ -20613,6 +23917,68 @@ export interface operations {
             };
         };
     };
+    settlement: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                settlementId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["SettlementView"];
+                };
+            };
+        };
+    };
+    get_5: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                intentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RegistrationIntentView"];
+                };
+            };
+        };
+    };
     reconcile_1: {
         parameters: {
             query: {
@@ -20640,6 +24006,223 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["DailyReconciliationView"];
+                };
+            };
+        };
+    };
+    get_6: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["BatchView"];
+                };
+            };
+        };
+    };
+    get_7: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                receiptId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"];
+                };
+            };
+        };
+    };
+    recoveryWorklist: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ReceiptView"][];
+                };
+            };
+        };
+    };
+    paymentOrder: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                paymentOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"];
+                };
+            };
+        };
+    };
+    paymentRecoveryWorklist: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"][];
+                };
+            };
+        };
+    };
+    get_8: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                claimId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"];
+                };
+            };
+        };
+    };
+    recoveryWorklist_1: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["InsuranceSettlementView"][];
                 };
             };
         };
@@ -20674,6 +24257,97 @@ export interface operations {
                 content: {
                     "*/*": components["schemas"]["AccountStatementView"];
                 };
+            };
+        };
+    };
+    get_9: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                closeId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CashierCloseView"];
+                };
+            };
+        };
+    };
+    paymentOrders: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                accountId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PaymentOrderView"][];
+                };
+            };
+        };
+    };
+    revoke: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                assignmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description No Content */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

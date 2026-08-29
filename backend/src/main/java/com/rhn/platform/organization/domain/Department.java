@@ -100,7 +100,7 @@ public class Department {
 
     public DepartmentView toView() {
         return new DepartmentView(id, revision, organizationId, parentId, mergedToId, code, name, shortName,
-                description, departmentType, departmentProperty, structuralType(), virtual, sortOrder, status,
+                description, departmentType, departmentProperty, structuralType().name(), virtual, sortOrder, status.name(),
                 validFrom, validTo, createdAt, updatedAt);
     }
 

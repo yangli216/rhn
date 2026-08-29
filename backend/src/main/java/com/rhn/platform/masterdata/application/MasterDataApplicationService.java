@@ -207,6 +207,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         validateService(command);
         ServiceCatalogItem item = requireService(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
+        if (!item.serviceType().equals(command.serviceType())) {
+            throw badRequest("SERVICE_TYPE_IMMUTABLE", "诊疗项目类型创建后不允许直接修改");
+        }
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forService(command.serviceType()),
                 command.name(), command.unitCode(), command.orderable(),
                 command.chargeable(), command.status(), command.validFrom(), command.validTo(), command.serviceType(),
@@ -275,9 +278,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public MedicationView updateMedication(Long id, long expectedRevision, MedicationCommand command,
                                            Long organizationId) {
         ExecutionContext context = current();
-        validateMedication(command);
         Medication item = requireMedication(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
+        if (!item.medicationType().equals(command.medicationType())) {
+            throw badRequest("MEDICATION_TYPE_IMMUTABLE", "药品类型创建后不允许直接修改，请新建正确类型的药品主档");
+        }
+        validateMedication(command);
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
                 command.name(), command.aliasName(),
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
@@ -321,6 +327,34 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         return manufacturerView(manufacturerRepository.save(new Manufacturer(context.tenantId(), context.subjectId(),
                 command.code(), command.name(), command.shortName(), command.manufacturerType(),
                 command.productionPlace(), command.countryCode(), command.address(), command.status())));
+    }
+
+    @Transactional
+    public ManufacturerView updateManufacturer(Long id, long expectedRevision, ManufacturerCommand command) {
+        ExecutionContext context = current();
+        requireCode(MasterDataDictionaryCodes.MANUFACTURER_TYPE, command.manufacturerType());
+        if (!blank(command.productionPlace())) requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        Manufacturer value = manufacturerRepository.findByIdAndTenantId(id, context.tenantId())
+                .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
+        requireRevision(value.revision(), expectedRevision, "MANUFACTURER_REVISION_STALE", "生产企业已被其他用户修改，请刷新后重试");
+        if (manufacturerRepository.existsByTenantIdAndCodeAndIdNot(context.tenantId(), command.code(), id)) {
+            throw conflict("MANUFACTURER_CODE_DUPLICATE", "当前租户已存在相同生产企业编码");
+        }
+        value.update(expectedRevision, context.subjectId(), command.code(), command.name(), command.shortName(),
+                command.manufacturerType(), command.productionPlace(), command.countryCode(), command.address(),
+                command.status());
+        return manufacturerView(manufacturerRepository.saveAndFlush(value));
+    }
+
+    @Transactional
+    public ManufacturerView changeManufacturerStatus(Long id, long expectedRevision, String status) {
+        ExecutionContext context = current(); requireCode(MasterDataDictionaryCodes.STATUS, status);
+        Manufacturer value = manufacturerRepository.findByIdAndTenantId(id, context.tenantId())
+                .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
+        requireRevision(value.revision(), expectedRevision, "MANUFACTURER_REVISION_STALE", "生产企业已被其他用户修改，请刷新后重试");
+        value.changeStatus(expectedRevision, context.subjectId(), status);
+        return manufacturerView(manufacturerRepository.saveAndFlush(value));
     }
 
     @Transactional
@@ -586,6 +620,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     private void validateMedication(MedicationCommand command) {
         requireCode(MasterDataDictionaryCodes.MEDICATION_TYPE, command.medicationType());
+        boolean western = "WESTERN".equals(command.medicationType());
+        boolean herbal = "HERBAL".equals(command.medicationType());
+        boolean vaccine = "VACCINE".equals(command.medicationType());
         if (!blank(command.doseForm())) requireCode(MasterDataDictionaryCodes.DOSE_FORM, command.doseForm());
         if (!blank(command.storageType())) requireCode(MasterDataDictionaryCodes.STORAGE_TYPE, command.storageType());
         if (!blank(command.antimicrobialLevel())) {
@@ -599,6 +636,21 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 "填写默认剂量时必须同时填写剂量单位");
         if (!command.antimicrobial() && !blank(command.antimicrobialLevel())) {
             throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_CONFLICT", "非抗菌药物不能设置抗菌药等级");
+        }
+        if (!western && (command.antimicrobial() || !blank(command.antimicrobialLevel()))) {
+            throw badRequest("MEDICATION_ANTIMICROBIAL_TYPE_INVALID", "仅西药和化学药可维护抗菌药物及抗菌药等级");
+        }
+        if (!western && command.skinTestRequired()) {
+            throw badRequest("MEDICATION_SKIN_TEST_TYPE_INVALID", "仅西药和化学药可维护药品皮试属性");
+        }
+        if (herbal && (command.strengthValue() != null || !blank(command.strengthUnit()))) {
+            throw badRequest("MEDICATION_HERBAL_STRENGTH_INVALID", "草药饮片不维护制剂含量，请使用炮制规格和默认剂量");
+        }
+        if ((herbal || vaccine) && command.chronicDiseaseDrug()) {
+            throw badRequest("MEDICATION_CHRONIC_TYPE_INVALID", "草药饮片和疫苗不维护慢病用药属性");
+        }
+        if (vaccine && !blank(command.defaultFrequency())) {
+            throw badRequest("MEDICATION_VACCINE_FREQUENCY_INVALID", "疫苗接种程序应通过类型扩展属性维护，不能使用普通给药频次");
         }
     }
 

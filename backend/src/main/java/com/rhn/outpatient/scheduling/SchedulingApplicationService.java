@@ -7,6 +7,8 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleRequest;
 import com.rhn.outpatient.scheduling.SchedulingContracts.QuickScheduleResult;
 import com.rhn.outpatient.scheduling.SchedulingContracts.ScheduleView;
 import com.rhn.outpatient.scheduling.SchedulingContracts.SchedulingBootstrap;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ChangeScheduleStatusRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.UpdateScheduleRequest;
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
 import com.rhn.platform.configuration.api.ConfigurationValue;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
@@ -15,9 +17,9 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.organization.api.StaffAssignmentView;
 import com.rhn.platform.organization.api.StaffDetailView;
 import com.rhn.platform.organization.api.StaffView;
-import com.rhn.platform.organization.domain.PersonnelStatus;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.idempotency.CommandCodes;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.stereotype.Service;
@@ -37,6 +39,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
+import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class SchedulingApplicationService {
@@ -95,7 +99,7 @@ class SchedulingApplicationService {
         PeriodDefault afternoon = periodValue(context, AFTERNOON_KEY);
         LocalDate today = LocalDate.now();
         List<PractitionerOption> practitioners = organizationDirectory.listStaff(context.tenantId()).stream()
-                .filter(value -> value.sdPersonnelStatus() == PersonnelStatus.ACTIVE)
+                .filter(value -> "ACTIVE".equals(value.sdPersonnelStatus()))
                 .map(value -> optionFor(context, value, today))
                 .filter(java.util.Objects::nonNull)
                 .sorted(Comparator.comparing(PractitionerOption::name))
@@ -161,6 +165,7 @@ class SchedulingApplicationService {
         List<ServiceSchedule> generated = new ArrayList<>();
         int skipped = 0;
         for (LocalDate date = request.dateFrom(); !date.isAfter(request.dateTo()); date = date.plusDays(1)) {
+            LocalDate serviceDate = date;
             int dayOfWeek = date.getDayOfWeek().getValue();
             if (!request.weekdays().contains(dayOfWeek)) continue;
             for (ScheduleDayPart dayPart : request.dayParts()) {
@@ -169,7 +174,12 @@ class SchedulingApplicationService {
                         .findFirst().orElseThrow();
                 Instant startAt = date.atTime(toTime(period.minuteStart())).atZone(zoneId).toInstant();
                 Instant endAt = date.atTime(toTime(period.minuteEnd())).atZone(zoneId).toInstant();
-                if (scheduleRepository.existsByTenantIdAndResourceIdAndStartAtAndEndAt(
+                boolean overlaps = scheduleRepository.countPractitionerOverlaps(context.tenantId(),
+                        request.practitionerId(), date, 0L, startAt, endAt) > 0
+                        || generated.stream().anyMatch(value -> value.serviceDate().equals(serviceDate)
+                        && value.practitionerId().equals(request.practitionerId())
+                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt));
+                if (overlaps || scheduleRepository.existsByTenantIdAndResourceIdAndStartAtAndEndAt(
                         context.tenantId(), resource.id(), startAt, endAt)) {
                     skipped++;
                     continue;
@@ -202,6 +212,105 @@ class SchedulingApplicationService {
         runRepository.save(run);
         return new QuickScheduleResult(run.id(), false, generated.size(), skipped,
                 toViews(context.tenantId(), generated));
+    }
+
+    @Transactional
+    ScheduleView update(Long scheduleId, UpdateScheduleRequest request) {
+        ExecutionContext context = requireWorkContext();
+        ServiceSchedule schedule = requireScheduleForUpdate(context, scheduleId);
+        String commandCode = request.commandCode().trim();
+        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCode(
+                context.tenantId(), schedule.id(), commandCode)) {
+            return toView(context.tenantId(), schedule);
+        }
+        requireOperable(schedule);
+        if (!"PUBLISHED".equals(schedule.status()) && !"SUSPENDED".equals(schedule.status())) {
+            throw conflict("SCHEDULE_NOT_EDITABLE", "当前状态的班次不能修改");
+        }
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw badRequest("SCHEDULE_TIME_INVALID", "排班结束时间必须晚于开始时间");
+        }
+        ZoneId zoneId = ZoneId.of(schedule.timezoneCode());
+        Instant startAt = schedule.serviceDate().atTime(request.startTime()).atZone(zoneId).toInstant();
+        Instant endAt = schedule.serviceDate().atTime(request.endTime()).atZone(zoneId).toInstant();
+        if (scheduleRepository.countPractitionerOverlaps(context.tenantId(), schedule.practitionerId(),
+                schedule.serviceDate(), schedule.id(), startAt, endAt) > 0) {
+            throw conflict("SCHEDULE_PRACTITIONER_TIME_OVERLAP", "所选医生在该时间段已有其他排班");
+        }
+        ScheduleSlotPool pool = requirePool(context.tenantId(), schedule.id());
+        boolean timeChanged = !schedule.startAt().equals(startAt) || !schedule.endAt().equals(endAt);
+        if (timeChanged && pool.heldCount() + pool.occupiedCount() > 0) {
+            throw conflict("SCHEDULE_TIME_CHANGE_HAS_USAGE", "班次已有暂占或挂号记录，不能直接调整出诊时间");
+        }
+        int previousCapacity = pool.totalCount();
+        pool.changeCapacity(request.capacity());
+        String locationName = StrUtil.isBlank(request.locationName()) ? null : request.locationName().trim();
+        schedule.update(startAt, endAt, request.capacity(), locationName, context.subjectId());
+        scheduleEventRepository.save(new ServiceScheduleEvent(context.tenantId(), schedule.id(), "UPDATED",
+                schedule.status(), schedule.status(), commandCode, context.subjectId(), request.reason().trim()));
+        if (previousCapacity != request.capacity()) {
+            int sequence = nextSlotSequence(context.tenantId(), pool.id());
+            slotEventRepository.save(new SlotEvent(context.tenantId(), pool.id(), schedule.id(), sequence,
+                    request.capacity() - previousCapacity, CommandCodes.prefixed("CAPACITY-", commandCode), context.subjectId(),
+                    "调整班次号源上限：" + previousCapacity + " → " + request.capacity()));
+        }
+        return toView(context.tenantId(), schedule);
+    }
+
+    @Transactional
+    ScheduleView changeStatus(Long scheduleId, ChangeScheduleStatusRequest request) {
+        ExecutionContext context = requireWorkContext();
+        ServiceSchedule schedule = requireScheduleForUpdate(context, scheduleId);
+        String commandCode = request.commandCode().trim();
+        if (scheduleEventRepository.existsByTenantIdAndScheduleIdAndCommandCode(
+                context.tenantId(), schedule.id(), commandCode)) {
+            return toView(context.tenantId(), schedule);
+        }
+        requireOperable(schedule);
+        ScheduleSlotPool pool = requirePool(context.tenantId(), schedule.id());
+        String target;
+        String eventType;
+        String poolEventType;
+        switch (request.action()) {
+            case SUSPEND -> {
+                if ("SUSPENDED".equals(schedule.status())) return toView(context.tenantId(), schedule);
+                if (!"PUBLISHED".equals(schedule.status())) {
+                    throw conflict("SCHEDULE_NOT_SUSPENDABLE", "只有可预约班次可以暂停");
+                }
+                target = "SUSPENDED";
+                eventType = "SUSPENDED";
+                poolEventType = "FROZEN";
+                pool.freeze();
+            }
+            case RESUME -> {
+                if ("PUBLISHED".equals(schedule.status())) return toView(context.tenantId(), schedule);
+                if (!"SUSPENDED".equals(schedule.status())) {
+                    throw conflict("SCHEDULE_NOT_RESUMABLE", "只有已暂停班次可以恢复");
+                }
+                target = "PUBLISHED";
+                eventType = "PUBLISHED";
+                poolEventType = "UNFROZEN";
+                pool.activate();
+            }
+            case CANCEL -> {
+                if ("CANCELLED".equals(schedule.status())) return toView(context.tenantId(), schedule);
+                if (!List.of("PUBLISHED", "SUSPENDED").contains(schedule.status())) {
+                    throw conflict("SCHEDULE_NOT_CANCELLABLE", "当前状态的班次不能取消");
+                }
+                pool.close();
+                target = "CANCELLED";
+                eventType = "CANCELLED";
+                poolEventType = "CANCELLED";
+            }
+            default -> throw badRequest("SCHEDULE_ACTION_INVALID", "排班操作不正确");
+        }
+        String previous = schedule.changeStatus(target, context.subjectId());
+        scheduleEventRepository.save(new ServiceScheduleEvent(context.tenantId(), schedule.id(), eventType,
+                previous, target, commandCode, context.subjectId(), request.reason().trim()));
+        slotEventRepository.save(new SlotEvent(context.tenantId(), pool.id(), schedule.id(), poolEventType,
+                nextSlotSequence(context.tenantId(), pool.id()), 0, 0,
+                CommandCodes.prefixed("POOL-", commandCode), context.subjectId(), request.reason().trim()));
+        return toView(context.tenantId(), schedule);
     }
 
     private List<ScheduleTemplatePeriod> buildPeriods(Long tenantId, Long templateId, QuickScheduleRequest request) {
@@ -246,7 +355,7 @@ class SchedulingApplicationService {
         return staff.assignments().stream()
                 .filter(value -> value.organizationId().equals(context.organizationId())
                         && value.departmentId().equals(context.departmentId())
-                        && value.sdPersonnelStatus() == PersonnelStatus.ACTIVE
+                        && "ACTIVE".equals(value.sdPersonnelStatus())
                         && !value.validFrom().isAfter(from)
                         && (value.validTo() == null || !value.validTo().isBefore(to)))
                 .sorted(Comparator.comparing(StaffAssignmentView::primaryAssignment).reversed()
@@ -280,6 +389,36 @@ class SchedulingApplicationService {
                     pool.totalCount(), pool.heldCount(), pool.occupiedCount(), pool.frozenCount(), available,
                     schedule.status(), schedule.managementMode(), schedule.bookingPolicy(), pool.slotMode());
         }).toList();
+    }
+
+    private ScheduleView toView(Long tenantId, ServiceSchedule schedule) {
+        return toViews(tenantId, List.of(schedule)).getFirst();
+    }
+
+    private ServiceSchedule requireScheduleForUpdate(ExecutionContext context, Long scheduleId) {
+        ServiceSchedule schedule = scheduleRepository.findWithLockByIdAndTenantId(scheduleId, context.tenantId())
+                .orElseThrow(() -> notFound("SERVICE_SCHEDULE_NOT_FOUND", "未找到所选排班"));
+        if (!schedule.organizationId().equals(context.organizationId())
+                || !schedule.departmentId().equals(context.departmentId())) {
+            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构科室");
+        }
+        return schedule;
+    }
+
+    private ScheduleSlotPool requirePool(Long tenantId, Long scheduleId) {
+        return poolRepository.findByTenantIdAndScheduleId(tenantId, scheduleId)
+                .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "所选排班缺少号源池"));
+    }
+
+    private void requireOperable(ServiceSchedule schedule) {
+        if (schedule.serviceDate().isBefore(LocalDate.now()) || !schedule.endAt().isAfter(Instant.now())) {
+            throw conflict("SCHEDULE_ALREADY_ENDED", "已结束的班次不能调整");
+        }
+    }
+
+    private int nextSlotSequence(Long tenantId, Long poolId) {
+        return slotEventRepository.findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(tenantId, poolId)
+                .map(SlotEvent::sequenceNo).orElse(0) + 1;
     }
 
     private PeriodDefault periodValue(ExecutionContext context, String key) {

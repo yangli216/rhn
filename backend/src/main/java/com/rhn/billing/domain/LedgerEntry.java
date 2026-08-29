@@ -22,6 +22,7 @@ public class LedgerEntry {
     @Column(name = "charge_item_id") private Long chargeItemId;
     @Column(name = "invoice_id") private Long invoiceId;
     @Column(name = "payment_id") private Long paymentId;
+    @Column(name = "claim_response_id") private Long claimResponseId;
     @Column(name = "reverses_ledger_entry_id") private Long reversesLedgerEntryId;
     @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
     @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
@@ -39,6 +40,25 @@ public class LedgerEntry {
         this.occurredAt = occurredAt; this.recordedAt = Instant.now(); this.recordedBy = recordedBy;
     }
 
+    public static LedgerEntry insurance(Long tenantId, Long patientAccountId, String entryType,
+                                        BigDecimal amount, String currencyCode, Long invoiceId,
+                                        Long claimResponseId, Instant occurredAt, Long recordedBy) {
+        LedgerEntry value = new LedgerEntry(tenantId, patientAccountId, entryType, "CREDIT", amount,
+                currencyCode, null, invoiceId, null, null, occurredAt, recordedBy);
+        value.claimResponseId = claimResponseId;
+        return value;
+    }
+
+    public static LedgerEntry insuranceReversal(Long tenantId, Long patientAccountId, String entryType,
+                                                BigDecimal amount, String currencyCode, Long invoiceId,
+                                                Long claimResponseId, Long reversesLedgerEntryId,
+                                                Instant occurredAt, Long recordedBy) {
+        LedgerEntry value = new LedgerEntry(tenantId, patientAccountId, entryType, "DEBIT", amount,
+                currencyCode, null, invoiceId, null, reversesLedgerEntryId, occurredAt, recordedBy);
+        value.claimResponseId = claimResponseId;
+        return value;
+    }
+
     public Long id() { return id; }
     public Long patientAccountId() { return patientAccountId; }
     public String entryType() { return entryType; }
@@ -48,6 +68,7 @@ public class LedgerEntry {
     public Long chargeItemId() { return chargeItemId; }
     public Long invoiceId() { return invoiceId; }
     public Long paymentId() { return paymentId; }
+    public Long claimResponseId() { return claimResponseId; }
     public Long reversesLedgerEntryId() { return reversesLedgerEntryId; }
     public Instant occurredAt() { return occurredAt; }
     public Instant recordedAt() { return recordedAt; }

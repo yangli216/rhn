@@ -1,6 +1,8 @@
 package com.rhn.platform.terminology.application;
 
 import com.rhn.platform.terminology.api.CodeSystemSummary;
+import com.rhn.platform.terminology.api.CodeSystemSnapshot;
+import com.rhn.platform.terminology.api.ConceptSnapshot;
 import com.rhn.platform.terminology.api.ConceptAliasView;
 import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
@@ -30,6 +32,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -187,6 +190,58 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 .orElseThrow(() -> notFound("CONCEPT_NOT_FOUND", "未找到当前有效的术语概念 " + conceptCode));
         return new TerminologyConceptSnapshot(concept.id(), system.code(), system.canonicalUri(),
                 system.versionCode(), concept.code(), concept.display());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CodeSystemSnapshot> listCodeSystems() {
+        return codeSystemRepository.findAll().stream().map(this::snapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CodeSystemSnapshot> findCodeSystems(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return codeSystemRepository.findAllById(ids).stream().map(this::snapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CodeSystemSnapshot> findCodeSystem(Long id) {
+        return codeSystemRepository.findById(id).map(this::snapshot);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConceptSnapshot> listConcepts(Long codeSystemId) {
+        return conceptRepository.findByCodeSystemIdInOrderByDisplay(List.of(codeSystemId)).stream()
+                .map(this::snapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ConceptSnapshot> findConcepts(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return conceptRepository.findAllById(ids).stream().map(this::snapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ConceptSnapshot> findConcept(Long id) {
+        return conceptRepository.findById(id).map(this::snapshot);
+    }
+
+    private CodeSystemSnapshot snapshot(CodeSystem value) {
+        return new CodeSystemSnapshot(value.id(), value.scopeType().name(), value.scopeId(), value.code(),
+                value.name(), value.canonicalUri(), value.versionCode(), value.systemType(), value.publisher(),
+                value.authorityType(), value.sourceUri(), value.contentHash(), value.status().name(),
+                value.effectiveFrom(), value.effectiveTo());
+    }
+
+    private ConceptSnapshot snapshot(Concept value) {
+        return new ConceptSnapshot(value.id(), value.codeSystemId(), value.code(), value.display(),
+                value.shortDisplay(), value.conceptType(), value.searchCode(), value.status().name(),
+                value.effectiveFrom(), value.effectiveTo());
     }
 
     @Transactional(readOnly = true)

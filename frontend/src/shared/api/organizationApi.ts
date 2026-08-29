@@ -281,6 +281,9 @@ export function createOrganizationApi(client: ApiClient) {
       ? client.request<DepartmentProfile>(`/api/platform/departments/${unit.id}`)
       : client.request<OrganizationProfile>(`/api/platform/organization-units/${unit.id}`),
     list: () => client.request<OrganizationUnit[]>('/api/platform/organizations'),
+    department: (departmentId: string) => client.request<DepartmentProfile>(
+      `/api/platform/departments/${encodeURIComponent(departmentId)}`,
+    ),
     departments: (organizationId: string) => client.request<Department[]>(
       `/api/platform/departments?organizationId=${encodeURIComponent(organizationId)}`,
     ),

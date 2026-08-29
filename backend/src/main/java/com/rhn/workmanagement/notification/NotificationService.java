@@ -1,7 +1,7 @@
 package com.rhn.workmanagement.notification;
 
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
-import com.rhn.platform.eventing.application.IdempotentEventConsumer;
+import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.context.event.EventListener;
@@ -18,10 +18,10 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 public class NotificationService {
     private final PortalNotificationRepository repository;
     private final ExecutionContextProvider contextProvider;
-    private final IdempotentEventConsumer eventConsumer;
+    private final IdempotentDomainEventConsumer eventConsumer;
 
     public NotificationService(PortalNotificationRepository repository, ExecutionContextProvider contextProvider,
-                               IdempotentEventConsumer eventConsumer) {
+                               IdempotentDomainEventConsumer eventConsumer) {
         this.repository = repository;
         this.contextProvider = contextProvider;
         this.eventConsumer = eventConsumer;

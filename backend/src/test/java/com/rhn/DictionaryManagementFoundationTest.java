@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(30))
+                .andExpect(jsonPath("$.length()").value(32))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -39,7 +39,9 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[13].code").value("PARAM_VALUE_MODE"))
                 .andExpect(jsonPath("$[15].code").value("PARAM_CHANGE_TARGET_TYPE"))
                 .andExpect(jsonPath("$[24].code").value("SC_SCHEDULE_MANAGEMENT_MODE"))
-                .andExpect(jsonPath("$[29].code").value("SC_QUOTA_MODE"));
+                .andExpect(jsonPath("$[29].code").value("SC_QUOTA_MODE"))
+                .andExpect(jsonPath("$[30].code").value("SC_VISIT_TYPE"))
+                .andExpect(jsonPath("$[31].code").value("SC_RECEPTION_STATUS"));
 
         mockMvc.perform(get("/api/platform/dictionaries/system-enums/DICT_CHANGE_TYPE").with(rhn()))
                 .andExpect(status().isOk())
@@ -313,6 +315,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries/categories").with(rhn()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'PLATFORM_GOVERNANCE')].name").value("平台治理"))
+                .andExpect(jsonPath("$[?(@.code == 'COMMON_DICTIONARIES')].dictionaryCount").value(4))
                 .andExpect(jsonPath("$[?(@.code == 'PARAMETER_GOVERNANCE')].dictionaryCount").value(10))
                 .andExpect(jsonPath("$[?(@.code == 'ORGANIZATION_GOVERNANCE')].dictionaryCount").value(13))
                 .andExpect(jsonPath("$[?(@.code == 'DEPARTMENT_GOVERNANCE')].dictionaryCount").value(6))
@@ -332,6 +335,11 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries").param("query", "PARAM_SCOPE_TYPE").with(rhn()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].categoryCode").value("PARAMETER_GOVERNANCE"));
+        mockMvc.perform(get("/api/platform/dictionaries").param("query", "COMMON_YES_NO").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].categoryCode").value("COMMON_DICTIONARIES"))
+                .andExpect(jsonPath("$[0].systemManaged").value(true))
+                .andExpect(jsonPath("$[0].itemCount").value(2));
         mockMvc.perform(get("/api/platform/dictionaries").param("query", "BD_DOSE_FORM").with(rhn()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].categoryCode").value("MEDICATION"));
@@ -339,11 +347,18 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869840000").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(36));
+                .andExpect(jsonPath("$.length()").value(40));
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869796000").with(rhn()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(22));
+
+        mockMvc.perform(get("/api/platform/dictionaries/resolve/{code}", "COMMON_YES_NO").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("YES"))
+                .andExpect(jsonPath("$[0].name").value("是"))
+                .andExpect(jsonPath("$[1].code").value("NO"))
+                .andExpect(jsonPath("$[1].name").value("否"));
     }
 
     @Test

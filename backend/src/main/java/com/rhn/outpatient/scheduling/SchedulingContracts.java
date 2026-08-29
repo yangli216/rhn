@@ -77,4 +77,19 @@ final class SchedulingContracts {
             int skippedCount,
             List<ScheduleView> schedules
     ) {}
+
+    record UpdateScheduleRequest(
+            @NotNull LocalTime startTime,
+            @NotNull LocalTime endTime,
+            @NotNull @Min(1) @Max(500) Integer capacity,
+            @Size(max = 200) String locationName,
+            @NotBlank @Size(max = 128) String commandCode,
+            @NotBlank @Size(max = 500) String reason
+    ) {}
+
+    record ChangeScheduleStatusRequest(
+            @NotNull ScheduleAction action,
+            @NotBlank @Size(max = 128) String commandCode,
+            @NotBlank @Size(max = 500) String reason
+    ) {}
 }

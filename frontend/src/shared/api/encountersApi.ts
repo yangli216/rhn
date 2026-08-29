@@ -10,6 +10,16 @@ export type DiagnosisInput = DiagnosisInputContract & {
 }
 
 export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
+  presentIllness?: string
+  medicalHistory?: string
+  physicalExam?: string
+  treatmentPlan?: string
+  temperature?: number
+  pulseRate?: number
+  respiratoryRate?: number
+  heightCm?: number
+  weightKg?: number
+  oxygenSaturation?: number
   diagnoses: DiagnosisInput[]
 }
 
@@ -18,9 +28,16 @@ export interface RegisterEncounterInput {
   organizationId: string
   departmentId: string
   scheduleId?: string
+  slotHoldId?: string
   idempotencyCode: string
   registrationSource?: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY'
   visitType?: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'
+}
+
+export interface StartEncounterInput {
+  commandCode: string
+  factorResults: Record<string, boolean>
+  terminalCode?: string
 }
 
 export interface ServiceRequest {
@@ -97,6 +114,7 @@ export interface MedicationRequest {
   doseUnit?: string
   routeCode?: string
   frequencyCode?: string
+  administrationGroupNo?: string
   durationValue?: number
   durationUnit?: string
   quantity: number
@@ -129,6 +147,7 @@ export interface CreateMedicationRequestInput {
   doseUnit?: string
   routeCode?: string
   frequencyCode?: string
+  administrationGroupNo?: string
   durationValue?: number
   durationUnit?: string
   quantity: number
@@ -136,6 +155,8 @@ export interface CreateMedicationRequestInput {
   substitutionAllowed: boolean
   selfProvided: boolean
   medicationInstruction?: string
+  allergyReviewConfirmed?: boolean
+  allergyOverrideReason?: string
   priceType?: string
   pricingRequired?: boolean
   businessDate?: string
@@ -169,8 +190,10 @@ export function createEncountersApi(client: ApiClient) {
       client.request<Encounter>('/api/encounters', {
         method: 'POST', body: JSON.stringify(input),
       }),
-    start: (encounterId: string) => client.request<Encounter>(
-      `/api/encounters/${encounterId}/start`, { method: 'POST' },
+    start: (encounterId: string, input: StartEncounterInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/start`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
     ),
     recordClinicalData: (encounterId: string, input: ClinicalRecordInput) =>
       client.request<Encounter>(`/api/encounters/${encounterId}/clinical-record`, {
@@ -204,9 +227,9 @@ export function createEncountersApi(client: ApiClient) {
     prescriptions: (encounterId: string) => client.request<Prescription[]>(
       `/api/encounters/${encounterId}/prescriptions`,
     ),
-    createPrescription: (encounterId: string, note?: string) => client.request<Prescription>(
+    createPrescription: (encounterId: string, categoryCode = 'OUTPATIENT', note?: string) => client.request<Prescription>(
       `/api/encounters/${encounterId}/prescriptions`, {
-        method: 'POST', body: JSON.stringify({ categoryCode: 'OUTPATIENT', note }),
+        method: 'POST', body: JSON.stringify({ categoryCode, note }),
       },
     ),
     submitPrescription: (encounterId: string, prescriptionId: string, expectedRevision: number) =>

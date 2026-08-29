@@ -299,7 +299,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/encounters/{id}/start", encounter.get("id").asText()).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
                 .andExpect(status().isOk());
         return encounter.get("id").asText();
     }

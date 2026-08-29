@@ -10,13 +10,16 @@ import {
 } from '../../shared/rhnApi'
 import {
   Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, Icon, LoadingState,
-  PageHeader, Panel, PanelHead, Select, StatusBadge, TreePanel, type TreePanelMove,
+  PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, TreePanel, type TreePanelMove,
 } from '../../shared/ui'
+import { ConfigurationScopeTarget } from './ConfigurationScopeTarget'
 
 type DefinitionDialogMode = 'create' | 'edit' | undefined
 type CategoryDialogState = { mode: 'create'; parentId?: string; category?: undefined } | { mode: 'edit'; category: ParameterCategory }
+const DIRECTORY_PAGE_SIZE = 8
 
 interface ParameterContext {
+  tenantId: string
   organization: { id: string; name: string }
   department: { id: string; name: string }
   userId?: string | null
@@ -28,6 +31,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   const [categoryFilter, setCategoryFilter] = useState('')
   const [configTypeFilter, setConfigTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [catalogPage, setCatalogPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string>()
   const [definitionDialog, setDefinitionDialog] = useState<DefinitionDialogMode>()
   const [categoryDialog, setCategoryDialog] = useState<CategoryDialogState>()
@@ -57,9 +61,13 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
 
   useEffect(() => {
     const list = definitions.data ?? []
-    if (list.length && (!selectedId || !list.some((item) => item.id === selectedId))) setSelectedId(list[0].id)
+    const selectedIndex = list.findIndex((item) => item.id === selectedId)
+    if (list.length && selectedIndex < 0) setSelectedId(list[0].id)
+    if (selectedIndex >= 0) setCatalogPage(Math.floor(selectedIndex / DIRECTORY_PAGE_SIZE))
     if (!list.length) setSelectedId(undefined)
   }, [definitions.data, selectedId])
+
+  useEffect(() => { setCatalogPage(0) }, [query, categoryFilter, configTypeFilter, statusFilter])
 
   async function acceptChange(next: ParameterDefinition, message: string) {
     queryClient.setQueryData(['parameter-definition', next.id], next)
@@ -150,14 +158,19 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   const configTypeOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.configType)
   const statusOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.status)
   const selected = detail.data
-  const parameterRovingId = definitions.data?.some((item) => item.id === selectedId)
-    ? selectedId : definitions.data?.[0]?.id
+  const definitionList = definitions.data ?? []
+  const catalogPageCount = Math.max(1, Math.ceil(definitionList.length / DIRECTORY_PAGE_SIZE))
+  const safeCatalogPage = Math.min(catalogPage, catalogPageCount - 1)
+  const pageDefinitions = definitionList.slice(safeCatalogPage * DIRECTORY_PAGE_SIZE,
+    (safeCatalogPage + 1) * DIRECTORY_PAGE_SIZE)
+  const parameterRovingId = pageDefinitions.some((item) => item.id === selectedId)
+    ? selectedId : pageDefinitions[0]?.id
   const queryError = systemEnums.error || categories.error || definitions.error || detail.error
   const busy = createDefinition.isPending || updateDefinition.isPending || definitionStatus.isPending
     || saveValue.isPending || valueStatus.isPending || rollback.isPending
 
   function handleCardKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const list = definitions.data ?? []
+    const list = pageDefinitions
     if (!['ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key) || !list.length) return
     event.preventDefault()
     const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? list.length - 1
@@ -196,7 +209,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
         </div>
         <div className="parameter-catalog__list" role="listbox" aria-label="参数目录">
           {definitions.isPending && <LoadingState label="正在加载参数…" />}
-          {definitions.data?.map((definition, index) => <ParameterCard key={definition.id} definition={definition}
+          {pageDefinitions.map((definition, index) => <ParameterCard key={definition.id} definition={definition}
             tabIndex={definition.id === parameterRovingId ? 0 : -1}
             buttonRef={(node) => { cardRefs.current[index] = node }}
             onKeyDown={(event) => handleCardKeyDown(event, index)}
@@ -206,6 +219,12 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
           {!definitions.isPending && definitions.data?.length === 0 && <EmptyState icon="search"
             title="未找到匹配参数" copy={categories.data?.length ? '请调整筛选条件，或新建一个参数。' : '请先创建参数分类。'} />}
         </div>
+        <Pagination page={safeCatalogPage} totalPages={catalogPageCount} label="参数目录分页"
+          onChange={(nextPage) => {
+            setCatalogPage(nextPage)
+            const first = definitionList[nextPage * DIRECTORY_PAGE_SIZE]
+            if (first) setSelectedId(first.id)
+          }} />
       </Panel>
 
       <Panel className="parameter-detail">
@@ -601,6 +620,15 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   const [secretRef, setSecretRef] = useState('')
   const [reason, setReason] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const existingDepartment = useQuery({
+    queryKey: ['parameter-value-department', value?.scopeId],
+    queryFn: () => api.organization.department(value!.scopeId!),
+    enabled: Boolean(value?.sdParamScopeType === 'DEPARTMENT' && value.scopeId),
+  })
+  useEffect(() => {
+    const parentId = existingDepartment.data?.department.organizationId
+    if (parentId) setOrganizationId(parentId)
+  }, [existingDepartment.data])
   const scopeOptions = enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType)
     .filter((item) => definition.allowedScopes.includes(item.code as ParameterScope))
   const modeOptions = enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.valueMode).filter((item) => {
@@ -644,20 +672,26 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
       <FormField label="作用域" required><Select value={scopeType} disabled={Boolean(value)} showValue clearable={false}
         onChange={(selectedValue) => {
           const next = selectedValue as ParameterScope
-          setScopeType(next); setScopeId(suggestedScopeId(next, context)); setScopeReference('')
+          setScopeType(next); setScopeId(suggestedScopeId(next, context)); setOrganizationId(context.organization.id)
+          setScopeReference('')
         }} options={scopeOptions.map(selectOption)} /></FormField>
       <FormField label="值模式" required><Select value={valueMode} showValue clearable={false}
         onChange={(selectedValue) => setValueMode(selectedValue as ParameterValueMode)}
         options={modeOptions.map(selectOption)} /></FormField>
       <Alert tone="info" className="parameter-form__span-2">当前目标：{scopeTargetLabel(scopeType, context, value, scopeId)}</Alert>
-      {target.requiresId && <FormField className="parameter-form__span-2" required label={`${enumName(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType, scopeType)}标识`}
+      {(['PLATFORM', 'TENANT', 'ORGANIZATION', 'DEPARTMENT'] as ParameterScope[]).includes(scopeType)
+        && <ConfigurationScopeTarget api={api} scopeType={scopeType as 'PLATFORM' | 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'}
+          tenantId={context.tenantId}
+          organizationId={scopeType === 'ORGANIZATION' ? scopeId : organizationId}
+          departmentId={scopeType === 'DEPARTMENT' ? scopeId : ''}
+          onOrganizationChange={(next) => scopeType === 'ORGANIZATION' ? setScopeId(next) : setOrganizationId(next)}
+          onDepartmentChange={(next) => { if (scopeType === 'DEPARTMENT') setScopeId(next) }}
+          disabled={Boolean(value)} className="parameter-form__span-2" />}
+      {scopeType === 'USER' && target.requiresId && <FormField className="parameter-form__span-2" required label={`${enumName(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType, scopeType)}标识`}
         error={submitted && !scopeId.trim() ? '请输入作用域标识' : undefined}
-        hint="已预填当前工作上下文，也可填写当前租户内其他对象的 1 至 19 位标识">
+        hint="可填写当前租户内用户的 1 至 19 位标识">
         <input value={scopeId} readOnly={Boolean(value)} inputMode="numeric" pattern="[1-9][0-9]{0,18}"
           onChange={(event) => setScopeId(event.target.value)} /></FormField>}
-      {scopeType === 'DEPARTMENT' && <FormField className="parameter-form__span-2" required label="所属机构标识" error={submitted && !organizationId.trim() ? '请输入所属机构标识' : undefined}>
-        <input value={organizationId} readOnly={Boolean(value)} inputMode="numeric" pattern="[1-9][0-9]{0,18}"
-          onChange={(event) => setOrganizationId(event.target.value)} /></FormField>}
       {target.requiresReference && <FormField className="parameter-form__span-2" required label={`${enumName(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType, scopeType)}编码`}
         error={submitted ? (!scopeReference.trim() ? '请输入作用域编码' : referenceError || undefined) : undefined}>
         <input value={scopeReference} readOnly={Boolean(value)} maxLength={128}
@@ -1099,7 +1133,7 @@ function suggestedScopeId(scope: ParameterScope, context: ParameterContext) {
 function scopeTargetLabel(scope: ParameterScope, context: ParameterContext, value: ParameterValue | null, scopeId: string) {
   if (value) return scopeDisplay(value)
   if (scope === 'PLATFORM') return '全平台'
-  if (scope === 'TENANT') return '当前租户'
+  if (scope === 'TENANT') return `当前租户（${context.tenantId}）`
   if (scope === 'ORGANIZATION') return scopeId === context.organization.id ? `${context.organization.name}（${scopeId}）` : `机构 ${scopeId || '待填写'}`
   if (scope === 'DEPARTMENT') return scopeId === context.department.id ? `${context.department.name}（${scopeId}）` : `科室 ${scopeId || '待填写'}`
   if (scope === 'USER') return scopeId === context.userId ? `当前用户（${scopeId}）` : `用户 ${scopeId || '待填写'}`

@@ -124,7 +124,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_ACTIVE_DUPLICATE"));
 
-        mockMvc.perform(post("/api/encounters/{encounterId}/start", encounterId).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
         mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())

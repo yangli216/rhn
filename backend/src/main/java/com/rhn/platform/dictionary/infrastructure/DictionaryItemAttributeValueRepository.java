@@ -14,6 +14,8 @@ public interface DictionaryItemAttributeValueRepository extends JpaRepository<Di
             Long dictionaryItemId, Long attributeDefinitionId, String scopeCode, DictionaryStatus status);
     List<DictionaryItemAttributeValue> findByDictionaryItemIdInAndAttributeDefinitionIdAndStatusOrderByDictionaryItemIdAscValueOrderAsc(
             Collection<Long> dictionaryItemIds, Long attributeDefinitionId, DictionaryStatus status);
+    List<DictionaryItemAttributeValue> findByDictionaryItemIdInAndStatusOrderByDictionaryItemIdAscAttributeDefinitionIdAscValueOrderAsc(
+            Collection<Long> dictionaryItemIds, DictionaryStatus status);
     void deleteByDictionaryItemIdAndAttributeDefinitionIdAndScopeCode(
             Long dictionaryItemId, Long attributeDefinitionId, String scopeCode);
     boolean existsByAttributeDefinitionId(Long attributeDefinitionId);

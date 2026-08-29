@@ -66,6 +66,7 @@ class MedicationRequest {
     @Column(table = "medication_requests", name = "dose_unit") private String doseUnit;
     @Column(table = "medication_requests", name = "route_code") private String routeCode;
     @Column(table = "medication_requests", name = "frequency_code") private String frequencyCode;
+    @Column(table = "medication_requests", name = "administration_group_no") private String administrationGroupNo;
     @Column(table = "medication_requests", name = "duration_value", precision = 12, scale = 3) private BigDecimal durationValue;
     @Column(table = "medication_requests", name = "duration_unit") private String durationUnit;
     @Column(table = "medication_requests", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
@@ -101,7 +102,8 @@ class MedicationRequest {
                       BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode,
                       String itemAttributeSnapshot, String itemAttributeHash, Instant itemAttributeResolvedAt,
                       String standardMappingSnapshot, Long medicationId, BigDecimal doseValue, String doseUnit,
-                      String routeCode, String frequencyCode, BigDecimal durationValue, String durationUnit,
+                      String routeCode, String frequencyCode, String administrationGroupNo,
+                      BigDecimal durationValue, String durationUnit,
                       BigDecimal quantity, BigDecimal baseQuantity, String baseUnit, BigDecimal packageFactor,
                       String packageUnitName, String packageSpec, BigDecimal priceQuantity,
                       boolean substitutionAllowed, boolean selfProvided, String medicationInstruction,
@@ -123,7 +125,8 @@ class MedicationRequest {
         this.itemAttributeSnapshot = itemAttributeSnapshot; this.itemAttributeHash = itemAttributeHash;
         this.itemAttributeResolvedAt = itemAttributeResolvedAt; this.standardMappingSnapshot = standardMappingSnapshot;
         this.medicationId = medicationId; this.doseValue = doseValue; this.doseUnit = doseUnit;
-        this.routeCode = routeCode; this.frequencyCode = frequencyCode; this.durationValue = durationValue;
+        this.routeCode = routeCode; this.frequencyCode = frequencyCode;
+        this.administrationGroupNo = administrationGroupNo; this.durationValue = durationValue;
         this.durationUnit = durationUnit; this.quantity = quantity; this.quantityUnit = quantityUnit;
         this.baseQuantity = baseQuantity; this.baseUnit = baseUnit; this.packageFactorSnapshot = packageFactor;
         this.packageUnitNameSnapshot = packageUnitName; this.packageSpecSnapshot = packageSpec;
@@ -172,7 +175,8 @@ class MedicationRequest {
     String itemAttributeSnapshot() { return itemAttributeSnapshot; } String itemAttributeHash() { return itemAttributeHash; }
     Instant itemAttributeResolvedAt() { return itemAttributeResolvedAt; } String standardMappingSnapshot() { return standardMappingSnapshot; }
     BigDecimal doseValue() { return doseValue; } String doseUnit() { return doseUnit; } String routeCode() { return routeCode; }
-    String frequencyCode() { return frequencyCode; } BigDecimal durationValue() { return durationValue; }
+    String frequencyCode() { return frequencyCode; } String administrationGroupNo() { return administrationGroupNo; }
+    BigDecimal durationValue() { return durationValue; }
     String durationUnit() { return durationUnit; } BigDecimal quantity() { return quantity; } String quantityUnit() { return quantityUnit; }
     BigDecimal baseQuantity() { return baseQuantity; } String baseUnit() { return baseUnit; }
     BigDecimal packageFactorSnapshot() { return packageFactorSnapshot; } String packageUnitNameSnapshot() { return packageUnitNameSnapshot; }

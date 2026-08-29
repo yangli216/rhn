@@ -44,6 +44,25 @@ public class Supplier {
         this.createdAt = Instant.now(); this.createdBy = actorId; this.updatedAt = createdAt; this.updatedBy = actorId;
     }
 
+    public void update(long expectedRevision, Long actorId, String code, String name, String unifiedCreditCode,
+                       String licenseNo, LocalDate licenseValidTo, String contactName, String contactPhone,
+                       LocalDate validFrom, LocalDate validTo, String status) {
+        requireRevision(expectedRevision);
+        this.code = code; this.name = name; this.unifiedCreditCode = unifiedCreditCode;
+        this.licenseNo = licenseNo; this.licenseValidTo = licenseValidTo; this.contactName = contactName;
+        this.contactPhone = contactPhone; this.validFrom = validFrom; this.validTo = validTo; this.status = status;
+        this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
+    public void changeStatus(long expectedRevision, Long actorId, String status) {
+        requireRevision(expectedRevision);
+        this.status = status; this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
+    private void requireRevision(long expectedRevision) {
+        if (revision != expectedRevision) throw new IllegalStateException("供应商已被其他用户修改，请刷新后重试");
+    }
+
     public boolean effective(LocalDate date) {
         return "ACTIVE".equals(status) && !date.isBefore(validFrom) && (validTo == null || !date.isAfter(validTo))
                 && (licenseValidTo == null || !date.isAfter(licenseValidTo));

@@ -109,12 +109,44 @@ public class InventoryOperationApplicationService {
     }
 
     @Transactional(readOnly = true)
-    public List<SupplierView> suppliers(Long organizationId) {
+    public List<SupplierView> suppliers(Long organizationId, String query, String status) {
         ExecutionContext context = requireWorkContext();
         Long scopedOrganization = organizationId == null ? context.organizationId() : organizationId;
         requireOrganizationAccess(context, scopedOrganization);
         return supplierRepository.findByTenantIdAndOrganizationIdOrderByName(context.tenantId(), scopedOrganization)
-                .stream().map(this::supplierView).toList();
+                .stream().filter(value -> clean(status) == null || status.equals(value.status()))
+                .filter(value -> matches(query, value.code(), value.name(), value.unifiedCreditCode(),
+                        value.licenseNo(), value.contactName(), value.contactPhone()))
+                .map(this::supplierView).toList();
+    }
+
+    @Transactional
+    public SupplierView updateSupplier(Long supplierId, long expectedRevision, UpdateSupplierCommand input) {
+        ExecutionContext context = requireWorkContext(); Supplier value = requireSupplier(context, supplierId);
+        requireRevision(value.revision(), expectedRevision);
+        validateSupplierStatus(input.status());
+        String code = required(input.code(), "SUPPLIER_CODE_REQUIRED", "供应商编码不能为空");
+        String name = required(input.name(), "SUPPLIER_NAME_REQUIRED", "供应商名称不能为空");
+        LocalDate validFrom = input.validFrom() == null ? value.validFrom() : input.validFrom();
+        if (input.validTo() != null && input.validTo().isBefore(validFrom)) {
+            throw badRequest("SUPPLIER_VALIDITY_INVALID", "供应商有效期结束日期不能早于开始日期");
+        }
+        if (supplierRepository.existsByTenantIdAndOrganizationIdAndCodeAndIdNot(context.tenantId(),
+                value.organizationId(), code, supplierId)) {
+            throw conflict("SUPPLIER_CODE_DUPLICATE", "当前机构已存在相同供应商编码");
+        }
+        value.update(expectedRevision, context.subjectId(), code, name, clean(input.unifiedCreditCode()),
+                clean(input.licenseNo()), input.licenseValidTo(), clean(input.contactName()),
+                clean(input.contactPhone()), validFrom, input.validTo(), input.status());
+        return supplierView(supplierRepository.saveAndFlush(value));
+    }
+
+    @Transactional
+    public SupplierView changeSupplierStatus(Long supplierId, long expectedRevision, String status) {
+        ExecutionContext context = requireWorkContext(); Supplier value = requireSupplier(context, supplierId);
+        requireRevision(value.revision(), expectedRevision); validateSupplierStatus(status);
+        value.changeStatus(expectedRevision, context.subjectId(), status);
+        return supplierView(supplierRepository.saveAndFlush(value));
     }
 
     @Transactional
@@ -542,6 +574,20 @@ public class InventoryOperationApplicationService {
             throw badRequest("PURCHASE_TAX_INVALID", "税率必须在0到1之间");
         }
     }
+    private void validateSupplierStatus(String status) {
+        if (!Set.of("ACTIVE", "SUSPENDED", "RETIRED").contains(status)) {
+            throw badRequest("SUPPLIER_STATUS_INVALID", "供应商状态不正确");
+        }
+    }
+    private void requireRevision(long current, long expected) {
+        if (current != expected) throw conflict("SUPPLIER_REVISION_STALE", "供应商已被其他用户修改，请刷新后重试");
+    }
+    private boolean matches(String query, String... values) {
+        String normalized = clean(query); if (normalized == null) return true;
+        normalized = normalized.toLowerCase(java.util.Locale.ROOT);
+        for (String value : values) if (value != null && value.toLowerCase(java.util.Locale.ROOT).contains(normalized)) return true;
+        return false;
+    }
     private String nextNo(String prefix) {
         return prefix + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
     }
@@ -553,6 +599,9 @@ public class InventoryOperationApplicationService {
     public record CreateSupplierCommand(Long organizationId, String code, String name, String unifiedCreditCode,
                                         String licenseNo, LocalDate licenseValidTo, String contactName,
                                         String contactPhone, LocalDate validFrom, LocalDate validTo) {}
+    public record UpdateSupplierCommand(String code, String name, String unifiedCreditCode, String licenseNo,
+                                        LocalDate licenseValidTo, String contactName, String contactPhone,
+                                        LocalDate validFrom, LocalDate validTo, String status) {}
     public record CreateSupplyItemCommand(Long catalogItemId, Long packageId, BigDecimal agreementPrice,
                                           BigDecimal taxRate, LocalDate validFrom, LocalDate validTo) {}
     public record PurchaseLineCommand(Long stockItemId, Long packageId, BigDecimal orderedQuantity,

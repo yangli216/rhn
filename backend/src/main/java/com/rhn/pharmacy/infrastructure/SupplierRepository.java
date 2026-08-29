@@ -9,5 +9,6 @@ import java.util.Optional;
 public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     Optional<Supplier> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Supplier> findByTenantIdAndOrganizationIdAndCode(Long tenantId, Long organizationId, String code);
+    boolean existsByTenantIdAndOrganizationIdAndCodeAndIdNot(Long tenantId, Long organizationId, String code, Long id);
     List<Supplier> findByTenantIdAndOrganizationIdOrderByName(Long tenantId, Long organizationId);
 }

@@ -132,16 +132,35 @@ export interface InventoryTransaction {
   lines: InventoryTransactionLine[]
 }
 
-export interface Supplier { id: string; revision: number; organizationId: string; code: string; name: string; status: string; licenseValidTo?: string }
-export interface PurchaseOrderLine { id: string; stockItemId: string; packageId: string; orderedQuantity: number; receivedQuantity: number; remainingQuantity: number; unitPrice: number; lineStatus: string }
+export interface Supplier {
+  id: string; revision: number; organizationId: string; code: string; name: string
+  unifiedCreditCode?: string; licenseNo?: string; licenseValidTo?: string
+  contactName?: string; contactPhone?: string; status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED'
+  validFrom: string; validTo?: string
+}
+export interface SupplierInput {
+  organizationId?: string; code: string; name: string; unifiedCreditCode?: string
+  licenseNo?: string; licenseValidTo?: string; contactName?: string; contactPhone?: string
+  validFrom?: string; validTo?: string
+}
+export interface PurchaseOrderLine { id: string; stockItemId: string; packageId: string; orderedQuantity: number; receivedQuantity: number; remainingQuantity: number; unitPrice: number; taxRate?: number; lineStatus: string; description?: string }
 export interface PurchaseOrder { id: string; revision: number; stockSiteId: string; supplierId: string; orderNo: string; requestCode: string; status: string; orderDate: string; expectedDate?: string; description?: string; lines: PurchaseOrderLine[] }
-export interface GoodsReceiptLine { id: string; purchaseOrderLineId: string; stockItemId: string; destinationBinId: string; lotNo: string; deliveredQuantity: number; acceptedQuantity?: number; rejectedQuantity?: number; qualityStatus: string; rejectionReason?: string }
-export interface GoodsReceipt { id: string; revision: number; purchaseOrderId: string; receiptNo: string; status: string; receivedAt: string; lines: GoodsReceiptLine[] }
-export interface RequisitionAllocation { id: string; stockBinId: string; stockLotId: string; allocatedQuantity: number; status: string }
-export interface RequisitionLine { id: string; stockItemId: string; requestedQuantity: number; approvedQuantity?: number; issuedQuantity: number; baseUnitCode: string; lineStatus: string; allocations: RequisitionAllocation[] }
-export interface Requisition { id: string; revision: number; sourceSiteId: string; requestingDepartmentId: string; requisitionNo: string; status: string; requestedAt: string; reason?: string; inventoryTransactionId?: string; lines: RequisitionLine[] }
-export interface TransferAllocation { id: string; sourceBinId: string; destinationBinId?: string; stockLotId: string; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; status: string }
-export interface TransferLine { id: string; sourceStockItemId: string; destinationStockItemId: string; requestedQuantity: number; approvedQuantity?: number; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; baseUnitCode: string; lineStatus: string; allocations: TransferAllocation[] }
+export interface GoodsReceiptLine {
+  id: string; purchaseOrderLineId: string; stockItemId: string; packageId: string
+  destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string
+  deliveredQuantity: number; acceptedQuantity?: number; rejectedQuantity?: number; unitCost?: number
+  qualityStatus: string; rejectionReason?: string; stockLotId?: string; inventoryTransactionId?: string
+}
+export interface GoodsReceipt {
+  id: string; revision: number; stockSiteId: string; purchaseOrderId: string; supplierId: string
+  receiptNo: string; requestCode: string; deliveryNoteNo?: string; status: string; receivedAt: string
+  inspectedAt?: string; postedAt?: string; description?: string; lines: GoodsReceiptLine[]
+}
+export interface RequisitionAllocation { id: string; stockBinId: string; stockLotId: string; stockStatus: string; allocatedQuantity: number; issuedQuantity: number; status: string }
+export interface RequisitionLine { id: string; stockItemId: string; requestedQuantity: number; approvedQuantity?: number; issuedQuantity: number; baseUnitCode: string; lineStatus: string; description?: string; allocations: RequisitionAllocation[] }
+export interface Requisition { id: string; revision: number; sourceSiteId: string; requestingDepartmentId: string; destinationSiteId?: string; requisitionNo: string; status: string; requestedAt: string; requestedBy?: string; approvedAt?: string; pickedAt?: string; issuedAt?: string; reason?: string; description?: string; inventoryTransactionId?: string; lines: RequisitionLine[] }
+export interface TransferAllocation { id: string; sourceBinId: string; destinationBinId?: string; stockLotId: string; stockStatus: string; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; status: string }
+export interface TransferLine { id: string; sourceStockItemId: string; destinationStockItemId: string; requestedQuantity: number; approvedQuantity?: number; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; baseUnitCode: string; lineStatus: string; discrepancyReason?: string; allocations: TransferAllocation[] }
 export interface StockTransfer { id: string; revision: number; sourceSiteId: string; destinationSiteId: string; transferNo: string; status: string; requestedAt: string; reason?: string; outboundTransactionId?: string; inboundTransactionId?: string; lines: TransferLine[] }
 export interface CountLine { id: string; stockBinId: string; stockItemId: string; stockLotId: string; stockStatus: string; bookQuantity: number; countedQuantity?: number; varianceQuantity?: number; countResult?: string; varianceReason?: string }
 export interface StockCount { id: string; revision: number; stockSiteId: string; stockBinId?: string; countNo: string; countType: string; status: string; snapshotAt: string; inventoryTransactionId?: string; lines: CountLine[] }
@@ -446,15 +465,30 @@ export function createPharmacyApi(client: ApiClient) {
     }) => client.request<InventoryTransaction>('/api/pharmacy/inventory/receipts', {
       method: 'POST', body: JSON.stringify(input),
     }),
-    suppliers: (organizationId?: string) => client.request<Supplier[]>(`/api/pharmacy/suppliers${organizationId ? `?organizationId=${encodeURIComponent(organizationId)}` : ''}`),
-    createSupplier: (input: { organizationId?: string; code: string; name: string; licenseNo?: string; licenseValidTo?: string; contactName?: string; contactPhone?: string }) => client.request<Supplier>('/api/pharmacy/suppliers', { method: 'POST', body: JSON.stringify(input) }),
+    suppliers: (organizationId?: string, query = '', status = '') => {
+      const params = new URLSearchParams()
+      if (organizationId) params.set('organizationId', organizationId)
+      if (query) params.set('query', query)
+      if (status) params.set('status', status)
+      const suffix = params.size ? `?${params.toString()}` : ''
+      return client.request<Supplier[]>(`/api/pharmacy/suppliers${suffix}`)
+    },
+    createSupplier: (input: SupplierInput) => client.request<Supplier>('/api/pharmacy/suppliers', { method: 'POST', body: JSON.stringify(input) }),
+    updateSupplier: (id: string, revision: number, input: SupplierInput & { status: Supplier['status']; validFrom: string }) =>
+      client.request<Supplier>(`/api/pharmacy/suppliers/${id}`, {
+        method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+      }),
+    supplierStatus: (id: string, revision: number, status: Supplier['status']) =>
+      client.request<Supplier>(`/api/pharmacy/suppliers/${id}/status`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision: revision, status }),
+      }),
     addSupplierItem: (supplierId: string, input: { catalogItemId: string; packageId: string; agreementPrice: number; taxRate?: number }) => client.request(`/api/pharmacy/suppliers/${supplierId}/supply-items`, { method: 'POST', body: JSON.stringify(input) }),
     purchaseOrders: (siteId: string) => client.request<PurchaseOrder[]>(`/api/pharmacy/purchase-orders?stockSiteId=${encodeURIComponent(siteId)}`),
     createPurchaseOrder: (input: { stockSiteId: string; supplierId: string; requestCode: string; expectedDate?: string; description?: string; lines: Array<{ stockItemId: string; packageId: string; orderedQuantity: number; unitPrice: number; taxRate?: number }> }) => client.request<PurchaseOrder>('/api/pharmacy/purchase-orders', { method: 'POST', body: JSON.stringify(input) }),
     submitPurchaseOrder: (id: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/submit`, { method: 'POST' }),
     approvePurchaseOrder: (id: string, reason?: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/approve`, { method: 'POST', body: JSON.stringify({ reason }) }),
     goodsReceipts: (siteId: string) => client.request<GoodsReceipt[]>(`/api/pharmacy/goods-receipts?stockSiteId=${encodeURIComponent(siteId)}`),
-    createGoodsReceipt: (input: { purchaseOrderId: string; requestCode: string; deliveryNoteNo?: string; lines: Array<{ purchaseOrderLineId: string; destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string; deliveredQuantity: number; unitCost?: number }> }) => client.request<GoodsReceipt>('/api/pharmacy/goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
+    createGoodsReceipt: (input: { purchaseOrderId: string; receiptNo?: string; requestCode: string; deliveryNoteNo?: string; receivedAt?: string; description?: string; lines: Array<{ purchaseOrderLineId: string; destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string; deliveredQuantity: number; unitCost?: number }> }) => client.request<GoodsReceipt>('/api/pharmacy/goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
     inspectGoodsReceipt: (id: string, lines: Array<{ goodsReceiptLineId: string; acceptedQuantity: number; rejectedQuantity: number; rejectionReason?: string }>) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/inspect`, { method: 'POST', body: JSON.stringify({ lines }) }),
     postGoodsReceipt: (id: string) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/post`, { method: 'POST' }),
     registerReceiptTraceCodes: (id: string, lines: Array<{ goodsReceiptLineId: string; traceCodes: string[] }>) =>
@@ -489,9 +523,9 @@ export function createPharmacyApi(client: ApiClient) {
       `/api/pharmacy/inventory/reconciliations?stockSiteId=${encodeURIComponent(stockSiteId)}`, { method: 'POST' },
     ),
     requisitions: (siteId: string) => client.request<Requisition[]>(`/api/pharmacy/stock-requisitions?sourceSiteId=${encodeURIComponent(siteId)}`),
-    createRequisition: (input: { sourceSiteId: string; requestCode: string; reason?: string; lines: Array<{ stockItemId: string; requestedQuantity: number }> }) => client.request<Requisition>('/api/pharmacy/stock-requisitions', { method: 'POST', body: JSON.stringify(input) }),
+    createRequisition: (input: { sourceSiteId: string; requestingDepartmentId?: string; requestCode: string; requestedAt?: string; reason?: string; description?: string; lines: Array<{ stockItemId: string; requestedQuantity: number; description?: string }> }) => client.request<Requisition>('/api/pharmacy/stock-requisitions', { method: 'POST', body: JSON.stringify(input) }),
     submitRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/submit`, { method: 'POST' }),
-    approveRequisition: (id: string, lines: Array<{ requisitionLineId: string; approvedQuantity: number }>) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/approve`, { method: 'POST', body: JSON.stringify({ lines }) }),
+    approveRequisition: (id: string, lines: Array<{ requisitionLineId: string; approvedQuantity: number }>, reason?: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/approve`, { method: 'POST', body: JSON.stringify({ lines, reason }) }),
     pickRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/pick`, { method: 'POST' }),
     issueRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/issue`, { method: 'POST' }),
     transfers: (siteId: string, role: 'SOURCE' | 'DESTINATION' = 'SOURCE') => client.request<StockTransfer[]>(`/api/pharmacy/stock-transfers?stockSiteId=${encodeURIComponent(siteId)}&role=${role}`),

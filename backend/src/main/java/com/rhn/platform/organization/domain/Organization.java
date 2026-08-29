@@ -131,7 +131,7 @@ public class Organization {
 
     public OrganizationView toView() {
         return new OrganizationView(id, revision, parentId, mergedToId, code, name, shortName, description,
-                organizationKind, organizationType, status, organizationProperty, virtual, sortOrder,
+                organizationKind.name(), organizationType.name(), status.name(), organizationProperty, virtual, sortOrder,
                 timezoneCode, departmentTypeCode, null, validFrom, validTo, createdAt, updatedAt);
     }
 

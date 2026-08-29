@@ -3,10 +3,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   DictionaryAttributeCardinality, DictionaryAttributeDataType, DictionaryAttributeDefinition,
   DictionaryAttributeOverridePolicy, DictionaryAttributeScopeType, DictionaryDetail, DictionaryItem,
-  DictionarySummary, RhnApi,
+  DictionarySummary, RhnApi, Department, OrganizationUnit,
 } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, FormField, Icon, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { ConfigurationScopeTarget } from './ConfigurationScopeTarget'
+
+export interface DictionaryAttributeContext {
+  tenantId: string
+  organization: Pick<OrganizationUnit, 'id' | 'name'>
+  department: Pick<Department, 'id' | 'name' | 'organizationId'>
+}
 
 const scopeNames: Record<DictionaryAttributeScopeType, string> = {
   PLATFORM: '全局', TENANT: '租户', ORGANIZATION: '机构', DEPARTMENT: '科室',
@@ -19,15 +26,20 @@ const scopeDepth: Record<DictionaryAttributeScopeType, number> = {
   PLATFORM: 0, TENANT: 1, ORGANIZATION: 2, DEPARTMENT: 3,
 }
 
-export function DictionaryAttributeConfiguration({ api, dictionary, items, onChanged }: {
+export function DictionaryAttributeConfiguration({ api, dictionary, items, context, onChanged }: {
   api: RhnApi
   dictionary: DictionaryDetail
   items: DictionaryItem[]
+  context: DictionaryAttributeContext
   onChanged: (message: string) => void
 }) {
   const queryClient = useQueryClient()
   const [definitionEditor, setDefinitionEditor] = useState<DictionaryAttributeDefinition | null | undefined>()
   const [configurationItem, setConfigurationItem] = useState<DictionaryItem>()
+  const [displayScope, setDisplayScope] = useState<DictionaryAttributeScopeType>('ORGANIZATION')
+  const [displayOrganizationId, setDisplayOrganizationId] = useState(context.organization.id)
+  const [displayDepartmentId, setDisplayDepartmentId] = useState(context.department.id)
+  const [itemQuery, setItemQuery] = useState('')
   const [error, setError] = useState('')
   const attributes = useQuery({
     queryKey: ['dictionary-attributes', dictionary.id],
@@ -37,6 +49,15 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, onCha
     queryKey: ['dictionary-options'],
     queryFn: () => api.dictionaries.list('', '', '', 'ACTIVE'),
   })
+  const itemConfigurations = useQuery({
+    queryKey: ['dictionary-item-attribute-configurations', dictionary.id, displayScope,
+      displayOrganizationId, displayDepartmentId],
+    queryFn: () => api.dictionaries.itemAttributeConfigurations(dictionary.id, displayScope,
+      displayScope === 'ORGANIZATION' || displayScope === 'DEPARTMENT' ? displayOrganizationId : '',
+      displayScope === 'DEPARTMENT' ? displayDepartmentId : ''),
+    enabled: displayScope !== 'ORGANIZATION' && displayScope !== 'DEPARTMENT' || Boolean(displayOrganizationId)
+      && (displayScope !== 'DEPARTMENT' || Boolean(displayDepartmentId)),
+  })
 
   async function refresh(message: string) {
     setError('')
@@ -44,6 +65,7 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, onCha
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['dictionary', dictionary.id] }),
       queryClient.invalidateQueries({ queryKey: ['dictionary-attributes', dictionary.id] }),
+      queryClient.invalidateQueries({ queryKey: ['dictionary-item-attribute-configurations', dictionary.id] }),
       queryClient.invalidateQueries({ queryKey: ['dictionary-changes', dictionary.id] }),
       queryClient.invalidateQueries({ queryKey: ['applicable-dictionary-items'] }),
     ])
@@ -60,6 +82,12 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, onCha
     ),
     onSuccess: (next) => refresh(`扩展属性“${next.name}”状态已更新`),
     onError: (cause) => setError(errorMessage(cause)),
+  })
+
+  const activeAttributes = attributes.data?.filter((attribute) => attribute.status === 'ACTIVE') ?? []
+  const visibleConfigurations = (itemConfigurations.data ?? []).filter((configuration) => {
+    const normalized = itemQuery.trim().toLowerCase()
+    return !normalized || `${configuration.itemName}${configuration.itemCode}`.toLowerCase().includes(normalized)
   })
 
   return <section className="dictionary-attributes">
@@ -93,12 +121,53 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, onCha
         </div>
       </article>)}
     </div>}
-    {!!attributes.data?.some((attribute) => attribute.status === 'ACTIVE') && <div className="dictionary-attributes__item-config">
-      <span>字典项配置</span>
-      <Select value="" placeholder="选择字典项开始配置" showValue onChange={(id) => {
-        const item = items.find((value) => value.id === id); if (item) setConfigurationItem(item)
-      }} options={items.map((item) => ({ value: item.id, label: item.name, secondaryText: item.code }))} />
-    </div>}
+    <section className="dictionary-attribute-values">
+      <header className="dictionary-attribute-values__head">
+        <div><h3>字典项属性值</h3><span>直接查看当前层级的配置值、最终生效值和继承来源。</span></div>
+        <div className="dictionary-attribute-values__filters">
+          <label className="dictionary-search compact"><span className="visually-hidden">搜索字典项属性值</span>
+            <Icon name="search" /><input value={itemQuery} onChange={(event) => setItemQuery(event.target.value)}
+              placeholder="搜索字典项" /></label>
+          <div className="dictionary-attribute-values__scope"><Select aria-label="属性值查看层级"
+            value={displayScope} clearable={false} showValue onChange={(value) => setDisplayScope(value as DictionaryAttributeScopeType)}
+            options={(Object.keys(scopeNames) as DictionaryAttributeScopeType[]).map((value) => ({
+              value, label: scopeNames[value], secondaryText: `${scopeNames[value]}层配置`,
+            }))} /></div>
+          <ConfigurationScopeTarget api={api} scopeType={displayScope} tenantId={context.tenantId}
+            organizationId={displayOrganizationId} departmentId={displayDepartmentId}
+            onOrganizationChange={setDisplayOrganizationId} onDepartmentChange={setDisplayDepartmentId}
+            className="dictionary-attribute-values__target" />
+        </div>
+      </header>
+      {!activeAttributes.length && !attributes.isPending && <div className="dictionary-attributes__empty">
+        定义并启用扩展属性后，可在此直接查看每个字典项的配置值。
+      </div>}
+      {activeAttributes.length > 0 && itemConfigurations.isPending && <LoadingState label="正在解析字典项属性值…" />}
+      {itemConfigurations.error && <Alert>{errorMessage(itemConfigurations.error)}</Alert>}
+      {activeAttributes.length > 0 && !itemConfigurations.isPending && <div className="dictionary-attribute-value-table-wrap">
+        <table className="dictionary-attribute-value-table">
+          <thead><tr><th>字典项</th>{activeAttributes.map((attribute) => <th key={attribute.id}>
+            <span>{attribute.name}</span><code>{attribute.code}</code></th>)}<th aria-label="操作" /></tr></thead>
+          <tbody>{visibleConfigurations.map((configuration) => {
+            const item = items.find((value) => value.id === configuration.dictionaryItemId)
+            return <tr key={configuration.dictionaryItemId}>
+              <td><strong>{configuration.itemName}</strong><code>{configuration.itemCode}</code></td>
+              {activeAttributes.map((attribute) => {
+                const value = configuration.attributes.find((candidate) => candidate.definition.id === attribute.id)
+                return <td key={attribute.id}><AttributeValueDisplay value={value} /></td>
+              })}
+              <td>{item && <Button size="sm" variant="text" onClick={() => setConfigurationItem(item)}>配置</Button>}</td>
+            </tr>
+          })}</tbody>
+        </table>
+        {!visibleConfigurations.length && <div className="dictionary-attribute-values__empty-result">
+          未找到匹配的字典项。
+        </div>}
+      </div>}
+      {activeAttributes.length > 0 && <footer className="dictionary-table__footer">
+        显示 {visibleConfigurations.length} 个字典项 · 查看层级：{scopeNames[displayScope]}
+      </footer>}
+    </section>
 
     {definitionEditor !== undefined && <AttributeDefinitionDialog api={api} dictionary={dictionary}
       attribute={definitionEditor} dictionaries={dictionaryOptions.data ?? []}
@@ -107,8 +176,29 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, onCha
       }} />}
     {configurationItem && attributes.data && <ItemAttributeDialog api={api} dictionary={dictionary}
       item={configurationItem} definitions={attributes.data.filter((value) => value.status === 'ACTIVE')}
+      context={context} initialScope={displayScope} initialOrganizationId={displayOrganizationId}
+      initialDepartmentId={displayDepartmentId}
       onClose={() => setConfigurationItem(undefined)} onSaved={refresh} />}
   </section>
+}
+
+function AttributeValueDisplay({ value }: {
+  value?: import('../../shared/rhnApi').DictionaryItemAttribute
+}) {
+  const resolved = value?.resolved
+  if (!resolved) return <div className="dictionary-attribute-value is-empty"><span>未配置</span>
+    <small>当前上下文无生效值</small></div>
+  const labels = resolved.valueMode === 'EXPLICIT_EMPTY' ? [] : resolved.values.map((member) =>
+    member.referenceItemName ?? member.value ?? member.referenceItemCode ?? '—')
+  return <div className="dictionary-attribute-value">
+    <div className="dictionary-attribute-value__members">
+      {resolved.valueMode === 'EXPLICIT_EMPTY' ? <span className="is-empty-value">显式空集</span>
+        : labels.map((label, index) => <span key={`${label}-${index}`}>{label}</span>)}
+    </div>
+    <small><StatusBadge tone={value?.inherited ? 'info' : 'success'}>
+      {value?.inherited ? '继承' : '本层配置'}
+    </StatusBadge><span>来源：{resolved.sourceLabel}</span></small>
+  </div>
 }
 
 function AttributeDefinitionDialog({ api, dictionary, attribute, dictionaries, onClose, onSaved }: {
@@ -191,11 +281,16 @@ function AttributeDefinitionDialog({ api, dictionary, attribute, dictionaries, o
   </Dialog>
 }
 
-function ItemAttributeDialog({ api, dictionary, item, definitions, onClose, onSaved }: {
+function ItemAttributeDialog({ api, dictionary, item, definitions, context, initialScope,
+  initialOrganizationId, initialDepartmentId, onClose, onSaved }: {
   api: RhnApi
   dictionary: DictionaryDetail
   item: DictionaryItem
   definitions: DictionaryAttributeDefinition[]
+  context: DictionaryAttributeContext
+  initialScope: DictionaryAttributeScopeType
+  initialOrganizationId: string
+  initialDepartmentId: string
   onClose: () => void
   onSaved: (message: string) => Promise<void>
 }) {
@@ -205,15 +300,20 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, onClose, onSa
     .filter((scope) => scopeDepth[scope] <= scopeDepth[definition.minimumScope]
       && (definition.overridePolicy !== 'NO_OVERRIDE' || scope === 'PLATFORM')),
   [definition.minimumScope, definition.overridePolicy])
-  const [scopeType, setScopeType] = useState<DictionaryAttributeScopeType>(
-    allowedScopes.includes('ORGANIZATION') ? 'ORGANIZATION' : allowedScopes.at(-1) ?? 'PLATFORM',
-  )
+  const [scopeType, setScopeType] = useState<DictionaryAttributeScopeType>(allowedScopes.includes(initialScope)
+    ? initialScope : allowedScopes.includes('ORGANIZATION') ? 'ORGANIZATION' : allowedScopes.at(-1) ?? 'PLATFORM')
+  const [organizationId, setOrganizationId] = useState(initialOrganizationId || context.organization.id)
+  const [departmentId, setDepartmentId] = useState(initialDepartmentId || context.department.id)
   useEffect(() => {
     if (!allowedScopes.includes(scopeType)) setScopeType(allowedScopes.at(-1) ?? 'PLATFORM')
   }, [allowedScopes, scopeType])
   const configuration = useQuery({
-    queryKey: ['dictionary-item-attributes', dictionary.id, item.id, scopeType],
-    queryFn: () => api.dictionaries.itemAttributes(dictionary.id, item.id, scopeType),
+    queryKey: ['dictionary-item-attributes', dictionary.id, item.id, scopeType, organizationId, departmentId],
+    queryFn: () => api.dictionaries.itemAttributes(dictionary.id, item.id, scopeType,
+      scopeType === 'ORGANIZATION' || scopeType === 'DEPARTMENT' ? organizationId : '',
+      scopeType === 'DEPARTMENT' ? departmentId : ''),
+    enabled: scopeType !== 'ORGANIZATION' && scopeType !== 'DEPARTMENT' || Boolean(organizationId)
+      && (scopeType !== 'DEPARTMENT' || Boolean(departmentId)),
   })
   const current = configuration.data?.attributes.find((value) => value.definition.id === definition.id)
   const [values, setValues] = useState<string[]>([])
@@ -231,6 +331,8 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, onClose, onSa
   const save = useMutation({
     mutationFn: () => api.dictionaries.setItemAttribute(dictionary.id, item.id, definition.id, {
       expectedDictionaryRevision: dictionary.revision, scopeType,
+      organizationId: scopeType === 'ORGANIZATION' || scopeType === 'DEPARTMENT' ? organizationId : undefined,
+      departmentId: scopeType === 'DEPARTMENT' ? departmentId : undefined,
       valueMode: explicitEmpty ? 'EXPLICIT_EMPTY' : 'OVERRIDE',
       values: explicitEmpty ? [] : definition.dataType === 'DICT_REF' ? values
         : scalarValue.split(',').map((value) => value.trim()).filter(Boolean),
@@ -246,6 +348,8 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, onClose, onSa
   const inherit = useMutation({
     mutationFn: () => api.dictionaries.inheritItemAttribute(dictionary.id, item.id, definition.id, {
       expectedDictionaryRevision: dictionary.revision, scopeType, reason: `恢复继承${definition.name}`,
+      organizationId: scopeType === 'ORGANIZATION' || scopeType === 'DEPARTMENT' ? organizationId : undefined,
+      departmentId: scopeType === 'DEPARTMENT' ? departmentId : undefined,
       requestCode: crypto.randomUUID(),
     }),
     onSuccess: async () => {
@@ -255,17 +359,23 @@ function ItemAttributeDialog({ api, dictionary, item, definitions, onClose, onSa
     onError: (cause) => setError(errorMessage(cause)),
   })
   const noValue = !explicitEmpty && (definition.dataType === 'DICT_REF' ? values.length === 0 : !scalarValue.trim())
+  const missingTarget = (scopeType === 'ORGANIZATION' || scopeType === 'DEPARTMENT') && !organizationId
+    || scopeType === 'DEPARTMENT' && !departmentId
 
   return <Dialog title="配置字典项扩展属性" eyebrow={`${dictionary.name} · ${item.name}`} size="wide"
     description="当前层级可自由覆盖上级结果；选择“显式空集”会阻断继承并使最终结果为空。"
     closeOnBackdrop={false} onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>关闭</Button>
-      <Button disabled={noValue} busy={save.isPending} onClick={() => save.mutate()}>保存当前层配置</Button></>}>
+      <Button disabled={noValue || missingTarget} busy={save.isPending}
+        onClick={() => save.mutate()}>保存当前层配置</Button></>}>
     {error && <Alert>{error}</Alert>}
     <div className="dictionary-item-attribute-toolbar">
       <FormField label="扩展属性"><Select value={definition.id} clearable={false} showValue onChange={(value) => setAttributeId(value)}
         options={definitions.map((value) => ({ value: value.id, label: value.name, secondaryText: value.code }))} /></FormField>
       <FormField label="配置层级"><Select value={scopeType} clearable={false} showValue onChange={(value) => setScopeType(value as DictionaryAttributeScopeType)}
         options={allowedScopes.map((value) => ({ value, label: scopeNames[value] }))} /></FormField>
+      <ConfigurationScopeTarget api={api} scopeType={scopeType} tenantId={context.tenantId}
+        organizationId={organizationId} departmentId={departmentId}
+        onOrganizationChange={setOrganizationId} onDepartmentChange={setDepartmentId} />
     </div>
     {configuration.isPending && <LoadingState label="正在解析继承配置…" />}
     {current && <div className="dictionary-item-attribute-editor">

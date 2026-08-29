@@ -2,8 +2,7 @@ package com.rhn.portal.dashboard;
 
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
-import com.rhn.workmanagement.notification.NotificationService;
-import com.rhn.workmanagement.task.TaskService;
+import com.rhn.workmanagement.api.WorkSummaryDirectory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,15 +16,13 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 
 @Service
 class PortalSummaryService {
-    private final TaskService taskService;
-    private final NotificationService notificationService;
+    private final WorkSummaryDirectory workSummaryDirectory;
     private final ExecutionContextProvider contextProvider;
     private final JdbcTemplate jdbcTemplate;
 
-    PortalSummaryService(TaskService taskService, NotificationService notificationService,
+    PortalSummaryService(WorkSummaryDirectory workSummaryDirectory,
                          ExecutionContextProvider contextProvider, JdbcTemplate jdbcTemplate) {
-        this.taskService = taskService;
-        this.notificationService = notificationService;
+        this.workSummaryDirectory = workSummaryDirectory;
         this.contextProvider = contextProvider;
         this.jdbcTemplate = jdbcTemplate;
     }
@@ -52,7 +49,7 @@ class PortalSummaryService {
                 """, context.tenantId(), context.organizationId(), context.departmentId(), today);
         long residents = count("select count(*) from residents where tenant_id = ? and status = 'ACTIVE'",
                 context.tenantId());
-        return new PortalSummaryResponse(taskService.summary(), notificationService.summary(), registered,
+        return new PortalSummaryResponse(workSummaryDirectory.tasks(), workSummaryDirectory.notifications(), registered,
                 inProgress, completed, residents);
     }
 

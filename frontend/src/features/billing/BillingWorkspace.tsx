@@ -5,6 +5,7 @@ import type { Invoice, Payment } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
+import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 
 const workStatusText: Record<string, string> = {
@@ -26,9 +27,6 @@ function money(value?: number, currency = 'CNY') {
 export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
   const [encounterId, setEncounterId] = useState('')
-  const [paymentInvoiceId, setPaymentInvoiceId] = useState('')
-  const [paymentAmount, setPaymentAmount] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [refundPaymentId, setRefundPaymentId] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
   const [refundReason, setRefundReason] = useState('患者退药后原路退款')
@@ -40,11 +38,6 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'),
   })
   useEffect(() => {
-    if (paymentMethods.data?.length && !paymentMethods.data.some((item) => item.code === paymentMethod)) {
-      setPaymentMethod(paymentMethods.data[0].code)
-    }
-  }, [paymentMethod, paymentMethods.data])
-  useEffect(() => {
     if (!encounterId && worklist.data?.length) setEncounterId(worklist.data[0].encounterId)
     if (encounterId && worklist.data && !worklist.data.some((item) => item.encounterId === encounterId)) {
       setEncounterId(worklist.data[0]?.encounterId ?? '')
@@ -55,6 +48,11 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     queryKey: ['billing-statement', encounterId], queryFn: () => api.billing.statement(encounterId),
     enabled: Boolean(encounterId && selected?.accountId),
   })
+  const paymentOrders = useQuery({
+    queryKey: ['billing-payment-orders', statement.data?.accountId],
+    queryFn: () => api.billing.paymentOrders(statement.data!.accountId),
+    enabled: Boolean(statement.data?.accountId),
+  })
   const reconciliation = useQuery({
     queryKey: ['billing-reconciliation', businessDate],
     queryFn: () => api.billing.dailyReconciliation(businessDate), enabled: Boolean(businessDate),
@@ -64,6 +62,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
+      queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-reconciliation'] }),
     ])
   }
@@ -75,23 +74,20 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     mutationFn: () => api.billing.issueInvoice(statement.data!.accountId, `INV-${encounterId}-${Date.now()}`),
     onSuccess: refresh,
   })
-  const payableInvoices = useMemo(() => statement.data?.invoices.filter((invoice) =>
-    invoice.invoiceType === 'STANDARD' && invoice.outstandingAmount > 0) ?? [], [statement.data])
-  useEffect(() => {
-    if (paymentInvoiceId && !payableInvoices.some((invoice) => invoice.id === paymentInvoiceId)) setPaymentInvoiceId('')
-    if (!paymentInvoiceId && payableInvoices.length) setPaymentInvoiceId(payableInvoices[0].id)
-  }, [payableInvoices, paymentInvoiceId])
-  const selectedInvoice = payableInvoices.find((invoice) => invoice.id === paymentInvoiceId)
-  useEffect(() => {
-    if (selectedInvoice) setPaymentAmount(String(selectedInvoice.outstandingAmount))
-  }, [selectedInvoice])
-  const collect = useMutation({
-    mutationFn: () => api.billing.collect(paymentInvoiceId, {
-      paymentNo: `PAY-${encounterId}-${Date.now()}`, paymentMethodCode: paymentMethod,
-      paymentSceneCode: 'CASHIER',
-      amount: Number(paymentAmount), description: '门诊窗口收款',
+  const payableSettlements = useMemo(() => statement.data?.settlements.filter((settlement) =>
+    settlement.settlementType === 'NORMAL' && settlement.outstandingAmount > 0) ?? [], [statement.data])
+  const settlementOptions = useMemo(() => payableSettlements.map((settlement) => ({
+    id: settlement.id, code: settlement.settlementNo, outstandingAmount: settlement.outstandingAmount,
+    currencyCode: settlement.currencyCode,
+  })), [payableSettlements])
+  const createPaymentOrder = useMutation({
+    mutationFn: (command: SettlementPaymentCommand) => api.billing.createPaymentOrder(command.settlementId, {
+      idempotencyKey: command.idempotencyKey,
+      businessScene: 'OUTPATIENT', paymentSceneCode: 'CASHIER',
+      paymentMethodCode: command.paymentMethodCode, amount: command.amount,
+      terminalCode: 'CASHIER-WEB',
     }),
-    onSuccess: async () => { setPaymentAmount(''); await refresh() },
+    onSuccess: refresh,
   })
   const refundablePayments = useMemo(() => statement.data?.payments.filter((payment) =>
     payment.paymentType === 'PAYMENT') ?? [], [statement.data])
@@ -103,14 +99,15 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     if ((statement.data?.accountBalance ?? 0) < 0) setRefundAmount(String(Math.abs(statement.data!.accountBalance)))
   }, [statement.data?.accountBalance])
   const refund = useMutation({
-    mutationFn: () => api.billing.refund(refundPaymentId, {
-      refundNo: `RF-${encounterId}-${Date.now()}`, amount: Number(refundAmount), reason: refundReason,
+    mutationFn: (command: { idempotencyKey: string }) => api.billing.createRefundOrder(refundPaymentId, {
+      idempotencyKey: command.idempotencyKey, amount: Number(refundAmount), reason: refundReason,
+      terminalCode: 'CASHIER-WEB',
     }),
     onSuccess: async () => { setRefundAmount(''); await refresh() },
   })
 
-  const error = worklist.error || paymentMethods.error || statement.error || reconciliation.error || synchronize.error
-    || issueInvoice.error || collect.error || refund.error
+  const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
+    || reconciliation.error || synchronize.error || issueInvoice.error || createPaymentOrder.error || refund.error
   const currency = statement.data?.currencyCode ?? selected?.currencyCode ?? 'CNY'
   const canInvoice = Boolean(statement.data && statement.data.charges.some((charge) =>
     !statement.data!.invoices.some((invoice) => invoice.lines.some((line) => line.chargeItemId === charge.id))))
@@ -189,18 +186,11 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         <Panel>
           <header className="billing-section-head"><div><h2>收退操作</h2><span>账户锁定后记账</span></div></header>
           <div className="billing-action-form">
-            <h3>收款</h3>
-            <FormField label="待支付结算凭证"><Select value={paymentInvoiceId} onChange={setPaymentInvoiceId} showValue
-              placeholder="暂无待支付凭证" options={payableInvoices.map((invoice) => ({ value: invoice.id,
-                label: invoice.invoiceNo, secondaryText: money(invoice.outstandingAmount, invoice.currencyCode) }))} /></FormField>
-            <div className="billing-action-grid"><FormField label="支付方式"><Select value={paymentMethod} onChange={setPaymentMethod} showValue
-              placeholder={paymentMethods.isPending ? '正在加载支付方式' : '当前场景无可用支付方式'}
-              options={(paymentMethods.data ?? []).map((item) => ({ value: item.code, label: item.name,
-                secondaryText: item.code }))} /></FormField>
-              <FormField label="收款金额"><input className="ui-field__control" type="number" min="0.01" step="0.01"
-                value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} /></FormField></div>
-            <Button disabled={!paymentInvoiceId || Number(paymentAmount) <= 0} onClick={() => collect.mutate()}
-              busy={collect.isPending}>确认收款并记账</Button>
+            <h3>统一支付</h3>
+            <SettlementPaymentPanel settlements={settlementOptions}
+              methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
+              orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending}
+              onSubmit={(command) => createPaymentOrder.mutateAsync(command)} />
           </div>
           <div className="billing-action-form billing-action-form--refund">
             <h3>退款</h3>
@@ -212,7 +202,8 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
             <FormField label="退款原因"><input className="ui-field__control" value={refundReason}
               onChange={(event) => setRefundReason(event.target.value)} /></FormField>
             <Button variant="danger" disabled={!refundPaymentId || Number(refundAmount) <= 0 || !refundReason.trim()
-              || (statement.data?.accountBalance ?? 0) >= 0} onClick={() => refund.mutate()} busy={refund.isPending}>
+              || (statement.data?.accountBalance ?? 0) >= 0}
+              onClick={() => refund.mutate({ idempotencyKey: `REFUND-${crypto.randomUUID()}` })} busy={refund.isPending}>
               确认退款并冲正</Button>
           </div>
         </Panel>

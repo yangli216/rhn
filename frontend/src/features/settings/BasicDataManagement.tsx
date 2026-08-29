@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type CatalogPrice, type DiseaseConcept, type DiseaseInput,
-  type Department, type DictionaryValue, type Manufacturer, type ManufacturerInput, type MasterDataStatus,
+  type Department, type DictionaryValue, type Manufacturer, type MasterDataStatus,
   type MedicationInput, type MedicationKnowledge, type MedicationProduct, type PackageInput,
   type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
   type ItemAttributeJson, type ItemAttributeOverride, type ItemAttributeSchema,
@@ -18,7 +18,7 @@ import {
   Select, StatusBadge,
 } from '../../shared/ui'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
-import { OperationalMasterDataPanel } from './OperationalMasterDataPanel'
+import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
 
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
 type DictionaryMap = Record<string, DictionaryValue[]>
@@ -34,7 +34,9 @@ const dictionaryCodes = [
 
 const today = () => new Date().toISOString().slice(0, 10)
 
-export function BasicDataManagement({ api, organization }: { api: RhnApi; organization: Organization }) {
+export function BasicDataManagement({ api, organization, onNavigate }: {
+  api: RhnApi; organization: Organization; onNavigate: (path: string) => void
+}) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('disease')
   const [query, setQuery] = useState('')
@@ -123,7 +125,7 @@ export function BasicDataManagement({ api, organization }: { api: RhnApi; organi
         <TabButton active={tab === 'disease'} onClick={() => setTab('disease')} label="疾病与术语" meta="版本化标准" />
         <TabButton active={tab === 'service'} onClick={() => setTab('service')} label="诊疗项目" meta="开立 · 执行 · 收费" />
         <TabButton active={tab === 'medication'} onClick={() => setTab('medication')} label="药品目录" meta="知识 · 产品 · 包装" />
-        <TabButton active={tab === 'operations'} onClick={() => setTab('operations')} label="运营主数据" meta="标本 · 组套 · 耗材 · 计量" />
+        <TabButton active={tab === 'operations'} onClick={() => setTab('operations')} label="运营主数据" meta="组套 · 耗材 · 计量" />
         <TabButton active={tab === 'attribute'} onClick={() => setTab('attribute')} label="属性配置" meta="定义 · 装配 · 继承" />
       </div>
       {tab !== 'attribute' && tab !== 'operations' && <><div className="master-data-toolbar">
@@ -135,10 +137,8 @@ export function BasicDataManagement({ api, organization }: { api: RhnApi; organi
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
         <span className="master-data-count">{busy ? '正在刷新…' : `${count ?? 0} 条`}</span>
-        {tab === 'medication' && <Button variant="secondary" onClick={() => setDialog(
-          <ManufacturerDialog dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
-            onSave={(input) => api.masterData.createManufacturer(input)
-              .then(() => invalidate('生产企业已创建')).catch(fail)} />)}>维护生产企业</Button>}
+        {tab === 'medication' && <Button variant="secondary"
+          onClick={() => onNavigate('/settings/partners?tab=manufacturers')}>生产企业档案</Button>}
       </div>
 
       {tab === 'disease' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
@@ -149,6 +149,9 @@ export function BasicDataManagement({ api, organization }: { api: RhnApi; organi
         onStatus={(value) => api.masterData.diseaseStatus(value.id, value.revision,
           value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE').then(() => invalidate('疾病状态已更新')).catch(fail)} />}
       {tab === 'service' && <ServiceTable values={services.data} loading={services.isPending}
+        onConfigure={(value) => setDialog(<ClinicalServiceConfigurationDialog api={api} service={value}
+          organizationId={organization.id} dictionaries={dictionaries.data!}
+          onClose={() => setDialog(undefined)} />)}
         onEdit={(value) => setDialog(<ServiceDialog dictionaries={dictionaries.data!} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateService(
             value.id, value.revision, input, organization.id).then(() => invalidate('诊疗项目已更新')).catch(fail)} />)}
@@ -188,8 +191,7 @@ export function BasicDataManagement({ api, organization }: { api: RhnApi; organi
           onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}</>}
       {tab === 'attribute' && <ItemAttributeConfigurationPanel api={api} />}
       {tab === 'operations' && dictionaries.data && <OperationalMasterDataPanel api={api}
-        organization={organization} dictionaries={dictionaries.data}
-        manufacturers={manufacturers.data ?? []} />}
+        organization={organization} manufacturers={manufacturers.data ?? []} />}
     </Panel>
     {dialog}
   </>
@@ -210,7 +212,8 @@ function DiseaseTable({ values, loading, onEdit, onStatus }: { values?: DiseaseC
   </Table>
 }
 
-function ServiceTable({ values, loading, onEdit, onAttributes, onMappings, onLifecycle }: { values?: ServiceCatalogItem[]; loading: boolean;
+function ServiceTable({ values, loading, onConfigure, onEdit, onAttributes, onMappings, onLifecycle }: { values?: ServiceCatalogItem[]; loading: boolean;
+  onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
   onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void;
   onLifecycle: (value: ServiceCatalogItem) => void }) {
@@ -221,17 +224,23 @@ function ServiceTable({ values, loading, onEdit, onAttributes, onMappings, onLif
       <td>{value.sdServiceTypeText}<small>{value.sdUsageTypeText}{value.serviceSubtype ? ` · ${value.serviceSubtype}` : ''}</small>
         <small>{[value.sdDuplicateRuleText, value.mutualRecognitionCode && `互认 ${value.mutualRecognitionCode}`]
           .filter(Boolean).join(' · ') || '未设置重复规则'}</small>
-        {value.laboratory && <small>{value.laboratory.sdLaboratoryMethodText || '检验方法未设置'} · {value.laboratory.specimens.length} 种标本</small>}
-        {value.examination && <small>{value.examination.sdExaminationTypeText || '检查类型未设置'} · {value.examination.variants.length} 个部位/方式</small>}
+        {value.sdServiceType === 'LABORATORY' && <small>{value.laboratory
+          ? `${value.laboratory.sdLaboratoryMethodText || '检验方法未设置'} · ${value.laboratory.specimens.length} 种标本`
+          : '检验执行配置异常，请进入项目配置检查'}</small>}
+        {value.sdServiceType === 'EXAMINATION' && <small>{value.examination
+          ? `${value.examination.sdExaminationTypeText || '检查类型未设置'} · ${value.examination.variants.length} 个部位/方式`
+          : '检查执行配置异常，请进入项目配置检查'}</small>}
       </td>
       <td><Flag value={value.orderable} label="可开立" /> <Flag value={value.chargeable} label="可收费" />
         <small>{value.singleOrder ? '允许单开' : '仅组合使用'}</small></td>
       <td>{value.organizationAdoption ? <><DataStatus value={value.organizationAdoption.sdStatus}
         text={value.organizationAdoption.sdStatusText} /><small>{value.organizationAdoption.localName || value.organizationAdoption.localCode || '沿用中心名称'}</small></> : <StatusBadge>未采用</StatusBadge>}</td>
       <td>{activePrice(value.prices)}</td>
-      <td><RowActions><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
+      <td><RowActions>{['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType)
+        && <Button size="sm" variant="text" onClick={() => onConfigure(value)}>项目配置</Button>}
+        <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
         <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
-        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
+        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button>
         <Button size="sm" variant="text" onClick={() => onLifecycle(value)}>机构目录与价格</Button></RowActions></td></tr>)}
   </Table>
 }
@@ -252,10 +261,15 @@ function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, on
         <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
         <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
         <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>新增厂家产品</Button></RowActions></header>
-    <div className="medication-knowledge"><span>制剂规格 / 储藏 <strong>{[value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—'}</strong></span>
-      <span>结构化含量 <strong>{value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}` : '—'}</strong></span>
-      <span>默认剂量 / 用法 <strong>{[
-        value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, value.defaultRoute, value.defaultFrequency,
+    <div className="medication-knowledge"><span>{value.sdMedicationType === 'HERBAL' ? '炮制规格 / 储藏'
+      : value.sdMedicationType === 'VACCINE' ? '剂量规格 / 冷链' : '制剂规格 / 储藏'} <strong>{[
+        value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—'}</strong></span>
+      <span>{value.sdMedicationType === 'HERBAL' ? '调剂单位' : value.sdMedicationType === 'VACCINE' ? '每剂含量' : '结构化含量'} <strong>{
+        value.sdMedicationType === 'HERBAL' ? (value.preparationUnit || '—')
+          : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}` : '—'}</strong></span>
+      <span>{value.sdMedicationType === 'VACCINE' ? '默认剂量 / 接种途径' : '默认剂量 / 用法'} <strong>{[
+        value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, value.defaultRoute,
+        value.sdMedicationType === 'VACCINE' ? undefined : value.defaultFrequency,
       ].filter(Boolean).join(' · ') || '—'}</strong></span>
       <span>安全属性 <strong>{[value.prescriptionDrug && '处方药', value.essentialDrug && '基本药物',
         value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
@@ -1096,50 +1110,40 @@ function DiseaseDialog({ dictionaries, codeSystems, value, onClose, onSave }: { 
 function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries: DictionaryMap;
   value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void }) {
   return <DataFormDialog title={value ? '编辑诊疗项目' : '新增诊疗项目'} eyebrow="临床服务目录" onClose={onClose}
-    size="xwide" description="按标准身份、临床执行属性和目录生命周期维护诊疗项目。"
+    size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“项目配置”进入。"
     onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
       orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), sdStatus: (value?.sdStatus ?? 'ACTIVE'),
       validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: text(form, 'sdServiceType'),
       serviceSubtype: optionalText(form, 'serviceSubtype'), sdUsageType: text(form, 'sdUsageType'),
       medicalTechnology: checked(form, 'medicalTechnology'), combinationItem: checked(form, 'combinationItem'),
-      singleOrder: checked(form, 'singleOrder'), specimenType: optionalText(form, 'specimenType'),
-      examinationType: optionalText(form, 'examinationType'), accountingCategory: optionalText(form, 'accountingCategory'),
-      sdDuplicateRule: optionalText(form, 'sdDuplicateRule'), multiSitePrice: optionalNumber(form, 'multiSitePrice'),
-      freeSiteCount: optionalInteger(form, 'freeSiteCount'), maxBodySiteCount: optionalInteger(form, 'maxBodySiteCount'),
+      singleOrder: checked(form, 'singleOrder'), specimenType: value?.specimenType,
+      examinationType: value?.examinationType, accountingCategory: optionalText(form, 'accountingCategory'),
+      sdDuplicateRule: optionalText(form, 'sdDuplicateRule'), multiSitePrice: value?.multiSitePrice,
+      freeSiteCount: value?.freeSiteCount, maxBodySiteCount: value?.maxBodySiteCount,
       mutualRecognitionCode: optionalText(form, 'mutualRecognitionCode'),
       pregnancyAlert: checked(form, 'pregnancyAlert'), attention: optionalText(form, 'attention'),
-      examinationNotes: optionalText(form, 'examinationNotes') })}>
+      examinationNotes: value?.examinationNotes })}>
     <FormSection title="标准身份" description="编码创建后保持稳定，名称与目录属性可继续维护。">
       <FormGrid columns={3}>
         <FormField label="项目编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 EXAM_BLOOD_ROUTINE" autoFocus={!value} required /></FormField>
         <FormField label="项目名称" required className="span-2"><input name="name" defaultValue={value?.name}
           placeholder="录入统一项目名称" required /></FormField>
-        <SelectField name="sdServiceType" label="项目类型" values={dictionaries.BD_SERVICE_TYPE}
-          defaultValue={value?.sdServiceType ?? 'EXAMINATION'} />
+        <SelectField name="sdServiceType" label={value ? '项目类型（创建后不可修改）' : '项目类型'} values={dictionaries.BD_SERVICE_TYPE}
+          defaultValue={value?.sdServiceType ?? 'EXAMINATION'} disabled={Boolean(value)} />
         <FormField label="项目子类"><input name="serviceSubtype" defaultValue={value?.serviceSubtype}
           placeholder="如 常规检验" /></FormField>
         <SelectField name="sdUsageType" label="适用场景" values={dictionaries.BD_SERVICE_USE}
           defaultValue={value?.sdUsageType ?? 'COMMON'} />
       </FormGrid>
     </FormSection>
-    <FormSection title="执行与计价" description="维护项目执行需要的分类信息及中心级能力。">
+    <FormSection title="目录属性与能力" description="这里只维护中心级目录属性；检验标本、检查部位、多部位计价与附加收费在该项目的“项目配置”中统一维护。">
       <FormGrid columns={4}>
         <FormField label="计价单位"><input name="unitCode" defaultValue={value?.unitCode ?? '次'} /></FormField>
-        <FormField label="标本类型"><input name="specimenType" defaultValue={value?.specimenType}
-          placeholder="如 静脉血" /></FormField>
-        <FormField label="检查类型"><input name="examinationType" defaultValue={value?.examinationType}
-          placeholder="如 实验室检查" /></FormField>
         <FormField label="费用归并"><input name="accountingCategory" defaultValue={value?.accountingCategory}
           placeholder="如 检验费" /></FormField>
         <SelectField name="sdDuplicateRule" label="重复开立规则" values={dictionaries.BD_SERVICE_DUPLICATE_RULE}
           defaultValue={value?.sdDuplicateRule ?? 'WARN'} />
-        <FormField label="多部位加收价"><input name="multiSitePrice" type="number" min="0" step="0.000001"
-          defaultValue={value?.multiSitePrice} placeholder="未启用可留空" /></FormField>
-        <FormField label="免费部位数"><input name="freeSiteCount" type="number" min="0" step="1"
-          defaultValue={value?.freeSiteCount} placeholder="如 1" /></FormField>
-        <FormField label="最大部位数"><input name="maxBodySiteCount" type="number" min="1" step="1"
-          defaultValue={value?.maxBodySiteCount} placeholder="如 4" /></FormField>
         <FormField label="互认编码"><input name="mutualRecognitionCode" defaultValue={value?.mutualRecognitionCode}
           placeholder="区域检查检验互认编码" /></FormField>
         <Checkboxes title="中心能力">
@@ -1158,8 +1162,6 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
           fromDefault={value?.validFrom} toDefault={value?.validTo} />
         <FormField label="注意事项"><textarea name="attention" defaultValue={value?.attention}
           placeholder="录入开立或执行时需要关注的事项" rows={2} /></FormField>
-        <FormField label="检查说明"><textarea name="examinationNotes" defaultValue={value?.examinationNotes}
-          placeholder="录入标本、准备或检查流程说明" rows={2} /></FormField>
       </FormGrid>
     </FormSection>
   </DataFormDialog>
@@ -1167,22 +1169,44 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
 
 function MedicationDialog({ dictionaries, value, onClose, onSave }: { dictionaries: DictionaryMap;
   value?: MedicationKnowledge; onClose: () => void; onSave: (input: MedicationInput) => void }) {
+  const [medicationType, setMedicationType] = useState(value?.sdMedicationType ?? 'WESTERN')
   const [antimicrobial, setAntimicrobial] = useState(value?.antimicrobial ?? false)
+  const western = medicationType === 'WESTERN'
+  const chinesePatent = medicationType === 'CHINESE_PATENT'
+  const herbal = medicationType === 'HERBAL'
+  const vaccine = medicationType === 'VACCINE'
+  const knownType = western || chinesePatent || herbal || vaccine
+  const typeName = dictionaries.BD_MEDICATION_TYPE.find((item) => item.code === medicationType)?.name ?? medicationType
+  const doseFormLabel = herbal ? '饮片 / 颗粒形态' : vaccine ? '疫苗制剂类型' : '剂型'
+  const specificationLabel = herbal ? '炮制规格' : vaccine ? '剂量规格' : '制剂规格'
+  const unitLabel = herbal ? '调剂单位' : vaccine ? '接种单位' : '制剂单位'
+  const typeDescription = western
+    ? '维护结构化含量、默认用法及抗菌药、皮试等西药安全属性。'
+    : chinesePatent
+      ? '维护剂型、含量和默认用法；不展示西药专属的抗菌药等级与皮试属性。'
+      : herbal
+        ? '维护饮片形态、炮制规格、调剂单位与煎服建议；基原、产地和炮制方法从“类型扩展属性”维护。'
+        : vaccine
+          ? '维护剂量规格、接种单位、途径与冷链储藏；免疫程序、目标疾病和适龄范围从“类型扩展属性”维护。'
+          : '当前药品类型尚未建立维护规则，请先完善类型配置。'
   return <DataFormDialog title={value ? '编辑通用药品知识' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
     size="xwide" description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
     onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
-      sdMedicationType: text(form, 'sdMedicationType'), sdDoseForm: optionalText(form, 'sdDoseForm'),
+      sdMedicationType: medicationType, sdDoseForm: optionalText(form, 'sdDoseForm'),
       preparationSpec: optionalText(form, 'preparationSpec'), preparationUnit: optionalText(form, 'preparationUnit'),
-      strengthValue: optionalNumber(form, 'strengthValue'), strengthUnit: optionalText(form, 'strengthUnit'),
+      strengthValue: herbal ? undefined : optionalNumber(form, 'strengthValue'),
+      strengthUnit: herbal ? undefined : optionalText(form, 'strengthUnit'),
       sdStorageType: optionalText(form, 'sdStorageType'),
       prescriptionDrug: checked(form, 'prescriptionDrug'), essentialDrug: checked(form, 'essentialDrug'),
-      antimicrobial, sdAntimicrobialLevel: antimicrobial ? optionalText(form, 'sdAntimicrobialLevel') : undefined,
-      skinTestRequired: checked(form, 'skinTestRequired'), defaultDose: optionalNumber(form, 'defaultDose'),
+      antimicrobial: western && antimicrobial,
+      sdAntimicrobialLevel: western && antimicrobial ? optionalText(form, 'sdAntimicrobialLevel') : undefined,
+      skinTestRequired: western && checked(form, 'skinTestRequired'), defaultDose: optionalNumber(form, 'defaultDose'),
       defaultDoseUnit: optionalText(form, 'defaultDoseUnit'), defaultRoute: optionalText(form, 'defaultRoute'),
-      defaultFrequency: optionalText(form, 'defaultFrequency'), chronicDiseaseDrug: checked(form, 'chronicDiseaseDrug'),
+      defaultFrequency: vaccine ? undefined : optionalText(form, 'defaultFrequency'),
+      chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
       sdStatus: value?.sdStatus ?? 'ACTIVE' })}>
-    <FormSection title="药品身份" description="维护跨厂家复用的通用名称、分类和剂型。">
+    <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
       <FormGrid columns={3}>
         <FormField label="通用药品编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 MED_AMOXICILLIN" autoFocus={!value} required /></FormField>
@@ -1190,68 +1214,50 @@ function MedicationDialog({ dictionaries, value, onClose, onSave }: { dictionari
           placeholder="录入药品通用名称" required /></FormField>
         <FormField label="别名"><input name="aliasName" defaultValue={value?.aliasName}
           placeholder="如历史名称或常用简称" /></FormField>
-        <SelectField name="sdMedicationType" label="药品类型" values={dictionaries.BD_MEDICATION_TYPE}
-          defaultValue={value?.sdMedicationType ?? 'WESTERN'} />
-        <SelectField name="sdDoseForm" label="剂型" values={dictionaries.BD_DOSE_FORM}
+        <FormField label={value ? '药品类型（创建后不可修改）' : '药品类型'} required>
+          <StaticSelectControl name="sdMedicationType" value={medicationType}
+            onChange={(next) => { setMedicationType(next); if (next !== 'WESTERN') setAntimicrobial(false) }}
+            options={dictionaries.BD_MEDICATION_TYPE.map((item) => ({ value: item.code, label: item.name }))}
+            placeholder="请选择药品类型" disabled={Boolean(value)} required />
+        </FormField>
+        <SelectField name="sdDoseForm" label={doseFormLabel} values={dictionaries.BD_DOSE_FORM}
           defaultValue={value?.sdDoseForm ?? 'TABLET'} />
-        <FormField label="制剂规格"><input name="preparationSpec" defaultValue={value?.preparationSpec}
-          placeholder="如 0.5g" /></FormField>
+        <FormField label={specificationLabel}><input name="preparationSpec" defaultValue={value?.preparationSpec}
+          placeholder={herbal ? '如 净制、切片' : vaccine ? '如 0.5ml/支' : '如 0.5g'} /></FormField>
       </FormGrid>
     </FormSection>
-    <FormSection title="结构化用药信息" description="结构化含量用于计算和校验，默认途径与频次仅作业务建议。">
+    <FormSection title={`${typeName}属性`} description={typeDescription}>
       <FormGrid columns={3}>
-        <FormField label="制剂单位"><input name="preparationUnit" defaultValue={value?.preparationUnit}
-          placeholder="片、粒、支" /></FormField>
-        <FormField label="结构化含量"><input name="strengthValue" type="number" min="0" step="any"
-          defaultValue={value?.strengthValue} placeholder="如 500" /></FormField>
-        <FormField label="含量单位"><input name="strengthUnit" defaultValue={value?.strengthUnit}
-          placeholder="mg、g、IU" /></FormField>
+        <FormField label={unitLabel}><input name="preparationUnit" defaultValue={value?.preparationUnit}
+          placeholder={herbal ? 'g、袋' : vaccine ? '支、剂' : '片、粒、支'} /></FormField>
+        {!herbal && <><FormField label={vaccine ? '每剂含量' : '结构化含量'}><input name="strengthValue" type="number" min="0" step="any"
+          defaultValue={value?.strengthValue} placeholder={vaccine ? '如 0.5' : '如 500'} /></FormField>
+        <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" defaultValue={value?.strengthUnit}
+          placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
         <FormField label="默认给药途径"><input name="defaultRoute" defaultValue={value?.defaultRoute}
-          placeholder="如 口服" /></FormField>
-        <FormField label="默认频次"><input name="defaultFrequency" defaultValue={value?.defaultFrequency}
-          placeholder="如 每日三次" /></FormField>
-        <SelectField name="sdStorageType" label="储藏方式" values={dictionaries.BD_STORAGE_TYPE}
+          placeholder={herbal ? '如 煎服、冲服' : vaccine ? '如 肌内注射' : '如 口服'} /></FormField>
+        {!vaccine && <FormField label={herbal ? '默认服用频次' : '默认频次'}><input name="defaultFrequency" defaultValue={value?.defaultFrequency}
+          placeholder={herbal ? '如 每日一剂' : '如 每日三次'} /></FormField>}
+        <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'} values={dictionaries.BD_STORAGE_TYPE}
           defaultValue={value?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
           defaultValue={value?.defaultDose} placeholder="如 0.5" /></FormField>
         <FormField label="默认剂量单位"><input name="defaultDoseUnit" defaultValue={value?.defaultDoseUnit}
-          placeholder="如 g、mg、ml" /></FormField>
-        {antimicrobial && <SelectField name="sdAntimicrobialLevel" label="抗菌药等级"
+          placeholder={herbal ? '如 g、剂' : vaccine ? '如 ml、剂' : '如 g、mg、ml'} /></FormField>
+        {western && antimicrobial && <SelectField name="sdAntimicrobialLevel" label="抗菌药等级"
           values={dictionaries.BD_ANTIMICROBIAL_LEVEL} defaultValue={value?.sdAntimicrobialLevel ?? 'NON_RESTRICTED'} />}
         <Checkboxes title="安全与管理属性">
           <Checkbox name="prescriptionDrug" label="处方药" defaultChecked={value?.prescriptionDrug ?? true} />
           <Checkbox name="essentialDrug" label="基本药物" defaultChecked={value?.essentialDrug} />
-          <Checkbox name="antimicrobial" label="抗菌药物" checked={antimicrobial}
-            onChange={(checkedValue) => setAntimicrobial(checkedValue)} />
-          <Checkbox name="skinTestRequired" label="需要皮试" defaultChecked={value?.skinTestRequired} />
-          <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={value?.chronicDiseaseDrug} />
+          {western && <Checkbox name="antimicrobial" label="抗菌药物" checked={antimicrobial}
+            onChange={(checkedValue) => setAntimicrobial(checkedValue)} />}
+          {western && <Checkbox name="skinTestRequired" label="需要皮试" defaultChecked={value?.skinTestRequired} />}
+          {(western || chinesePatent) && <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={value?.chronicDiseaseDrug} />}
           <Checkbox name="singleOrder" label="允许单开" defaultChecked={value?.singleOrder ?? true} />
         </Checkboxes>
       </FormGrid>
     </FormSection>
-  </DataFormDialog>
-}
-
-function ManufacturerDialog({ dictionaries, onClose, onSave }: { dictionaries: DictionaryMap; onClose: () => void;
-  onSave: (input: ManufacturerInput) => void }) {
-  return <DataFormDialog title="新增生产企业" eyebrow="药品产品主体" onClose={onClose}
-    description="生产企业作为厂家产品的统一主体资料维护，企业编码创建后保持稳定。"
-    onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), shortName: optionalText(form, 'shortName'),
-      sdManufacturerType: text(form, 'sdManufacturerType'), sdProductionPlace: optionalText(form, 'sdProductionPlace'),
-      countryCode: optionalText(form, 'countryCode'),
-      address: optionalText(form, 'address'), sdStatus: 'ACTIVE' })}>
-    <FormSection title="主体信息" description="用于产品归属和批准信息关联。">
-      <FormGrid columns={3}>
-        <FormField label="企业编码" required><input name="code" placeholder="如 MFR_0001" autoFocus required /></FormField>
-        <FormField label="企业名称" required className="span-2"><input name="name" placeholder="录入企业法定名称" required /></FormField>
-        <FormField label="简称"><input name="shortName" placeholder="用于列表和选择器展示" /></FormField>
-        <SelectField name="sdManufacturerType" label="主体类型" values={dictionaries.BD_MANUFACTURER_TYPE} defaultValue="DRUG" />
-        <SelectField name="sdProductionPlace" label="生产地类别" values={dictionaries.BD_PRODUCTION_PLACE}
-          defaultValue="DOMESTIC" />
-        <FormField label="国家/地区"><input name="countryCode" defaultValue="CN" placeholder="ISO 两位代码" /></FormField>
-        <FormField label="地址" className="span-3"><input name="address" placeholder="录入注册地址或主要生产地址" /></FormField>
-      </FormGrid>
-    </FormSection>
+    {!knownType && <Alert>当前药品类型尚未建立专属模板，本次仅按通用字段维护；请在扩展属性配置中补充类型规则。</Alert>}
   </DataFormDialog>
 }
 
@@ -1392,10 +1398,10 @@ function Checkbox({ name, label, defaultChecked = false, checked: checkedValue, 
   return <label><input type="checkbox" name={name} defaultChecked={checkedValue === undefined ? defaultChecked : undefined}
     checked={checkedValue} onChange={onChange ? (event) => onChange(event.target.checked) : undefined} />{label}</label>
 }
-function SelectField({ name, label, values = [], defaultValue, required = true, placeholder }: { name: string; label: string;
-  values?: DictionaryValue[]; defaultValue?: string; required?: boolean; placeholder?: string }) {
+function SelectField({ name, label, values = [], defaultValue, disabled = false, required = true, placeholder }: { name: string; label: string;
+  values?: DictionaryValue[]; defaultValue?: string; disabled?: boolean; required?: boolean; placeholder?: string }) {
   return <StaticSelectField name={name} label={label} defaultValue={defaultValue ?? (required ? values[0]?.code : undefined)}
-    required={required} placeholder={placeholder} options={values.map((item) => ({ value: item.code, label: item.name }))} />
+    disabled={disabled} required={required} placeholder={placeholder} options={values.map((item) => ({ value: item.code, label: item.name }))} />
 }
 function StaticSelectField({ name, label, options: values, defaultValue, disabled = false, required = true,
   placeholder = '请选择' }: { name: string; label: string; options: Array<{ value: string; label: string }>;
@@ -1443,5 +1449,4 @@ function tabLabel(tab: Tab) { return tab === 'disease' ? '疾病' : tab === 'ser
 function text(form: FormData, name: string) { return String(form.get(name) ?? '').trim() }
 function optionalText(form: FormData, name: string) { const value = text(form, name); return value || undefined }
 function optionalNumber(form: FormData, name: string) { const value = text(form, name); return value ? Number(value) : undefined }
-function optionalInteger(form: FormData, name: string) { const value = text(form, name); return value ? Number.parseInt(value, 10) : undefined }
 function checked(form: FormData, name: string) { return form.get(name) === 'on' }

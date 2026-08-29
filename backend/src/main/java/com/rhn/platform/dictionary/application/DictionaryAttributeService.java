@@ -29,6 +29,7 @@ import com.rhn.platform.dictionary.infrastructure.DictionaryDefinitionRepository
 import com.rhn.platform.dictionary.infrastructure.DictionaryItemAttributeValueRepository;
 import com.rhn.platform.dictionary.infrastructure.DictionaryItemRepository;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
+import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
@@ -61,6 +62,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
     private final DictionaryChangeRepository changeRepository;
     private final ExecutionContextProvider contextProvider;
     private final IdentityAccessDirectory identityAccessDirectory;
+    private final OrganizationDirectory organizationDirectory;
     private final JsonCodec jsonCodec;
 
     public DictionaryAttributeService(DictionaryDefinitionRepository definitionRepository,
@@ -70,6 +72,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
                                       DictionaryChangeRepository changeRepository,
                                       ExecutionContextProvider contextProvider,
                                       IdentityAccessDirectory identityAccessDirectory,
+                                      OrganizationDirectory organizationDirectory,
                                       JsonCodec jsonCodec) {
         this.definitionRepository = definitionRepository;
         this.itemRepository = itemRepository;
@@ -78,6 +81,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
         this.changeRepository = changeRepository;
         this.contextProvider = contextProvider;
         this.identityAccessDirectory = identityAccessDirectory;
+        this.organizationDirectory = organizationDirectory;
         this.jsonCodec = jsonCodec;
     }
 
@@ -194,6 +198,44 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
                 }).toList();
         return new ItemAttributeConfigurationView(dictionary.id(), item.id(), item.code(), item.name(),
                 editing.type(), editing.code(), attributes);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ItemAttributeConfigurationView> itemConfigurations(Long dictionaryId,
+                                                                   DictionaryAttributeScopeType editingScope,
+                                                                   Long organizationId, Long departmentId) {
+        DictionaryDefinition dictionary = requireVisibleDictionary(dictionaryId);
+        ExecutionContext context = current();
+        Scope editing = scope(editingScope, organizationId, departmentId, context);
+        List<DictionaryItem> items = itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(dictionary.id());
+        if (items.isEmpty()) return List.of();
+        List<DictionaryAttributeDefinition> definitions = attributeRepository
+                .findByDictionaryIdOrderByNameAscCodeAsc(dictionary.id());
+        List<DictionaryItemAttributeValue> values = valueRepository
+                .findByDictionaryItemIdInAndStatusOrderByDictionaryItemIdAscAttributeDefinitionIdAscValueOrderAsc(
+                        items.stream().map(DictionaryItem::id).toList(), DictionaryStatus.ACTIVE);
+        Map<Long, Map<Long, List<DictionaryItemAttributeValue>>> valuesByItemAndDefinition = new HashMap<>();
+        for (DictionaryItemAttributeValue value : values) {
+            valuesByItemAndDefinition
+                    .computeIfAbsent(value.dictionaryItemId(), ignored -> new HashMap<>())
+                    .computeIfAbsent(value.attributeDefinitionId(), ignored -> new ArrayList<>())
+                    .add(value);
+        }
+        return items.stream().map(item -> {
+            Map<Long, List<DictionaryItemAttributeValue>> itemValues = valuesByItemAndDefinition
+                    .getOrDefault(item.id(), Map.of());
+            List<ItemAttributeView> attributes = definitions.stream().map(definition -> {
+                List<DictionaryItemAttributeValue> all = itemValues.getOrDefault(definition.id(), List.of());
+                AttributeValueSetView configured = valueSet(all.stream()
+                        .filter(value -> value.scopeCode().equals(editing.code())).toList(), definition);
+                AttributeValueSetView resolved = resolvedValueSet(all, definition,
+                        editing.organizationId(), editing.departmentId(), context.tenantId(), false);
+                return new ItemAttributeView(definitionView(definition), configured, resolved,
+                        configured == null && resolved != null);
+            }).toList();
+            return new ItemAttributeConfigurationView(dictionary.id(), item.id(), item.code(), item.name(),
+                    editing.type(), editing.code(), attributes);
+        }).toList();
     }
 
     @Transactional
@@ -458,14 +500,17 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
         DictionaryAttributeScopeType actual = type == null ? deepestContextScope(context) : type;
         Long organization = organizationId == null ? context.organizationId() : organizationId;
         Long department = departmentId == null ? context.departmentId() : departmentId;
-        if (actual == DictionaryAttributeScopeType.ORGANIZATION
-                && (organization == null || !context.canAccessOrganization(organization))) {
-            throw badRequest("DICTIONARY_ATTRIBUTE_ORGANIZATION_REQUIRED", "机构作用域需要选择当前可访问机构");
+        if (actual == DictionaryAttributeScopeType.ORGANIZATION) {
+            if (organization == null) {
+                throw badRequest("DICTIONARY_ATTRIBUTE_ORGANIZATION_REQUIRED", "机构作用域需要选择目标机构");
+            }
+            organizationDirectory.requireOrganization(context.tenantId(), organization);
         }
-        if (actual == DictionaryAttributeScopeType.DEPARTMENT
-                && (organization == null || department == null || !context.canAccessOrganization(organization)
-                || !context.canAccessDepartment(department))) {
-            throw badRequest("DICTIONARY_ATTRIBUTE_DEPARTMENT_REQUIRED", "科室作用域需要选择当前可访问科室");
+        if (actual == DictionaryAttributeScopeType.DEPARTMENT) {
+            if (organization == null || department == null) {
+                throw badRequest("DICTIONARY_ATTRIBUTE_DEPARTMENT_REQUIRED", "科室作用域需要选择所属机构和目标科室");
+            }
+            organizationDirectory.requireDepartment(context.tenantId(), organization, department);
         }
         return scopeOf(actual, actual == DictionaryAttributeScopeType.PLATFORM ? null : context.tenantId(),
                 actual.depth() >= DictionaryAttributeScopeType.ORGANIZATION.depth() ? organization : null,
@@ -609,7 +654,7 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
 
     private String scopeLabel(DictionaryAttributeScopeType scope) {
         return switch (scope) {
-            case PLATFORM -> "平台";
+            case PLATFORM -> "全局";
             case TENANT -> "租户";
             case ORGANIZATION -> "机构";
             case DEPARTMENT -> "科室";

@@ -13,6 +13,53 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
 
     @Test
+    void isolates_laboratory_and_examination_configuration_and_locks_service_type() throws Exception {
+        JsonNode laboratoryItems = json(mockMvc.perform(get("/api/platform/master-data/services")
+                        .param("query", "SRV-CBC").with(rhn()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode laboratoryItem = laboratoryItems.get(0);
+
+        mockMvc.perform(put("/api/platform/master-data/services/{id}", laboratoryItem.get("id").asText())
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"expectedRevision":%d,"code":"%s","name":"%s",
+                         "orderable":%s,"chargeable":%s,"sdStatus":"%s",
+                         "validFrom":"%s","sdServiceType":"EXAMINATION",
+                         "sdUsageType":"%s","medicalTechnology":%s,
+                         "combinationItem":%s,"singleOrder":%s,"pregnancyAlert":%s}
+                        """.formatted(laboratoryItem.get("revision").asLong(),
+                                laboratoryItem.get("code").asText(), laboratoryItem.get("name").asText(),
+                                laboratoryItem.get("orderable").asBoolean(), laboratoryItem.get("chargeable").asBoolean(),
+                                laboratoryItem.get("sdStatus").asText(), laboratoryItem.get("validFrom").asText(),
+                                laboratoryItem.get("sdUsageType").asText(), laboratoryItem.get("medicalTechnology").asBoolean(),
+                                laboratoryItem.get("combinationItem").asBoolean(), laboratoryItem.get("singleOrder").asBoolean(),
+                                laboratoryItem.get("pregnancyAlert").asBoolean())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SERVICE_TYPE_IMMUTABLE"));
+
+        mockMvc.perform(put("/api/platform/master-data/operations/services/362387869795101/examination-profile")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"expectedRevision":0,"bodySiteRequired":true,"multiBodySite":false}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SERVICE_TYPE_MISMATCH"));
+
+        mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795103/specimens")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"specimenItemId":"362387869797111","defaultSpecimen":false,
+                         "requiredSpecimen":false,"sortOrder":90,"status":"ACTIVE"}
+                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SERVICE_TYPE_MISMATCH"));
+
+        mockMvc.perform(get("/api/platform/master-data/operations/services/362387869795101/clinical-configuration")
+                        .with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.serviceType").value("LABORATORY"))
+                .andExpect(jsonPath("$.laboratory").exists())
+                .andExpect(jsonPath("$.examination").doesNotExist());
+    }
+
+    @Test
     void resolves_multi_site_attachments_tube_split_and_tube_surcharge() throws Exception {
         JsonNode examination = json(mockMvc.perform(get(
                         "/api/platform/master-data/operations/services/362387869795103/clinical-configuration").with(rhn()))

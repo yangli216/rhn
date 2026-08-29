@@ -2,6 +2,8 @@ package com.rhn.outpatient.scheduling;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 
 import java.time.Instant;
@@ -25,8 +27,30 @@ interface ScheduleGenerationRunRepository extends JpaRepository<ScheduleGenerati
 
 interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule, Long> {
     Optional<ServiceSchedule> findByIdAndTenantId(Long id, Long tenantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select value from ServiceSchedule value where value.id = :id and value.tenantId = :tenantId")
+    Optional<ServiceSchedule> findWithLockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
     boolean existsByTenantIdAndResourceIdAndStartAtAndEndAt(
             Long tenantId, Long resourceId, Instant startAt, Instant endAt);
+
+    @Query("""
+            select count(value) from ServiceSchedule value
+            where value.tenantId = :tenantId
+              and value.practitionerId = :practitionerId
+              and value.serviceDate = :serviceDate
+              and value.id <> :excludedId
+              and value.status in ('PUBLISHED', 'SUSPENDED')
+              and value.startAt < :endAt
+              and value.endAt > :startAt
+            """)
+    long countPractitionerOverlaps(@Param("tenantId") Long tenantId,
+                                   @Param("practitionerId") Long practitionerId,
+                                   @Param("serviceDate") LocalDate serviceDate,
+                                   @Param("excludedId") Long excludedId,
+                                   @Param("startAt") Instant startAt,
+                                   @Param("endAt") Instant endAt);
 
     List<ServiceSchedule> findByTenantIdAndGenerationRunIdOrderByStartAt(
             Long tenantId, Long generationRunId);
@@ -42,7 +66,21 @@ interface ScheduleSlotPoolRepository extends JpaRepository<ScheduleSlotPool, Lon
     Optional<ScheduleSlotPool> findByTenantIdAndScheduleId(Long tenantId, Long scheduleId);
 }
 
-interface ServiceScheduleEventRepository extends JpaRepository<ServiceScheduleEvent, Long> {}
+interface ScheduleSlotHoldRepository extends JpaRepository<ScheduleSlotHold, Long> {
+    Optional<ScheduleSlotHold> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
+    Optional<ScheduleSlotHold> findByIdAndTenantId(Long id, Long tenantId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select value from ScheduleSlotHold value where value.id = :id and value.tenantId = :tenantId")
+    Optional<ScheduleSlotHold> findWithLockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
+    List<ScheduleSlotHold> findByTenantIdAndSlotPoolIdAndStatusAndExpiresAtBefore(
+            Long tenantId, Long poolId, String status, Instant expiresAt);
+}
+
+interface ServiceScheduleEventRepository extends JpaRepository<ServiceScheduleEvent, Long> {
+    boolean existsByTenantIdAndScheduleIdAndCommandCode(Long tenantId, Long scheduleId, String commandCode);
+}
 
 interface SlotEventRepository extends JpaRepository<SlotEvent, Long> {
     Optional<SlotEvent> findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(Long tenantId, Long poolId);

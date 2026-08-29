@@ -24,16 +24,40 @@ public final class BillingViews {
             BigDecimal paidAmount, BigDecimal outstandingAmount, Instant issuedAt, Long issuedBy,
             List<InvoiceLineView> lines) {}
 
+    public record SettlementLineView(
+            Long id, Long chargeItemId, int lineNo, BigDecimal settledQuantity,
+            BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
+            BigDecimal patientAmount, BigDecimal otherAmount, BigDecimal netAmount) {}
+
+    public record SettlementTenderView(
+            Long id, Long paymentId, Long claimResponseId, int lineNo, String tenderType, String payerCode,
+            String payerName, BigDecimal amount, String currencyCode) {}
+
+    public record SettlementEventView(
+            Long id, String eventType, String statusFrom, String statusTo, String commandCode,
+            Long actorId, String errorCode, String errorMessage, Instant occurredAt) {}
+
+    public record SettlementView(
+            Long id, long revision, Long patientAccountId, Long reversesSettlementId,
+            Long legacyInvoiceId, String settlementNo, String commandCode, String settlementType,
+            String settlementScene, String terminalScene, String status, BigDecimal grossAmount,
+            BigDecimal discountAmount, BigDecimal insuranceAmount, BigDecimal patientAmount,
+            BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
+            BigDecimal tenderedAmount, BigDecimal outstandingAmount, String currencyCode,
+            String terminalCode, Long createdBy, Instant createdAt, Long finalizedBy, Instant finalizedAt,
+            String errorCode, String errorMessage, List<SettlementLineView> lines,
+            List<SettlementTenderView> tenders, List<SettlementEventView> events) {}
+
     public record PaymentView(
-            Long id, Long patientAccountId, Long invoiceId, String paymentNo, String paymentType,
-            String paymentMethodCode, String status, BigDecimal amount, String currencyCode,
+            Long id, Long patientAccountId, Long invoiceId, Long paymentOrderId, String paymentNo, String paymentType,
+            String paymentMethodCode, String paymentSceneCode, String status, BigDecimal amount, String currencyCode,
             Instant paidAt, String externalTransactionNo, Long reversesPaymentId,
             Long enteredBy, String description) {}
 
     public record LedgerEntryView(
             Long id, Long patientAccountId, String entryType, String direction, BigDecimal amount,
             String currencyCode, Long chargeItemId, Long invoiceId, Long paymentId,
-            Long reversesLedgerEntryId, Instant occurredAt, Instant recordedAt, Long recordedBy) {}
+            Long claimResponseId, Long reversesLedgerEntryId, Instant occurredAt, Instant recordedAt, Long recordedBy) {}
 
     public record AccountStatementView(
             Long accountId, long revision, Long residentId, Long encounterId, Long organizationId,
@@ -41,7 +65,8 @@ public final class BillingViews {
             BigDecimal chargeAmount, BigDecimal invoicedAmount, BigDecimal uninvoicedAmount,
             BigDecimal paymentAmount, BigDecimal refundAmount, BigDecimal accountBalance,
             List<ChargeItemView> charges, List<InvoiceView> invoices,
-            List<PaymentView> payments, List<LedgerEntryView> ledgerEntries) {}
+            List<SettlementView> settlements, List<PaymentView> payments,
+            List<LedgerEntryView> ledgerEntries) {}
 
     public record ChargeSynchronizationView(
             int createdCharges, int existingCharges, AccountStatementView statement) {}

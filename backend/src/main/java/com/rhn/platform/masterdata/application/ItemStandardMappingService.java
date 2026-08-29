@@ -9,12 +9,9 @@ import com.rhn.platform.masterdata.domain.ItemAttributeSubject;
 import com.rhn.platform.masterdata.domain.ItemTermMapping;
 import com.rhn.platform.masterdata.infrastructure.ItemAttributeSubjectRepository;
 import com.rhn.platform.masterdata.infrastructure.ItemTermMappingRepository;
-import com.rhn.platform.terminology.domain.CodeSystem;
-import com.rhn.platform.terminology.domain.Concept;
-import com.rhn.platform.terminology.domain.TerminologyScope;
-import com.rhn.platform.terminology.domain.TerminologyStatus;
-import com.rhn.platform.terminology.infrastructure.CodeSystemRepository;
-import com.rhn.platform.terminology.infrastructure.ConceptRepository;
+import com.rhn.platform.terminology.api.CodeSystemSnapshot;
+import com.rhn.platform.terminology.api.ConceptSnapshot;
+import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -41,19 +38,16 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
 
     private final ItemAttributeSubjectRepository subjectRepository;
     private final ItemTermMappingRepository mappingRepository;
-    private final CodeSystemRepository codeSystemRepository;
-    private final ConceptRepository conceptRepository;
+    private final TerminologyDirectory terminologyDirectory;
     private final ExecutionContextProvider contextProvider;
 
     public ItemStandardMappingService(ItemAttributeSubjectRepository subjectRepository,
                                       ItemTermMappingRepository mappingRepository,
-                                      CodeSystemRepository codeSystemRepository,
-                                      ConceptRepository conceptRepository,
+                                      TerminologyDirectory terminologyDirectory,
                                       ExecutionContextProvider contextProvider) {
         this.subjectRepository = subjectRepository;
         this.mappingRepository = mappingRepository;
-        this.codeSystemRepository = codeSystemRepository;
-        this.conceptRepository = conceptRepository;
+        this.terminologyDirectory = terminologyDirectory;
         this.contextProvider = contextProvider;
     }
 
@@ -62,16 +56,16 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
                                                         LocalDate businessDate) {
         ExecutionContext context = current();
         String normalized = normalizeQuery(query);
-        return codeSystemRepository.findAll().stream()
+        return terminologyDirectory.listCodeSystems().stream()
                 .filter(value -> visible(context.tenantId(), value))
-                .filter(value -> value.status() == TerminologyStatus.ACTIVE)
+                .filter(value -> "ACTIVE".equals(value.status()))
                 .filter(value -> blank(systemType) || systemType.equals(value.systemType()))
                 .filter(value -> blank(authorityType) || authorityType.equals(value.authorityType()))
                 .filter(value -> businessDate == null || value.isEffectiveAt(businessDate))
                 .filter(value -> normalized.isBlank() || contains(value.code(), normalized)
                         || contains(value.name(), normalized) || contains(value.publisher(), normalized))
-                .sorted(Comparator.comparing(CodeSystem::authorityType).thenComparing(CodeSystem::name)
-                        .thenComparing(CodeSystem::versionCode).reversed())
+                .sorted(Comparator.comparing(CodeSystemSnapshot::authorityType).thenComparing(CodeSystemSnapshot::name)
+                        .thenComparing(CodeSystemSnapshot::versionCode).reversed())
                 .map(this::systemView)
                 .toList();
     }
@@ -79,10 +73,10 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
     @Transactional(readOnly = true)
     public List<StandardTermView> listTerms(Long codeSystemId, String query, LocalDate businessDate) {
         ExecutionContext context = current();
-        CodeSystem system = requireVisibleSystem(context.tenantId(), codeSystemId);
+        CodeSystemSnapshot system = requireVisibleSystem(context.tenantId(), codeSystemId);
         String normalized = normalizeQuery(query);
-        return conceptRepository.findByCodeSystemIdInOrderByDisplay(List.of(codeSystemId)).stream()
-                .filter(value -> value.status() == TerminologyStatus.ACTIVE)
+        return terminologyDirectory.listConcepts(codeSystemId).stream()
+                .filter(value -> "ACTIVE".equals(value.status()))
                 .filter(value -> businessDate == null || value.isEffectiveAt(businessDate))
                 .filter(value -> normalized.isBlank() || contains(value.code(), normalized)
                         || contains(value.display(), normalized) || contains(value.shortDisplay(), normalized)
@@ -128,10 +122,10 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
         ExecutionContext context = current();
         requireCommand(mappingType, equivalence, validFrom, validTo);
         ItemAttributeSubject subject = requireSubject(context.tenantId(), subjectType, targetId);
-        Concept concept = conceptRepository.findById(conceptId)
+        ConceptSnapshot concept = terminologyDirectory.findConcept(conceptId)
                 .orElseThrow(() -> notFound("STANDARD_TERM_NOT_FOUND", "未找到标准术语"));
-        CodeSystem system = requireVisibleSystem(context.tenantId(), concept.codeSystemId());
-        if (concept.status() != TerminologyStatus.ACTIVE || system.status() != TerminologyStatus.ACTIVE) {
+        CodeSystemSnapshot system = requireVisibleSystem(context.tenantId(), concept.codeSystemId());
+        if (!"ACTIVE".equals(concept.status()) || !"ACTIVE".equals(system.status())) {
             throw badRequest("ITEM_MAPPING_STANDARD_INACTIVE", "只能映射到已启用的编码发布版和标准术语");
         }
         requireEffectiveRange(system, concept, validFrom, validTo);
@@ -171,15 +165,15 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
         return maintenance(subject.subjectType(), targetId(subject), LocalDate.now());
     }
 
-    private void requireNoConflict(List<ItemTermMapping> mappings, ItemTermMapping replaced, CodeSystem requestedSystem,
+    private void requireNoConflict(List<ItemTermMapping> mappings, ItemTermMapping replaced, CodeSystemSnapshot requestedSystem,
                                    Long conceptId, String mappingType, boolean primaryMapping,
                                    LocalDate validFrom, LocalDate validTo) {
-        Map<Long, Concept> concepts = conceptRepository.findAllById(mappings.stream()
+        Map<Long, ConceptSnapshot> concepts = terminologyDirectory.findConcepts(mappings.stream()
                         .map(ItemTermMapping::conceptId).collect(Collectors.toSet())).stream()
-                .collect(Collectors.toMap(Concept::id, Function.identity()));
-        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(concepts.values().stream()
-                        .map(Concept::codeSystemId).collect(Collectors.toSet())).stream()
-                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+                .collect(Collectors.toMap(ConceptSnapshot::id, Function.identity()));
+        Map<Long, CodeSystemSnapshot> systems = terminologyDirectory.findCodeSystems(concepts.values().stream()
+                        .map(ConceptSnapshot::codeSystemId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(CodeSystemSnapshot::id, Function.identity()));
         for (ItemTermMapping value : mappings) {
             if (replaced != null && value.id().equals(replaced.id())) continue;
             if (!value.mappingType().equals(mappingType)
@@ -187,8 +181,8 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
             if (value.conceptId().equals(conceptId)) {
                 throw conflict("ITEM_MAPPING_PERIOD_OVERLAP", "同一标准术语在该有效期内已经建立映射");
             }
-            Concept existingConcept = concepts.get(value.conceptId());
-            CodeSystem existingSystem = existingConcept == null ? null : systems.get(existingConcept.codeSystemId());
+            ConceptSnapshot existingConcept = concepts.get(value.conceptId());
+            CodeSystemSnapshot existingSystem = existingConcept == null ? null : systems.get(existingConcept.codeSystemId());
             if (primaryMapping && value.primaryMapping() && existingSystem != null
                     && existingSystem.code().equals(requestedSystem.code())) {
                 throw conflict("ITEM_MAPPING_PRIMARY_OVERLAP", "同一标准体系和用途在该有效期内只能有一个主要映射");
@@ -196,7 +190,7 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
         }
     }
 
-    private void requireEffectiveRange(CodeSystem system, Concept concept, LocalDate from, LocalDate to) {
+    private void requireEffectiveRange(CodeSystemSnapshot system, ConceptSnapshot concept, LocalDate from, LocalDate to) {
         LocalDate availableFrom = system.effectiveFrom().isAfter(concept.effectiveFrom())
                 ? system.effectiveFrom() : concept.effectiveFrom();
         LocalDate availableTo = earliest(system.effectiveTo(), concept.effectiveTo());
@@ -226,16 +220,16 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
     private List<ItemTermMappingView> views(Long tenantId, ItemAttributeSubject subject,
                                             List<ItemTermMapping> mappings) {
         if (mappings.isEmpty()) return List.of();
-        Map<Long, Concept> concepts = conceptRepository.findAllById(mappings.stream()
+        Map<Long, ConceptSnapshot> concepts = terminologyDirectory.findConcepts(mappings.stream()
                         .map(ItemTermMapping::conceptId).collect(Collectors.toSet())).stream()
-                .collect(Collectors.toMap(Concept::id, Function.identity()));
-        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(concepts.values().stream()
-                        .map(Concept::codeSystemId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(ConceptSnapshot::id, Function.identity()));
+        Map<Long, CodeSystemSnapshot> systems = terminologyDirectory.findCodeSystems(concepts.values().stream()
+                        .map(ConceptSnapshot::codeSystemId).collect(Collectors.toSet())).stream()
                 .filter(value -> visible(tenantId, value))
-                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+                .collect(Collectors.toMap(CodeSystemSnapshot::id, Function.identity()));
         return mappings.stream().map(value -> {
-            Concept concept = concepts.get(value.conceptId());
-            CodeSystem system = concept == null ? null : systems.get(concept.codeSystemId());
+            ConceptSnapshot concept = concepts.get(value.conceptId());
+            CodeSystemSnapshot system = concept == null ? null : systems.get(concept.codeSystemId());
             if (concept == null || system == null) throw new IllegalStateException("标准映射引用的术语发布版不存在");
             return new ItemTermMappingView(value.id(), value.revision(), subject.id(), subject.subjectType(),
                     targetId(subject), concept.id(), system.id(), system.code(), system.name(), system.versionCode(),
@@ -256,26 +250,26 @@ public class ItemStandardMappingService implements ItemStandardMappingDirectory 
                 .orElseThrow(() -> notFound("ITEM_MAPPING_SUBJECT_NOT_FOUND", "未找到需要维护标准映射的基础数据"));
     }
 
-    private CodeSystem requireVisibleSystem(Long tenantId, Long id) {
-        return codeSystemRepository.findById(id).filter(value -> visible(tenantId, value))
+    private CodeSystemSnapshot requireVisibleSystem(Long tenantId, Long id) {
+        return terminologyDirectory.findCodeSystem(id).filter(value -> visible(tenantId, value))
                 .orElseThrow(() -> notFound("STANDARD_CODE_SYSTEM_NOT_FOUND", "未找到可用的标准编码发布版"));
     }
 
-    private boolean visible(Long tenantId, CodeSystem value) {
-        return value.scopeType() == TerminologyScope.PRODUCT
-                || (value.scopeType() == TerminologyScope.TENANT && tenantId.equals(value.scopeId()));
+    private boolean visible(Long tenantId, CodeSystemSnapshot value) {
+        return "PRODUCT".equals(value.scopeType())
+                || ("TENANT".equals(value.scopeType()) && tenantId.equals(value.scopeId()));
     }
 
-    private StandardCodeSystemView systemView(CodeSystem value) {
+    private StandardCodeSystemView systemView(CodeSystemSnapshot value) {
         return new StandardCodeSystemView(value.id(), value.code(), value.name(), value.versionCode(),
-                value.systemType(), value.authorityType(), value.publisher(), value.status().name(),
+                value.systemType(), value.authorityType(), value.publisher(), value.status(),
                 value.effectiveFrom(), value.effectiveTo(), value.canonicalUri(), value.sourceUri(), value.contentHash());
     }
 
-    private StandardTermView termView(Concept value, CodeSystem system) {
+    private StandardTermView termView(ConceptSnapshot value, CodeSystemSnapshot system) {
         return new StandardTermView(value.id(), system.id(), system.code(), system.name(), system.versionCode(),
                 system.authorityType(), value.code(), value.display(), value.shortDisplay(), value.conceptType(),
-                value.status().name(), value.effectiveFrom(), value.effectiveTo());
+                value.status(), value.effectiveFrom(), value.effectiveTo());
     }
 
     private boolean effectiveAt(ItemTermMappingView value, LocalDate date) {

@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F8FBFA"/><stop offset="1" stop-color="#EEF5F3"/>
+    </linearGradient>
+    <linearGradient id="hero" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#125F59"/><stop offset="1" stop-color="#1C8278"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#173B3A" flood-opacity="0.09"/>
+    </filter>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6D918C"/>
+    </marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#15756C"/>
+    </marker>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1810" cy="-30" r="250" fill="#D9EEEA" opacity="0.55"/>
+  <circle cx="45" cy="1050" r="220" fill="#E2F1EE" opacity="0.65"/>
+  <g font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+    <text x="72" y="68" font-size="18" font-weight="700" letter-spacing="2" fill="#15756C">健域智枢 · REGIONAL HEALTH NEXUS</text>
+    <text x="72" y="119" font-size="42" font-weight="760" fill="#173B3A">整体架构图</text>
+    <text x="72" y="153" font-size="18" fill="#667B79">从使用角色到业务域、共享平台、数据与外部协同的全景视图</text>
+    <rect x="1646" y="66" width="202" height="42" rx="21" fill="#CDEAE5"/>
+    <text x="1747" y="93" text-anchor="middle" font-size="16" font-weight="700" fill="#15756C">CURRENT LANDSCAPE</text><rect x="72" y="184" width="40" height="40" rx="12" fill="#15756C" stroke="none" stroke-width="1.5"  />
+    <text x="92" y="211" text-anchor="middle" font-size="16" font-weight="800" letter-spacing="0" fill="#FFFFFF">01</text>
+    <text x="128" y="202" text-anchor="start" font-size="19" font-weight="760" letter-spacing="0" fill="#173B3A">使用者与工作入口</text>
+    <text x="128" y="223" text-anchor="start" font-size="13" font-weight="500" letter-spacing="0" fill="#667B79">按岗位进入统一门户，携带受信机构 / 科室工作上下文</text><rect x="72" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="90" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">居民 / 患者</text><text x="90" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">建档 · 就诊 · 支付</text><rect x="368" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="386" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">医生 / 护士</text><text x="386" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">接诊 · 医嘱 · 随访</text><rect x="664" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="682" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">药师 / 库管</text><text x="682" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">审方 · 发药 · 库存</text><rect x="960" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="978" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">收费 / 财务</text><text x="978" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">结算 · 票据 · 对账</text><rect x="1256" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="1274" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">公卫人员</text><text x="1274" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">筛查 · 任务 · 照护</text><rect x="1552" y="246" width="266" height="74" rx="16" fill="#FFFFFF" stroke="#D4E2DF" stroke-width="1.5"  /><text x="1570" y="274" text-anchor="start" font-size="17" font-weight="720" letter-spacing="0" fill="#173B3A">平台管理员</text><text x="1570" y="300" text-anchor="start" font-size="13.5" font-weight="500" letter-spacing="0" fill="#667B79">组织 · 主数据 · 配置</text><rect x="72" y="347" width="1776" height="76" rx="20" fill="url(#hero)" filter="url(#shadow)"/><text x="112" y="380" text-anchor="start" font-size="22" font-weight="760" letter-spacing="0" fill="#FFFFFF">统一工作门户</text><text x="112" y="405" text-anchor="start" font-size="14.5" font-weight="500" letter-spacing="0" fill="#CFEAE6">工作台 · 多标签页 · 任务与通知 · 岗位菜单 · 个人工作区</text><rect x="1335" y="368" width="142" height="34" rx="17" fill="#2B8A80" stroke="none" stroke-width="1.5"  /><text x="1406" y="391" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#FFFFFF">租户上下文</text><rect x="1491" y="368" width="142" height="34" rx="17" fill="#2B8A80" stroke="none" stroke-width="1.5"  /><text x="1562" y="391" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#FFFFFF">机构上下文</text><rect x="1647" y="368" width="166" height="34" rx="17" fill="#2B8A80" stroke="none" stroke-width="1.5"  /><text x="1730" y="391" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#FFFFFF">科室类型上下文</text><rect x="72" y="456" width="40" height="40" rx="12" fill="#15756C" stroke="none" stroke-width="1.5"  />
+    <text x="92" y="483" text-anchor="middle" font-size="16" font-weight="800" letter-spacing="0" fill="#FFFFFF">02</text>
+    <text x="128" y="474" text-anchor="start" font-size="19" font-weight="760" letter-spacing="0" fill="#173B3A">核心业务域</text>
+    <text x="128" y="495" text-anchor="start" font-size="13" font-weight="500" letter-spacing="0" fill="#667B79">围绕居民形成门诊诊疗、执行、费用和连续照护闭环</text><rect x="72" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="72" y="520" width="8" height="134" rx="4" fill="#15756C"/>
+    <rect x="246" y="538" width="70" height="34" rx="17" fill="#E4F3F0" stroke="none" stroke-width="1.5"  /><text x="281" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#15756C">RUN</text>
+    <text x="96" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#15756C">居民健康域</text>
+    <text x="96" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="96" dy="0">MPI 主索引与多标识</tspan><tspan x="96" dy="23">档案 / 过敏 / 健康时间轴</tspan></text><rect x="368" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="368" y="520" width="8" height="134" rx="4" fill="#3878A6"/>
+    <rect x="542" y="538" width="70" height="34" rx="17" fill="#E8F1F7" stroke="none" stroke-width="1.5"  /><text x="577" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#3878A6">RUN</text>
+    <text x="392" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#3878A6">门诊医疗域</text>
+    <text x="392" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="392" dy="0">排班号源 / 挂号候诊</tspan><tspan x="392" dy="23">接诊 / 病历 / 诊断 / 医嘱</tspan></text><rect x="664" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="664" y="520" width="8" height="134" rx="4" fill="#765B9E"/>
+    <rect x="838" y="538" width="70" height="34" rx="17" fill="#F0EBF7" stroke="none" stroke-width="1.5"  /><text x="873" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#765B9E">RUN</text>
+    <text x="688" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#765B9E">检查检验域</text>
+    <text x="688" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="688" dy="0">申请与执行配置</tspan><tspan x="688" dy="23">LIS / PACS 交换与报告</tspan></text><rect x="960" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="960" y="520" width="8" height="134" rx="4" fill="#B87822"/>
+    <rect x="1134" y="538" width="70" height="34" rx="17" fill="#F8EDDC" stroke="none" stroke-width="1.5"  /><text x="1169" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#B87822">RUN</text>
+    <text x="984" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#B87822">药事供应域</text>
+    <text x="984" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="984" dy="0">审方 / 发退药 / 追溯</tspan><tspan x="984" dy="23">采购 / 库房 / 库存台账</tspan></text><rect x="1256" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="1256" y="520" width="8" height="134" rx="4" fill="#B95F54"/>
+    <rect x="1430" y="538" width="70" height="34" rx="17" fill="#F9EAE7" stroke="none" stroke-width="1.5"  /><text x="1465" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#B95F54">RUN</text>
+    <text x="1280" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#B95F54">费用结算域</text>
+    <text x="1280" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="1280" dy="0">计费 / 收退款 / 票据</tspan><tspan x="1280" dy="23">医保 / 日结 / 渠道对账</tspan></text><rect x="1552" y="520" width="266" height="134" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="1552" y="520" width="8" height="134" rx="4" fill="#506B78"/>
+    <rect x="1726" y="538" width="70" height="34" rx="17" fill="#EAF0F2" stroke="none" stroke-width="1.5"  /><text x="1761" y="561" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0" fill="#506B78">M4</text>
+    <text x="1576" y="559" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#506B78">医防协同域</text>
+    <text x="1576" y="592" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="1576" dy="0">高血压筛查 / 照护计划</tspan><tspan x="1576" dy="23">任务 / 随访 / 异常回流</tspan></text><rect x="72" y="688" width="40" height="40" rx="12" fill="#15756C" stroke="none" stroke-width="1.5"  />
+    <text x="92" y="715" text-anchor="middle" font-size="16" font-weight="800" letter-spacing="0" fill="#FFFFFF">03</text>
+    <text x="128" y="706" text-anchor="start" font-size="19" font-weight="760" letter-spacing="0" fill="#173B3A">共享平台能力</text>
+    <text x="128" y="727" text-anchor="start" font-size="13" font-weight="500" letter-spacing="0" fill="#667B79">业务模块通过公开 API 复用，不直接访问其他模块数据</text><rect x="72" y="752" width="420" height="118" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="72" y="752" width="8" height="118" rx="4" fill="#15756C"/>
+
+    <text x="96" y="791" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#15756C">组织、身份与工作上下文</text>
+    <text x="96" y="824" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="96" dy="0">租户 / 机构 / 科室 / 人员 / 任职</tspan><tspan x="96" dy="23">IAM · 数据范围 · 同类科室单有效上下文</tspan></text><rect x="512" y="752" width="420" height="118" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="512" y="752" width="8" height="118" rx="4" fill="#3878A6"/>
+
+    <text x="536" y="791" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#3878A6">基础数据与配置中心</text>
+    <text x="536" y="824" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="536" dy="0">字典 / 术语 / 参数 / 地址</tspan><tspan x="536" dy="23">诊疗项目 / 药品 / 耗材 / 属性 / 组套</tspan></text><rect x="952" y="752" width="420" height="118" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="952" y="752" width="8" height="118" rx="4" fill="#765B9E"/>
+
+    <text x="976" y="791" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#765B9E">协同与可信底座</text>
+    <text x="976" y="824" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="976" dy="0">任务 / 通知 / 领域事件 / Outbox</tspan><tspan x="976" dy="23">幂等 / 审计 / 密码证据 / 受控打印</tspan></text><rect x="1392" y="752" width="456" height="118" rx="18" fill="#FFFFFF" stroke="#D6E2E0" stroke-width="1.5"  filter="url(#shadow)"/>
+    <rect x="1392" y="752" width="8" height="118" rx="4" fill="#B87822"/>
+
+    <text x="1416" y="791" text-anchor="start" font-size="20" font-weight="760" letter-spacing="0" fill="#B87822">集成与交换</text>
+    <text x="1416" y="824" text-anchor="start" font-size="14.5" font-weight="450" fill="#667B79"><tspan x="1416" dy="0">外部消息 / 业务回执 / 版本化契约</tspan><tspan x="1416" dy="23">支付 · 医保 · LIS / PACS · 区域平台</tspan></text><rect x="72" y="902" width="40" height="40" rx="12" fill="#15756C" stroke="none" stroke-width="1.5"  />
+    <text x="92" y="929" text-anchor="middle" font-size="16" font-weight="800" letter-spacing="0" fill="#FFFFFF">04</text>
+    <text x="128" y="920" text-anchor="start" font-size="19" font-weight="760" letter-spacing="0" fill="#173B3A">数据与运行基础</text>
+    <text x="128" y="941" text-anchor="start" font-size="13" font-weight="500" letter-spacing="0" fill="#667B79">模块拥有数据、统一迁移、多数据库适配</text><rect x="72" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="88" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">PostgreSQL 17 / Oracle 19c</text><text x="88" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">生产持久化</text><rect x="368" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="384" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">H2 兼容模式</text><text x="384" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">自动化测试</text><rect x="664" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="680" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">Flyway V1–V66</text><text x="680" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">双库增量迁移</text><rect x="960" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="976" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">OpenAPI 契约</text><text x="976" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">前后端类型同步</text><rect x="1256" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="1272" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">Actuator / Metrics</text><text x="1272" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">健康与运行指标</text><rect x="1552" y="964" width="266" height="58" rx="14" fill="#EEF4F3" stroke="#D4E0DE" stroke-width="1.5"  /><text x="1568" y="987" text-anchor="start" font-size="14.5" font-weight="720" letter-spacing="0" fill="#173B3A">PDF / Excel</text><text x="1568" y="1008" text-anchor="start" font-size="12.5" font-weight="500" letter-spacing="0" fill="#667B79">受控输出与导入</text><text x="72" y="1042" font-size="14" fill="#78908D">依据：README、模块目录与依赖规则、建设路线图、数据库迁移 V1–V66</text>
+    <text x="1848" y="1042" text-anchor="end" font-size="14" font-weight="650" fill="#78908D">RHN · 2026.08</text>
+  </g>
+</svg>

@@ -4,7 +4,6 @@ import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.organization.api.DepartmentExtensionSynchronizer;
 import com.rhn.platform.organization.api.DepartmentView;
-import com.rhn.platform.organization.domain.OrganizationStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -41,7 +40,7 @@ public class PharmacyDepartmentExtensionSynchronizer implements DepartmentExtens
         InventoryProfile effectiveProfile = profile == null
                 ? new InventoryProfile(existing.siteType(), existing.serviceScope()) : profile;
         existing.synchronizeDepartment(department.code(), department.name(), effectiveProfile.siteType(),
-                effectiveProfile.serviceScope(), profile != null && department.sdOrgStatus() == OrganizationStatus.ACTIVE,
+                effectiveProfile.serviceScope(), profile != null && "ACTIVE".equals(department.sdOrgStatus()),
                 department.validFrom(), department.validTo(), actorId);
         repository.saveAndFlush(existing);
     }

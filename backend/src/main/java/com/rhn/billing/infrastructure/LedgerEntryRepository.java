@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
     Optional<LedgerEntry> findByTenantIdAndChargeItemId(Long tenantId, Long chargeItemId);
     Optional<LedgerEntry> findByTenantIdAndPaymentId(Long tenantId, Long paymentId);
+    Optional<LedgerEntry> findByTenantIdAndClaimResponseIdAndEntryType(
+            Long tenantId, Long claimResponseId, String entryType);
+    boolean existsByTenantIdAndClaimResponseIdAndEntryType(Long tenantId, Long claimResponseId, String entryType);
     List<LedgerEntry> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);
 
     @Query("""

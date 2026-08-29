@@ -27,7 +27,7 @@ class RhnOpenApiConfiguration {
     @Bean
     OpenAPI rhnOpenApi() {
         return new OpenAPI()
-                .info(new Info().title("RHN Application API").version("1.24.0")
+                .info(new Info().title("RHN Application API").version("1.27.0")
                         .description("健域智枢模块化单体正式接口契约"))
                 .servers(List.of(new Server().url("/").description("当前部署地址")))
                 .components(new Components().addSecuritySchemes("basicAuth", new SecurityScheme()

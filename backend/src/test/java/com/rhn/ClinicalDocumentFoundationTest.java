@@ -32,7 +32,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String encounterId = objectMapper.readTree(encounterBody).get("id").asText();
-        mockMvc.perform(post("/api/encounters/{id}/start", encounterId).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
 
         saveOutpatientNote(encounterId, "头晕一周");
@@ -54,7 +54,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .filter(node -> encounterId.equals(node.path("encounterId").asText()))
                 .findFirst().orElseThrow();
         org.junit.jupiter.api.Assertions.assertEquals(
-                "/residents?residentId=" + residentId + "&encounterId=" + encounterId,
+                "/outpatient/reception?residentId=" + residentId + "&encounterId=" + encounterId,
                 signTask.path("routePath").asText());
         mockMvc.perform(post("/api/tasks/{id}/complete", signTask.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))

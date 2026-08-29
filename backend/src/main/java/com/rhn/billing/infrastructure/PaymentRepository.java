@@ -33,4 +33,42 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     List<Payment> findDaily(@Param("tenantId") Long tenantId, @Param("accountIds") List<Long> accountIds,
                             @Param("from") Instant from, @Param("to") Instant to);
+
+    @Query("""
+            select payment from Payment payment
+              join PatientAccount account
+                on account.tenantId = payment.tenantId and account.id = payment.patientAccountId
+              join PaymentOrder paymentOrder
+                on paymentOrder.tenantId = payment.tenantId and paymentOrder.id = payment.paymentOrderId
+             where payment.tenantId = :tenantId
+               and account.organizationId = :organizationId
+               and payment.enteredBy = :cashierUserId
+               and paymentOrder.terminalCode = :terminalCode
+               and payment.status = 'COMPLETED'
+               and payment.paidAt >= :rangeFrom and payment.paidAt < :rangeTo
+               and not exists (select item.id from CashierCloseItem item
+                                where item.tenantId = payment.tenantId and item.paymentId = payment.id)
+             order by payment.paidAt, payment.id
+            """)
+    List<Payment> findUnclosedForCashier(@Param("tenantId") Long tenantId,
+                                         @Param("organizationId") Long organizationId,
+                                         @Param("cashierUserId") Long cashierUserId,
+                                         @Param("terminalCode") String terminalCode,
+                                         @Param("rangeFrom") Instant rangeFrom,
+                                         @Param("rangeTo") Instant rangeTo);
+
+    @Query("""
+            select payment from Payment payment join PatientAccount account
+              on account.tenantId = payment.tenantId and account.id = payment.patientAccountId
+             where payment.tenantId = :tenantId and account.organizationId = :organizationId
+               and payment.paymentMethodCode = :paymentMethodCode and payment.currencyCode = :currencyCode
+               and payment.status = 'COMPLETED' and payment.paidAt >= :rangeFrom and payment.paidAt < :rangeTo
+             order by payment.paidAt, payment.id
+            """)
+    List<Payment> findForChannelReconciliation(@Param("tenantId") Long tenantId,
+                                               @Param("organizationId") Long organizationId,
+                                               @Param("paymentMethodCode") String paymentMethodCode,
+                                               @Param("currencyCode") String currencyCode,
+                                               @Param("rangeFrom") Instant rangeFrom,
+                                               @Param("rangeTo") Instant rangeTo);
 }

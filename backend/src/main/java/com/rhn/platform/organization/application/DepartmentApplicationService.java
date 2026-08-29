@@ -148,7 +148,7 @@ public class DepartmentApplicationService {
     public OrganizationView compatibilityView(DepartmentView value) {
         Long compatibilityParentId = value.parentId() == null ? value.organizationId() : value.parentId();
         return new OrganizationView(value.id(), value.revision(), compatibilityParentId, value.mergedToId(),
-                value.code(), value.name(), value.shortName(), value.description(), OrganizationKind.ORG_UNIT,
+                value.code(), value.name(), value.shortName(), value.description(), OrganizationKind.ORG_UNIT.name(),
                 value.sdOrgType(), value.sdOrgStatus(), null, value.virtual(), value.sortOrder(), null,
                 value.sdDepartmentType(), value.sdDepartmentProperty(), value.validFrom(), value.validTo(),
                 value.createdAt(), value.updatedAt());

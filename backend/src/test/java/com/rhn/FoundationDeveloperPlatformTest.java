@@ -24,7 +24,7 @@ class FoundationDeveloperPlatformTest extends RhnIntegrationTestSupport {
     void openapi_contract_includes_required_tenant_context() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.info.version").value("1.24.0"))
+                .andExpect(jsonPath("$.info.version").value("1.27.0"))
                 .andExpect(jsonPath("$.paths['/api/session'].get.parameters[?(@.name == 'X-Tenant-Id')].required")
                         .value(true))
                 .andExpect(jsonPath("$.paths['/api/session'].get.parameters[?(@.name == 'X-Tenant-Id')].schema.type")

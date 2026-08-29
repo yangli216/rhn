@@ -2,6 +2,11 @@ import type { ApiClient } from './httpClient'
 
 export type ScheduleDayPart = 'MORNING' | 'AFTERNOON'
 
+export const SCHEDULING_SYSTEM_ENUM = {
+  visitType: 'SC_VISIT_TYPE',
+  receptionStatus: 'SC_RECEPTION_STATUS',
+} as const
+
 export interface SchedulingBootstrap {
   sdManagementMode: 'SIMPLE' | 'PROFESSIONAL'
   sdManagementModeText: string
@@ -65,6 +70,21 @@ export interface QuickScheduleResult {
   schedules: ServiceSchedule[]
 }
 
+export interface UpdateScheduleInput {
+  startTime: string
+  endTime: string
+  capacity: number
+  locationName?: string
+  commandCode: string
+  reason: string
+}
+
+export interface ChangeScheduleStatusInput {
+  action: 'SUSPEND' | 'RESUME' | 'CANCEL'
+  commandCode: string
+  reason: string
+}
+
 export interface ReceptionQueueItem {
   registrationId: string
   appointmentId?: string
@@ -106,6 +126,12 @@ export function createSchedulingApi(client: ApiClient) {
     ),
     quickCreate: (input: QuickScheduleInput) => client.request<QuickScheduleResult>(
       '/api/outpatient/scheduling/quick-schedules', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    update: (scheduleId: string, input: UpdateScheduleInput) => client.request<ServiceSchedule>(
+      `/api/outpatient/scheduling/schedules/${scheduleId}`, { method: 'PUT', body: JSON.stringify(input) },
+    ),
+    changeStatus: (scheduleId: string, input: ChangeScheduleStatusInput) => client.request<ServiceSchedule>(
+      `/api/outpatient/scheduling/schedules/${scheduleId}/actions`, { method: 'POST', body: JSON.stringify(input) },
     ),
   }
 }

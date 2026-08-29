@@ -22,6 +22,7 @@ class Appointment {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "schedule_id", nullable = false) private Long scheduleId;
     @Column(name = "slot_pool_id", nullable = false) private Long slotPoolId;
+    @Column(name = "slot_hold_id") private Long slotHoldId;
     @Column(name = "resident_id", nullable = false) private Long residentId;
     @Column(name = "appointment_no", nullable = false) private String appointmentNo;
     @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
@@ -40,10 +41,10 @@ class Appointment {
 
     protected Appointment() {}
 
-    Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long residentId,
+    Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId, Long residentId,
                 String idempotencyCode, Long actorId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.scheduleId = schedule.id();
-        this.slotPoolId = pool.id(); this.residentId = residentId; this.appointmentNo = "AP" + id;
+        this.slotPoolId = pool.id(); this.slotHoldId = slotHoldId; this.residentId = residentId; this.appointmentNo = "AP" + id;
         this.idempotencyCode = idempotencyCode; this.status = "REGISTERED";
         this.serviceCode = schedule.serviceCode(); this.serviceNameSnapshot = schedule.serviceName();
         this.practitionerId = schedule.practitionerId(); this.practitionerNameSnapshot = schedule.practitionerName();

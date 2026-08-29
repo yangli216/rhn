@@ -191,6 +191,15 @@ public class DictionaryController {
         return attributeService.itemConfiguration(id, itemId, scopeType, organizationId, departmentId);
     }
 
+    @GetMapping("/{id}/item-attribute-configurations")
+    List<ItemAttributeConfigurationView> itemAttributeConfigurations(
+            @PathVariable Long id,
+            @RequestParam(required = false) DictionaryAttributeScopeType scopeType,
+            @RequestParam(required = false) Long organizationId,
+            @RequestParam(required = false) Long departmentId) {
+        return attributeService.itemConfigurations(id, scopeType, organizationId, departmentId);
+    }
+
     @PutMapping("/{id}/items/{itemId}/attributes/{attributeId}/values")
     ItemAttributeConfigurationView setItemAttribute(@PathVariable Long id, @PathVariable Long itemId,
                                                     @PathVariable Long attributeId,

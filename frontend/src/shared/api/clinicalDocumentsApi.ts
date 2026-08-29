@@ -17,7 +17,20 @@ export interface ClinicalDocumentVersion {
 
 export interface OutpatientNoteContent {
   chiefComplaint?: string
-  vitalSigns?: { systolic?: number; diastolic?: number }
+  presentIllness?: string
+  medicalHistory?: string
+  physicalExam?: string
+  treatmentPlan?: string
+  vitalSigns?: {
+    systolic?: number
+    diastolic?: number
+    temperature?: number
+    pulseRate?: number
+    respiratoryRate?: number
+    heightCm?: number
+    weightKg?: number
+    oxygenSaturation?: number
+  }
   diagnoses?: Array<{ code: string; display: string; type: string }>
 }
 

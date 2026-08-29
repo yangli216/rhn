@@ -64,7 +64,12 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
   const visibleLevels = LEVELS.slice(0, levels)
   const selectedPath = pathFromValue(value, visibleLevels, nodeByCode)
   const draftPath = pathFromValue(draft, visibleLevels, nodeByCode)
+  const firstUnselectedLevel = visibleLevels.findIndex(({ key }) => !draft[key])
+  const selectedDepth = firstUnselectedLevel < 0 ? visibleLevels.length : firstUnselectedLevel
+  const expandedLevelCount = Math.min(visibleLevels.length, Math.max(1, selectedDepth + 1))
+  const expandedLevels = visibleLevels.slice(0, expandedLevelCount)
   const targetLevel = visibleLevels.at(-1)!.level
+  const searching = Boolean(query.trim())
   const searchResults = useMemo(() => {
     const keyword = normalize(query)
     if (!keyword) return []
@@ -102,8 +107,9 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       const availableAbove = rect.top - gap - margin
       const placement = availableBelow < 320 && availableAbove > availableBelow ? 'top' : 'bottom'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const preferredWidth = levels === 5 ? 760 : 540
-      const width = Math.min(Math.max(rect.width, preferredWidth), window.innerWidth - margin * 2)
+      const displayedLevelCount = searching ? Math.min(levels, 3) : expandedLevelCount
+      const preferredWidth = Math.max(440, Math.min(levels === 5 ? 880 : 680, displayedLevelCount * 220))
+      const width = Math.min(preferredWidth, window.innerWidth - margin * 2)
       const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin))
       setPosition({ left, width, maxHeight: Math.max(240, Math.min(480, availableHeight)),
         top: placement === 'bottom' ? rect.bottom + gap : undefined,
@@ -116,7 +122,7 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [levels, open])
+  }, [expandedLevelCount, levels, open, searching])
 
   useEffect(() => {
     if (open && position) searchRef.current?.focus()
@@ -195,8 +201,9 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
           onMouseEnter={() => setActiveResult(index)} onClick={() => chooseSearchResult(node)}>
           <span><strong>{node.name}</strong><small>{node.fullPath.replaceAll('/', ' / ')}</small></span><code>{node.code}</code>
         </button>)}
-      </div> : <div className="ui-grid-address-input__columns" style={{ gridTemplateColumns: `repeat(${levels}, minmax(0, 1fr))` }}>
-        {visibleLevels.map((item, index) => {
+      </div> : <div className="ui-grid-address-input__columns"
+        style={{ gridTemplateColumns: `repeat(${expandedLevels.length}, minmax(13rem, 1fr))` }}>
+        {expandedLevels.map((item, index) => {
           const parentCode = index ? draft[visibleLevels[index - 1].key] : undefined
           const parentId = parentCode ? nodeByCode.get(parentCode)?.id : undefined
           const options = nodes.filter((node) => node.level === item.level && (index === 0 ? !node.parentId : node.parentId === parentId))

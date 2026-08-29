@@ -40,8 +40,6 @@ import com.rhn.pharmacy.infrastructure.StockReturnRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.organization.api.OrganizationDirectory;
-import com.rhn.platform.organization.domain.PersonnelStatus;
-import com.rhn.platform.organization.domain.PositionType;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -449,15 +447,15 @@ public class DispenseApplicationService {
                 "PHARMACY_PRACTITIONER_REQUIRED", action + "必须登记药师及任职");
         var staff = organizationDirectory.requireStaff(context.tenantId(), practitionerId); LocalDate today = LocalDate.now();
         boolean employed = staff.employments().stream().anyMatch(value -> value.organizationId().equals(site.organizationId())
-                && value.sdPersonnelStatus() == PersonnelStatus.ACTIVE && !value.hireDate().isAfter(today)
+                && "ACTIVE".equals(value.sdPersonnelStatus()) && !value.hireDate().isAfter(today)
                 && (value.leaveDate() == null || !value.leaveDate().isBefore(today)));
         var assignment = staff.assignments().stream().filter(value -> value.id().equals(assignmentId)).findFirst()
                 .orElseThrow(() -> badRequest("PHARMACY_ASSIGNMENT_INVALID", action + "任职不属于当前药师"));
-        if (assignment.sdPositionType() != PositionType.PHARMACY) {
+        if (!"PHARMACY".equals(assignment.sdPositionType())) {
             throw conflict("PHARMACY_POSITION_TYPE_REQUIRED", action + "任职必须使用药学岗位");
         }
         boolean active = assignment.organizationId().equals(site.organizationId())
-                && assignment.sdPersonnelStatus() == PersonnelStatus.ACTIVE && !assignment.validFrom().isAfter(today)
+                && "ACTIVE".equals(assignment.sdPersonnelStatus()) && !assignment.validFrom().isAfter(today)
                 && (assignment.validTo() == null || !assignment.validTo().isBefore(today));
         if (!employed || !active) throw conflict(
                 "PHARMACY_PRACTITIONER_NOT_ACTIVE", action + "药师在当前机构没有有效任职");

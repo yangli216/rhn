@@ -16,9 +16,11 @@ public class Payment {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
     @Column(name = "invoice_id") private Long invoiceId;
+    @Column(name = "payment_order_id") private Long paymentOrderId;
     @Column(name = "payment_no", nullable = false) private String paymentNo;
     @Column(name = "payment_type", nullable = false) private String paymentType;
     @Column(name = "payment_method_code", nullable = false) private String paymentMethodCode;
+    @Column(name = "payment_scene_code") private String paymentSceneCode;
     @Column(nullable = false) private String status;
     @Column(nullable = false, precision = 24, scale = 6) private BigDecimal amount;
     @Column(name = "currency_code", nullable = false) private String currencyCode;
@@ -33,9 +35,18 @@ public class Payment {
     public Payment(Long tenantId, Long patientAccountId, Long invoiceId, String paymentNo, String paymentType,
                    String paymentMethodCode, BigDecimal amount, String currencyCode, Instant paidAt,
                    String externalTransactionNo, Long reversesPaymentId, Long enteredBy, String description) {
+        this(tenantId, patientAccountId, invoiceId, null, paymentNo, paymentType, paymentMethodCode, null,
+                amount, currencyCode, paidAt, externalTransactionNo, reversesPaymentId, enteredBy, description);
+    }
+
+    public Payment(Long tenantId, Long patientAccountId, Long invoiceId, Long paymentOrderId,
+                   String paymentNo, String paymentType, String paymentMethodCode, String paymentSceneCode,
+                   BigDecimal amount, String currencyCode, Instant paidAt, String externalTransactionNo,
+                   Long reversesPaymentId, Long enteredBy, String description) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.patientAccountId = patientAccountId;
-        this.invoiceId = invoiceId; this.paymentNo = paymentNo; this.paymentType = paymentType;
-        this.paymentMethodCode = paymentMethodCode; this.status = "COMPLETED"; this.amount = amount;
+        this.invoiceId = invoiceId; this.paymentOrderId = paymentOrderId; this.paymentNo = paymentNo;
+        this.paymentType = paymentType; this.paymentMethodCode = paymentMethodCode;
+        this.paymentSceneCode = paymentSceneCode; this.status = "COMPLETED"; this.amount = amount;
         this.currencyCode = currencyCode; this.paidAt = paidAt; this.externalTransactionNo = externalTransactionNo;
         this.reversesPaymentId = reversesPaymentId; this.enteredBy = enteredBy; this.description = description;
     }
@@ -44,9 +55,11 @@ public class Payment {
     public Long tenantId() { return tenantId; }
     public Long patientAccountId() { return patientAccountId; }
     public Long invoiceId() { return invoiceId; }
+    public Long paymentOrderId() { return paymentOrderId; }
     public String paymentNo() { return paymentNo; }
     public String paymentType() { return paymentType; }
     public String paymentMethodCode() { return paymentMethodCode; }
+    public String paymentSceneCode() { return paymentSceneCode; }
     public String status() { return status; }
     public BigDecimal amount() { return amount; }
     public String currencyCode() { return currencyCode; }

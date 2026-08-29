@@ -1,11 +1,11 @@
 package com.rhn.portal.dashboard;
 
-import com.rhn.workmanagement.notification.NotificationSummaryResponse;
-import com.rhn.workmanagement.task.TaskSummaryResponse;
+import com.rhn.workmanagement.api.WorkSummaryDirectory.NotificationSummary;
+import com.rhn.workmanagement.api.WorkSummaryDirectory.TaskSummary;
 
 public record PortalSummaryResponse(
-        TaskSummaryResponse tasks,
-        NotificationSummaryResponse notifications,
+        TaskSummary tasks,
+        NotificationSummary notifications,
         long registeredToday,
         long inProgress,
         long completedToday,

@@ -326,13 +326,25 @@ export function createDictionaryApi(client: ApiClient) {
         `/api/platform/dictionaries/${id}/attributes/${attributeId}/${enabled ? 'enable' : 'disable'}`,
         { method: 'POST', body: JSON.stringify(input) },
       ),
-    itemAttributes: (id: string, itemId: string, scopeType: DictionaryAttributeScopeType = 'ORGANIZATION') =>
+    itemAttributes: (id: string, itemId: string, scopeType: DictionaryAttributeScopeType = 'ORGANIZATION',
+                     organizationId = '', departmentId = '') =>
       client.request<DictionaryItemAttributeConfiguration>(
-        `/api/platform/dictionaries/${id}/items/${itemId}/attributes?scopeType=${scopeType}`,
+        `/api/platform/dictionaries/${id}/items/${itemId}/attributes?${new URLSearchParams({
+          scopeType, ...(organizationId ? { organizationId } : {}), ...(departmentId ? { departmentId } : {}),
+        })}`,
+      ),
+    itemAttributeConfigurations: (id: string, scopeType: DictionaryAttributeScopeType = 'ORGANIZATION',
+                                  organizationId = '', departmentId = '') =>
+      client.request<DictionaryItemAttributeConfiguration[]>(
+        `/api/platform/dictionaries/${id}/item-attribute-configurations?${new URLSearchParams({
+          scopeType, ...(organizationId ? { organizationId } : {}), ...(departmentId ? { departmentId } : {}),
+        })}`,
       ),
     setItemAttribute: (id: string, itemId: string, attributeId: string, input: {
       expectedDictionaryRevision: number
       scopeType: DictionaryAttributeScopeType
+      organizationId?: string
+      departmentId?: string
       valueMode: DictionaryAttributeValueMode
       values: string[]
       reason?: string
@@ -344,6 +356,8 @@ export function createDictionaryApi(client: ApiClient) {
     inheritItemAttribute: (id: string, itemId: string, attributeId: string, input: {
       expectedDictionaryRevision: number
       scopeType: DictionaryAttributeScopeType
+      organizationId?: string
+      departmentId?: string
       reason?: string
       requestCode: string
     }) => client.request<DictionaryItemAttributeConfiguration>(

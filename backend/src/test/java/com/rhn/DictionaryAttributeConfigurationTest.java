@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
     private static final String PAY_METHOD = "362387869852001";
     private static final String CASH = "362387869852101";
+    private static final String BANK_CARD = "362387869852102";
     private static final String AVAILABLE_SCENE = "362387869852201";
 
     @Test
@@ -25,6 +26,17 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].minimumScope").value("ORGANIZATION"))
                 .andExpect(jsonPath("$[0].overridePolicy").value("ANY"))
                 .andExpect(jsonPath("$[0].referenceOptions.length()").value(3));
+
+        mockMvc.perform(get("/api/platform/dictionaries/{id}/item-attribute-configurations", PAY_METHOD)
+                        .param("scopeType", "ORGANIZATION").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(6))
+                .andExpect(jsonPath("$[?(@.itemCode == 'CASH')].attributes[0].resolved.sourceLabel")
+                        .value("全局"))
+                .andExpect(jsonPath("$[?(@.itemCode == 'CASH')].attributes[0].resolved.values.length()")
+                        .value(2))
+                .andExpect(jsonPath("$[?(@.itemCode == 'BANK_CARD')].attributes[0].resolved.values.length()")
+                        .value(3));
 
         mockMvc.perform(get("/api/platform/dictionaries/resolve/PAY_METHOD/applicable")
                         .param("attributeCode", "AVAILABLE_SCENE")
@@ -70,6 +82,43 @@ class DictionaryAttributeConfigurationTest extends RhnIntegrationTestSupport {
                         .param("referenceCode", "SELF_SERVICE").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'CASH')]").isEmpty());
+    }
+
+    @Test
+    void administrator_can_select_an_explicit_organization_target_without_switching_work_context() throws Exception {
+        long revision = dictionaryRevision();
+        mockMvc.perform(put("/api/platform/dictionaries/{id}/items/{itemId}/attributes/{attributeId}/values",
+                        PAY_METHOD, BANK_CARD, AVAILABLE_SCENE).with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedDictionaryRevision":%d,"scopeType":"ORGANIZATION",
+                                 "organizationId":"%s",
+                                 "valueMode":"OVERRIDE","values":["CLINIC_SETTLE"],
+                                 "reason":"为指定机构配置支付场景","requestCode":"%s"}
+                                """.formatted(revision, ORGANIZATION, UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.editingScope").value("ORGANIZATION"))
+                .andExpect(jsonPath("$.editingScopeCode")
+                        .value("TENANT:" + TENANT + "/ORG:" + ORGANIZATION))
+                .andExpect(jsonPath("$.attributes[0].configured.organizationId").value(ORGANIZATION))
+                .andExpect(jsonPath("$.attributes[0].resolved.values[0].referenceItemCode").value("CLINIC_SETTLE"));
+
+        mockMvc.perform(get("/api/platform/dictionaries/{id}/items/{itemId}/attributes", PAY_METHOD, BANK_CARD)
+                        .param("scopeType", "ORGANIZATION")
+                        .param("organizationId", ORGANIZATION).with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attributes[0].configured.scopeType").value("ORGANIZATION"));
+
+        mockMvc.perform(post("/api/platform/dictionaries/{id}/items/{itemId}/attributes/{attributeId}/inherit",
+                        PAY_METHOD, BANK_CARD, AVAILABLE_SCENE).with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedDictionaryRevision":%d,"scopeType":"ORGANIZATION",
+                                 "organizationId":"%s",
+                                 "reason":"测试后恢复继承","requestCode":"%s"}
+                                """.formatted(dictionaryRevision(), ORGANIZATION, UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.attributes[0].configured").doesNotExist());
     }
 
     private long dictionaryRevision() throws Exception {

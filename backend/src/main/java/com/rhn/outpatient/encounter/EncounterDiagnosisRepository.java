@@ -6,6 +6,6 @@ import java.util.List;
 
 interface EncounterDiagnosisRepository extends JpaRepository<EncounterDiagnosis, Long> {
     List<EncounterDiagnosis> findByTenantIdAndEncounterIdOrderByRecordedAt(Long tenantId, Long encounterId);
-    void deleteByTenantIdAndEncounterId(Long tenantId, Long encounterId);
+    List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStatusOrderByRecordedAt(
+            Long tenantId, Long encounterId, String diagnosisStatus);
 }
-

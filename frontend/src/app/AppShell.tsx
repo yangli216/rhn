@@ -1,27 +1,48 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { LoginScreen } from '../features/auth/LoginScreen'
 import { Dashboard } from '../features/dashboard/Dashboard'
-import { OutpatientReceptionWorkspace } from '../features/residents/ResidentsWorkspace'
-import { ResidentCenterWorkspace } from '../features/residents/ResidentCenterWorkspace'
-import { DictionaryManagement } from '../features/settings/DictionaryManagement'
-import { ParameterManagement } from '../features/settings/ParameterManagement'
-import { OrganizationPersonnelManagement } from '../features/settings/OrganizationPersonnelManagement'
-import { BasicDataManagement } from '../features/settings/BasicDataManagement'
-import { GridAddressManagement } from '../features/settings/GridAddressManagement'
-import { TasksWorkspace } from '../features/tasks/TasksWorkspace'
-import { PharmacyWorkspace } from '../features/pharmacy/PharmacyWorkspace'
-import { WarehouseManagement } from '../features/pharmacy/WarehouseManagement'
-import { BillingWorkspace } from '../features/billing/BillingWorkspace'
-import { CareManagementWorkspace } from '../features/care/CareManagementWorkspace'
-import { SchedulingWorkspace } from '../features/outpatient/SchedulingWorkspace'
-import { OutpatientRegistrationWorkspace } from '../features/outpatient/RegistrationWorkspace'
 import type { Department, Organization, Session } from '../shared/model'
 import { createRhnApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
 import { formatTime } from '../shared/format'
+
+const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
+  .then((module) => ({ default: module.DoctorWorkstation })))
+const ResidentCenterWorkspace = lazy(() => import('../features/residents/ResidentCenterWorkspace')
+  .then((module) => ({ default: module.ResidentCenterWorkspace })))
+const DictionaryManagement = lazy(() => import('../features/settings/DictionaryManagement')
+  .then((module) => ({ default: module.DictionaryManagement })))
+const DictionaryAttributeManagement = lazy(() => import('../features/settings/DictionaryAttributeManagement')
+  .then((module) => ({ default: module.DictionaryAttributeManagement })))
+const AccessControlManagement = lazy(() => import('../features/settings/AccessControlManagement')
+  .then((module) => ({ default: module.AccessControlManagement })))
+const ParameterManagement = lazy(() => import('../features/settings/ParameterManagement')
+  .then((module) => ({ default: module.ParameterManagement })))
+const OrganizationPersonnelManagement = lazy(() => import('../features/settings/OrganizationPersonnelManagement')
+  .then((module) => ({ default: module.OrganizationPersonnelManagement })))
+const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
+  .then((module) => ({ default: module.BasicDataManagement })))
+const GridAddressManagement = lazy(() => import('../features/settings/GridAddressManagement')
+  .then((module) => ({ default: module.GridAddressManagement })))
+const BusinessPartnerManagement = lazy(() => import('../features/settings/BusinessPartnerManagement')
+  .then((module) => ({ default: module.BusinessPartnerManagement })))
+const TasksWorkspace = lazy(() => import('../features/tasks/TasksWorkspace')
+  .then((module) => ({ default: module.TasksWorkspace })))
+const PharmacyWorkspace = lazy(() => import('../features/pharmacy/PharmacyWorkspace')
+  .then((module) => ({ default: module.PharmacyWorkspace })))
+const WarehouseManagement = lazy(() => import('../features/pharmacy/WarehouseManagement')
+  .then((module) => ({ default: module.WarehouseManagement })))
+const BillingWorkspace = lazy(() => import('../features/billing/BillingWorkspace')
+  .then((module) => ({ default: module.BillingWorkspace })))
+const CareManagementWorkspace = lazy(() => import('../features/care/CareManagementWorkspace')
+  .then((module) => ({ default: module.CareManagementWorkspace })))
+const SchedulingWorkspace = lazy(() => import('../features/outpatient/SchedulingWorkspace')
+  .then((module) => ({ default: module.SchedulingWorkspace })))
+const OutpatientRegistrationWorkspace = lazy(() => import('../features/outpatient/RegistrationWorkspace')
+  .then((module) => ({ default: module.OutpatientRegistrationWorkspace })))
 
 export interface ClinicalContext {
   organization: Organization
@@ -48,16 +69,28 @@ interface WorkspaceTab {
   closeable: boolean
 }
 
-interface NavigationNode {
+interface NavigationNodeBase {
   id: string
   label: string
   icon?: IconName
   badge?: string
-  to?: string
-  end?: boolean
   muted?: boolean
-  children?: NavigationNode[]
+  requiredAuthority?: string
 }
+
+interface NavigationItem extends NavigationNodeBase {
+  to: string
+  end?: boolean
+  children?: never
+}
+
+interface NavigationDirectory extends NavigationNodeBase {
+  to?: never
+  end?: never
+  children: NavigationItem[]
+}
+
+type NavigationNode = NavigationItem | NavigationDirectory
 
 type WorkspaceTabAction = 'close-active' | 'close-left' | 'close-right' | 'close-others' | 'close-all'
 
@@ -83,48 +116,83 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['business-apps', 'outpatient', 'platform-management', 'platform-foundation']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services']
 
 const NAVIGATION_NODES: NavigationNode[] = [
-  { id: 'home', label: '工作台', icon: 'home', to: '/', end: true },
-  { id: 'residents', label: '居民中心', icon: 'residents', badge: 'MPI', to: '/residents' },
-  { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks' },
+  { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
+  { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
-    id: 'business-apps', label: '业务应用', children: [
-      { id: 'outpatient', label: '门诊医疗', icon: 'clinical', children: [
-        { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration' },
-        { id: 'outpatient-reception', label: '门诊接诊', icon: 'residents', to: '/outpatient/reception' },
-        { id: 'outpatient-scheduling', label: '排班与号源', icon: 'clinical', badge: '简易', to: '/outpatient/scheduling' },
-      ] },
-      { id: 'pharmacy-management', label: '药事管理', icon: 'pharmacy', children: [
-        { id: 'pharmacy', label: '门诊药房', icon: 'pharmacy', badge: 'M3.3', to: '/pharmacy', end: true },
-        { id: 'warehouse', label: '库房管理', icon: 'pharmacy', badge: '基础', to: '/pharmacy/warehouse' },
-      ] },
-      { id: 'billing', label: '费用结算', icon: 'billing', badge: 'M3.4', to: '/billing' },
-      { id: 'care-management', label: '连续照护', icon: 'clinical', badge: 'M4.1', to: '/care-management' },
+    id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
+      { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-reception', label: '门诊医生站', icon: 'clinical', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '简易', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
+      { id: 'billing', label: '费用结算', icon: 'billing', badge: 'M3.4', to: '/billing', requiredAuthority: 'BILLING.ACCESS' },
     ],
   },
   {
-    id: 'platform-management', label: '平台管理', children: [
-      {
-        id: 'platform-foundation', label: '基础设置', children: [
-          { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data' },
-          { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization' },
-          { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses' },
-          { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters' },
-          { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries' },
-        ],
-      },
+    id: 'patient-services', label: '患者服务', icon: 'residents', children: [
+      { id: 'residents', label: '居民中心', icon: 'residents', badge: 'MPI', to: '/residents', requiredAuthority: 'RESIDENT.ACCESS' },
+      { id: 'care-management', label: '连续照护', icon: 'clinical', badge: 'M4.1', to: '/care-management', requiredAuthority: 'CARE_MANAGEMENT.ACCESS' },
+    ],
+  },
+  {
+    id: 'pharmacy-management', label: '药事管理', icon: 'pharmacy', children: [
+      { id: 'pharmacy', label: '门诊药房', icon: 'pharmacy', badge: 'M3.3', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'warehouse', label: '库房管理', icon: 'pharmacy', badge: '基础', to: '/pharmacy/warehouse', requiredAuthority: 'PHARMACY_WAREHOUSE.ACCESS' },
+    ],
+  },
+  {
+    id: 'operations-config', label: '运营配置', icon: 'roadmap', children: [
+      { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.ACCESS' },
+      { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
+      { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
+      { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
+    ],
+  },
+  {
+    id: 'system-config', label: '系统配置', icon: 'settings', children: [
+      { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
+      { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
+      { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
+      { id: 'access-control', label: '角色与权限', icon: 'settings', to: '/settings/access-control', requiredAuthority: 'IAM.MANAGE' },
     ],
   },
 ]
+
+function filterNavigation(nodes: NavigationNode[], authorities: Set<string>): NavigationNode[] {
+  const result: NavigationNode[] = []
+  for (const node of nodes) {
+    if (node.children) {
+      const children = filterNavigation(node.children, authorities) as NavigationItem[]
+      if (children.length) result.push({ ...node, children } as NavigationDirectory)
+    } else if (!node.requiredAuthority || authorities.has(node.requiredAuthority)) {
+      result.push(node)
+    }
+  }
+  return result
+}
+
+function requiredAuthorityForPath(nodes: NavigationNode[], pathname: string): string | undefined {
+  for (const node of nodes) {
+    if (node.to && navigationNodeMatchesPath(node, pathname)) return node.requiredAuthority
+    const child = node.children ? requiredAuthorityForPath(node.children, pathname) : undefined
+    if (child) return child
+  }
+  return undefined
+}
+
+const NAVIGATION_DIRECTORY_IDS = new Set(
+  NAVIGATION_NODES.filter((node) => node.children?.length).map((node) => node.id),
+)
 
 function initialExpandedDirectories() {
   const stored = localStorage.getItem('rhn.navigation.expanded')
   if (!stored) return new Set(DEFAULT_EXPANDED_DIRECTORIES)
   try {
     const ids = JSON.parse(stored)
-    return new Set(Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : DEFAULT_EXPANDED_DIRECTORIES)
+    if (!Array.isArray(ids)) return new Set(DEFAULT_EXPANDED_DIRECTORIES)
+    const validIds = ids.filter((id): id is string => typeof id === 'string' && NAVIGATION_DIRECTORY_IDS.has(id))
+    return new Set(validIds.length > 0 ? validIds : DEFAULT_EXPANDED_DIRECTORIES)
   } catch {
     return new Set(DEFAULT_EXPANDED_DIRECTORIES)
   }
@@ -156,12 +224,15 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/care-management') return { id: pathname, path: pathname, title: '连续照护', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
   if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'clinical', closeable: true }
-  if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊接诊', icon: 'residents', closeable: true }
+  if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'residents', closeable: true }
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionaries') return { id: pathname, path: pathname, title: '字典管理', icon: 'settings', closeable: true }
+  if (pathname === '/settings/dictionary-attributes') return { id: pathname, path: pathname, title: '字典扩展配置', icon: 'settings', closeable: true }
+  if (pathname === '/settings/access-control') return { id: pathname, path: pathname, title: '角色与权限', icon: 'settings', closeable: true }
   if (pathname.startsWith('/roadmap/')) {
     const module = pathname.slice('/roadmap/'.length)
     const modules: Record<string, { title: string; icon: IconName }> = {
@@ -496,6 +567,8 @@ export function AppShell() {
   const availableForActiveType = session.workContexts.filter((context) =>
     context.workContextType === activeSlot.option.workContextType)
   const collapsedNavigation = sidebarCollapsed && !mobileLayout
+  const activeAuthorities = new Set([...session.authorities, ...(activeSlot.option.authorities ?? [])])
+  const visibleNavigation = filterNavigation(NAVIGATION_NODES, activeAuthorities)
 
   return (
     <div className={`app-shell ${sidebarCollapsed && !mobileLayout ? 'is-sidebar-collapsed' : ''}`}>
@@ -505,7 +578,7 @@ export function AppShell() {
         inert={mobileLayout && !sidebarOpen || undefined} className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="brand"><div className="brand-mark">R</div><div><strong>健域智枢</strong><span>Regional Health Nexus</span></div></div>
         <nav className="sidebar-navigation" aria-label="功能菜单">
-          <NavigationTree nodes={NAVIGATION_NODES} pathname={location.pathname} collapsed={collapsedNavigation}
+          <NavigationTree nodes={visibleNavigation} pathname={location.pathname} collapsed={collapsedNavigation}
             expandedDirectories={expandedDirectories} onToggleDirectory={toggleDirectory}
             onCollapsedDirectory={openCollapsedDirectory} onNavigate={closeNavigationAfterNavigate}
             openCollapsedDirectoryId={collapsedDirectory?.node.id}
@@ -563,11 +636,16 @@ export function AppShell() {
             const requestedType = workContextTypeForPath(tab.path)
             const tabSlot = activeContexts[requestedType] ?? fallbackSlot
             const slotKey = `${tab.id}:${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`
+            const tabAuthorities = new Set([...session.authorities, ...(tabSlot.option.authorities ?? [])])
+            const requiredAuthority = requiredAuthorityForPath(NAVIGATION_NODES, tab.path)
+            const authorized = !requiredAuthority || tabAuthorities.has(requiredAuthority)
             return <div id={`workspace-panel-${encodeURIComponent(tab.id)}`} key={tab.id}
               className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${encodeURIComponent(tab.id)}`}
               hidden={tab.id !== activeTabId}>
               <div className="page" key={slotKey}>
-                <Routes location={tab.path}>
+                {!authorized ? <EmptyState icon="error" title="无权访问该功能"
+                  copy={`当前工作上下文缺少权限：${requiredAuthority}`} /> :
+                <Suspense fallback={<LoadingState label="正在加载功能…" />}><Routes location={tab.path}>
                   <Route path="/" element={<Dashboard api={tabSlot.api} onStart={() => navigate('/outpatient/registration')}
                     onOpenTasks={() => navigate('/tasks')} />} />
                   <Route path="/residents" element={<ResidentCenterWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
@@ -575,7 +653,7 @@ export function AppShell() {
                   <Route path="/pharmacy" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
@@ -584,21 +662,31 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
-                  <Route path="/outpatient/reception" element={<OutpatientReceptionWorkspace api={tabSlot.api}
+                  <Route path="/outpatient/reception" element={<DoctorWorkstation api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings" element={<Navigate to="/settings/parameters" replace />} />
                   <Route path="/settings/organization" element={<OrganizationPersonnelManagement api={tabSlot.api} />} />
                   <Route path="/settings/grid-addresses" element={<GridAddressManagement api={tabSlot.api} />} />
                   <Route path="/settings/master-data" element={<BasicDataManagement api={tabSlot.api}
+                    organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/partners" element={<BusinessPartnerManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
                   <Route path="/settings/parameters" element={<ParameterManagement api={tabSlot.api} context={{
+                    tenantId: session.tenantId,
                     organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,
                     userId: session.userId,
                   }} />} />
-                  <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api} />} />
+                  <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api}
+                    onOpenAttributeConfiguration={(dictionaryId) => navigate(`/settings/dictionary-attributes?dictionaryId=${dictionaryId}`)} />} />
+                  <Route path="/settings/dictionary-attributes" element={<DictionaryAttributeManagement api={tabSlot.api}
+                    context={{ tenantId: session.tenantId, organization: tabSlot.clinicalContext.organization,
+                      department: tabSlot.clinicalContext.department }}
+                    onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/access-control" element={<AccessControlManagement api={tabSlot.api}
+                    context={tabSlot.clinicalContext} />} />
                   <Route path="/roadmap/:module" element={<PlannedPage title="后续业务模块" copy="该模块将在门诊主链后按业务优先级接入共享底座。" />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
+                </Routes></Suspense>}
               </div>
             </div>
           })}

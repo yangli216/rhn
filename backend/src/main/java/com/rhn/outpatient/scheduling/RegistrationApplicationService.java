@@ -2,6 +2,7 @@ package com.rhn.outpatient.scheduling;
 
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
+import com.rhn.outpatient.api.OutpatientScheduleDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final ServiceScheduleRepository scheduleRepository;
     private final ScheduleSlotPoolRepository poolRepository;
     private final SlotEventRepository slotEventRepository;
+    private final OutpatientScheduleDirectory slotHolds;
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
 
@@ -44,6 +46,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           ServiceScheduleRepository scheduleRepository,
                                           ScheduleSlotPoolRepository poolRepository,
                                           SlotEventRepository slotEventRepository,
+                                          OutpatientScheduleDirectory slotHolds,
                                           ResidentDirectory residentDirectory,
                                           ExecutionContextProvider contextProvider) {
         this.registrationRepository = registrationRepository;
@@ -54,6 +57,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         this.scheduleRepository = scheduleRepository;
         this.poolRepository = poolRepository;
         this.slotEventRepository = slotEventRepository;
+        this.slotHolds = slotHolds;
         this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider;
     }
@@ -95,14 +99,22 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             }
             pool = poolRepository.findByTenantIdAndScheduleId(context.tenantId(), schedule.id())
                     .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "所选排班缺少号源池"));
-            pool.occupyOne();
+            if (command.slotHoldId() == null) {
+                pool.occupyOne();
+            } else {
+                slotHolds.consume(command.slotHoldId(), command.residentId(), schedule.id(),
+                        "CONSUME-" + idempotencyCode);
+            }
             appointment = appointmentRepository.save(new Appointment(context.tenantId(), schedule, pool,
+                    command.slotHoldId(),
                     command.residentId(), idempotencyCode, context.subjectId()));
-            int slotSequence = slotEventRepository
-                    .findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(context.tenantId(), pool.id())
-                    .map(SlotEvent::sequenceNo).orElse(0) + 1;
-            slotEventRepository.save(new SlotEvent(context.tenantId(), pool.id(), schedule.id(), slotSequence,
-                    idempotencyCode, context.subjectId(), "窗口挂号占用共享号源"));
+            if (command.slotHoldId() == null) {
+                int slotSequence = slotEventRepository
+                        .findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(context.tenantId(), pool.id())
+                        .map(SlotEvent::sequenceNo).orElse(0) + 1;
+                slotEventRepository.save(new SlotEvent(context.tenantId(), pool.id(), schedule.id(), slotSequence,
+                        idempotencyCode, context.subjectId(), "窗口挂号占用共享号源"));
+            }
         }
 
         PatientRegistration registration = registrationRepository.save(new PatientRegistration(
@@ -111,6 +123,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 command.departmentId(), command.encounterId(), idempotencyCode,
                 normalizeSource(command.registrationSource(), schedule != null), normalizeVisitType(command.visitType()),
                 context.subjectId()));
+        if (command.slotHoldId() != null) slotHolds.bindRegistration(command.slotHoldId(), registration.id());
         LocalDate queueDate = LocalDate.now(BUSINESS_ZONE);
         String queueCode = "OPD:" + command.organizationId() + ":" + command.departmentId();
         QueueCounter counter = counterRepository

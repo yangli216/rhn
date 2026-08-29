@@ -7,6 +7,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import tools.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -17,11 +19,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_CLASS)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
 class BillingSettlementTest extends RhnIntegrationTestSupport {
     private static final String PRODUCT_ID = "362387869795113";
     private static final String PACKAGE_ID = "362387869795403";
-    private static final String BUSINESS_DAY = "2026-09-15";
+    private static final String BUSINESS_DAY = LocalDate.now(ZoneOffset.UTC).toString();
 
     @Test
     void dispense_charge_concurrent_payment_return_refund_and_daily_reconciliation_close_the_ledger() throws Exception {
@@ -48,21 +50,47 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         assertEquals(fullAmount, invoice.get("netAmount").decimalValue());
         JsonNode duplicateInvoice = issueInvoice(accountId, "INV-" + suffix);
         assertEquals(invoice.get("id").asText(), duplicateInvoice.get("id").asText());
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asText())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PRICED"))
+                .andExpect(jsonPath("$.settlementScene").value("OUTPATIENT"))
+                .andExpect(jsonPath("$.lines.length()").value(1))
+                .andExpect(jsonPath("$.tenders.length()").value(0));
 
-        CompletableFuture<MvcResult> paymentA = paymentAsync(invoice.get("id").asText(),
+        CompletableFuture<MvcResult> paymentA = paymentOrderAsync(invoice.get("id").asText(),
                 "PAY-A-" + suffix, fullAmount);
-        CompletableFuture<MvcResult> paymentB = paymentAsync(invoice.get("id").asText(),
+        CompletableFuture<MvcResult> paymentB = paymentOrderAsync(invoice.get("id").asText(),
                 "PAY-B-" + suffix, fullAmount);
         List<MvcResult> paymentRace = List.of(paymentA.join(), paymentB.join());
         assertEquals(1, paymentRace.stream().filter(value -> value.getResponse().getStatus() == 201).count());
         assertEquals(1, paymentRace.stream().filter(value -> value.getResponse().getStatus() == 409).count());
-        JsonNode payment = json(paymentRace.stream().filter(value -> value.getResponse().getStatus() == 201)
+        JsonNode paymentOrder = json(paymentRace.stream().filter(value -> value.getResponse().getStatus() == 201)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", task.encounterId())
+        assertEquals("SUCCEEDED", paymentOrder.get("status").asText());
+        assertEquals(3, paymentOrder.get("events").size());
+        JsonNode duplicateOrder = paymentOrder(invoice.get("id").asText(),
+                paymentOrder.get("idempotencyKey").asText(), fullAmount);
+        assertEquals(paymentOrder.get("id").asText(), duplicateOrder.get("id").asText());
+        assertEquals(true, duplicateOrder.get("duplicate").asBoolean());
+
+        JsonNode paidStatement = json(mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", task.encounterId())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paymentAmount").value(fullAmount.doubleValue()))
-                .andExpect(jsonPath("$.accountBalance").value(0));
+                .andExpect(jsonPath("$.accountBalance").value(0))
+                .andExpect(jsonPath("$.payments[0].paymentOrderId").value(paymentOrder.get("id").asLong()))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode payment = paidStatement.at("/payments/0");
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asText())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SETTLED"))
+                .andExpect(jsonPath("$.tenderedAmount").value(fullAmount.doubleValue()))
+                .andExpect(jsonPath("$.outstandingAmount").value(0))
+                .andExpect(jsonPath("$.tenders.length()").value(1))
+                .andExpect(jsonPath("$.tenders[0].tenderType").value("CASH"))
+                .andExpect(jsonPath("$.events.length()").value(3));
 
         returnOne(dispense, "BIL-RET-" + suffix, pharmacist);
         JsonNode afterReturn = synchronize(task.encounterId(), "BIL-SYNC-RET-" + suffix);
@@ -74,15 +102,17 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         assertEquals("CREDIT", creditInvoice.get("invoiceType").asText());
         assertEquals(refundAmount.negate(), creditInvoice.get("netAmount").decimalValue());
 
-        JsonNode refund = refund(payment.get("id").asText(), "RF-" + suffix, refundAmount);
-        assertEquals("REFUND", refund.get("paymentType").asText());
-        JsonNode duplicateRefund = refund(payment.get("id").asText(), "RF-" + suffix, refundAmount);
+        JsonNode refund = refundOrder(payment.get("id").asText(), "RF-" + suffix, refundAmount);
+        assertEquals("REFUND", refund.get("orderType").asText());
+        assertEquals("REFUNDED", refund.get("status").asText());
+        JsonNode duplicateRefund = refundOrder(payment.get("id").asText(), "RF-" + suffix, refundAmount);
         assertEquals(refund.get("id").asText(), duplicateRefund.get("id").asText());
-        mockMvc.perform(post("/api/billing/payments/{paymentId}/refunds", payment.get("id").asText())
+        assertEquals(true, duplicateRefund.get("duplicate").asBoolean());
+        mockMvc.perform(post("/api/billing/payments/{paymentId}/refund-orders", payment.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content(refundBody("RF-OVER-" + suffix, refundAmount)))
+                        .content(refundOrderBody("RF-OVER-" + suffix, refundAmount)))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("REFUND_EXCEEDS_ACCOUNT_CREDIT"));
+                .andExpect(jsonPath("$.code").value("REFUND_ORDER_EXCEEDS_ACCOUNT_CREDIT"));
 
         mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", task.encounterId())
                         .with(rhnWorkContext()))
@@ -105,6 +135,45 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                         org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("MATCHED"))));
     }
 
+    @Test
+    void digital_payment_without_embedded_adapter_is_durably_queued_and_remains_pending() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "EXT-" + suffix);
+        receive("EXT-RCV-" + suffix, pharmacy, lot.get("id").asText(), "1");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 1);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        dispense(task.taskId(), "EXT-DSP-" + suffix, "1", pharmacist);
+        JsonNode synchronizedCharges = synchronize(task.encounterId(), "EXT-SYNC-" + suffix);
+        JsonNode invoice = issueInvoice(synchronizedCharges.at("/statement/accountId").asText(), "EXT-INV-" + suffix);
+
+        JsonNode order = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
+                                invoice.get("id").asText()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentOrderBody("EXT-PAY-" + suffix, invoice.get("netAmount").decimalValue())
+                                .replace("\"CASH\"", "\"WECHAT\"")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.events.length()").value(2))
+                .andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asText())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
+                .andExpect(jsonPath("$.tenders.length()").value(0))
+                .andExpect(jsonPath("$.events[1].eventType").value("REQUEST_PAYMENT"));
+
+        mockMvc.perform(get("/api/integration/payments/outbound-messages").with(rhnWorkContext())
+                        .queryParam("endpointCode", "PAYMENT_WECHAT")
+                        .queryParam("status", "PENDING"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].messageType").value("PAYMENT_ORDER"))
+                .andExpect(jsonPath("$[0].businessMessageId").value(order.get("orderNo").asText()))
+                .andExpect(jsonPath("$[0].relatedResourceId").value(order.get("id").asLong()));
+    }
+
     private JsonNode synchronize(String encounterId, String requestCode) throws Exception {
         return json(mockMvc.perform(post("/api/billing/encounters/{encounterId}/charges/synchronize", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -120,42 +189,48 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 
-    private CompletableFuture<MvcResult> paymentAsync(String invoiceId, String paymentNo, BigDecimal amount) {
+    private CompletableFuture<MvcResult> paymentOrderAsync(String invoiceId, String idempotencyKey, BigDecimal amount) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                return mockMvc.perform(post("/api/billing/invoices/{invoiceId}/payments", invoiceId)
+                return mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoiceId)
                                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                                .content(paymentBody(paymentNo, amount))).andReturn();
+                                .content(paymentOrderBody(idempotencyKey, amount))).andReturn();
             } catch (Exception exception) {
                 throw new IllegalStateException(exception);
             }
         });
     }
 
-    private String paymentBody(String paymentNo, BigDecimal amount) {
-        return """
-                {
-                  "paymentNo":"%s","paymentMethodCode":"CASH","amount":%s,
-                  "paidAt":"%sT10:40:00Z","externalTransactionNo":"EXT-%s",
-                  "description":"门诊窗口收费"
-                }
-                """.formatted(paymentNo, amount.toPlainString(), BUSINESS_DAY, paymentNo);
-    }
-
-    private JsonNode refund(String paymentId, String refundNo, BigDecimal amount) throws Exception {
-        return json(mockMvc.perform(post("/api/billing/payments/{paymentId}/refunds", paymentId)
+    private JsonNode paymentOrder(String invoiceId, String idempotencyKey, BigDecimal amount) throws Exception {
+        return json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoiceId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content(refundBody(refundNo, amount)))
+                        .content(paymentOrderBody(idempotencyKey, amount)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 
-    private String refundBody(String refundNo, BigDecimal amount) {
+    private String paymentOrderBody(String idempotencyKey, BigDecimal amount) {
         return """
                 {
-                  "refundNo":"%s","amount":%s,"refundedAt":"%sT11:30:00Z",
-                  "externalTransactionNo":"EXT-%s","reason":"患者退药后原路退款"
+                  "idempotencyKey":"%s","businessScene":"OUTPATIENT","paymentSceneCode":"CASHIER",
+                  "paymentMethodCode":"CASH","amount":%s,"terminalCode":"CASHIER-TEST"
                 }
-                """.formatted(refundNo, amount.toPlainString(), BUSINESS_DAY, refundNo);
+                """.formatted(idempotencyKey, amount.toPlainString());
+    }
+
+    private JsonNode refundOrder(String paymentId, String idempotencyKey, BigDecimal amount) throws Exception {
+        return json(mockMvc.perform(post("/api/billing/payments/{paymentId}/refund-orders", paymentId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(refundOrderBody(idempotencyKey, amount)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+    }
+
+    private String refundOrderBody(String idempotencyKey, BigDecimal amount) {
+        return """
+                {
+                  "idempotencyKey":"%s","amount":%s,
+                  "reason":"患者退药后原路退款","terminalCode":"CASHIER-TEST"
+                }
+                """.formatted(idempotencyKey, amount.toPlainString());
     }
 
     private void returnOne(JsonNode dispense, String returnNo, Reviewer pharmacist) throws Exception {
@@ -239,7 +314,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/encounters/{id}/start", encounter.get("id").asText()).with(rhnWorkContext()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
                 .andExpect(status().isOk());
         return encounter.get("id").asText();
     }
@@ -283,7 +358,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
-                                 "negativeAllowed":false,"lotRequired":true,"traceRequired":true,
+                                 "negativeAllowed":false,"lotRequired":true,"traceRequired":false,
                                  "splitAllowed":true,"coldChain":false,"controlled":false,"highAlert":false}
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
