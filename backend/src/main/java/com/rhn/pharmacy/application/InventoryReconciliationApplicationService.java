@@ -8,6 +8,7 @@ import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.id.GlobalIds;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.SqlParameterValue;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -82,41 +85,65 @@ public class InventoryReconciliationApplicationService {
                 (id, tenant_id, organization_id, stock_site_id, run_no, run_type, status, business_date,
                  started_at, run_by, dimension_count, issue_count)
                 values (?, ?, ?, ?, ?, ?, 'RUNNING', ?, ?, ?, 0, 0)
-                """, runId, tenantId, organizationId, siteId, runNo, runType, businessDate, started, actorId);
+                """, runId, tenantId, organizationId, siteId, runNo, runType,
+                new SqlParameterValue(Types.DATE, java.sql.Date.valueOf(businessDate)),
+                new SqlParameterValue(Types.TIMESTAMP, Timestamp.from(started)),
+                new SqlParameterValue(Types.BIGINT, actorId));
 
         List<Issue> issues = new ArrayList<>();
         List<Dimension> balances = jdbc.query("""
+                with ledger_totals as (
+                    select tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id, stock_status,
+                           sum(quantity_delta) as quantity
+                    from inventory_transaction_lines
+                    where tenant_id = ? and stock_site_id = ?
+                    group by tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id, stock_status
+                ), reservation_totals as (
+                    select tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id,
+                           sum(quantity_reserved - quantity_consumed) as quantity
+                    from inventory_reservations
+                    where tenant_id = ? and stock_site_id = ? and status in ('ACTIVE', 'PARTIAL')
+                    group by tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id
+                ), open_package_totals as (
+                    select tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id,
+                           sum(remaining_base_quantity) as quantity
+                    from inventory_open_packages
+                    where tenant_id = ? and stock_site_id = ? and status = 'OPEN'
+                    group by tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id
+                ), trace_totals as (
+                    select tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id,
+                           sum(remaining_base_quantity) as quantity
+                    from inventory_trace_codes
+                    where tenant_id = ? and stock_site_id = ?
+                      and status in ('AVAILABLE', 'OPENED', 'PARTIALLY_ISSUED')
+                    group by tenant_id, stock_site_id, stock_bin_id, stock_item_id, stock_lot_id
+                )
                 select b.stock_bin_id, b.stock_item_id, b.stock_lot_id, b.stock_status,
-                       b.quantity_on_hand,
-                       coalesce(sum(l.quantity_delta), 0) as ledger_quantity,
-                       b.quantity_reserved,
-                       coalesce((select sum(r.quantity_reserved - r.quantity_consumed)
-                                 from inventory_reservations r
-                                 where r.tenant_id = b.tenant_id and r.stock_bin_id = b.stock_bin_id
-                                   and r.stock_item_id = b.stock_item_id and r.stock_lot_id = b.stock_lot_id
-                                   and r.status in ('ACTIVE', 'PARTIAL')), 0) as reservation_quantity,
-                       coalesce((select sum(p.remaining_base_quantity)
-                                 from inventory_open_packages p
-                                 where p.tenant_id = b.tenant_id and p.stock_bin_id = b.stock_bin_id
-                                   and p.stock_item_id = b.stock_item_id and p.stock_lot_id = b.stock_lot_id
-                                   and p.status = 'OPEN'), 0) as open_quantity,
-                       i.trace_required,
-                       coalesce((select sum(t.remaining_base_quantity)
-                                 from inventory_trace_codes t
-                                 where t.tenant_id = b.tenant_id and t.stock_site_id = b.stock_site_id
-                                   and t.stock_bin_id = b.stock_bin_id and t.stock_item_id = b.stock_item_id
-                                   and t.stock_lot_id = b.stock_lot_id
-                                   and t.status in ('AVAILABLE', 'OPENED', 'PARTIALLY_ISSUED')), 0) as trace_quantity
+                       b.quantity_on_hand, coalesce(l.quantity, 0) as ledger_quantity,
+                       b.quantity_reserved, coalesce(r.quantity, 0) as reservation_quantity,
+                       coalesce(p.quantity, 0) as open_quantity, i.trace_required,
+                       coalesce(t.quantity, 0) as trace_quantity
                 from inventory_balances b
                 join stock_items i on i.tenant_id = b.tenant_id and i.id = b.stock_item_id
-                left join inventory_transaction_lines l
+                left join ledger_totals l
                   on l.tenant_id = b.tenant_id and l.stock_site_id = b.stock_site_id
                  and l.stock_bin_id = b.stock_bin_id and l.stock_item_id = b.stock_item_id
                  and l.stock_lot_id = b.stock_lot_id and l.stock_status = b.stock_status
+                left join reservation_totals r
+                  on r.tenant_id = b.tenant_id and r.stock_site_id = b.stock_site_id
+                 and r.stock_bin_id = b.stock_bin_id and r.stock_item_id = b.stock_item_id
+                 and r.stock_lot_id = b.stock_lot_id
+                left join open_package_totals p
+                  on p.tenant_id = b.tenant_id and p.stock_site_id = b.stock_site_id
+                 and p.stock_bin_id = b.stock_bin_id and p.stock_item_id = b.stock_item_id
+                 and p.stock_lot_id = b.stock_lot_id
+                left join trace_totals t
+                  on t.tenant_id = b.tenant_id and t.stock_site_id = b.stock_site_id
+                 and t.stock_bin_id = b.stock_bin_id and t.stock_item_id = b.stock_item_id
+                 and t.stock_lot_id = b.stock_lot_id
                 where b.tenant_id = ? and b.stock_site_id = ?
-                group by b.tenant_id, b.stock_site_id, b.stock_bin_id, b.stock_item_id, b.stock_lot_id,
-                         b.stock_status, b.quantity_on_hand, b.quantity_reserved, i.trace_required
-                """, (rs, row) -> dimension(rs), tenantId, siteId);
+                """, (rs, row) -> dimension(rs), tenantId, siteId, tenantId, siteId,
+                tenantId, siteId, tenantId, siteId, tenantId, siteId);
 
         for (Dimension d : balances) {
             addDifference(issues, d, "LEDGER_BALANCE", d.ledger(), d.onHand(), "流水累计与库存余额不一致", "ERROR");
@@ -134,7 +161,8 @@ public class InventoryReconciliationApplicationService {
         jdbc.update("""
                 update inventory_reconciliation_runs set status = ?, completed_at = ?,
                        dimension_count = ?, issue_count = ? where tenant_id = ? and id = ?
-                """, status, completed, balances.size(), issues.size(), tenantId, runId);
+                """, status, new SqlParameterValue(Types.TIMESTAMP, Timestamp.from(completed)),
+                balances.size(), issues.size(), tenantId, runId);
         return load(tenantId, runId);
     }
 

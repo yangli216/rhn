@@ -224,7 +224,7 @@ public class SettlementApplicationService {
                 .stream().map(tender -> new SettlementTenderView(tender.id(), tender.paymentId(), tender.claimResponseId(),
                         tender.lineNo(), tender.tenderType(), tender.payerCode(), tender.payerNameSnapshot(), tender.tenderAmount(),
                         tender.currencyCode())).toList();
-        List<SettlementEventView> eventViews = events.findByTenantIdAndSettlementIdOrderByOccurredAtAscIdAsc(context.tenantId(), value.id())
+        List<SettlementEventView> eventViews = events.findByTenantIdAndSettlementIdOrderByIdAsc(context.tenantId(), value.id())
                 .stream().map(event -> new SettlementEventView(event.id(), event.eventType(), event.statusFrom(),
                         event.statusTo(), event.commandCode(), event.actorId(), event.errorCode(), event.errorMessage(),
                         event.occurredAt())).toList();

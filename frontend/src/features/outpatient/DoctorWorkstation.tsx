@@ -6,8 +6,8 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
-import type { MedicationKnowledge, DiseaseConcept, ServiceCatalogItem } from '../../shared/api/masterDataApi'
-import type { DiagnosisInput, Prescription } from '../../shared/api/encountersApi'
+import type { DiseaseConcept, ServiceCatalogItem } from '../../shared/api/masterDataApi'
+import type { DiagnosisInput } from '../../shared/api/encountersApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { ReceptionQueueItem } from '../../shared/api/schedulingApi'
 import type { Encounter, Resident } from '../../shared/model'
@@ -19,6 +19,7 @@ import {
   Alert, Button, ClinicalResourceSearch, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
+import { PrescriptionListEditor } from './PrescriptionListEditor'
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -498,18 +499,7 @@ function OrdersPanel({ encounter, allergies, api }: { encounter: Encounter; alle
   const queryClient = useQueryClient()
   const [orderView, setOrderView] = useState<'medication' | 'service' | 'list'>('medication')
   const [service, setService] = useState<ClinicalResourceOption<ServiceCatalogItem>>()
-  const [medication, setMedication] = useState<ClinicalResourceOption<MedicationKnowledge>>()
   const [serviceQuantity, setServiceQuantity] = useState(1)
-  const [medicationQuantity, setMedicationQuantity] = useState(1)
-  const [doseValue, setDoseValue] = useState<number | ''>('')
-  const [doseUnit, setDoseUnit] = useState('')
-  const [routeCode, setRouteCode] = useState('')
-  const [frequencyCode, setFrequencyCode] = useState('')
-  const [durationValue, setDurationValue] = useState<number | ''>('')
-  const [durationUnit, setDurationUnit] = useState('天')
-  const [medicationInstruction, setMedicationInstruction] = useState('遵医嘱使用')
-  const [safetyReviewed, setSafetyReviewed] = useState(false)
-  const [allergyOverrideReason, setAllergyOverrideReason] = useState('')
   const prescriptions = useQuery({ queryKey: ['doctor-prescriptions', encounter.id], queryFn: () => api.encounters.prescriptions(encounter.id) })
   const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
   const medications = useQuery({ queryKey: ['doctor-medications', encounter.id], queryFn: () => api.encounters.medicationRequests(encounter.id) })
@@ -518,39 +508,6 @@ function OrdersPanel({ encounter, allergies, api }: { encounter: Encounter; alle
     queryClient.invalidateQueries({ queryKey: ['doctor-services', encounter.id] }),
     queryClient.invalidateQueries({ queryKey: ['doctor-medications', encounter.id] }),
   ])
-  useEffect(() => {
-    const selected = medication?.raw
-    setDoseValue(selected?.defaultDose ?? '')
-    setDoseUnit(selected?.defaultDoseUnit ?? '')
-    setRouteCode(selected?.defaultRoute ?? '')
-    setFrequencyCode(selected?.defaultFrequency ?? '')
-    setSafetyReviewed(false)
-    setAllergyOverrideReason('')
-  }, [medication])
-  const selectedMedication = medication?.raw
-  const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
-  const matchedAllergies = selectedMedication ? drugAllergies.filter((item) => item.substanceCode
-    && item.substanceCode.toLowerCase() === selectedMedication.code.toLowerCase()) : []
-  const requiresSafetyReview = Boolean(selectedMedication && (drugAllergies.length > 0
-    || selectedMedication.skinTestRequired || selectedMedication.antimicrobial))
-  const createPrescription = useMutation({ mutationFn: () => api.encounters.createPrescription(encounter.id, '门诊处方'), onSuccess: refresh })
-  const draft = prescriptions.data?.find((item) => item.status === 'DRAFT')
-  const addMedication = useMutation({
-    mutationFn: () => {
-      const selected = medication?.raw
-      if (!draft || !selected) throw new Error('请先选择处方草稿和通用药品')
-      return api.encounters.createMedicationRequest(encounter.id, {
-        prescriptionId: draft.id, medicationId: selected.id, quantity: medicationQuantity,
-        quantityUnit: selected.preparationUnit, substitutionAllowed: true, selfProvided: false,
-        doseValue: doseValue === '' ? undefined : doseValue, doseUnit: doseUnit || undefined,
-        routeCode: routeCode || undefined, frequencyCode: frequencyCode || undefined,
-        durationValue: durationValue === '' ? undefined : durationValue, durationUnit: durationValue === '' ? undefined : durationUnit,
-        reason: '门诊处方', medicationInstruction, allergyReviewConfirmed: safetyReviewed || drugAllergies.length === 0,
-        allergyOverrideReason: allergyOverrideReason.trim() || undefined,
-      })
-    },
-    onSuccess: async () => { setMedication(undefined); setMedicationQuantity(1); setDurationValue(''); await refresh() },
-  })
   const addService = useMutation({
     mutationFn: () => {
       const selected = service?.raw
@@ -562,10 +519,6 @@ function OrdersPanel({ encounter, allergies, api }: { encounter: Encounter; alle
     },
     onSuccess: async () => { setService(undefined); setServiceQuantity(1); await refresh() },
   })
-  const submit = useMutation({
-    mutationFn: (value: Prescription) => api.encounters.submitPrescription(encounter.id, value.id, value.revision),
-    onSuccess: refresh,
-  })
   const cancelService = useMutation({
     mutationFn: (value: import('../../shared/api/encountersApi').ServiceRequest) =>
       api.encounters.cancelServiceRequest(encounter.id, value.id, value.revision, '医生站撤销'), onSuccess: refresh,
@@ -574,12 +527,8 @@ function OrdersPanel({ encounter, allergies, api }: { encounter: Encounter; alle
     mutationFn: (value: import('../../shared/api/encountersApi').MedicationRequest) =>
       api.encounters.cancelMedicationRequest(encounter.id, value.id, value.revision, '医生站撤销'), onSuccess: refresh,
   })
-  const cancelPrescription = useMutation({
-    mutationFn: (value: Prescription) => api.encounters.cancelPrescription(encounter.id, value.id, value.revision, '医生站撤销'),
-    onSuccess: refresh,
-  })
-  const error = prescriptions.error || services.error || medications.error || createPrescription.error
-    || addMedication.error || addService.error || submit.error || cancelService.error || cancelMedication.error || cancelPrescription.error
+  const error = prescriptions.error || services.error || medications.error
+    || addService.error || cancelService.error || cancelMedication.error
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
 
   return <Panel className="doctor-orders-panel">
@@ -602,48 +551,9 @@ function OrdersPanel({ encounter, allergies, api }: { encounter: Encounter; alle
           <Button busy={addService.isPending} disabled={!service || serviceQuantity <= 0}
             onClick={() => addService.mutate()}>加入申请</Button></div>
       </div>}
-      {orderView === 'medication' && <div className="doctor-prescription-entry">
-        <div className="doctor-prescription-meta">
-          <span>{draft ? draft.prescriptionNo : '尚未建立处方草稿'}</span>
-          {!draft && <Button size="sm" onClick={() => createPrescription.mutate()}>新建处方</Button>}
-        </div>
-        <FormField label="通用药品"><ClinicalResourceSearch<MedicationKnowledge> api={api} resource="medication"
-          organizationId={encounter.organizationId} value={medication} onChange={setMedication} /></FormField>
-        {selectedMedication && <div className={`doctor-medication-safety ${requiresSafetyReview ? 'is-warning' : 'is-clear'}`}>
-          <strong>{requiresSafetyReview ? '开立前安全核对' : '未命中当前高风险提示'}</strong>
-          {drugAllergies.length > 0 && <p>患者药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}</p>}
-          {selectedMedication.skinTestRequired && <p>该药品目录标记为“需皮试”；加入处方不代表皮试已完成。</p>}
-          {selectedMedication.antimicrobial && <p>抗菌药等级：{selectedMedication.sdAntimicrobialLevelText
-            || selectedMedication.sdAntimicrobialLevel || '未配置等级'}</p>}
-          {matchedAllergies.length > 0 && <FormField label="命中过敏原，继续开立的临床理由" required>
-            <input value={allergyOverrideReason} maxLength={1000} onChange={(event) => setAllergyOverrideReason(event.target.value)} />
-          </FormField>}
-          {requiresSafetyReview && <label><input type="checkbox" checked={safetyReviewed}
-            onChange={(event) => setSafetyReviewed(event.target.checked)} /> 已核对患者过敏信息及以上药品风险</label>}
-        </div>}
-        <div className="doctor-medication-directions">
-          <FormField label="单次剂量"><input type="number" min="0" step="0.01" value={doseValue}
-            onChange={(event) => setDoseValue(event.target.value === '' ? '' : Number(event.target.value))} /></FormField>
-          <FormField label="剂量单位"><input value={doseUnit} onChange={(event) => setDoseUnit(event.target.value)} /></FormField>
-          <FormField label="给药途径"><input value={routeCode} onChange={(event) => setRouteCode(event.target.value)} placeholder="如 PO" /></FormField>
-          <FormField label="频次"><input value={frequencyCode} onChange={(event) => setFrequencyCode(event.target.value)} placeholder="如 BID" /></FormField>
-          <FormField label="疗程"><input type="number" min="1" value={durationValue}
-            onChange={(event) => setDurationValue(event.target.value === '' ? '' : Number(event.target.value))} /></FormField>
-          <FormField label="疗程单位"><input value={durationUnit} onChange={(event) => setDurationUnit(event.target.value)} /></FormField>
-        </div>
-        <FormField label="用药嘱托"><input value={medicationInstruction}
-          onChange={(event) => setMedicationInstruction(event.target.value)} /></FormField>
-        <div className="doctor-order-entry"><FormField label="发药数量"><input type="number" min="1" value={medicationQuantity}
-          onChange={(event) => setMedicationQuantity(Number(event.target.value))} /></FormField>
-          <Button busy={addMedication.isPending} disabled={!draft || !medication || medicationQuantity <= 0
-            || doseValue === '' || !doseUnit.trim() || !routeCode.trim() || !frequencyCode.trim() || !medicationInstruction.trim()
-            || (requiresSafetyReview && !safetyReviewed) || (matchedAllergies.length > 0 && !allergyOverrideReason.trim())}
-            onClick={() => addMedication.mutate()}>加入处方</Button></div>
-        {draft && <div className="ui-form-actions"><Button variant="secondary" busy={submit.isPending}
-          disabled={!draft.medicationRequests.some((item) => item.status === 'DRAFT')} onClick={() => submit.mutate(draft)}>提交整张处方</Button>
-          <Button variant="text" busy={cancelPrescription.isPending}
-            onClick={() => { if (window.confirm('确认撤销当前处方草稿？')) cancelPrescription.mutate(draft) }}>撤销草稿</Button></div>}
-      </div>}
+      {orderView === 'medication' && (prescriptions.isPending ? <LoadingState />
+        : <PrescriptionListEditor encounter={encounter} allergies={allergies} prescriptions={prescriptions.data ?? []}
+          api={api} onRefresh={refresh} />)}
       {orderView === 'list' && (services.isPending || medications.isPending ? <LoadingState />
         : !(services.data?.length || medications.data?.length)
           ? <div className="doctor-order-empty"><strong>尚未开立医嘱</strong><span>可切换到处方或诊疗申请进行开立。</span></div>

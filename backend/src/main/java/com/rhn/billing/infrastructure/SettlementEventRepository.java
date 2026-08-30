@@ -9,5 +9,5 @@ import java.util.Optional;
 public interface SettlementEventRepository extends JpaRepository<SettlementEvent, Long> {
     Optional<SettlementEvent> findByTenantIdAndSettlementIdAndCommandCode(
             Long tenantId, Long settlementId, String commandCode);
-    List<SettlementEvent> findByTenantIdAndSettlementIdOrderByOccurredAtAscIdAsc(Long tenantId, Long settlementId);
+    List<SettlementEvent> findByTenantIdAndSettlementIdOrderByIdAsc(Long tenantId, Long settlementId);
 }

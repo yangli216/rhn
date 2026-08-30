@@ -94,6 +94,7 @@ export interface MedicationRequest {
   requestNo: string
   status: 'DRAFT' | 'ACTIVE' | 'CANCELLED'
   prescriptionId?: string
+  parentRequestId?: string
   catalogItemId?: string
   medicationId: string
   packageId?: string
@@ -114,7 +115,7 @@ export interface MedicationRequest {
   doseUnit?: string
   routeCode?: string
   frequencyCode?: string
-  administrationGroupNo?: string
+  medicationInstruction?: string
   durationValue?: number
   durationUnit?: string
   quantity: number
@@ -147,7 +148,7 @@ export interface CreateMedicationRequestInput {
   doseUnit?: string
   routeCode?: string
   frequencyCode?: string
-  administrationGroupNo?: string
+  parentRequestId?: string
   durationValue?: number
   durationUnit?: string
   quantity: number

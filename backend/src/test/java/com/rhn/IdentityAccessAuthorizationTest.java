@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
     private static final String PHARMACY_DEPARTMENT = "362387869799103";
+    private static final String PHARMACY_ROLE_ASSIGNMENT = "362387869799403";
 
     @Autowired
     JdbcTemplate jdbc;
@@ -122,5 +123,18 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
                 }))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("WORK_CONTEXT_FORBIDDEN"));
+    }
+
+    @Test
+    void department_manager_cannot_view_or_revoke_assignments_from_another_department() throws Exception {
+        mockMvc.perform(get("/api/platform/iam/users/{userId}/role-assignments", "362387869790222")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + PHARMACY_ROLE_ASSIGNMENT + "')]").doesNotExist());
+
+        mockMvc.perform(delete("/api/platform/iam/user-role-assignments/{id}", PHARMACY_ROLE_ASSIGNMENT)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("IAM_SCOPE_ESCALATION_FORBIDDEN"));
     }
 }

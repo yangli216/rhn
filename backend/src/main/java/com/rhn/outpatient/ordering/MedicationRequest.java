@@ -27,6 +27,7 @@ class MedicationRequest {
     @Column(name = "encounter_id", nullable = false) private Long encounterId;
     @Column(name = "request_no", nullable = false) private String requestNo;
     @Column(name = "request_group_id") private Long requestGroupId;
+    @Column(name = "parent_request_id") private Long parentRequestId;
     @Column(name = "request_kind", nullable = false) private String requestKind;
     @Column(nullable = false) private String status;
     @Column(name = "intent_code", nullable = false) private String intentCode;
@@ -66,7 +67,6 @@ class MedicationRequest {
     @Column(table = "medication_requests", name = "dose_unit") private String doseUnit;
     @Column(table = "medication_requests", name = "route_code") private String routeCode;
     @Column(table = "medication_requests", name = "frequency_code") private String frequencyCode;
-    @Column(table = "medication_requests", name = "administration_group_no") private String administrationGroupNo;
     @Column(table = "medication_requests", name = "duration_value", precision = 12, scale = 3) private BigDecimal durationValue;
     @Column(table = "medication_requests", name = "duration_unit") private String durationUnit;
     @Column(table = "medication_requests", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
@@ -94,7 +94,7 @@ class MedicationRequest {
     protected MedicationRequest() {}
 
     MedicationRequest(Long tenantId, Long residentId, Long encounterId, String requestNo,
-                      Long requestGroupId, String initialStatus,
+                      Long requestGroupId, Long parentRequestId, String initialStatus,
                       Long catalogItemId, Long packageId, Long performerOrganizationId,
                       Long performerDepartmentId, LocalDate businessDate, Long authoredBy, String reasonText,
                       String itemCode, String itemName, String quantityUnit, String localCode, String localName,
@@ -102,8 +102,7 @@ class MedicationRequest {
                       BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode,
                       String itemAttributeSnapshot, String itemAttributeHash, Instant itemAttributeResolvedAt,
                       String standardMappingSnapshot, Long medicationId, BigDecimal doseValue, String doseUnit,
-                      String routeCode, String frequencyCode, String administrationGroupNo,
-                      BigDecimal durationValue, String durationUnit,
+                      String routeCode, String frequencyCode, BigDecimal durationValue, String durationUnit,
                       BigDecimal quantity, BigDecimal baseQuantity, String baseUnit, BigDecimal packageFactor,
                       String packageUnitName, String packageSpec, BigDecimal priceQuantity,
                       boolean substitutionAllowed, boolean selfProvided, String medicationInstruction,
@@ -112,7 +111,8 @@ class MedicationRequest {
                       boolean antimicrobial, String antimicrobialLevel, String medicationSnapshot) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.medicationTenantId = tenantId;
         this.residentId = residentId; this.encounterId = encounterId; this.requestNo = requestNo;
-        this.requestGroupId = requestGroupId; this.requestKind = "MEDICATION"; this.status = initialStatus;
+        this.requestGroupId = requestGroupId; this.parentRequestId = parentRequestId;
+        this.requestKind = "MEDICATION"; this.status = initialStatus;
         this.intentCode = "ORDER";
         this.priorityCode = "ROUTINE"; this.catalogItemId = catalogItemId; this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId; this.performerDepartmentId = performerDepartmentId;
@@ -125,8 +125,7 @@ class MedicationRequest {
         this.itemAttributeSnapshot = itemAttributeSnapshot; this.itemAttributeHash = itemAttributeHash;
         this.itemAttributeResolvedAt = itemAttributeResolvedAt; this.standardMappingSnapshot = standardMappingSnapshot;
         this.medicationId = medicationId; this.doseValue = doseValue; this.doseUnit = doseUnit;
-        this.routeCode = routeCode; this.frequencyCode = frequencyCode;
-        this.administrationGroupNo = administrationGroupNo; this.durationValue = durationValue;
+        this.routeCode = routeCode; this.frequencyCode = frequencyCode; this.durationValue = durationValue;
         this.durationUnit = durationUnit; this.quantity = quantity; this.quantityUnit = quantityUnit;
         this.baseQuantity = baseQuantity; this.baseUnit = baseUnit; this.packageFactorSnapshot = packageFactor;
         this.packageUnitNameSnapshot = packageUnitName; this.packageSpecSnapshot = packageSpec;
@@ -162,7 +161,7 @@ class MedicationRequest {
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }
     Long residentId() { return residentId; } Long encounterId() { return encounterId; } String requestNo() { return requestNo; }
-    Long requestGroupId() { return requestGroupId; }
+    Long requestGroupId() { return requestGroupId; } Long parentRequestId() { return parentRequestId; }
     String status() { return status; } Long catalogItemId() { return catalogItemId; } Long medicationId() { return medicationId; }
     Long packageId() { return packageId; } Long performerOrganizationId() { return performerOrganizationId; }
     Long performerDepartmentId() { return performerDepartmentId; } LocalDate businessDate() { return businessDate; }
@@ -175,8 +174,7 @@ class MedicationRequest {
     String itemAttributeSnapshot() { return itemAttributeSnapshot; } String itemAttributeHash() { return itemAttributeHash; }
     Instant itemAttributeResolvedAt() { return itemAttributeResolvedAt; } String standardMappingSnapshot() { return standardMappingSnapshot; }
     BigDecimal doseValue() { return doseValue; } String doseUnit() { return doseUnit; } String routeCode() { return routeCode; }
-    String frequencyCode() { return frequencyCode; } String administrationGroupNo() { return administrationGroupNo; }
-    BigDecimal durationValue() { return durationValue; }
+    String frequencyCode() { return frequencyCode; } BigDecimal durationValue() { return durationValue; }
     String durationUnit() { return durationUnit; } BigDecimal quantity() { return quantity; } String quantityUnit() { return quantityUnit; }
     BigDecimal baseQuantity() { return baseQuantity; } String baseUnit() { return baseUnit; }
     BigDecimal packageFactorSnapshot() { return packageFactorSnapshot; } String packageUnitNameSnapshot() { return packageUnitNameSnapshot; }

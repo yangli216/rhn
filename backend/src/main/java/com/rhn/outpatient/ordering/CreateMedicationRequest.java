@@ -16,7 +16,7 @@ record CreateMedicationRequest(
         @Size(max = 64) String doseUnit,
         @Size(max = 64) String routeCode,
         @Size(max = 64) String frequencyCode,
-        @Size(max = 64) String administrationGroupNo,
+        Long parentRequestId,
         @DecimalMin(value = "0", inclusive = false) BigDecimal durationValue,
         @Size(max = 32) String durationUnit,
         @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,

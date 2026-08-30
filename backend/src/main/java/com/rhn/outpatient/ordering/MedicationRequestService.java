@@ -164,14 +164,12 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 "疗程时长与时长单位必须同时填写");
         String route = clean(input.routeCode()) == null ? medication.defaultRoute() : clean(input.routeCode());
         String frequency = clean(input.frequencyCode()) == null ? medication.defaultFrequency() : clean(input.frequencyCode());
-        String administrationGroupNo = clean(input.administrationGroupNo());
         if (prescription != null) {
             requirePrescriptionDirections(doseValue, doseUnit, route, frequency, input.medicationInstruction());
             requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
         }
-        if (administrationGroupNo != null && !isInfusionRoute(route)) {
-            throw badRequest("MEDICATION_ADMINISTRATION_GROUP_ROUTE_INVALID", "只有输液给药途径可以设置输液组号");
-        }
+        MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
+                encounterId, prescription, route, frequency, input.durationValue());
         var drugAllergies = allergyDirectory.activeForResident(encounter.residentId()).stream()
                 .filter(com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
         if (!drugAllergies.isEmpty() && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
@@ -197,6 +195,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
         MedicationRequest value = repository.saveAndFlush(new MedicationRequest(tenantId, encounter.residentId(),
                 encounter.id(), nextRequestNo(), prescription == null ? null : prescription.id(),
+                parentRequest == null ? null : parentRequest.id(),
                 prescription == null ? "ACTIVE" : "DRAFT", item == null ? null : item.id(), input.packageId(),
                 performerOrganizationId, performerDepartmentId, businessDate, context.subjectId(), clean(input.reason()),
                 itemCode, itemName, quantityUnit, adoption == null ? null : adoption.localCode(),
@@ -208,7 +207,6 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 resolvedPrice == null ? null : resolvedPrice.currencyCode(),
                 jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
                 attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit, route, frequency,
-                administrationGroupNo,
                 input.durationValue(), clean(input.durationUnit()), input.quantity(), baseQuantity, baseUnit, packageFactor,
                 itemPackage == null ? null : itemPackage.unitName(), itemPackage == null ? null : itemPackage.packageSpec(),
                 priceQuantity, input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
@@ -219,9 +217,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         eventDetails.put("medicationId", value.medicationId());
         if (value.catalogItemId() != null) eventDetails.put("catalogItemId", value.catalogItemId());
         if (value.requestGroupId() != null) eventDetails.put("prescriptionId", value.requestGroupId());
-        if (value.administrationGroupNo() != null) {
-            eventDetails.put("administrationGroupNo", value.administrationGroupNo());
-        }
+        if (value.parentRequestId() != null) eventDetails.put("parentRequestId", value.parentRequestId());
         eventDetails.put("medicationCode", value.medicationCodeSnapshot());
         eventDetails.put("medicationName", value.medicationNameSnapshot());
         eventDetails.put("quantity", value.quantity()); eventDetails.put("quantityUnit", value.quantityUnit());
@@ -307,7 +303,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
 
     MedicationRequestResponse response(MedicationRequest value) {
         return new MedicationRequestResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
-                value.requestNo(), value.status(), value.requestGroupId(), value.catalogItemId(), value.medicationId(),
+                value.requestNo(), value.status(), value.requestGroupId(), value.parentRequestId(),
+                value.catalogItemId(), value.medicationId(),
                 value.packageId(), value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.itemCodeSnapshot(), value.itemNameSnapshot(),
                 value.localCodeSnapshot(), value.localNameSnapshot(), value.adoptionId(), value.adoptionRevision(),
@@ -316,7 +313,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.medicationTypeSnapshot(), value.doseFormSnapshot(), value.preparationSpecSnapshot(),
                 value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(), value.antimicrobialSnapshot(),
                 value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeCode(),
-                value.frequencyCode(), value.administrationGroupNo(), value.durationValue(), value.durationUnit(),
+                value.frequencyCode(), value.durationValue(), value.durationUnit(),
                 value.quantity(), value.quantityUnit(),
                 value.baseQuantity(), value.baseUnit(), value.packageFactorSnapshot(), value.packageUnitNameSnapshot(),
                 value.packageSpecSnapshot(), value.substitutionAllowed(), value.selfProvided(), value.medicationInstruction(),
@@ -356,6 +353,29 @@ class MedicationRequestService implements MedicationRequestDirectory {
         String normalized = route.trim().toUpperCase();
         return normalized.equals("IV") || normalized.equals("IVGTT") || normalized.equals("IV_DRIP")
                 || normalized.equals("INTRAVENOUS") || normalized.contains("输液") || normalized.contains("静滴");
+    }
+
+    private MedicationRequest requireAdministrationParent(Long parentRequestId, Long tenantId, Long encounterId,
+                                                          Prescription prescription, String route, String frequency,
+                                                          BigDecimal durationValue) {
+        if (parentRequestId == null) return null;
+        if (prescription == null || !isInfusionRoute(route)) {
+            throw badRequest("MEDICATION_PARENT_REQUEST_INVALID", "只有处方内输液医嘱可以引用组内父医嘱");
+        }
+        MedicationRequest parent = repository.findByIdAndTenantId(parentRequestId, tenantId)
+                .filter(value -> value.encounterId().equals(encounterId)
+                        && prescription.id().equals(value.requestGroupId())
+                        && !"CANCELLED".equals(value.status()))
+                .orElseThrow(() -> badRequest("MEDICATION_PARENT_REQUEST_INVALID", "输液父医嘱不属于当前处方"));
+        if (!isInfusionRoute(parent.routeCode()) || !clean(parent.routeCode()).equalsIgnoreCase(clean(route))
+                || !java.util.Objects.equals(clean(parent.frequencyCode()), clean(frequency))
+                || !java.util.Objects.equals(parent.durationValue(), durationValue)) {
+            throw badRequest("MEDICATION_PARENT_REQUEST_USAGE_MISMATCH", "同组输液医嘱的途径、频次和疗程必须一致");
+        }
+        if (parent.parentRequestId() == null) return parent;
+        return repository.findByIdAndTenantId(parent.parentRequestId(), tenantId)
+                .filter(value -> prescription.id().equals(value.requestGroupId()))
+                .orElseThrow(() -> badRequest("MEDICATION_PARENT_REQUEST_INVALID", "输液根医嘱不存在"));
     }
 
     private void publish(MedicationRequest value, String type, String summary, Map<String, Object> details) {

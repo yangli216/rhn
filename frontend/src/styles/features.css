@@ -342,6 +342,47 @@
 .doctor-medication-safety label { display: flex; align-items: center; gap: var(--space-2); font-weight: var(--font-weight-semibold); }
 .doctor-medication-safety input[type='checkbox'] { inline-size: 1.1rem; block-size: 1.1rem; }
 .doctor-order-error { margin: var(--space-3) var(--space-4) 0; }
+.doctor-prescription-list-editor { min-width: 0; display: grid; gap: var(--space-2); }
+.doctor-prescription-type-tabs { min-width: 0; display: flex; align-items: center; gap: var(--space-1); border-bottom: 1px solid var(--color-border); }
+.doctor-prescription-type-tabs button { min-height: 2.15rem; padding: 0 var(--space-2); border: 0; border-bottom: 2px solid transparent; color: var(--color-text-secondary); background: transparent; font: inherit; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); cursor: pointer; }
+.doctor-prescription-type-tabs button.is-active { color: var(--color-brand-primary); border-bottom-color: var(--color-brand-primary); }
+.doctor-prescription-type-tabs > span { min-width: 0; margin-left: auto; overflow: hidden; color: var(--color-text-secondary); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-prescription-splits { min-height: 1.8rem; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); color: var(--color-text-secondary); font-size: .72rem; }
+.doctor-prescription-splits > span { padding: .2rem .4rem; display: inline-flex; align-items: center; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
+.doctor-prescription-splits strong { color: var(--color-text-primary); }
+.doctor-prescription-splits .ui-status-badge { min-height: 1.25rem; padding-inline: .35rem; font-size: .65rem; }
+.doctor-herbal-summary { display: grid; grid-template-columns: 5.5rem minmax(8rem, 1fr) 6rem; gap: var(--space-2); }
+.doctor-herbal-summary label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--space-1); color: var(--color-text-secondary); font-size: .72rem; font-weight: var(--font-weight-semibold); }
+.doctor-herbal-summary input { min-width: 0; min-height: 2rem; padding: 0 .4rem; }
+.doctor-prescription-grid { --doctor-rx-columns: 2rem minmax(6rem, 1.25fr) 3.2rem 2.5rem 3.2rem 2.8rem 2.8rem 3.3rem minmax(4.7rem, 1fr) 5.4rem; min-width: 0; overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.doctor-prescription-grid.is-herbal { --doctor-rx-columns: 2.7rem minmax(10rem, 1.4fr) 5rem 4rem minmax(8rem, 1fr) 6.5rem 6.5rem; }
+.doctor-prescription-grid__head, .doctor-prescription-grid__saved, .doctor-prescription-grid__entry { min-width: 38rem; display: grid; grid-template-columns: var(--doctor-rx-columns); align-items: stretch; }
+.doctor-prescription-grid.is-herbal :is(.doctor-prescription-grid__head, .doctor-prescription-grid__saved, .doctor-prescription-grid__entry) { min-width: 43rem; }
+.doctor-prescription-grid__head { min-height: 1.75rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: .7rem; font-weight: var(--font-weight-semibold); }
+.doctor-prescription-grid__head > span, .doctor-prescription-grid__saved > span { min-width: 0; padding: .3rem .35rem; display: flex; align-items: center; border-right: 1px solid var(--color-border); }
+.doctor-prescription-grid__head > span:last-child, .doctor-prescription-grid__saved > span:last-child { border-right: 0; }
+.doctor-prescription-grid__saved { min-height: 2.65rem; border-top: 1px solid var(--color-border); font-size: .72rem; }
+.doctor-prescription-grid__saved.is-grouped { box-shadow: inset .2rem 0 0 var(--color-info); }
+.doctor-prescription-grid__saved > span { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.doctor-prescription-group-cell { justify-content: center; color: var(--color-info) !important; font-size: .68rem; font-weight: var(--font-weight-semibold); }
+.doctor-prescription-drug { min-width: 0; display: grid !important; align-content: center; }
+.doctor-prescription-drug strong, .doctor-prescription-drug small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-prescription-drug strong { color: var(--color-text-primary); }
+.doctor-prescription-drug small { color: var(--color-text-secondary); }
+.doctor-prescription-grid__entry { min-height: 2.65rem; padding: .15rem; gap: .1rem; border-top: 1px solid var(--color-border-strong); background: color-mix(in srgb, var(--color-brand-soft) 35%, var(--color-surface)); }
+.doctor-prescription-grid__entry > * { min-width: 0; }
+.doctor-prescription-grid__entry input { inline-size: 100%; min-height: 2.2rem; padding: 0 .35rem; font-size: .72rem; }
+.doctor-prescription-grid__entry .ui-remote-search__trigger { min-height: 2.2rem; padding: 0 .4rem; font-size: .72rem; }
+.doctor-prescription-grid__entry .ui-button { min-height: 2.2rem; padding-inline: .45rem; }
+.doctor-herbal-total { display: flex; align-items: center; padding: 0 .35rem; color: var(--color-text-secondary); font-size: .72rem; white-space: nowrap; }
+.doctor-prescription-row-action { justify-content: space-between; gap: .1rem; }
+.doctor-prescription-row-action .ui-button { min-height: 1.75rem; padding-inline: .25rem; }
+.doctor-prescription-row-action .ui-status-badge { flex: none; min-height: 1.3rem; padding-inline: .3rem; font-size: .65rem; }
+.doctor-prescription-actions { min-height: 2.25rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.doctor-prescription-actions > span { color: var(--color-text-secondary); font-size: .72rem; }
+.doctor-prescription-list-editor .doctor-medication-safety { margin: 0; padding: var(--space-2); gap: var(--space-1); }
+.doctor-prescription-list-editor .doctor-medication-safety label:has(input:not([type='checkbox'])) { display: grid; grid-template-columns: auto minmax(0, 1fr); }
+.doctor-prescription-list-editor .doctor-medication-safety label:has(input:not([type='checkbox'])) input { min-width: 0; }
 .doctor-order-empty { min-height: 8rem; display: grid; place-items: center; align-content: center; gap: var(--space-2); color: var(--color-text-secondary); text-align: center; }
 .doctor-order-empty strong { color: var(--color-text-primary); }
 .doctor-order-lines { display: grid; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); }

@@ -144,10 +144,20 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(
                                 prescriptionId, medicationId, ",\"allergyReviewConfirmed\":true")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_ALLERGY_MATCH"));
+        String infusionRoot = mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(prescriptionId, medicationId,
+                                ",\"routeCode\":\"IVGTT\","
+                                        + "\"allergyReviewConfirmed\":true,\"allergyOverrideReason\":\"已评估获益大于风险\"")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.parentRequestId").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+        String infusionRootId = json(infusionRoot).get("id").asText();
         mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(prescriptionId, medicationId,
-                                ",\"allergyReviewConfirmed\":true,\"allergyOverrideReason\":\"已评估获益大于风险\"")))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT"));
+                                ",\"routeCode\":\"IVGTT\",\"parentRequestId\":\"%s\","
+                                        .formatted(infusionRootId)
+                                        + "\"allergyReviewConfirmed\":true,\"allergyOverrideReason\":\"已评估获益大于风险\"")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.parentRequestId").value(infusionRootId));
 
         mockMvc.perform(post("/api/residents/{residentId}/allergies/{allergyId}/inactivate", residentId, allergyId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

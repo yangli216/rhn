@@ -75,18 +75,48 @@ public class IdentityAccessAdministrationService {
 
     @Transactional(readOnly = true)
     public List<UserView> users() {
-        Long tenantId = current().tenantId();
+        ExecutionContext context = current();
+        if (!context.hasWorkContext()) {
+            return jdbc.query("""
+                    select id, username, status from user_accounts where tenant_id = ? order by username
+                    """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
+                    result.getString("status")), context.tenantId());
+        }
         return jdbc.query("""
-                select id, username, status from user_accounts where tenant_id = ? order by username
+                select distinct account.id, account.username, account.status
+                  from user_accounts account
+                  join employments employment
+                    on employment.tenant_id = account.tenant_id
+                   and employment.practitioner_id = account.practitioner_id
+                  join staff_assignments assignment
+                    on assignment.tenant_id = employment.tenant_id
+                   and assignment.employment_id = employment.id
+                 where account.tenant_id = ?
+                   and assignment.organization_id = ? and assignment.department_id = ?
+                   and employment.status = 'ACTIVE' and assignment.status = 'ACTIVE'
+                   and employment.hire_date <= current_date
+                   and (employment.leave_date is null or employment.leave_date >= current_date)
+                   and assignment.valid_from <= current_date
+                   and (assignment.valid_to is null or assignment.valid_to >= current_date)
+                 order by account.username
                 """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
-                result.getString("status")), tenantId);
+                result.getString("status")), context.tenantId(), context.organizationId(), context.departmentId());
     }
 
     @Transactional(readOnly = true)
     public List<UserRoleAssignmentView> assignments(Long userId) {
-        Long tenantId = current().tenantId();
-        requireUser(tenantId, userId);
+        ExecutionContext context = current();
+        Long tenantId = context.tenantId();
+        requireManageableUser(context, userId);
         Instant now = Instant.now();
+        String scopeFilter = context.hasWorkContext()
+                ? " and assignment.organization_id = ? and assignment.department_id = ? and assignment.data_scope_type = 'DEPARTMENT'"
+                : "";
+        List<Object> parameters = new ArrayList<>(List.of(tenantId, userId));
+        if (context.hasWorkContext()) {
+            parameters.add(context.organizationId());
+            parameters.add(context.departmentId());
+        }
         return jdbc.query("""
                 select assignment.id, assignment.user_id, account.username, assignment.role_id,
                        role.code as role_code, role.name as role_name,
@@ -104,6 +134,7 @@ public class IdentityAccessAdministrationService {
                   left join departments department
                     on department.tenant_id = assignment.tenant_id and department.id = assignment.department_id
                  where assignment.tenant_id = ? and assignment.user_id = ?
+                """ + scopeFilter + """
                  order by assignment.valid_from desc, assignment.id desc
                 """, (result, index) -> {
             Instant from = result.getTimestamp("valid_from").toInstant();
@@ -116,7 +147,7 @@ public class IdentityAccessAdministrationService {
                     result.getString("department_name"), result.getString("data_scope_type"), from, to,
                     result.getObject("granted_by", Long.class), result.getTimestamp("created_at").toInstant(),
                     !from.isAfter(now) && (to == null || to.isAfter(now)));
-        }, tenantId, userId);
+        }, parameters.toArray());
     }
 
     @Transactional
@@ -205,7 +236,7 @@ public class IdentityAccessAdministrationService {
     public UserRoleAssignmentView assignRole(Long userId, Long roleId, Long organizationId, Long departmentId,
                                              String dataScopeType, Instant validFrom, Instant validTo) {
         ExecutionContext context = current();
-        requireUser(context.tenantId(), userId);
+        requireManageableUser(context, userId);
         RoleView role = requireRole(context.tenantId(), roleId);
         if (!"ACTIVE".equals(role.status())) throw badRequest("IAM_ROLE_INACTIVE", "不能分配已停用角色");
         String scope = enumValue(dataScopeType, DATA_SCOPES, "数据范围");
@@ -236,10 +267,20 @@ public class IdentityAccessAdministrationService {
     @Transactional
     public void revokeAssignment(Long assignmentId) {
         ExecutionContext context = current();
-        List<Long> users = jdbc.query("""
-                select user_id from user_role_assignments where tenant_id = ? and id = ?
-                """, (result, index) -> result.getLong(1), context.tenantId(), assignmentId);
-        if (users.isEmpty()) throw notFound("IAM_ASSIGNMENT_NOT_FOUND", "未找到用户角色授权");
+        List<AssignmentTarget> targets = jdbc.query("""
+                select user_id, organization_id, department_id, data_scope_type
+                  from user_role_assignments where tenant_id = ? and id = ?
+                """, (result, index) -> new AssignmentTarget(result.getLong("user_id"),
+                result.getObject("organization_id", Long.class), result.getObject("department_id", Long.class),
+                result.getString("data_scope_type")), context.tenantId(), assignmentId);
+        if (targets.isEmpty()) throw notFound("IAM_ASSIGNMENT_NOT_FOUND", "未找到用户角色授权");
+        AssignmentTarget target = targets.getFirst();
+        requireManageableUser(context, target.userId());
+        if (context.hasWorkContext() && (!"DEPARTMENT".equals(target.dataScopeType())
+                || !context.organizationId().equals(target.organizationId())
+                || !context.departmentId().equals(target.departmentId()))) {
+            throw forbidden("IAM_SCOPE_ESCALATION_FORBIDDEN", "当前工作上下文不能撤销其他范围的授权");
+        }
         Instant now = Instant.now();
         int changed = jdbc.update("""
                 update user_role_assignments
@@ -247,7 +288,7 @@ public class IdentityAccessAdministrationService {
                  where tenant_id = ? and id = ? and (valid_to is null or valid_to > ?)
                 """, sqlTimestamp(now), sqlTimestamp(now), context.tenantId(), assignmentId, sqlTimestamp(now));
         if (changed == 0) throw conflict("IAM_ASSIGNMENT_ALREADY_REVOKED", "授权已经失效");
-        event(context, "USER_ROLE_REVOKED", "USER_ROLE_ASSIGNMENT", assignmentId, users.getFirst().toString());
+        event(context, "USER_ROLE_REVOKED", "USER_ROLE_ASSIGNMENT", assignmentId, target.userId().toString());
     }
 
     private RoleView role(Long id, String code, String name, String roleType, String status,
@@ -287,6 +328,32 @@ public class IdentityAccessAdministrationService {
                 select count(*) from user_accounts where tenant_id = ? and id = ?
                 """, Integer.class, tenantId, userId);
         if (count == null || count == 0) throw notFound("IAM_USER_NOT_FOUND", "未找到用户账号");
+    }
+
+    private void requireManageableUser(ExecutionContext context, Long userId) {
+        requireUser(context.tenantId(), userId);
+        if (!context.hasWorkContext()) return;
+        Integer count = jdbc.queryForObject("""
+                select count(*)
+                  from user_accounts account
+                  join employments employment
+                    on employment.tenant_id = account.tenant_id
+                   and employment.practitioner_id = account.practitioner_id
+                  join staff_assignments assignment
+                    on assignment.tenant_id = employment.tenant_id
+                   and assignment.employment_id = employment.id
+                 where account.tenant_id = ? and account.id = ?
+                   and assignment.organization_id = ? and assignment.department_id = ?
+                   and employment.status = 'ACTIVE' and assignment.status = 'ACTIVE'
+                   and employment.hire_date <= current_date
+                   and (employment.leave_date is null or employment.leave_date >= current_date)
+                   and assignment.valid_from <= current_date
+                   and (assignment.valid_to is null or assignment.valid_to >= current_date)
+                """, Integer.class, context.tenantId(), userId,
+                context.organizationId(), context.departmentId());
+        if (count == null || count == 0) {
+            throw forbidden("IAM_USER_SCOPE_FORBIDDEN", "当前工作上下文不能管理该用户账号");
+        }
     }
 
     private java.util.Map<Long, String> permissionCodes(Long tenantId, Set<Long> ids) {
@@ -385,5 +452,8 @@ public class IdentityAccessAdministrationService {
     }
 
     private record BaseRole(Long id, String code, String name, String roleType, String status, long version) {
+    }
+
+    private record AssignmentTarget(Long userId, Long organizationId, Long departmentId, String dataScopeType) {
     }
 }
