@@ -12,6 +12,7 @@ export interface Session extends RequiredFields<Contract['SessionResponse'], 'us
   authorities: string[]
   workContexts: WorkContextOption[]
   activeWorkContext?: { organizationId: string; departmentId?: string | null } | null
+  refreshLoginEnabled: boolean
 }
 
 export type Organization = OrganizationUnit
@@ -48,7 +49,7 @@ export interface Diagnosis extends RequiredFields<Contract['DiagnosisResponse'],
   type: 'PRIMARY' | 'SECONDARY'
 }
 
-export interface Encounter extends RequiredFields<Contract['EncounterResponse'], 'id' | 'residentId' | 'encounterNo' | 'organizationId' | 'departmentId' | 'status' | 'diagnoses' | 'registeredAt'> {
+export interface Encounter extends Omit<RequiredFields<Contract['EncounterResponse'], 'id' | 'residentId' | 'encounterNo' | 'organizationId' | 'departmentId' | 'status' | 'diagnoses' | 'registeredAt'>, 'status'> {
   id: string
   residentId: string
   encounterNo: string
@@ -57,10 +58,10 @@ export interface Encounter extends RequiredFields<Contract['EncounterResponse'],
   registrationId?: string
   scheduleId?: string
   appointmentId?: string
-  registrationSource?: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY'
-  visitType?: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'
+  registrationSource?: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY' | 'TRANSFER'
+  visitType?: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY' | 'TRANSFER'
   clinicianId?: string
-  status: 'REGISTERED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  status: 'REGISTERED' | 'IN_PROGRESS' | 'SUSPENDED' | 'COMPLETED' | 'TRANSFERRED' | 'TERMINATED' | 'CANCELLED'
   chiefComplaint?: string
   systolic?: number
   diastolic?: number
@@ -68,6 +69,10 @@ export interface Encounter extends RequiredFields<Contract['EncounterResponse'],
   registeredAt: string
   startedAt?: string
   completedAt?: string
+  terminationCode?: string
+  terminationReason?: string
+  terminatedAt?: string
+  terminatedBy?: string
 }
 
 export interface TimelineEvent extends RequiredFields<Contract['TimelineEventResponse'], 'id' | 'eventType' | 'summary' | 'details' | 'occurredAt' | 'recordedBy'> {

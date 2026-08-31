@@ -7,8 +7,8 @@ import {
   type RhnApi, type Supplier, type SupplierInput,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
-  Select, StatusBadge,
+  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
+  SearchField, Select, StatusBadge, TableShell, Tabs,
 } from '../../shared/ui'
 
 type PartnerTab = 'manufacturers' | 'suppliers'
@@ -77,26 +77,22 @@ export function BusinessPartnerManagement({ api, organization }: { api: RhnApi; 
   const count = tab === 'manufacturers' ? visibleManufacturers.length : (suppliers.data?.length ?? 0)
 
   return <>
-    <PageHeader eyebrow="平台管理 · 基础档案" title="厂商与供应商"
-      description="集中维护药品生产主体和机构采购供应商；药品、耗材和采购业务只引用档案。"
-      actions={<Button onClick={() => tab === 'manufacturers' ? setManufacturerDialog(null) : setSupplierDialog(null)}
-        disabled={tab === 'manufacturers' && !dictionaries.data}><Icon name="add" />
-        新增{tab === 'manufacturers' ? '生产企业' : '供应商'}</Button>} />
+    <PageHeader compact eyebrow="平台管理 · 基础档案" title="厂商与供应商"
+      description="集中维护药品生产主体和机构采购供应商。" />
     {feedback && <Alert tone="success" className="partner-feedback">{feedback}</Alert>}
     {(operationError || currentError) && <Alert className="partner-feedback">{operationError || errorMessage(currentError)}</Alert>}
     <Panel className="partner-panel">
-      <div className="master-data-tabs" role="tablist" aria-label="业务主体类型">
-        <button type="button" role="tab" aria-selected={tab === 'manufacturers'}
-          className={tab === 'manufacturers' ? 'is-active' : ''} onClick={() => switchTab('manufacturers')}>
-          <strong>生产企业</strong><small>租户统一 · 产品引用</small></button>
-        <button type="button" role="tab" aria-selected={tab === 'suppliers'}
-          className={tab === 'suppliers' ? 'is-active' : ''} onClick={() => switchTab('suppliers')}>
-          <strong>药品供应商</strong><small>机构维护 · 采购引用</small></button>
-      </div>
+      <Tabs value={tab} onChange={switchTab} label="业务主体类型" variant="workspace" responsiveCards
+        items={[
+          { value: 'manufacturers', label: '生产企业', meta: '租户统一 · 产品引用' },
+          { value: 'suppliers', label: '药品供应商', meta: '机构维护 · 采购引用' },
+        ]} actions={
+          <Button onClick={() => tab === 'manufacturers' ? setManufacturerDialog(null) : setSupplierDialog(null)}
+            disabled={tab === 'manufacturers' && !dictionaries.data}><Icon name="add" />
+            新增{tab === 'manufacturers' ? '生产企业' : '供应商'}</Button>} />
       <div className="partner-toolbar">
-        <label className="dictionary-search"><Icon name="search" /><span className="visually-hidden">搜索</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)}
-            placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码' : '搜索供应商、编码、证照或联系人'} /></label>
+        <SearchField className="partner-toolbar__search" label="搜索业务主体" value={query} onChange={setQuery}
+          placeholder={tab === 'manufacturers' ? '搜索企业名称、简称或编码' : '搜索供应商、编码、证照或联系人'} />
         <Select value={status} onChange={setStatus} placeholder="全部状态" showValue options={[
           { value: 'ACTIVE', label: '已启用' }, { value: 'SUSPENDED', label: '已禁用' },
           { value: 'RETIRED', label: '已停用' },
@@ -132,7 +128,7 @@ function ManufacturerTable({ values, loading, pendingId, onEdit, onStatus }: {
 }) {
   if (loading) return <LoadingState label="正在加载生产企业…" />
   if (!values.length) return <EmptyState icon="clinical" title="未找到生产企业" copy="请调整筛选条件或新增企业档案。" />
-  return <div className="dictionary-table-wrap"><table className="dictionary-table partner-table"><thead><tr>
+  return <TableShell scrollClassName="dictionary-table-wrap"><DataTable className="dictionary-table partner-table"><thead><tr>
     <th>企业</th><th>主体类型</th><th>生产地</th><th>国家 / 地址</th><th>状态</th><th>操作</th>
   </tr></thead><tbody>{values.map((value) => <tr key={value.id}>
     <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.shortName || '未维护简称'}</small></td>
@@ -142,7 +138,7 @@ function ManufacturerTable({ values, loading, pendingId, onEdit, onStatus }: {
     <td><div className="dictionary-row-actions"><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
       {value.sdStatus !== 'RETIRED' && <Button size="sm" variant="text" busy={pendingId === value.id}
         onClick={() => onStatus(value)}>{value.sdStatus === 'ACTIVE' ? '禁用' : '启用'}</Button>}</div></td>
-  </tr>)}</tbody></table></div>
+  </tr>)}</tbody></DataTable></TableShell>
 }
 
 function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
@@ -151,7 +147,7 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
 }) {
   if (loading) return <LoadingState label="正在加载供应商…" />
   if (!values.length) return <EmptyState icon="pharmacy" title="未找到供应商" copy="请调整筛选条件或新增机构供应商。" />
-  return <div className="dictionary-table-wrap"><table className="dictionary-table partner-table"><thead><tr>
+  return <TableShell scrollClassName="dictionary-table-wrap"><DataTable className="dictionary-table partner-table"><thead><tr>
     <th>供应商</th><th>资质</th><th>联系方式</th><th>业务有效期</th><th>状态</th><th>操作</th>
   </tr></thead><tbody>{values.map((value) => <tr key={value.id}>
     <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.unifiedCreditCode || '未维护统一信用代码'}</small></td>
@@ -162,7 +158,7 @@ function SupplierTable({ values, loading, pendingId, onEdit, onStatus }: {
     <td><div className="dictionary-row-actions"><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
       {value.status !== 'RETIRED' && <Button size="sm" variant="text" busy={pendingId === value.id}
         onClick={() => onStatus(value)}>{value.status === 'ACTIVE' ? '禁用' : '启用'}</Button>}</div></td>
-  </tr>)}</tbody></table></div>
+  </tr>)}</tbody></DataTable></TableShell>
 }
 
 function PartnerStatus({ status, text }: { status: string; text?: string }) {

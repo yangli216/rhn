@@ -7,8 +7,10 @@ import com.rhn.diagnostics.domain.Observation;
 import com.rhn.diagnostics.infrastructure.DiagnosticReportRepository;
 import com.rhn.diagnostics.infrastructure.DiagnosticReportResultRepository;
 import com.rhn.diagnostics.infrastructure.ObservationRepository;
-import com.rhn.outpatient.api.EncounterDirectory;
+import com.rhn.healthcore.api.EncounterCareSettingDirectory;
+import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
 import com.rhn.outpatient.api.ServiceRequestDirectory;
+import com.rhn.outpatient.api.ServiceRequestDirectory.ServiceRequestSnapshot;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.integration.api.ExternalMessageService;
 import com.rhn.platform.integration.api.ExternalMessageService.ExternalMessageReceipt;
@@ -21,12 +23,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
@@ -36,26 +40,33 @@ public class DiagnosticExchangeService {
     private static final Set<String> VALUE_TYPES = Set.of("STRING", "NUMBER", "BOOLEAN", "CODE", "DATETIME");
 
     private final ServiceRequestDirectory requestDirectory;
-    private final EncounterDirectory encounterDirectory;
+    private final EncounterCareSettingDirectory encounterCareSettings;
     private final ExternalMessageService messageService;
     private final DiagnosticReportRepository reportRepository;
     private final ObservationRepository observationRepository;
     private final DiagnosticReportResultRepository resultRepository;
+    private final CriticalValueAlertService criticalValueAlerts;
+    private final DiagnosticExecutionService execution;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
 
     public DiagnosticExchangeService(ServiceRequestDirectory requestDirectory,
-                                     EncounterDirectory encounterDirectory,
+                                     EncounterCareSettingDirectory encounterCareSettings,
                                      ExternalMessageService messageService,
                                      DiagnosticReportRepository reportRepository,
                                      ObservationRepository observationRepository,
                                      DiagnosticReportResultRepository resultRepository,
+                                     CriticalValueAlertService criticalValueAlerts,
+                                     DiagnosticExecutionService execution,
                                      DomainEventPublisher eventPublisher,
                                      ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
-        this.requestDirectory = requestDirectory; this.encounterDirectory = encounterDirectory;
+        this.requestDirectory = requestDirectory;
+        this.encounterCareSettings = encounterCareSettings;
         this.messageService = messageService; this.reportRepository = reportRepository;
         this.observationRepository = observationRepository; this.resultRepository = resultRepository;
+        this.criticalValueAlerts = criticalValueAlerts;
+        this.execution = execution;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
     }
 
@@ -63,6 +74,7 @@ public class DiagnosticExchangeService {
     public ExternalMessageReceipt dispatch(Long requestId, String endpointCode) {
         var request = requestDirectory.requireForDiagnosticExchange(requestId);
         requireDiagnosticType(request.serviceType());
+        execution.requireExchangeAllowed(requestId);
         if (!"ACTIVE".equals(request.status())) {
             throw conflict("DIAGNOSTIC_REQUEST_NOT_ACTIVE", "只有生效中的检查检验申请可以进入外部交换队列");
         }
@@ -125,7 +137,7 @@ public class DiagnosticExchangeService {
                 input.status(), input.reportCode(), input.reportName(), input.issuedAt(), clean(input.conclusion()),
                 clean(input.authorCode()), clean(input.authorName()), inbound.payloadDigest(), inbound.id(),
                 context.subjectId()));
-        int order = 0;
+        int order = 0; List<Observation> savedObservations = new ArrayList<>();
         for (ObservationCommand item : safe(input.observations())) {
             validateObservation(item, input.status());
             Observation observation = observationRepository.save(new Observation(request.tenantId(),
@@ -136,21 +148,30 @@ public class DiagnosticExchangeService {
                     item.referenceRangeLow(), item.referenceRangeHigh(), clean(item.interpretationCode()),
                     clean(item.performerCode()), clean(item.performerName())));
             resultRepository.save(new DiagnosticReportResult(request.tenantId(), report.id(), observation.id(), ++order));
+            savedObservations.add(observation);
         }
+        EncounterSnapshot encounter = clinicalEncounter(request);
+        criticalValueAlerts.detect(report, previous, request, encounter, savedObservations);
         messageService.markProcessed(inbound.id(), "DiagnosticReport", report.id(), report.reportVersion());
         publish(request, "DIAGNOSTIC_REPORT_RECEIVED", report.status().equals("CORRECTED")
                         ? "收到检查检验更正报告" : "收到检查检验报告",
                 Map.of("reportId", report.id(), "reportType", report.reportType(), "reportStatus", report.status(),
                         "reportName", report.reportName(), "reportVersion", report.reportVersion(),
-                        "endpointCode", report.endpointCode(), "encounterId", request.encounterId()));
+                        "endpointCode", report.endpointCode(), "encounterId", request.encounterId(),
+                        "receivedBy", context.subjectId()));
         return response(report);
     }
 
     @Transactional(readOnly = true)
     public List<DiagnosticReportResponse> listByEncounter(Long encounterId) {
-        var encounter = encounterDirectory.requireAccessible(encounterId);
+        ExecutionContext context = contextProvider.requireCurrent();
+        var encounter = encounterCareSettings.require(context.tenantId(), encounterId);
+        if (context.hasWorkContext() && (!context.canAccessOrganization(encounter.organizationId())
+                || !context.canAccessDepartment(encounter.departmentId()))) {
+            throw forbidden("ENCOUNTER_FORBIDDEN", "无权访问当前工作上下文之外的就诊");
+        }
         return reportRepository.findByTenantIdAndEncounterIdOrderByIssuedAtDescReportVersionDesc(
-                encounter.tenantId(), encounterId).stream().map(this::response).toList();
+                context.tenantId(), encounterId).stream().map(this::response).toList();
     }
 
     @Transactional(readOnly = true)
@@ -180,6 +201,16 @@ public class DiagnosticExchangeService {
                 report.reportType(), report.status(), report.reportCode(), report.reportName(), report.issuedAt(),
                 report.receivedAt(), report.conclusion(), report.authorCode(), report.authorName(),
                 report.contentDigestAlgorithm(), report.contentDigest(), report.inboundMessageId(), result);
+    }
+
+    private EncounterSnapshot clinicalEncounter(ServiceRequestSnapshot request) {
+        var encounter = encounterCareSettings.require(request.tenantId(), request.encounterId());
+        if (!request.residentId().equals(encounter.residentId())
+                || !request.performerOrganizationId().equals(encounter.organizationId())) {
+            throw conflict("DIAGNOSTIC_REQUEST_ENCOUNTER_MISMATCH", "检查检验申请与就诊上下文不一致");
+        }
+        return new EncounterSnapshot(encounter.encounterId(), request.tenantId(), encounter.residentId(),
+                encounter.organizationId(), encounter.departmentId(), null, null, encounter.status(), 0);
     }
 
     private Map<String, Object> requestPayload(ServiceRequestDirectory.ServiceRequestSnapshot request) {

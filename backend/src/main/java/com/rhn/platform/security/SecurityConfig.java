@@ -40,6 +40,19 @@ public class SecurityConfig {
     }
 
     @Bean
+    ClientSessionRevocationFilter clientSessionRevocationFilter(
+            SessionRevocationStore revocations, JsonCodec jsonCodec) {
+        return new ClientSessionRevocationFilter(revocations, jsonCodec);
+    }
+
+    @Bean
+    RefreshLoginAuthenticationFilter refreshLoginAuthenticationFilter(
+            RefreshLoginSessionService refreshLoginSessionService,
+            IdentityAccessDirectory identityAccessDirectory) {
+        return new RefreshLoginAuthenticationFilter(refreshLoginSessionService, identityAccessDirectory);
+    }
+
+    @Bean
     FilterRegistrationBean<WorkContextAuthorizationFilter> disableContainerRegistration(
             WorkContextAuthorizationFilter filter) {
         FilterRegistrationBean<WorkContextAuthorizationFilter> registration = new FilterRegistrationBean<>(filter);
@@ -48,8 +61,25 @@ public class SecurityConfig {
     }
 
     @Bean
+    FilterRegistrationBean<ClientSessionRevocationFilter> disableClientSessionContainerRegistration(
+            ClientSessionRevocationFilter filter) {
+        FilterRegistrationBean<ClientSessionRevocationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false); return registration;
+    }
+
+    @Bean
+    FilterRegistrationBean<RefreshLoginAuthenticationFilter> disableRefreshLoginContainerRegistration(
+            RefreshLoginAuthenticationFilter filter) {
+        FilterRegistrationBean<RefreshLoginAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http, JsonCodec jsonCodec,
-                                            WorkContextAuthorizationFilter workContextAuthorizationFilter) throws Exception {
+                                            WorkContextAuthorizationFilter workContextAuthorizationFilter,
+                                            ClientSessionRevocationFilter clientSessionRevocationFilter,
+                                            RefreshLoginAuthenticationFilter refreshLoginAuthenticationFilter) throws Exception {
         AuthenticationEntryPoint authenticationRequired = (request, response, exception) -> {
             Object correlationId = request.getAttribute(CorrelationIdFilter.ATTRIBUTE_NAME);
             response.setStatus(401);
@@ -68,7 +98,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(authenticationRequired))
                 .httpBasic(basic -> basic.authenticationEntryPoint(authenticationRequired))
-                .addFilterAfter(workContextAuthorizationFilter, BasicAuthenticationFilter.class)
+                .addFilterBefore(refreshLoginAuthenticationFilter, BasicAuthenticationFilter.class)
+                .addFilterAfter(clientSessionRevocationFilter, BasicAuthenticationFilter.class)
+                .addFilterAfter(workContextAuthorizationFilter, ClientSessionRevocationFilter.class)
                 .build();
     }
 

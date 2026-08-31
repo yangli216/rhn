@@ -49,7 +49,7 @@ export interface WorkTask {
 export interface PortalNotification {
   id: string
   category: string
-  severity: 'INFO' | 'WARNING' | 'ERROR'
+  severity: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL'
   title: string
   message: string
   status: 'UNREAD' | 'READ' | 'ARCHIVED'

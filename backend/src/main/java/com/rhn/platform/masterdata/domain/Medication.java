@@ -36,6 +36,7 @@ public class Medication {
     @Column(name = "default_dose") private BigDecimal defaultDose;
     @Column(name = "default_dose_unit") private String defaultDoseUnit;
     @Column(name = "default_route") private String defaultRoute;
+    @Column(name = "default_frequency_id") private Long defaultFrequencyId;
     @Column(name = "default_frequency") private String defaultFrequency;
     @Column(name = "chronic_disease_drug", nullable = false) private boolean chronicDiseaseDrug;
     @Column(name = "single_order", nullable = false) private boolean singleOrder;
@@ -52,13 +53,13 @@ public class Medication {
                       BigDecimal strengthValue, String strengthUnit, String storageType,
                       boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
                       String antimicrobialLevel, boolean skinTestRequired, BigDecimal defaultDose,
-                      String defaultDoseUnit, String defaultRoute, String defaultFrequency,
+                      String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
                       boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.itemTypeId = itemTypeId; this.code = code;
         this.createdAt = Instant.now(); this.createdBy = actorId;
         updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
-                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequency,
+                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
                 chronicDiseaseDrug, singleOrder, status);
     }
 
@@ -67,13 +68,13 @@ public class Medication {
                        BigDecimal strengthValue, String strengthUnit, String storageType,
                        boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
                        String antimicrobialLevel, boolean skinTestRequired, BigDecimal defaultDose,
-                       String defaultDoseUnit, String defaultRoute, String defaultFrequency,
+                       String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
                        boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         requireRevision(expectedRevision);
         this.itemTypeId = itemTypeId;
         updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
-                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequency,
+                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
                 chronicDiseaseDrug, singleOrder, status);
     }
 
@@ -86,7 +87,7 @@ public class Medication {
                               String strengthUnit, String storageType, boolean prescriptionDrug,
                               boolean essentialDrug, boolean antimicrobial, String antimicrobialLevel,
                               boolean skinTestRequired, BigDecimal defaultDose, String defaultDoseUnit,
-                              String defaultRoute, String defaultFrequency, boolean chronicDiseaseDrug,
+                              String defaultRoute, Long defaultFrequencyId, String defaultFrequency, boolean chronicDiseaseDrug,
                               boolean singleOrder, String status) {
         if (strengthValue != null && strengthValue.signum() <= 0) throw new IllegalArgumentException("含量必须大于0");
         if (defaultDose != null && defaultDose.signum() <= 0) throw new IllegalArgumentException("默认剂量必须大于0");
@@ -98,7 +99,7 @@ public class Medication {
         this.antimicrobial = antimicrobial; this.antimicrobialLevel = antimicrobialLevel;
         this.skinTestRequired = skinTestRequired; this.defaultDose = defaultDose;
         this.defaultDoseUnit = defaultDoseUnit; this.defaultRoute = defaultRoute;
-        this.defaultFrequency = defaultFrequency; this.chronicDiseaseDrug = chronicDiseaseDrug;
+        this.defaultFrequencyId = defaultFrequencyId; this.defaultFrequency = defaultFrequency; this.chronicDiseaseDrug = chronicDiseaseDrug;
         this.singleOrder = singleOrder; this.status = status;
         this.updatedAt = Instant.now(); this.updatedBy = actorId;
     }
@@ -118,7 +119,8 @@ public class Medication {
     public boolean antimicrobial() { return antimicrobial; } public String antimicrobialLevel() { return antimicrobialLevel; }
     public boolean skinTestRequired() { return skinTestRequired; } public BigDecimal defaultDose() { return defaultDose; }
     public String defaultDoseUnit() { return defaultDoseUnit; }
-    public String defaultRoute() { return defaultRoute; } public String defaultFrequency() { return defaultFrequency; }
+    public String defaultRoute() { return defaultRoute; } public Long defaultFrequencyId() { return defaultFrequencyId; }
+    public String defaultFrequency() { return defaultFrequency; }
     public boolean chronicDiseaseDrug() { return chronicDiseaseDrug; } public boolean singleOrder() { return singleOrder; }
     public String status() { return status; }
 }

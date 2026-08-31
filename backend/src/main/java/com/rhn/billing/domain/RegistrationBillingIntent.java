@@ -19,6 +19,7 @@ public class RegistrationBillingIntent {
     @Column(name = "resident_id", nullable = false) private Long residentId;
     @Column(name = "organization_id", nullable = false) private Long organizationId;
     @Column(name = "department_id", nullable = false) private Long departmentId;
+    @Column(name = "appointment_id") private Long appointmentId;
     @Column(name = "schedule_id") private Long scheduleId;
     @Column(name = "catalog_item_id") private Long catalogItemId;
     @Column(name = "slot_hold_id") private Long slotHoldId;
@@ -29,6 +30,10 @@ public class RegistrationBillingIntent {
     @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
     @Column(name = "registration_source", nullable = false) private String registrationSource;
     @Column(name = "visit_type", nullable = false) private String visitType;
+    @Column(name = "settlement_mode", nullable = false) private String settlementMode;
+    @Column(name = "coverage_id") private Long coverageId;
+    @Column(name = "coverage_type_code_snapshot") private String coverageTypeCodeSnapshot;
+    @Column(name = "coverage_payer_name_snapshot") private String coveragePayerNameSnapshot;
     @Column(nullable = false) private String status;
     @Column(name = "fee_amount", nullable = false, precision = 24, scale = 6) private BigDecimal feeAmount;
     @Column(name = "currency_code", nullable = false) private String currencyCode;
@@ -46,14 +51,20 @@ public class RegistrationBillingIntent {
     protected RegistrationBillingIntent() {}
 
     public RegistrationBillingIntent(Long tenantId, Long residentId, Long organizationId, Long departmentId,
-                                     Long scheduleId, Long catalogItemId, Long slotHoldId, String idempotencyCode,
-                                     String registrationSource, String visitType, BigDecimal feeAmount,
+                                     Long appointmentId, Long scheduleId, Long catalogItemId, Long slotHoldId, String idempotencyCode,
+                                     String registrationSource, String visitType, String settlementMode, Long coverageId,
+                                     String coverageTypeCode, String coveragePayerName,
+                                     BigDecimal feeAmount,
                                      String currencyCode, String itemCode, String itemName, Instant expiresAt,
                                      Long createdBy) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
-        this.organizationId = organizationId; this.departmentId = departmentId; this.scheduleId = scheduleId;
+        this.organizationId = organizationId; this.departmentId = departmentId; this.appointmentId = appointmentId;
+        this.scheduleId = scheduleId;
         this.catalogItemId = catalogItemId; this.slotHoldId = slotHoldId; this.idempotencyCode = idempotencyCode;
-        this.registrationSource = registrationSource; this.visitType = visitType; this.status = "PAYMENT_PENDING";
+        this.registrationSource = registrationSource; this.visitType = visitType;
+        this.settlementMode = settlementMode; this.coverageId = coverageId;
+        this.coverageTypeCodeSnapshot = coverageTypeCode; this.coveragePayerNameSnapshot = coveragePayerName;
+        this.status = "PAYMENT_PENDING";
         this.feeAmount = feeAmount; this.currencyCode = currencyCode; this.itemCodeSnapshot = itemCode;
         this.itemNameSnapshot = itemName; this.expiresAt = expiresAt; this.createdBy = createdBy;
         this.createdAt = Instant.now(); this.updatedAt = createdAt;
@@ -103,12 +114,40 @@ public class RegistrationBillingIntent {
         this.status = "CANCELLED"; this.updatedAt = Instant.now();
     }
 
+    public void beginCancellation() {
+        if ("CANCELLED".equals(status) || "CANCELLATION_PENDING".equals(status)) return;
+        if (!("COMPLETED".equals(status) || "CANCELLATION_FAILED".equals(status))) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("REGISTRATION_INTENT_NOT_WITHDRAWABLE",
+                    "当前挂号收费状态不能办理退号");
+        }
+        this.status = "CANCELLATION_PENDING";
+        this.lastErrorCode = null;
+        this.lastErrorMessage = null;
+        this.updatedAt = Instant.now();
+    }
+
+    public void cancellationFailed(String code, String message) {
+        if ("CANCELLED".equals(status)) return;
+        this.status = "CANCELLATION_FAILED";
+        this.lastErrorCode = code;
+        this.lastErrorMessage = message;
+        this.updatedAt = Instant.now();
+    }
+
+    public void cancelledAfterCompletion() {
+        this.status = "CANCELLED";
+        this.lastErrorCode = null;
+        this.lastErrorMessage = null;
+        this.updatedAt = Instant.now();
+    }
+
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
     public Long residentId() { return residentId; }
     public Long organizationId() { return organizationId; }
     public Long departmentId() { return departmentId; }
+    public Long appointmentId() { return appointmentId; }
     public Long scheduleId() { return scheduleId; }
     public Long catalogItemId() { return catalogItemId; }
     public Long slotHoldId() { return slotHoldId; }
@@ -119,6 +158,10 @@ public class RegistrationBillingIntent {
     public String idempotencyCode() { return idempotencyCode; }
     public String registrationSource() { return registrationSource; }
     public String visitType() { return visitType; }
+    public String settlementMode() { return settlementMode; }
+    public Long coverageId() { return coverageId; }
+    public String coverageTypeCode() { return coverageTypeCodeSnapshot; }
+    public String coveragePayerName() { return coveragePayerNameSnapshot; }
     public String status() { return status; }
     public BigDecimal feeAmount() { return feeAmount; }
     public String currencyCode() { return currencyCode; }

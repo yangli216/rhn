@@ -1,0 +1,3 @@
+-- Oracle needs nullable command scope keys because a composite unique key containing
+-- a non-null tenant column does not allow repeated null command values. H2 already
+-- implements the intended partial-uniqueness semantics, so no structural change is needed.

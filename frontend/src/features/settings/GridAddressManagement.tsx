@@ -59,7 +59,7 @@ export function GridAddressManagement({ api }: { api: RhnApi }) {
   const busy = create.isPending || update.isPending || status.isPending
 
   return <>
-    <PageHeader eyebrow="平台管理 · 基础设置" title="网格地址管理"
+    <PageHeader compact eyebrow="平台管理 · 基础设置" title="网格地址管理"
       description="统一维护省、市、县、街道和社区五级地址网格，为公卫管理、居民档案和机构地址提供标准编码。"
       actions={<><div className="grid-address-mode"><Select aria-label="管理层级" value={String(mode)}
         options={[{ value: '3', label: '省市县 3 级' }, { value: '5', label: '公卫网格 5 级' }]}

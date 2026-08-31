@@ -12,10 +12,11 @@ import {
   type StandardEquivalence, type StandardMappingType,
   type CatalogLifecycle, type CatalogChangeBatch, type LifecycleAdoptionInput, type LifecyclePriceInput,
   type OrganizationAdoption,
+  type ActiveOrderFrequency,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
-  Select, StatusBadge,
+  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
+  SearchField, Select, StatusBadge, TableShell, Tabs,
 } from '../../shared/ui'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
@@ -69,6 +70,11 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     queryFn: () => api.masterData.medications(query, typeFilter, statusFilter, organization.id),
     enabled: tab === 'medication',
   })
+  const frequencies = useQuery({
+    queryKey: ['master-data-active-order-frequencies', organization.id],
+    queryFn: () => api.masterData.activeOrderFrequencies(organization.id, undefined, 'OUTPATIENT', 'MEDICATION'),
+    enabled: tab === 'medication', staleTime: 5 * 60 * 1000,
+  })
   const manufacturers = useQuery({
     queryKey: ['master-data-manufacturers'], queryFn: () => api.masterData.manufacturers(),
     enabled: tab === 'medication' || tab === 'operations',
@@ -92,28 +98,33 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   })) : (medications.data ?? []).flatMap((value) => value.products.map((product) => ({
     id: product.id, code: product.code, name: `${value.name} · ${product.name}`,
   }))), [medications.data, services.data, tab])
-
-  return <>
-    <PageHeader eyebrow="平台管理 · 临床主数据" title="基础数据中心"
-      description="统一维护疾病术语、诊疗项目与药品四层目录；机构采用、价格和包装不再复制中心主档。"
-      actions={tab === 'attribute' || tab === 'operations' ? undefined : <>{tab !== 'disease' && <><Button variant="secondary" disabled={!dictionaries.data || !lifecycleCandidates.length}
+  const pageActions = tab === 'attribute' || tab === 'operations' ? undefined : <>
+    {tab !== 'disease' && <>
+      <Button variant="secondary" disabled={!dictionaries.data || !lifecycleCandidates.length}
         onClick={() => setDialog(<BatchLifecycleDialog api={api} organization={organization}
           candidates={lifecycleCandidates} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
           onCompleted={() => invalidate('机构目录批量操作已完成')} />)}>批量机构目录 / 调价</Button>
-        <Button variant="secondary" onClick={() => setDialog(
+      <Button variant="secondary" onClick={() => setDialog(
         <MasterDataImportDialog api={api} importType={tab === 'service' ? 'SERVICE' : 'MEDICATION'}
           onClose={() => setDialog(undefined)} onCompleted={() => invalidate(`${tabLabel(tab)}批量导入已完成`)} />
-      )}>批量导入</Button></>}<Button disabled={!dictionaries.data || (tab === 'disease' && !codeSystems.data?.length)} onClick={() => {
-        if (tab === 'disease') setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
-          codeSystems={codeSystems.data ?? []} onClose={() => setDialog(undefined)}
-          onSave={(input) => api.masterData.createDisease(input).then(() => invalidate('疾病概念已创建')).catch(fail)} />)
-        if (tab === 'service') setDialog(<ServiceDialog dictionaries={dictionaries.data!}
-          onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
-            .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
-        if (tab === 'medication') setDialog(<MedicationDialog dictionaries={dictionaries.data!}
-          onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createMedication(input, organization.id)
-            .then(() => invalidate('通用药品知识已创建')).catch(fail)} />)
-      }}><Icon name="add" />新增{tabLabel(tab)}</Button></>} />
+      )}>批量导入</Button>
+    </>}
+    <Button disabled={!dictionaries.data || (tab === 'disease' && !codeSystems.data?.length)} onClick={() => {
+      if (tab === 'disease') setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
+        codeSystems={codeSystems.data ?? []} onClose={() => setDialog(undefined)}
+        onSave={(input) => api.masterData.createDisease(input).then(() => invalidate('疾病概念已创建')).catch(fail)} />)
+      if (tab === 'service') setDialog(<ServiceDialog dictionaries={dictionaries.data!}
+        onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
+          .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
+      if (tab === 'medication') setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
+        onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createMedication(input, organization.id)
+          .then(() => invalidate('通用药品知识已创建')).catch(fail)} />)
+    }}><Icon name="add" />新增{tabLabel(tab)}</Button>
+  </>
+
+  return <div className="master-data-page">
+    <PageHeader compact eyebrow="平台管理 · 临床主数据" title="基础数据中心"
+      description="统一维护疾病术语、诊疗项目与药品四层目录。" />
 
     {feedback && <Alert tone="success" className="master-data-feedback">{feedback}</Alert>}
     {(operationError || currentError) && <Alert className="master-data-feedback">
@@ -121,27 +132,27 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     </Alert>}
 
     <Panel className="master-data-panel">
-      <div className="master-data-tabs" role="tablist" aria-label="基础数据类型">
-        <TabButton active={tab === 'disease'} onClick={() => setTab('disease')} label="疾病与术语" meta="版本化标准" />
-        <TabButton active={tab === 'service'} onClick={() => setTab('service')} label="诊疗项目" meta="开立 · 执行 · 收费" />
-        <TabButton active={tab === 'medication'} onClick={() => setTab('medication')} label="药品目录" meta="知识 · 产品 · 包装" />
-        <TabButton active={tab === 'operations'} onClick={() => setTab('operations')} label="运营主数据" meta="组套 · 耗材 · 计量" />
-        <TabButton active={tab === 'attribute'} onClick={() => setTab('attribute')} label="属性配置" meta="定义 · 装配 · 继承" />
-      </div>
-      {tab !== 'attribute' && tab !== 'operations' && <><div className="master-data-toolbar">
-        <label className="master-data-search"><Icon name="search" /><span className="visually-hidden">搜索</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)}
-            placeholder={tab === 'disease' ? '名称、别名、编码或检索码' : tab === 'service' ? '项目名称、编码或分类' : '通用名、别名、剂型或编码'} />
-        </label>
+      <Tabs value={tab} onChange={setTab} label="基础数据类型" variant="workspace" responsiveCards
+        className="master-data-tabs" actions={pageActions} items={[
+          { value: 'disease', label: '疾病与术语', meta: '版本化标准' },
+          { value: 'service', label: '诊疗项目', meta: '开立 · 执行 · 收费' },
+          { value: 'medication', label: '药品目录', meta: '知识 · 产品 · 包装' },
+          { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
+          { value: 'attribute', label: '属性配置', meta: '定义 · 装配 · 继承' },
+        ]} />
+      {tab !== 'attribute' && tab !== 'operations' && <div className="master-data-toolbar">
+        <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
+          placeholder={tab === 'disease' ? '名称、别名、编码或检索码' : tab === 'service' ? '项目名称、编码或分类' : '通用名、别名、剂型或编码'} />
         <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
         <span className="master-data-count">{busy ? '正在刷新…' : `${count ?? 0} 条`}</span>
         {tab === 'medication' && <Button variant="secondary"
           onClick={() => onNavigate('/settings/partners?tab=manufacturers')}>生产企业档案</Button>}
-      </div>
+      </div>}
 
-      {tab === 'disease' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
+      <div className="master-data-body">
+        {tab === 'disease' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
         onEdit={(value) => setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
           codeSystems={codeSystems.data ?? []} value={value} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updateDisease(value.id, value.revision, input)
@@ -167,7 +178,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             purchasable: false, stocked: false, dispensable: false, returnable: false }}
           onClose={() => setDialog(undefined)} onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
       {tab === 'medication' && <MedicationTable values={medications.data} loading={medications.isPending}
-        onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} value={value}
+        onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateMedication(
             value.id, value.revision, input, organization.id).then(() => invalidate('药品知识已更新')).catch(fail)} />)}
         onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
@@ -188,13 +199,14 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           dictionaries={dictionaries.data!} defaults={{ orderable: product.orderable, executable: false,
             chargeable: product.chargeable, purchasable: true, stocked: product.stocked,
             dispensable: true, returnable: true }} onClose={() => setDialog(undefined)}
-          onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}</>}
-      {tab === 'attribute' && <ItemAttributeConfigurationPanel api={api} />}
-      {tab === 'operations' && dictionaries.data && <OperationalMasterDataPanel api={api}
-        organization={organization} manufacturers={manufacturers.data ?? []} />}
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
+        {tab === 'attribute' && <ItemAttributeConfigurationPanel api={api} />}
+        {tab === 'operations' && dictionaries.data && <OperationalMasterDataPanel api={api}
+          organization={organization} manufacturers={manufacturers.data ?? []} />}
+      </div>
     </Panel>
     {dialog}
-  </>
+  </div>
 }
 
 function DiseaseTable({ values, loading, onEdit, onStatus }: { values?: DiseaseConcept[]; loading: boolean;
@@ -1167,10 +1179,11 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
   </DataFormDialog>
 }
 
-function MedicationDialog({ dictionaries, value, onClose, onSave }: { dictionaries: DictionaryMap;
-  value?: MedicationKnowledge; onClose: () => void; onSave: (input: MedicationInput) => void }) {
+function MedicationDialog({ dictionaries, frequencies, value, onClose, onSave }: { dictionaries: DictionaryMap;
+  frequencies: ActiveOrderFrequency[]; value?: MedicationKnowledge; onClose: () => void; onSave: (input: MedicationInput) => void }) {
   const [medicationType, setMedicationType] = useState(value?.sdMedicationType ?? 'WESTERN')
   const [antimicrobial, setAntimicrobial] = useState(value?.antimicrobial ?? false)
+  const [defaultFrequency, setDefaultFrequency] = useState(value?.defaultFrequency ?? '')
   const western = medicationType === 'WESTERN'
   const chinesePatent = medicationType === 'CHINESE_PATENT'
   const herbal = medicationType === 'HERBAL'
@@ -1202,7 +1215,7 @@ function MedicationDialog({ dictionaries, value, onClose, onSave }: { dictionari
       sdAntimicrobialLevel: western && antimicrobial ? optionalText(form, 'sdAntimicrobialLevel') : undefined,
       skinTestRequired: western && checked(form, 'skinTestRequired'), defaultDose: optionalNumber(form, 'defaultDose'),
       defaultDoseUnit: optionalText(form, 'defaultDoseUnit'), defaultRoute: optionalText(form, 'defaultRoute'),
-      defaultFrequency: vaccine ? undefined : optionalText(form, 'defaultFrequency'),
+      defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
       chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
       sdStatus: value?.sdStatus ?? 'ACTIVE' })}>
@@ -1236,8 +1249,10 @@ function MedicationDialog({ dictionaries, value, onClose, onSave }: { dictionari
           placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
         <FormField label="默认给药途径"><input name="defaultRoute" defaultValue={value?.defaultRoute}
           placeholder={herbal ? '如 煎服、冲服' : vaccine ? '如 肌内注射' : '如 口服'} /></FormField>
-        {!vaccine && <FormField label={herbal ? '默认服用频次' : '默认频次'}><input name="defaultFrequency" defaultValue={value?.defaultFrequency}
-          placeholder={herbal ? '如 每日一剂' : '如 每日三次'} /></FormField>}
+        {!vaccine && <FormField label={herbal ? '默认服用频次' : '默认频次'}><Select name="defaultFrequency"
+          value={defaultFrequency} onChange={setDefaultFrequency} showValue placeholder="请选择医嘱频次"
+          options={frequencies.map((frequency) => ({ value: frequency.code, label: frequency.name,
+            secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}` }))} /></FormField>}
         <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'} values={dictionaries.BD_STORAGE_TYPE}
           defaultValue={value?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
@@ -1424,12 +1439,11 @@ function StaticSelectControl({ id, name, className, value, onChange, options: va
   </div>
 }
 function Table({ headers, children, compact = false }: { headers: string[]; children: ReactNode; compact?: boolean }) {
-  return <div className="master-data-table-wrap"><table className={`master-data-table ${compact ? 'is-compact' : ''}`}>
-    <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody></table></div>
-}
-function TabButton({ active, onClick, label, meta }: { active: boolean; onClick: () => void; label: string; meta: string }) {
-  return <button type="button" role="tab" aria-selected={active} className={active ? 'is-active' : ''} onClick={onClick}>
-    <strong>{label}</strong><small>{meta}</small></button>
+  return <TableShell scrollClassName="master-data-table-wrap">
+    <DataTable className="master-data-table" compact={compact}>
+      <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody>
+    </DataTable>
+  </TableShell>
 }
 function RowActions({ children }: { children: ReactNode }) { return <div className="master-data-row-actions">{children}</div> }
 function DataStatus({ value, text }: { value: MasterDataStatus; text: string }) {

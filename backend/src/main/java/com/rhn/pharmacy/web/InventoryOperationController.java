@@ -25,6 +25,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +44,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_RECEIVE)
 public class InventoryOperationController {
     private final InventoryOperationApplicationService service;
 
@@ -55,6 +57,7 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/suppliers")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<SupplierView> suppliers(@RequestParam(required = false) Long organizationId,
                                  @RequestParam(required = false) String query,
                                  @RequestParam(required = false) String status) {
@@ -79,6 +82,7 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/suppliers/{supplierId}/supply-items")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<SupplierSupplyItemView> supplyItems(@PathVariable Long supplierId) {
         return service.supplyItems(supplierId);
     }
@@ -90,6 +94,7 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/purchase-orders")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<PurchaseOrderView> purchaseOrders(@RequestParam Long stockSiteId) {
         return service.purchaseOrders(stockSiteId);
     }
@@ -117,6 +122,7 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/goods-receipts")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<GoodsReceiptView> goodsReceipts(@RequestParam Long stockSiteId) {
         return service.goodsReceipts(stockSiteId);
     }
@@ -133,6 +139,7 @@ public class InventoryOperationController {
     }
 
     @GetMapping("/inventory-documents/{documentType}/{documentId}/events")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<DocumentEventView> documentEvents(@PathVariable String documentType, @PathVariable Long documentId) {
         return service.documentEvents(documentType, documentId);
     }

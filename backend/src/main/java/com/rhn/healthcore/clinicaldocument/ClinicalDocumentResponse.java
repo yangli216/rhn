@@ -12,6 +12,7 @@ public record ClinicalDocumentResponse(
         Long organizationId,
         Long departmentId,
         String documentType,
+        String instanceKey,
         String title,
         String status,
         int currentVersion,

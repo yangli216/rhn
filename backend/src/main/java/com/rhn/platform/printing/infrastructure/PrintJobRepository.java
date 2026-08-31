@@ -4,7 +4,9 @@ import com.rhn.platform.printing.domain.PrintJob;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface PrintJobRepository extends JpaRepository<PrintJob, Long> {
     Optional<PrintJob> findByIdAndTenantId(Long id, Long tenantId);
+    List<PrintJob> findByTenantIdAndOutputIdOrderByRequestedAtDesc(Long tenantId, Long outputId);
 }

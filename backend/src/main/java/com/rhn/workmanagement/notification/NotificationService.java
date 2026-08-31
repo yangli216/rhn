@@ -56,7 +56,8 @@ public class NotificationService {
     @EventListener
     @Transactional
     public void projectBusinessEvents(DomainEventEnvelope event) {
-        if (!Set.of("OUTPATIENT_REGISTERED", "ENCOUNTER_COMPLETED", "CLINICAL_DOCUMENT_SIGNED").contains(event.eventType())) return;
+        if (!Set.of("OUTPATIENT_REGISTERED", "ENCOUNTER_COMPLETED", "CLINICAL_DOCUMENT_SIGNED",
+                "DIAGNOSTIC_CRITICAL_VALUE_OPENED").contains(event.eventType())) return;
         eventConsumer.consume("portal-notification-projector", event, () -> createFor(event));
     }
 
@@ -67,15 +68,21 @@ public class NotificationService {
         String title = switch (event.eventType()) {
             case "OUTPATIENT_REGISTERED" -> "新增门诊待接诊";
             case "ENCOUNTER_COMPLETED" -> "门诊就诊已完成";
+            case "DIAGNOSTIC_CRITICAL_VALUE_OPENED" -> "检验危急值待确认";
             default -> "临床文档已签署";
         };
         String message = switch (event.eventType()) {
             case "OUTPATIENT_REGISTERED" -> "有新的门诊挂号进入科室工作队列。";
             case "ENCOUNTER_COMPLETED" -> "门诊就诊已完成并进入连续健康记录。";
+            case "DIAGNOSTIC_CRITICAL_VALUE_OPENED" -> "收到新的检验危急值，请立即查看并确认。";
             default -> "临床文档签署完成，可查看版本与证据。";
         };
-        repository.save(new PortalNotification(event.tenantId(), event.organizationId(), departmentId, null,
-                "BUSINESS", "INFO", title, message, "/residents", event.aggregateType(), event.aggregateId(), dedupKey));
+        boolean critical = "DIAGNOSTIC_CRITICAL_VALUE_OPENED".equals(event.eventType());
+        Long recipientUserId = critical ? longPayload(event, "recipientUserId") : null;
+        repository.save(new PortalNotification(event.tenantId(), event.organizationId(), departmentId, recipientUserId,
+                critical ? "CLINICAL_ALERT" : "BUSINESS", critical ? "CRITICAL" : "INFO", title, message,
+                critical ? "/outpatient/reception" : "/residents",
+                event.aggregateType(), event.aggregateId(), dedupKey));
     }
 
     private List<PortalNotification> inboxEntities(ExecutionContext context) {

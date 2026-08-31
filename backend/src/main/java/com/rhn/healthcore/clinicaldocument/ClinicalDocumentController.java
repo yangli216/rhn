@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,7 +33,7 @@ public class ClinicalDocumentController {
     @ResponseStatus(HttpStatus.CREATED)
     ClinicalDocumentResponse create(@Valid @RequestBody CreateRequest request) {
         return service.create(request.residentId(), request.encounterId(), request.organizationId(),
-                request.departmentId(), request.documentType().trim(), request.title().trim(),
+                request.departmentId(), request.documentType().trim(), instanceKey(request.instanceKey()), request.title().trim(),
                 request.contentSchema().trim(), request.content(), request.changeReason().trim());
     }
 
@@ -77,6 +78,7 @@ public class ClinicalDocumentController {
             Long organizationId,
             Long departmentId,
             @NotBlank @Size(max = 100) String documentType,
+            @Size(max = 100) @Pattern(regexp = ".*\\S.*", message = "instanceKey 不能为空") String instanceKey,
             @NotBlank @Size(max = 300) String title,
             @NotBlank @Size(max = 100) String contentSchema,
             @NotNull JsonNode content,
@@ -90,4 +92,8 @@ public class ClinicalDocumentController {
 
     record SignRequest(@Min(1) int expectedCurrentVersion,
                        @NotBlank @Size(max = 100) String signatureMeaning) {}
+
+    private static String instanceKey(String value) {
+        return value == null ? "DEFAULT" : value.trim();
+    }
 }

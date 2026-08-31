@@ -2,6 +2,7 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryReservationView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
 import com.rhn.pharmacy.api.PharmacyViews.ReservationResultView;
@@ -20,7 +21,6 @@ import com.rhn.pharmacy.domain.StockLot;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
-import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
 import com.rhn.pharmacy.infrastructure.InventoryPeriodRepository;
 import com.rhn.pharmacy.infrastructure.InventoryReservationRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
@@ -35,6 +35,8 @@ import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,6 +48,8 @@ import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -55,12 +59,21 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
-public class InventoryApplicationService {
+public class InventoryApplicationService implements InventoryLedgerPostingService {
     private static final Set<String> BIN_TYPES = Set.of("ZONE", "RACK", "BIN", "COUNTER", "TRANSIT");
     private static final Set<String> STOCK_STATUSES = Set.of("AVAILABLE", "PENDING", "QUARANTINE", "DAMAGED", "EXPIRED");
     private static final Set<String> QUALITY_STATUSES = Set.of("PENDING", "QUALIFIED", "QUARANTINE", "REJECTED", "RECALLED");
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneOffset.UTC);
+    private static final Comparator<ReceiveDocumentLineCommand> RECEIPT_LOCK_ORDER = Comparator
+            .comparing(ReceiveDocumentLineCommand::stockBinId, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(ReceiveDocumentLineCommand::stockItemId, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(ReceiveDocumentLineCommand::stockLotId, Comparator.nullsFirst(Long::compareTo));
+    private static final Comparator<DocumentPostingLineCommand> POSTING_LOCK_ORDER = Comparator
+            .comparing(DocumentPostingLineCommand::stockBinId, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(DocumentPostingLineCommand::stockItemId, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(DocumentPostingLineCommand::stockLotId, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(DocumentPostingLineCommand::stockStatus, Comparator.nullsFirst(String::compareTo));
 
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
@@ -69,7 +82,7 @@ public class InventoryApplicationService {
     private final InventoryPeriodRepository periodRepository;
     private final InventoryTransactionRepository transactionRepository;
     private final InventoryTransactionLineRepository transactionLineRepository;
-    private final InventoryBalanceRepository balanceRepository;
+    private final InventoryAvailabilityService availabilityService;
     private final InventoryReservationRepository reservationRepository;
     private final DispenseTaskRepository taskRepository;
     private final DispenseTaskLineRepository taskLineRepository;
@@ -84,7 +97,7 @@ public class InventoryApplicationService {
             StockBinRepository binRepository, StockLotRepository lotRepository,
             InventoryPeriodRepository periodRepository, InventoryTransactionRepository transactionRepository,
             InventoryTransactionLineRepository transactionLineRepository,
-            InventoryBalanceRepository balanceRepository,
+            InventoryAvailabilityService availabilityService,
             InventoryReservationRepository reservationRepository,
             DispenseTaskRepository taskRepository, DispenseTaskLineRepository taskLineRepository,
             CatalogLifecycleDirectory catalogDirectory, InventoryQuantityPolicy quantityPolicy,
@@ -94,7 +107,7 @@ public class InventoryApplicationService {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.binRepository = binRepository; this.lotRepository = lotRepository;
         this.periodRepository = periodRepository; this.transactionRepository = transactionRepository;
-        this.transactionLineRepository = transactionLineRepository; this.balanceRepository = balanceRepository;
+        this.transactionLineRepository = transactionLineRepository; this.availabilityService = availabilityService;
         this.reservationRepository = reservationRepository; this.taskRepository = taskRepository;
         this.taskLineRepository = taskLineRepository; this.catalogDirectory = catalogDirectory;
         this.quantityPolicy = quantityPolicy; this.splitService = splitService;
@@ -219,12 +232,12 @@ public class InventoryApplicationService {
                 context.tenantId(), transaction.id(), 1, site.id(), bin.id(), item.id(), lot.id(),
                 item.basePackageId(), stockStatus, operationQuantity, catalog.itemPackage().unitCode(),
                 factor, quantityDelta, input.unitCost()));
-        InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), bin.id(), item.id(),
+        InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(),
                 lot.id(), stockStatus).orElseGet(() -> new InventoryBalance(context.tenantId(), site.id(), bin.id(),
                 item.id(), lot.id(), stockStatus, item.baseUnitCode()));
-        balance.receive(quantityDelta, input.unitCost()); balanceRepository.save(balance);
+        balance.receive(quantityDelta, input.unitCost()); availabilityService.save(balance);
         try {
-            transactionLineRepository.flush(); balanceRepository.flush(); transactionRepository.flush();
+            transactionLineRepository.flush(); availabilityService.flush(); transactionRepository.flush();
         } catch (DataIntegrityViolationException exception) {
             throw conflict("INVENTORY_RECEIPT_CONCURRENT_CONFLICT", "库存入账发生并发冲突，请使用原请求编码重试");
         }
@@ -261,7 +274,9 @@ public class InventoryApplicationService {
                 period.id(), nextNo("IT"), requestCode, "RECEIPT", receiptSourceType, sourceCode,
                 occurredAt, context.subjectId(), clean(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
-        for (ReceiveDocumentLineCommand command : input.lines()) {
+        List<ReceiveDocumentLineCommand> orderedLines = input.lines().stream()
+                .sorted(RECEIPT_LOCK_ORDER).toList();
+        for (ReceiveDocumentLineCommand command : orderedLines) {
             if (command.operationQuantity() == null || command.operationQuantity().signum() <= 0) {
                 throw badRequest("INVENTORY_RECEIPT_QUANTITY_INVALID", "入库数量必须大于零");
             }
@@ -289,17 +304,17 @@ public class InventoryApplicationService {
             BigDecimal quantityDelta = quantityPolicy.toBase(context.tenantId(), catalog.itemPackage().unitCode(),
                     operationQuantity, factor, item.baseUnitCode(),
                     "INVENTORY_RECEIPT_QUANTITY_PRECISION_INVALID", "入库数量");
-            InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), bin.id(), item.id(),
+            InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(),
                     lot.id(), stockStatus).orElseGet(() -> new InventoryBalance(context.tenantId(), site.id(), bin.id(),
                     item.id(), lot.id(), stockStatus, item.baseUnitCode()));
-            balance.receive(quantityDelta, command.unitCost()); balanceRepository.save(balance);
+            balance.receive(quantityDelta, command.unitCost()); availabilityService.save(balance);
             persisted.add(transactionLineRepository.save(new InventoryTransactionLine(context.tenantId(),
                     transaction.id(), ++order, site.id(), bin.id(), item.id(), lot.id(), item.basePackageId(),
                     stockStatus, operationQuantity, catalog.itemPackage().unitCode(), factor,
                     quantityDelta, command.unitCost())));
         }
         try {
-            transactionLineRepository.flush(); balanceRepository.flush(); transactionRepository.flush();
+            transactionLineRepository.flush(); availabilityService.flush(); transactionRepository.flush();
         } catch (DataIntegrityViolationException exception) {
             throw conflict("INVENTORY_RECEIPT_CONCURRENT_CONFLICT", "库存批量入账发生并发冲突，请使用原请求编码重试");
         }
@@ -315,7 +330,7 @@ public class InventoryApplicationService {
         ExecutionContext context = requireWorkContext();
         String requestCode = required(input.requestCode(), "INVENTORY_REQUEST_CODE_REQUIRED", "库存记账请求编码不能为空");
         String transactionType = upper(input.transactionType());
-        if (!Set.of("ISSUE", "TRANSFER", "COUNT", "QUALITY").contains(transactionType)) {
+        if (!Set.of("ISSUE", "TRANSFER", "COUNT", "QUALITY", "DISPENSE", "RETURN").contains(transactionType)) {
             throw badRequest("INVENTORY_TRANSACTION_TYPE_INVALID", "库存业务记账类型不受支持");
         }
         String sourceType = required(input.sourceType(), "INVENTORY_SOURCE_TYPE_REQUIRED", "库存来源类型不能为空");
@@ -336,7 +351,9 @@ public class InventoryApplicationService {
                 period.id(), nextNo("IT"), requestCode, transactionType, sourceType, sourceCode,
                 occurredAt, context.subjectId(), clean(input.description())));
         List<InventoryTransactionLine> persisted = new ArrayList<>(); int order = 0;
-        for (DocumentPostingLineCommand command : input.lines()) {
+        List<DocumentPostingLineCommand> orderedLines = input.lines().stream()
+                .sorted(POSTING_LOCK_ORDER).toList();
+        for (DocumentPostingLineCommand command : orderedLines) {
             if (command.quantityDelta() == null || command.quantityDelta().signum() == 0) {
                 throw badRequest("INVENTORY_POSTING_QUANTITY_INVALID", "库存记账数量变化不能为零");
             }
@@ -351,14 +368,15 @@ public class InventoryApplicationService {
             if (!STOCK_STATUSES.contains(stockStatus)) throw badRequest("INVENTORY_STOCK_STATUS_INVALID", "库存状态不受支持");
             BigDecimal quantityDelta = quantityPolicy.require(context.tenantId(), item.baseUnitCode(),
                     command.quantityDelta(), "INVENTORY_POSTING_QUANTITY_PRECISION_INVALID", "库存记账数量");
-            InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), bin.id(), item.id(),
+            InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(),
                     lot.id(), stockStatus).orElse(null);
             if (balance == null) {
                 if (quantityDelta.signum() < 0) throw conflict("INVENTORY_BALANCE_NOT_FOUND", "待出库库存维度不存在");
                 balance = new InventoryBalance(context.tenantId(), site.id(), bin.id(), item.id(), lot.id(),
                         stockStatus, item.baseUnitCode());
             }
-            if (quantityDelta.signum() > 0) balance.receive(quantityDelta, command.unitCost());
+            BigDecimal effectiveUnitCost = command.unitCost() == null ? balance.averageUnitCost() : command.unitCost();
+            if (quantityDelta.signum() > 0) balance.receive(quantityDelta, effectiveUnitCost);
             else {
                 if (Set.of("ISSUE", "TRANSFER").contains(transactionType)) {
                     splitService.ensureSealedAvailable(context.tenantId(), bin.id(), item.id(), lot.id(),
@@ -367,14 +385,14 @@ public class InventoryApplicationService {
                 if (command.consumeReserved()) balance.dispenseReserved(quantityDelta.abs());
                 else balance.issueAvailable(quantityDelta.abs());
             }
-            balanceRepository.save(balance);
+            availabilityService.save(balance);
             persisted.add(transactionLineRepository.save(new InventoryTransactionLine(context.tenantId(),
                     transaction.id(), ++order, site.id(), bin.id(), item.id(), lot.id(), item.basePackageId(),
                     stockStatus, quantityDelta.abs(), item.baseUnitCode(), BigDecimal.ONE,
-                    quantityDelta, command.unitCost())));
+                    quantityDelta, effectiveUnitCost)));
         }
         try {
-            transactionLineRepository.flush(); balanceRepository.flush(); transactionRepository.flush();
+            transactionLineRepository.flush(); availabilityService.flush(); transactionRepository.flush();
         } catch (DataIntegrityViolationException exception) {
             throw conflict("INVENTORY_POSTING_CONCURRENT_CONFLICT", "库存业务记账发生并发冲突，请使用原请求编码重试");
         }
@@ -388,23 +406,97 @@ public class InventoryApplicationService {
     @Transactional(readOnly = true)
     public List<InventoryBalanceView> balances(Long siteId, Long stockItemId) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
-        requireOrganizationAccess(context, site.organizationId()); StockItem item = requireItem(context, stockItemId);
-        if (!item.stockSiteId().equals(siteId)) throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
-        return balanceRepository.findByTenantIdAndStockSiteIdAndStockItemIdOrderByProjectedAtDesc(
-                context.tenantId(), siteId, stockItemId).stream().map(value -> balanceView(context, value)).toList();
+        requireOrganizationAccess(context, site.organizationId());
+        List<InventoryBalance> values;
+        if (stockItemId == null) {
+            values = availabilityService.findBySite(context.tenantId(), siteId);
+        } else {
+            StockItem item = requireItem(context, stockItemId);
+            if (!item.stockSiteId().equals(siteId)) {
+                throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+            }
+            values = availabilityService.findByItem(context.tenantId(), siteId, stockItemId);
+        }
+        return balanceViews(context, values);
     }
 
     @Transactional(readOnly = true)
-    public List<InventoryTransactionView> transactions(Long siteId, String periodCode) {
+    public InventoryPageView<InventoryBalanceView> balancePage(Long siteId, Long stockItemId,
+                                                                int page, int size) {
         ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
-        requireOrganizationAccess(context, site.organizationId()); String code = clean(periodCode);
+        requireOrganizationAccess(context, site.organizationId()); PageRequest request = pageRequest(page, size);
+        Page<InventoryBalance> values;
+        if (stockItemId == null) {
+            values = availabilityService.findBySite(context.tenantId(), siteId, request);
+        } else {
+            StockItem item = requireItem(context, stockItemId);
+            if (!item.stockSiteId().equals(siteId)) {
+                throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+            }
+            values = availabilityService.findByItem(context.tenantId(), siteId, stockItemId, request);
+        }
+        return pageView(values, balanceViews(context, values.getContent()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<InventoryTransactionView> transactions(Long siteId, String periodCode,
+                                                       Long stockItemId, boolean allPeriods) {
+        ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
+        requireOrganizationAccess(context, site.organizationId());
+        if (stockItemId != null) {
+            StockItem item = requireItem(context, stockItemId);
+            if (!item.stockSiteId().equals(siteId)) {
+                throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+            }
+        }
+        if (allPeriods) {
+            if (stockItemId == null) {
+                throw badRequest("INVENTORY_HISTORY_ITEM_REQUIRED", "查询全部期间流水时必须指定经营项目");
+            }
+            return transactionViews(context.tenantId(),
+                    transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId));
+        }
+        String code = clean(periodCode);
         if (code == null) code = YearMonth.now(ZoneOffset.UTC).toString().replace("-", "");
         InventoryPeriod period = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
                 context.tenantId(), siteId, code).orElse(null);
         if (period == null) return List.of();
-        return transactionRepository.findByTenantIdAndInventoryPeriodIdOrderByPostedAtDesc(context.tenantId(), period.id())
-                .stream().map(value -> transactionView(value, transactionLineRepository
-                        .findByTenantIdAndInventoryTransactionIdOrderBySortOrder(context.tenantId(), value.id()))).toList();
+        List<InventoryTransaction> values = stockItemId == null
+                ? transactionRepository.findByTenantIdAndInventoryPeriodIdOrderByPostedAtDesc(
+                        context.tenantId(), period.id())
+                : transactionRepository.findPeriodItemHistory(context.tenantId(), period.id(), stockItemId);
+        return transactionViews(context.tenantId(), values);
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryPageView<InventoryTransactionView> transactionPage(Long siteId, String periodCode,
+                                                                        Long stockItemId, boolean allPeriods,
+                                                                        int page, int size) {
+        ExecutionContext context = requireWorkContext(); StockSite site = requireSite(context, siteId);
+        requireOrganizationAccess(context, site.organizationId()); PageRequest request = pageRequest(page, size);
+        if (stockItemId != null) {
+            StockItem item = requireItem(context, stockItemId);
+            if (!item.stockSiteId().equals(siteId)) {
+                throw badRequest("INVENTORY_ITEM_SITE_MISMATCH", "经营项目不属于当前库存站点");
+            }
+        }
+        Page<InventoryTransaction> values;
+        if (allPeriods) {
+            if (stockItemId == null) throw badRequest(
+                    "INVENTORY_HISTORY_ITEM_REQUIRED", "查询全部期间流水时必须指定经营项目");
+            values = transactionRepository.findItemHistory(context.tenantId(), siteId, stockItemId, request);
+        } else {
+            String code = clean(periodCode);
+            if (code == null) code = YearMonth.now(ZoneOffset.UTC).toString().replace("-", "");
+            InventoryPeriod period = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
+                    context.tenantId(), siteId, code).orElse(null);
+            if (period == null) return new InventoryPageView<>(List.of(), page, size, 0, 0, page == 0, true);
+            values = stockItemId == null
+                    ? transactionRepository.findByTenantIdAndInventoryPeriodIdOrderByPostedAtDesc(
+                            context.tenantId(), period.id(), request)
+                    : transactionRepository.findPeriodItemHistory(context.tenantId(), period.id(), stockItemId, request);
+        }
+        return pageView(values, transactionViews(context.tenantId(), values.getContent()));
     }
 
     @Transactional
@@ -414,8 +506,8 @@ public class InventoryApplicationService {
         DispenseTaskLine line = taskLineRepository.findByTenantIdAndTaskId(context.tenantId(), task.id())
                 .orElseThrow(() -> notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细"));
         expireDueForTask(context.tenantId(), task, line, Instant.now());
-        List<InventoryReservation> history = reservationRepository.findByTenantIdAndRequestIdOrderByCreatedAt(
-                context.tenantId(), line.requestId());
+        List<InventoryReservation> history = reservationRepository
+                .findByTenantIdAndDispenseTaskLineIdOrderByCreatedAt(context.tenantId(), line.id());
         List<InventoryReservation> active = history.stream().filter(InventoryReservation::active).toList();
         BigDecimal required = quantityPolicy.toBase(context.tenantId(), line.dispenseUnitCode(),
                 line.remainingQuantity(), line.baseQuantityFactor(), itemForPrecision(context, line).baseUnitCode(),
@@ -435,8 +527,8 @@ public class InventoryApplicationService {
         }
         LocalDate businessDate = LocalDate.now(ZoneOffset.UTC);
         List<InventoryBalance> candidates = "FEFO".equals(item.issuePolicy())
-                ? balanceRepository.lockIssuableFefo(context.tenantId(), site.id(), item.id(), businessDate)
-                : balanceRepository.lockIssuableFifo(context.tenantId(), site.id(), item.id(), businessDate);
+                ? availabilityService.lockIssuable(context.tenantId(), site.id(), item.id(), businessDate, "FEFO")
+                : availabilityService.lockIssuable(context.tenantId(), site.id(), item.id(), businessDate, "FIFO");
         BigDecimal available = candidates.stream().map(InventoryBalance::quantityAvailable)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         if (available.compareTo(required) < 0) {
@@ -457,12 +549,12 @@ public class InventoryApplicationService {
             BigDecimal allocation = balance.quantityAvailable().min(remaining);
             balance.reserve(allocation);
             created.add(reservationRepository.save(new InventoryReservation(context.tenantId(), site.id(),
-                    balance.stockBinId(), item.id(), balance.stockLotId(), line.requestId(), group,
+                    balance.stockBinId(), item.id(), balance.stockLotId(), line.requestId(), line.id(), group,
                     allocation, item.baseUnitCode(), context.subjectId(), expiresAt)));
             remaining = remaining.subtract(allocation);
         }
         task.markReserved(); line.markReserved();
-        balanceRepository.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
+        availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_RESERVED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), Instant.now(),
                 Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "reservationGroup", group,
@@ -477,22 +569,26 @@ public class InventoryApplicationService {
         DispenseTaskLine line = taskLineRepository.findByTenantIdAndTaskId(context.tenantId(), task.id())
                 .orElseThrow(() -> notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细"));
         String reason = required(input.reason(), "INVENTORY_RELEASE_REASON_REQUIRED", "释放库存预留必须填写原因");
-        List<InventoryReservation> active = reservationRepository.lockActiveByRequest(
-                context.tenantId(), line.requestId());
+        List<InventoryReservation> active = reservationRepository.lockActiveByDispenseTaskLine(
+                context.tenantId(), line.id());
         BigDecimal required = line.remainingQuantity().multiply(line.baseQuantityFactor());
         if (active.isEmpty()) {
             if ("READY_TO_PICK".equals(task.status())) return reservationResult(context, task, required, List.of());
             throw conflict("INVENTORY_ACTIVE_RESERVATION_NOT_FOUND", "当前任务没有可释放的有效库存预留");
         }
-        for (InventoryReservation reservation : active) {
-            InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), reservation.stockBinId(),
+        List<InventoryReservation> ordered = active.stream().sorted(Comparator
+                .comparing(InventoryReservation::stockBinId)
+                .thenComparing(InventoryReservation::stockItemId)
+                .thenComparing(InventoryReservation::stockLotId)).toList();
+        for (InventoryReservation reservation : ordered) {
+            InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), reservation.stockBinId(),
                     reservation.stockItemId(), reservation.stockLotId(), "AVAILABLE")
                     .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "预留对应库存投影不存在"));
             BigDecimal releasable = reservation.releasableQuantity();
             balance.release(releasable); reservation.release(context.subjectId(), reason);
         }
         task.releaseReservation(); line.releaseReservation();
-        balanceRepository.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
+        availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(context.tenantId(), site.organizationId(), "INVENTORY_RESERVATION_RELEASED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), Instant.now(),
                 Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "reason", reason));
@@ -507,8 +603,8 @@ public class InventoryApplicationService {
             Long previousTenant = TenantContext.currentTenantId().orElse(null);
             TenantContext.set(key.getTenantId());
             try {
-                DispenseTaskLine line = taskLineRepository.findByTenantIdAndRequestId(
-                        key.getTenantId(), key.getRequestId()).orElse(null);
+                DispenseTaskLine line = taskLineRepository.findById(key.getDispenseTaskLineId())
+                        .filter(value -> key.getTenantId().equals(value.tenantId())).orElse(null);
                 if (line == null) continue;
                 DispenseTask task = taskRepository.lockByIdAndTenantId(line.taskId(), key.getTenantId()).orElse(null);
                 if (task == null) continue;
@@ -520,10 +616,15 @@ public class InventoryApplicationService {
     }
 
     private void expireDueForTask(Long tenantId, DispenseTask task, DispenseTaskLine line, Instant now) {
-        List<InventoryReservation> due = reservationRepository.lockDueByRequest(tenantId, line.requestId(), now);
+        List<InventoryReservation> due = reservationRepository
+                .lockDueByDispenseTaskLine(tenantId, line.id(), now);
         if (due.isEmpty()) return;
-        for (InventoryReservation reservation : due) {
-            InventoryBalance balance = balanceRepository.lockDimension(tenantId, reservation.stockBinId(),
+        List<InventoryReservation> ordered = due.stream().sorted(Comparator
+                .comparing(InventoryReservation::stockBinId)
+                .thenComparing(InventoryReservation::stockItemId)
+                .thenComparing(InventoryReservation::stockLotId)).toList();
+        for (InventoryReservation reservation : ordered) {
+            InventoryBalance balance = availabilityService.lockDimension(tenantId, reservation.stockBinId(),
                     reservation.stockItemId(), reservation.stockLotId(), "AVAILABLE")
                     .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "过期预留对应库存投影不存在"));
             BigDecimal releasable = reservation.releasableQuantity();
@@ -532,7 +633,7 @@ public class InventoryApplicationService {
         task.expireReservation(); line.releaseReservation();
         StockSite site = siteRepository.findByIdAndTenantId(task.stockSiteId(), tenantId)
                 .orElseThrow(() -> notFound("STOCK_SITE_NOT_FOUND", "过期预留对应库存站点不存在"));
-        balanceRepository.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
+        availabilityService.flush(); reservationRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
         eventPublisher.publish(tenantId, site.organizationId(), "INVENTORY_RESERVATION_EXPIRED", 1,
                 "DispenseTask", task.id(), task.revision(), task.residentId(), now,
                 Map.of("taskNo", task.taskNo(), "requestId", line.requestId(), "allocationCount", due.size()));
@@ -545,7 +646,7 @@ public class InventoryApplicationService {
                 .orElseThrow(() -> notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细"));
         BigDecimal required = line.remainingQuantity().multiply(line.baseQuantityFactor());
         return reservationResult(context, task, required, reservationRepository
-                .findByTenantIdAndRequestIdOrderByCreatedAt(context.tenantId(), line.requestId()));
+                .findByTenantIdAndDispenseTaskLineIdOrderByCreatedAt(context.tenantId(), line.id()));
     }
 
     private InventoryTransactionView verifyIdempotentReceipt(InventoryTransaction existing, String sourceType,
@@ -575,8 +676,9 @@ public class InventoryApplicationService {
                 || !sourceCode.equals(existing.sourceCode()) || lines.size() != expected.size()) {
             throw conflict("INVENTORY_REQUEST_CODE_REUSED", "库存请求编码已被其他业务内容使用");
         }
+        List<DocumentPostingLineCommand> orderedExpected = expected.stream().sorted(POSTING_LOCK_ORDER).toList();
         for (int index = 0; index < lines.size(); index++) {
-            InventoryTransactionLine actual = lines.get(index); DocumentPostingLineCommand wanted = expected.get(index);
+            InventoryTransactionLine actual = lines.get(index); DocumentPostingLineCommand wanted = orderedExpected.get(index);
             if (!actual.stockBinId().equals(wanted.stockBinId()) || !actual.stockItemId().equals(wanted.stockItemId())
                     || !actual.stockLotId().equals(wanted.stockLotId())
                     || actual.quantityDelta().compareTo(wanted.quantityDelta()) != 0
@@ -589,11 +691,28 @@ public class InventoryApplicationService {
 
     private InventoryPeriod requireOpenPeriod(ExecutionContext context, Long siteId, LocalDate date) {
         YearMonth month = YearMonth.from(date); String code = month.toString().replace("-", "");
-        InventoryPeriod value = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
+        InventoryPeriod value = periodRepository.lockForPosting(
                 context.tenantId(), siteId, code).orElse(null);
         if (value == null) {
-            value = periodRepository.saveAndFlush(new InventoryPeriod(context.tenantId(), siteId, code,
-                    month.atDay(1), month.atEndOfMonth(), context.subjectId()));
+            List<InventoryPeriod> periods = periodRepository.findByTenantIdAndStockSiteIdOrderByPeriodFromDesc(
+                    context.tenantId(), siteId);
+            InventoryPeriod previous = periods.stream()
+                    .filter(candidate -> candidate.periodTo().isBefore(month.atDay(1)))
+                    .findFirst().orElse(null);
+            if (periods.stream().anyMatch(candidate -> candidate.periodFrom().isAfter(month.atEndOfMonth()))) {
+                throw conflict("INVENTORY_PERIOD_GAP", "业务日期所属期间缺失，请先补齐连续库存期间");
+            }
+            if (previous != null) {
+                if (!"CLOSED".equals(previous.status())) {
+                    throw conflict("INVENTORY_PREVIOUS_PERIOD_NOT_CLOSED", "上一库存期间尚未月结，不能开启下一期间");
+                }
+                if (!previous.periodTo().plusDays(1).equals(month.atDay(1))) {
+                    throw conflict("INVENTORY_PERIOD_GAP", "库存期间必须按月连续，不能跳月记账");
+                }
+            }
+            value = periodRepository.saveAndFlush(new InventoryPeriod(context.tenantId(), siteId,
+                    previous == null ? null : previous.id(), code, month.atDay(1), month.atEndOfMonth(),
+                    context.subjectId()));
         }
         if (!value.accepts(date)) throw conflict("INVENTORY_PERIOD_NOT_OPEN", "业务日期所属库存期间未开放");
         return value;
@@ -615,6 +734,28 @@ public class InventoryApplicationService {
                 value.quantityAvailable(), value.averageUnitCost(), value.projectedAt());
     }
 
+    private List<InventoryBalanceView> balanceViews(ExecutionContext context, List<InventoryBalance> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, StockBin> bins = new HashMap<>();
+        binRepository.findAllById(values.stream().map(InventoryBalance::stockBinId).collect(java.util.stream.Collectors.toSet()))
+                .stream().filter(value -> context.tenantId().equals(value.tenantId()))
+                .forEach(value -> bins.put(value.id(), value));
+        Map<Long, StockLot> lots = new HashMap<>();
+        lotRepository.findAllById(values.stream().map(InventoryBalance::stockLotId).collect(java.util.stream.Collectors.toSet()))
+                .stream().filter(value -> context.tenantId().equals(value.tenantId()))
+                .forEach(value -> lots.put(value.id(), value));
+        return values.stream().map(value -> {
+            StockBin bin = bins.get(value.stockBinId()); StockLot lot = lots.get(value.stockLotId());
+            if (bin == null || lot == null) {
+                throw conflict("INVENTORY_BALANCE_DIMENSION_MISSING", "库存余额关联的库位或批号不存在");
+            }
+            return new InventoryBalanceView(value.id(), value.revision(), value.stockSiteId(), value.stockBinId(),
+                    bin.code(), value.stockItemId(), value.stockLotId(), lot.lotNo(), lot.expiryDate(), value.stockStatus(),
+                    value.baseUnitCode(), value.quantityOnHand(), value.quantityReserved(), value.quantityFrozen(),
+                    value.quantityAvailable(), value.averageUnitCost(), value.projectedAt());
+        }).toList();
+    }
+
     private InventoryReservationView reservationView(ExecutionContext context, InventoryReservation value) {
         StockBin bin = requireBin(context, value.stockBinId()); StockLot lot = requireLot(context, value.stockLotId());
         return new InventoryReservationView(value.id(), value.revision(), value.stockSiteId(), value.stockBinId(),
@@ -629,6 +770,29 @@ public class InventoryApplicationService {
                 value.requestCode(), value.transactionType(), value.sourceType(), value.sourceCode(),
                 value.occurredAt(), value.postedAt(), value.postedBy(), value.description(),
                 lines.stream().map(this::transactionLineView).toList());
+    }
+
+    private List<InventoryTransactionView> transactionViews(Long tenantId, List<InventoryTransaction> values) {
+        if (values.isEmpty()) return List.of();
+        Map<Long, List<InventoryTransactionLine>> linesByTransaction = transactionLineRepository
+                .findByTenantIdAndInventoryTransactionIdInOrderByInventoryTransactionIdAscSortOrderAsc(
+                        tenantId, values.stream().map(InventoryTransaction::id).toList())
+                .stream().collect(java.util.stream.Collectors.groupingBy(
+                        InventoryTransactionLine::inventoryTransactionId, java.util.LinkedHashMap::new,
+                        java.util.stream.Collectors.toList()));
+        return values.stream().map(value -> transactionView(value,
+                linesByTransaction.getOrDefault(value.id(), List.of()))).toList();
+    }
+
+    private PageRequest pageRequest(int page, int size) {
+        if (page < 0) throw badRequest("INVENTORY_PAGE_INVALID", "页码不能小于零");
+        if (size < 1 || size > 200) throw badRequest("INVENTORY_PAGE_SIZE_INVALID", "每页数量必须在 1 至 200 之间");
+        return PageRequest.of(page, size);
+    }
+
+    private <T> InventoryPageView<T> pageView(Page<?> source, List<T> content) {
+        return new InventoryPageView<>(content, source.getNumber(), source.getSize(), source.getTotalElements(),
+                source.getTotalPages(), source.isFirst(), source.isLast());
     }
 
     private InventoryTransactionLineView transactionLineView(InventoryTransactionLine value) {

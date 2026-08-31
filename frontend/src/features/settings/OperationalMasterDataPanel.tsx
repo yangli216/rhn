@@ -3,15 +3,19 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import type {
   ClinicalConfiguration, DiagnosticChargeLine, DictionaryValue, ExaminationChargePlan, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
   ExaminationAttachmentConfiguration, ExaminationAttachmentInput,
-  ItemGroup, ItemGroupInput, LaboratoryProfile, Manufacturer, RhnApi, ServiceCatalogItem,
+  Department, ItemGroup, ItemGroupInput, LaboratoryProfile, Manufacturer, RhnApi, ServiceCatalogItem,
   LaboratoryTubePlan, SpecimenConfiguration, SpecimenConfigurationInput, SupplyInput, SupplyItem, UnitConversion,
-  UnitConversionInput, UnitDefinition,
+  UnitConversionInput, UnitDefinition, OrderFrequency, OrderFrequencyConfiguration,
+  OrderFrequencyConfigurationInput, OrderFrequencyInput, OrderFrequencyRuleType,
 } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import type { Organization } from '../../shared/model'
-import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import {
+  Alert, Button, DataTable as UiDataTable, Dialog, EmptyState, FormField, Icon, LoadingState, Select,
+  StatusBadge, TableShell, Tabs,
+} from '../../shared/ui'
 
-type Area = 'group' | 'supply' | 'unit'
+type Area = 'group' | 'supply' | 'unit' | 'frequency'
 const today = () => new Date().toISOString().slice(0, 10)
 const activeStatus = [{ value: 'ACTIVE', label: '启用' }, { value: 'INACTIVE', label: '停用' }]
 const dimensions = [
@@ -33,10 +37,15 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
   const groups = useQuery({ queryKey: ['master-data-operational-groups'], queryFn: () => api.masterData.itemGroups(), enabled: area === 'group' })
   const units = useQuery({ queryKey: ['master-data-operational-units'], queryFn: () => api.masterData.units(), enabled: area === 'unit' || area === 'supply' })
   const conversions = useQuery({ queryKey: ['master-data-operational-conversions'], queryFn: () => api.masterData.unitConversions(), enabled: area === 'unit' })
+  const frequencies = useQuery({ queryKey: ['master-data-operational-frequencies'],
+    queryFn: () => api.masterData.orderFrequencies(), enabled: area === 'frequency' })
+  const departments = useQuery({ queryKey: ['master-data-operational-frequency-departments', organization.id],
+    queryFn: () => api.organization.departments(organization.id), enabled: area === 'frequency' })
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
     await client.invalidateQueries({ predicate: ({ queryKey }) => String(queryKey[0] ?? '').startsWith('master-data-operational') })
+    await client.invalidateQueries({ predicate: ({ queryKey }) => String(queryKey[0] ?? '').includes('active-order-frequencies') })
     await client.invalidateQueries({ queryKey: ['master-data-services'] })
   }
   const execute = (message: string, task: Promise<unknown>) => task.then(() => invalidate(message)).catch((error) => setOperationError(errorMessage(error)))
@@ -44,11 +53,12 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
   return <div className="operational-master-data">
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {operationError && <Alert>{operationError}</Alert>}
-    <div className="operational-master-data__nav" role="tablist" aria-label="运营主数据类型">
-      <AreaButton active={area === 'group'} onClick={() => setArea('group')} title="项目组套" copy="LIS/PACS 组套与组合项目" />
-      <AreaButton active={area === 'supply'} onClick={() => setArea('supply')} title="耗材与器械" copy="UDI、注册证、型号与库存属性" />
-      <AreaButton active={area === 'unit'} onClick={() => setArea('unit')} title="计量与换算" copy="统一单位、全局/项目换算" />
-    </div>
+    <Tabs value={area} onChange={setArea} label="运营主数据类型" variant="cards" items={[
+      { value: 'group', label: '项目组套', meta: 'LIS/PACS 组套与组合项目' },
+      { value: 'supply', label: '耗材与器械', meta: 'UDI、注册证、型号与库存属性' },
+      { value: 'unit', label: '计量与换算', meta: '统一单位、全局/项目换算' },
+      { value: 'frequency', label: '医嘱频次', meta: '规则语义、适用场景与执行时点' },
+    ]} />
     {area === 'group' && <ListSection title="项目组套" copy="LIS 只能选检验项目，PACS 只能选检查项目；服务端会再次校验。"
       action={<Button onClick={() => setDialog(<GroupDialog services={services.data ?? []} organization={organization} units={units.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
@@ -77,6 +87,10 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
     {area === 'unit' && <UnitWorkspace api={api} units={units.data ?? []} conversions={conversions.data ?? []}
       catalogItems={[...(services.data ?? []), ...(supplies.data ?? [])]}
       loading={units.isPending || conversions.isPending} onDialog={setDialog} onDone={invalidate} onError={(e) => setOperationError(errorMessage(e))} />}
+    {area === 'frequency' && <FrequencyWorkspace api={api} organization={organization}
+      departments={departments.data ?? []} values={frequencies.data ?? []}
+      loading={frequencies.isPending || departments.isPending} onDialog={setDialog}
+      onDone={invalidate} onError={(e) => setOperationError(errorMessage(e))} />}
     {dialog}
   </div>
 }
@@ -159,17 +173,16 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
   </Dialog>
 }
 
-function AreaButton({ active, onClick, title, copy }: { active: boolean; onClick: () => void; title: string; copy: string }) {
-  return <button type="button" className={active ? 'is-active' : ''} onClick={onClick}><strong>{title}</strong><small>{copy}</small></button>
-}
 function ListSection({ title, copy, action, children }: { title: string; copy: string; action: ReactNode; children: ReactNode }) {
   return <section className="operational-master-data__body"><div className="operational-master-data__toolbar">
     <div><h3>{title}</h3><p>{copy}</p></div>{action}</div>{children}</section>
 }
 function State({ value }: { value: string }) { return <StatusBadge tone={value === 'ACTIVE' ? 'success' : 'neutral'}>{value === 'ACTIVE' ? '启用' : '停用'}</StatusBadge> }
 function DataTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }) {
-  return <div className="master-data-table-wrap"><table className="master-data-table"><thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-    <tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, i) => <td key={i}>{cell}</td>)}</tr>)}</tbody></table></div>
+  return <TableShell scrollClassName="master-data-table-wrap"><UiDataTable className="master-data-table">
+    <thead><tr>{headers.map((h) => <th key={h}>{h}</th>)}</tr></thead>
+    <tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, i) => <td key={i}>{cell}</td>)}</tr>)}</tbody>
+  </UiDataTable></TableShell>
 }
 
 function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEditProfile, onSpecimen, onVariant, onAttachment }: {
@@ -325,7 +338,7 @@ const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI
 
 function FormDialog({ title, description, onClose, onSubmit, children }: { title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void; children: ReactNode }) {
   return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size="wide" onClose={onClose}>
-    <form className="master-data-dialog-form" onSubmit={onSubmit}><div className="master-data-form-grid">{children}</div>
+    <form className="master-data-dialog-form" onSubmit={onSubmit}><div className="master-data-form-grid master-data-form-grid--2">{children}</div>
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div></form>
   </Dialog>
 }
@@ -560,6 +573,399 @@ function GroupDialog({ value, services, organization, units, onClose, onSave }: 
     </div></FormField>}
   </FormDialog>
 }
+
+function FrequencyWorkspace({ api, organization, departments, values, loading, onDialog, onDone, onError }: {
+  api: RhnApi; organization: Organization; departments: Department[]; values: OrderFrequency[]; loading: boolean
+  onDialog: (value?: ReactNode) => void; onDone: (message: string) => Promise<void>; onError: (error: unknown) => void
+}) {
+  const [selectedId, setSelectedId] = useState('')
+  const [previewCode, setPreviewCode] = useState('')
+  const [previewDepartmentId, setPreviewDepartmentId] = useState('')
+  const [previewStart, setPreviewStart] = useState(() => new Date().toISOString().slice(0, 16))
+  const [preview, setPreview] = useState<{ explanation: string; plannedTimes: string[] }>()
+  useEffect(() => {
+    if (!values.length) { setSelectedId(''); setPreviewCode(''); return }
+    if (!values.some((value) => value.id === selectedId)) setSelectedId(values[0].id)
+    if (!values.some((value) => value.code === previewCode)) setPreviewCode(values[0].code)
+  }, [previewCode, selectedId, values])
+  const selected = values.find((value) => value.id === selectedId)
+  const saveFrequency = (value?: OrderFrequency) => (input: OrderFrequencyInput) =>
+    (value ? api.masterData.updateOrderFrequency(value, input) : api.masterData.createOrderFrequency(input))
+      .then(() => onDone(value ? '医嘱频次已更新' : '医嘱频次已新增')).catch(onError)
+  const saveConfiguration = (frequency: OrderFrequency, value?: OrderFrequencyConfiguration) =>
+    (input: OrderFrequencyConfigurationInput) => (value
+      ? api.masterData.updateOrderFrequencyConfiguration(frequency.id, value, input)
+      : api.masterData.createOrderFrequencyConfiguration(frequency.id, input))
+      .then(() => onDone(value ? '执行时间配置已更新' : '执行时间配置已新增')).catch(onError)
+  const runPreview = () => api.masterData.previewOrderFrequency(previewCode, organization.id,
+    previewDepartmentId || undefined, previewStart ? `${previewStart}:00` : undefined, 8)
+    .then(setPreview).catch(onError)
+  return <section className="operational-master-data__body frequency-workspace">
+    <div className="operational-master-data__toolbar"><div><h3>医嘱频次主档</h3>
+      <p>稳定编码承载医嘱语义，机构和科室只维护本地名称、启停与标准执行时间。</p></div>
+      <Button onClick={() => onDialog(<FrequencyDialog onClose={() => onDialog(undefined)} onSave={saveFrequency()} />)}>
+        <Icon name="add" />新增频次</Button></div>
+    {loading ? <LoadingState label="正在加载医嘱频次…" /> : !values.length
+      ? <EmptyState icon="clinical" title="暂无医嘱频次" copy="请先建立频次规则，再配置机构执行时点。" />
+      : <><DataTable headers={['频次', '规则语义', '适用范围', '默认执行时点', '机构配置', '状态', '操作']} rows={values.map((value) => [
+        <b>{value.name}<code>{value.code}{value.shortName ? ` · ${value.shortName}` : ''}</code></b>,
+        <span>{frequencyRuleLabel(value)}<small>{value.automaticTaskGeneration ? '自动生成执行任务' : '不预生成固定任务'}</small></span>,
+        frequencyApplicabilityLabel(value), value.defaultExecutionTimes.join('、') || '随医嘱/事件',
+        `${value.configurations.length} 条`, <State value={value.status} />,
+        <div className="master-data-row-actions"><Button size="sm" variant="text" onClick={() => setSelectedId(value.id)}>执行配置</Button>
+          <Button size="sm" variant="text" onClick={() => onDialog(<FrequencyDialog value={value}
+            onClose={() => onDialog(undefined)} onSave={saveFrequency(value)} />)}>编辑</Button></div>,
+      ])} />
+      {selected && <div className="frequency-workspace__details">
+        <div className="section-heading"><div><h4>{selected.name} · 机构/科室执行配置</h4>
+          <p>科室配置优先于机构配置；未维护时继承主档默认执行时点。</p></div>
+          <Button onClick={() => onDialog(<FrequencyConfigurationDialog frequency={selected}
+            organization={organization} departments={departments} onClose={() => onDialog(undefined)}
+            onSave={saveConfiguration(selected)} />)}><Icon name="add" />新增执行配置</Button></div>
+        {!selected.configurations.length ? <EmptyState icon="clinical" title="当前频次暂无局部配置"
+          copy={`当前机构将使用主档默认值：${selected.defaultExecutionTimes.join('、') || '随医嘱开始时间'}`} />
+          : <DataTable headers={['作用范围', '本地显示', '执行时点', '首日策略', '启用', '有效期', '操作']}
+            rows={selected.configurations.map((config) => [
+              config.departmentId ? departments.find((item) => item.id === config.departmentId)?.name ?? config.departmentId : organization.name,
+              <span>{config.localName || selected.name}<small>{config.localCode || selected.code}</small></span>,
+              config.executionTimes.join('、') || `继承：${selected.defaultExecutionTimes.join('、') || '无固定时点'}`,
+              firstDayPolicyLabel(config.firstDayPolicy), config.enabled ? '启用' : '禁用',
+              `${config.validFrom} 至 ${config.validTo || '长期'}`,
+              <Button size="sm" variant="text" onClick={() => onDialog(<FrequencyConfigurationDialog
+                frequency={selected} value={config} organization={organization} departments={departments}
+                onClose={() => onDialog(undefined)} onSave={saveConfiguration(selected, config)} />)}>编辑</Button>,
+            ])} />}
+      </div>}
+      <div className="frequency-preview"><strong>执行排程试算</strong>
+        <Select value={previewCode} onChange={setPreviewCode} showValue options={values.filter((value) => value.status === 'ACTIVE')
+          .map((value) => ({ value: value.code, label: value.name, secondaryText: value.code }))} />
+        <Select value={previewDepartmentId} onChange={setPreviewDepartmentId} placeholder="机构级配置" showValue
+          options={departments.filter((value) => value.sdOrgStatus === 'ACTIVE')
+            .map((value) => ({ value: value.id, label: value.name, secondaryText: value.code }))} />
+        <input type="datetime-local" value={previewStart} onChange={(event) => setPreviewStart(event.target.value)} />
+        <Button variant="secondary" disabled={!previewCode} onClick={runPreview}>生成 8 个时点</Button>
+        {preview && <output><span>{preview.explanation}</span>
+          <strong>{preview.plannedTimes.length ? preview.plannedTimes.map(formatDateTime).join(' · ') : '无固定执行时点'}</strong></output>}
+      </div></>}
+  </section>
+}
+
+function FrequencyDialog({ value, onClose, onSave }: {
+  value?: OrderFrequency; onClose: () => void; onSave: (input: OrderFrequencyInput) => void
+}) {
+  const [form, setForm] = useState<FrequencyDraft>({
+    code: value?.code ?? '', name: value?.name ?? '', shortName: value?.shortName ?? '',
+    description: value?.description ?? '', ruleType: value?.ruleType ?? 'TIMES_PER_PERIOD',
+    frequencyCount: String(value?.frequencyCount ?? 2), periodValue: String(value?.periodValue ?? 1),
+    periodUnit: value?.periodUnit ?? 'D', anchorType: value?.anchorType ?? 'STANDARD_TIME',
+    defaultExecutionTimes: value?.defaultExecutionTimes.join(',') ?? '08:00,20:00',
+    outpatientApplicable: value?.outpatientApplicable ?? true, inpatientApplicable: value?.inpatientApplicable ?? true,
+    emergencyApplicable: value?.emergencyApplicable ?? true, medicationApplicable: value?.medicationApplicable ?? true,
+    treatmentApplicable: value?.treatmentApplicable ?? true, nursingApplicable: value?.nursingApplicable ?? false,
+    automaticTaskGeneration: value?.automaticTaskGeneration ?? true, sortOrder: String(value?.sortOrder ?? 100),
+    status: value?.status ?? 'ACTIVE', validFrom: value?.validFrom ?? today(), validTo: value?.validTo ?? '',
+  })
+  const [templateId, setTemplateId] = useState(value ? '' : 'DAILY')
+  const [formError, setFormError] = useState('')
+  const ruleType = form.ruleType as OrderFrequencyRuleType
+  const usesPeriod = ruleType === 'TIMES_PER_PERIOD' || ruleType === 'FIXED_INTERVAL'
+  const usesTimes = ruleType === 'TIMES_PER_PERIOD' || ruleType === 'CALENDAR'
+  const executionTimes = frequencyExecutionTimes(form.defaultExecutionTimes)
+  const preview = frequencyDraftPreview(form)
+  const scopeLabel = frequencyDraftScopeLabel(form)
+  const changeRule = (next: string) => setForm((current) => ({ ...current, ruleType: next as OrderFrequencyRuleType,
+    anchorType: next === 'TIMES_PER_PERIOD' ? 'STANDARD_TIME' : next === 'CALENDAR' ? 'CALENDAR'
+      : next === 'PRN' ? 'EVENT' : 'ORDER_START',
+    automaticTaskGeneration: !['PRN', 'CONTINUOUS'].includes(next),
+    defaultExecutionTimes: next === 'TIMES_PER_PERIOD' ? current.defaultExecutionTimes || '08:00' : current.defaultExecutionTimes,
+  }))
+  const applyTemplate = (id: string) => {
+    const template = frequencyTemplates.find((item) => item.id === id)
+    if (!template) return
+    setTemplateId(id); setFormError('')
+    setForm((current) => ({ ...current, ...template.values, code: current.code, name: current.name,
+      shortName: current.shortName, description: current.description, sortOrder: current.sortOrder,
+      status: current.status, validFrom: current.validFrom, validTo: current.validTo }))
+  }
+  const setExecutionTimes = (times: string[]) => setForm((current) => ({ ...current,
+    defaultExecutionTimes: times.join(','),
+    frequencyCount: current.ruleType === 'TIMES_PER_PERIOD' ? String(Math.max(1, times.length)) : current.frequencyCount,
+  }))
+  return <FormDialog title={value ? '编辑医嘱频次' : '新增医嘱频次'}
+    description={value ? '修改只影响后续新医嘱，历史医嘱继续使用已保存的规则快照。' : '先选择业务模板，再补充编码和名称即可完成常用频次配置。'} onClose={onClose}
+    onSubmit={(event) => { event.preventDefault()
+      if (usesTimes && !executionTimes.length) { setFormError('请至少添加一个执行时点'); return }
+      if (!form.outpatientApplicable && !form.inpatientApplicable && !form.emergencyApplicable) { setFormError('请至少选择一个适用场景'); return }
+      if (!form.medicationApplicable && !form.treatmentApplicable && !form.nursingApplicable) { setFormError('请至少选择一种医嘱类型'); return }
+      setFormError(''); onSave({
+      code: form.code, name: form.name, shortName: form.shortName || undefined,
+      description: form.description || undefined, ruleType,
+      frequencyCount: usesPeriod ? (ruleType === 'TIMES_PER_PERIOD' ? executionTimes.length : 1) : ruleType === 'ONCE' ? 1 : undefined,
+      periodValue: usesPeriod ? Number(form.periodValue) : undefined,
+      periodUnit: usesPeriod ? form.periodUnit : undefined,
+      anchorType: form.anchorType as OrderFrequencyInput['anchorType'],
+      defaultExecutionTimes: usesTimes ? executionTimes.join(',') : undefined,
+      outpatientApplicable: form.outpatientApplicable, inpatientApplicable: form.inpatientApplicable,
+      emergencyApplicable: form.emergencyApplicable, medicationApplicable: form.medicationApplicable,
+      treatmentApplicable: form.treatmentApplicable, nursingApplicable: form.nursingApplicable,
+      automaticTaskGeneration: form.automaticTaskGeneration, sortOrder: Number(form.sortOrder),
+      status: form.status as 'ACTIVE' | 'INACTIVE', validFrom: form.validFrom, validTo: form.validTo || undefined,
+    }) }}>
+    {!value && <section className="frequency-template-picker span-2" aria-label="频次业务模板">
+      <header><strong>1. 选择业务模板</strong><small>系统自动填充规则，仍可在下方调整</small></header>
+      <div>{frequencyTemplates.map((template) => <button type="button" key={template.id}
+        className={template.id === templateId ? 'is-active' : ''} onClick={() => applyTemplate(template.id)}>
+        <strong>{template.title}</strong><small>{template.copy}</small></button>)}</div>
+    </section>}
+    {formError && <div className="span-2"><Alert>{formError}</Alert></div>}
+    <div className="frequency-form-section span-2"><header><strong>{value ? '频次身份与规则' : '2. 补充频次身份'}</strong>
+      <small>编码创建后不可修改，建议使用院内稳定编码或通用缩写</small></header></div>
+    <FormField label="频次编码" required hint="常用标准编码示例：QD（每日一次）、BID（每日两次）、Q6H（每6小时一次）。"><input value={form.code} disabled={Boolean(value)} required
+      onChange={(event) => setForm({ ...form, code: event.target.value.toUpperCase() })} placeholder="如 BID、Q6H" /></FormField>
+    <FormField label="频次名称" required><input value={form.name} required
+      onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="如 每日两次" /></FormField>
+    <FormField label="简称"><input value={form.shortName} onChange={(event) => setForm({ ...form, shortName: event.target.value })} /></FormField>
+    <FormField label="规则类型" required><Select value={form.ruleType} onChange={changeRule} options={frequencyRuleOptions} /></FormField>
+    {usesPeriod && <><FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔值' : '周期内次数'} required>
+      <input type="number" min="1" step="1" readOnly={ruleType === 'TIMES_PER_PERIOD'}
+        value={ruleType === 'FIXED_INTERVAL' ? form.periodValue : Math.max(1, executionTimes.length)}
+        onChange={(event) => ruleType === 'FIXED_INTERVAL' && setForm({ ...form, periodValue: event.target.value })} /></FormField>
+      <FormField label={ruleType === 'FIXED_INTERVAL' ? '间隔单位' : '统计周期'} required><Select value={form.periodUnit}
+        onChange={(next) => setForm({ ...form, periodUnit: next, periodValue: ruleType === 'TIMES_PER_PERIOD' ? '1' : form.periodValue })}
+        options={periodUnitOptions} /></FormField></>}
+    {usesTimes && <FormField label="默认执行时点" required className="span-2"><FrequencyTimeEditor
+      value={executionTimes} onChange={setExecutionTimes} /></FormField>}
+    <section className="frequency-scope-section span-2"><header><strong>适用范围</strong><small>明确该频次可以在哪些业务中被选择</small></header>
+      <div className="frequency-scope-grid">
+        <Check label="门诊适用" checked={form.outpatientApplicable} onChange={(next) => setForm({ ...form, outpatientApplicable: next })} />
+        <Check label="住院适用" checked={form.inpatientApplicable} onChange={(next) => setForm({ ...form, inpatientApplicable: next })} />
+        <Check label="急诊适用" checked={form.emergencyApplicable} onChange={(next) => setForm({ ...form, emergencyApplicable: next })} />
+        <Check label="药品医嘱" checked={form.medicationApplicable} onChange={(next) => setForm({ ...form, medicationApplicable: next })} />
+        <Check label="治疗医嘱" checked={form.treatmentApplicable} onChange={(next) => setForm({ ...form, treatmentApplicable: next })} />
+        <Check label="护理医嘱" checked={form.nursingApplicable} onChange={(next) => setForm({ ...form, nursingApplicable: next })} />
+      </div><p><strong>当前范围：</strong>{scopeLabel}</p>
+    </section>
+    <FrequencyDraftPreview form={form} preview={preview} />
+    <details className="frequency-advanced span-2" open={Boolean(value)}><summary><span>高级设置</span><small>状态、生效期、排序和任务生成策略</small></summary>
+      <div className="frequency-advanced__grid">
+        <FormField label="状态"><Select value={form.status} onChange={(next) => setForm({ ...form, status: next as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField>
+        <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: event.target.value })} /></FormField>
+        <FormField label="生效日期" required><input type="date" value={form.validFrom} required onChange={(event) => setForm({ ...form, validFrom: event.target.value })} /></FormField>
+        <FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(event) => setForm({ ...form, validTo: event.target.value })} /></FormField>
+        <FormField label="业务说明" className="span-2"><textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} /></FormField>
+        <Check label="自动生成执行任务" checked={form.automaticTaskGeneration}
+          disabled={ruleType === 'PRN' || ruleType === 'CONTINUOUS'}
+          onChange={(next) => setForm({ ...form, automaticTaskGeneration: next })} />
+      </div>
+    </details>
+  </FormDialog>
+}
+
+function FrequencyConfigurationDialog({ frequency, value, organization, departments, onClose, onSave }: {
+  frequency: OrderFrequency; value?: OrderFrequencyConfiguration; organization: Organization; departments: Department[]
+  onClose: () => void; onSave: (input: OrderFrequencyConfigurationInput) => void
+}) {
+  const [form, setForm] = useState({ departmentId: value?.departmentId ?? '', localCode: value?.localCode ?? '',
+    localName: value?.localName ?? '', executionTimes: value?.executionTimes.join(',') ?? '',
+    firstDayPolicy: value?.firstDayPolicy ?? 'REMAINING_SLOTS', enabled: value?.enabled ?? true,
+    status: value?.status ?? 'ACTIVE', validFrom: value?.validFrom ?? today(), validTo: value?.validTo ?? '' })
+  const configuredTimes = frequencyExecutionTimes(form.executionTimes)
+  const effectiveTimes = configuredTimes.length ? configuredTimes : frequency.defaultExecutionTimes
+  const localDraft = { code: frequency.code, name: form.localName || frequency.name, shortName: frequency.shortName ?? '',
+    description: frequency.description ?? '', ruleType: frequency.ruleType, frequencyCount: String(frequency.frequencyCount ?? 1),
+    periodValue: String(frequency.periodValue ?? 1), periodUnit: frequency.periodUnit ?? 'D', anchorType: frequency.anchorType,
+    defaultExecutionTimes: effectiveTimes.join(','), outpatientApplicable: frequency.outpatientApplicable,
+    inpatientApplicable: frequency.inpatientApplicable, emergencyApplicable: frequency.emergencyApplicable,
+    medicationApplicable: frequency.medicationApplicable, treatmentApplicable: frequency.treatmentApplicable,
+    nursingApplicable: frequency.nursingApplicable, automaticTaskGeneration: frequency.automaticTaskGeneration,
+    sortOrder: String(frequency.sortOrder), status: frequency.status, validFrom: frequency.validFrom,
+    validTo: frequency.validTo ?? '' } satisfies FrequencyDraft
+  return <FormDialog title={`${frequency.name} · ${value ? '编辑执行配置' : '新增执行配置'}`}
+    description="只需选择作用范围并调整执行时点；留空时自动继承频次主档。" onClose={onClose}
+    onSubmit={(event) => { event.preventDefault(); onSave({ organizationId: organization.id,
+      departmentId: form.departmentId || undefined, localCode: form.localCode || undefined,
+      localName: form.localName || undefined, executionTimes: form.executionTimes || undefined,
+      firstDayPolicy: form.firstDayPolicy as OrderFrequencyConfigurationInput['firstDayPolicy'],
+      enabled: form.enabled, status: form.status as 'ACTIVE' | 'INACTIVE', validFrom: form.validFrom,
+      validTo: form.validTo || undefined }) }}>
+    <FormField label="作用范围" required><Select value={form.departmentId} disabled={Boolean(value)}
+      onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder={`机构：${organization.name}`}
+      showValue options={departments.map((department) => ({ value: department.id, label: department.name, secondaryText: department.code }))} /></FormField>
+    <Check label="在当前范围启用" checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })} />
+    {(frequency.ruleType === 'TIMES_PER_PERIOD' || frequency.ruleType === 'CALENDAR') && <FormField label="执行时点" className="span-2"><FrequencyTimeEditor
+      value={configuredTimes} inheritLabel={`留空继承主档：${frequency.defaultExecutionTimes.join('、') || '无固定时点'}`}
+      inheritTimes={frequency.defaultExecutionTimes}
+      onChange={(times) => setForm({ ...form, executionTimes: times.join(',') })} /></FormField>}
+    <FormField label="首日执行策略" hint="决定医嘱在当天标准执行时点之后开立时如何处理。"><Select value={form.firstDayPolicy} onChange={(firstDayPolicy) => setForm({ ...form,
+      firstDayPolicy: firstDayPolicy as OrderFrequencyConfiguration['firstDayPolicy'] })}
+      options={[{ value: 'REMAINING_SLOTS', label: '仅执行剩余时点' }, { value: 'FULL_SCHEDULE', label: '执行完整日计划' },
+        { value: 'FROM_ORDER_TIME', label: '从开立时间起算' }]} /></FormField>
+    <div className="frequency-config-policy"><strong>{firstDayPolicyLabel(form.firstDayPolicy as OrderFrequencyConfiguration['firstDayPolicy'])}</strong>
+      <span>{frequencyFirstDayPolicyDescription(form.firstDayPolicy)}</span></div>
+    <FrequencyDraftPreview form={localDraft} preview={frequencyDraftPreview(localDraft)} compact />
+    <details className="frequency-advanced span-2" open={Boolean(value)}><summary><span>高级设置</span><small>本地显示名称、状态和有效期</small></summary>
+      <div className="frequency-advanced__grid">
+        <FormField label="本地编码"><input value={form.localCode} onChange={(event) => setForm({ ...form, localCode: event.target.value.toUpperCase() })} placeholder={frequency.code} /></FormField>
+        <FormField label="本地名称"><input value={form.localName} onChange={(event) => setForm({ ...form, localName: event.target.value })} placeholder={frequency.name} /></FormField>
+        <FormField label="状态"><Select value={form.status} onChange={(status) => setForm({ ...form, status: status as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField>
+        <FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(event) => setForm({ ...form, validFrom: event.target.value })} /></FormField>
+        <FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(event) => setForm({ ...form, validTo: event.target.value })} /></FormField>
+      </div>
+    </details>
+  </FormDialog>
+}
+
+type FrequencyDraft = {
+  code: string; name: string; shortName: string; description: string; ruleType: OrderFrequencyRuleType
+  frequencyCount: string; periodValue: string; periodUnit: string; anchorType: string; defaultExecutionTimes: string
+  outpatientApplicable: boolean; inpatientApplicable: boolean; emergencyApplicable: boolean
+  medicationApplicable: boolean; treatmentApplicable: boolean; nursingApplicable: boolean
+  automaticTaskGeneration: boolean; sortOrder: string; status: string; validFrom: string; validTo: string
+}
+
+const frequencyTemplates: Array<{ id: string; title: string; copy: string; values: Partial<FrequencyDraft> }> = [
+  { id: 'DAILY', title: '每日定时', copy: '每日一次或多次，如 QD/BID/TID', values: { ruleType: 'TIMES_PER_PERIOD',
+    frequencyCount: '2', periodValue: '1', periodUnit: 'D', anchorType: 'STANDARD_TIME', defaultExecutionTimes: '08:00,20:00',
+    outpatientApplicable: true, inpatientApplicable: true, emergencyApplicable: true, medicationApplicable: true,
+    treatmentApplicable: true, nursingApplicable: false, automaticTaskGeneration: true } },
+  { id: 'INTERVAL', title: '固定间隔', copy: '从开立时间起每隔若干小时执行', values: { ruleType: 'FIXED_INTERVAL',
+    frequencyCount: '1', periodValue: '6', periodUnit: 'H', anchorType: 'ORDER_START', defaultExecutionTimes: '',
+    outpatientApplicable: true, inpatientApplicable: true, emergencyApplicable: true, medicationApplicable: true,
+    treatmentApplicable: true, nursingApplicable: false, automaticTaskGeneration: true } },
+  { id: 'ONCE', title: '单次执行', copy: '仅执行一次或立即执行', values: { ruleType: 'ONCE', frequencyCount: '1',
+    periodValue: '1', periodUnit: 'D', anchorType: 'ORDER_START', defaultExecutionTimes: '', outpatientApplicable: true,
+    inpatientApplicable: true, emergencyApplicable: true, medicationApplicable: true, treatmentApplicable: true,
+    nursingApplicable: false, automaticTaskGeneration: true } },
+  { id: 'PRN', title: '必要时', copy: '由临床事件触发，不预生成任务', values: { ruleType: 'PRN', anchorType: 'EVENT',
+    defaultExecutionTimes: '', outpatientApplicable: true, inpatientApplicable: true, emergencyApplicable: true,
+    medicationApplicable: true, treatmentApplicable: true, nursingApplicable: true, automaticTaskGeneration: false } },
+  { id: 'CONTINUOUS', title: '持续执行', copy: '持续输注、监护或治疗', values: { ruleType: 'CONTINUOUS', anchorType: 'ORDER_START',
+    defaultExecutionTimes: '', outpatientApplicable: false, inpatientApplicable: true, emergencyApplicable: true,
+    medicationApplicable: true, treatmentApplicable: true, nursingApplicable: true, automaticTaskGeneration: false } },
+]
+
+function FrequencyTimeEditor({ value, onChange, inheritLabel, inheritTimes = [] }: {
+  value: string[]; onChange: (value: string[]) => void; inheritLabel?: string; inheritTimes?: string[]
+}) {
+  const update = (index: number, next: string) => onChange(value.map((item, current) => current === index ? next : item)
+    .filter(Boolean).filter((item, index, all) => all.indexOf(item) === index).sort())
+  const add = () => {
+    if (!value.length && inheritTimes.length) { onChange([...inheritTimes].sort()); return }
+    const minutes = value.map((item) => Number(item.slice(0, 2)) * 60 + Number(item.slice(3, 5))).sort((a, b) => a - b)
+    let nextMinutes = 8 * 60
+    if (minutes.length) {
+      let gapStart = minutes[0]; let gapSize = -1
+      for (let index = 0; index < minutes.length; index += 1) {
+        const start = minutes[index]; const end = index === minutes.length - 1 ? minutes[0] + 24 * 60 : minutes[index + 1]
+        if (end - start > gapSize) { gapStart = start; gapSize = end - start }
+      }
+      nextMinutes = Math.round((gapStart + gapSize / 2) / 30) * 30 % (24 * 60)
+    }
+    const next = `${String(Math.floor(nextMinutes / 60)).padStart(2, '0')}:${String(nextMinutes % 60).padStart(2, '0')}`
+    onChange([...value, next].filter((item, index, all) => all.indexOf(item) === index).sort())
+  }
+  return <div className="frequency-time-editor">
+    {value.map((time, index) => <span key={`${time}-${index}`}><input type="time" aria-label={`执行时点 ${index + 1}`} value={time}
+      onChange={(event) => update(index, event.target.value)} /><button type="button" aria-label={`移除执行时点 ${time}`}
+        onClick={() => onChange(value.filter((_, current) => current !== index))}>×</button></span>)}
+    <button type="button" className="frequency-time-editor__add" onClick={add}><Icon name="add" />
+      {!value.length && inheritTimes.length ? '基于主档调整' : '添加时点'}</button>
+    {!value.length && inheritLabel && <small>{inheritLabel}</small>}
+  </div>
+}
+
+function FrequencyDraftPreview({ form, preview, compact = false }: { form: FrequencyDraft; preview: string[]; compact?: boolean }) {
+  return <aside className={`frequency-draft-preview span-2${compact ? ' is-compact' : ''}`}>
+    <div><span>规则解释</span><strong>{frequencyDraftRuleLabel(form)}</strong><small>{frequencyDraftScopeLabel(form)}</small></div>
+    <div><span>执行示例</span><strong>{preview.length ? preview.join(' · ') : '不预生成固定执行时点'}</strong>
+      <small>{form.automaticTaskGeneration ? '将自动生成执行任务' : '由业务事件或人工触发'}</small></div>
+  </aside>
+}
+
+function frequencyExecutionTimes(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
+}
+
+function frequencyDraftRuleLabel(form: FrequencyDraft) {
+  const times = frequencyExecutionTimes(form.defaultExecutionTimes)
+  if (form.ruleType === 'ONCE') return '按医嘱开始时间执行一次'
+  if (form.ruleType === 'TIMES_PER_PERIOD') return `每 ${form.periodValue || 1} ${periodUnitLabel(form.periodUnit)}执行 ${times.length} 次${times.length ? `（${times.join('、')}）` : ''}`
+  if (form.ruleType === 'FIXED_INTERVAL') return `从医嘱开始时间起，每 ${form.periodValue || 1} ${periodUnitLabel(form.periodUnit)}执行一次`
+  if (form.ruleType === 'CALENDAR') return `按标准时点执行${times.length ? `（${times.join('、')}）` : ''}`
+  if (form.ruleType === 'PRN') return '必要时执行，不预先生成固定任务'
+  return '持续执行，由业务过程控制开始和停止'
+}
+
+function frequencyDraftScopeLabel(form: FrequencyDraft) {
+  const scenes = [form.outpatientApplicable && '门诊', form.inpatientApplicable && '住院', form.emergencyApplicable && '急诊'].filter(Boolean)
+  const orders = [form.medicationApplicable && '药品', form.treatmentApplicable && '治疗', form.nursingApplicable && '护理'].filter(Boolean)
+  return `${scenes.join('、') || '未选择场景'} · ${orders.join('、') || '未选择医嘱类型'}`
+}
+
+function frequencyDraftPreview(form: FrequencyDraft) {
+  if (!form.automaticTaskGeneration || form.ruleType === 'PRN' || form.ruleType === 'CONTINUOUS') return []
+  const start = new Date(); const result: Date[] = []
+  if (form.ruleType === 'ONCE') result.push(start)
+  else if (form.ruleType === 'FIXED_INTERVAL') {
+    let cursor = new Date(start)
+    for (let index = 0; index < 8; index += 1) { result.push(new Date(cursor)); cursor = addFrequencyPeriod(cursor, Number(form.periodValue || 1), form.periodUnit) }
+  } else {
+    const times = frequencyExecutionTimes(form.defaultExecutionTimes); let cursor = new Date(start); let guard = 0
+    cursor.setSeconds(0, 0)
+    while (result.length < 8 && guard < 64) {
+      for (const time of times) {
+        const candidate = new Date(cursor); candidate.setHours(Number(time.slice(0, 2)), Number(time.slice(3, 5)), 0, 0)
+        if (candidate >= start) result.push(candidate)
+        if (result.length === 8) break
+      }
+      cursor = addFrequencyPeriod(cursor, Number(form.periodValue || 1), form.periodUnit === 'H' || form.periodUnit === 'MIN' ? 'D' : form.periodUnit)
+      guard += 1
+    }
+  }
+  return result.slice(0, 8).map((item) => `${String(item.getMonth() + 1).padStart(2, '0')}-${String(item.getDate()).padStart(2, '0')} ${String(item.getHours()).padStart(2, '0')}:${String(item.getMinutes()).padStart(2, '0')}`)
+}
+
+function addFrequencyPeriod(value: Date, amount: number, unit: string) {
+  const next = new Date(value)
+  if (unit === 'MIN') next.setMinutes(next.getMinutes() + amount)
+  else if (unit === 'H') next.setHours(next.getHours() + amount)
+  else if (unit === 'WK') next.setDate(next.getDate() + amount * 7)
+  else if (unit === 'MO') next.setMonth(next.getMonth() + amount)
+  else next.setDate(next.getDate() + amount)
+  return next
+}
+
+function frequencyFirstDayPolicyDescription(value: string) {
+  if (value === 'FULL_SCHEDULE') return '首日仍展示全天所有标准时点，适合按完整日计划管理的场景。'
+  if (value === 'FROM_ORDER_TIME') return '忽略标准时点，从医嘱开立时间开始按规则计算。'
+  return '自动跳过医嘱开立前的时点，仅生成当天尚未到达的执行任务。'
+}
+
+const frequencyRuleOptions = [
+  { value: 'ONCE', label: '单次执行' }, { value: 'TIMES_PER_PERIOD', label: '周期内固定次数' },
+  { value: 'FIXED_INTERVAL', label: '固定间隔' }, { value: 'CALENDAR', label: '日历/标准时点' },
+  { value: 'PRN', label: '必要时（PRN）' }, { value: 'CONTINUOUS', label: '持续执行' },
+]
+const periodUnitOptions = [
+  { value: 'MIN', label: '分钟' }, { value: 'H', label: '小时' }, { value: 'D', label: '天' },
+  { value: 'WK', label: '周' }, { value: 'MO', label: '月' },
+]
+function frequencyRuleLabel(value: OrderFrequency) {
+  if (value.ruleType === 'ONCE') return '执行一次'
+  if (value.ruleType === 'TIMES_PER_PERIOD') return `每 ${value.periodValue} ${periodUnitLabel(value.periodUnit)} ${value.frequencyCount} 次`
+  if (value.ruleType === 'FIXED_INTERVAL') return `每 ${value.periodValue} ${periodUnitLabel(value.periodUnit)}一次`
+  return frequencyRuleOptions.find((item) => item.value === value.ruleType)?.label ?? value.ruleType
+}
+function periodUnitLabel(value?: string) { return ({ MIN: '分钟', H: '小时', D: '天', WK: '周', MO: '月' } as Record<string, string>)[value ?? ''] ?? value ?? '' }
+function frequencyApplicabilityLabel(value: OrderFrequency) {
+  const scenes = [value.outpatientApplicable && '门诊', value.inpatientApplicable && '住院', value.emergencyApplicable && '急诊'].filter(Boolean)
+  const orders = [value.medicationApplicable && '药品', value.treatmentApplicable && '治疗', value.nursingApplicable && '护理'].filter(Boolean)
+  return `${scenes.join('/')} · ${orders.join('/')}`
+}
+function firstDayPolicyLabel(value: OrderFrequencyConfiguration['firstDayPolicy']) {
+  return ({ REMAINING_SLOTS: '仅剩余时点', FULL_SCHEDULE: '完整日计划', FROM_ORDER_TIME: '从开立起算' } as const)[value]
+}
+function formatDateTime(value: string) { return value.replace('T', ' ').slice(0, 16) }
 
 function UnitWorkspace({ api, units, conversions, catalogItems, loading, onDialog, onDone, onError }: { api: RhnApi; units: UnitDefinition[]; conversions: UnitConversion[]; catalogItems: Array<ServiceCatalogItem | SupplyItem>; loading: boolean; onDialog: (v?: ReactNode) => void; onDone: (m: string) => Promise<void>; onError: (e: unknown) => void }) {
   const [quantity, setQuantity] = useState('1'); const [from, setFrom] = useState(''); const [to, setTo] = useState(''); const [catalogItemId, setCatalogItemId] = useState(''); const [result, setResult] = useState('')

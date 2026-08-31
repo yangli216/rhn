@@ -59,6 +59,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 {
                                   "prescriptionId":"%s","medicationId":"%s","quantity":14,
                                   "quantityUnit":"片","substitutionAllowed":true,"selfProvided":false,
+                                  "allergyReviewConfirmed":true,
                                   "durationValue":14,"durationUnit":"DAY","businessDate":"2026-08-27",
                                   "medicationInstruction":"每日一次"
                                 }
@@ -198,6 +199,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 {
                                   "catalogItemId":"%s","packageId":"%s","quantity":2,
                                   "substitutionAllowed":true,"selfProvided":false,
+                                  "allergyReviewConfirmed":true,
                                   "durationValue":5,"durationUnit":"DAY","businessDate":"2026-08-27",
                                   "medicationInstruction":"饭后服用","reason":"门诊处方"
                                 }

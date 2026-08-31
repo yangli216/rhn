@@ -6,6 +6,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.util.stream.StreamSupport;
 
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -114,6 +115,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.currentVersion").value(1))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.instanceKey").value("DEFAULT"))
                 .andExpect(jsonPath("$.history[0].contentDigestAlgorithm").value("SHA-256"))
                 .andExpect(jsonPath("$.history[0].contentDigest").isNotEmpty())
                 .andExpect(jsonPath("$.history[0].integrityEvidenceId").isNotEmpty())
@@ -163,6 +165,37 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.history.length()").value(3));
     }
 
+    @Test
+    void same_document_type_supports_multiple_explicit_instances_in_one_encounter() throws Exception {
+        String residentBody = mockMvc.perform(post("/api/residents")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fullName":"多病程居民","nationalId":"330102198801011377",
+                                 "gender":"MALE","birthDate":"1988-01-01"}
+                                """))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String residentId = objectMapper.readTree(residentBody).get("id").asText();
+        String encounterBody = mockMvc.perform(post("/api/encounters")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String encounterId = objectMapper.readTree(encounterBody).get("id").asText();
+
+        createProgressNote(residentId, encounterId, "PROGRESS-20260830-AM", "上午病情平稳")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.documentType").value("INPATIENT_DAILY_PROGRESS_NOTE"))
+                .andExpect(jsonPath("$.instanceKey").value("PROGRESS-20260830-AM"));
+        createProgressNote(residentId, encounterId, "PROGRESS-20260830-PM", "下午调整用药")
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.instanceKey").value("PROGRESS-20260830-PM"));
+
+        mockMvc.perform(get("/api/clinical-documents").param("encounterId", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(2)));
+    }
+
     private org.springframework.test.web.servlet.ResultActions update(
             String documentId, int expectedVersion, String summary) throws Exception {
         return mockMvc.perform(put("/api/clinical-documents/{id}/draft", documentId)
@@ -195,5 +228,17 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .content("""
                         {"expectedCurrentVersion":%d,"signatureMeaning":"AUTHOR"}
                         """.formatted(version)));
+    }
+
+    private org.springframework.test.web.servlet.ResultActions createProgressNote(
+            String residentId, String encounterId, String instanceKey, String summary) throws Exception {
+        return mockMvc.perform(post("/api/clinical-documents")
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"residentId":"%s","encounterId":"%s","organizationId":"%s","departmentId":"%s",
+                         "documentType":"INPATIENT_DAILY_PROGRESS_NOTE","instanceKey":"%s",
+                         "title":"日常病程记录","contentSchema":"RHN.CANVAS_EDITOR_DOCUMENT.V1",
+                         "content":{"summary":"%s"},"changeReason":"创建日常病程"}
+                        """.formatted(residentId, encounterId, ORGANIZATION, DEPARTMENT, instanceKey, summary)));
     }
 }

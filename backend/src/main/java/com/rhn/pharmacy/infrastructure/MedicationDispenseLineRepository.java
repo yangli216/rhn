@@ -20,4 +20,14 @@ public interface MedicationDispenseLineRepository extends JpaRepository<Medicati
               and d.dispenseType = 'RETURN'
             """)
     BigDecimal returnedQuantity(@Param("tenantId") Long tenantId, @Param("originalLineId") Long originalLineId);
+
+    @Query("""
+            select l from MedicationDispenseLine l
+            join MedicationDispense d on d.id = l.medicationDispenseId and d.tenantId = l.tenantId
+            where l.tenantId = :tenantId and l.taskLineId = :taskLineId
+              and d.dispenseType in ('DISPENSE', 'REDISPENSE')
+            order by d.occurredAt, d.id, l.sortOrder, l.id
+            """)
+    List<MedicationDispenseLine> findIssuedLines(@Param("tenantId") Long tenantId,
+                                                 @Param("taskLineId") Long taskLineId);
 }

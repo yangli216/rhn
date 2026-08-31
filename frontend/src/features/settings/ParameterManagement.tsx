@@ -9,8 +9,9 @@ import {
   type ParameterValueType, type RhnApi, type SystemEnumDefinition, type SystemEnumItem,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, Icon, LoadingState,
-  PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, TreePanel, type TreePanelMove,
+  Alert, Button, DataTable, Dialog, DictionarySelect, EmptyState, FormField, Icon, LoadingState,
+  PageHeader, Pagination, Panel, PanelHead, SearchField, Select, SplitWorkspace, StatusBadge, TableShell,
+  TreePanel, type TreePanelMove,
 } from '../../shared/ui'
 import { ConfigurationScopeTarget } from './ConfigurationScopeTarget'
 
@@ -182,7 +183,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   }
 
   return <>
-    <PageHeader eyebrow="平台管理 · 基础设置" title="参数管理"
+    <PageHeader compact eyebrow="平台管理 · 基础设置" title="参数管理"
       description="统一维护系统与业务参数定义，按平台、租户、组织、科室、用户及附加上下文解析当前值。"
       actions={<><Button className="parameter-page-action" variant="secondary" onClick={() => setCategoryDialog({ mode: 'create' })}>
         管理分类</Button><Button className="parameter-page-action" disabled={!categories.data?.some((item) => item.sdParamStatus === 'ACTIVE') || !systemEnums.data}
@@ -192,13 +193,12 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     {(operationError || queryError) && <Alert className="parameter-feedback">
       {operationError || errorMessage(queryError)}</Alert>}
 
-    <section className="parameter-workspace">
+    <SplitWorkspace className="parameter-workspace">
       <Panel className="parameter-catalog">
         <PanelHead title="参数目录" meta={`${definitions.data?.length ?? 0} 项`} />
         <div className="parameter-filters">
-          <label className="parameter-search"><span className="visually-hidden">搜索参数</span><Icon name="search" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称或参数键" />
-          </label>
+          <SearchField className="parameter-filters__search" label="搜索参数" value={query}
+            onChange={setQuery} placeholder="搜索名称或参数键" />
           <Select aria-label="参数分类" value={categoryFilter} placeholder="全部分类" showValue
             onChange={setCategoryFilter} options={categoryOptions.map((item) => ({ value: item.category.id,
               label: item.label, secondaryText: item.category.code }))} />
@@ -266,7 +266,9 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
           <div className="parameter-values__toolbar"><div><h3>当前值</h3>
             <span>每个作用域只保留一条当前记录；继承与重置默认均作为明确的值模式保存。</span></div>
             <Button onClick={() => setEditingValue(null)}><Icon name="add" />维护当前值</Button></div>
-          <div className="parameter-table-wrap"><table className="parameter-table">
+          <TableShell scrollClassName="parameter-table-wrap" footerClassName="parameter-table__footer"
+            footer={`${selected.values.length} 条当前值 · 定义修订 ${selected.revision}`}>
+            <DataTable className="parameter-table" aria-label="参数当前值">
             <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作" /></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
@@ -278,12 +280,12 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
                 busy={valueStatus.isPending} onClick={() => valueStatus.mutate(value)}>
                 {value.sdParamStatus === 'ACTIVE' ? '停用' : '启用'}</Button></div></td>
             </tr>)}</tbody>
-          </table>{selected.values.length === 0 && <EmptyState icon="settings" title="尚未维护当前值"
-            copy={selected.hasDefaultValue ? '解析时会使用参数默认值；也可维护各作用域的覆盖值。' : '请维护至少一个可解析作用域的当前值。'} />}</div>
-          <footer className="parameter-table__footer">{selected.values.length} 条当前值 · 定义修订 {selected.revision}</footer>
+          </DataTable>{selected.values.length === 0 && <EmptyState icon="settings" title="尚未维护当前值"
+            copy={selected.hasDefaultValue ? '解析时会使用参数默认值；也可维护各作用域的覆盖值。' : '请维护至少一个可解析作用域的当前值。'} />}
+          </TableShell>
         </>}
       </Panel>
-    </section>
+    </SplitWorkspace>
 
     {definitionDialog && <ParameterDefinitionDialog
       key={`${definitionDialog}-${definitionDialog === 'edit' ? selected?.id ?? 'missing' : 'new'}`}

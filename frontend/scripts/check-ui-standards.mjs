@@ -5,6 +5,18 @@ const sourceRoot = new URL('../src/', import.meta.url)
 const tokenFile = 'styles/tokens.css'
 const sourceExtensions = new Set(['.css', '.ts', '.tsx'])
 const violations = []
+const inpatientStationFiles = new Set([
+  'features/inpatient/InpatientDoctorStation.tsx',
+  'features/inpatient/InpatientAdmissionDiagnosisPanel.tsx',
+  'features/inpatient/InpatientDiagnosticResults.tsx',
+  'features/inpatient/InpatientMedicalRecordWorkspace.tsx',
+  'features/inpatient/InpatientOrderWorkspace.tsx',
+  'features/inpatient/InpatientNurseStation.tsx',
+  'features/inpatient/InpatientNursingWorkspace.tsx',
+  'features/inpatient/InpatientShiftHandoffWorkspace.tsx',
+  'features/inpatient/InpatientStationShared.tsx',
+  'features/inpatient/InpatientTemperatureChart.tsx',
+])
 
 function collect(directoryUrl) {
   return readdirSync(directoryUrl, { withFileTypes: true }).flatMap((entry) => {
@@ -44,6 +56,24 @@ for (const fileUrl of collect(sourceRoot)) {
 
     if (file.startsWith('features/settings/') && /<select\b/.test(line)) {
       report(file, lineNumber, 'native-platform-select', '平台管理下拉请使用 shared/ui Select、FormSelect 或 DictionarySelect')
+    }
+
+    if (inpatientStationFiles.has(file) && /<select\b/.test(line)) {
+      report(file, lineNumber, 'native-inpatient-select', '住院工作站下拉请使用 shared/ui Select 或 DictionarySelect')
+    }
+
+    if (inpatientStationFiles.has(file) && (/role=["']tablist["']/.test(line)
+      || /<nav\b[^>]*className=["'][^"']*tabs/.test(line))) {
+      report(file, lineNumber, 'native-inpatient-tabs', '住院工作站页签请使用 shared/ui Tabs')
+    }
+
+    if (file.startsWith('features/settings/') && /role=["']tablist["']/.test(line)) {
+      report(file, lineNumber, 'native-platform-tabs', '平台管理页签请使用 shared/ui Tabs')
+    }
+
+    if (file.startsWith('features/settings/')
+      && /className=["'{`][^\n]*(?:dictionary-search|parameter-search|master-search|master-data-search)/.test(line)) {
+      report(file, lineNumber, 'legacy-platform-search', '平台管理检索请使用 shared/ui SearchField')
     }
   })
 }

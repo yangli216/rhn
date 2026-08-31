@@ -100,6 +100,7 @@ public class OutboxEvent {
     public String correlationId() { return correlationId; }
     public String payloadJson() { return payloadJson; }
     public Instant nextAttemptAt() { return nextAttemptAt; }
+    public String claimedBy() { return claimedBy; }
 
     public DomainEventEnvelope envelope(JsonCodec jsonCodec) {
         return new DomainEventEnvelope(eventId, tenantId, organizationId, eventType, eventVersion, aggregateType,
@@ -107,10 +108,10 @@ public class OutboxEvent {
                 causationId, jsonCodec.readObject(payloadJson), schemaVersion);
     }
 
-    public void markAttempt(String worker) {
+    public void claim(String worker, Instant now, Duration lease) {
         attemptCount++;
         claimedBy = worker;
-        claimedUntil = Instant.now().plus(Duration.ofSeconds(30));
+        claimedUntil = now.plus(lease);
     }
 
     public void markPublished() {

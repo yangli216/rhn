@@ -1,0 +1,355 @@
+.inpatient-patient-pool {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-muted);
+  box-shadow: var(--shadow-sm);
+}
+
+.inpatient-patient-pool__toolbar {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(15rem, 1fr) minmax(22rem, 1.2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.inpatient-patient-pool__heading { min-width: 0; }
+.inpatient-patient-pool__heading h2 { margin: .1rem 0; font-size: var(--font-size-h2); }
+.inpatient-patient-pool__heading p {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inpatient-patient-pool__search {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inpatient-patient-pool__view {
+  padding: .2rem;
+  display: flex;
+  align-items: center;
+  gap: .15rem;
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.inpatient-patient-pool__view .ui-icon-button.is-active {
+  color: var(--color-brand-primary);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inpatient-patient-pool__summary {
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.inpatient-patient-pool__summary .inpatient-metrics { margin: 0; }
+.inpatient-patient-pool__summary .inpatient-metrics > div {
+  min-height: 3.75rem;
+  padding: var(--space-2) var(--space-3);
+  box-shadow: none;
+}
+
+.inpatient-nurse-pool-support {
+  margin-top: var(--space-3);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.inpatient-nurse-pool-support > summary {
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  cursor: pointer;
+  font-weight: var(--font-weight-semibold);
+}
+.inpatient-nurse-pool-support > summary small { color: var(--color-text-secondary); font-weight: var(--font-weight-regular); }
+.inpatient-nurse-pool-support[open] > summary { border-bottom: 1px solid var(--color-border); }
+
+.inpatient-patient-pool__items {
+  padding: var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: var(--space-3);
+}
+
+.inpatient-patient-card {
+  position: relative;
+  min-width: 0;
+  min-height: 12.5rem;
+  padding: var(--space-3);
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  box-shadow: inset 0 .2rem var(--color-border-strong);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.inpatient-patient-card.is-urgent {
+  box-shadow: inset 0 .2rem color-mix(in srgb, var(--color-warning) 70%, var(--color-border));
+}
+
+.inpatient-patient-card.is-critical {
+  box-shadow: inset 0 .2rem color-mix(in srgb, var(--color-danger) 75%, var(--color-border));
+}
+
+.inpatient-patient-card:hover,
+.inpatient-patient-card:focus-visible {
+  border-color: var(--color-brand-primary);
+  box-shadow: inset 0 .2rem var(--color-brand-primary), var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.inpatient-patient-card__identity {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.inpatient-patient-card__avatar,
+.inpatient-patient-context__avatar {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+}
+
+.inpatient-patient-card__avatar { width: 2.2rem; height: 2.2rem; }
+.inpatient-patient-card__avatar .ui-icon { width: 1.15rem; height: 1.15rem; }
+.inpatient-patient-card__identity > span:nth-child(2) { min-width: 0; display: grid; gap: 1px; }
+.inpatient-patient-card__identity strong,
+.inpatient-patient-card__identity small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inpatient-patient-card__identity small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-patient-card__identity > b { color: var(--color-brand-strong); font-size: var(--font-size-h3); }
+
+.inpatient-patient-card__facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+}
+
+.inpatient-patient-card__facts > span { min-width: 0; display: grid; gap: 2px; }
+.inpatient-patient-card__facts small { color: var(--color-text-muted); font-size: .7rem; }
+.inpatient-patient-card__facts b {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inpatient-patient-card__footer {
+  padding-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.inpatient-patient-card__badges { display: flex; justify-content: flex-end; gap: var(--space-1); }
+
+.inpatient-patient-pool__items.is-list { grid-template-columns: 1fr; gap: var(--space-2); }
+.inpatient-patient-pool__items.is-list .inpatient-patient-card {
+  min-height: 5.25rem;
+  grid-template-columns: minmax(14rem, .9fr) minmax(28rem, 1.8fr) minmax(12rem, auto);
+  align-items: center;
+}
+.inpatient-patient-pool__items.is-list .inpatient-patient-card__footer { padding: 0; border: 0; }
+
+.inpatient-station-workspace {
+  min-width: 0;
+  min-height: 39rem;
+  display: grid;
+  grid-template-columns: 13.5rem minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.inpatient-patient-rail {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.inpatient-patient-rail > header {
+  min-height: 3.75rem;
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inpatient-patient-rail > header > div { min-width: 0; display: grid; gap: 1px; }
+.inpatient-patient-rail > header strong { font-size: var(--font-size-small); }
+.inpatient-patient-rail > form { padding: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.inpatient-patient-rail nav { max-height: 48rem; overflow: auto; }
+
+.inpatient-patient-rail nav > button {
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inpatient-patient-rail nav > button:hover { background: var(--color-surface-muted); }
+.inpatient-patient-rail nav > button.is-active {
+  color: var(--color-brand-strong);
+  background: var(--color-brand-soft);
+  box-shadow: inset .2rem 0 var(--color-brand-primary);
+}
+.inpatient-patient-rail nav > button strong { font-variant-numeric: tabular-nums; }
+.inpatient-patient-rail nav > button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-patient-rail nav > button small { font-size: .68rem; }
+.inpatient-patient-rail nav > button small.is-urgent { color: var(--color-warning-strong); }
+.inpatient-patient-rail nav > button small.is-critical { color: var(--color-danger); }
+
+.inpatient-station-workspace__main { min-width: 0; }
+.inpatient-station-workspace__content { min-width: 0; }
+.inpatient-station-workspace__content > .inpatient-station-tabs { margin: 0; }
+
+.inpatient-patient-context {
+  min-height: 5.25rem;
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  grid-template-columns: auto 2.75rem minmax(12rem, .75fr) minmax(30rem, 1.7fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.inpatient-patient-context__back {
+  min-height: 2rem;
+  padding: 0 var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.inpatient-patient-context__back:hover { color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.inpatient-patient-context__back .ui-icon { width: 1rem; height: 1rem; }
+.inpatient-patient-context__avatar { width: 2.75rem; height: 2.75rem; }
+.inpatient-patient-context__avatar .ui-icon { width: 1.35rem; height: 1.35rem; }
+.inpatient-patient-context__identity { min-width: 0; display: grid; gap: var(--space-1); }
+.inpatient-patient-context__identity > span { min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); }
+.inpatient-patient-context__identity h2 {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-h2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inpatient-patient-context__identity small { color: var(--color-text-secondary); }
+.inpatient-patient-context__badges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+
+.inpatient-patient-context__facts {
+  min-width: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.inpatient-patient-context__facts > div { min-width: 0; display: grid; gap: 2px; }
+.inpatient-patient-context__facts dt { color: var(--color-text-muted); font-size: .68rem; }
+.inpatient-patient-context__facts dd {
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inpatient-patient-context__actions { display: flex; align-items: center; gap: var(--space-2); }
+
+.inpatient-station-workspace .inpatient-station-tabs {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.inpatient-station-workspace .inpatient-station-tabs .ui-tabs__items { padding-inline: var(--space-2); }
+
+@media (max-width: 75rem) {
+  .inpatient-patient-pool__toolbar { grid-template-columns: minmax(14rem, 1fr) minmax(20rem, 1.2fr) auto; }
+  .inpatient-patient-pool__items.is-list .inpatient-patient-card { grid-template-columns: 1fr; }
+  .inpatient-patient-pool__items.is-list .inpatient-patient-card__footer { padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
+  .inpatient-patient-context { grid-template-columns: auto 2.75rem minmax(12rem, 1fr) auto; }
+  .inpatient-patient-context__facts { grid-column: 2 / -1; }
+}
+
+@media (max-width: 58rem) {
+  .inpatient-patient-pool__toolbar { grid-template-columns: 1fr auto; }
+  .inpatient-patient-pool__search { grid-column: 1 / -1; grid-row: 2; }
+  .inpatient-patient-pool__view { grid-column: 2; grid-row: 1; }
+  .inpatient-station-workspace { grid-template-columns: 1fr; }
+  .inpatient-patient-rail { border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .inpatient-patient-rail nav { max-height: 9rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr)); }
+  .inpatient-patient-rail nav > button { border-right: 1px solid var(--color-border); }
+}
+
+@media (max-width: 40rem) {
+  .inpatient-patient-pool__toolbar { grid-template-columns: 1fr; }
+  .inpatient-patient-pool__view { grid-column: 1; grid-row: auto; justify-self: start; }
+  .inpatient-patient-pool__search { grid-column: 1; grid-row: auto; grid-template-columns: 1fr; }
+  .inpatient-patient-pool__items { grid-template-columns: 1fr; padding: var(--space-2); }
+  .inpatient-patient-context { grid-template-columns: auto 2.75rem minmax(0, 1fr); }
+  .inpatient-patient-context__back { padding-inline: var(--space-1); font-size: 0; }
+  .inpatient-patient-context__identity { min-width: 0; }
+  .inpatient-patient-context__facts { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inpatient-patient-context__actions { grid-column: 1 / -1; justify-content: flex-end; }
+}

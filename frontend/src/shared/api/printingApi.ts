@@ -19,13 +19,47 @@ export interface PrintReceipt {
   downloadUrl: string
 }
 
+export interface PrintJobRecord {
+  jobId: string
+  originalJobId?: string | null
+  requestType: 'ORIGINAL' | 'REPRINT'
+  status: 'GENERATED' | 'FAILED'
+  copies: number
+  requestedAt: string
+  requestedBy: string
+}
+
+export interface PrintRecord {
+  outputId: string
+  sourceType: string
+  sourceId: string
+  sourceVersion: number
+  documentType: string
+  residentId?: string | null
+  encounterId?: string | null
+  organizationId: string
+  departmentId: string
+  purpose: PrintPurpose
+  fileName: string
+  mediaType: string
+  contentDigestAlgorithm: string
+  contentDigest: string
+  generatedAt: string
+  generatedBy: string
+  templateCode: string
+  templateName: string
+  templateVersion: number
+  downloadUrl: string
+  jobs: PrintJobRecord[]
+}
+
 export function createPrintingApi(client: ApiClient) {
-  async function download(receipt: PrintReceipt) {
-    const blob = await client.download(receipt.downloadUrl)
+  async function download(file: Pick<PrintReceipt, 'downloadUrl' | 'fileName'>) {
+    const blob = await client.download(file.downloadUrl)
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = receipt.fileName
+    anchor.download = file.fileName
     document.body.appendChild(anchor)
     anchor.click()
     anchor.remove()
@@ -48,6 +82,9 @@ export function createPrintingApi(client: ApiClient) {
       `/api/platform/printing/jobs/${jobId}/reprints`, {
         method: 'POST', body: JSON.stringify({ copies }),
       },
+    ),
+    recordsByEncounter: (encounterId: string) => client.request<PrintRecord[]>(
+      `/api/platform/printing/records?encounterId=${encodeURIComponent(encounterId)}`,
     ),
     download,
   }

@@ -1,246 +1,266 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { Invoice, Payment } from '../../shared/api/billingApi'
-import { formatTime } from '../../shared/format'
+import type { AccountStatement, PaymentOrder } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { SettlementPaymentPanel, type SettlementModeCode,
+  type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import { BillingQueue, BillingTimeline, money } from './BillingShared'
 
-const workStatusText: Record<string, string> = {
-  PENDING_CHARGE: '待计费', PENDING_INVOICE: '待结算', PENDING_PAYMENT: '待收款',
-  PENDING_REFUND: '待退款', SETTLED: '已平账',
-}
-
-function tone(status?: string) {
-  if (status === 'SETTLED' || status === 'MATCHED') return 'success' as const
-  if (status === 'PENDING_REFUND' || status === 'MISMATCH' || status === 'ORPHAN_CHARGE') return 'danger' as const
-  if (status === 'PENDING_PAYMENT' || status === 'PENDING_INVOICE' || status === 'UNCHARGED') return 'warning' as const
-  return 'info' as const
-}
-
-function money(value?: number, currency = 'CNY') {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency, minimumFractionDigits: 2 }).format(value ?? 0)
-}
+const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
+const draftSettlementId = '__CURRENT_UNINVOICED_CHARGES__'
+type CheckoutStage = 'IDLE' | 'CREATING_SETTLEMENT' | 'CREATING_PAYMENT'
 
 export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedEncounterId = searchParams.get('encounterId')
+  const linkedResidentId = searchParams.get('residentId')
   const [encounterId, setEncounterId] = useState('')
-  const [refundPaymentId, setRefundPaymentId] = useState('')
-  const [refundAmount, setRefundAmount] = useState('')
-  const [refundReason, setRefundReason] = useState('患者退药后原路退款')
-  const [businessDate, setBusinessDate] = useState(() => new Date().toISOString().slice(0, 10))
-
+  const [settlementMode, setSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
+  const [checkoutStage, setCheckoutStage] = useState<CheckoutStage>('IDLE')
+  const completedPaymentMarker = useRef('')
   const worklist = useQuery({ queryKey: ['billing-worklist'], queryFn: api.billing.worklist })
+  const settlementItems = useMemo(() => (worklist.data ?? []).filter((item) => settlementStatuses.has(item.status)),
+    [worklist.data])
   const paymentMethods = useQuery({
     queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'],
     queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'),
   })
   useEffect(() => {
-    if (!encounterId && worklist.data?.length) setEncounterId(worklist.data[0].encounterId)
-    if (encounterId && worklist.data && !worklist.data.some((item) => item.encounterId === encounterId)) {
-      setEncounterId(worklist.data[0]?.encounterId ?? '')
+    if ((!linkedEncounterId && !linkedResidentId) || !worklist.data) return
+    const target = worklist.data.find((item) => linkedEncounterId
+      ? item.encounterId === linkedEncounterId : item.residentId === linkedResidentId)
+    if (target) setEncounterId(target.encounterId)
+    const next = new URLSearchParams(searchParams)
+    next.delete('encounterId'); next.delete('residentId')
+    setSearchParams(next, { replace: true })
+  }, [linkedEncounterId, linkedResidentId, searchParams, setSearchParams, worklist.data])
+  useEffect(() => {
+    if (linkedEncounterId || linkedResidentId) return
+    if (!encounterId && settlementItems.length) setEncounterId(settlementItems[0].encounterId)
+    if (encounterId && settlementItems.length && !settlementItems.some((item) => item.encounterId === encounterId)) {
+      setEncounterId(settlementItems[0].encounterId)
     }
-  }, [encounterId, worklist.data])
+  }, [encounterId, linkedEncounterId, linkedResidentId, settlementItems])
+  useEffect(() => { setSettlementMode('SELF_PAY') }, [encounterId])
   const selected = worklist.data?.find((item) => item.encounterId === encounterId)
-  const statement = useQuery({
-    queryKey: ['billing-statement', encounterId], queryFn: () => api.billing.statement(encounterId),
-    enabled: Boolean(encounterId && selected?.accountId),
-  })
-  const paymentOrders = useQuery({
-    queryKey: ['billing-payment-orders', statement.data?.accountId],
-    queryFn: () => api.billing.paymentOrders(statement.data!.accountId),
-    enabled: Boolean(statement.data?.accountId),
-  })
-  const reconciliation = useQuery({
-    queryKey: ['billing-reconciliation', businessDate],
-    queryFn: () => api.billing.dailyReconciliation(businessDate), enabled: Boolean(businessDate),
-  })
+  const statement = useQuery({ queryKey: ['billing-statement', encounterId],
+    queryFn: () => api.billing.statement(encounterId), enabled: Boolean(encounterId && selected?.accountId) })
+  const hasInsuranceSettlement = Boolean(statement.data?.settlements.some((value) =>
+    value.settlementType === 'NORMAL' && insuranceSettlementReady(value)))
+  useEffect(() => {
+    if (hasInsuranceSettlement) setSettlementMode('MEDICAL_INSURANCE')
+  }, [encounterId, hasInsuranceSettlement])
+  const paymentOrders = useQuery({ queryKey: ['billing-payment-orders', statement.data?.accountId],
+    queryFn: () => api.billing.paymentOrders(statement.data!.accountId), enabled: Boolean(statement.data?.accountId),
+    refetchInterval: (query) => (query.state.data ?? []).some((value) =>
+      ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)) ? 2500 : false })
+  useEffect(() => {
+    const completed = [...(paymentOrders.data ?? [])]
+      .filter((value) => ['SUCCEEDED', 'FAILED', 'CANCELLED', 'EXPIRED'].includes(value.status))
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+    if (!completed) return
+    const marker = `${completed.id}:${completed.status}:${completed.updatedAt}`
+    if (completedPaymentMarker.current === marker) return
+    completedPaymentMarker.current = marker
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
+      queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
+    ])
+  }, [encounterId, paymentOrders.data, queryClient])
 
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['billing-worklist'] }),
       queryClient.invalidateQueries({ queryKey: ['billing-statement', encounterId] }),
       queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
-      queryClient.invalidateQueries({ queryKey: ['billing-reconciliation'] }),
     ])
   }
   const synchronize = useMutation({
-    mutationFn: () => api.billing.synchronize(encounterId, `BIL-SYNC-${encounterId}-${Date.now()}`),
-    onSuccess: refresh,
+    mutationFn: () => api.billing.synchronize(encounterId, `BIL-SYNC-${encounterId}-${Date.now()}`), onSuccess: refresh,
   })
-  const issueInvoice = useMutation({
-    mutationFn: () => api.billing.issueInvoice(statement.data!.accountId, `INV-${encounterId}-${Date.now()}`),
-    onSuccess: refresh,
-  })
-  const payableSettlements = useMemo(() => statement.data?.settlements.filter((settlement) =>
-    settlement.settlementType === 'NORMAL' && settlement.outstandingAmount > 0) ?? [], [statement.data])
-  const settlementOptions = useMemo(() => payableSettlements.map((settlement) => ({
-    id: settlement.id, code: settlement.settlementNo, outstandingAmount: settlement.outstandingAmount,
-    currencyCode: settlement.currencyCode,
-  })), [payableSettlements])
-  const createPaymentOrder = useMutation({
-    mutationFn: (command: SettlementPaymentCommand) => api.billing.createPaymentOrder(command.settlementId, {
-      idempotencyKey: command.idempotencyKey,
-      businessScene: 'OUTPATIENT', paymentSceneCode: 'CASHIER',
-      paymentMethodCode: command.paymentMethodCode, amount: command.amount,
-      terminalCode: 'CASHIER-WEB',
-    }),
-    onSuccess: refresh,
-  })
-  const refundablePayments = useMemo(() => statement.data?.payments.filter((payment) =>
-    payment.paymentType === 'PAYMENT') ?? [], [statement.data])
-  useEffect(() => {
-    if (refundPaymentId && !refundablePayments.some((payment) => payment.id === refundPaymentId)) setRefundPaymentId('')
-    if (!refundPaymentId && refundablePayments.length) setRefundPaymentId(refundablePayments[0].id)
-  }, [refundPaymentId, refundablePayments])
-  useEffect(() => {
-    if ((statement.data?.accountBalance ?? 0) < 0) setRefundAmount(String(Math.abs(statement.data!.accountBalance)))
-  }, [statement.data?.accountBalance])
-  const refund = useMutation({
-    mutationFn: (command: { idempotencyKey: string }) => api.billing.createRefundOrder(refundPaymentId, {
-      idempotencyKey: command.idempotencyKey, amount: Number(refundAmount), reason: refundReason,
-      terminalCode: 'CASHIER-WEB',
-    }),
-    onSuccess: async () => { setRefundAmount(''); await refresh() },
-  })
-
-  const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
-    || reconciliation.error || synchronize.error || issueInvoice.error || createPaymentOrder.error || refund.error
-  const currency = statement.data?.currencyCode ?? selected?.currencyCode ?? 'CNY'
   const canInvoice = Boolean(statement.data && statement.data.charges.some((charge) =>
     !statement.data!.invoices.some((invoice) => invoice.lines.some((line) => line.chargeItemId === charge.id))))
+  const payableSettlements = useMemo(() => statement.data?.settlements.filter((settlement) =>
+    settlement.settlementType === 'NORMAL' && settlement.outstandingAmount > 0) ?? [], [statement.data])
+  const settlementOptions = useMemo(() => [
+    ...(canInvoice && statement.data ? [{
+      id: draftSettlementId, code: '本次待结算费用', outstandingAmount: statement.data.uninvoicedAmount,
+      currencyCode: statement.data.currencyCode, insuranceReady: false, insurancePreparationAllowed: true,
+    }] : []),
+    ...payableSettlements.map((settlement) => ({
+      id: settlement.id, code: settlement.settlementNo, outstandingAmount: settlement.outstandingAmount,
+      currencyCode: settlement.currencyCode,
+      insuranceReady: insuranceSettlementReady(settlement), insurancePreparationAllowed: false,
+      insuranceAmount: settlement.insuranceAmount,
+      personalAccountAmount: settlement.tenders.filter((value) => value.tenderType === 'PERSONAL_ACCOUNT')
+        .reduce((sum, value) => sum + value.amount, 0),
+      otherFundAmount: settlement.otherAmount,
+    })),
+  ], [canInvoice, payableSettlements, statement.data])
+  const checkout = useMutation({
+    mutationFn: async (command: SettlementPaymentCommand) => {
+      let settlementId = command.settlementId
+      if (settlementId === draftSettlementId) {
+        setCheckoutStage('CREATING_SETTLEMENT')
+        const invoice = await api.billing.issueInvoice(statement.data!.accountId,
+          `INV-${command.idempotencyKey.replace(/^PAY-/, '')}`)
+        if (command.amount <= 0) return invoice
+        const updatedStatement = await api.billing.statement(encounterId)
+        const createdSettlement = updatedStatement.settlements.find((value) =>
+          value.legacyInvoiceId === invoice.id && value.settlementType === 'NORMAL')
+        if (!createdSettlement) throw new Error('结算单已生成，但暂未读取到支付信息，请刷新后继续。')
+        settlementId = createdSettlement.id
+      }
+      if (command.amount <= 0) return api.billing.settlement(settlementId)
+      setCheckoutStage('CREATING_PAYMENT')
+      return api.billing.createPaymentOrder(settlementId, {
+        idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CASHIER',
+        paymentMethodCode: command.paymentMethodCode, amount: command.amount, terminalCode: 'CASHIER-WEB',
+      })
+    },
+    onSettled: async () => {
+      try { await refresh() } finally { setCheckoutStage('IDLE') }
+    },
+  })
+  const recoverPaymentOrder = useMutation({
+    mutationFn: (paymentOrderId: string) => api.billing.queryPaymentOrder(paymentOrderId),
+    onSuccess: refresh,
+  })
+  const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
+    || synchronize.error || checkout.error || recoverPaymentOrder.error
+  const currency = statement.data?.currencyCode ?? selected?.currencyCode ?? 'CNY'
 
-  return <>
-    <PageHeader eyebrow="费用结算 · M3.4" title="门诊收费与对账工作台"
-      description="按实际发退药事实生成不可变收费事项，以结算凭证归集费用，并用追加式支付、退款和借贷分录完成平账。"
-      actions={<Button variant="secondary" onClick={() => void refresh()}>刷新工作台</Button>} />
+  return <div className="billing-page">
+    <PageHeader eyebrow="收费管理" title="收费结算" description="处理费用核对、结算和患者收款。"
+      actions={<Button variant="secondary" onClick={() => void refresh()}>刷新</Button>} />
     {error && <Alert>{errorMessage(error)}</Alert>}
-    <div className="billing-context-bar">
-      <div><span>当前工作机构</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong></div>
-      <div><span>待计费</span><strong>{worklist.data?.filter((item) => item.status === 'PENDING_CHARGE').length ?? 0}</strong></div>
-      <div><span>待收/退款</span><strong>{worklist.data?.filter((item) => item.status === 'PENDING_PAYMENT'
-        || item.status === 'PENDING_REFUND').length ?? 0}</strong></div>
-      <FormField label="对账业务日">
-        <input className="ui-field__control" type="date" value={businessDate}
-          onChange={(event) => setBusinessDate(event.target.value)} />
-      </FormField>
+    <div className="billing-context-bar billing-context-bar--compact">
+      <div><span>当前收费机构</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong></div>
+      <div><span>待计费</span><strong>{settlementItems.filter((item) => item.status === 'PENDING_CHARGE').length}</strong></div>
+      <div><span>待结算/收款</span><strong>{settlementItems.filter((item) => item.status !== 'PENDING_CHARGE').length}</strong></div>
     </div>
-    <div className="billing-workspace">
-      <Panel className="billing-queue">
-        <header className="billing-section-head"><div><h2>收费队列</h2><span>{worklist.data?.length ?? 0} 条</span></div></header>
-        {worklist.isPending && <LoadingState label="正在加载收费队列…" />}
-        {!worklist.isPending && !worklist.data?.length && <EmptyState icon="billing" title="暂无发退药待结算"
-          copy="药房形成实际发药或退药事实后会进入收费队列。" />}
-        <div className="billing-queue-list">
-          {worklist.data?.map((item) => <button key={item.encounterId} type="button"
-            className={item.encounterId === encounterId ? 'is-active' : ''}
-            onClick={() => setEncounterId(item.encounterId)}>
-            <div><strong>就诊 {item.encounterId}</strong><StatusBadge tone={tone(item.status)}>{workStatusText[item.status]}</StatusBadge></div>
-            <span>居民 {item.residentId}</span>
-            <small>{item.chargedEventCount}/{item.sourceEventCount} 条已计费 · {formatTime(item.latestOccurredAt)}</small>
-            <b>{money(item.accountBalance, item.currencyCode)}</b>
-          </button>)}
-        </div>
-      </Panel>
-
+    {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
+      <div className="billing-workspace">
+      <BillingQueue title="待收费患者" items={settlementItems} selectedId={encounterId} onSelect={setEncounterId}
+        emptyTitle="暂无待收费患者" emptyCopy="当前没有待计费、待结算或待收款业务。" />
       <Panel className="billing-statement">
-        <header className="billing-section-head">
-          <div><h2>费用账户</h2><span>{selected ? `就诊 ${selected.encounterId}` : '请选择收费队列'}</span></div>
-          {selected && <Button onClick={() => synchronize.mutate()} busy={synchronize.isPending}>同步发退药计费</Button>}
+        <header className="billing-section-head"><div><h2>费用明细</h2>
+          <span>{selected
+            ? [selected.residentName, selected.encounterNo].filter(Boolean).join(' · ') || '已选择患者'
+            : '请选择患者'}</span></div>
+          {selected?.status === 'PENDING_CHARGE' && <Button onClick={() => synchronize.mutate()}
+            busy={synchronize.isPending}>同步计费</Button>}
         </header>
-        {statement.isPending && <LoadingState label="正在加载费用账户…" />}
+        {statement.isPending && <LoadingState label="正在加载费用明细…" />}
         {selected && !selected.accountId && !statement.isPending && <EmptyState icon="billing" title="尚未形成费用账户"
-          copy="执行计费同步后，将按价格快照形成应收及账务分录。"
-          action={<Button onClick={() => synchronize.mutate()}>生成收费事项</Button>} />}
+          copy="同步本次就诊的收费来源后即可结算。" action={<Button onClick={() => synchronize.mutate()}>生成收费事项</Button>} />}
         {statement.data && <>
           <div className="billing-metrics">
-            <div><span>收费净额</span><strong>{money(statement.data.chargeAmount, currency)}</strong></div>
+            <div><span>费用合计</span><strong>{money(statement.data.chargeAmount, currency)}</strong></div>
             <div><span>已结算</span><strong>{money(statement.data.invoicedAmount, currency)}</strong></div>
-            <div><span>实收 / 退款</span><strong>{money(statement.data.paymentAmount, currency)} / {money(statement.data.refundAmount, currency)}</strong></div>
+            <div><span>已收款</span><strong>{money(statement.data.paymentAmount, currency)}</strong></div>
             <div className={statement.data.accountBalance === 0 ? 'is-balanced' : 'is-open'}>
-              <span>账户余额</span><strong>{money(statement.data.accountBalance, currency)}</strong>
-            </div>
+              <span>待收金额</span><strong>{money(statement.data.accountBalance, currency)}</strong></div>
           </div>
-          <section className="billing-table-section">
-            <header><div><h3>收费事项</h3><span>逐笔对应实际发药或退药来源</span></div>
-              <Button variant="secondary" disabled={!canInvoice} onClick={() => issueInvoice.mutate()}
-                busy={issueInvoice.isPending}>生成结算凭证</Button></header>
+          <section className="billing-table-section"><header><div><h3>收费项目</h3><span>{statement.data.charges.length} 项</span></div></header>
             <div className="billing-table-wrap"><table className="billing-table"><thead><tr>
               <th>项目</th><th>来源</th><th>数量</th><th>单价</th><th>金额</th><th>发生时间</th>
             </tr></thead><tbody>{statement.data.charges.map((charge) => <tr key={charge.id}>
               <td><strong>{charge.itemName}</strong><code>{charge.itemCode}</code></td>
-              <td><StatusBadge tone={charge.sourceType === 'MEDICATION_RETURN' ? 'warning' : 'info'}>
-                {charge.sourceType === 'MEDICATION_RETURN' ? '退药冲正' : '实际发药'}</StatusBadge><code>{charge.sourceId}</code></td>
+              <td><StatusBadge tone={charge.totalAmount < 0 ? 'warning' : 'info'}>
+                {charge.totalAmount < 0 ? '冲正' : '收费'}</StatusBadge><code>{charge.sourceId}</code></td>
               <td>{charge.quantity} {charge.unitCode}</td><td>{money(charge.unitPrice, charge.currencyCode)}</td>
               <td className={charge.totalAmount < 0 ? 'is-negative' : ''}>{money(charge.totalAmount, charge.currencyCode)}</td>
-              <td>{formatTime(charge.occurredAt)}</td>
+              <td>{new Date(charge.occurredAt).toLocaleString('zh-CN')}</td>
             </tr>)}</tbody></table></div>
           </section>
           <BillingTimeline invoices={statement.data.invoices} payments={statement.data.payments} currency={currency} />
         </>}
       </Panel>
-
-      <div className="billing-side">
-        <Panel>
-          <header className="billing-section-head"><div><h2>收退操作</h2><span>账户锁定后记账</span></div></header>
-          <div className="billing-action-form">
-            <h3>统一支付</h3>
-            <SettlementPaymentPanel settlements={settlementOptions}
-              methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
-              orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending}
-              onSubmit={(command) => createPaymentOrder.mutateAsync(command)} />
-          </div>
-          <div className="billing-action-form billing-action-form--refund">
-            <h3>退款</h3>
-            <FormField label="原支付事实"><Select value={refundPaymentId} onChange={setRefundPaymentId} showValue
-              placeholder="暂无可选原支付" options={refundablePayments.map((payment) => ({ value: payment.id,
-                label: payment.paymentNo, secondaryText: money(payment.amount, payment.currencyCode) }))} /></FormField>
-            <FormField label="退款金额"><input className="ui-field__control" type="number" min="0.01" step="0.01"
-              value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} /></FormField>
-            <FormField label="退款原因"><input className="ui-field__control" value={refundReason}
-              onChange={(event) => setRefundReason(event.target.value)} /></FormField>
-            <Button variant="danger" disabled={!refundPaymentId || Number(refundAmount) <= 0 || !refundReason.trim()
-              || (statement.data?.accountBalance ?? 0) >= 0}
-              onClick={() => refund.mutate({ idempotencyKey: `REFUND-${crypto.randomUUID()}` })} busy={refund.isPending}>
-              确认退款并冲正</Button>
-          </div>
-        </Panel>
-        <Panel className="billing-reconciliation">
-          <header className="billing-section-head"><div><h2>日对账</h2><span>{businessDate}</span></div></header>
-          {reconciliation.isPending && <LoadingState label="正在核对库存与收费…" />}
-          {reconciliation.data && <>
-            <div className="billing-recon-summary">
-              <div><span>来源 / 已计费</span><strong>{reconciliation.data.sourceEventCount} / {reconciliation.data.chargedEventCount}</strong></div>
-              <div><span>差异</span><strong>{reconciliation.data.discrepancyCount}</strong></div>
-              <div><span>借 / 贷</span><strong>{money(reconciliation.data.ledgerDebit, currency)} / {money(reconciliation.data.ledgerCredit, currency)}</strong></div>
-            </div>
-            <ul className="billing-recon-list">{reconciliation.data.lines.slice(0, 8).map((line) => <li key={`${line.sourceType}-${line.sourceId}`}>
-              <div><code>{line.sourceNo ?? line.sourceId}</code><StatusBadge tone={tone(line.status)}>{line.status}</StatusBadge></div>
-              <span>{line.description}</span>
-            </li>)}</ul>
-            {!reconciliation.data.lines.length && <EmptyState icon="billing" title="当日暂无账务来源" copy="选择有发退药业务的日期查看逐笔对账。" />}
-          </>}
-        </Panel>
+      <Panel className="billing-payment-panel">
+        <header className="billing-section-head"><div><h2>结算</h2><span>结算与支付进度</span></div></header>
+        {statement.data && <SettlementProgress statement={statement.data} canInvoice={canInvoice}
+          orders={paymentOrders.data ?? []} stage={checkoutStage} settlementMode={settlementMode} />}
+        <div className="billing-action-form">
+          <SettlementPaymentPanel settlements={settlementOptions}
+            methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
+            orders={paymentOrders.data ?? []} busy={checkout.isPending} targetLabel="结算范围"
+            showSettlementMode settlementModeCode={settlementMode} onSettlementModeChange={setSettlementMode}
+            actionLabel="结算" busyLabel={checkoutStage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : '正在支付'}
+            recoveringOrderId={recoverPaymentOrder.isPending ? recoverPaymentOrder.variables : undefined}
+            onRecoverOrder={(order) => recoverPaymentOrder.mutateAsync(order.id)}
+            onSubmit={(command) => checkout.mutateAsync(command)} />
+        </div>
+      </Panel>
       </div>
-    </div>
-  </>
+    </div>}
+  </div>
 }
 
-function BillingTimeline({ invoices, payments, currency }: { invoices: Invoice[]; payments: Payment[]; currency: string }) {
-  const items = [...invoices.map((invoice) => ({ id: `I-${invoice.id}`, at: invoice.issuedAt,
-    type: invoice.invoiceType === 'CREDIT' ? '贷项凭证' : '结算凭证', code: invoice.invoiceNo,
-    amount: invoice.netAmount, tone: invoice.invoiceType === 'CREDIT' ? 'warning' as const : 'info' as const })),
-  ...payments.map((payment) => ({ id: `P-${payment.id}`, at: payment.paidAt,
-    type: payment.paymentType === 'REFUND' ? '退款冲正' : '支付完成', code: payment.paymentNo,
-    amount: payment.paymentType === 'REFUND' ? -payment.amount : payment.amount,
-    tone: payment.paymentType === 'REFUND' ? 'danger' as const : 'success' as const }))]
-    .sort((a, b) => a.at.localeCompare(b.at))
-  return <section className="billing-timeline"><header><h3>结算与支付轨迹</h3><span>{items.length} 条不可变事实</span></header>
-    {!items.length ? <p>收费事项尚未形成结算凭证。</p> : <ol>{items.map((item) => <li key={item.id}>
-      <span className={`billing-timeline__dot is-${item.tone}`} /><div><strong>{item.type}</strong><code>{item.code}</code>
-        <small>{formatTime(item.at)}</small></div><b>{money(item.amount, currency)}</b>
-    </li>)}</ol>}
-  </section>
+function SettlementProgress({ statement, canInvoice, orders, stage, settlementMode }: {
+  statement: AccountStatement
+  canInvoice: boolean
+  orders: PaymentOrder[]
+  stage: CheckoutStage
+  settlementMode: SettlementModeCode
+}) {
+  const latestSettlement = [...statement.settlements].filter((value) => value.settlementType === 'NORMAL')
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]
+  const activeOrder = orders.find((value) => ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status))
+  const latestOrder = [...orders].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+  const hasCharges = statement.charges.length > 0
+  const insuranceMode = settlementMode === 'MEDICAL_INSURANCE'
+  const settlementGenerated = stage === 'CREATING_PAYMENT' || Boolean(latestSettlement && !canInvoice)
+  const insuranceReady = Boolean(latestSettlement && insuranceSettlementReady(latestSettlement))
+  const settlementComplete = insuranceMode ? settlementGenerated && insuranceReady : settlementGenerated
+  const paymentComplete = settlementComplete && !activeOrder && statement.accountBalance === 0
+  const paymentFailed = settlementComplete && latestOrder?.status === 'FAILED'
+  const steps = [
+    {
+      title: '费用确认', state: hasCharges ? 'done' : 'current',
+      detail: hasCharges ? `${statement.charges.length} 项 · ${money(statement.chargeAmount, statement.currencyCode)}` : '等待收费项目',
+    },
+    {
+      title: insuranceMode ? '医保结算' : '生成结算单', state: settlementComplete ? 'done' : hasCharges ? 'current' : 'waiting',
+      detail: stage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : insuranceMode && settlementGenerated && !insuranceReady
+        ? '等待医保预结算结果' : settlementComplete
+          ? insuranceMode ? `医保基金 ${money(latestSettlement?.insuranceAmount ?? 0, statement.currencyCode)}`
+            : latestSettlement?.settlementNo ?? '已生成' : '点击结算后自动生成',
+    },
+    {
+      title: insuranceMode ? '个人自付收款' : '支付记账', state: paymentComplete ? 'done' : paymentFailed ? 'error'
+        : settlementComplete || activeOrder ? 'current' : 'waiting',
+      detail: stage === 'CREATING_PAYMENT' ? '正在发起支付' : activeOrder ? `支付${paymentOrderProgress(activeOrder.status)}`
+        : paymentComplete ? statement.paymentAmount > 0
+          ? `已收款 ${money(statement.paymentAmount, statement.currencyCode)}` : '无需支付'
+          : paymentFailed ? '支付失败，可重试' : settlementComplete
+            ? `待收 ${money(statement.accountBalance, statement.currencyCode)}` : '等待结算单',
+    },
+  ]
+
+  return <ol className="billing-settlement-progress" aria-label="结算进度">
+    {steps.map((step, index) => <li key={step.title} className={`is-${step.state}`}
+      aria-current={step.state === 'current' ? 'step' : undefined}>
+      <i aria-hidden="true">{step.state === 'done' ? '✓' : index + 1}</i>
+      <div><strong>{step.title}</strong><span>{step.detail}</span></div>
+    </li>)}
+  </ol>
+}
+
+function insuranceSettlementReady(settlement: AccountStatement['settlements'][number]) {
+  const latestInsuranceEvent = [...settlement.events]
+    .filter((value) => value.commandCode.startsWith('INSURANCE-'))
+    .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))[0]
+  if (latestInsuranceEvent) return latestInsuranceEvent.eventType !== 'REVERSE_COMPLETE'
+  return settlement.insuranceAmount > 0 || settlement.tenders.some((value) => Boolean(value.claimResponseId))
+}
+
+function paymentOrderProgress(status: PaymentOrder['status']) {
+  return ({ CREATED: '已创建', PENDING: '待确认', PROCESSING: '处理中', PARTIAL: '部分完成' } as Record<string, string>)[status]
+    ?? '处理中'
 }

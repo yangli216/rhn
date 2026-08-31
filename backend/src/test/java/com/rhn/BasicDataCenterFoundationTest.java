@@ -799,7 +799,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
                                   "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
-                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
                                 """.formatted(suffix)))
@@ -835,7 +835,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
                                   "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
-                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
                                 """.formatted(suffix)))
@@ -855,7 +855,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
                                   "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
-                                  "defaultFrequency":"每日一剂","chronicDiseaseDrug":false,"singleOrder":true,
+                                  "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
                                 """.formatted(suffix)))

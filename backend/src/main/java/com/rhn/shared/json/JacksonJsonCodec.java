@@ -35,6 +35,15 @@ class JacksonJsonCodec implements JsonCodec {
     }
 
     @Override
+    public <T> T read(String value, Class<T> type) {
+        try {
+            return objectMapper.readValue(value, type);
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("Invalid JSON value", exception);
+        }
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public Map<String, Object> readObject(String value) {
         try {

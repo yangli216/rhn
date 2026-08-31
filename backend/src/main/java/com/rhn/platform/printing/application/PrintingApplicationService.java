@@ -3,6 +3,7 @@ package com.rhn.platform.printing.application;
 import com.rhn.platform.printing.api.PrintContent;
 import com.rhn.platform.printing.api.PrintReceipt;
 import com.rhn.platform.printing.api.PrintRequest;
+import com.rhn.platform.printing.api.PrintRecordView;
 import com.rhn.platform.printing.api.PrintTemplateView;
 import com.rhn.platform.printing.api.PrintingService;
 import com.rhn.platform.printing.domain.PrintJob;
@@ -107,6 +108,15 @@ public class PrintingApplicationService implements PrintingService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<PrintRecordView> recordsByEncounter(Long encounterId) {
+        ExecutionContext context = requireContext();
+        if (encounterId == null) throw badRequest("PRINT_ENCOUNTER_REQUIRED", "就诊标识不能为空");
+        return outputRepository.findByTenantIdAndEncounterIdOrderByGeneratedAtDesc(context.tenantId(), encounterId)
+                .stream().map(output -> record(output, context)).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<PrintTemplateView> visibleTemplates() {
         ExecutionContext context = requireContext();
         Map<String, PrintTemplate> visible = new LinkedHashMap<>();
@@ -173,6 +183,25 @@ public class PrintingApplicationService implements PrintingService {
                 output.documentType(), template.templateCode(), version.versionNo(), output.fileName(),
                 output.contentDigestAlgorithm(), output.contentDigest(), job.requestedAt(),
                 "/api/platform/printing/outputs/" + output.id() + "/content");
+    }
+
+    private PrintRecordView record(PrintOutput output, ExecutionContext context) {
+        requireScope(context, output.organizationId(), output.departmentId());
+        PrintTemplate template = templateRepository.findById(output.templateId())
+                .orElseThrow(() -> notFound("PRINT_TEMPLATE_NOT_FOUND", "打印记录关联的模板不存在"));
+        PrintTemplateVersion version = versionRepository.findById(output.templateVersionId())
+                .orElseThrow(() -> notFound("PRINT_TEMPLATE_VERSION_NOT_FOUND", "打印记录关联的模板版本不存在"));
+        List<PrintRecordView.JobView> jobs = jobRepository
+                .findByTenantIdAndOutputIdOrderByRequestedAtDesc(context.tenantId(), output.id()).stream()
+                .map(job -> new PrintRecordView.JobView(job.id(), job.originalJobId(), job.requestType(),
+                        job.status(), job.copies(), job.requestedAt(), job.requestedBy()))
+                .toList();
+        return new PrintRecordView(output.id(), output.sourceType(), output.sourceId(), output.sourceVersion(),
+                output.documentType(), output.residentId(), output.encounterId(), output.organizationId(),
+                output.departmentId(), output.purpose(), output.fileName(), output.mediaType(),
+                output.contentDigestAlgorithm(), output.contentDigest(), output.generatedAt(), output.generatedBy(),
+                template.templateCode(), template.templateName(), version.versionNo(),
+                "/api/platform/printing/outputs/" + output.id() + "/content", jobs);
     }
 
     private String safeFileName(String value) {

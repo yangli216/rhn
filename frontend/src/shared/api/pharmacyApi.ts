@@ -3,10 +3,19 @@ import type { ApiClient } from './httpClient'
 
 export type StockSiteType = 'WAREHOUSE' | 'PHARMACY' | 'DEPARTMENT_STORE' | 'VIRTUAL'
 export type PharmacyServiceScope = 'OUTPATIENT' | 'INPATIENT' | 'EMERGENCY' | 'COMMUNITY' | 'MIXED'
+export type DispenseCareSetting = 'OUTPATIENT' | 'EMERGENCY' | 'INPATIENT' | 'HOME_CARE'
 export type DispenseTaskStatus = 'PENDING_REVIEW' | 'INTERVENTION' | 'READY_TO_PICK' | 'PICKING'
   | 'READY_TO_DISPENSE' | 'PARTIALLY_DISPENSED' | 'COMPLETED' | 'PARTIALLY_RETURNED'
-  | 'RETURNED' | 'REJECTED' | 'CANCELLED'
+  | 'RETURN_REQUIRED' | 'RETURNED' | 'REJECTED' | 'CANCELLED' | 'STOPPED'
 export type PharmacyReviewResult = 'PASS' | 'REJECT' | 'INTERVENE' | 'OVERRIDE'
+export type PrescriptionReviewMode = 'DISABLED' | 'PRE_DISPENSE' | 'POST_DISPENSE'
+
+export interface PrescriptionReviewModeView {
+  mode: PrescriptionReviewMode
+  enabled: boolean
+  timing: 'NONE' | 'PRE' | 'POST'
+  parameterKey: string
+}
 
 export interface StockSite {
   id: string
@@ -20,6 +29,37 @@ export interface StockSite {
   active: boolean
   validFrom: string
   validTo?: string
+}
+
+export interface DispenseRoute {
+  id: string
+  revision: number
+  organizationId: string
+  code: string
+  name: string
+  careSetting: DispenseCareSetting
+  sourceDepartmentId?: string
+  medicationType?: string
+  targetStockSiteId: string
+  active: boolean
+  validFrom: string
+  validTo?: string
+  description?: string
+  updatedAt: string
+}
+
+export interface DispenseRouteInput {
+  organizationId: string
+  code: string
+  name: string
+  careSetting: DispenseCareSetting
+  sourceDepartmentId?: string
+  medicationType?: string
+  targetStockSiteId: string
+  active: boolean
+  validFrom: string
+  validTo?: string
+  description?: string
 }
 
 export interface StockItem {
@@ -216,6 +256,62 @@ export interface InventoryReconciliationRun {
   issueCount: number; lines: InventoryReconciliationLine[]
 }
 
+export interface InventoryPeriod {
+  id: string; revision: number; stockSiteId: string; previousPeriodId?: string; closingRunId?: string
+  periodCode: string; periodFrom: string; periodTo: string; status: 'OPEN' | 'CLOSING' | 'CLOSED'
+  closedAt?: string; closedBy?: string; description?: string; createdAt: string; createdBy: string
+}
+
+export interface PeriodCloseTotal {
+  valuationBasis: 'COST' | 'RETAIL'; currencyCode: string
+  openingValue: number; movementAmount: number; valuationAdjustmentAmount: number
+  roundingAdjustmentAmount: number; closingValue: number; balanceValue: number; valueDifference: number
+}
+
+export interface PeriodCloseRun {
+  id: string; revision: number; stockSiteId: string; inventoryPeriodId: string; previousPeriodId?: string
+  reconciliationRunId?: string; runNo: string; requestCode: string
+  status: 'RUNNING' | 'VALIDATED' | 'POSTED' | 'FAILED'; dimensionCount: number; differenceCount: number
+  startedAt: string; startedBy: string; validatedAt?: string; validatedBy?: string
+  postedAt?: string; postedBy?: string; completedAt?: string; failureCode?: string; failureMessage?: string
+  totals: PeriodCloseTotal[]
+}
+
+export interface PeriodCloseDifference {
+  snapshotId: string; inventoryBalanceId: string; inventoryBalanceRevision: number
+  stockBinId: string; stockItemId: string; stockLotId: string; lotNo: string; stockStatus: string; baseUnitCode: string
+  openingQuantity: number; movementQuantity: number; closingQuantity: number
+  balanceQuantity: number; quantityDifference: number; valuationBasis: string; currencyCode: string
+  openingValue: number; movementAmount: number; valuationAdjustmentAmount: number
+  roundingAdjustmentAmount: number; closingValue: number; balanceValue: number; valueDifference: number
+}
+
+export interface InventoryPriceAdjustmentDetail {
+  id: string; inventoryBalanceId: string; inventoryBalanceRevision: number; stockBinId: string
+  stockLotId: string; lotNo: string; stockStatus: string; quantitySnapshot: number
+  unitPriceBefore: number; unitPriceAfter: number; valueBefore: number; valueAfter: number
+  adjustmentAmount: number; roundingAmount: number; valuationEntryId?: string
+}
+
+export interface InventoryPriceAdjustmentLine {
+  id: string; revision: number; lineNo: number; stockItemId: string; catalogItemId: string; packageId: string
+  oldCatalogPriceId?: string; newCatalogPriceId?: string; oldSalePrice?: number; newSalePrice?: number
+  oldUnitCost?: number; newUnitCost?: number; quantitySnapshot: number; valueBefore: number; valueAfter: number
+  adjustmentAmount: number; roundingAmount: number; lineStatus: string; errorCode?: string; errorMessage?: string
+  details: InventoryPriceAdjustmentDetail[]
+}
+
+export interface InventoryPriceAdjustment {
+  id: string; revision: number; stockSiteId: string; inventoryPeriodId?: string; adjustmentNo: string
+  requestCode: string; adjustmentType: 'SALE_PRICE' | 'COST_REVALUE'; priceType?: string; businessDate: string
+  currencyCode: string; priceDocumentCode?: string; reason: string
+  status: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'POSTING' | 'POSTED' | 'CANCELLED'
+  lineCount: number; totalValueBefore: number; totalValueAfter: number; totalAdjustmentAmount: number
+  createdAt: string; createdBy: string; submittedAt?: string; submittedBy?: string
+  approvedAt?: string; approvedBy?: string; postedAt?: string; postedBy?: string
+  lines: InventoryPriceAdjustmentLine[]
+}
+
 export interface InventoryReservation {
   id: string
   revision: number
@@ -259,6 +355,14 @@ export interface PharmacyInboxItem {
   stockItemId?: string
   selectedProductName?: string
   latestReviewResult?: PharmacyReviewResult
+  clinicalContext?: {
+    encounterId: string
+    encounterNo: string
+    clinicianId?: string
+    chiefComplaint?: string
+    diagnoses: Array<{ code: string; display: string; type: 'PRIMARY' | 'SECONDARY' }>
+  }
+  prescriptionRequests?: MedicationRequest[]
 }
 
 export interface DispenseTaskLine {
@@ -377,11 +481,251 @@ export interface DispenseTrace {
   returns: StockReturn[]
 }
 
+export type WardDeliveryStatus = 'PENDING_DISPATCH' | 'IN_TRANSIT' | 'RECEIVED' | 'DISCREPANCY' | 'RESOLVED'
+export interface WardDeliveryLine {
+  id: string
+  dispenseId: string
+  residentId: string
+  encounterId: string
+  residentName: string
+  medicationName: string
+  expectedQuantity: number
+  receivedQuantity: number
+  unitCode: string
+  status: 'PENDING' | 'MATCHED' | 'SHORTAGE' | 'REJECTED'
+  discrepancyCode?: string
+  discrepancyNote?: string
+}
+export interface WardDeliveryEvent {
+  id: string
+  eventType: string
+  fromStatus?: string
+  toStatus: string
+  commandCode: string
+  occurredAt: string
+  occurredBy: string
+  note?: string
+}
+export interface WardDelivery {
+  id: string
+  revision: number
+  organizationId: string
+  stockSiteId: string
+  nursingUnitDepartmentId: string
+  deliveryNo: string
+  status: WardDeliveryStatus
+  stockSiteName: string
+  nursingUnitName: string
+  createdAt: string
+  createdBy: string
+  dispatchedAt?: string
+  dispatchedBy?: string
+  dispatchNote?: string
+  receivedAt?: string
+  receivedBy?: string
+  receiptNote?: string
+  discrepancyNote?: string
+  resolvedAt?: string
+  resolvedBy?: string
+  resolutionCode?: 'SUPPLEMENTED' | 'RETURNED_TO_PHARMACY' | 'ACCEPTED_VARIANCE'
+  resolutionNote?: string
+  lines: WardDeliveryLine[]
+  events: WardDeliveryEvent[]
+}
+
+export type WardSupplyShiftCode = 'DAY' | 'EVENING' | 'NIGHT'
+export type WardSupplyBatchStatus = 'OPEN' | 'READY' | 'IN_PROGRESS' | 'COMPLETED' | 'EXCEPTION' | 'CANCELLED'
+export type WardSupplyLineStatus = 'PENDING_INTAKE' | 'PREPARING' | 'COVERED' | 'GAP' | 'ISSUED' | 'RETURN_PENDING' | 'EXCEPTION' | 'CANCELLED'
+
+export interface WardSupplyBatchSummary {
+  totalLineCount: number
+  coveredLineCount: number
+  gapLineCount: number
+  issuedLineCount: number
+  pendingReturnLineCount: number
+  exceptionLineCount: number
+}
+
+export interface WardSupplyLine {
+  id: string
+  batchId: string
+  requestId: string
+  residentId: string
+  encounterId: string
+  residentName: string
+  bedNo?: string
+  catalogItemId?: string
+  medicationId?: string
+  medicationName: string
+  scheduledAt: string
+  requestedQuantity: number
+  coveredQuantity: number
+  issuedQuantity: number
+  pendingReturnQuantity: number
+  unitCode: string
+  status: WardSupplyLineStatus
+  stockItemId?: string
+  dispenseTaskLineId?: string
+  dispenseTaskId?: string
+  dispenseTaskStatus?: DispenseTaskStatus
+  exceptionMessage?: string
+}
+
+export interface WardSupplyBatch {
+  id: string
+  revision: number
+  batchNo: string
+  stockSiteId: string
+  nursingUnitDepartmentId: string
+  nursingUnitName: string
+  businessDate: string
+  shiftCode: WardSupplyShiftCode
+  status: WardSupplyBatchStatus
+  summary: WardSupplyBatchSummary
+  lines: WardSupplyLine[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WardSupplyBatchQuery {
+  stockSiteId: string
+  nursingUnitDepartmentId: string
+  businessDate: string
+  shiftCode: WardSupplyShiftCode
+}
+
+export interface CreateWardSupplyBatchInput extends WardSupplyBatchQuery {
+  commandCode: string
+}
+
+export interface IntakeWardSupplyLineInput {
+  stockItemId: string
+  description?: string
+}
+
+export interface IntakeWardSupplyBatchInput {
+  lines: Array<{
+    lineId: string
+    stockItemId: string
+  }>
+  description?: string
+}
+
+export interface ReviewReserveWardSupplyBatchInput {
+  pharmacistPractitionerId: string
+  reviewerAssignmentId: string
+  expiryMinutes?: number
+  description?: string
+}
+
+export interface CompletePickingWardSupplyBatchInput {
+  pickerPractitionerId: string
+  pickerAssignmentId: string
+  description?: string
+}
+
+export interface DispenseDeliverWardSupplyBatchInput {
+  dispenserPractitionerId: string
+  dispenserAssignmentId: string
+  checkerPractitionerId?: string
+  checkerAssignmentId?: string
+  description?: string
+}
+
+export interface WardSupplyFulfillment {
+  batch: WardSupplyBatch
+  deliveries: WardDelivery[]
+}
+
+export type WardMedicationReturnStatus = 'REQUESTED' | 'IN_TRANSIT' | 'RECEIVED'
+export type WardMedicationReturnDisposition = 'RESTOCK' | 'QUARANTINE' | 'DESTROY'
+
+export interface ReturnableWardMedicationLine {
+  originalDispenseId: string
+  originalDispenseLineId: string
+  requestId: string
+  residentId: string
+  encounterId: string
+  stockSiteId: string
+  nursingUnitDepartmentId: string
+  medicationName: string
+  issuedQuantity: number
+  returnedQuantity: number
+  consumedQuantity: number
+  pendingReturnQuantity: number
+  returnableQuantity: number
+  unitCode: string
+  baseQuantityFactor: number
+  baseUnitCode: string
+}
+
+export interface WardMedicationReturnLine {
+  id: string
+  requestId: string
+  originalDispenseId: string
+  originalDispenseLineId: string
+  dispenseTaskLineId: string
+  medicationName: string
+  requestedQuantity: number
+  unitCode: string
+  requestedBaseQuantity: number
+  baseUnitCode: string
+  disposition?: WardMedicationReturnDisposition
+  stockReturnId?: string
+  returnDispenseId?: string
+}
+
+export interface WardMedicationReturnEvent {
+  id: string
+  eventType: 'CREATED' | 'HANDED_OVER' | 'RECEIVED'
+  fromStatus?: WardMedicationReturnStatus
+  toStatus: WardMedicationReturnStatus
+  commandCode: string
+  occurredAt: string
+  occurredBy: string
+  note?: string
+}
+
+export interface WardMedicationReturnRequest {
+  id: string
+  revision: number
+  requestNo: string
+  status: WardMedicationReturnStatus
+  organizationId: string
+  stockSiteId: string
+  nursingUnitDepartmentId: string
+  residentId: string
+  encounterId: string
+  requestedAt: string
+  requestedBy: string
+  requestNote?: string
+  handedOverAt?: string
+  handedOverBy?: string
+  handoverNote?: string
+  receivedAt?: string
+  receivedBy?: string
+  processorPractitionerId?: string
+  processorAssignmentId?: string
+  receiptNote?: string
+  lines: WardMedicationReturnLine[]
+  events: WardMedicationReturnEvent[]
+}
+
 export function createPharmacyApi(client: ApiClient) {
   return {
     sites: (organizationId: string) => client.request<StockSite[]>(
       `/api/pharmacy/stock-sites?organizationId=${encodeURIComponent(organizationId)}`,
     ),
+    dispenseRoutes: (organizationId: string) => client.request<DispenseRoute[]>(
+      `/api/pharmacy/dispense-routes?organizationId=${encodeURIComponent(organizationId)}`,
+    ),
+    createDispenseRoute: (input: DispenseRouteInput) => client.request<DispenseRoute>(
+      '/api/pharmacy/dispense-routes', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateDispenseRoute: (id: string, expectedRevision: number, input: DispenseRouteInput) =>
+      client.request<DispenseRoute>(`/api/pharmacy/dispense-routes/${encodeURIComponent(id)}`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision, ...input }),
+      }),
     stockItems: (siteId: string) => client.request<StockItem[]>(
       `/api/pharmacy/stock-sites/${siteId}/stock-items`,
     ),
@@ -444,14 +788,19 @@ export function createPharmacyApi(client: ApiClient) {
     }) => client.request<StockLot>(`/api/pharmacy/stock-items/${stockItemId}/lots`, {
       method: 'POST', body: JSON.stringify(input),
     }),
-    balances: (stockSiteId: string, stockItemId: string) => client.request<InventoryBalance[]>(
+    balances: (stockSiteId: string, stockItemId = '') => client.request<InventoryBalance[]>(
       `/api/pharmacy/inventory/balances?stockSiteId=${encodeURIComponent(stockSiteId)}`
-        + `&stockItemId=${encodeURIComponent(stockItemId)}`,
+        + (stockItemId ? `&stockItemId=${encodeURIComponent(stockItemId)}` : ''),
     ),
-    transactions: (stockSiteId: string, periodCode = '') => client.request<InventoryTransaction[]>(
-      `/api/pharmacy/inventory/transactions?stockSiteId=${encodeURIComponent(stockSiteId)}`
-        + (periodCode ? `&periodCode=${encodeURIComponent(periodCode)}` : ''),
-    ),
+    transactions: (stockSiteId: string, options: {
+      periodCode?: string; stockItemId?: string; allPeriods?: boolean
+    } = {}) => {
+      const params = new URLSearchParams({ stockSiteId })
+      if (options.periodCode) params.set('periodCode', options.periodCode)
+      if (options.stockItemId) params.set('stockItemId', options.stockItemId)
+      if (options.allPeriods) params.set('allPeriods', 'true')
+      return client.request<InventoryTransaction[]>(`/api/pharmacy/inventory/transactions?${params}`)
+    },
     receive: (input: {
       requestCode: string
       sourceCode: string
@@ -522,6 +871,52 @@ export function createPharmacyApi(client: ApiClient) {
     reconcileInventory: (stockSiteId: string) => client.request<InventoryReconciliationRun>(
       `/api/pharmacy/inventory/reconciliations?stockSiteId=${encodeURIComponent(stockSiteId)}`, { method: 'POST' },
     ),
+    inventoryPeriods: (stockSiteId: string) => client.request<InventoryPeriod[]>(
+      `/api/pharmacy/inventory-periods?stockSiteId=${encodeURIComponent(stockSiteId)}`,
+    ),
+    createInventoryPeriod: (stockSiteId: string, yearMonth: string) => client.request<InventoryPeriod>(
+      '/api/pharmacy/inventory-periods', {
+        method: 'POST', body: JSON.stringify({ stockSiteId, yearMonth }),
+      },
+    ),
+    periodCloseRuns: (periodId: string) => client.request<PeriodCloseRun[]>(
+      `/api/pharmacy/inventory-periods/${periodId}/close-runs`,
+    ),
+    preparePeriodClose: (periodId: string, requestCode: string, currencyCode = 'CNY') =>
+      client.request<PeriodCloseRun>(`/api/pharmacy/inventory-periods/${periodId}/close-runs`, {
+        method: 'POST', body: JSON.stringify({ requestCode, currencyCode }),
+      }),
+    periodCloseDifferences: (closeRunId: string) => client.request<PeriodCloseDifference[]>(
+      `/api/pharmacy/inventory-periods/close-runs/${closeRunId}/differences`,
+    ),
+    postPeriodClose: (closeRunId: string) => client.request<PeriodCloseRun>(
+      `/api/pharmacy/inventory-periods/close-runs/${closeRunId}/post`, { method: 'POST' },
+    ),
+    priceAdjustments: (stockSiteId: string) => client.request<InventoryPriceAdjustment[]>(
+      `/api/pharmacy/inventory-price-adjustments?stockSiteId=${encodeURIComponent(stockSiteId)}`,
+    ),
+    priceAdjustment: (id: string) => client.request<InventoryPriceAdjustment>(
+      `/api/pharmacy/inventory-price-adjustments/${id}`,
+    ),
+    createPriceAdjustment: (input: {
+      stockSiteId: string; requestCode: string; adjustmentType: 'SALE_PRICE' | 'COST_REVALUE'
+      priceType?: string; businessDate: string; currencyCode?: string; priceDocumentCode?: string
+      reason: string; lines: Array<{ stockItemId: string; newSalePrice?: number; newUnitCost?: number }>
+    }) => client.request<InventoryPriceAdjustment>('/api/pharmacy/inventory-price-adjustments', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    submitPriceAdjustment: (id: string) => client.request<InventoryPriceAdjustment>(
+      `/api/pharmacy/inventory-price-adjustments/${id}/submit`, { method: 'POST' },
+    ),
+    approvePriceAdjustment: (id: string) => client.request<InventoryPriceAdjustment>(
+      `/api/pharmacy/inventory-price-adjustments/${id}/approve`, { method: 'POST' },
+    ),
+    postPriceAdjustment: (id: string) => client.request<InventoryPriceAdjustment>(
+      `/api/pharmacy/inventory-price-adjustments/${id}/post`, { method: 'POST' },
+    ),
+    cancelPriceAdjustment: (id: string) => client.request<InventoryPriceAdjustment>(
+      `/api/pharmacy/inventory-price-adjustments/${id}/cancel`, { method: 'POST' },
+    ),
     requisitions: (siteId: string) => client.request<Requisition[]>(`/api/pharmacy/stock-requisitions?sourceSiteId=${encodeURIComponent(siteId)}`),
     createRequisition: (input: { sourceSiteId: string; requestingDepartmentId?: string; requestCode: string; requestedAt?: string; reason?: string; description?: string; lines: Array<{ stockItemId: string; requestedQuantity: number; description?: string }> }) => client.request<Requisition>('/api/pharmacy/stock-requisitions', { method: 'POST', body: JSON.stringify(input) }),
     submitRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/submit`, { method: 'POST' }),
@@ -544,6 +939,9 @@ export function createPharmacyApi(client: ApiClient) {
     postStockCount: (id: string) => client.request<StockCount>(`/api/pharmacy/stock-counts/${id}/post`, { method: 'POST' }),
     inbox: (organizationId: string) => client.request<PharmacyInboxItem[]>(
       `/api/pharmacy/inbox?organizationId=${encodeURIComponent(organizationId)}`,
+    ),
+    prescriptionReviewMode: (organizationId: string) => client.request<PrescriptionReviewModeView>(
+      `/api/pharmacy/prescription-review-mode?organizationId=${encodeURIComponent(organizationId)}`,
     ),
     intake: (requestId: string, stockItemId: string, description?: string) => client.request<DispenseTask>(
       `/api/pharmacy/requests/${requestId}/intake`, {
@@ -598,6 +996,103 @@ export function createPharmacyApi(client: ApiClient) {
     trace: (taskId: string) => client.request<DispenseTrace>(
       `/api/pharmacy/dispense-tasks/${taskId}/trace`,
     ),
+    wardSupplyBatches: (options: WardSupplyBatchQuery) => {
+      const params = new URLSearchParams({
+        stockSiteId: options.stockSiteId,
+        nursingUnitDepartmentId: options.nursingUnitDepartmentId,
+        businessDate: options.businessDate,
+        shiftCode: options.shiftCode,
+      })
+      return client.request<WardSupplyBatch[]>(`/api/pharmacy/ward-supply-batches?${params}`)
+    },
+    createWardSupplyBatch: (input: CreateWardSupplyBatchInput) => client.request<WardSupplyBatch>(
+      '/api/pharmacy/ward-supply-batches', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    wardSupplyBatch: (id: string) => client.request<WardSupplyBatch>(
+      `/api/pharmacy/ward-supply-batches/${encodeURIComponent(id)}`,
+    ),
+    intakeWardSupplyBatch: (batchId: string, input: IntakeWardSupplyBatchInput) => client.request<WardSupplyBatch>(
+      `/api/pharmacy/ward-supply-batches/${encodeURIComponent(batchId)}/intake`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    reviewAndReserveWardSupplyBatch: (batchId: string, input: ReviewReserveWardSupplyBatchInput) =>
+      client.request<WardSupplyBatch>(
+        `/api/pharmacy/ward-supply-batches/${encodeURIComponent(batchId)}/review-reserve`, {
+          method: 'POST', body: JSON.stringify(input),
+        },
+      ),
+    completePickingWardSupplyBatch: (batchId: string, input: CompletePickingWardSupplyBatchInput) =>
+      client.request<WardSupplyBatch>(
+        `/api/pharmacy/ward-supply-batches/${encodeURIComponent(batchId)}/picking/complete`, {
+          method: 'POST', body: JSON.stringify(input),
+        },
+      ),
+    dispenseDeliverWardSupplyBatch: (batchId: string, input: DispenseDeliverWardSupplyBatchInput) =>
+      client.request<WardSupplyFulfillment>(
+        `/api/pharmacy/ward-supply-batches/${encodeURIComponent(batchId)}/dispense-deliveries`, {
+          method: 'POST', body: JSON.stringify(input),
+        },
+      ),
+    intakeWardSupplyLine: (lineId: string, input: IntakeWardSupplyLineInput) => client.request<WardSupplyLine>(
+      `/api/pharmacy/ward-supply-lines/${encodeURIComponent(lineId)}/intake`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    wardDeliveries: (options: { status?: WardDeliveryStatus | 'OPEN' | 'ALL'
+      nursingUnitDepartmentId?: string; encounterId?: string } = {}) => {
+      const params = new URLSearchParams({ status: options.status ?? 'OPEN' })
+      if (options.nursingUnitDepartmentId) params.set('nursingUnitDepartmentId', options.nursingUnitDepartmentId)
+      if (options.encounterId) params.set('encounterId', options.encounterId)
+      return client.request<WardDelivery[]>(`/api/pharmacy/ward-deliveries?${params}`)
+    },
+    wardDelivery: (id: string) => client.request<WardDelivery>(`/api/pharmacy/ward-deliveries/${id}`),
+    createWardDelivery: (input: { deliveryNo: string; dispenseIds: string[]; note?: string }) =>
+      client.request<WardDelivery>('/api/pharmacy/ward-deliveries', {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    dispatchWardDelivery: (id: string, input: { expectedRevision: number; commandCode: string; note?: string }) =>
+      client.request<WardDelivery>(`/api/pharmacy/ward-deliveries/${id}/dispatch`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    receiveWardDelivery: (id: string, input: { expectedRevision: number; commandCode: string; note?: string
+      lines: Array<{ lineId: string; receivedQuantity: number
+        discrepancyCode?: 'SHORTAGE' | 'DAMAGED' | 'WRONG_ITEM' | 'OTHER'; discrepancyNote?: string }> }) =>
+      client.request<WardDelivery>(`/api/pharmacy/ward-deliveries/${id}/receive`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    resolveWardDelivery: (id: string, input: { expectedRevision: number; commandCode: string
+      resolutionCode: 'SUPPLEMENTED' | 'RETURNED_TO_PHARMACY' | 'ACCEPTED_VARIANCE'; note: string }) =>
+      client.request<WardDelivery>(`/api/pharmacy/ward-deliveries/${id}/resolve`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    returnableWardMedications: (encounterId: string) => client.request<ReturnableWardMedicationLine[]>(
+      `/api/pharmacy/ward-medication-returns/returnable?encounterId=${encodeURIComponent(encounterId)}`,
+    ),
+    wardMedicationReturns: (options: { status?: WardMedicationReturnStatus | 'ALL'; encounterId?: string } = {}) => {
+      const params = new URLSearchParams({ status: options.status ?? 'ALL' })
+      if (options.encounterId) params.set('encounterId', options.encounterId)
+      return client.request<WardMedicationReturnRequest[]>(`/api/pharmacy/ward-medication-returns?${params}`)
+    },
+    wardMedicationReturn: (id: string) => client.request<WardMedicationReturnRequest>(
+      `/api/pharmacy/ward-medication-returns/${id}`,
+    ),
+    createWardMedicationReturn: (input: { encounterId: string; commandCode: string; note?: string
+      lines: Array<{ originalDispenseLineId: string; quantity: number }> }) =>
+      client.request<WardMedicationReturnRequest>('/api/pharmacy/ward-medication-returns', {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    handOverWardMedicationReturn: (id: string, input: { expectedRevision: number; commandCode: string; note?: string }) =>
+      client.request<WardMedicationReturnRequest>(`/api/pharmacy/ward-medication-returns/${id}/handover`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    receiveWardMedicationReturn: (id: string, input: { expectedRevision: number; commandCode: string
+      processorPractitionerId: string; processorAssignmentId: string; note?: string
+      lines: Array<{ returnRequestLineId: string; disposition: WardMedicationReturnDisposition
+        exceptionDescription?: string }> }) =>
+      client.request<WardMedicationReturnRequest>(`/api/pharmacy/ward-medication-returns/${id}/receive`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
     returnMedication: (dispenseId: string, input: {
       returnNo: string
       reasonCode: string

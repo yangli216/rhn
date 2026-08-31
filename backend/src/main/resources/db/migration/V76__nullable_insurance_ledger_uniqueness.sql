@@ -1,0 +1,1 @@
+-- H2/PostgreSQL already omit null claim-response references from effective uniqueness.

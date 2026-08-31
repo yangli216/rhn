@@ -25,12 +25,28 @@ export { TreePanel, type TreePanelMove, type TreePanelNode, type TreePanelProps 
 export { GridAddressInput, type GridAddressInputProps, type GridAddressValue } from './GridAddressInput'
 export { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectProps } from './RemoteSearchSelect'
 export {
+  PatientIdentitySearch,
+  unavailablePatientIdentityMethods,
+  type PatientIdentityMethod,
+  type PatientIdentityMethodId,
+  type PatientIdentitySearchProps,
+} from './PatientIdentitySearch'
+export {
   ClinicalResourceSearch,
   type ClinicalResource,
   type ClinicalResourceOption,
   type ClinicalResourceSearchProps,
   type ClinicalResourceType,
 } from './ClinicalResourceSearch'
+export {
+  DataTable,
+  SearchField,
+  SplitWorkspace,
+  TableShell,
+  Tabs,
+  type TabItem,
+  type TabsVariant,
+} from './Workspace'
 
 export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger'
 export type ButtonSize = 'sm' | 'md' | 'lg'
@@ -74,17 +90,18 @@ export function Panel({ children, className = '', ...props }: PropsWithChildren<
   return <section className={`ui-panel ${className}`} {...props}>{children}</section>
 }
 
-export function PageHeader({ eyebrow, title, description, actions }: {
+export function PageHeader({ eyebrow, title, description, actions, compact = false }: {
   eyebrow: string
   title: string
   description?: string
   actions?: ReactNode
+  compact?: boolean
 }) {
-  return <header className="ui-page-header">
+  return <header className={`ui-page-header ${compact ? 'is-compact' : ''} ${actions ? 'has-actions' : ''}`}>
     <div>
       <span className="ui-eyebrow">{eyebrow}</span>
       <h1>{title}</h1>
-      {description && <p>{description}</p>}
+      {description && <p title={description}>{description}</p>}
     </div>
     {actions && <div className="ui-page-header__actions">{actions}</div>}
   </header>

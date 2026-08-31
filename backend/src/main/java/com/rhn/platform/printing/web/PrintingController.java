@@ -2,6 +2,7 @@ package com.rhn.platform.printing.web;
 
 import com.rhn.platform.printing.api.PrintContent;
 import com.rhn.platform.printing.api.PrintReceipt;
+import com.rhn.platform.printing.api.PrintRecordView;
 import com.rhn.platform.printing.api.PrintTemplateView;
 import com.rhn.platform.printing.api.PrintingService;
 import jakarta.validation.Valid;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
@@ -30,6 +32,11 @@ public class PrintingController {
 
     @GetMapping("/templates")
     List<PrintTemplateView> templates() { return printingService.visibleTemplates(); }
+
+    @GetMapping("/records")
+    List<PrintRecordView> records(@RequestParam Long encounterId) {
+        return printingService.recordsByEncounter(encounterId);
+    }
 
     @PostMapping("/jobs/{jobId}/reprints")
     PrintReceipt reprint(@PathVariable Long jobId, @Valid @RequestBody ReprintRequest request) {

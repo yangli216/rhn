@@ -3,6 +3,8 @@ package com.rhn.pharmacy.infrastructure;
 import com.rhn.pharmacy.domain.InventoryBalance;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,12 +17,21 @@ public interface InventoryBalanceRepository extends JpaRepository<InventoryBalan
     Optional<InventoryBalance> findByIdAndTenantId(Long id, Long tenantId);
     List<InventoryBalance> findByTenantIdAndStockSiteIdOrderByStockBinIdAscStockItemIdAscStockLotIdAsc(
             Long tenantId, Long stockSiteId);
+    Page<InventoryBalance> findByTenantIdAndStockSiteIdOrderByStockBinIdAscStockItemIdAscStockLotIdAsc(
+            Long tenantId, Long stockSiteId, Pageable pageable);
     List<InventoryBalance> findByTenantIdAndStockBinIdOrderByStockItemIdAscStockLotIdAsc(
             Long tenantId, Long stockBinId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select b from InventoryBalance b where b.id = :id and b.tenantId = :tenantId")
     Optional<InventoryBalance> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select b from InventoryBalance b
+            where b.tenantId = :tenantId and b.stockSiteId = :siteId
+            order by b.stockBinId, b.stockItemId, b.stockLotId, b.stockStatus
+            """)
+    List<InventoryBalance> lockSiteBalances(@Param("tenantId") Long tenantId, @Param("siteId") Long siteId);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select b from InventoryBalance b
@@ -64,4 +75,6 @@ public interface InventoryBalanceRepository extends JpaRepository<InventoryBalan
 
     List<InventoryBalance> findByTenantIdAndStockSiteIdAndStockItemIdOrderByProjectedAtDesc(
             Long tenantId, Long stockSiteId, Long stockItemId);
+    Page<InventoryBalance> findByTenantIdAndStockSiteIdAndStockItemIdOrderByProjectedAtDesc(
+            Long tenantId, Long stockSiteId, Long stockItemId, Pageable pageable);
 }

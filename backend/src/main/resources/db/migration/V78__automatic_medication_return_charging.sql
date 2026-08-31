@@ -1,0 +1,2 @@
+-- Medication returns are projected into billing immediately by the application event consumer.
+-- This version marker keeps the shared and local Flyway histories ordered consistently.

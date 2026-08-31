@@ -3,6 +3,11 @@ import type { ApiClient } from './httpClient'
 export interface BillingWorkItem {
   encounterId: string
   residentId: string
+  residentName: string
+  healthRecordNo: string
+  gender: string
+  birthDate: string
+  encounterNo: string
   accountId?: string
   currencyCode?: string
   status: 'PENDING_CHARGE' | 'PENDING_INVOICE' | 'PENDING_PAYMENT' | 'PENDING_REFUND' | 'SETTLED'
@@ -21,7 +26,9 @@ export interface ChargeItem {
   encounterId: string
   requestId?: string
   catalogItemId: string
-  sourceType: 'MEDICATION_DISPENSE' | 'MEDICATION_RETURN'
+  sourceType: 'REGISTRATION' | 'SERVICE_REQUEST' | 'SERVICE_REQUEST_REVERSAL'
+    | 'MEDICATION_REQUEST' | 'MEDICATION_REQUEST_REVERSAL' | 'MEDICATION_DISPENSE' | 'MEDICATION_RETURN'
+    | 'INPATIENT_ORDER_TASK' | 'INPATIENT_BED_DAY' | 'INPATIENT_BED_DAY_REVERSAL'
   sourceId: string
   requestCode: string
   status: string
@@ -198,6 +205,7 @@ export interface RegistrationBillingIntent {
   residentId: string
   organizationId: string
   departmentId: string
+  appointmentId?: string
   scheduleId?: string
   catalogItemId?: string
   slotHoldId?: string
@@ -208,6 +216,10 @@ export interface RegistrationBillingIntent {
   idempotencyCode: string
   registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY'
   visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'
+  settlementMode: 'SELF_PAY' | 'MEDICAL_INSURANCE'
+  coverageId?: string
+  coverageTypeCode?: string
+  coveragePayerName?: string
   status: 'PAYMENT_PENDING' | 'PAID' | 'COMPLETING' | 'COMPLETED' | 'COMPLETION_FAILED' | 'CANCELLED' | 'EXPIRED'
   feeAmount: number
   currencyCode: string
@@ -301,6 +313,41 @@ export interface DailyReconciliation {
   lines: ReconciliationLine[]
 }
 
+export interface CashierCloseLine {
+  lineNo: number
+  paymentMethodCode: string
+  paymentType: 'PAYMENT' | 'REFUND'
+  transactionCount: number
+  expectedAmount: number
+  actualAmount: number
+  differenceAmount: number
+  currencyCode: string
+}
+
+export interface CashierClose {
+  id: string
+  revision: number
+  reversesCloseId?: string
+  closeNo: string
+  commandCode: string
+  organizationId: string
+  cashierUserId: string
+  terminalCode: string
+  status: 'CALCULATED' | 'CONFIRMED' | 'REVERSED'
+  rangeFrom: string
+  rangeTo: string
+  transactionCount: number
+  expectedAmount: number
+  actualAmount: number
+  differenceAmount: number
+  currencyCode: string
+  differenceReason?: string
+  createdAt: string
+  confirmedAt?: string
+  duplicate: boolean
+  lines: CashierCloseLine[]
+}
+
 export function createBillingApi(client: ApiClient) {
   return {
     worklist: () => client.request<BillingWorkItem[]>('/api/billing/worklist'),
@@ -340,10 +387,13 @@ export function createBillingApi(client: ApiClient) {
       residentId: string
       organizationId: string
       departmentId: string
+      appointmentId?: string
       scheduleId?: string
       idempotencyCode: string
       registrationSource?: RegistrationBillingIntent['registrationSource']
       visitType?: RegistrationBillingIntent['visitType']
+      settlementMode?: RegistrationBillingIntent['settlementMode']
+      coverageId?: string
     }) => client.request<RegistrationBillingIntent>('/api/billing/registration-intents', {
       method: 'POST', body: JSON.stringify(input),
     }),
@@ -361,6 +411,9 @@ export function createBillingApi(client: ApiClient) {
     ),
     paymentOrder: (paymentOrderId: string) => client.request<PaymentOrder>(
       `/api/billing/payment-orders/${paymentOrderId}`,
+    ),
+    queryPaymentOrder: (paymentOrderId: string) => client.request<PaymentOrder>(
+      `/api/billing/payment-orders/${paymentOrderId}/query`, { method: 'POST' },
     ),
     settlement: (settlementId: string) => client.request<Settlement>(
       `/api/billing/settlements/${settlementId}`,
@@ -385,5 +438,23 @@ export function createBillingApi(client: ApiClient) {
     dailyReconciliation: (businessDate: string) => client.request<DailyReconciliation>(
       `/api/billing/reconciliation/daily?businessDate=${encodeURIComponent(businessDate)}`,
     ),
+    cashierCloses: () => client.request<CashierClose[]>('/api/billing/cashier-closes'),
+    calculateCashierClose: (input: {
+      commandCode: string
+      terminalCode: string
+      rangeFrom: string
+      rangeTo: string
+      actualAmounts: Array<{ paymentMethodCode: string; paymentType: 'PAYMENT' | 'REFUND'; amount: number }>
+    }) => client.request<CashierClose>('/api/billing/cashier-closes', {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    confirmCashierClose: (closeId: string, input: { commandCode: string; differenceReason?: string }) =>
+      client.request<CashierClose>(`/api/billing/cashier-closes/${closeId}/confirm`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    reverseCashierClose: (closeId: string, input: { commandCode: string; reason: string }) =>
+      client.request<CashierClose>(`/api/billing/cashier-closes/${closeId}/reverse`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
   }
 }

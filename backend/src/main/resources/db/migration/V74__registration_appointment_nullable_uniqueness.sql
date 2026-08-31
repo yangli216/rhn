@@ -1,0 +1,2 @@
+-- H2/PostgreSQL-compatible unique constraints already allow multiple null appointment IDs.
+-- Oracle uses a function-based unique index in the matching database-specific migration.

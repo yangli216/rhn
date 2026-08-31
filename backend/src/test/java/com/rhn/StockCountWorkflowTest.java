@@ -56,6 +56,19 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
                         .param("stockSiteId", site.get("id").asText())
                         .param("stockItemId", item.get("id").asText()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].quantityOnHand").value(12.0));
+        mockMvc.perform(get("/api/pharmacy/inventory/balances").with(rhnWorkContext())
+                        .param("stockSiteId", site.get("id").asText()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].stockItemId").value(item.get("id").asText()))
+                .andExpect(jsonPath("$[0].quantityOnHand").value(12.0));
+        mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(rhnWorkContext())
+                        .param("stockSiteId", site.get("id").asText())
+                        .param("stockItemId", item.get("id").asText())
+                        .param("allPeriods", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[*].lines[0].stockItemId")
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.equalTo(item.get("id").asText()))));
 
         JsonNode stale = createCount(site, "CT-STALE-" + suffix);
         String staleId = stale.get("id").asText();

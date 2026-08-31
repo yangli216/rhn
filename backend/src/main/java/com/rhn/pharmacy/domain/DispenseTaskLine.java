@@ -17,6 +17,8 @@ public class DispenseTaskLine {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "task_id", nullable = false) private Long taskId;
     @Column(name = "request_id", nullable = false) private Long requestId;
+    @Column(name = "fulfillment_source_type", nullable = false) private String fulfillmentSourceType;
+    @Column(name = "fulfillment_source_id", nullable = false) private Long fulfillmentSourceId;
     @Column(name = "sort_order", nullable = false) private int sortOrder;
     @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
     @Column(name = "package_id", nullable = false) private Long packageId;
@@ -44,7 +46,21 @@ public class DispenseTaskLine {
                             BigDecimal baseQuantityFactor, boolean split, boolean traceRequired,
                             String productCodeSnapshot, String productNameSnapshot, String packageSpecSnapshot,
                             String itemAttributeSnapshot, String itemAttributeHash, Long actorId) {
+        this(tenantId, taskId, requestId, "MEDICATION_REQUEST", requestId, stockItemId, packageId,
+                requestedQuantity, plannedQuantity, dispenseUnitCode, baseQuantityFactor, split, traceRequired,
+                productCodeSnapshot, productNameSnapshot, packageSpecSnapshot, itemAttributeSnapshot,
+                itemAttributeHash, actorId);
+    }
+
+    public DispenseTaskLine(Long tenantId, Long taskId, Long requestId,
+                            String fulfillmentSourceType, Long fulfillmentSourceId,
+                            Long stockItemId, Long packageId,
+                            BigDecimal requestedQuantity, BigDecimal plannedQuantity, String dispenseUnitCode,
+                            BigDecimal baseQuantityFactor, boolean split, boolean traceRequired,
+                            String productCodeSnapshot, String productNameSnapshot, String packageSpecSnapshot,
+                            String itemAttributeSnapshot, String itemAttributeHash, Long actorId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.taskId = taskId; this.requestId = requestId;
+        this.fulfillmentSourceType = fulfillmentSourceType; this.fulfillmentSourceId = fulfillmentSourceId;
         this.sortOrder = 1; this.stockItemId = stockItemId; this.packageId = packageId;
         this.requestedQuantity = requestedQuantity; this.plannedQuantity = plannedQuantity;
         this.dispensedQuantity = BigDecimal.ZERO; this.returnedQuantity = BigDecimal.ZERO;
@@ -62,6 +78,13 @@ public class DispenseTaskLine {
             case "INTERVENE" -> "PENDING";
             default -> throw new IllegalArgumentException("Unsupported review result");
         };
+    }
+
+    public void bypassPreDispenseReview() {
+        if (!"PENDING".equals(status)) {
+            throw new IllegalStateException("Current dispense line cannot skip pre-dispense review");
+        }
+        status = "READY";
     }
 
     public void markReserved() {
@@ -100,6 +123,11 @@ public class DispenseTaskLine {
         status = dispensedQuantity.compareTo(plannedQuantity) == 0 ? "COMPLETED" : "PARTIAL";
     }
 
+    /** Cancels only the unissued remainder; cumulative issue and return quantities remain immutable facts. */
+    public void cancelRemainingForOrderStop() {
+        if (remainingQuantity().signum() > 0) status = "CANCELLED";
+    }
+
     public void recordReturn(BigDecimal quantity) {
         BigDecimal next = returnedQuantity.add(quantity);
         if (quantity.signum() <= 0 || next.compareTo(dispensedQuantity) > 0) {
@@ -116,6 +144,8 @@ public class DispenseTaskLine {
     public Long tenantId() { return tenantId; }
     public Long taskId() { return taskId; }
     public Long requestId() { return requestId; }
+    public String fulfillmentSourceType() { return fulfillmentSourceType; }
+    public Long fulfillmentSourceId() { return fulfillmentSourceId; }
     public Long stockItemId() { return stockItemId; }
     public Long packageId() { return packageId; }
     public BigDecimal requestedQuantity() { return requestedQuantity; }

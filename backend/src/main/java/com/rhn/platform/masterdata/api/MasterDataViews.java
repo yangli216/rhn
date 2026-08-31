@@ -58,7 +58,7 @@ public final class MasterDataViews {
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
             @DictionaryBinding(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL) String sdAntimicrobialLevel,
             boolean skinTestRequired, BigDecimal defaultDose, String defaultDoseUnit,
-            String defaultRoute, String defaultFrequency, boolean chronicDiseaseDrug, boolean singleOrder,
+            String defaultRoute, Long defaultFrequencyId, String defaultFrequency, boolean chronicDiseaseDrug, boolean singleOrder,
             @DictionaryBinding(MasterDataDictionaryCodes.STATUS) String sdStatus,
             List<MedicationProductView> products) {}
 

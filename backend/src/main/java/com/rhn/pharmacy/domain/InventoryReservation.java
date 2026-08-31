@@ -23,6 +23,7 @@ public class InventoryReservation {
     @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
     @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
     @Column(name = "request_id", nullable = false) private Long requestId;
+    @Column(name = "dispense_task_line_id", nullable = false) private Long dispenseTaskLineId;
     @Column(name = "reservation_group_code", nullable = false) private String reservationGroupCode;
     @Column(name = "reservation_type", nullable = false) private String reservationType;
     @Column(nullable = false) private String status;
@@ -41,11 +42,13 @@ public class InventoryReservation {
     protected InventoryReservation() {}
 
     public InventoryReservation(Long tenantId, Long stockSiteId, Long stockBinId, Long stockItemId,
-                                Long stockLotId, Long requestId, String reservationGroupCode,
-                                BigDecimal quantityReserved, String baseUnitCode, Long actorId, Instant expiresAt) {
+                                Long stockLotId, Long requestId, Long dispenseTaskLineId,
+                                String reservationGroupCode, BigDecimal quantityReserved,
+                                String baseUnitCode, Long actorId, Instant expiresAt) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockSiteId = stockSiteId;
         this.stockBinId = stockBinId; this.stockItemId = stockItemId; this.stockLotId = stockLotId;
-        this.requestId = requestId; this.reservationGroupCode = reservationGroupCode;
+        this.requestId = requestId; this.dispenseTaskLineId = dispenseTaskLineId;
+        this.reservationGroupCode = reservationGroupCode;
         this.reservationType = "DISPENSE"; this.status = "ACTIVE";
         this.quantityReserved = quantityReserved; this.quantityConsumed = BigDecimal.ZERO;
         this.baseUnitCode = baseUnitCode; this.createdAt = Instant.now(); this.createdBy = actorId;
@@ -90,6 +93,7 @@ public class InventoryReservation {
     public Long stockItemId() { return stockItemId; }
     public Long stockLotId() { return stockLotId; }
     public Long requestId() { return requestId; }
+    public Long dispenseTaskLineId() { return dispenseTaskLineId; }
     public String reservationGroupCode() { return reservationGroupCode; }
     public String reservationType() { return reservationType; }
     public String status() { return status; }

@@ -23,10 +23,42 @@ public final class InventoryAccuracyViews {
     public record ReconciliationLineView(Long id, Long stockBinId, Long stockItemId, Long stockLotId,
                                          String stockStatus, String issueType, BigDecimal expectedQuantity,
                                          BigDecimal actualQuantity, BigDecimal differenceQuantity,
+                                         String valuationBasis, String currencyCode, BigDecimal expectedAmount,
+                                         BigDecimal actualAmount, BigDecimal differenceAmount,
                                          String severity, String description) {}
 
     public record ReconciliationRunView(Long id, Long stockSiteId, String runNo, String runType,
                                         String status, LocalDate businessDate, Instant startedAt,
                                         Instant completedAt, Long runBy, int dimensionCount,
                                         int issueCount, List<ReconciliationLineView> lines) {}
+
+    public record InventoryPeriodView(Long id, long revision, Long stockSiteId, Long previousPeriodId,
+                                      Long closingRunId, String periodCode, LocalDate periodFrom,
+                                      LocalDate periodTo, String status, Instant closedAt, Long closedBy,
+                                      String description, Instant createdAt, Long createdBy) {}
+
+    public record PeriodCloseTotalView(String valuationBasis, String currencyCode,
+                                       BigDecimal openingValue, BigDecimal movementAmount,
+                                       BigDecimal valuationAdjustmentAmount, BigDecimal roundingAdjustmentAmount,
+                                       BigDecimal closingValue, BigDecimal balanceValue,
+                                       BigDecimal valueDifference) {}
+
+    public record PeriodCloseRunView(Long id, long revision, Long stockSiteId, Long inventoryPeriodId,
+                                     Long previousPeriodId, Long reconciliationRunId, String runNo,
+                                     String requestCode, String status, int dimensionCount,
+                                     int differenceCount, Instant startedAt, Long startedBy,
+                                     Instant validatedAt, Long validatedBy, Instant postedAt,
+                                     Long postedBy, Instant completedAt, String failureCode,
+                                     String failureMessage, List<PeriodCloseTotalView> totals) {}
+
+    public record PeriodCloseDifferenceView(Long snapshotId, Long inventoryBalanceId, long inventoryBalanceRevision,
+                                            Long stockBinId, Long stockItemId, Long stockLotId, String lotNo,
+                                            String stockStatus,
+                                            String baseUnitCode, BigDecimal openingQuantity,
+                                            BigDecimal movementQuantity, BigDecimal closingQuantity,
+                                            BigDecimal balanceQuantity, BigDecimal quantityDifference,
+                                            String valuationBasis, String currencyCode, BigDecimal openingValue,
+                                            BigDecimal movementAmount, BigDecimal valuationAdjustmentAmount,
+                                            BigDecimal roundingAdjustmentAmount, BigDecimal closingValue,
+                                            BigDecimal balanceValue, BigDecimal valueDifference) {}
 }

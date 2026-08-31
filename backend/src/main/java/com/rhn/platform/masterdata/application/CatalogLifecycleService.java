@@ -178,7 +178,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 value.medicationType(), value.doseForm(), value.preparationSpec(), value.preparationUnit(),
                 value.strengthValue(), value.strengthUnit(), value.storageType(), value.prescriptionDrug(),
                 value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(), value.skinTestRequired(),
-                value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(), value.defaultFrequency(),
+                value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(), value.defaultFrequencyId(), value.defaultFrequency(),
                 value.chronicDiseaseDrug(), value.singleOrder(), value.status());
     }
 
@@ -226,6 +226,25 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         }
         createPriceValue(context, replaced.catalogItemId(), input, replaced, expectedRevision);
         return maintenance(replaced.catalogItemId(), replaced.organizationId(), input.validFrom());
+    }
+
+    @Override
+    @Transactional
+    public PriceView replacePriceVersion(CatalogLifecycleDirectory.PriceReplacement command) {
+        ExecutionContext context = current();
+        if (!context.tenantId().equals(command.tenantId())) {
+            throw badRequest("PRICE_TENANT_SCOPE_INVALID", "调价价格版本不属于当前租户");
+        }
+        CatalogPrice replaced = requirePrice(context.tenantId(), command.currentPriceId());
+        if (!replaced.catalogItemId().equals(command.catalogItemId())
+                || !replaced.sameScope(command.organizationId(), command.packageId(), command.priceType())) {
+            throw badRequest("PRICE_REPLACEMENT_SCOPE_INVALID", "调价版本必须保持目录项、机构、包装和价格类型不变");
+        }
+        CatalogPrice created = createPriceValue(context, command.catalogItemId(), new PriceInput(
+                command.organizationId(), command.packageId(), command.priceType(), command.newPrice(),
+                command.currencyCode(), command.priceDocumentCode(), command.reason(), command.validFrom(),
+                null, "ACTIVE"), replaced, command.expectedRevision());
+        return priceView(created);
     }
 
     @Transactional

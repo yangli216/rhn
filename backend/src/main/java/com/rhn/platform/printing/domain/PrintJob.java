@@ -40,4 +40,5 @@ public class PrintJob {
     public int copies() { return copies; }
     public String status() { return status; }
     public Instant requestedAt() { return requestedAt; }
+    public Long requestedBy() { return requestedBy; }
 }

@@ -69,6 +69,10 @@ npm run dev
 
 打开 <http://localhost:5173>。前端开发环境通过 Vite 将 `/api` 代理到后端。
 
+刷新后保持登录默认关闭。需要启用基础版本时设置 `RHN_REFRESH_LOGIN_ENABLED=true`；登录有效期默认 8 小时，
+可通过 `RHN_REFRESH_LOGIN_TTL` 调整（例如 `PT4H`）。正式集群使用共享 Redis 保存登录令牌，并要求通过 HTTPS
+访问；本地 `dev`、`local` 和 `oracle-local` 配置允许在 HTTP 环境验证。
+
 需要把本地迭代数据长期保存在 Oracle 时，通过环境变量提供连接信息后启用 `oracle-local`，密码不会写入项目文件：
 
 ```bash
@@ -80,6 +84,8 @@ export RHN_ORACLE_PASSWORD
 mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
 ```
 
+需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，避免后续 Maven 构建覆盖正在加载的 Spring Boot fat jar。
+
 首次启动会初始化表结构和开发基础数据；以后启动只执行尚未应用的迁移，已维护的业务数据会保留。详细规则见 [Oracle 持久化开发环境](docs/foundation/Oracle持久化开发环境.md)。
 
 ## 验证
@@ -88,6 +94,14 @@ mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
 cd backend && mvn test
 cd frontend && npm run check
 ```
+
+门诊主流程可以使用独立门禁一键回归，数据运行在一次性 H2 数据库中，不污染 Oracle 持久化开发库：
+
+```bash
+./scripts/verify-outpatient-main-flow.sh
+```
+
+覆盖范围和完成判定见 [门诊主流程验收基线](docs/foundation/门诊主流程验收基线.md)。
 
 前端 `check` 会同时执行 [UI 规范门禁](frontend/scripts/check-ui-standards.mjs) 与生产构建；共享组件的使用方式见 [共享 UI 使用说明](frontend/src/shared/ui/README.md)。
 

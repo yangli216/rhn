@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
     Optional<Payment> findByIdAndTenantId(Long id, Long tenantId);
     Optional<Payment> findByTenantIdAndPaymentNo(Long tenantId, String paymentNo);
+    Optional<Payment> findByTenantIdAndPaymentOrderId(Long tenantId, Long paymentOrderId);
     List<Payment> findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(Long tenantId, Long accountId);
 
     @Query("""

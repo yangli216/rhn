@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -57,13 +58,13 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
 
     @Transactional
     public ClinicalDocumentResponse create(Long residentId, Long encounterId, Long organizationId,
-                                           Long departmentId, String documentType, String title,
+                                           Long departmentId, String documentType, String instanceKey, String title,
                                            String contentSchema, JsonNode content, String changeReason) {
         Long tenantId = TenantContext.requireTenantId();
         Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);
         validateOrganization(tenantId, organizationId, departmentId);
         ClinicalDocument document = documentRepository.save(new ClinicalDocument(tenantId, canonicalResidentId,
-                encounterId, organizationId, departmentId, documentType, title, actor()));
+                encounterId, organizationId, departmentId, documentType, instanceKey, title, actor()));
         saveProtectedVersion(document, 1, serialize(content), contentSchema, "CREATE", changeReason);
         return toResponse(document);
     }
@@ -77,11 +78,12 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
         Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);
         validateOrganization(tenantId, organizationId, departmentId);
         ClinicalDocument document = documentRepository
-                .findByTenantIdAndEncounterIdAndDocumentType(tenantId, encounterId, documentType)
+                .findByTenantIdAndEncounterIdAndDocumentTypeAndInstanceKey(
+                        tenantId, encounterId, documentType, "DEFAULT")
                 .orElse(null);
         if (document == null) {
             document = documentRepository.save(new ClinicalDocument(tenantId, canonicalResidentId, encounterId,
-                    organizationId, departmentId, documentType, title, actor()));
+                    organizationId, departmentId, documentType, "DEFAULT", title, actor()));
             saveProtectedVersion(document, 1, serialize(content), contentSchema, "CREATE", changeReason);
         } else {
             int nextVersion = document.addDraftVersion(document.currentVersion(), false);
@@ -167,13 +169,23 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
     @Override
     @Transactional(readOnly = true)
     public void requireSignedEncounterDocument(Long encounterId, String documentType) {
-        ClinicalDocument document = documentRepository.findByTenantIdAndEncounterIdAndDocumentType(
-                        TenantContext.requireTenantId(), encounterId, documentType)
+        ClinicalDocument document = documentRepository.findByTenantIdAndEncounterIdAndDocumentTypeAndInstanceKey(
+                        TenantContext.requireTenantId(), encounterId, documentType, "DEFAULT")
                 .filter(this::accessible)
                 .orElseThrow(() -> conflict("DOCUMENT_SIGNATURE_REQUIRED", "完成就诊前必须先保存并签署门诊病历"));
         if (document.status() != ClinicalDocumentStatus.SIGNED) {
             throw conflict("DOCUMENT_SIGNATURE_REQUIRED", "完成就诊前必须签署门诊病历当前版本");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<EncounterDocumentAnchor> findEncounterDocumentAnchor(Long encounterId, String documentType) {
+        return documentRepository.findByTenantIdAndEncounterIdAndDocumentTypeAndInstanceKey(
+                        TenantContext.requireTenantId(), encounterId, documentType, "DEFAULT")
+                .filter(this::accessible)
+                .map(document -> new EncounterDocumentAnchor(
+                        document.id(), document.currentVersion(), document.status().name()));
     }
 
     private ClinicalDocumentResponse toResponse(ClinicalDocument document) {
@@ -183,7 +195,7 @@ public class ClinicalDocumentService implements ClinicalDocumentDirectory {
                 .filter(version -> version.versionNumber() == document.currentVersion())
                 .findFirst().orElseThrow(() -> new IllegalStateException("Clinical document version is missing"));
         return new ClinicalDocumentResponse(document.id(), document.residentId(), document.encounterId(),
-                document.organizationId(), document.departmentId(), document.documentType(), document.title(),
+                document.organizationId(), document.departmentId(), document.documentType(), document.instanceKey(), document.title(),
                 document.status().name(), document.currentVersion(), parse(current.contentJson()),
                 current.contentSchema(), document.createdBy(), document.createdAt(), document.updatedAt(),
                 versions.stream().map(version -> new ClinicalDocumentResponse.VersionView(

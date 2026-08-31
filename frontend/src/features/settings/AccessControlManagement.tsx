@@ -107,7 +107,7 @@ export function AccessControlManagement({ api, context }: { api: RhnApi; context
 
   const queryError = roles.error || permissions.error || users.error || assignments.error
   return <>
-    <PageHeader eyebrow="平台管理 · 身份权限" title="角色与功能授权"
+    <PageHeader compact eyebrow="平台管理 · 身份权限" title="角色与功能授权"
       description="按角色组合原子功能权限，并在当前机构、科室范围内给用户分配有效期授权。所有变更保留审计事件。" />
     {feedback && <Alert tone="success" className="iam-feedback">{feedback}</Alert>}
     {(operationError || queryError) && <Alert className="iam-feedback">{operationError || errorMessage(queryError)}</Alert>}

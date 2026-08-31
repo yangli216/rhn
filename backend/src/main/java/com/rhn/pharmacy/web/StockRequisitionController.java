@@ -14,6 +14,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +30,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy/stock-requisitions")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ISSUE)
 public class StockRequisitionController {
     private final StockRequisitionApplicationService service;
     public StockRequisitionController(StockRequisitionApplicationService service) { this.service = service; }
@@ -37,6 +39,7 @@ public class StockRequisitionController {
     @ResponseStatus(HttpStatus.CREATED)
     RequisitionView create(@Valid @RequestBody CreateRequest input) { return service.create(input.command()); }
     @GetMapping
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<RequisitionView> list(@RequestParam Long sourceSiteId) { return service.list(sourceSiteId); }
     @PostMapping("/{id}/submit") RequisitionView submit(@PathVariable Long id) { return service.submit(id); }
     @PostMapping("/{id}/approve")

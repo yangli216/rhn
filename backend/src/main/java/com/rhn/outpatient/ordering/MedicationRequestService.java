@@ -7,6 +7,7 @@ import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
+import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
@@ -39,6 +40,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final CatalogLifecycleDirectory catalogDirectory;
     private final ItemAttributeSnapshotDirectory attributeDirectory;
     private final ItemStandardMappingDirectory mappingDirectory;
+    private final OrderFrequencyDirectory frequencyDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final AllergyDirectory allergyDirectory;
     private final DomainEventPublisher eventPublisher;
@@ -51,6 +53,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              CatalogLifecycleDirectory catalogDirectory,
                              ItemAttributeSnapshotDirectory attributeDirectory,
                              ItemStandardMappingDirectory mappingDirectory,
+                             OrderFrequencyDirectory frequencyDirectory,
                              OrganizationDirectory organizationDirectory,
                              AllergyDirectory allergyDirectory,
                              DomainEventPublisher eventPublisher,
@@ -58,6 +61,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
         this.encounterDirectory = encounterDirectory; this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory; this.mappingDirectory = mappingDirectory;
+        this.frequencyDirectory = frequencyDirectory;
         this.organizationDirectory = organizationDirectory; this.allergyDirectory = allergyDirectory;
         this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
@@ -164,14 +168,24 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 "疗程时长与时长单位必须同时填写");
         String route = clean(input.routeCode()) == null ? medication.defaultRoute() : clean(input.routeCode());
         String frequency = clean(input.frequencyCode()) == null ? medication.defaultFrequency() : clean(input.frequencyCode());
+        var frequencySnapshot = frequency == null ? null : frequencyDirectory.requireActive(tenantId, frequency,
+                performerOrganizationId, performerDepartmentId, "OUTPATIENT", "MEDICATION", businessDate);
+        if (frequencySnapshot != null) frequency = frequencySnapshot.code();
         if (prescription != null) {
             requirePrescriptionDirections(doseValue, doseUnit, route, frequency, input.medicationInstruction());
             requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
         }
         MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
                 encounterId, prescription, route, frequency, input.durationValue());
-        var drugAllergies = allergyDirectory.activeForResident(encounter.residentId()).stream()
+        var activeAllergies = allergyDirectory.activeForResident(encounter.residentId());
+        var drugAllergies = activeAllergies.stream()
                 .filter(com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
+        boolean drugAllergyStatusRecorded = !drugAllergies.isEmpty() || activeAllergies.stream().anyMatch(allergy ->
+                "NO_KNOWN_ALLERGY".equals(allergy.assertionType())
+                        || "NO_KNOWN_DRUG_ALLERGY".equals(allergy.assertionType()));
+        if (!drugAllergyStatusRecorded && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
+            throw conflict("MEDICATION_ALLERGY_STATUS_UNKNOWN", "患者药物过敏状态尚未确认，请核对后再加入处方");
+        }
         if (!drugAllergies.isEmpty() && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
             throw conflict("MEDICATION_ALLERGY_REVIEW_REQUIRED", "患者存在有效药物过敏记录，请核对后再加入处方");
         }
@@ -207,6 +221,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 resolvedPrice == null ? null : resolvedPrice.currencyCode(),
                 jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
                 attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit, route, frequency,
+                frequencySnapshot == null ? null : frequencySnapshot.id(),
+                frequencySnapshot == null ? null : frequencySnapshot.name(),
+                frequencySnapshot == null ? null : jsonCodec.write(frequencySnapshot),
                 input.durationValue(), clean(input.durationUnit()), input.quantity(), baseQuantity, baseUnit, packageFactor,
                 itemPackage == null ? null : itemPackage.unitName(), itemPackage == null ? null : itemPackage.packageSpec(),
                 priceQuantity, input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
@@ -228,6 +245,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (clean(input.allergyOverrideReason()) != null) {
             eventDetails.put("allergyOverrideReason", clean(input.allergyOverrideReason()));
         }
+        eventDetails.putAll(financialEventDetails(value, encounter));
         publish(value, prescription == null ? "MEDICATION_REQUEST_AUTHORED" : "MEDICATION_REQUEST_DRAFTED",
                 prescription == null ? "开立药品" : "处方草稿添加药品", eventDetails);
         return response(value);
@@ -249,13 +267,24 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
-        publish(value, "MEDICATION_REQUEST_CANCELLED", "撤销药品", Map.of(
-                "medicationId", value.medicationId(), "reason", input.reason().trim()));
+        publishCancellation(value, input.reason().trim(), context.subjectId());
         return response(value);
     }
 
     List<MedicationRequest> prescriptionRequests(Long tenantId, Long prescriptionId) {
         return repository.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(tenantId, prescriptionId);
+    }
+
+    void activateFromPrescription(MedicationRequest value, EncounterDirectory.EncounterSnapshot encounter) {
+        value.activateFromPrescription();
+        publish(value, "MEDICATION_REQUEST_ACTIVATED", "提交处方并激活药品",
+                financialEventDetails(value, encounter));
+    }
+
+    void cancelFromPrescription(MedicationRequest value, String reason, Long actorId) {
+        if ("CANCELLED".equals(value.status())) return;
+        value.cancelFromPrescription(reason, actorId);
+        publishCancellation(value, reason, actorId);
     }
 
     @Override
@@ -269,6 +298,23 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     @Override
+    @Transactional
+    public MedicationRequestSnapshot lockForPharmacyIntake(Long requestId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        MedicationRequest value = repository.findLockedByIdAndTenantId(requestId, context.tenantId())
+                .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
+        requirePharmacyOrganizationAccess(context, value.performerOrganizationId());
+        return pharmacySnapshot(value);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MedicationRequestSnapshot requireForRouting(Long tenantId, Long requestId) {
+        return repository.findByIdAndTenantId(requestId, tenantId).map(this::pharmacySnapshot)
+                .orElseThrow(() -> notFound("MEDICATION_REQUEST_NOT_FOUND", "未找到药品请求"));
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<MedicationRequestSnapshot> activeForPharmacy(Long organizationId) {
         ExecutionContext context = contextProvider.requireCurrent();
@@ -277,6 +323,18 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 context.tenantId(), organizationId, "ACTIVE").stream()
                 .filter(value -> !value.selfProvided())
                 .map(this::pharmacySnapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MedicationRequestSnapshot> activeForExecution(Long organizationId, Long departmentId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.canAccessOrganization(organizationId) || !context.canAccessDepartment(departmentId)) {
+            throw com.rhn.shared.api.BusinessErrors.forbidden(
+                    "MEDICATION_REQUEST_EXECUTION_SCOPE_INVALID", "无权读取当前工作上下文之外的药品请求");
+        }
+        return repository.findActiveForExecution(context.tenantId(), organizationId, departmentId)
+                .stream().map(this::pharmacySnapshot).toList();
     }
 
     private MedicationRequestSnapshot pharmacySnapshot(MedicationRequest value) {
@@ -288,6 +346,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.localNameSnapshot(), value.medicationCodeSnapshot(), value.medicationNameSnapshot(),
                 value.medicationTypeSnapshot(), value.quantity(), value.quantityUnit(), value.baseQuantity(),
                 value.baseUnit(), value.packageFactorSnapshot(), value.substitutionAllowed(), value.selfProvided(),
+                value.parentRequestId(), value.doseValue(), value.doseUnit(), value.routeCode(),
+                value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
+                value.frequencyRuleSnapshot() == null ? null : jsonCodec.readTree(value.frequencyRuleSnapshot()),
+                value.durationValue(), value.durationUnit(), value.skinTestRequiredSnapshot(),
                 value.priceId(), value.priceRevision(), value.priceType(), value.unitPrice(),
                 value.priceQuantitySnapshot(), value.totalAmount(), value.currencyCode(),
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
@@ -313,7 +375,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.medicationTypeSnapshot(), value.doseFormSnapshot(), value.preparationSpecSnapshot(),
                 value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(), value.antimicrobialSnapshot(),
                 value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeCode(),
-                value.frequencyCode(), value.durationValue(), value.durationUnit(),
+                value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
+                value.frequencyRuleSnapshot() == null ? null : jsonCodec.readTree(value.frequencyRuleSnapshot()),
+                value.durationValue(), value.durationUnit(),
                 value.quantity(), value.quantityUnit(),
                 value.baseQuantity(), value.baseUnit(), value.packageFactorSnapshot(), value.packageUnitNameSnapshot(),
                 value.packageSpecSnapshot(), value.substitutionAllowed(), value.selfProvided(), value.medicationInstruction(),
@@ -369,7 +433,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 .orElseThrow(() -> badRequest("MEDICATION_PARENT_REQUEST_INVALID", "输液父医嘱不属于当前处方"));
         if (!isInfusionRoute(parent.routeCode()) || !clean(parent.routeCode()).equalsIgnoreCase(clean(route))
                 || !java.util.Objects.equals(clean(parent.frequencyCode()), clean(frequency))
-                || !java.util.Objects.equals(parent.durationValue(), durationValue)) {
+                || !sameNumber(parent.durationValue(), durationValue)) {
             throw badRequest("MEDICATION_PARENT_REQUEST_USAGE_MISMATCH", "同组输液医嘱的途径、频次和疗程必须一致");
         }
         if (parent.parentRequestId() == null) return parent;
@@ -385,8 +449,57 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 "MedicationRequest", value.id(), value.revision(), value.residentId(), Instant.now(), payload);
     }
 
+    private void publishCancellation(MedicationRequest value, String reason, Long actorId) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("medicationId", value.medicationId());
+        details.put("reason", reason);
+        details.put("cancelledBy", actorId);
+        publish(value, "MEDICATION_REQUEST_CANCELLED", "撤销药品", details);
+    }
+
+    private Map<String, Object> financialEventDetails(MedicationRequest value,
+                                                       EncounterDirectory.EncounterSnapshot encounter) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("encounterId", encounter.id());
+        details.put("residentId", encounter.residentId());
+        details.put("encounterOrganizationId", encounter.organizationId());
+        details.put("encounterDepartmentId", encounter.departmentId());
+        details.put("performerDepartmentId", value.performerDepartmentId());
+        if (value.catalogItemId() != null) details.put("catalogItemId", value.catalogItemId());
+        details.put("authoredBy", value.authoredBy());
+        details.put("chargeQuantity", value.priceQuantitySnapshot() == null
+                ? value.quantity() : value.priceQuantitySnapshot());
+        details.put("chargeUnit", value.packageId() == null ? value.baseUnit() : value.quantityUnit());
+        details.put("itemCode", value.itemCodeSnapshot());
+        details.put("itemName", value.itemNameSnapshot());
+        if (value.requestGroupId() != null) details.put("prescriptionId", value.requestGroupId());
+        if (value.parentRequestId() != null) details.put("parentRequestId", value.parentRequestId());
+        if (value.doseValue() != null) details.put("doseValue", value.doseValue());
+        if (value.doseUnit() != null) details.put("doseUnit", value.doseUnit());
+        if (value.routeCode() != null) details.put("routeCode", value.routeCode());
+        if (value.frequencyCode() != null) details.put("frequencyCode", value.frequencyCode());
+        if (value.frequencyId() != null) details.put("frequencyId", value.frequencyId());
+        if (value.frequencyNameSnapshot() != null) details.put("frequencyName", value.frequencyNameSnapshot());
+        if (value.frequencyRuleSnapshot() != null) details.put("frequencyRule", jsonCodec.readTree(value.frequencyRuleSnapshot()));
+        if (value.durationValue() != null) details.put("durationValue", value.durationValue());
+        if (value.durationUnit() != null) details.put("durationUnit", value.durationUnit());
+        details.put("selfProvided", value.selfProvided());
+        details.put("skinTestRequired", value.skinTestRequiredSnapshot());
+        if (value.priceId() != null) details.put("priceId", value.priceId());
+        if (value.priceRevision() != null) details.put("priceRevision", value.priceRevision());
+        if (value.priceType() != null) details.put("priceType", value.priceType());
+        if (value.unitPrice() != null) details.put("unitPrice", value.unitPrice());
+        if (value.totalAmount() != null) details.put("totalAmount", value.totalAmount());
+        if (value.currencyCode() != null) details.put("currencyCode", value.currencyCode());
+        return details;
+    }
+
     private String nextRequestNo() {
         return "MR" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
+    }
+
+    private boolean sameNumber(BigDecimal left, BigDecimal right) {
+        return left == null ? right == null : right != null && left.compareTo(right) == 0;
     }
 
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }

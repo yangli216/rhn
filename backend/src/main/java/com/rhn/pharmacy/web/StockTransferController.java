@@ -5,6 +5,7 @@ import com.rhn.pharmacy.application.StockTransferApplicationService.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -12,11 +13,12 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy/stock-transfers")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_TRANSFER)
 public class StockTransferController {
     private final StockTransferApplicationService service;
     public StockTransferController(StockTransferApplicationService service){this.service=service;}
     @PostMapping @ResponseStatus(HttpStatus.CREATED) TransferView create(@Valid @RequestBody CreateRequest input){return service.create(input.command());}
-    @GetMapping List<TransferView> list(@RequestParam Long stockSiteId,@RequestParam(required=false)String role){return service.list(stockSiteId,role);}
+    @GetMapping @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ) List<TransferView> list(@RequestParam Long stockSiteId,@RequestParam(required=false)String role){return service.list(stockSiteId,role);}
     @PostMapping("/{id}/submit") TransferView submit(@PathVariable Long id){return service.submit(id);}
     @PostMapping("/{id}/approve") TransferView approve(@PathVariable Long id,@Valid @RequestBody ApproveRequest input){return service.approve(id,input.command());}
     @PostMapping("/{id}/reject") TransferView reject(@PathVariable Long id,@Valid @RequestBody DecisionRequest input){return service.reject(id,new DecisionCommand(input.reason()));}

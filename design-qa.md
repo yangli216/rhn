@@ -1,3 +1,51 @@
+# Inpatient doctor and nurse station reference-structure design QA
+
+- Source visual truth: `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-918228ec-83cc-4fff-8e4d-27b8b5e38ec3.png` and `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-a6c495ff-7945-4723-99a6-295cb9ec6b75.png`.
+- Browser-rendered implementation: `docs/audits/2026-08-31-inpatient-stations-reference-structure/01-doctor-patient-pool.png`, `02-doctor-selected-patient.png`, `03-nurse-patient-pool.png`, and `04-nurse-selected-patient.png`.
+- Source pixels: patient pool 1549 × 733 and selected patient 1549 × 795, density 1×.
+- Implementation pixels and CSS viewport: 1549 × 795 at device scale factor 1. The selected-patient comparison is pixel-dimension aligned; the shorter patient-pool source was compared at the same width without vertical stretching.
+- State: authenticated comprehensive ward context; patient-pool default state and first-patient selected state for both stations.
+
+## Full-view comparison evidence
+
+The six-image combined comparison includes both supplied references and all four implementation states. The implementation intentionally retains RHN's green foundation, global navigation and existing clinical modules instead of copying the blue legacy styling. It preserves the reference interaction model: the default screen is a searchable, switchable patient pool; selecting a patient opens a persistent left patient queue, a fixed patient context header, task-oriented business tabs and a dense working surface.
+
+The doctor station enters medical orders after selection and the nurse station enters execution tasks. Both keep bed/name switching in place, expose a clear return to the patient pool and keep the patient context visible while the business surface scrolls. The nurse pool presents ward metrics above patient cards and moves bed operations into a collapsed secondary section so it does not duplicate the primary patient list.
+
+## Focused region comparison evidence
+
+Separate focused crops were not needed because the 1549 px full-size captures keep the patient rail, identity header, tabs, labels and first business rows legible. DOM measurements supplement the visible comparison: selected workspaces use a 216 px patient rail, the doctor main surface has equal 1004 px client and scroll widths, patient titles remain one line, and document horizontal overflow is zero.
+
+## Fidelity surfaces
+
+- Fonts and typography: the project font family, RHN heading scale and semantic badge weights are preserved. Patient names, bed numbers and task titles remain primary; long names truncate in the fixed context header instead of increasing its height.
+- Spacing and layout rhythm: the patient pool uses a compact responsive card grid; selected state uses a stable 216 px rail plus flexible main surface. Toolbars, context header, tabs and content share borders and tokenized spacing with no horizontal overflow.
+- Colors and visual tokens: RHN green, neutral surfaces and existing success/warning/danger tokens replace the legacy blue palette intentionally. Urgent/critical conditions and key nursing states keep semantic emphasis.
+- Image quality and asset fidelity: existing project icon-library patient, search, menu and task icons are used. No emoji, placeholder artwork, custom CSS drawing or raster approximation was introduced.
+- Copy and content: search supports住院号/床号/姓名; cards expose bed, identity, stay day, ward, admission reason and nursing level; selected headers expose payment, condition, nursing level, episode, bed, ward and admission time.
+
+## Interaction, accessibility and responsive checks
+
+- Patient card selection opens the correct task-oriented default tab: 医嘱 for doctors and 执行任务 for nurses.
+- Left-rail patient switching, return to patient pool, card/list view switching and collapsed bed-management disclosure were exercised successfully.
+- Shared tabs preserve tab semantics and keyboard behavior; patient-card and rail actions are real buttons with accessible names/current state.
+- Browser measurements report no document or main-workspace horizontal overflow at 1549 × 795.
+- ego-lite event drain reported no console/runtime error events. UI standards, 90 automated tests, TypeScript compilation and production build pass.
+
+## Comparison history
+
+1. The first implementation established the patient-pool and selected-patient workspace model. Visual comparison found two P2 issues: the long selected patient name wrapped to two lines, and the nurse default screen repeated the same patient list below the card pool.
+2. The patient name changed to a one-line ellipsis within the fixed header. The duplicate nurse ward list was removed from the default state, while bed management was retained as a collapsed secondary section.
+3. Post-fix evidence confirms a one-line selected-patient header, a single primary patient pool in the nurse default state, zero horizontal overflow and working forward/back interactions.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain for the requested structural and interaction scope. The main visible differences from the references—RHN color system, global application navigation and existing task module presentation—are intentional because the user requested the reference design principles rather than a visual clone.
+
+final result: passed
+
+---
+
 # Shared form hint tooltip design QA
 
 - User-annotated visual truth: `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-d2a67636-b460-48bd-9e87-24e4139b8a5a.png`.

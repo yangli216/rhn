@@ -1,0 +1,3 @@
+-- H2/PostgreSQL unique constraints already treat null optional references as distinct.
+-- Oracle replaces the appointment slot-hold constraint with a conditional index
+-- in its matching migration.

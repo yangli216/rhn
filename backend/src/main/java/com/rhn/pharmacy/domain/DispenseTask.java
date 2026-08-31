@@ -38,9 +38,14 @@ public class DispenseTask {
 
     public DispenseTask(Long tenantId, Long residentId, Long encounterId, Long stockSiteId,
                         String taskNo, String priority, String description) {
+        this(tenantId, residentId, encounterId, stockSiteId, taskNo, "OUTPATIENT", priority, description);
+    }
+
+    public DispenseTask(Long tenantId, Long residentId, Long encounterId, Long stockSiteId,
+                        String taskNo, String taskType, String priority, String description) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
         this.encounterId = encounterId; this.stockSiteId = stockSiteId; this.taskNo = taskNo;
-        this.taskType = "OUTPATIENT"; this.priority = priority; this.status = "PENDING_REVIEW";
+        this.taskType = taskType; this.priority = priority; this.status = "PENDING_REVIEW";
         this.createdAt = Instant.now(); this.description = description;
     }
 
@@ -58,10 +63,31 @@ public class DispenseTask {
         };
     }
 
+    public void bypassPreDispenseReview() {
+        if (!"PENDING_REVIEW".equals(status)) {
+            throw new BusinessException("DISPENSE_TASK_REVIEW_BYPASS_STATE_INVALID",
+                    "当前发药任务状态不能跳过事前审方", HttpStatus.CONFLICT);
+        }
+        status = "READY_TO_PICK";
+    }
+
+    public void recordPostDispenseReview(Long reviewId) {
+        if (!"COMPLETED".equals(status) && !"PARTIALLY_RETURNED".equals(status)
+                && !"RETURNED".equals(status)) {
+            throw new BusinessException("DISPENSE_TASK_POST_REVIEW_STATE_INVALID",
+                    "只有已实际发药的任务可以进行事后审方", HttpStatus.CONFLICT);
+        }
+        if (latestReviewId != null) {
+            throw new BusinessException("DISPENSE_TASK_POST_REVIEW_DUPLICATE",
+                    "当前发药任务已完成事后审方", HttpStatus.CONFLICT);
+        }
+        latestReviewId = reviewId;
+    }
+
     public void markReserved() {
         if (!"READY_TO_PICK".equals(status)) {
             throw new BusinessException("DISPENSE_TASK_RESERVATION_STATE_INVALID",
-                    "只有审方通过且待拣货的任务可以预留库存", HttpStatus.CONFLICT);
+                    "只有待拣货的任务可以预留库存", HttpStatus.CONFLICT);
         }
         status = "PICKING";
         pickedAt = Instant.now();
@@ -106,8 +132,15 @@ public class DispenseTask {
         status = completed ? "COMPLETED" : "PARTIALLY_DISPENSED";
     }
 
+    /** Stops all remaining positive fulfillment while retaining prior dispense facts. */
+    public void cancelRemainingForOrderStop() {
+        if ("CANCELLED".equals(status) || "REJECTED".equals(status) || "RETURNED".equals(status)) return;
+        status = "CANCELLED";
+    }
+
     public void recordReturn(boolean fullyReturned) {
-        if (!"COMPLETED".equals(status) && !"PARTIALLY_RETURNED".equals(status)) {
+        if (!"COMPLETED".equals(status) && !"PARTIALLY_RETURNED".equals(status)
+                && !"CANCELLED".equals(status)) {
             throw new BusinessException("DISPENSE_TASK_RETURN_STATE_INVALID",
                     "当前任务没有可退回的已发药事实", HttpStatus.CONFLICT);
         }

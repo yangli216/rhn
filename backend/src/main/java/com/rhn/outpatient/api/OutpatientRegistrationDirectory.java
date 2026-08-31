@@ -13,16 +13,31 @@ public interface OutpatientRegistrationDirectory {
 
     void markInService(Long encounterId, String commandCode);
 
+    void markSuspended(Long encounterId, String commandCode, String reason);
+
+    void markResumed(Long encounterId, String commandCode);
+
     void markCompleted(Long encounterId, String commandCode);
+
+    void markTransferred(Long encounterId, String commandCode, String reason);
+
+    void markTerminated(Long encounterId, String commandCode, String reason);
+
+    CancellationSnapshot requireCancellationReady(Long encounterId);
+
+    CancellationSnapshot cancelBeforeService(Long encounterId, String commandCode, String reason);
 
     List<ReceptionQueueItem> queue(LocalDate queueDate);
 
     record RegisterCommand(Long residentId, Long encounterId, Long organizationId, Long departmentId,
-                           Long scheduleId, Long slotHoldId, String idempotencyCode, String registrationSource,
+                           Long appointmentId, Long scheduleId, Long slotHoldId, String idempotencyCode, String registrationSource,
                            String visitType) {}
 
     record RegistrationSnapshot(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                                 String registrationNo, String ticketNo, int sequenceNo, String status) {}
+
+    record CancellationSnapshot(Long registrationId, Long appointmentId, Long scheduleId,
+                                String registrationStatus, String queueStatus, String appointmentStatus) {}
 
     record ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                               Long residentId, String healthRecordNo, String residentName, String gender,

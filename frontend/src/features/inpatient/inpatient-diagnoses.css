@@ -1,0 +1,21 @@
+.inpatient-admission-diagnoses { margin-top: var(--space-3); overflow: hidden; }
+.inpatient-admission-diagnoses.is-summary { margin-top: 0; }
+.inpatient-admission-diagnoses .inpatient-section-head > div:last-child { display: flex; align-items: center; gap: var(--space-2); }
+.inpatient-admission-diagnoses > .ui-alert { margin: var(--space-3) var(--space-4) 0; }
+.inpatient-admission-diagnoses__add { padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: minmax(20rem, 1fr) auto; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-admission-diagnoses__list { display: grid; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); }
+.inpatient-admission-diagnoses__list article { min-height: 4rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.inpatient-admission-diagnoses__list article > span { min-width: 0; display: grid; grid-template-columns: auto minmax(8rem, 1fr); align-items: center; gap: .125rem var(--space-2); }
+.inpatient-admission-diagnoses__list article > span small { grid-column: 2; color: var(--color-text-secondary); }
+.inpatient-admission-diagnoses__list article > span strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-admission-diagnoses__list article > div { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.inpatient-admission-diagnoses__list .ui-select { min-width: 8.5rem; }
+.inpatient-admission-diagnoses__list .ui-select__trigger { min-height: var(--control-height-sm); }
+.inpatient-admission-diagnoses.is-summary .inpatient-admission-diagnoses__list { grid-template-columns: 1fr; }
+.inpatient-admission-diagnoses.is-summary .inpatient-admission-diagnoses__list article { min-height: 3.5rem; }
+.inpatient-admission-diagnoses.is-summary > .ui-empty-state { min-height: 12rem; }
+@media (max-width: 52rem) {
+  .inpatient-admission-diagnoses__add { grid-template-columns: 1fr; }
+  .inpatient-admission-diagnoses__list { grid-template-columns: 1fr; }
+  .inpatient-admission-diagnoses__list article { align-items: flex-start; flex-direction: column; }
+}

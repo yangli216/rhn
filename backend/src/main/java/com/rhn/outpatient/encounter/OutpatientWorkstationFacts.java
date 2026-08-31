@@ -128,6 +128,7 @@ class EncounterDiagnosisRevision {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "encounter_diagnosis_id", nullable = false) private Long encounterDiagnosisId;
     @Column(name = "encounter_id", nullable = false) private Long encounterId;
+    @Column(name = "diagnosis_stage", nullable = false) private String diagnosisStage;
     @Column(name = "business_version_no", nullable = false) private int businessVersionNo;
     @Column(name = "change_type", nullable = false) private String changeType;
     @Column(name = "diagnosis_type", nullable = false) private String diagnosisType;
@@ -149,6 +150,7 @@ class EncounterDiagnosisRevision {
         this.tenantId = diagnosis.tenantId();
         this.encounterDiagnosisId = diagnosis.id();
         this.encounterId = diagnosis.encounterId();
+        this.diagnosisStage = diagnosis.diagnosisStage();
         this.businessVersionNo = diagnosis.businessVersionNo();
         this.changeType = changeType;
         this.diagnosisType = diagnosis.diagnosisType().name();

@@ -1,12 +1,14 @@
-import { useMutation } from '@tanstack/react-query'
-import { useRef, useState, type KeyboardEvent } from 'react'
-import type { MedicationRequest, Prescription } from '../../shared/api/encountersApi'
-import type { MedicationKnowledge } from '../../shared/api/masterDataApi'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import type {
+  CreateMedicationRequestInput, MedicationRequest, Prescription,
+} from '../../shared/api/encountersApi'
+import type { ItemPackage, MedicationKnowledge, MedicationProduct } from '../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { Encounter } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, ClinicalResourceSearch, StatusBadge, type ClinicalResourceOption,
+  Alert, Button, ClinicalResourceSearch, Select, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
 
 type EditorMode = 'regular' | 'herbal'
@@ -27,107 +29,110 @@ interface PrescriptionLineDraft {
   allergyOverrideReason: string
 }
 
+export interface MedicationPlanDraft {
+  id: string
+  sequence?: number
+  editorMode: EditorMode
+  categoryCode: string
+  medicationName: string
+  medicationCode: string
+  preparationSpec?: string
+  productName: string
+  request: Omit<CreateMedicationRequestInput, 'prescriptionId' | 'parentRequestId'>
+}
+
 const regularFields: EditableField[] = [
   'doseValue', 'doseUnit', 'routeCode', 'frequencyCode', 'durationValue', 'quantity', 'instruction',
 ]
 
-export function PrescriptionListEditor({ encounter, allergies, prescriptions, api, onRefresh }: {
+export function PrescriptionListEditor({
+  encounter, allergies, prescriptions, drafts, onDraftsChange, api, onRefresh, onPrint,
+}: {
   encounter: Encounter
   allergies: AllergyIntolerance[]
   prescriptions: Prescription[]
+  drafts: MedicationPlanDraft[]
+  onDraftsChange: Dispatch<SetStateAction<MedicationPlanDraft[]>>
   api: RhnApi
   onRefresh: () => Promise<unknown>
+  onPrint: (value: Prescription) => void
 }) {
-  const sequence = useRef(1)
-  const [mode, setMode] = useState<EditorMode>('regular')
-  const [regularLine, setRegularLine] = useState(() => emptyLine(sequence.current++))
-  const [herbalLine, setHerbalLine] = useState(() => emptyLine(sequence.current++))
-  const [herbalDoseCount, setHerbalDoseCount] = useState(7)
-  const [herbalMethod, setHerbalMethod] = useState('水煎服')
-  const [herbalFrequency, setHerbalFrequency] = useState('BID')
-  const line = mode === 'regular' ? regularLine : herbalLine
-  const setLine = mode === 'regular' ? setRegularLine : setHerbalLine
-  const currentMedication = line.medication?.raw
-  const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
-  const matchedAllergies = currentMedication ? drugAllergies.filter((item) => item.substanceCode
-    && item.substanceCode.toLowerCase() === currentMedication.code.toLowerCase()) : []
-  const requiresSafetyReview = Boolean(currentMedication && (drugAllergies.length > 0
-    || currentMedication.skinTestRequired || currentMedication.antimicrobial))
-
-  const saveLine = useMutation({
-    mutationFn: async ({ value, editorMode }: { value: PrescriptionLineDraft; editorMode: EditorMode }) => {
-      const medication = value.medication?.raw
-      if (!medication) throw new Error('请先选择药品')
-      if (!isLineComplete(value, editorMode)) throw new Error('请完整填写当前医嘱行')
-      if (editorMode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim())) {
-        throw new Error('请填写草药服法和频次')
-      }
-      if (requiresSafetyReview && !value.safetyReviewed) throw new Error('请先完成用药安全核对')
-      if (matchedAllergies.length > 0 && !value.allergyOverrideReason.trim()) {
-        throw new Error('命中过敏原时必须填写继续开立理由')
-      }
-      const categoryCode = medication.sdMedicationType
-      let draft = prescriptions.find((item) => item.status === 'DRAFT' && item.categoryCode === categoryCode)
-      if (!draft) {
-        draft = await api.encounters.createPrescription(encounter.id, categoryCode,
-          categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方')
-      }
-      const doseValue = Number(value.doseValue)
-      const quantity = editorMode === 'herbal' ? doseValue * herbalDoseCount : Number(value.quantity)
-      const instruction = editorMode === 'herbal'
-        ? [herbalMethod, value.instruction.trim()].filter(Boolean).join('；') : value.instruction.trim()
-      const parentRequestId = editorMode === 'regular'
-        ? resolveAdministrationParent(draft, value) : undefined
-      return api.encounters.createMedicationRequest(encounter.id, {
-        prescriptionId: draft.id,
-        medicationId: medication.id,
-        doseValue,
-        doseUnit: value.doseUnit.trim(),
-        routeCode: editorMode === 'herbal' ? 'PO' : value.routeCode.trim(),
-        frequencyCode: editorMode === 'herbal' ? herbalFrequency.trim() : value.frequencyCode.trim(),
-        parentRequestId,
-        durationValue: editorMode === 'herbal' ? herbalDoseCount
-          : value.durationValue === '' ? undefined : Number(value.durationValue),
-        durationUnit: editorMode === 'herbal' ? '剂' : value.durationValue === '' ? undefined : '天',
-        quantity,
-        quantityUnit: medication.preparationUnit,
-        substitutionAllowed: true,
-        selfProvided: false,
-        medicationInstruction: instruction,
-        allergyReviewConfirmed: value.safetyReviewed || drugAllergies.length === 0,
-        allergyOverrideReason: value.allergyOverrideReason.trim() || undefined,
-        reason: categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊处方',
-      })
-    },
-    onSuccess: async (_, variables) => {
-      if (variables.editorMode === 'regular') setRegularLine(emptyLine(sequence.current++))
-      else setHerbalLine(emptyLine(sequence.current++))
-      await onRefresh()
-      focusMedication(variables.editorMode)
-    },
+  const frequencies = useQuery({
+    queryKey: ['outpatient-order-frequencies', encounter.organizationId, encounter.departmentId],
+    queryFn: () => api.masterData.activeOrderFrequencies(
+      encounter.organizationId, encounter.departmentId, 'OUTPATIENT', 'MEDICATION'),
+    staleTime: 5 * 60 * 1000,
   })
-  const submit = useMutation({
-    mutationFn: async (drafts: Prescription[]) => Promise.all(drafts.map((value) =>
-      api.encounters.submitPrescription(encounter.id, value.id, value.revision))),
-    onSuccess: onRefresh,
-  })
+  const frequencyOptions = (frequencies.data ?? []).map((frequency) => ({
+    value: frequency.code, label: frequency.name,
+    secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}`,
+    searchKeywords: [frequency.code, frequency.shortName ?? ''],
+  }))
   const cancelLine = useMutation({
     mutationFn: (value: MedicationRequest) => api.encounters.cancelMedicationRequest(
       encounter.id, value.id, value.revision, '医生站撤销'),
     onSuccess: onRefresh,
   })
+
+  return <div className="doctor-prescription-list-editor">
+    {(frequencies.error || cancelLine.error) && <Alert className="doctor-order-error">
+      {errorMessage(frequencies.error || cancelLine.error)}</Alert>}
+    <PrescriptionEditorSection mode="regular" encounter={encounter} allergies={allergies}
+      prescriptions={prescriptions} drafts={drafts} onDraftsChange={onDraftsChange} api={api}
+      frequencyOptions={frequencyOptions} frequencyLoading={frequencies.isPending}
+      cancelBusy={cancelLine.isPending} onCancel={(value) => cancelLine.mutate(value)} onPrint={onPrint} />
+    <PrescriptionEditorSection mode="herbal" encounter={encounter} allergies={allergies}
+      prescriptions={prescriptions} drafts={drafts} onDraftsChange={onDraftsChange} api={api}
+      frequencyOptions={frequencyOptions} frequencyLoading={frequencies.isPending}
+      cancelBusy={cancelLine.isPending} onCancel={(value) => cancelLine.mutate(value)} onPrint={onPrint} />
+  </div>
+}
+
+function PrescriptionEditorSection({
+  mode, encounter, allergies, prescriptions, drafts, onDraftsChange, api,
+  frequencyOptions, frequencyLoading, cancelBusy, onCancel, onPrint,
+}: {
+  mode: EditorMode
+  encounter: Encounter
+  allergies: AllergyIntolerance[]
+  prescriptions: Prescription[]
+  drafts: MedicationPlanDraft[]
+  onDraftsChange: Dispatch<SetStateAction<MedicationPlanDraft[]>>
+  api: RhnApi
+  frequencyOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
+  frequencyLoading: boolean
+  cancelBusy: boolean
+  onCancel: (value: MedicationRequest) => void
+  onPrint: (value: Prescription) => void
+}) {
+  const sequence = useRef(1)
+  const [line, setLine] = useState(() => emptyLine(sequence.current++))
+  const [herbalDoseCount, setHerbalDoseCount] = useState(7)
+  const [herbalMethod, setHerbalMethod] = useState('水煎服')
+  const [herbalFrequency, setHerbalFrequency] = useState('BID')
+  const [validationError, setValidationError] = useState('')
+  const currentMedication = line.medication?.raw
+  const selectedProduct = currentMedication
+    ? resolveDispensableProduct(currentMedication, encounter.organizationId) : undefined
+  const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
+  const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
+    || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
+  const matchedAllergies = currentMedication ? drugAllergies.filter((item) => item.substanceCode
+    && item.substanceCode.toLowerCase() === currentMedication.code.toLowerCase()) : []
+  const requiresSafetyReview = Boolean(currentMedication && (!allergyReviewRecorded || drugAllergies.length > 0
+    || currentMedication.skinTestRequired || currentMedication.antimicrobial))
   const visibleCategories = mode === 'herbal' ? ['HERBAL'] : ['WESTERN', 'CHINESE_PATENT']
   const visiblePrescriptions = prescriptions.filter((item) => visibleCategories.includes(item.categoryCode))
   const visibleLines = visiblePrescriptions.flatMap((item) => item.medicationRequests
     .map((request) => ({ request, prescription: item })))
     .sort((left, right) => left.request.authoredAt.localeCompare(right.request.authoredAt))
+  const visibleDrafts = drafts.filter((item) => item.editorMode === mode)
   const administrationGroups = administrationGroupLabels(visibleLines.map((item) => item.request))
-  const drafts = visiblePrescriptions.filter((item) => item.status === 'DRAFT'
-    && item.medicationRequests.some((request) => request.status === 'DRAFT'))
-  const error = saveLine.error || submit.error || cancelLine.error
+  const draftGroups = draftAdministrationGroupLabels(visibleDrafts)
 
   function selectMedication(option?: ClinicalResourceOption<MedicationKnowledge>) {
     const medication = option?.raw
+    setValidationError('')
     setLine((current) => ({
       ...current,
       medication: option,
@@ -144,7 +149,62 @@ export function PrescriptionListEditor({ encounter, allergies, prescriptions, ap
   }
 
   function update<K extends keyof PrescriptionLineDraft>(field: K, value: PrescriptionLineDraft[K]) {
+    setValidationError('')
     setLine((current) => ({ ...current, [field]: value }))
+  }
+
+  function addLine() {
+    const medication = line.medication?.raw
+    if (!medication) { setValidationError('请先选择药品'); return }
+    const product = resolveDispensableProduct(medication, encounter.organizationId)
+    if (!product) { setValidationError('所选药品尚未配置当前机构可发药的产品、包装或有效价格'); return }
+    if (!isLineComplete(line, mode)) { setValidationError('请完整填写当前医嘱行'); return }
+    if (mode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim())) {
+      setValidationError('请填写草药服法和频次'); return
+    }
+    if (requiresSafetyReview && !line.safetyReviewed) { setValidationError('请先完成用药安全核对'); return }
+    if (matchedAllergies.length > 0 && !line.allergyOverrideReason.trim()) {
+      setValidationError('命中过敏原时必须填写继续开立理由'); return
+    }
+    const categoryCode = medication.sdMedicationType
+    const doseValue = Number(line.doseValue)
+    const quantity = mode === 'herbal' ? doseValue * herbalDoseCount : Number(line.quantity)
+    const instruction = mode === 'herbal'
+      ? [herbalMethod, line.instruction.trim()].filter(Boolean).join('；') : line.instruction.trim()
+    onDraftsChange((current) => [...current, {
+      id: globalThis.crypto.randomUUID(),
+      editorMode: mode,
+      categoryCode,
+      medicationName: medication.name,
+      medicationCode: medication.code,
+      preparationSpec: medication.preparationSpec,
+      productName: product.product.name,
+      request: {
+        medicationId: medication.id,
+        catalogItemId: product.product.id,
+        packageId: product.itemPackage.id,
+        doseValue,
+        doseUnit: line.doseUnit.trim(),
+        routeCode: mode === 'herbal' ? 'PO' : line.routeCode.trim(),
+        frequencyCode: mode === 'herbal' ? herbalFrequency.trim() : line.frequencyCode.trim(),
+        durationValue: mode === 'herbal' ? herbalDoseCount
+          : line.durationValue === '' ? undefined : Number(line.durationValue),
+        durationUnit: mode === 'herbal' ? '剂' : line.durationValue === '' ? undefined : '天',
+        quantity,
+        quantityUnit: product.itemPackage.unitCode,
+        substitutionAllowed: true,
+        selfProvided: false,
+        medicationInstruction: instruction,
+        allergyReviewConfirmed: line.safetyReviewed || allergyReviewRecorded,
+        allergyOverrideReason: line.allergyOverrideReason.trim() || undefined,
+        priceType: product.priceType,
+        pricingRequired: true,
+        reason: categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊处方',
+      },
+    }])
+    setLine(emptyLine(sequence.current++))
+    setValidationError('')
+    focusMedication(mode)
   }
 
   function nextOnEnter(event: KeyboardEvent<HTMLInputElement>, field: EditableField) {
@@ -153,51 +213,55 @@ export function PrescriptionListEditor({ encounter, allergies, prescriptions, ap
     const fields = mode === 'herbal' ? (['doseValue', 'doseUnit', 'instruction'] as EditableField[]) : regularFields
     const next = fields[fields.indexOf(field) + 1]
     if (next) focusField(mode, next)
-    else if (!saveLine.isPending) saveLine.mutate({ value: line, editorMode: mode })
+    else addLine()
   }
 
-  return <div className="doctor-prescription-list-editor">
-    <nav className="doctor-prescription-type-tabs" aria-label="处方录入方式">
-      <button type="button" className={mode === 'regular' ? 'is-active' : ''}
-        onClick={() => setMode('regular')}>西药 / 中成药</button>
-      <button type="button" className={mode === 'herbal' ? 'is-active' : ''}
-        onClick={() => setMode('herbal')}>草药处方</button>
-      <span>{mode === 'regular' ? '按药品类型自动分方，输液连续医嘱自动组方' : '按剂数计算总量，独立生成草药处方'}</span>
-    </nav>
-    {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
-    <div className="doctor-prescription-splits">
-      {visiblePrescriptions.length === 0 ? <span>录入首条医嘱时自动建方</span>
-        : visiblePrescriptions.map((value) => <span key={value.id}>
+  return <section className="doctor-prescription-section" aria-labelledby={`doctor-${mode}-prescription-title`}>
+    <header>
+      <div><strong id={`doctor-${mode}-prescription-title`}>
+        {mode === 'regular' ? '西药 / 中成药' : '草药处方'}</strong></div>
+      <StatusBadge tone={visibleDrafts.length ? 'warning' : 'neutral'}>{visibleDrafts.length} 条待确认</StatusBadge>
+    </header>
+    {visiblePrescriptions.length > 0 && <div className="doctor-prescription-splits">
+      {visiblePrescriptions.map((value) => <span key={value.id}>
           <strong>{prescriptionTypeLabel(value.categoryCode)}</strong>{value.prescriptionNo}
           <StatusBadge tone={value.status === 'DRAFT' ? 'warning' : value.status === 'ACTIVE' ? 'success' : 'neutral'}>
             {statusLabel(value.status)}</StatusBadge>
+          {canPrintPrescription(value) && <Button size="sm" variant="text"
+            onClick={() => onPrint(value)}>打印</Button>}
         </span>)}
-    </div>
+    </div>}
     {mode === 'herbal' && <div className="doctor-herbal-summary">
       <label>剂数<input type="number" min="1" value={herbalDoseCount}
         onChange={(event) => setHerbalDoseCount(Math.max(1, Number(event.target.value)))} /></label>
       <label>服法<input value={herbalMethod} onChange={(event) => setHerbalMethod(event.target.value)} /></label>
-      <label>频次<input value={herbalFrequency} onChange={(event) => setHerbalFrequency(event.target.value)} /></label>
+      <label>频次<Select value={herbalFrequency} onChange={setHerbalFrequency} showValue
+        loading={frequencyLoading} options={frequencyOptions} /></label>
     </div>}
+    {validationError && <Alert>{validationError}</Alert>}
     <div className={`doctor-prescription-grid ${mode === 'herbal' ? 'is-herbal' : ''}`} role="table"
       aria-label={mode === 'herbal' ? '草药处方列表录入' : '西药和中成药处方列表录入'}>
       <div className="doctor-prescription-grid__head" role="row">
         {mode === 'regular' ? <>
           <span>组</span><span>药品</span><span>单次剂量</span><span>单位</span><span>途径</span><span>频次</span>
-          <span>疗程</span><span>发药量</span><span>用药嘱托</span><span>状态</span>
+          <span>疗程</span><span>发药量</span><span>用药嘱托</span><span>操作</span>
         </> : <>
-          <span>序</span><span>草药饮片</span><span>每付剂量</span><span>单位</span><span>特殊煎法 / 脚注</span><span>总量</span><span>状态</span>
+          <span>序</span><span>草药饮片</span><span>每付剂量</span><span>单位</span><span>特殊煎法 / 脚注</span><span>总量</span><span>操作</span>
         </>}
       </div>
       {visibleLines.map(({ request }, index) => mode === 'regular'
         ? <RegularSavedRow key={request.id} value={request} groupLabel={administrationGroups.get(request.id)}
-          busy={cancelLine.isPending}
-          onCancel={() => cancelLine.mutate(request)} />
-        : <HerbalSavedRow key={request.id} value={request} index={index + 1} busy={cancelLine.isPending}
-          onCancel={() => cancelLine.mutate(request)} />)}
+          busy={cancelBusy} onCancel={() => onCancel(request)} />
+        : <HerbalSavedRow key={request.id} value={request} index={index + 1} busy={cancelBusy}
+          onCancel={() => onCancel(request)} />)}
+      {visibleDrafts.map((draft, index) => mode === 'regular'
+        ? <RegularPlanRow key={draft.id} value={draft} groupLabel={draftGroups.get(draft.id)}
+          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))} />
+        : <HerbalPlanRow key={draft.id} value={draft} index={visibleLines.length + index + 1}
+          onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))} />)}
       <div className="doctor-prescription-grid__entry" role="row" key={line.key}>
-        <span className="doctor-prescription-group-cell">{mode === 'regular' ? (isInfusionRoute(line.routeCode) ? '自动' : '—')
-          : visibleLines.length + 1}</span>
+        <span className="doctor-prescription-group-cell">{mode === 'regular' ? (isInfusionRoute(line.routeCode) ? 'IV' : '—')
+          : visibleLines.length + visibleDrafts.length + 1}</span>
         <ClinicalResourceSearch<MedicationKnowledge> id={`doctor-${mode}-medication-search`} api={api}
           resource="medication" organizationId={encounter.organizationId} value={line.medication}
           filterResult={(item) => mode === 'herbal' ? item.sdMedicationType === 'HERBAL'
@@ -213,9 +277,10 @@ export function PrescriptionListEditor({ encounter, allergies, prescriptions, ap
           <input data-rx-mode={mode} data-rx-field="routeCode" aria-label="给药途径" value={line.routeCode}
             placeholder="PO/IVGTT" onChange={(event) => update('routeCode', event.target.value)}
             onKeyDown={(event) => nextOnEnter(event, 'routeCode')} />
-          <input data-rx-mode={mode} data-rx-field="frequencyCode" aria-label="频次" value={line.frequencyCode}
-            placeholder="BID" onChange={(event) => update('frequencyCode', event.target.value)}
-            onKeyDown={(event) => nextOnEnter(event, 'frequencyCode')} />
+          <Select id={`doctor-${mode}-frequency`} aria-label="频次" value={line.frequencyCode} onChange={(value) => {
+            update('frequencyCode', value)
+            focusField(mode, 'durationValue')
+          }} showValue loading={frequencyLoading} placeholder="频次" options={frequencyOptions} />
           <input data-rx-mode={mode} data-rx-field="durationValue" aria-label="疗程天数" type="number" min="1"
             value={line.durationValue} placeholder="天" onChange={(event) => update('durationValue', numberValue(event.target.value))}
             onKeyDown={(event) => nextOnEnter(event, 'durationValue')} />
@@ -225,20 +290,24 @@ export function PrescriptionListEditor({ encounter, allergies, prescriptions, ap
         </> : null}
         <input data-rx-mode={mode} data-rx-field="instruction"
           aria-label={mode === 'herbal' ? '特殊煎法或脚注' : '用药嘱托'} value={line.instruction}
-          placeholder={mode === 'herbal' ? '如先煎、后下' : '最后回车保存'}
+          placeholder={mode === 'herbal' ? '如先煎、后下' : '用药嘱托'}
           onChange={(event) => update('instruction', event.target.value)}
           onKeyDown={(event) => nextOnEnter(event, 'instruction')} />
         {mode === 'herbal' && <span className="doctor-herbal-total">
           {line.doseValue === '' ? '—' : Number(line.doseValue) * herbalDoseCount} {line.doseUnit}</span>}
-        <Button size="sm" busy={saveLine.isPending} disabled={!isLineComplete(line, mode)
+        <Button size="sm" disabled={!isLineComplete(line, mode) || !selectedProduct
           || (mode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim()))
           || (requiresSafetyReview && !line.safetyReviewed)
           || (matchedAllergies.length > 0 && !line.allergyOverrideReason.trim())}
-          onClick={() => saveLine.mutate({ value: line, editorMode: mode })}>保存</Button>
+          onClick={addLine}>加入</Button>
       </div>
     </div>
     {currentMedication && <div className={`doctor-medication-safety ${requiresSafetyReview ? 'is-warning' : 'is-clear'}`}>
       <strong>{requiresSafetyReview ? '当前行需完成用药安全核对' : '当前行未命中高风险提示'}</strong>
+      {!selectedProduct && <p>当前机构未配置可发药产品、销售包装或有效价格，暂不能加入方案。</p>}
+      {selectedProduct && <p>发药产品：{selectedProduct.product.name} · {selectedProduct.itemPackage.packageSpec
+        || selectedProduct.itemPackage.unitName}</p>}
+      {!allergyReviewRecorded && <p>患者过敏状态尚未确认，请先核对后继续。</p>}
       {drugAllergies.length > 0 && <p>患者药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}</p>}
       {currentMedication.skinTestRequired && <p>该药品标记为需皮试，请确认皮试流程。</p>}
       {currentMedication.antimicrobial && <p>抗菌药等级：{currentMedication.sdAntimicrobialLevelText || '未配置等级'}</p>}
@@ -247,12 +316,7 @@ export function PrescriptionListEditor({ encounter, allergies, prescriptions, ap
       {requiresSafetyReview && <label><input type="checkbox" checked={line.safetyReviewed}
         onChange={(event) => update('safetyReviewed', event.target.checked)} /> 已核对患者过敏及药品风险</label>}
     </div>}
-    <div className="doctor-prescription-actions">
-      <span>末格回车自动保存并新增下一行</span>
-      <Button size="sm" variant="secondary" busy={submit.isPending} disabled={drafts.length === 0}
-        onClick={() => submit.mutate(drafts)}>提交当前处方{drafts.length > 1 ? `（${drafts.length} 张分方）` : ''}</Button>
-    </div>
-  </div>
+  </section>
 }
 
 function RegularSavedRow({ value, groupLabel, busy, onCancel }: {
@@ -285,6 +349,38 @@ function HerbalSavedRow({ value, index, busy, onCancel }: {
   </div>
 }
 
+function RegularPlanRow({ value, groupLabel, onRemove }: {
+  value: MedicationPlanDraft; groupLabel?: string; onRemove: () => void
+}) {
+  const request = value.request
+  return <div className={`doctor-prescription-grid__saved is-plan-draft ${groupLabel ? 'is-grouped' : ''}`} role="row">
+    <span className="doctor-prescription-group-cell">{groupLabel || '—'}</span>
+    <span className="doctor-prescription-drug"><strong>{value.medicationName}</strong>
+      <small>{value.preparationSpec || value.medicationCode}</small></span>
+    <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span><span>{request.routeCode || '—'}</span>
+    <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${request.durationUnit || '天'}` : '—'}</span>
+    <span>{request.quantity} {request.quantityUnit}</span><span title={request.medicationInstruction}>{request.medicationInstruction || '—'}</span>
+    <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
+      <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
+  </div>
+}
+
+function HerbalPlanRow({ value, index, onRemove }: {
+  value: MedicationPlanDraft; index: number; onRemove: () => void
+}) {
+  const request = value.request
+  const instruction = request.medicationInstruction?.split('；').slice(1).join('；') || '—'
+  return <div className="doctor-prescription-grid__saved is-plan-draft" role="row">
+    <span className="doctor-prescription-group-cell">{index}</span>
+    <span className="doctor-prescription-drug"><strong>{value.medicationName}</strong>
+      <small>{value.preparationSpec || value.medicationCode}</small></span>
+    <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span><span>{instruction}</span>
+    <span>{request.quantity} {request.quantityUnit}</span>
+    <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
+      <Button size="sm" variant="text" onClick={onRemove}>移除</Button></span>
+  </div>
+}
+
 function emptyLine(key: number): PrescriptionLineDraft {
   return {
     key, doseValue: '', doseUnit: '', routeCode: '', frequencyCode: '', durationValue: '', quantity: 1,
@@ -304,31 +400,23 @@ function isLineComplete(value: PrescriptionLineDraft, mode: EditorMode) {
 }
 
 function focusField(mode: EditorMode, field: EditableField) {
-  window.requestAnimationFrame(() => document.querySelector<HTMLInputElement>(
-    `[data-rx-mode="${mode}"][data-rx-field="${field}"]`)?.focus())
+  window.requestAnimationFrame(() => {
+    if (field === 'frequencyCode') {
+      document.getElementById(`doctor-${mode}-frequency`)?.focus()
+      return
+    }
+    document.querySelector<HTMLInputElement>(`[data-rx-mode="${mode}"][data-rx-field="${field}"]`)?.focus()
+  })
 }
 
 function focusMedication(mode: EditorMode) {
   window.requestAnimationFrame(() => document.getElementById(`doctor-${mode}-medication-search`)?.focus())
 }
 
-function isInfusionRoute(route: string | undefined) {
+export function isInfusionRoute(route: string | undefined) {
   const normalized = route?.trim().toUpperCase() ?? ''
   return ['IV', 'IVGTT', 'IV_DRIP', 'INTRAVENOUS'].includes(normalized)
     || normalized.includes('输液') || normalized.includes('静滴')
-}
-
-function resolveAdministrationParent(prescription: Prescription, line: PrescriptionLineDraft) {
-  if (!isInfusionRoute(line.routeCode)) return undefined
-  const active = prescription.medicationRequests.filter((item) => item.status !== 'CANCELLED')
-  const previous = active[active.length - 1]
-  if (previous && isInfusionRoute(previous.routeCode)
-    && previous.routeCode?.trim().toUpperCase() === line.routeCode.trim().toUpperCase()
-    && previous.frequencyCode === line.frequencyCode.trim()
-    && String(previous.durationValue ?? '') === String(line.durationValue)) {
-    return previous.parentRequestId || previous.id
-  }
-  return undefined
 }
 
 function administrationGroupLabels(values: MedicationRequest[]) {
@@ -347,6 +435,22 @@ function administrationGroupLabels(values: MedicationRequest[]) {
   return labels
 }
 
+function draftAdministrationGroupLabels(values: MedicationPlanDraft[]) {
+  const labels = new Map<string, string>()
+  let sequence = 0
+  let previousKey = ''
+  let currentLabel = ''
+  values.forEach((value) => {
+    if (!isInfusionRoute(value.request.routeCode)) { previousKey = ''; currentLabel = ''; return }
+    const key = [value.request.routeCode?.trim().toUpperCase(), value.request.frequencyCode,
+      value.request.durationValue ?? ''].join('|')
+    if (key !== previousKey) currentLabel = `IV-${String(++sequence).padStart(2, '0')}`
+    labels.set(value.id, currentLabel)
+    previousKey = key
+  })
+  return labels
+}
+
 function prescriptionTypeLabel(category: string) {
   return ({ WESTERN: '西药方', CHINESE_PATENT: '中成药方', HERBAL: '草药方' } as Record<string, string>)[category]
     ?? '门诊方'
@@ -354,4 +458,33 @@ function prescriptionTypeLabel(category: string) {
 
 function statusLabel(status: string) {
   return ({ DRAFT: '草稿', ACTIVE: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
+}
+
+export function canPrintPrescription(value: { status: string; medicationRequests: Array<{ status: string }> }) {
+  return value.status === 'ACTIVE' && value.medicationRequests.length > 0
+    && value.medicationRequests.every((item) => item.status === 'ACTIVE')
+}
+
+export function resolveDispensableProduct(medication: MedicationKnowledge, organizationId: string): {
+  product: MedicationProduct; itemPackage: ItemPackage; priceType: string
+} | undefined {
+  const today = new Date().toISOString().slice(0, 10)
+  for (const product of medication.products) {
+    const adoption = product.organizationAdoption
+    if (product.sdStatus !== 'ACTIVE' || !product.orderable || !product.chargeable
+      || !adoption || adoption.organizationId !== organizationId || adoption.sdStatus !== 'ACTIVE'
+      || !adoption.orderable || !adoption.chargeable || !adoption.dispensable) continue
+    const packages = [...product.packages].filter((value) => value.sdStatus === 'ACTIVE'
+      && value.validFrom <= today && (!value.validTo || value.validTo >= today))
+      .sort((left, right) => Number(right.defaultDispense) - Number(left.defaultDispense)
+        || Number(right.defaultSale) - Number(left.defaultSale))
+    for (const itemPackage of packages) {
+      const price = product.prices.find((value) => value.sdStatus === 'ACTIVE'
+        && value.sdPriceType === 'SALE' && value.packageId === itemPackage.id
+        && (!value.organizationId || value.organizationId === organizationId)
+        && value.validFrom <= today && (!value.validTo || value.validTo >= today))
+      if (price) return { product, itemPackage, priceType: price.sdPriceType }
+    }
+  }
+  return undefined
 }

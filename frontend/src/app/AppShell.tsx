@@ -1,13 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { LoginScreen } from '../features/auth/LoginScreen'
 import { Dashboard } from '../features/dashboard/Dashboard'
 import type { Department, Organization, Session } from '../shared/model'
-import { createRhnApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
+import { createRhnApi, createRhnSessionApi, errorMessage, type Credentials, type RhnApi, type WorkContextOption, type WorkContextType } from '../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, Icon, IconButton, LoadingState, PlannedPage, StatusBadge, type IconName } from '../shared/ui'
 import { formatTime } from '../shared/format'
+import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
+import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
+import { AnnouncementCenter } from '../shared/realtime/AnnouncementCenter'
+import { PresenceIndicator } from '../shared/realtime/PresenceIndicator'
 
 const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
   .then((module) => ({ default: module.DoctorWorkstation })))
@@ -37,12 +41,46 @@ const WarehouseManagement = lazy(() => import('../features/pharmacy/WarehouseMan
   .then((module) => ({ default: module.WarehouseManagement })))
 const BillingWorkspace = lazy(() => import('../features/billing/BillingWorkspace')
   .then((module) => ({ default: module.BillingWorkspace })))
+const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundManagementWorkspace')
+  .then((module) => ({ default: module.RefundManagementWorkspace })))
+const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierCloseWorkspace')
+  .then((module) => ({ default: module.CashierCloseWorkspace })))
+const DiagnosticWorkspace = lazy(() => import('../features/diagnostics/DiagnosticWorkspace')
+  .then((module) => ({ default: module.DiagnosticWorkspace })))
+const TreatmentExecutionWorkspace = lazy(() => import('../features/treatment/TreatmentExecutionWorkspace')
+  .then((module) => ({ default: module.TreatmentExecutionWorkspace })))
+const SkinTestManagementWorkspace = lazy(() => import('../features/treatment/SkinTestManagementWorkspace')
+  .then((module) => ({ default: module.SkinTestManagementWorkspace })))
 const CareManagementWorkspace = lazy(() => import('../features/care/CareManagementWorkspace')
   .then((module) => ({ default: module.CareManagementWorkspace })))
 const SchedulingWorkspace = lazy(() => import('../features/outpatient/SchedulingWorkspace')
   .then((module) => ({ default: module.SchedulingWorkspace })))
 const OutpatientRegistrationWorkspace = lazy(() => import('../features/outpatient/RegistrationWorkspace')
   .then((module) => ({ default: module.OutpatientRegistrationWorkspace })))
+const RegistrationQueryWorkspace = lazy(() => import('../features/outpatient/RegistrationQueryWorkspace')
+  .then((module) => ({ default: module.RegistrationQueryWorkspace })))
+const AppointmentManagementWorkspace = lazy(() => import('../features/outpatient/AppointmentManagementWorkspace')
+  .then((module) => ({ default: module.AppointmentManagementWorkspace })))
+const OutpatientFlowWorkspace = lazy(() => import('../features/outpatient/OutpatientFlowWorkspace')
+  .then((module) => ({ default: module.OutpatientFlowWorkspace })))
+const InpatientAdmissionWorkspace = lazy(() => import('../features/inpatient/InpatientWorkspace')
+  .then((module) => ({ default: module.InpatientAdmissionWorkspace })))
+const InpatientAdmissionQueryWorkspace = lazy(() => import('../features/inpatient/InpatientWorkspace')
+  .then((module) => ({ default: module.InpatientAdmissionQueryWorkspace })))
+const InpatientNurseStation = lazy(() => import('../features/inpatient/InpatientNurseStation')
+  .then((module) => ({ default: module.InpatientNurseStation })))
+const InpatientDoctorStation = lazy(() => import('../features/inpatient/InpatientDoctorStation')
+  .then((module) => ({ default: module.InpatientDoctorStation })))
+const InpatientBillingWorkspace = lazy(() => import('../features/inpatient/InpatientBillingWorkspace')
+  .then((module) => ({ default: module.InpatientBillingWorkspace })))
+const InpatientDepositWorkspace = lazy(() => import('../features/inpatient/InpatientDepositWorkspace')
+  .then((module) => ({ default: module.InpatientDepositWorkspace })))
+const AnnouncementManagement = lazy(() => import('../features/settings/AnnouncementManagement')
+  .then((module) => ({ default: module.AnnouncementManagement })))
+const PresenceManagement = lazy(() => import('../features/settings/PresenceManagement')
+  .then((module) => ({ default: module.PresenceManagement })))
+const DispenseRouteSettings = lazy(() => import('../features/settings/DispenseRouteSettings')
+  .then((module) => ({ default: module.DispenseRouteSettings })))
 
 export interface ClinicalContext {
   organization: Organization
@@ -103,30 +141,60 @@ const WORK_CONTEXT_LABELS: Record<WorkContextType, string> = {
   GENERAL: '综合',
 }
 
-function workContextTypeForPath(path: string): WorkContextType {
+const REFRESH_LOGIN_TENANT_KEY = 'rhn.refresh-login.tenant-id'
+
+export function workContextTypeForPath(path: string): WorkContextType {
   const pathname = path.split(/[?#]/, 1)[0]
   if (pathname === '/pharmacy/warehouse') return 'INVENTORY'
-  if (pathname === '/pharmacy') return 'PHARMACY'
+  if (pathname.startsWith('/pharmacy')) return 'PHARMACY'
+  if (pathname.startsWith('/inpatient')) return 'GENERAL'
   if (pathname.startsWith('/outpatient/') || pathname === '/residents' || pathname === '/care-management'
-    || pathname === '/billing') return 'CLINICAL'
+    || pathname.startsWith('/billing')) return 'CLINICAL'
   return 'CLINICAL'
+}
+
+export function selectableWorkContexts(contexts: WorkContextOption[], contextType: WorkContextType) {
+  return contexts.filter((context) => context.workContextType === contextType
+    && Boolean(context.organizationId) && Boolean(context.departmentId))
 }
 
 function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'departmentId'>) {
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management']
 
 const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
     id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
+      { id: 'outpatient-flow', label: '门诊流转', icon: 'clinical', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'clinical', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '简易', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
-      { id: 'billing', label: '费用结算', icon: 'billing', badge: 'M3.4', to: '/billing', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'diagnostics', label: '检查检验', icon: 'clinical', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'skin-tests', label: '皮试管理', icon: 'clinical', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
+      { id: 'treatments', label: '治疗执行', icon: 'clinical', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
+    ],
+  },
+  {
+    id: 'inpatient-services', label: '住院医疗', icon: 'clinical', children: [
+      { id: 'inpatient-admissions', label: '入院登记', icon: 'residents', to: '/inpatient/admissions', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-admission-query', label: '入院登记查询', icon: 'search', to: '/inpatient/admission-query', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-nurse-station', label: '病区护士站', icon: 'clinical', to: '/inpatient/nurse-station', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-doctor-station', label: '住院医生站', icon: 'clinical', to: '/inpatient/doctor-station', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-deposits', label: '预交金管理', icon: 'billing', to: '/inpatient/deposits', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-billing', label: '住院费用', icon: 'billing', to: '/inpatient/billing', requiredAuthority: 'INPATIENT.ACCESS' },
+    ],
+  },
+  {
+    id: 'billing-management', label: '收费管理', icon: 'billing', children: [
+      { id: 'billing-settlement', label: '收费结算', icon: 'billing', to: '/billing/settlement', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
     ],
   },
   {
@@ -137,7 +205,11 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'pharmacy-management', label: '药事管理', icon: 'pharmacy', children: [
-      { id: 'pharmacy', label: '门诊药房', icon: 'pharmacy', badge: 'M3.3', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy', label: '门诊发药', icon: 'pharmacy', badge: 'M3.3', to: '/pharmacy', end: true, requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy-review', label: '处方审方', icon: 'pharmacy', to: '/pharmacy/review', requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy-returns', label: '退药管理', icon: 'pharmacy', to: '/pharmacy/returns', requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy-query', label: '发药查询', icon: 'search', to: '/pharmacy/query', requiredAuthority: 'PHARMACY.ACCESS' },
+      { id: 'pharmacy-ward-delivery', label: '病区配送', icon: 'pharmacy', to: '/pharmacy/ward-delivery', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'warehouse', label: '库房管理', icon: 'pharmacy', badge: '基础', to: '/pharmacy/warehouse', requiredAuthority: 'PHARMACY_WAREHOUSE.ACCESS' },
     ],
   },
@@ -147,6 +219,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
       { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
       { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
+      { id: 'dispense-routes', label: '发药药房设置', icon: 'pharmacy', to: '/settings/dispense-routes', requiredAuthority: 'PHARMACY_ROUTE.READ' },
     ],
   },
   {
@@ -154,6 +227,8 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
+      { id: 'announcements', label: '系统公告', icon: 'roadmap', to: '/settings/announcements', requiredAuthority: 'ANNOUNCEMENT.MANAGE' },
+      { id: 'presence', label: '在线用户', icon: 'user', to: '/settings/presence', requiredAuthority: 'PRESENCE.USER.READ' },
       { id: 'access-control', label: '角色与权限', icon: 'settings', to: '/settings/access-control', requiredAuthority: 'IAM.MANAGE' },
     ],
   },
@@ -218,20 +293,43 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/') return HOME_TAB
   if (pathname === '/residents') return { id: pathname, path: pathname, title: '居民中心', icon: 'residents', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
-  if (pathname === '/pharmacy') return { id: pathname, path: pathname, title: '药事管理', icon: 'pharmacy', closeable: true }
+  if (pathname === '/pharmacy') return { id: pathname, path: pathname, title: '门诊发药', icon: 'pharmacy', closeable: true }
+  if (pathname === '/pharmacy/review') return { id: pathname, path: pathname, title: '处方审方', icon: 'pharmacy', closeable: true }
+  if (pathname === '/pharmacy/returns') return { id: pathname, path: pathname, title: '退药管理', icon: 'pharmacy', closeable: true }
+  if (pathname === '/pharmacy/query') return { id: pathname, path: pathname, title: '发药查询', icon: 'search', closeable: true }
+  if (pathname === '/pharmacy/ward-delivery') return { id: pathname, path: pathname, title: '病区配送', icon: 'pharmacy', closeable: true }
   if (pathname === '/pharmacy/warehouse') return { id: pathname, path: pathname, title: '库房管理', icon: 'pharmacy', closeable: true }
   if (pathname === '/billing') return { id: pathname, path: pathname, title: '费用结算', icon: 'billing', closeable: true }
+  if (pathname === '/billing/settlement') return { id: pathname, path: pathname, title: '收费结算', icon: 'billing', closeable: true }
+  if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
+  if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
+  if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'clinical', closeable: true }
+  if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'clinical', closeable: true }
+  if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'clinical', closeable: true }
   if (pathname === '/care-management') return { id: pathname, path: pathname, title: '连续照护', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
+  if (pathname === '/outpatient/registration-query') return { id: pathname, path: pathname, title: '挂号查询', icon: 'search', closeable: true }
+  if (pathname === '/outpatient/flow') return { id: pathname, path: pathname, title: '门诊流转', icon: 'clinical', closeable: true }
+  if (pathname === '/outpatient/appointments') return { id: pathname, path: pathname, title: '预约管理', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'residents', closeable: true }
+  if (pathname === '/inpatient') return { id: '/inpatient/admissions', path: '/inpatient/admissions', title: '入院登记', icon: 'residents', closeable: true }
+  if (pathname === '/inpatient/admissions') return { id: pathname, path: pathname, title: '入院登记', icon: 'residents', closeable: true }
+  if (pathname === '/inpatient/admission-query') return { id: pathname, path: pathname, title: '入院登记查询', icon: 'search', closeable: true }
+  if (pathname === '/inpatient/nurse-station') return { id: pathname, path: pathname, title: '病区护士站', icon: 'clinical', closeable: true }
+  if (pathname === '/inpatient/doctor-station') return { id: pathname, path: pathname, title: '住院医生站', icon: 'clinical', closeable: true }
+  if (pathname === '/inpatient/deposits') return { id: pathname, path: pathname, title: '预交金管理', icon: 'billing', closeable: true }
+  if (pathname === '/inpatient/billing') return { id: pathname, path: pathname, title: '住院费用', icon: 'billing', closeable: true }
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'clinical', closeable: true }
   if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
+  if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionaries') return { id: pathname, path: pathname, title: '字典管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionary-attributes') return { id: pathname, path: pathname, title: '字典扩展配置', icon: 'settings', closeable: true }
+  if (pathname === '/settings/announcements') return { id: pathname, path: pathname, title: '系统公告', icon: 'roadmap', closeable: true }
+  if (pathname === '/settings/presence') return { id: pathname, path: pathname, title: '在线用户', icon: 'user', closeable: true }
   if (pathname === '/settings/access-control') return { id: pathname, path: pathname, title: '角色与权限', icon: 'settings', closeable: true }
   if (pathname.startsWith('/roadmap/')) {
     const module = pathname.slice('/roadmap/'.length)
@@ -245,8 +343,38 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   return null
 }
 
+async function loadAuthenticatedState(api: RhnApi, session: Session): Promise<AuthenticatedState> {
+  if (!session.workContexts.length) throw { message: '当前账号没有有效的机构与科室工作上下文' }
+  const organizations = await api.organization.list()
+  const departmentCache = new Map<string, Department[]>()
+  const activeContexts: Partial<Record<WorkContextType, WorkContextSlot>> = {}
+  for (const contextType of Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[]) {
+    const available = selectableWorkContexts(session.workContexts, contextType)
+    if (!available.length) continue
+    const storedKey = localStorage.getItem(`rhn.work-context.${contextType}`)
+    const selected = available.find((context) => workContextKey(context) === storedKey) ?? available[0]
+    const organization = organizations.find((item) => item.id === selected.organizationId)
+    if (!organization) continue
+    let departments = departmentCache.get(organization.id)
+    if (!departments) {
+      departments = await api.organization.departments(organization.id)
+      departmentCache.set(organization.id, departments)
+    }
+    const department = departments.find((item) => item.id === selected.departmentId)
+    if (!department) continue
+    activeContexts[contextType] = {
+      option: selected,
+      api: api.withWorkContext(selected),
+      clinicalContext: { organization, department },
+    }
+  }
+  if (!Object.keys(activeContexts).length) throw { message: '当前账号没有可用的科室工作上下文' }
+  return { session, api, activeContexts }
+}
+
 export function AppShell() {
   const [authenticated, setAuthenticated] = useState<AuthenticatedState | null>(null)
+  const [restoringSession, setRestoringSession] = useState(true)
   const [loginError, setLoginError] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mobileLayout, setMobileLayout] = useState(() => window.matchMedia('(max-width: 760px)').matches)
@@ -260,6 +388,45 @@ export function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
+  const clearAuthentication = useCallback(() => {
+    localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
+    queryClient.clear()
+    setTabs([HOME_TAB])
+    setAuthenticated(null)
+    navigate('/')
+  }, [navigate, queryClient])
+
+  const logout = useCallback(() => {
+    if (authenticated?.session.refreshLoginEnabled) {
+      void authenticated.api.session.logout().catch(() => undefined)
+    }
+    clearAuthentication()
+  }, [authenticated, clearAuthentication])
+
+  useEffect(() => {
+    const handleTermination = () => clearAuthentication()
+    window.addEventListener('rhn:session-terminated', handleTermination)
+    return () => window.removeEventListener('rhn:session-terminated', handleTermination)
+  }, [clearAuthentication])
+
+  useEffect(() => {
+    const tenantId = localStorage.getItem(REFRESH_LOGIN_TENANT_KEY)
+    if (!tenantId) {
+      setRestoringSession(false)
+      return
+    }
+    let cancelled = false
+    const api = createRhnSessionApi(tenantId)
+    void api.session.current()
+      .then(async (session) => {
+        if (!session.refreshLoginEnabled) throw { message: '刷新保持登录已关闭' }
+        const state = await loadAuthenticatedState(api, session)
+        if (!cancelled) setAuthenticated(state)
+      })
+      .catch(() => localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY))
+      .finally(() => { if (!cancelled) setRestoringSession(false) })
+    return () => { cancelled = true }
+  }, [])
 
   const activeTab = tabForPath(location.pathname)
   const activeTabId = activeTab?.id ?? HOME_TAB.id
@@ -386,38 +553,21 @@ export function AppShell() {
   }, [sidebarOpen])
 
   async function login(credentials: Credentials) {
-    const api = createRhnApi(credentials)
+    const passwordApi = createRhnApi(credentials)
     setLoginError('')
     try {
-      const session = await api.session.current()
-      if (!session.workContexts.length) throw { message: '当前账号没有有效的机构与科室工作上下文' }
-      const organizations = await api.organization.list()
-      const departmentCache = new Map<string, Department[]>()
-      const activeContexts: Partial<Record<WorkContextType, WorkContextSlot>> = {}
-      for (const contextType of Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[]) {
-        const available = session.workContexts.filter((context) => context.workContextType === contextType)
-        if (!available.length) continue
-        const storedKey = localStorage.getItem(`rhn.work-context.${contextType}`)
-        const selected = available.find((context) => workContextKey(context) === storedKey) ?? available[0]
-        const organization = organizations.find((item) => item.id === selected.organizationId)
-        if (!organization) continue
-        let departments = departmentCache.get(organization.id)
-        if (!departments) {
-          departments = await api.organization.departments(organization.id)
-          departmentCache.set(organization.id, departments)
-        }
-        const department = departments.find((item) => item.id === selected.departmentId)
-        if (!department) continue
-        activeContexts[contextType] = {
-          option: selected,
-          api: api.withWorkContext(selected),
-          clinicalContext: { organization, department },
-        }
+      const session = await passwordApi.session.current()
+      let api = passwordApi
+      if (session.refreshLoginEnabled) {
+        localStorage.setItem(REFRESH_LOGIN_TENANT_KEY, credentials.tenantId)
+        api = createRhnSessionApi(credentials.tenantId)
+      } else {
+        localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
       }
-      if (!Object.keys(activeContexts).length) throw { message: '当前账号没有可用的科室工作上下文' }
-      setAuthenticated({ session, api, activeContexts })
+      setAuthenticated(await loadAuthenticatedState(api, session))
       navigate('/')
     } catch (error) {
+      localStorage.removeItem(REFRESH_LOGIN_TENANT_KEY)
       setLoginError(errorMessage(error))
     }
   }
@@ -446,13 +596,6 @@ export function AppShell() {
       },
     } : current)
     await queryClient.invalidateQueries({ refetchType: 'active' })
-  }
-
-  function logout() {
-    queryClient.clear()
-    setTabs([HOME_TAB])
-    setAuthenticated(null)
-    navigate('/')
   }
 
   function closeTab(tabId: string) {
@@ -558,20 +701,23 @@ export function AppShell() {
     else setSidebarCollapsed((collapsed) => !collapsed)
   }
 
+  if (restoringSession) return <LoadingState label="正在恢复登录状态…" />
   if (!authenticated) return <LoginScreen onLogin={login} error={loginError} />
   const { api, session, activeContexts } = authenticated
   const fallbackSlot = Object.values(activeContexts)[0]
   if (!fallbackSlot) return <LoginScreen onLogin={login} error="当前账号没有可用工作上下文" />
   const activeContextType = workContextTypeForPath(location.pathname)
   const activeSlot = activeContexts[activeContextType] ?? fallbackSlot
-  const availableForActiveType = session.workContexts.filter((context) =>
-    context.workContextType === activeSlot.option.workContextType)
+  const availableForActiveType = selectableWorkContexts(session.workContexts, activeSlot.option.workContextType)
   const collapsedNavigation = sidebarCollapsed && !mobileLayout
   const activeAuthorities = new Set([...session.authorities, ...(activeSlot.option.authorities ?? [])])
   const visibleNavigation = filterNavigation(NAVIGATION_NODES, activeAuthorities)
+  const activeContextKey = `${activeSlot.option.workContextType}:${workContextKey(activeSlot.option)}`
 
   return (
     <div className={`app-shell ${sidebarCollapsed && !mobileLayout ? 'is-sidebar-collapsed' : ''}`}>
+      <RealtimeBridge api={activeSlot.api} contextKey={activeContextKey}
+        organizationId={activeSlot.option.organizationId} onSessionTerminated={clearAuthentication} />
       {sidebarOpen && <button className="sidebar-backdrop" type="button" aria-label="关闭主导航"
         onClick={() => setSidebarOpen(false)} />}
       <aside id="primary-navigation" aria-label="主导航" aria-hidden={mobileLayout && !sidebarOpen || undefined}
@@ -624,7 +770,15 @@ export function AppShell() {
           <WorkspaceTabs tabs={tabs} activeTabId={activeTabId} onActivate={(path) => navigate(path)}
             onClose={closeTab} onManage={manageTabs} />
           <div className="top-actions">
-            <NotificationCenter api={activeSlot.api} contextKey={`${activeSlot.option.workContextType}:${workContextKey(activeSlot.option)}`}
+            {activeAuthorities.has('PRESENCE.SUMMARY.READ') && <PresenceIndicator api={activeSlot.api}
+              contextKey={activeContextKey}
+              onNavigate={activeAuthorities.has('PRESENCE.USER.READ') ? (path) => navigate(path) : undefined} />}
+            <CriticalValueCenter api={activeSlot.api} contextKey={activeContextKey}
+              workContextType={activeSlot.option.workContextType}
+              onNavigate={(path) => navigate(path)} />
+            {activeAuthorities.has('ANNOUNCEMENT.READ') && <AnnouncementCenter api={activeSlot.api}
+              contextKey={activeContextKey} />}
+            <NotificationCenter api={activeSlot.api} contextKey={activeContextKey}
               onNavigate={(path) => navigate(path)} />
             <UserAccountMenu session={session} activeContexts={activeContexts}
               activeContextType={activeSlot.option.workContextType}
@@ -637,7 +791,8 @@ export function AppShell() {
             const tabSlot = activeContexts[requestedType] ?? fallbackSlot
             const slotKey = `${tab.id}:${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`
             const tabAuthorities = new Set([...session.authorities, ...(tabSlot.option.authorities ?? [])])
-            const requiredAuthority = requiredAuthorityForPath(NAVIGATION_NODES, tab.path)
+            const requiredAuthority = tab.path === '/billing' ? 'BILLING.ACCESS'
+              : requiredAuthorityForPath(NAVIGATION_NODES, tab.path)
             const authorized = !requiredAuthority || tabAuthorities.has(requiredAuthority)
             return <div id={`workspace-panel-${encodeURIComponent(tab.id)}`} key={tab.id}
               className="workspace-panel" role="tabpanel" aria-labelledby={`workspace-tab-${encodeURIComponent(tab.id)}`}
@@ -652,21 +807,62 @@ export function AppShell() {
                   <Route path="/tasks" element={<TasksWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/pharmacy" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/pharmacy/review" element={<PharmacyWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} mode="review" />} />
+                  <Route path="/pharmacy/returns" element={<PharmacyWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} mode="returns" />} />
+                  <Route path="/pharmacy/query" element={<PharmacyWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} mode="query" />} />
+                  <Route path="/pharmacy/ward-delivery" element={<PharmacyWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} mode="ward" />} />
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/daily-close" element={<CashierCloseWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/diagnostics" element={<DiagnosticWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/skin-tests" element={<SkinTestManagementWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/treatments" element={<TreatmentExecutionWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/outpatient/appointments" element={<AppointmentManagementWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/outpatient/flow" element={<OutpatientFlowWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/reception" element={<DoctorWorkstation api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/inpatient" element={<Navigate to="/inpatient/admissions" replace />} />
+                  <Route path="/inpatient/admissions" element={<InpatientAdmissionWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/inpatient/admission-query" element={<InpatientAdmissionQueryWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/inpatient/nurse-station" element={<InpatientNurseStation api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/inpatient/doctor-station" element={<InpatientDoctorStation api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/inpatient/deposits" element={<InpatientDepositWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/inpatient/billing" element={<InpatientBillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings" element={<Navigate to="/settings/parameters" replace />} />
                   <Route path="/settings/organization" element={<OrganizationPersonnelManagement api={tabSlot.api} />} />
                   <Route path="/settings/grid-addresses" element={<GridAddressManagement api={tabSlot.api} />} />
+                  <Route path="/settings/dispense-routes" element={<DispenseRouteSettings api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings/master-data" element={<BasicDataManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/settings/partners" element={<BusinessPartnerManagement api={tabSlot.api}
@@ -682,6 +878,12 @@ export function AppShell() {
                     context={{ tenantId: session.tenantId, organization: tabSlot.clinicalContext.organization,
                       department: tabSlot.clinicalContext.department }}
                     onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/announcements" element={<AnnouncementManagement api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/settings/presence" element={<PresenceManagement api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext}
+                    canReadTrend={tabAuthorities.has('PRESENCE.TREND.READ') || tabAuthorities.has('ROLE_ADMIN')}
+                    canTerminate={tabAuthorities.has('PRESENCE.SESSION.TERMINATE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/access-control" element={<AccessControlManagement api={tabSlot.api}
                     context={tabSlot.clinicalContext} />} />
                   <Route path="/roadmap/:module" element={<PlannedPage title="后续业务模块" copy="该模块将在门诊主链后按业务优先级接入共享底座。" />} />
@@ -714,8 +916,7 @@ function UserAccountMenu({ session, activeContexts, activeContextType, onSwitchW
   const activeSlot = (activeContexts[activeContextType] ?? fallbackSlot)!
   const effectiveContextType = activeSlot.option.workContextType
   const contextKey = workContextKey(activeSlot.option)
-  const availableContexts = session.workContexts.filter((context) =>
-    context.workContextType === effectiveContextType)
+  const availableContexts = selectableWorkContexts(session.workContexts, effectiveContextType)
   const visibleSlots = (Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[])
     .map((type) => activeContexts[type]).filter((slot): slot is WorkContextSlot => Boolean(slot))
 

@@ -1,0 +1,129 @@
+.inpatient-nursing__head,
+.inpatient-nursing__head > div,
+.inpatient-nursing__toolbar,
+.inpatient-nursing__timeline article,
+.inpatient-nursing__timeline header,
+.inpatient-nursing__handoffs article > header,
+.inpatient-nursing__handoffs article > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.inpatient-nursing__assessments { display: grid; gap: var(--space-3); }
+.inpatient-nursing__assessments article {
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3);
+}
+.inpatient-nursing__assessments article > header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+}
+.inpatient-nursing__assessments article > header > div { display: grid; gap: 2px; }
+.inpatient-nursing__assessment-facts {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--space-3);
+}
+.inpatient-nursing__assessment-facts span {
+  border-radius: 999px; background: var(--color-surface-subtle); color: var(--color-text-secondary);
+  font-size: 12px; padding: 4px 8px;
+}
+.inpatient-nursing__assessments p { margin: var(--space-3) 0 0; }
+.inpatient-nursing__assessments small { display: inline-block; margin: 6px 12px 0 0; }
+.inpatient-nursing__assessments footer { margin-top: 6px; color: var(--color-text-muted); font-size: 12px; }
+
+.inpatient-nursing__head { align-items: flex-end; margin-bottom: var(--space-4); }
+.inpatient-nursing__head > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+.inpatient-nursing__head h2 { margin: 0; }
+.inpatient-nursing__head p,
+.inpatient-nursing__head span,
+.inpatient-nursing__toolbar span,
+.inpatient-nursing small { color: var(--color-text-muted); }
+.inpatient-nursing__head nav { display: flex; gap: 4px; margin-top: var(--space-2); }
+.inpatient-nursing__head nav button {
+  border: 0; border-radius: var(--radius-sm); background: var(--color-surface-subtle);
+  color: var(--color-text-secondary); cursor: pointer; padding: 7px 12px;
+}
+.inpatient-nursing__head nav button.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); }
+.inpatient-nursing__head nav small { margin-left: 4px; }
+.inpatient-nursing__head .ui-tabs { margin-top: var(--space-2); }
+
+.inpatient-nursing__toolbar { min-height: 36px; margin-bottom: var(--space-3); }
+.inpatient-nursing__form {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3);
+  padding: var(--space-4); margin-bottom: var(--space-4); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); background: var(--color-surface-subtle);
+}
+.inpatient-nursing__form > .ui-alert,
+.inpatient-nursing__form .is-wide,
+.inpatient-nursing__form-actions { grid-column: 1 / -1; }
+.inpatient-nursing__form label { display: grid; align-content: start; gap: 6px; }
+.inpatient-nursing__form label > span { color: var(--color-text-secondary); font-size: 12px; font-weight: 650; }
+.inpatient-nursing__form .ui-field { min-width: 0; align-content: start; }
+.inpatient-nursing__form input,
+.inpatient-nursing__form select,
+.inpatient-nursing__form textarea,
+.inpatient-nursing__form .ui-select { width: 100%; min-width: 0; }
+.inpatient-nursing__form-actions { display: flex; justify-content: flex-end; }
+
+.inpatient-nursing__timeline { display: grid; }
+.inpatient-nursing__timeline article { align-items: stretch; justify-content: flex-start; border-top: 1px solid var(--color-border); padding: var(--space-3) 0; }
+.inpatient-nursing__timeline article > time { flex: 0 0 92px; color: var(--color-text-muted); font-size: 12px; }
+.inpatient-nursing__timeline article > div { flex: 1; min-width: 0; }
+.inpatient-nursing__timeline header { justify-content: flex-start; }
+.inpatient-nursing__timeline p { margin: 5px 0 0; color: var(--color-text-secondary); line-height: 1.55; }
+.inpatient-nursing__timeline p b { color: var(--color-text-primary); }
+.inpatient-nursing__timeline small { display: inline-block; margin: 6px 12px 0 0; }
+.inpatient-nursing__timeline footer { margin-top: 6px; color: var(--color-text-muted); font-size: 12px; }
+.inpatient-nursing .is-risk { color: var(--color-danger); }
+
+.inpatient-nursing__handoffs { display: grid; gap: var(--space-3); }
+.inpatient-nursing__handoffs article { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3); }
+.inpatient-nursing__handoffs article > header > div { display: grid; gap: 2px; }
+.inpatient-nursing__handoffs p { margin: var(--space-3) 0 var(--space-2); }
+.inpatient-nursing__handoffs small { display: block; margin-top: 4px; }
+.inpatient-nursing__handoffs article > footer { align-items: flex-end; margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px dashed var(--color-border); }
+.inpatient-nursing__handoffs article > footer > span { color: var(--color-text-secondary); font-size: 12px; }
+
+@media (max-width: 900px) {
+  .inpatient-nursing__form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .inpatient-nursing__head { align-items: stretch; flex-direction: column; }
+  .inpatient-nursing__head > div { width: 100%; }
+  .inpatient-nursing__form { grid-template-columns: 1fr; }
+  .inpatient-nursing__timeline article { flex-direction: column; }
+  .inpatient-nursing__timeline article > time { flex-basis: auto; }
+}
+
+.inpatient-shift-workspace { margin-top: var(--space-3); overflow: hidden; }
+.inpatient-shift-workspace > .inpatient-nursing__head { padding: var(--space-3) var(--space-4); margin: 0; border-bottom: 1px solid var(--color-border); }
+.inpatient-shift-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-shift-metrics > div { padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-right: 1px solid var(--color-border); }
+.inpatient-shift-metrics > div:last-child { border-right: 0; }
+.inpatient-shift-metrics span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-shift-form { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-shift-form__summary { display: grid; grid-template-columns: minmax(18rem, 1.3fr) minmax(16rem, 1fr); gap: var(--space-3); }
+.inpatient-shift-form__patients { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.inpatient-shift-form__patients > header { padding: var(--space-2) var(--space-3); display: flex; justify-content: space-between; gap: var(--space-3); background: var(--color-surface-muted); }
+.inpatient-shift-form__patients > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-shift-patient { padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(10rem, .7fr) minmax(15rem, 1.3fr) minmax(12rem, 1fr) minmax(12rem, 1fr); align-items: end; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.inpatient-shift-patient__identity { align-self: center; display: grid; gap: 2px; }
+.inpatient-shift-patient__identity small { color: var(--color-text-muted); }
+.inpatient-shift-form > footer { display: flex; justify-content: flex-end; }
+.inpatient-shift-list { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-3); }
+.inpatient-shift-list > article { padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.inpatient-shift-list > article > header, .inpatient-shift-list > article > footer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.inpatient-shift-list > article > header > div { display: grid; gap: 2px; }
+.inpatient-shift-list > article > header small, .inpatient-shift-list > article > small, .inpatient-shift-list > article > footer span { color: var(--color-text-muted); }
+.inpatient-shift-list__patients { margin: var(--space-3) 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-2); }
+.inpatient-shift-list__patients > div { padding: var(--space-2) var(--space-3); display: grid; gap: 3px; border-radius: var(--radius-sm); background: var(--color-surface-subtle); }
+.inpatient-shift-list__patients span, .inpatient-shift-list__patients small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-shift-list .is-risk { color: var(--color-danger); }
+
+@media (max-width: 900px) {
+  .inpatient-shift-patient { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 620px) {
+  .inpatient-shift-metrics, .inpatient-shift-form__summary, .inpatient-shift-patient { grid-template-columns: 1fr; }
+}

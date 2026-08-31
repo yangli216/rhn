@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, EmptyState, Icon, LoadingState, PageHeader, Panel, PanelHead, StatusBadge,
+  Alert, Button, EmptyState, Icon, LoadingState, PageHeader, Panel, PanelHead, SearchField,
+  SplitWorkspace, StatusBadge,
 } from '../../shared/ui'
 import { DictionaryAttributeConfiguration } from './DictionaryAttributeConfiguration'
 import type { DictionaryAttributeContext } from './DictionaryAttributeConfiguration'
@@ -39,7 +40,7 @@ export function DictionaryAttributeManagement({ api, context, onNavigate }: {
   const queryError = dictionaries.error || detail.error
 
   return <>
-    <PageHeader eyebrow="平台管理 · 扩展能力" title="字典扩展配置"
+    <PageHeader compact eyebrow="平台管理 · 扩展能力" title="字典扩展配置"
       description="独立维护字典扩展属性定义及各字典项在全局、租户、机构、科室层级的业务配置。"
       actions={<Button variant="secondary" onClick={() => onNavigate('/settings/dictionaries')}>
         返回字典管理
@@ -48,15 +49,11 @@ export function DictionaryAttributeManagement({ api, context, onNavigate }: {
     {feedback && <Alert tone="success" className="dictionary-feedback">{feedback}</Alert>}
     {queryError && <Alert className="dictionary-feedback">{errorMessage(queryError)}</Alert>}
 
-    <section className="dictionary-attribute-workspace">
+    <SplitWorkspace className="dictionary-attribute-workspace">
       <Panel className="dictionary-catalog dictionary-attribute-catalog">
         <PanelHead title="适用字典" meta={`${dictionaries.data?.length ?? 0} 个`} />
         <div className="dictionary-attribute-catalog__search">
-          <label className="dictionary-search">
-            <span className="visually-hidden">搜索适用字典</span><Icon name="search" />
-            <input value={query} onChange={(event) => setQuery(event.target.value)}
-              placeholder="搜索字典名称或编码" />
-          </label>
+          <SearchField label="搜索适用字典" value={query} onChange={setQuery} placeholder="搜索字典名称或编码" />
         </div>
         <div className="dictionary-catalog__list" role="listbox" aria-label="扩展配置适用字典">
           {dictionaries.isPending && <LoadingState label="正在加载字典…" />}
@@ -110,6 +107,6 @@ export function DictionaryAttributeManagement({ api, context, onNavigate }: {
             onChanged={(message) => setFeedback(message)} />
         </>}
       </Panel>
-    </section>
+    </SplitWorkspace>
   </>
 }

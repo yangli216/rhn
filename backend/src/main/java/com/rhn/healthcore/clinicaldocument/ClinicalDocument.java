@@ -29,6 +29,8 @@ class ClinicalDocument {
     private Long departmentId;
     @Column(name = "document_type", nullable = false)
     private String documentType;
+    @Column(name = "instance_key", nullable = false)
+    private String instanceKey;
     @Column(nullable = false)
     private String title;
     @Enumerated(EnumType.STRING)
@@ -49,7 +51,7 @@ class ClinicalDocument {
     }
 
     ClinicalDocument(Long tenantId, Long residentId, Long encounterId, Long organizationId,
-                     Long departmentId, String documentType, String title, String actor) {
+                     Long departmentId, String documentType, String instanceKey, String title, String actor) {
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
         this.residentId = residentId;
@@ -57,6 +59,7 @@ class ClinicalDocument {
         this.organizationId = organizationId;
         this.departmentId = departmentId;
         this.documentType = documentType;
+        this.instanceKey = instanceKey;
         this.title = title;
         this.status = ClinicalDocumentStatus.DRAFT;
         this.currentVersion = 1;
@@ -116,6 +119,7 @@ class ClinicalDocument {
     Long organizationId() { return organizationId; }
     Long departmentId() { return departmentId; }
     String documentType() { return documentType; }
+    String instanceKey() { return instanceKey; }
     String title() { return title; }
     ClinicalDocumentStatus status() { return status; }
     int currentVersion() { return currentVersion; }

@@ -37,6 +37,13 @@ public class JpaDispenseBillingDirectory implements DispenseBillingDirectory {
     }
 
     @Override
+    public DispenseBillingFact requireById(Long tenantId, Long dispenseId) {
+        MedicationDispense value = dispenseRepository.findByIdAndTenantId(dispenseId, tenantId)
+                .orElseThrow(() -> notFound("MEDICATION_DISPENSE_NOT_FOUND", "未找到发退药事实"));
+        return fact(tenantId, value);
+    }
+
+    @Override
     public List<DispenseBillingFact> findByEncounter(Long tenantId, Long encounterId) {
         return facts(tenantId, dispenseRepository
                 .findByTenantIdAndEncounterIdOrderByOccurredAtAscIdAsc(tenantId, encounterId));

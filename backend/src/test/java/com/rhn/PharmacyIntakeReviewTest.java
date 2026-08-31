@@ -215,7 +215,15 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].taskStatus"
                         .formatted(request.get("id").asText())).value("READY_TO_PICK"))
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].latestReviewResult"
-                        .formatted(request.get("id").asText())).value("PASS"));
+                        .formatted(request.get("id").asText())).value("PASS"))
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.encounterId"
+                        .formatted(request.get("id").asText())).value(encounterId))
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.encounterNo"
+                        .formatted(request.get("id").asText())).isNotEmpty())
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.diagnoses"
+                        .formatted(request.get("id").asText())).isArray())
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].prescriptionRequests[0].id"
+                        .formatted(request.get("id").asText())).value(request.get("id").asText()));
 
         disableOverride(changedOverride, suffix);
     }
@@ -269,7 +277,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","quantity":2,
-                                  "substitutionAllowed":false,"selfProvided":false,
+                                  "substitutionAllowed":false,"selfProvided":false,"allergyReviewConfirmed":true,
                                   "businessDate":"2026-08-27","reason":"药房接方验收"
                                 }
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))

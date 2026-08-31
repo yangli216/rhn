@@ -50,32 +50,24 @@ const visitTypes = {
   ],
 } as SystemEnumDefinition
 
-const receptionStatuses = {
-  code: 'SC_RECEPTION_STATUS', name: '门诊候诊状态', items: [
-    { code: 'WAITING', name: '候诊中', sortOrder: 10 },
-    { code: 'IN_SERVICE', name: '接诊中', sortOrder: 20 },
-    { code: 'COMPLETED', name: '已诊毕', sortOrder: 30 },
-    { code: 'CANCELLED', name: '已取消', sortOrder: 40 },
-  ],
-} as SystemEnumDefinition
-
 describe('OutpatientRegistrationWorkspace', () => {
   it('registers the deep-linked resident against an available schedule and shows the queue receipt', async () => {
     const registrationIntent = {
       id: 'intent-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
       scheduleId: schedule.id, slotHoldId: 'hold-1', encounterId: encounter.id,
       idempotencyCode: 'REG-INTENT-request-1', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY',
       status: 'COMPLETED', feeAmount: 0, currencyCode: 'CNY', completionAttempts: 1,
       createdAt: '2026-08-29T01:59:00Z', updatedAt: '2026-08-29T02:00:00Z', duplicate: false,
     } as RegistrationBillingIntent
     const createRegistrationIntent = vi.fn().mockResolvedValue(registrationIntent)
-    const receptionQueue = vi.fn().mockResolvedValueOnce([]).mockResolvedValueOnce([receipt])
+    const receptionQueue = vi.fn().mockResolvedValue([receipt])
     const api = {
-      residents: { get: vi.fn().mockResolvedValue(resident), search: vi.fn() },
+      residents: { get: vi.fn().mockResolvedValue(resident), search: vi.fn(),
+        profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
+          relatedPersons: [], coverages: [], employments: [] }) },
       scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue },
-      dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(
-        code === 'SC_VISIT_TYPE' ? visitTypes : receptionStatuses,
-      )), applicable: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
       billing: {
         createRegistrationIntent,
         registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
@@ -89,11 +81,12 @@ describe('OutpatientRegistrationWorkspace', () => {
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
+    const onNavigate = vi.fn()
     vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
 
     render(<QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
-        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={onNavigate} />
       </MemoryRouter>
     </QueryClientProvider>)
 
@@ -107,8 +100,13 @@ describe('OutpatientRegistrationWorkspace', () => {
       departmentId: 'dept-1',
       registrationSource: 'WINDOW',
       visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY',
+      coverageId: undefined,
       idempotencyCode: 'REG-INTENT-request-1',
     })))
     expect(await screen.findByText('挂号成功：挂号单 REG001，候诊号 A001')).toBeInTheDocument()
+    expect(screen.queryByText('今日挂号记录')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '挂号查询' }))
+    expect(onNavigate).toHaveBeenCalledWith('/outpatient/registration-query')
   })
 })

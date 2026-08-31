@@ -13,7 +13,7 @@ import {
 } from '../../shared/rhnApi'
 import {
   Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
-  FormSelect, StatusBadge,
+  FormSelect, SearchField, SplitWorkspace, StatusBadge, Tabs,
 } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 
@@ -37,7 +37,6 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const [statusConfirmation, setStatusConfirmation] = useState<StatusConfirmation>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
   const treeItemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const practitionerItemRefs = useRef<Array<HTMLButtonElement | null>>([])
 
@@ -164,17 +163,6 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
     || practitionerStatus.isPending || savePosition.isPending || saveEmployment.isPending || saveAssignment.isPending
     || addProfileItem.isPending
 
-  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
-    const keys = ['ArrowLeft', 'ArrowRight', 'Home', 'End']
-    if (!keys.includes(event.key)) return
-    event.preventDefault()
-    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End' ? 1
-      : event.key === 'ArrowLeft' ? (index + 1) % 2 : (index + 1) % 2
-    const nextTab: WorkspaceTab = nextIndex === 0 ? 'organization' : 'personnel'
-    tabRefs.current[nextIndex]?.focus()
-    setTab(nextTab)
-  }
-
   function handleCollectionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number,
     length: number, select: (nextIndex: number) => void, refs: Array<HTMLButtonElement | null>) {
     const keys = ['ArrowUp', 'ArrowDown', 'Home', 'End']
@@ -187,32 +175,27 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   }
 
   return <>
-    <PageHeader eyebrow="平台管理 · 主数据" title="组织与人员"
+    <PageHeader compact eyebrow="平台管理 · 主数据" title="组织与人员"
       description="分别维护机构与科室主数据，通过组合树统一浏览，以聘用、岗位和任职形成工作上下文。"
       actions={<Button onClick={() => tab === 'organization'
         ? setUnitDialog({ mode: 'create' }) : setPractitionerDialog(null)}>
         <Icon name="add" />{tab === 'organization' ? '新建组织' : '新增人员'}</Button>} />
 
-    <div className="master-tabs" role="tablist" aria-label="组织与人员管理范围">
-      <button id="organization-tab" role="tab" aria-controls="organization-panel" aria-selected={tab === 'organization'}
-        tabIndex={tab === 'organization' ? 0 : -1} ref={(node) => { tabRefs.current[0] = node }}
-        className={tab === 'organization' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 0)}
-        onClick={() => setTab('organization')}>组织架构</button>
-      <button id="personnel-tab" role="tab" aria-controls="personnel-panel" aria-selected={tab === 'personnel'}
-        tabIndex={tab === 'personnel' ? 0 : -1} ref={(node) => { tabRefs.current[1] = node }}
-        className={tab === 'personnel' ? 'is-active' : ''} onKeyDown={(event) => handleTabKeyDown(event, 1)}
-        onClick={() => setTab('personnel')}>人员任职</button>
-    </div>
+    <Tabs value={tab} onChange={setTab} label="组织与人员管理范围" className="organization-tabs"
+      items={[
+        { value: 'organization', label: '组织架构', tabId: 'organization-tab', panelId: 'organization-panel' },
+        { value: 'personnel', label: '人员任职', tabId: 'personnel-tab', panelId: 'personnel-panel' },
+      ]} />
 
     {feedback && <Alert tone="success">{feedback}</Alert>}
     {(operationError || queryError) && <Alert>{operationError || errorMessage(queryError)}</Alert>}
 
-    {tab === 'organization' ? <section id="organization-panel" role="tabpanel" aria-labelledby="organization-tab"
+    {tab === 'organization' ? <SplitWorkspace id="organization-panel" role="tabpanel" aria-labelledby="organization-tab"
       className="master-workspace">
       <Panel className="master-catalog">
         <PanelHead title="组织树" meta={`${units.data?.length ?? 0} 个节点`} />
-        <label className="master-search"><Icon name="search" /><span className="visually-hidden">搜索组织</span>
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称或代码" /></label>
+        <SearchField className="master-catalog__search" label="搜索组织" value={query}
+          onChange={setQuery} placeholder="搜索名称或代码" />
         <div className="master-tree" role="tree">
           {units.isPending && <LoadingState label="正在加载组织树…" />}
           {treeRows.map(({ unit, depth }, index) => <button role="treeitem" aria-level={depth + 1}
@@ -261,19 +244,18 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             : <OrganizationProfileCards unit={selectedUnit} profile={organizationProfile.data} onAdd={setProfileDialog} />}
         </>}
       </Panel>
-    </section> : !practitioners.isPending && !practitioners.data?.length ?
+    </SplitWorkspace> : !practitioners.isPending && !practitioners.data?.length ?
       <Panel id="personnel-panel" role="tabpanel" aria-labelledby="personnel-tab" className="master-empty-onboarding">
         <EmptyState icon="residents" title="暂无人员" copy="先新增人员，再建立聘用关系和科室任职。" />
         <Button onClick={() => setPractitionerDialog(null)}><Icon name="add" />新增人员</Button>
       </Panel>
-      : <section id="personnel-panel" role="tabpanel" aria-labelledby="personnel-tab" className="master-workspace">
+      : <SplitWorkspace id="personnel-panel" role="tabpanel" aria-labelledby="personnel-tab" className="master-workspace">
       <Panel className="master-catalog">
         <PanelHead title="人员目录" meta={practitionerQuery
           ? `${filteredPractitioners.length} / ${practitioners.data?.length ?? 0} 人`
           : `${practitioners.data?.length ?? 0} 人`} />
-        <label className="master-search"><Icon name="search" /><span className="visually-hidden">搜索人员</span>
-          <input value={practitionerQuery} onChange={(event) => setPractitionerQuery(event.target.value)}
-            placeholder="搜索姓名、代码或拼音首字母" /></label>
+        <SearchField className="master-catalog__search" label="搜索人员" value={practitionerQuery}
+          onChange={setPractitionerQuery} placeholder="搜索姓名、代码或拼音首字母" />
         <div className="master-person-list" role="listbox">
           {practitioners.isPending && <LoadingState label="正在加载人员…" />}
           {filteredPractitioners.map((value, index) => <button role="option" aria-selected={value.id === selectedPractitionerId}
@@ -322,7 +304,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             {!practitionerDetail.data?.assignments.length && <p className="master-table-empty">尚未建立科室任职</p>}</div>
         </>}
       </Panel>
-    </section>}
+    </SplitWorkspace>}
 
     {statusConfirmation && <Dialog eyebrow="状态变更"
       title={`${(statusConfirmation.kind === 'unit' ? statusConfirmation.value.sdOrgStatus

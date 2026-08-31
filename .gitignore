@@ -1,13 +1,131 @@
+# ==========================================
+# 操作系统生成文件 (OS Files)
+# ==========================================
+# macOS
 .DS_Store
-.idea/
-*.iml
-backend/target/
-frontend/node_modules/
-frontend/dist/
-frontend/*.tsbuildinfo
+.AppleDouble
+.LSOverride
+Icon\r\r
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+[Nn]et[Hh]ood
+[Ss]end[Tt]o
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# ==========================================
+# 日志与临时调试文件 (Logs & Temporary Files)
+# ==========================================
+*.log
+*.log.*
+logs/
+*.pid
+*.pid.lock
+*.seed
+*.tmp
+*.temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==========================================
+# Java / JVM / Maven 构建产物与转储文件
+# ==========================================
+**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+*.hprof
+.mvn/.develocity
+.flattened-pom.xml
+
+# ==========================================
+# Node.js / 前端构建产物与缓存
+# ==========================================
+**/node_modules/
+**/dist/
+**/build/
+**/.cache/
+**/.parcel-cache/
+**/.turbo/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
 frontend/vite.config.js
 frontend/vite.config.d.ts
-.env
-*.log
-.playwright-cli/
+
+# ==========================================
+# 测试、报告与临时产物 (Testing & QA Artifacts)
+# ==========================================
+**/coverage/
+**/.nyc_output/
+**/.playwright-cli/
+**/playwright-report/
+**/test-results/
 output/
+artifacts/
+docs/audits/
+
+# ==========================================
+# 环境变量与敏感凭据 (Environment & Secrets)
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.crt
+*.keystore
+*.p12
+
+# ==========================================
+# IDE 与 编辑器配置 (IDEs & Editors)
+# ==========================================
+# IntelliJ IDEA / JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Eclipse
+.classpath
+.project
+.settings/
+.factorypath
+
+# NetBeans
+nbproject/private/
+nbbuild/
+nbdist/
+
+# Vim / Sublime Text / 通用编辑器
+*.swp
+*.swo
+.*.sw?
+*.sublime-project
+*.sublime-workspace

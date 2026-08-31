@@ -6,7 +6,7 @@ import type {
   DictionarySummary, RhnApi, Department, OrganizationUnit,
 } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, FormField, Icon, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
 import { ConfigurationScopeTarget } from './ConfigurationScopeTarget'
 
 export interface DictionaryAttributeContext {
@@ -125,9 +125,8 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
       <header className="dictionary-attribute-values__head">
         <div><h3>字典项属性值</h3><span>直接查看当前层级的配置值、最终生效值和继承来源。</span></div>
         <div className="dictionary-attribute-values__filters">
-          <label className="dictionary-search compact"><span className="visually-hidden">搜索字典项属性值</span>
-            <Icon name="search" /><input value={itemQuery} onChange={(event) => setItemQuery(event.target.value)}
-              placeholder="搜索字典项" /></label>
+          <SearchField className="dictionary-attribute-values__search" label="搜索字典项属性值"
+            value={itemQuery} onChange={setItemQuery} placeholder="搜索字典项" />
           <div className="dictionary-attribute-values__scope"><Select aria-label="属性值查看层级"
             value={displayScope} clearable={false} showValue onChange={(value) => setDisplayScope(value as DictionaryAttributeScopeType)}
             options={(Object.keys(scopeNames) as DictionaryAttributeScopeType[]).map((value) => ({

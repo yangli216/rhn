@@ -21,8 +21,9 @@ public class RegistrationBillingService implements BillingSceneCompletionHandler
 
     public RegistrationIntentView create(CreateRegistrationIntentCommand input) {
         var created = transactions.create(new RegistrationBillingIntentTransactionService.CreateCommand(
-                input.residentId(), input.organizationId(), input.departmentId(), input.scheduleId(),
-                input.idempotencyCode(), input.registrationSource(), input.visitType()));
+                input.residentId(), input.organizationId(), input.departmentId(), input.appointmentId(), input.scheduleId(),
+                input.idempotencyCode(), input.registrationSource(), input.visitType(), input.settlementMode(),
+                input.coverageId()));
         if (created.zeroFee() && !"COMPLETED".equals(created.view().status())) {
             completePlan(transactions.beginById(created.view().id(), null));
         }
@@ -65,7 +66,7 @@ public class RegistrationBillingService implements BillingSceneCompletionHandler
         try {
             EncounterDirectory.EncounterSnapshot encounter = encounters.completeRegistration(
                     new EncounterDirectory.RegistrationCompletionCommand(plan.residentId(), plan.organizationId(),
-                            plan.departmentId(), plan.scheduleId(), plan.slotHoldId(), plan.idempotencyCode(),
+                            plan.departmentId(), plan.appointmentId(), plan.scheduleId(), plan.slotHoldId(), plan.idempotencyCode(),
                             plan.registrationSource(), plan.visitType()));
             transactions.markCompleted(plan.intentId(), encounter.id());
         } catch (RuntimeException exception) {
@@ -76,6 +77,7 @@ public class RegistrationBillingService implements BillingSceneCompletionHandler
     }
 
     public record CreateRegistrationIntentCommand(Long residentId, Long organizationId, Long departmentId,
-                                                   Long scheduleId, String idempotencyCode,
-                                                   String registrationSource, String visitType) {}
+                                                   Long appointmentId, Long scheduleId, String idempotencyCode,
+                                                   String registrationSource, String visitType,
+                                                   String settlementMode, Long coverageId) {}
 }

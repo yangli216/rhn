@@ -1,0 +1,3 @@
+-- PostgreSQL, MySQL and H2 already permit multiple NULL values in these
+-- registration billing unique constraints. Oracle uses the vendor migration
+-- to express the same semantics with conditional function indexes.

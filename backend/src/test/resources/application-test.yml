@@ -10,18 +10,32 @@ spring:
     enabled: true
     locations: classpath:db/migration,classpath:db/local,classpath:db/h2
 rhn:
+  ai:
+    mode: LOCAL_ASSIST
+    provider: local-assist
+    model: local-rules-v1
+    suggestion-ttl: PT30M
   id:
     allow-default-node: true
   security:
     dev-user-enabled: true
     dev-username: doctor
     dev-password: test-password
+    session-registry: memory
+    refresh-login:
+      cookie-secure: false
   crypto:
     active-provider: development-jca
     enforce-compliance: false
   eventing:
     outbox:
       enabled: false
+  pharmacy:
+    require-settlement-authorization: false
+    prescription-review:
+      mode-override: PRE_DISPENSE
+  presence:
+    store: memory
 springdoc:
   api-docs:
     enabled: true

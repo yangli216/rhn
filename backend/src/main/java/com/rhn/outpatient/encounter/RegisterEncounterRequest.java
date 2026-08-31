@@ -9,6 +9,7 @@ public record RegisterEncounterRequest(
         @NotNull(message = "居民不能为空") Long residentId,
         @NotNull(message = "机构不能为空") Long organizationId,
         @NotNull(message = "科室不能为空") Long departmentId,
+        Long appointmentId,
         Long scheduleId,
         Long slotHoldId,
         @Size(max = 128) String idempotencyCode,

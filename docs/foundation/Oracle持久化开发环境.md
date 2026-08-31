@@ -17,6 +17,14 @@ export RHN_ORACLE_PASSWORD
 mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
 ```
 
+长期运行打包制品时，推荐从项目根目录执行：
+
+```bash
+./scripts/run-oracle-local.sh
+```
+
+脚本要求同样的三个 Oracle 环境变量，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
+
 可选使用 `RHN_DEV_USERNAME`、`RHN_DEV_PASSWORD` 覆盖本地体验账号。该账号和 `development-jca` 只用于开发验证，不得承载真实医疗数据或作为生产安全方案。
 
 ## 3. 初始化结果

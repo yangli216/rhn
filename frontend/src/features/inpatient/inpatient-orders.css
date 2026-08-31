@@ -1,0 +1,146 @@
+.inpatient-orders { margin-top: var(--space-3); overflow: hidden; }
+.inpatient-orders__head { min-height: 4.75rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.inpatient-orders__head h2 { margin: var(--space-1) 0 0; font-size: var(--font-size-h2); }
+.inpatient-orders__head p, .inpatient-orders__head > div:first-child > span { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-orders__head > div:last-child { display: flex; align-items: center; gap: var(--space-3); }
+.inpatient-orders__head nav { padding: .2rem; display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-orders__head nav button { min-height: var(--control-height-sm); padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; font-weight: var(--font-weight-semibold); }
+.inpatient-orders__head nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.inpatient-orders__head nav small { margin-left: var(--space-1); color: inherit; }
+.inpatient-orders__alert { margin: var(--space-3) var(--space-4) 0; }
+.inpatient-order-section-head { min-height: 3.25rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.inpatient-order-section-head > div { min-width: 0; }
+.inpatient-order-section-head strong, .inpatient-order-section-head span { display: block; }
+.inpatient-order-section-head span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-order-section-head nav { padding: .15rem; display: flex; gap: var(--space-1); border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-order-section-head nav button { min-height: 1.75rem; padding: 0 var(--space-2); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; font-size: var(--font-size-small); cursor: pointer; }
+.inpatient-order-section-head nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); font-weight: var(--font-weight-semibold); }
+.inpatient-orders__readonly { margin: var(--space-3) var(--space-4); }
+.inpatient-order-composer { padding: var(--space-3) var(--space-4); display: grid; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-order-composer > .ui-alert { margin: 0; }
+.inpatient-order-composer__core { display: grid; grid-template-columns: minmax(8rem, .55fr) minmax(8rem, .55fr) minmax(20rem, 2fr); align-items: end; gap: var(--space-3); }
+.inpatient-order-composer__usage { display: grid; grid-template-columns: repeat(2, minmax(7rem, .65fr)) repeat(2, minmax(10rem, 1fr)); align-items: end; gap: var(--space-3); }
+.inpatient-order-composer__footer { display: grid; grid-template-columns: minmax(20rem, 1fr) auto; align-items: end; gap: var(--space-3); }
+.inpatient-order-composer .ui-field { min-width: 0; margin: 0; }
+.inpatient-order-composer .ui-field__control { min-width: 0; height: var(--control-height-sm); margin-top: var(--space-1); padding: 0 var(--space-2); font-size: var(--font-size-small); }
+.inpatient-order-composer .ui-select__trigger,
+.inpatient-order-composer .ui-remote-search__trigger { min-height: var(--control-height-sm); }
+.inpatient-order-composer .is-resource { min-width: 20rem; }
+.inpatient-order-list { display: grid; }
+.inpatient-order-row { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(13rem, 1.15fr) minmax(13rem, 1.15fr) 6rem minmax(12rem, auto); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.inpatient-order-row:last-child { border-bottom: 0; }
+.inpatient-order-row__identity > *, .inpatient-order-row__directions > *, .inpatient-order-row__state > * { display: block; }
+.inpatient-order-row__identity > span, .inpatient-order-row__identity small, .inpatient-order-row__directions span, .inpatient-order-row__state small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-order-row__identity strong, .inpatient-order-row__directions strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-order-row__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.inpatient-order-row__actions > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-order-inline-action { grid-column: 1 / -1; padding-top: var(--space-2); display: grid; grid-template-columns: minmax(18rem, 1fr) auto; align-items: end; gap: var(--space-2); border-top: 1px dashed var(--color-border-strong); }
+.inpatient-order-inline-action label { display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-order-inline-action input { height: var(--control-height-sm); padding: 0 var(--space-2); }
+.inpatient-order-allergy-review { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(17rem, 1fr) auto; align-items: end; gap: var(--space-2) var(--space-3); border: 1px solid color-mix(in srgb, var(--color-warning) 38%, var(--color-border)); border-radius: var(--radius-md); background: var(--color-warning-soft); }
+.inpatient-order-allergy-review > div > * { display: block; }
+.inpatient-order-allergy-review > div > span, .inpatient-order-allergy-review label { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-order-allergy-review label:not(.is-confirm) { display: grid; gap: var(--space-1); font-weight: var(--font-weight-semibold); }
+.inpatient-order-allergy-review label:not(.is-confirm) input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.inpatient-order-allergy-review .is-confirm { display: flex; align-items: center; gap: var(--space-2); }
+.inpatient-order-allergy-review .is-danger { color: var(--color-danger); }
+.inpatient-medication-closure { grid-column: 1 / -1; padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(14rem, 1fr) auto; align-items: center; gap: var(--space-1) var(--space-3); border: 1px solid var(--color-border); border-left: .1875rem solid var(--color-info); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.inpatient-medication-closure > div > * { display: block; }
+.inpatient-medication-closure > div > span, .inpatient-medication-closure > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-medication-closure > small { grid-column: 1 / -1; }
+.inpatient-medication-closure.is-warning { border-left-color: var(--color-warning); background: var(--color-warning-soft); }
+.inpatient-medication-closure.is-success { border-left-color: var(--color-success); }
+.inpatient-medication-closure.is-neutral { border-left-color: var(--color-border-strong); }
+.inpatient-nurse-orders { display: grid; grid-template-columns: minmax(20rem, .8fr) minmax(32rem, 1.6fr); align-items: start; }
+.inpatient-nurse-orders.has-no-verification { grid-template-columns: 1fr; }
+.inpatient-medication-workspace { min-width: 0; display: grid; }
+.inpatient-ward-deliveries { grid-column: 1 / -1; border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-ward-delivery-list { padding: var(--space-2) var(--space-4); display: grid; gap: var(--space-2); }
+.inpatient-ward-delivery-history { border-top: 1px solid var(--color-border); }
+.inpatient-ward-delivery-history > summary { padding: var(--space-2) var(--space-4); color: var(--color-text-secondary); cursor: pointer; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-ward-delivery { padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: minmax(13rem, .8fr) minmax(18rem, 1.4fr) auto; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.inpatient-ward-delivery.is-discrepancy { border-color: color-mix(in srgb, var(--color-danger) 35%, var(--color-border)); }
+.inpatient-ward-delivery__summary { min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.inpatient-ward-delivery__summary > div > *, .inpatient-ward-delivery__lines > div > * { display: block; }
+.inpatient-ward-delivery__summary span, .inpatient-ward-delivery__lines span, .inpatient-ward-delivery__lines small,
+.inpatient-ward-delivery__hint { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-ward-delivery__summary span { margin-top: .125rem; }
+.inpatient-ward-delivery__lines { min-width: 0; display: grid; gap: var(--space-1); }
+.inpatient-ward-delivery__lines > div { min-width: 0; }
+.inpatient-ward-delivery__lines strong, .inpatient-ward-delivery__lines span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-ward-delivery__actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.inpatient-ward-delivery__difference { grid-column: 1 / -1; padding-top: var(--space-2); display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, .7fr)) minmax(15rem, 1.4fr) auto; align-items: end; gap: var(--space-2); border-top: 1px dashed var(--color-border-strong); }
+.inpatient-ward-delivery__difference label { min-width: 0; display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-ward-delivery__difference input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.inpatient-ward-delivery__difference .is-note { min-width: 15rem; }
+.inpatient-ward-delivery__error, .inpatient-ward-delivery__hint { grid-column: 1 / -1; }
+.inpatient-verification-list { border-right: 1px solid var(--color-border); }
+.inpatient-verification-list > article { min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(9rem, .9fr) auto; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.inpatient-verification-list > article > div > *, .inpatient-verification-list > article > small { display: block; }
+.inpatient-verification-list > article span, .inpatient-verification-list > article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-task-list { display: grid; }
+.inpatient-task-batch-bar { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: auto minmax(12rem, 1fr) auto auto; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-task-batch-bar label { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-task-batch-bar input[type="text"], .inpatient-task-batch-bar > input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); }
+.inpatient-task-batch-bar > span { color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.inpatient-task-batch-feedback { margin: var(--space-2) var(--space-4); }
+.inpatient-task-group > header { min-height: 2.4rem; padding: var(--space-1) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-muted); }
+.inpatient-task-group > header strong { color: var(--color-brand-strong); font-size: var(--font-size-small); }
+.inpatient-task-group > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-task-row { min-height: 5rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: 1.25rem 6.5rem minmax(14rem, 1.2fr) minmax(8.5rem, .65fr) 5rem minmax(21rem, 1.35fr); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.inpatient-task-row:last-child { border-bottom: 0; }
+.inpatient-task-row__select { display: flex; align-items: center; justify-content: center; }
+.inpatient-task-row > time > * { display: block; }
+.inpatient-task-row > time strong { color: var(--color-brand-strong); font-size: var(--font-size-small); font-variant-numeric: tabular-nums; }
+.inpatient-task-row > time small, .inpatient-task-row__identity span, .inpatient-task-row__identity small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-task-row__identity > * { display: block; }
+.inpatient-task-row__identity strong, .inpatient-task-row__identity small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-task-row__fulfillment { min-width: 0; padding-left: var(--space-2); display: grid; gap: .125rem; border-left: .1875rem solid var(--color-border-strong); }
+.inpatient-task-row__fulfillment > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-task-row__fulfillment > span, .inpatient-task-row__fulfillment > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-task-row__fulfillment.is-fulfilled { border-left-color: var(--color-success); }
+.inpatient-task-row__fulfillment.is-pending { border-left-color: var(--color-warning); }
+.inpatient-task-row__actions { display: grid; grid-template-columns: minmax(8rem, 1fr) auto minmax(6.5rem, auto) auto; align-items: center; gap: var(--space-1); }
+.inpatient-task-row__actions input { min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--font-size-small); }
+.inpatient-task-row__actions .ui-select, .inpatient-ward-delivery__difference .ui-select { min-width: 0; }
+.inpatient-task-row__actions .ui-select__trigger, .inpatient-ward-delivery__difference .ui-select__trigger { min-height: var(--control-height-sm); font-size: var(--font-size-small); }
+.inpatient-task-row__blocked { grid-column: 1 / -1; color: var(--color-warning); font-size: var(--font-size-small); }
+.inpatient-task-row__result { min-width: 0; display: grid; gap: var(--space-1); }
+.inpatient-task-row__result strong, .inpatient-task-row__result small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-task-row__result small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+@media (max-width: 82rem) {
+  .inpatient-order-composer__core { grid-template-columns: repeat(2, minmax(8rem, 1fr)); }
+  .inpatient-order-composer__core .is-resource { grid-column: 1 / -1; }
+  .inpatient-order-composer__usage { grid-template-columns: repeat(2, minmax(8rem, 1fr)); }
+  .inpatient-order-row { grid-template-columns: minmax(12rem, 1.2fr) minmax(12rem, 1fr) 6rem; }
+  .inpatient-order-row__actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .inpatient-order-allergy-review { grid-template-columns: 1fr auto; }
+  .inpatient-nurse-orders { grid-template-columns: 1fr; }
+  .inpatient-ward-delivery { grid-template-columns: 1fr; }
+  .inpatient-ward-delivery__actions { justify-content: flex-start; }
+  .inpatient-verification-list { border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .inpatient-task-row { grid-template-columns: 1.25rem 6.5rem minmax(13rem, 1.2fr) minmax(8rem, .7fr) 5rem; }
+  .inpatient-task-row__actions, .inpatient-task-row__result { grid-column: 3 / -1; }
+}
+
+@media (max-width: 52rem) {
+  .inpatient-orders__head { align-items: flex-start; flex-direction: column; }
+  .inpatient-orders__head > div:last-child { width: 100%; align-items: flex-start; flex-direction: column; }
+  .inpatient-order-composer__core,
+  .inpatient-order-composer__usage,
+  .inpatient-order-composer__footer { grid-template-columns: 1fr; }
+  .inpatient-order-composer .is-resource { min-width: 0; }
+  .inpatient-order-row { grid-template-columns: 1fr auto; }
+  .inpatient-order-row__directions { grid-column: 1; }
+  .inpatient-order-allergy-review { grid-template-columns: 1fr; }
+  .inpatient-verification-list > article { grid-template-columns: 1fr auto; }
+  .inpatient-ward-delivery__difference { grid-template-columns: 1fr; }
+  .inpatient-verification-list > article > small { grid-column: 1; }
+  .inpatient-task-batch-bar { grid-template-columns: 1fr auto; }
+  .inpatient-task-batch-bar > input { grid-column: 1 / -1; grid-row: 2; }
+  .inpatient-task-row { grid-template-columns: 1.25rem 6rem minmax(10rem, 1fr) auto; }
+  .inpatient-task-row__fulfillment { grid-column: 3 / -1; }
+  .inpatient-task-row__actions, .inpatient-task-row__result { grid-column: 1 / -1; }
+  .inpatient-task-row__actions { grid-template-columns: 1fr auto; }
+}

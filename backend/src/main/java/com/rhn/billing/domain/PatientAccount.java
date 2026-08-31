@@ -16,7 +16,7 @@ public class PatientAccount {
     @Version private long revision;
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
+    @Column(name = "encounter_id") private Long encounterId;
     @Column(name = "organization_id", nullable = false) private Long organizationId;
     @Column(name = "department_id", nullable = false) private Long departmentId;
     @Column(name = "account_type", nullable = false) private String accountType;
@@ -43,6 +43,30 @@ public class PatientAccount {
         value.accountType = "REGISTRATION"; value.currencyCode = currencyCode;
         value.status = "OPEN"; value.openedAt = Instant.now();
         return value;
+    }
+
+    public static PatientAccount inpatient(Long tenantId, Long residentId, Long encounterId,
+                                           Long organizationId, Long departmentId, String currencyCode) {
+        PatientAccount value = new PatientAccount();
+        value.id = GlobalIds.next(); value.tenantId = tenantId; value.residentId = residentId;
+        value.encounterId = encounterId; value.organizationId = organizationId; value.departmentId = departmentId;
+        value.accountType = "INPATIENT"; value.currencyCode = currencyCode;
+        value.status = "OPEN"; value.openedAt = Instant.now();
+        return value;
+    }
+
+    public void bindEncounter(Long encounterId) {
+        if (this.encounterId != null && !this.encounterId.equals(encounterId)) {
+            throw new IllegalStateException("费用账户已经绑定其他就诊");
+        }
+        this.encounterId = encounterId;
+        if ("REGISTRATION".equals(accountType)) accountType = "OUTPATIENT";
+    }
+
+    public void close(Instant closedAt) {
+        if ("CLOSED".equals(status)) return;
+        this.status = "CLOSED";
+        this.closedAt = closedAt == null ? Instant.now() : closedAt;
     }
 
     public Long id() { return id; }

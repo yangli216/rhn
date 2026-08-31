@@ -8,6 +8,8 @@ import java.util.List;
  * Stable, read-only pharmacy facts consumed by billing.
  */
 public interface DispenseBillingDirectory {
+    DispenseBillingFact requireById(Long tenantId, Long dispenseId);
+
     List<DispenseBillingFact> findByEncounter(Long tenantId, Long encounterId);
 
     List<DispenseBillingFact> findWorklist(Long tenantId, Long organizationId);

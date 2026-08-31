@@ -199,13 +199,17 @@ public class InventoryReconciliationApplicationService {
     private List<ReconciliationLineView> lines(Long tenantId, Long runId) {
         return jdbc.query("""
                 select id, stock_bin_id, stock_item_id, stock_lot_id, stock_status, issue_type,
-                       expected_quantity, actual_quantity, difference_quantity, severity, description
+                       expected_quantity, actual_quantity, difference_quantity,
+                       valuation_basis, currency_code, expected_amount, actual_amount, difference_amount,
+                       severity, description
                 from inventory_reconciliation_lines where tenant_id = ? and reconciliation_run_id = ?
                 order by case severity when 'ERROR' then 0 else 1 end, issue_type, id
                 """, (rs, row) -> new ReconciliationLineView(rs.getLong("id"), nullableLong(rs, "stock_bin_id"),
                 nullableLong(rs, "stock_item_id"), nullableLong(rs, "stock_lot_id"), rs.getString("stock_status"),
                 rs.getString("issue_type"), rs.getBigDecimal("expected_quantity"), rs.getBigDecimal("actual_quantity"),
-                rs.getBigDecimal("difference_quantity"), rs.getString("severity"), rs.getString("description")),
+                rs.getBigDecimal("difference_quantity"), rs.getString("valuation_basis"), rs.getString("currency_code"),
+                rs.getBigDecimal("expected_amount"), rs.getBigDecimal("actual_amount"), rs.getBigDecimal("difference_amount"),
+                rs.getString("severity"), rs.getString("description")),
                 tenantId, runId);
     }
 

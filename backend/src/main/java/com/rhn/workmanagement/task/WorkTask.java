@@ -73,6 +73,17 @@ public class WorkTask {
         return task;
     }
 
+    public static WorkTask userTask(Long tenantId, Long organizationId, Long departmentId, Long assigneeId,
+                                    String taskType, String title, String summary, TaskPriority priority,
+                                    Long residentId, Long encounterId, String sourceType, Long sourceId,
+                                    String routePath, String dedupKey, Instant dueAt, Long actorId) {
+        WorkTask task = departmentTask(tenantId, organizationId, departmentId, taskType, title, summary,
+                priority, residentId, encounterId, sourceType, sourceId, routePath, dedupKey, dueAt, actorId);
+        task.assigneeType = AssigneeType.USER;
+        task.assigneeId = assigneeId;
+        return task;
+    }
+
     public TaskStatus claim(Long actorId) {
         if (status == TaskStatus.COMPLETED || status == TaskStatus.CANCELLED) {
             throw BusinessErrors.conflict("TASK_STATE_INVALID", "已结束任务不能认领");

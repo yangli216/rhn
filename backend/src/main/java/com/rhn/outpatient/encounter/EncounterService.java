@@ -5,9 +5,11 @@ import com.rhn.healthcore.api.ClinicalDocumentDirectory;
 import com.rhn.healthcore.api.ClinicalObservationDirectory;
 import com.rhn.healthplanning.api.HypertensionCareDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
+import com.rhn.platform.idempotency.IdempotencyService;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
+import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.context.ExecutionContext;
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -34,6 +37,11 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @Service
 public class EncounterService implements EncounterDirectory {
+    private static final String START_OPERATION = "OUTPATIENT.ENCOUNTER.START";
+    private static final String SUSPEND_OPERATION = "OUTPATIENT.ENCOUNTER.SUSPEND";
+    private static final String RESUME_OPERATION = "OUTPATIENT.ENCOUNTER.RESUME";
+    private static final String RECORD_OPERATION = "OUTPATIENT.ENCOUNTER.RECORD";
+    private static final String COMPLETE_OPERATION = "OUTPATIENT.ENCOUNTER.COMPLETE";
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneOffset.UTC);
 
@@ -44,13 +52,16 @@ public class EncounterService implements EncounterDirectory {
     private final EncounterStatusEventRepository statusEventRepository;
     private final EncounterWorkSessionRepository workSessionRepository;
     private final EncounterCompletionService completionService;
+    private final OutpatientReferralService referralService;
     private final ResidentDirectory residentDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final OutpatientRegistrationDirectory registrationDirectory;
+    private final OutpatientNoteFormDirectory noteFormDirectory;
     private final ClinicalDocumentDirectory clinicalDocumentDirectory;
     private final ClinicalObservationDirectory clinicalObservationDirectory;
     private final HypertensionCareDirectory hypertensionCareDirectory;
     private final DomainEventPublisher eventPublisher;
+    private final IdempotencyService idempotencyService;
     private final ExecutionContextProvider executionContextProvider;
     private final JsonCodec jsonCodec;
 
@@ -61,13 +72,16 @@ public class EncounterService implements EncounterDirectory {
                             EncounterStatusEventRepository statusEventRepository,
                             EncounterWorkSessionRepository workSessionRepository,
                             EncounterCompletionService completionService,
+                            OutpatientReferralService referralService,
                             ResidentDirectory residentDirectory,
                             OrganizationDirectory organizationDirectory,
                             OutpatientRegistrationDirectory registrationDirectory,
+                            OutpatientNoteFormDirectory noteFormDirectory,
                             ClinicalDocumentDirectory clinicalDocumentDirectory,
                             ClinicalObservationDirectory clinicalObservationDirectory,
                             HypertensionCareDirectory hypertensionCareDirectory,
                             DomainEventPublisher eventPublisher,
+                            IdempotencyService idempotencyService,
                             ExecutionContextProvider executionContextProvider,
                             JsonCodec jsonCodec) {
         this.encounterRepository = encounterRepository;
@@ -77,13 +91,16 @@ public class EncounterService implements EncounterDirectory {
         this.statusEventRepository = statusEventRepository;
         this.workSessionRepository = workSessionRepository;
         this.completionService = completionService;
+        this.referralService = referralService;
         this.residentDirectory = residentDirectory;
         this.organizationDirectory = organizationDirectory;
         this.registrationDirectory = registrationDirectory;
+        this.noteFormDirectory = noteFormDirectory;
         this.clinicalDocumentDirectory = clinicalDocumentDirectory;
         this.clinicalObservationDirectory = clinicalObservationDirectory;
         this.hypertensionCareDirectory = hypertensionCareDirectory;
         this.eventPublisher = eventPublisher;
+        this.idempotencyService = idempotencyService;
         this.executionContextProvider = executionContextProvider;
         this.jsonCodec = jsonCodec;
     }
@@ -110,13 +127,15 @@ public class EncounterService implements EncounterDirectory {
         organizationDirectory.requireDepartment(tenantId, request.organizationId(), request.departmentId());
         encounterRepository.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
                         tenantId, residentId, request.organizationId(), request.departmentId(),
-                        java.util.List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS))
+                        java.util.List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS,
+                                EncounterStatus.SUSPENDED))
                 .ifPresent(value -> { throw conflict("ENCOUNTER_ACTIVE_DUPLICATE", "该居民在当前科室已有进行中的就诊"); });
         Encounter encounter = encounterRepository.saveAndFlush(new Encounter(tenantId, residentId,
                 nextEncounterNo(), request.organizationId(), request.departmentId()));
         OutpatientRegistrationDirectory.RegistrationSnapshot registration = registrationDirectory.register(
                 new OutpatientRegistrationDirectory.RegisterCommand(residentId, encounter.id(),
-                        request.organizationId(), request.departmentId(), request.scheduleId(), request.slotHoldId(), idempotencyCode,
+                        request.organizationId(), request.departmentId(), request.appointmentId(), request.scheduleId(),
+                        request.slotHoldId(), idempotencyCode,
                         request.registrationSource(), request.visitType()));
         String source = request.registrationSource() == null || request.registrationSource().isBlank()
                 ? (registration.scheduleId() == null ? "DIRECT" : "WINDOW") : request.registrationSource();
@@ -140,16 +159,14 @@ public class EncounterService implements EncounterDirectory {
     @Transactional
     public EncounterSnapshot completeRegistration(RegistrationCompletionCommand command) {
         EncounterResponse value = register(new RegisterEncounterRequest(command.residentId(), command.organizationId(),
-                command.departmentId(), command.scheduleId(), command.slotHoldId(), command.idempotencyCode(),
+                command.departmentId(), command.appointmentId(), command.scheduleId(), command.slotHoldId(), command.idempotencyCode(),
                 command.registrationSource(), command.visitType()));
-        return new EncounterSnapshot(value.id(), TenantContext.requireTenantId(), value.residentId(),
-                value.organizationId(), value.departmentId(), value.encounterNo(), value.clinicianId(),
-                value.status().name());
+        return snapshot(requireEncounter(value.id()));
     }
 
     @Transactional
     public EncounterResponse start(Long encounterId, StartEncounterRequest request) {
-        Encounter encounter = requireEncounter(encounterId);
+        Encounter encounter = requireEncounterWithLock(encounterId);
         ExecutionContext context = executionContextProvider.requireCurrent();
         Map<String, Boolean> factors = Map.copyOf(request.factorResults());
         if (factors.isEmpty() || factors.values().stream().anyMatch(value -> !Boolean.TRUE.equals(value))) {
@@ -163,6 +180,9 @@ public class EncounterService implements EncounterDirectory {
         long expectedRevision = encounter.version();
         String commandCode = request.commandCode() == null || request.commandCode().isBlank()
                 ? "START-" + encounterId + "-" + expectedRevision : request.commandCode().trim();
+        var reservation = idempotencyService.reserve(START_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
         String terminalCode = request.terminalCode();
         identityCheckRepository.save(new EncounterIdentityCheck(encounter.tenantId(), encounter.residentId(),
                 encounter.id(), jsonCodec.write(factors), context.practitionerId(), context.subjectId(),
@@ -176,19 +196,71 @@ public class EncounterService implements EncounterDirectory {
         registrationDirectory.markInService(encounterId, commandCode);
         encounterRepository.flush();
         publish(encounter, "ENCOUNTER_STARTED", "开始门诊接诊", Map.of("clinician", context.actor()));
-        return toResponse(encounter);
+        return completeCommand(START_OPERATION, commandCode, encounter);
+    }
+
+    @Transactional
+    public EncounterResponse suspend(Long encounterId, SuspendEncounterRequest request) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        long expectedRevision = encounter.version();
+        String commandCode = clean(request.commandCode()) == null
+                ? "SUSPEND-" + encounterId + "-" + expectedRevision : clean(request.commandCode());
+        String reason = request.reason().trim();
+        var reservation = idempotencyService.reserve(SUSPEND_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        statusEventRepository.save(new EncounterStatusEvent(encounter, EncounterStatus.IN_PROGRESS.name(),
+                EncounterStatus.SUSPENDED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
+                commandCode, reason));
+        workSessionRepository.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
+                encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("SUSPENDED"));
+        encounter.suspend();
+        registrationDirectory.markSuspended(encounterId, commandCode, reason);
+        encounterRepository.flush();
+        publish(encounter, "ENCOUNTER_SUSPENDED", "门诊接诊暂挂", Map.of("reason", reason));
+        return completeCommand(SUSPEND_OPERATION, commandCode, encounter);
+    }
+
+    @Transactional
+    public EncounterResponse resume(Long encounterId, ResumeEncounterRequest request) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        long expectedRevision = encounter.version();
+        String commandCode = clean(request.commandCode()) == null
+                ? "RESUME-" + encounterId + "-" + expectedRevision : clean(request.commandCode());
+        var reservation = idempotencyService.reserve(RESUME_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        statusEventRepository.save(new EncounterStatusEvent(encounter, EncounterStatus.SUSPENDED.name(),
+                EncounterStatus.IN_PROGRESS.name(), expectedRevision, context.practitionerId(), context.subjectId(),
+                commandCode, "患者返回，恢复门诊接诊"));
+        workSessionRepository.save(new EncounterWorkSession(encounter.tenantId(), encounter.id(),
+                context.practitionerId(), context.subjectId(), clean(request.terminalCode())));
+        encounter.resume(context.actor());
+        registrationDirectory.markResumed(encounterId, commandCode);
+        encounterRepository.flush();
+        publish(encounter, "ENCOUNTER_RESUMED", "恢复门诊接诊", Map.of("clinician", context.actor()));
+        return completeCommand(RESUME_OPERATION, commandCode, encounter);
     }
 
     @Transactional
     public EncounterResponse recordClinicalData(Long encounterId, RecordClinicalDataRequest request) {
-        Encounter encounter = requireEncounter(encounterId);
-        encounter.recordClinicalData(request.chiefComplaint().trim(), request.systolic(), request.diastolic());
-
+        Encounter encounter = requireEncounterWithLock(encounterId);
         Long tenantId = TenantContext.requireTenantId();
         validateDiagnoses(request);
+        String commandCode = clean(request.commandCode()) == null
+                ? "RECORD-" + encounterId + "-" + encounter.version() + "-" + com.rhn.shared.id.GlobalIds.next()
+                : clean(request.commandCode());
+        var reservation = idempotencyService.reserve(RECORD_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
+        encounter.recordClinicalData(request.chiefComplaint().trim(), request.systolic(), request.diastolic());
+
         ExecutionContext context = executionContextProvider.requireCurrent();
         List<EncounterDiagnosis> existing = diagnosisRepository
-                .findByTenantIdAndEncounterIdOrderByRecordedAt(tenantId, encounterId);
+                .findByTenantIdAndEncounterIdAndDiagnosisStageOrderByRecordedAt(
+                        tenantId, encounterId, "ENCOUNTER");
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
                 EncounterDiagnosis::code, Function.identity(), (left, right) -> left, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
@@ -220,7 +292,8 @@ public class EncounterService implements EncounterDirectory {
         diagnosisRevisionRepository.saveAll(revisions);
         diagnosisRevisionRepository.flush();
         List<EncounterDiagnosis> diagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStatusOrderByRecordedAt(tenantId, encounterId, "ACTIVE");
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                        tenantId, encounterId, "ENCOUNTER", "ACTIVE");
 
         Map<String, Object> noteContent = new LinkedHashMap<>();
         noteContent.put("encounterNo", encounter.encounterNo());
@@ -242,9 +315,19 @@ public class EncounterService implements EncounterDirectory {
         noteContent.put("diagnoses", diagnoses.stream().map(diagnosis -> Map.of(
                 "code", diagnosis.code(), "display", diagnosis.display(),
                 "type", diagnosis.diagnosisType().name())).toList());
+        String noteSchema = "RHN.OUTPATIENT_NOTE.V2";
+        if (request.noteFormVersionId() != null) {
+            OutpatientNoteFormDirectory.ResolvedForm form = noteFormDirectory.resolvePublished(
+                    request.noteFormVersionId(), request.structuredData());
+            noteContent.put("structuredForm", form.definitionSnapshot());
+            noteContent.put("structuredData", form.normalizedValues());
+            noteSchema = "RHN.OUTPATIENT_NOTE.V3";
+        } else if (request.structuredData() != null && !request.structuredData().isEmpty()) {
+            throw badRequest("NOTE_FORM_VERSION_REQUIRED", "提交结构化病历字段时必须选择病历表单");
+        }
         clinicalDocumentDirectory.upsertEncounterDraft(encounter.residentId(), encounter.id(),
                 encounter.organizationId(), encounter.departmentId(), "OUTPATIENT_NOTE", "门诊病历",
-                "RHN.OUTPATIENT_NOTE.V2", noteContent,
+                noteSchema, noteContent,
                 "门诊接诊记录更新");
         encounterRepository.flush();
         Instant measuredAt = Instant.now();
@@ -274,13 +357,28 @@ public class EncounterService implements EncounterDirectory {
             publish(encounter, "DIAGNOSIS_RECORDED", diagnosis.display(), Map.of(
                     "code", diagnosis.code(), "display", diagnosis.display(), "type", diagnosis.diagnosisType().name()));
         }
-        return EncounterResponse.from(encounter, diagnoses);
+        EncounterResponse response = EncounterResponse.from(encounter, diagnoses);
+        idempotencyService.complete(RECORD_OPERATION, commandCode, "Encounter", encounter.id(), 200,
+                jsonCodec.write(response));
+        return response;
     }
 
     @Transactional
     public EncounterResponse complete(Long encounterId) {
-        Encounter encounter = requireEncounter(encounterId);
+        return complete(encounterId, CompleteEncounterRequest.defaultRequest());
+    }
+
+    @Transactional
+    public EncounterResponse complete(Long encounterId, CompleteEncounterRequest request) {
+        Encounter encounter = requireEncounterWithLock(encounterId);
         ExecutionContext context = executionContextProvider.requireCurrent();
+        referralService.requireNoOpenConsultation(encounter.tenantId(), encounter.id());
+        String commandCode = clean(request.commandCode()) == null
+                ? "COMPLETE-" + encounterId + "-" + encounter.version() + "-"
+                + com.rhn.shared.id.GlobalIds.next() : clean(request.commandCode());
+        var reservation = idempotencyService.reserve(COMPLETE_OPERATION, commandCode,
+                canonicalCommand(encounterId, request));
+        if (reservation.replay()) return replayEncounter(reservation.responseJson());
         boolean noteSigned = true;
         BusinessException documentFailure = null;
         try {
@@ -290,17 +388,12 @@ public class EncounterService implements EncounterDirectory {
             documentFailure = exception;
         }
         List<EncounterDiagnosis> currentDiagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStatusOrderByRecordedAt(
-                        encounter.tenantId(), encounter.id(), "ACTIVE");
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                        encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE");
         boolean identityChecked = identityCheckRepository.existsByTenantIdAndEncounterIdAndResult(
                 encounter.tenantId(), encounter.id(), "PASS");
         boolean hasPrimaryDiagnosis = currentDiagnoses.stream()
                 .anyMatch(diagnosis -> diagnosis.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY);
-        // The endpoint currently has no client-supplied idempotency key. Keep each
-        // completion attempt independently auditable so a corrected retry is not
-        // rejected by the completion-check unique constraint.
-        String commandCode = "COMPLETE-" + encounterId + "-" + encounter.version() + "-"
-                + com.rhn.shared.id.GlobalIds.next();
         EncounterCompletionService.CompletionDecision decision = completionService.evaluate(encounter,
                 identityChecked, noteSigned, hasPrimaryDiagnosis);
         if (!decision.passed()) {
@@ -311,16 +404,25 @@ public class EncounterService implements EncounterDirectory {
         }
         completionService.recordPassed(encounter, decision, context, commandCode);
         long expectedRevision = encounter.version();
+        String disposition = clean(request.dispositionCode()) == null ? "HOME" : clean(request.dispositionCode());
+        String dispositionReason = "诊毕检查通过；转归=" + disposition
+                + (clean(request.dispositionNote()) == null ? "" : "；说明=" + clean(request.dispositionNote()));
         statusEventRepository.save(new EncounterStatusEvent(encounter, EncounterStatus.IN_PROGRESS.name(),
                 EncounterStatus.COMPLETED.name(), expectedRevision, context.practitionerId(), context.subjectId(),
-                commandCode, "诊毕检查通过"));
+                commandCode, dispositionReason));
         workSessionRepository.findFirstByTenantIdAndEncounterIdAndStatusOrderByStartedAtDesc(
                 encounter.tenantId(), encounter.id(), "ACTIVE").ifPresent(session -> session.close("COMPLETED"));
         encounter.complete();
         registrationDirectory.markCompleted(encounterId, commandCode);
         encounterRepository.flush();
-        publish(encounter, "ENCOUNTER_COMPLETED", "门诊就诊完成", Map.of("encounterNo", encounter.encounterNo()));
-        return toResponse(encounter);
+        Map<String, Object> completionDetails = new LinkedHashMap<>();
+        completionDetails.put("encounterNo", encounter.encounterNo());
+        completionDetails.put("dispositionCode", disposition);
+        if (clean(request.dispositionNote()) != null) {
+            completionDetails.put("dispositionNote", clean(request.dispositionNote()));
+        }
+        publish(encounter, "ENCOUNTER_COMPLETED", "门诊就诊完成", completionDetails);
+        return completeCommand(COMPLETE_OPERATION, commandCode, encounter);
     }
 
     @Transactional(readOnly = true)
@@ -358,10 +460,38 @@ public class EncounterService implements EncounterDirectory {
         return snapshot(encounter);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds) {
+        if (encounterIds == null || encounterIds.isEmpty()) return List.of();
+        Long tenantId = TenantContext.requireTenantId();
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        return encounterRepository.findByTenantIdAndIdIn(tenantId, encounterIds).stream()
+                .filter(encounter -> !context.hasWorkContext()
+                        || context.canAccessOrganization(encounter.organizationId())
+                        && context.canAccessDepartment(encounter.departmentId()))
+                .map(this::snapshot)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId) {
+        Encounter encounter = encounterRepository.findByIdAndTenantId(encounterId, tenantId)
+                .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
+        List<DiagnosisSnapshot> diagnoses = diagnosisRepository
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                        tenantId, encounterId, "ENCOUNTER", "ACTIVE")
+                .stream().map(value -> new DiagnosisSnapshot(
+                        value.code(), value.display(), value.diagnosisType().name())).toList();
+        return new PharmacyClinicalSnapshot(encounter.id(), encounter.residentId(), encounter.encounterNo(),
+                encounter.clinicianId(), encounter.chiefComplaint(), diagnoses);
+    }
+
     private EncounterSnapshot snapshot(Encounter encounter) {
         return new EncounterSnapshot(encounter.id(), encounter.tenantId(), encounter.residentId(),
                 encounter.organizationId(), encounter.departmentId(), encounter.encounterNo(), encounter.clinicianId(),
-                encounter.status().name());
+                encounter.status().name(), encounter.version());
     }
 
     private Encounter requireEncounter(Long encounterId) {
@@ -375,10 +505,22 @@ public class EncounterService implements EncounterDirectory {
         return encounter;
     }
 
+    private Encounter requireEncounterWithLock(Long encounterId) {
+        Encounter encounter = encounterRepository.findWithLockByIdAndTenantId(
+                        encounterId, TenantContext.requireTenantId())
+                .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (context.hasWorkContext() && (!context.canAccessOrganization(encounter.organizationId())
+                || !context.canAccessDepartment(encounter.departmentId()))) {
+            throw forbidden("ENCOUNTER_FORBIDDEN", "无权访问当前工作上下文之外的就诊");
+        }
+        return encounter;
+    }
+
     private EncounterResponse toResponse(Encounter encounter) {
         return EncounterResponse.from(encounter, diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStatusOrderByRecordedAt(
-                        encounter.tenantId(), encounter.id(), "ACTIVE"));
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                        encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE"));
     }
 
     private void validateDiagnoses(RecordClinicalDataRequest request) {
@@ -393,8 +535,27 @@ public class EncounterService implements EncounterDirectory {
         }
     }
 
+    private String canonicalCommand(Long encounterId, Object request) {
+        return encounterId + "|" + jsonCodec.write(request);
+    }
+
+    private EncounterResponse replayEncounter(String responseJson) {
+        return jsonCodec.read(responseJson, EncounterResponse.class);
+    }
+
+    private EncounterResponse completeCommand(String operation, String commandCode, Encounter encounter) {
+        EncounterResponse response = toResponse(encounter);
+        idempotencyService.complete(operation, commandCode, "Encounter", encounter.id(), 200,
+                jsonCodec.write(response));
+        return response;
+    }
+
     private String clinicalText(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void publish(Encounter encounter, String type, String summary, Map<String, Object> payload) {

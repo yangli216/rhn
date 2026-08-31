@@ -1,0 +1,49 @@
+.inpatient-diagnostic-results__list { display: grid; gap: var(--space-3); }
+.inpatient-diagnostic-results__list > article {
+  border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: var(--space-3);
+}
+.inpatient-diagnostic-results__list > article > header {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
+}
+.inpatient-diagnostic-results__list > article > header > div { display: grid; gap: 3px; }
+.inpatient-diagnostic-results__list > article > header span,
+.inpatient-diagnostic-results__list > article small,
+.inpatient-diagnostic-results__list > article footer { color: var(--color-text-muted); font-size: 12px; }
+.inpatient-diagnostic-results__list > article p { margin: var(--space-3) 0; color: var(--color-text-secondary); }
+.inpatient-diagnostic-results__observations {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1px;
+  overflow: hidden; margin: var(--space-3) 0; border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+  background: var(--color-border);
+}
+.inpatient-diagnostic-results__observations > span { display: grid; gap: 3px; padding: 9px 11px; background: var(--color-surface); }
+.inpatient-diagnostic-results__observations > span > strong { color: var(--color-text-secondary); font-size: 12px; }
+.inpatient-diagnostic-results__observations > span > b { font-size: 15px; }
+.inpatient-diagnostic-results__observations > span.is-abnormal > b { color: var(--color-danger); }
+
+.inpatient-critical-values {
+  display: grid;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 32%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-danger) 5%, var(--color-surface));
+}
+.inpatient-critical-values > header,
+.inpatient-critical-value__summary,
+.inpatient-critical-value__action { display: flex; align-items: center; gap: var(--space-3); }
+.inpatient-critical-values > header,
+.inpatient-critical-value__summary { justify-content: space-between; }
+.inpatient-critical-values > header span,
+.inpatient-critical-value small,
+.inpatient-critical-value__summary span { color: var(--color-text-muted); }
+.inpatient-critical-value {
+  display: grid; gap: var(--space-2); padding: var(--space-3);
+  border-radius: var(--radius-sm); background: var(--color-surface);
+}
+.inpatient-critical-value__summary > div { display: grid; gap: 2px; }
+.inpatient-critical-value__action .ui-field { flex: 1 1 220px; margin: 0; }
+
+@media (max-width: 760px) {
+  .inpatient-critical-value__action { align-items: stretch; flex-direction: column; }
+}

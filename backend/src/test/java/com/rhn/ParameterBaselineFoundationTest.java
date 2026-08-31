@@ -50,5 +50,11 @@ class ParameterBaselineFoundationTest extends RhnIntegrationTestSupport {
         assertEquals(9, navigationLimit.value().asInt());
         assertEquals("DEFAULT", navigationLimit.resolvedScope());
         assertTrue(navigationLimit.cacheEnabled());
+
+        ConfigurationValue prescriptionReviewMode = configurationDirectory.resolveCurrent(
+                Long.valueOf(TENANT), null, null, null,
+                "pharmacy.prescription-review.mode");
+        assertEquals("DISABLED", prescriptionReviewMode.value().asText());
+        assertEquals("DEFAULT", prescriptionReviewMode.resolvedScope());
     }
 }

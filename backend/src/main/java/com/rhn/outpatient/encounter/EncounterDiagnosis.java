@@ -23,6 +23,8 @@ class EncounterDiagnosis {
     private Long tenantId;
     @Column(name = "encounter_id", nullable = false)
     private Long encounterId;
+    @Column(name = "diagnosis_stage", nullable = false)
+    private String diagnosisStage;
     @Column(nullable = false)
     private String code;
     @Column(nullable = false)
@@ -50,24 +52,39 @@ class EncounterDiagnosis {
 
     EncounterDiagnosis(Long tenantId, Long encounterId, String code, String display, DiagnosisType diagnosisType,
                        Long updatedBy) {
+        this(tenantId, encounterId, "ENCOUNTER", code, display, diagnosisType, updatedBy);
+    }
+
+    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, String code, String display,
+                       DiagnosisType diagnosisType, Long updatedBy) {
+        this(tenantId, encounterId, diagnosisStage, code, display, diagnosisType, "CONFIRMED", updatedBy);
+    }
+
+    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, String code, String display,
+                       DiagnosisType diagnosisType, String verificationStatus, Long updatedBy) {
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
         this.encounterId = encounterId;
+        this.diagnosisStage = diagnosisStage;
         this.code = code;
         this.display = display;
         this.diagnosisType = diagnosisType;
         this.recordedAt = Instant.now();
         this.businessVersionNo = 1;
-        this.verificationStatus = "CONFIRMED";
+        this.verificationStatus = verificationStatus;
         this.diagnosisStatus = "ACTIVE";
         this.updatedAt = recordedAt;
         this.updatedBy = updatedBy;
     }
 
     void revise(String display, DiagnosisType type, Long actor) {
+        revise(display, type, "CONFIRMED", actor);
+    }
+
+    void revise(String display, DiagnosisType type, String verificationStatus, Long actor) {
         this.display = display;
         this.diagnosisType = type;
-        this.verificationStatus = "CONFIRMED";
+        this.verificationStatus = verificationStatus;
         this.diagnosisStatus = "ACTIVE";
         this.businessVersionNo++;
         this.updatedAt = Instant.now();
@@ -84,6 +101,7 @@ class EncounterDiagnosis {
     Long id() { return id; }
     Long tenantId() { return tenantId; }
     Long encounterId() { return encounterId; }
+    String diagnosisStage() { return diagnosisStage; }
     String code() { return code; }
     String display() { return display; }
     DiagnosisType diagnosisType() { return diagnosisType; }

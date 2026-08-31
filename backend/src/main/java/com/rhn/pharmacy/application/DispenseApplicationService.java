@@ -1,6 +1,8 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.pharmacy.api.MedicationFulfillmentDirectory;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionLineView;
 import com.rhn.pharmacy.api.PharmacyViews.MedicationDispenseLineView;
 import com.rhn.pharmacy.api.PharmacyViews.MedicationDispenseView;
 import com.rhn.pharmacy.api.PharmacyViews.PreparationResultView;
@@ -8,12 +10,12 @@ import com.rhn.pharmacy.api.PharmacyViews.StockReturnLineView;
 import com.rhn.pharmacy.api.PharmacyViews.StockReturnView;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService.TraceMovementLine;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService.TraceReturnLine;
+import com.rhn.pharmacy.application.InventoryApplicationService.DocumentPostingCommand;
+import com.rhn.pharmacy.application.InventoryApplicationService.DocumentPostingLineCommand;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.InventoryBalance;
-import com.rhn.pharmacy.domain.InventoryPeriod;
 import com.rhn.pharmacy.domain.InventoryReservation;
-import com.rhn.pharmacy.domain.InventoryTransaction;
 import com.rhn.pharmacy.domain.InventoryTransactionLine;
 import com.rhn.pharmacy.domain.MedicationDispense;
 import com.rhn.pharmacy.domain.MedicationDispenseLine;
@@ -25,11 +27,8 @@ import com.rhn.pharmacy.domain.StockReturnLine;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
-import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
-import com.rhn.pharmacy.infrastructure.InventoryPeriodRepository;
 import com.rhn.pharmacy.infrastructure.InventoryReservationRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
-import com.rhn.pharmacy.infrastructure.InventoryTransactionRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseLineRepository;
 import com.rhn.pharmacy.infrastructure.MedicationDispenseRepository;
 import com.rhn.pharmacy.infrastructure.StockBinRepository;
@@ -48,10 +47,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.YearMonth;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,8 +61,15 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 @Service
 public class DispenseApplicationService {
     private static final Set<String> RETURN_DISPOSITIONS = Set.of("RESTOCK", "QUARANTINE", "DESTROY");
-    private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
-            .withZone(ZoneOffset.UTC);
+    private static final Comparator<DispenseAllocation> DISPENSE_LOCK_ORDER = Comparator
+            .comparing((DispenseAllocation value) -> value.reservation().stockBinId())
+            .thenComparing(value -> value.reservation().stockItemId())
+            .thenComparing(value -> value.reservation().stockLotId());
+    private static final Comparator<ReturnAllocation> RETURN_LOCK_ORDER = Comparator
+            .comparing((ReturnAllocation value) -> value.originalLine().stockBinId())
+            .thenComparing(value -> value.originalLine().stockItemId())
+            .thenComparing(value -> value.originalLine().stockLotId())
+            .thenComparing(ReturnAllocation::stockStatus);
 
     private final DispenseTaskRepository taskRepository;
     private final DispenseTaskLineRepository taskLineRepository;
@@ -73,13 +77,13 @@ public class DispenseApplicationService {
     private final StockItemRepository itemRepository;
     private final StockBinRepository binRepository;
     private final StockLotRepository lotRepository;
-    private final InventoryPeriodRepository periodRepository;
-    private final InventoryTransactionRepository transactionRepository;
     private final InventoryTransactionLineRepository transactionLineRepository;
-    private final InventoryBalanceRepository balanceRepository;
+    private final InventoryAvailabilityService availabilityService;
+    private final InventoryLedgerPostingService inventoryLedger;
     private final InventoryReservationRepository reservationRepository;
     private final MedicationDispenseRepository dispenseRepository;
     private final MedicationDispenseLineRepository dispenseLineRepository;
+    private final MedicationFulfillmentDirectory medicationFulfillment;
     private final StockReturnRepository returnRepository;
     private final StockReturnLineRepository returnLineRepository;
     private final OrganizationDirectory organizationDirectory;
@@ -93,11 +97,12 @@ public class DispenseApplicationService {
             DispenseTaskRepository taskRepository, DispenseTaskLineRepository taskLineRepository,
             StockSiteRepository siteRepository, StockItemRepository itemRepository,
             StockBinRepository binRepository, StockLotRepository lotRepository,
-            InventoryPeriodRepository periodRepository, InventoryTransactionRepository transactionRepository,
             InventoryTransactionLineRepository transactionLineRepository,
-            InventoryBalanceRepository balanceRepository, InventoryReservationRepository reservationRepository,
+            InventoryAvailabilityService availabilityService, InventoryLedgerPostingService inventoryLedger,
+            InventoryReservationRepository reservationRepository,
             MedicationDispenseRepository dispenseRepository,
             MedicationDispenseLineRepository dispenseLineRepository,
+            MedicationFulfillmentDirectory medicationFulfillment,
             StockReturnRepository returnRepository, StockReturnLineRepository returnLineRepository,
             OrganizationDirectory organizationDirectory, InventoryTraceApplicationService traceService,
             InventoryQuantityPolicy quantityPolicy, InventorySplitApplicationService splitService,
@@ -106,10 +111,11 @@ public class DispenseApplicationService {
         this.taskRepository = taskRepository; this.taskLineRepository = taskLineRepository;
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.binRepository = binRepository; this.lotRepository = lotRepository;
-        this.periodRepository = periodRepository; this.transactionRepository = transactionRepository;
-        this.transactionLineRepository = transactionLineRepository; this.balanceRepository = balanceRepository;
+        this.transactionLineRepository = transactionLineRepository; this.availabilityService = availabilityService;
+        this.inventoryLedger = inventoryLedger;
         this.reservationRepository = reservationRepository; this.dispenseRepository = dispenseRepository;
-        this.dispenseLineRepository = dispenseLineRepository; this.returnRepository = returnRepository;
+        this.dispenseLineRepository = dispenseLineRepository; this.medicationFulfillment = medicationFulfillment;
+        this.returnRepository = returnRepository;
         this.returnLineRepository = returnLineRepository; this.organizationDirectory = organizationDirectory;
         this.traceService = traceService; this.quantityPolicy = quantityPolicy; this.splitService = splitService;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider;
@@ -121,7 +127,8 @@ public class DispenseApplicationService {
         StockSite site = requireSite(context, task.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         validatePractitioner(context, site, input.pickerPractitionerId(), input.pickerAssignmentId(), "配药");
         DispenseTaskLine line = requireTaskLine(context, task.id());
-        List<InventoryReservation> active = reservationRepository.lockActiveByRequest(context.tenantId(), line.requestId());
+        List<InventoryReservation> active = reservationRepository
+                .lockActiveByDispenseTaskLine(context.tenantId(), line.id());
         if (active.isEmpty() || active.stream().anyMatch(value -> value.expiresAt() != null
                 && !value.expiresAt().isAfter(Instant.now()))) {
             throw conflict("DISPENSE_PREPARATION_RESERVATION_INVALID", "配药复核前必须存在未过期的有效库存预留");
@@ -162,8 +169,8 @@ public class DispenseApplicationService {
             throw conflict("MEDICATION_DISPENSE_EXCEEDS_REMAINING", "发药数量超过任务剩余计划量");
         }
         Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
-        List<InventoryReservation> reservations = reservationRepository.lockActiveByRequest(
-                context.tenantId(), taskLine.requestId());
+        List<InventoryReservation> reservations = reservationRepository.lockActiveByDispenseTaskLine(
+                context.tenantId(), taskLine.id());
         if (reservations.stream().anyMatch(value -> value.expiresAt() != null && !value.expiresAt().isAfter(Instant.now()))) {
             throw conflict("MEDICATION_DISPENSE_RESERVATION_EXPIRED", "库存预留已到期，不能继续发药");
         }
@@ -175,22 +182,21 @@ public class DispenseApplicationService {
         if (reserved.compareTo(baseRequired) < 0) {
             throw conflict("MEDICATION_DISPENSE_RESERVATION_INSUFFICIENT", "有效预留余量不足，不能完成本次发药");
         }
-        LocalDate date = occurredAt.atZone(ZoneOffset.UTC).toLocalDate();
-        InventoryPeriod period = requireOpenPeriod(context, site.id(), date);
-        InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
-                period.id(), nextNo("IT"), requestCode, "DISPENSE", "MEDICATION_DISPENSE",
-                requestCode, occurredAt, context.subjectId(), clean(input.description())));
         MedicationDispense event = dispenseRepository.save(new MedicationDispense(context.tenantId(), task.id(),
                 task.residentId(), task.encounterId(), site.id(), null, requestCode, "DISPENSE", occurredAt,
                 input.dispenserPractitionerId(), context.subjectId(), input.dispenserAssignmentId(),
                 input.checkerPractitionerId(), input.checkerPractitionerId() == null ? null : context.subjectId(),
                 input.checkerAssignmentId(), quantity, taskLine.dispenseUnitCode(), clean(input.description())));
 
-        BigDecimal remaining = baseRequired; int order = 1; List<MedicationDispenseLine> eventLines = new ArrayList<>();
-        for (InventoryReservation reservation : reservations) {
+        BigDecimal remaining = baseRequired; List<DispenseAllocation> allocations = new ArrayList<>();
+        List<InventoryReservation> orderedReservations = reservations.stream().sorted(Comparator
+                .comparing(InventoryReservation::stockBinId)
+                .thenComparing(InventoryReservation::stockItemId)
+                .thenComparing(InventoryReservation::stockLotId)).toList();
+        for (InventoryReservation reservation : orderedReservations) {
             if (remaining.signum() == 0) break;
             BigDecimal allocation = reservation.releasableQuantity().min(remaining);
-            InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), reservation.stockBinId(),
+            InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), reservation.stockBinId(),
                     reservation.stockItemId(), reservation.stockLotId(), "AVAILABLE")
                     .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "预留对应库存投影不存在"));
             if (taskLine.split()) {
@@ -200,18 +206,28 @@ public class DispenseApplicationService {
                 splitService.ensureSealedAvailable(context.tenantId(), reservation.stockBinId(), item.id(),
                         reservation.stockLotId(), balance.quantityOnHand(), allocation);
             }
-            balance.dispenseReserved(allocation); reservation.consume(allocation, context.subjectId(), occurredAt);
             BigDecimal operation = allocation.divide(taskLine.baseQuantityFactor());
-            InventoryTransactionLine transactionLine = transactionLineRepository.save(new InventoryTransactionLine(
-                    context.tenantId(), transaction.id(), order, site.id(), reservation.stockBinId(),
-                    reservation.stockItemId(), reservation.stockLotId(), taskLine.packageId(), "AVAILABLE",
-                    operation, taskLine.dispenseUnitCode(), taskLine.baseQuantityFactor(), allocation.negate(),
-                    balance.averageUnitCost()));
+            allocations.add(new DispenseAllocation(reservation, allocation, operation));
+            remaining = remaining.subtract(allocation);
+        }
+        allocations.sort(DISPENSE_LOCK_ORDER);
+        var transaction = inventoryLedger.postDocument(new DocumentPostingCommand(requestCode, "DISPENSE",
+                "MEDICATION_DISPENSE", requestCode, site.id(), occurredAt, clean(input.description()),
+                allocations.stream().map(value -> new DocumentPostingLineCommand(
+                        value.reservation().stockBinId(), value.reservation().stockItemId(),
+                        value.reservation().stockLotId(), "AVAILABLE", value.baseQuantity().negate(), null, true))
+                        .toList()));
+        if (transaction.lines().size() != allocations.size()) throw conflict(
+                "MEDICATION_DISPENSE_LEDGER_MISMATCH", "发药库存分录数量与预留分配不一致");
+        List<MedicationDispenseLine> eventLines = new ArrayList<>();
+        for (int index = 0; index < allocations.size(); index++) {
+            DispenseAllocation allocation = allocations.get(index);
+            InventoryTransactionLineView transactionLine = transaction.lines().get(index);
+            allocation.reservation().consume(allocation.baseQuantity(), context.subjectId(), occurredAt);
             eventLines.add(dispenseLineRepository.save(new MedicationDispenseLine(context.tenantId(), event.id(),
-                    taskLine.id(), null, order, reservation.stockBinId(), reservation.stockItemId(),
-                    reservation.stockLotId(), transactionLine.id(), operation, taskLine.dispenseUnitCode(),
-                    taskLine.baseQuantityFactor())));
-            remaining = remaining.subtract(allocation); order++;
+                    taskLine.id(), null, index + 1, allocation.reservation().stockBinId(),
+                    allocation.reservation().stockItemId(), allocation.reservation().stockLotId(), transactionLine.id(),
+                    allocation.operationQuantity(), taskLine.dispenseUnitCode(), taskLine.baseQuantityFactor())));
         }
         if (!taskLine.split()) {
             traceService.issue(context, site.id(), "MEDICATION_DISPENSE", event.id(), event.dispenseNo(),
@@ -219,11 +235,13 @@ public class DispenseApplicationService {
                             line.quantityDispensed().multiply(line.baseQuantityFactor()))).toList());
         }
         taskLine.recordDispense(quantity); task.recordDispense(taskLine.remainingQuantity().signum() == 0);
-        balanceRepository.flush(); reservationRepository.flush(); transactionLineRepository.flush();
+        reservationRepository.flush();
         dispenseLineRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
-        publish(context, site, task, "MEDICATION_DISPENSE_POSTED", Map.of("dispenseId", event.id(),
-                "dispenseNo", event.dispenseNo(), "operationQuantity", quantity,
-                "inventoryTransactionId", transaction.id(), "partial", !"COMPLETED".equals(task.status())));
+        publish(context, site, task, "MEDICATION_DISPENSE_POSTED", occurredAt, Map.of("dispenseId", event.id(),
+                "dispenseNo", event.dispenseNo(), "requestId", taskLine.requestId(), "operationQuantity", quantity,
+                "operationUnitCode", taskLine.dispenseUnitCode(), "inventoryTransactionId", transaction.id(),
+                "taskType", task.taskType(), "dispensedBy", context.subjectId(),
+                "partial", !"COMPLETED".equals(task.status())));
         return dispenseView(context, event, eventLines);
     }
 
@@ -239,8 +257,8 @@ public class DispenseApplicationService {
             throw conflict("STOCK_RETURN_ORIGINAL_TYPE_INVALID", "退药只能关联实际发药或补发事件");
         }
         DispenseTask task = lockTask(context, original.taskId());
-        if (!"COMPLETED".equals(task.status()) && !"PARTIALLY_RETURNED".equals(task.status())) {
-            throw conflict("STOCK_RETURN_TASK_NOT_COMPLETED", "部分发药任务需先完成剩余发药或释放后另行处置，当前不能退药");
+        if (!Set.of("COMPLETED", "PARTIALLY_RETURNED", "CANCELLED").contains(task.status())) {
+            throw conflict("STOCK_RETURN_TASK_NOT_COMPLETED", "当前发药任务尚未完成或未因停嘱冻结，不能退药");
         }
         StockSite site = requireSite(context, original.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         DispenseTaskLine taskLine = requireTaskLine(context, task.id());
@@ -249,7 +267,6 @@ public class DispenseApplicationService {
                 "STOCK_RETURN_LINES_REQUIRED", "退药必须至少选择一条原发药批次明细");
         String reasonCode = required(input.reasonCode(), "STOCK_RETURN_REASON_REQUIRED", "退药必须填写原因编码");
         Instant occurredAt = input.occurredAt() == null ? Instant.now() : input.occurredAt();
-        LocalDate date = occurredAt.atZone(ZoneOffset.UTC).toLocalDate(); InventoryPeriod period = requireOpenPeriod(context, site.id(), date);
         Map<Long, MedicationDispenseLine> originals = new HashMap<>();
         for (MedicationDispenseLine line : dispenseLineRepository.findByTenantIdAndMedicationDispenseIdOrderBySortOrder(
                 context.tenantId(), original.id())) originals.put(line.id(), line);
@@ -267,6 +284,15 @@ public class DispenseApplicationService {
             if (already.add(quantity).compareTo(line.quantityDispensed()) > 0) {
                 throw conflict("STOCK_RETURN_EXCEEDS_DISPENSED", "累计退药数量超过原批次实际发药数量");
             }
+            BigDecimal consumedBase = medicationFulfillment.consumedBaseQuantityForDispenseLine(
+                    context.tenantId(), line.id());
+            BigDecimal requestedReturnBase = quantity.multiply(line.baseQuantityFactor());
+            BigDecimal unconsumedBase = line.quantityDispensed().subtract(already)
+                    .multiply(line.baseQuantityFactor()).subtract(consumedBase);
+            if (requestedReturnBase.compareTo(unconsumedBase) > 0) {
+                throw conflict("STOCK_RETURN_EXCEEDS_UNCONSUMED",
+                        "退药数量包含已执行给药的药品，已核销部分不能退回药房");
+            }
             String disposition = upper(command.disposition());
             if (!RETURN_DISPOSITIONS.contains(disposition)) throw badRequest(
                     "STOCK_RETURN_DISPOSITION_INVALID", "患者退药处置仅支持重新入库、隔离或待销毁");
@@ -276,18 +302,13 @@ public class DispenseApplicationService {
             }
             total = total.add(quantity);
         }
-        InventoryTransaction transaction = transactionRepository.save(new InventoryTransaction(context.tenantId(),
-                period.id(), nextNo("IT"), returnNo, "RETURN", "PATIENT_RETURN", returnNo,
-                occurredAt, context.subjectId(), clean(input.description())));
         MedicationDispense returnEvent = dispenseRepository.save(new MedicationDispense(context.tenantId(), task.id(),
                 task.residentId(), task.encounterId(), site.id(), original.id(), returnNo, "RETURN", occurredAt,
                 input.processorPractitionerId(), context.subjectId(), input.processorAssignmentId(), null, null,
                 null, total, original.operationUnitCode(), clean(input.description())));
         StockReturn stockReturn = returnRepository.save(new StockReturn(context.tenantId(), site.id(), task.residentId(),
                 original.id(), returnEvent.id(), returnNo, reasonCode, occurredAt, context.subjectId(), clean(input.description())));
-        List<MedicationDispenseLine> returnEventLines = new ArrayList<>(); List<StockReturnLine> returnLines = new ArrayList<>();
-        List<TraceReturnLine> traceReturns = new ArrayList<>();
-        BigDecimal taskReturned = BigDecimal.ZERO; int order = 1;
+        List<ReturnAllocation> allocations = new ArrayList<>();
         for (ReturnLineCommand command : input.lines()) {
             MedicationDispenseLine originalLine = originals.get(command.originalDispenseLineId());
             String disposition = upper(command.disposition()); String stockStatus = switch (disposition) {
@@ -302,46 +323,58 @@ public class DispenseApplicationService {
             InventoryTransactionLine originalTransactionLine = transactionLineRepository.findById(originalLine.inventoryTransactionLineId())
                     .filter(value -> value.tenantId().equals(context.tenantId()))
                     .orElseThrow(() -> conflict("STOCK_RETURN_ORIGINAL_TRANSACTION_MISSING", "原发药库存分录不存在"));
-            InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), originalLine.stockBinId(),
-                    originalLine.stockItemId(), originalLine.stockLotId(), stockStatus).orElseGet(() ->
-                    new InventoryBalance(context.tenantId(), site.id(), originalLine.stockBinId(),
-                            originalLine.stockItemId(), originalLine.stockLotId(), stockStatus,
-                            requireItem(context, originalLine.stockItemId()).baseUnitCode()));
-            balance.receive(baseQuantity, originalTransactionLine.unitCost()); balanceRepository.save(balance);
             if (taskLine.split() && "RESTOCK".equals(disposition)) {
                 splitService.returnFromDispense(context, returnItem, originalLine.stockBinId(),
                         originalLine.stockLotId(), baseQuantity, original.id(), stockReturn.id(), returnNo, occurredAt);
             }
-            InventoryTransactionLine transactionLine = transactionLineRepository.save(new InventoryTransactionLine(
-                    context.tenantId(), transaction.id(), order, site.id(), originalLine.stockBinId(),
-                    originalLine.stockItemId(), originalLine.stockLotId(), taskLine.packageId(), stockStatus,
-                    returnQuantity, originalLine.dispenseUnitCode(),
-                    originalLine.baseQuantityFactor(), baseQuantity, originalTransactionLine.unitCost()));
+            allocations.add(new ReturnAllocation(command, originalLine, disposition, stockStatus, returnQuantity,
+                    baseQuantity, originalTransactionLine.unitCost()));
+        }
+        allocations.sort(RETURN_LOCK_ORDER);
+        var transaction = inventoryLedger.postDocument(new DocumentPostingCommand(returnNo, "RETURN",
+                "PATIENT_RETURN", returnNo, site.id(), occurredAt, clean(input.description()),
+                allocations.stream().map(value -> new DocumentPostingLineCommand(value.originalLine().stockBinId(),
+                        value.originalLine().stockItemId(), value.originalLine().stockLotId(), value.stockStatus(),
+                        value.baseQuantity(), value.unitCost(), false)).toList()));
+        if (transaction.lines().size() != allocations.size()) throw conflict(
+                "STOCK_RETURN_LEDGER_MISMATCH", "退药库存分录数量与退药明细不一致");
+        List<MedicationDispenseLine> returnEventLines = new ArrayList<>();
+        List<StockReturnLine> returnLines = new ArrayList<>(); List<TraceReturnLine> traceReturns = new ArrayList<>();
+        BigDecimal taskReturned = BigDecimal.ZERO;
+        for (int index = 0; index < allocations.size(); index++) {
+            ReturnAllocation allocation = allocations.get(index);
+            MedicationDispenseLine originalLine = allocation.originalLine();
+            InventoryTransactionLineView transactionLine = transaction.lines().get(index);
+            int order = index + 1;
             MedicationDispenseLine returnEventLine = dispenseLineRepository.save(new MedicationDispenseLine(
                     context.tenantId(), returnEvent.id(), originalLine.taskLineId(), originalLine.id(), order,
                     originalLine.stockBinId(), originalLine.stockItemId(), originalLine.stockLotId(), transactionLine.id(),
-                    returnQuantity, originalLine.dispenseUnitCode(), originalLine.baseQuantityFactor()));
+                    allocation.returnQuantity(), originalLine.dispenseUnitCode(), originalLine.baseQuantityFactor()));
             returnEventLines.add(returnEventLine);
             returnLines.add(returnLineRepository.save(new StockReturnLine(context.tenantId(), stockReturn.id(),
                     originalLine.id(), order, originalLine.stockBinId(), originalLine.stockItemId(),
-                    originalLine.stockLotId(), transactionLine.id(), returnQuantity, originalLine.dispenseUnitCode(),
-                    originalLine.baseQuantityFactor(), disposition, clean(command.exceptionDescription()))));
-            String traceStatus = switch (disposition) { case "RESTOCK" -> "AVAILABLE";
+                    originalLine.stockLotId(), transactionLine.id(), allocation.returnQuantity(),
+                    originalLine.dispenseUnitCode(), originalLine.baseQuantityFactor(), allocation.disposition(),
+                    clean(allocation.command().exceptionDescription()))));
+            String traceStatus = switch (allocation.disposition()) { case "RESTOCK" -> "AVAILABLE";
                 case "QUARANTINE" -> "QUARANTINED"; default -> "DAMAGED"; };
             if (!taskLine.split()) traceReturns.add(new TraceReturnLine(originalLine.stockItemId(), originalLine.stockLotId(),
-                    originalLine.stockBinId(), baseQuantity, traceStatus));
-            taskReturned = taskReturned.add(returnQuantity); order++;
+                    originalLine.stockBinId(), allocation.baseQuantity(), traceStatus));
+            taskReturned = taskReturned.add(allocation.returnQuantity());
         }
         if (!taskLine.split()) {
             traceService.returnMedication(context, site.id(), original.id(), returnEvent.id(), returnNo, traceReturns);
         }
         taskLine.recordReturn(taskReturned);
         task.recordReturn(taskLine.netDispensedQuantity().signum() == 0);
-        balanceRepository.flush(); transactionLineRepository.flush(); dispenseLineRepository.flush();
+        dispenseLineRepository.flush();
         returnLineRepository.flush(); taskLineRepository.flush(); taskRepository.flush();
-        publish(context, site, task, "MEDICATION_RETURN_POSTED", Map.of("returnId", stockReturn.id(),
+        publish(context, site, task, "MEDICATION_RETURN_POSTED", occurredAt, Map.of(
+                "returnId", stockReturn.id(), "returnDispenseId", returnEvent.id(),
                 "returnNo", stockReturn.returnNo(), "originalDispenseId", original.id(),
-                "operationQuantity", total, "inventoryTransactionId", transaction.id()));
+                "requestId", taskLine.requestId(), "operationQuantity", total,
+                "operationUnitCode", original.operationUnitCode(), "processedBy", context.subjectId(),
+                "inventoryTransactionId", transaction.id()));
         return returnView(context, stockReturn, returnLines);
     }
 
@@ -464,16 +497,6 @@ public class DispenseApplicationService {
         }
     }
 
-    private InventoryPeriod requireOpenPeriod(ExecutionContext context, Long siteId, LocalDate date) {
-        YearMonth month = YearMonth.from(date); String code = month.toString().replace("-", "");
-        InventoryPeriod value = periodRepository.findByTenantIdAndStockSiteIdAndPeriodCode(
-                context.tenantId(), siteId, code).orElse(null);
-        if (value == null) value = periodRepository.saveAndFlush(new InventoryPeriod(context.tenantId(), siteId,
-                code, month.atDay(1), month.atEndOfMonth(), context.subjectId()));
-        if (!value.accepts(date)) throw conflict("INVENTORY_PERIOD_NOT_OPEN", "业务日期所属库存期间未开放");
-        return value;
-    }
-
     private DispenseTask lockTask(ExecutionContext context, Long id) {
         return taskRepository.lockByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "未找到发药任务"));
@@ -518,11 +541,13 @@ public class DispenseApplicationService {
     }
     private void publish(ExecutionContext context, StockSite site, DispenseTask task,
                          String type, Map<String, Object> details) {
-        eventPublisher.publish(context.tenantId(), site.organizationId(), type, 1, "DispenseTask", task.id(),
-                task.revision(), task.residentId(), Instant.now(), details);
+        publish(context, site, task, type, Instant.now(), details);
     }
-    private String nextNo(String prefix) { return prefix + NUMBER_TIME.format(Instant.now())
-            + com.rhn.shared.id.GlobalIds.randomSuffix(6); }
+    private void publish(ExecutionContext context, StockSite site, DispenseTask task,
+                         String type, Instant occurredAt, Map<String, Object> details) {
+        eventPublisher.publish(context.tenantId(), site.organizationId(), type, 1, "DispenseTask", task.id(),
+                task.revision(), task.residentId(), occurredAt, details);
+    }
     private BigDecimal positive(BigDecimal value, String code, String message) {
         if (value == null || value.signum() <= 0) throw badRequest(code, message); return value;
     }
@@ -541,4 +566,9 @@ public class DispenseApplicationService {
     public record ReturnCommand(String returnNo, String reasonCode, Instant occurredAt,
                                 Long processorPractitionerId, Long processorAssignmentId,
                                 String description, List<ReturnLineCommand> lines) {}
+    private record DispenseAllocation(InventoryReservation reservation, BigDecimal baseQuantity,
+                                      BigDecimal operationQuantity) {}
+    private record ReturnAllocation(ReturnLineCommand command, MedicationDispenseLine originalLine,
+                                    String disposition, String stockStatus, BigDecimal returnQuantity,
+                                    BigDecimal baseQuantity, BigDecimal unitCost) {}
 }

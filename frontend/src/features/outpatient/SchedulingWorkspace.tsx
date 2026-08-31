@@ -66,7 +66,13 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
   const bootstrap = useQuery({ queryKey: ['scheduling-bootstrap', clinicalContext.department.id], queryFn: api.scheduling.bootstrap })
   const services = useQuery({
     queryKey: ['scheduling-services', clinicalContext.organization.id],
-    queryFn: () => api.masterData.services('', '', 'ACTIVE', clinicalContext.organization.id),
+    queryFn: async () => (await api.masterData.services(
+      '', '', 'ACTIVE', clinicalContext.organization.id)).filter((item) =>
+      item.orderable && item.sdUsageType === 'OUTPATIENT'
+      && item.serviceSubtype === 'OUTPATIENT_VISIT'
+      && item.accountingCategory === 'REGISTRATION'
+      && item.organizationAdoption?.sdStatus === 'ACTIVE'
+      && item.organizationAdoption.orderable && item.organizationAdoption.executable),
   })
   const schedules = useQuery({
     queryKey: ['service-schedules', clinicalContext.department.id, dateFrom, dateTo],
@@ -173,7 +179,7 @@ export function SchedulingWorkspace({ api, clinicalContext }: { api: RhnApi; cli
             value: item.id, label: item.name, code: item.code,
           }))} /></FormField>
         <FormField label="门诊服务" required><Select value={catalogItemId} onChange={setCatalogItemId}
-          placeholder="请选择诊疗项目" options={(services.data ?? []).map((item) => ({
+          placeholder="请选择门诊服务" options={(services.data ?? []).map((item) => ({
             value: item.id, label: item.name, code: item.code,
           }))} /></FormField>
         <FormField label="诊室/地点"><input value={locationName} onChange={(event) => setLocationName(event.target.value)}

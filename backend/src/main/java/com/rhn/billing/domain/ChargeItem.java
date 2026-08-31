@@ -16,7 +16,7 @@ public class ChargeItem {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
     @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
+    @Column(name = "encounter_id") private Long encounterId;
     @Column(name = "request_id") private Long requestId;
     @Column(name = "care_event_id") private Long careEventId;
     @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
@@ -55,6 +55,13 @@ public class ChargeItem {
         this.priceType = priceType; this.itemCodeSnapshot = itemCodeSnapshot;
         this.itemNameSnapshot = itemNameSnapshot; this.occurredAt = occurredAt; this.enteredBy = enteredBy;
         this.reversesChargeItemId = reversesChargeItemId;
+    }
+
+    public void bindEncounter(Long encounterId) {
+        if (this.encounterId != null && !this.encounterId.equals(encounterId)) {
+            throw new IllegalStateException("收费事项已经绑定其他就诊");
+        }
+        this.encounterId = encounterId;
     }
 
     public Long id() { return id; }

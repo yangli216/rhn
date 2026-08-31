@@ -8,6 +8,11 @@ public interface ResidentDirectory {
     ResidentSnapshot requireSnapshot(Long residentId);
 
     /**
+     * Tenant-explicit lookup for background jobs and other system entry points that do not run in an HTTP context.
+     */
+    ResidentSnapshot requireSnapshot(Long tenantId, Long residentId);
+
+    /**
      * Returns the canonical resident while holding a write lock for the current transaction.
      * Cross-module workflows use this to serialize creation of resident-scoped authoritative facts.
      */

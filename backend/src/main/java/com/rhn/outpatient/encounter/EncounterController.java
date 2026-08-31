@@ -35,6 +35,18 @@ public class EncounterController {
         return encounterService.start(encounterId, request);
     }
 
+    @PostMapping("/{encounterId}/suspend")
+    EncounterResponse suspend(@PathVariable Long encounterId,
+                              @Valid @RequestBody SuspendEncounterRequest request) {
+        return encounterService.suspend(encounterId, request);
+    }
+
+    @PostMapping("/{encounterId}/resume")
+    EncounterResponse resume(@PathVariable Long encounterId,
+                             @Valid @RequestBody ResumeEncounterRequest request) {
+        return encounterService.resume(encounterId, request);
+    }
+
     @PutMapping("/{encounterId}/clinical-record")
     EncounterResponse record(@PathVariable Long encounterId,
                              @Valid @RequestBody RecordClinicalDataRequest request) {
@@ -42,8 +54,9 @@ public class EncounterController {
     }
 
     @PostMapping("/{encounterId}/complete")
-    EncounterResponse complete(@PathVariable Long encounterId) {
-        return encounterService.complete(encounterId);
+    EncounterResponse complete(@PathVariable Long encounterId,
+                               @Valid @RequestBody(required = false) CompleteEncounterRequest request) {
+        return encounterService.complete(encounterId, request == null ? CompleteEncounterRequest.defaultRequest() : request);
     }
 
     @GetMapping("/{encounterId}")

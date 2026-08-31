@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.web;
 
 import com.rhn.pharmacy.api.PharmacyViews.InventoryBalanceView;
+import com.rhn.pharmacy.api.PharmacyViews.InventoryPageView;
 import com.rhn.pharmacy.api.PharmacyViews.InventoryTransactionView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTraceView;
 import com.rhn.pharmacy.api.PharmacyViews.MedicationDispenseView;
@@ -30,6 +31,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,70 +57,108 @@ public class InventoryController {
     }
 
     @PostMapping("/stock-sites/{siteId}/stock-bins")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     @ResponseStatus(HttpStatus.CREATED)
     StockBinView createBin(@PathVariable Long siteId, @Valid @RequestBody CreateBinRequest input) {
         return service.createBin(siteId, input.command());
     }
 
     @GetMapping("/stock-sites/{siteId}/stock-bins")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<StockBinView> bins(@PathVariable Long siteId) { return service.bins(siteId); }
 
     @PostMapping("/stock-items/{stockItemId}/lots")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     @ResponseStatus(HttpStatus.CREATED)
     StockLotView createLot(@PathVariable Long stockItemId, @Valid @RequestBody CreateLotRequest input) {
         return service.createLot(stockItemId, input.command());
     }
 
     @GetMapping("/stock-items/{stockItemId}/lots")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<StockLotView> lots(@PathVariable Long stockItemId) { return service.lots(stockItemId); }
 
     @PostMapping("/inventory/receipts")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_RECEIVE)
     @ResponseStatus(HttpStatus.CREATED)
     InventoryTransactionView receive(@Valid @RequestBody ReceiveRequest input) { return service.receive(input.command()); }
 
     @GetMapping("/inventory/balances")
-    List<InventoryBalanceView> balances(@RequestParam Long stockSiteId, @RequestParam Long stockItemId) {
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    List<InventoryBalanceView> balances(@RequestParam Long stockSiteId,
+                                        @RequestParam(required = false) Long stockItemId) {
         return service.balances(stockSiteId, stockItemId);
     }
 
+    @GetMapping("/inventory/balances/page")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    InventoryPageView<InventoryBalanceView> balancePage(@RequestParam Long stockSiteId,
+                                                         @RequestParam(required = false) Long stockItemId,
+                                                         @RequestParam(defaultValue = "0") @Min(0) int page,
+                                                         @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
+        return service.balancePage(stockSiteId, stockItemId, page, size);
+    }
+
     @GetMapping("/inventory/transactions")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<InventoryTransactionView> transactions(@RequestParam Long stockSiteId,
-                                                 @RequestParam(required = false) String periodCode) {
-        return service.transactions(stockSiteId, periodCode);
+                                                 @RequestParam(required = false) String periodCode,
+                                                 @RequestParam(required = false) Long stockItemId,
+                                                 @RequestParam(defaultValue = "false") boolean allPeriods) {
+        return service.transactions(stockSiteId, periodCode, stockItemId, allPeriods);
+    }
+
+    @GetMapping("/inventory/transactions/page")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    InventoryPageView<InventoryTransactionView> transactionPage(
+            @RequestParam Long stockSiteId,
+            @RequestParam(required = false) String periodCode,
+            @RequestParam(required = false) Long stockItemId,
+            @RequestParam(defaultValue = "false") boolean allPeriods,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
+        return service.transactionPage(stockSiteId, periodCode, stockItemId, allPeriods, page, size);
     }
 
     @PostMapping("/dispense-tasks/{taskId}/reservations")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     ReservationResultView reserve(@PathVariable Long taskId, @Valid @RequestBody ReserveRequest input) {
         return service.reserveTask(taskId, new ReserveCommand(input.expiryMinutes()));
     }
 
     @GetMapping("/dispense-tasks/{taskId}/reservations")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     ReservationResultView reservations(@PathVariable Long taskId) { return service.reservations(taskId); }
 
     @PostMapping("/dispense-tasks/{taskId}/reservations/release")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     ReservationResultView release(@PathVariable Long taskId, @Valid @RequestBody ReleaseRequest input) {
         return service.releaseTask(taskId, new ReleaseCommand(input.reason()));
     }
 
     @PostMapping("/dispense-tasks/{taskId}/picking/complete")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     PreparationResultView completePicking(@PathVariable Long taskId,
                                           @Valid @RequestBody CompletePickingRequest input) {
         return dispenseService.completePicking(taskId, input.command());
     }
 
     @PostMapping("/dispense-tasks/{taskId}/dispenses")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     @ResponseStatus(HttpStatus.CREATED)
     MedicationDispenseView dispense(@PathVariable Long taskId, @Valid @RequestBody DispenseRequest input) {
         return dispenseService.dispense(taskId, input.command());
     }
 
     @PostMapping("/dispenses/{dispenseId}/returns")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     @ResponseStatus(HttpStatus.CREATED)
     StockReturnView returnMedication(@PathVariable Long dispenseId, @Valid @RequestBody ReturnRequest input) {
         return dispenseService.returnMedication(dispenseId, input.command());
     }
 
     @GetMapping("/dispense-tasks/{taskId}/trace")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     DispenseTraceView trace(@PathVariable Long taskId) { return dispenseService.trace(taskId); }
 
     record CreateBinRequest(

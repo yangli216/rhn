@@ -1,0 +1,2 @@
+-- H2/PostgreSQL unique constraints already treat null optional references as distinct.
+-- Oracle replaces the affected constraints with conditional indexes in its matching migration.

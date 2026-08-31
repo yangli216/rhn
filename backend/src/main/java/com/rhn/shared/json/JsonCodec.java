@@ -9,5 +9,7 @@ public interface JsonCodec {
 
     JsonNode readTree(String value);
 
+    <T> T read(String value, Class<T> type);
+
     Map<String, Object> readObject(String value);
 }

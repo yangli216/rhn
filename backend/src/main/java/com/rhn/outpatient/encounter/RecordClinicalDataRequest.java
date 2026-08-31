@@ -12,8 +12,10 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 
 public record RecordClinicalDataRequest(
+        @Size(max = 128) String commandCode,
         @NotBlank(message = "主诉不能为空") @Size(max = 1000) String chiefComplaint,
         @Size(max = 4000) String presentIllness,
         @Size(max = 4000) String medicalHistory,
@@ -27,6 +29,8 @@ public record RecordClinicalDataRequest(
         @DecimalMin(value = "30.0") @DecimalMax(value = "250.0") BigDecimal heightCm,
         @DecimalMin(value = "1.0") @DecimalMax(value = "500.0") BigDecimal weightKg,
         @Min(50) @Max(100) Integer oxygenSaturation,
+        Long noteFormVersionId,
+        @Size(max = 40) Map<@Size(max = 64) String, Object> structuredData,
         @NotEmpty(message = "至少录入一条诊断") List<@Valid DiagnosisInput> diagnoses
 ) {
     public record DiagnosisInput(

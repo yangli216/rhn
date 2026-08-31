@@ -7,5 +7,6 @@ public interface PrintingService {
     PrintReceipt generate(PrintRequest request);
     PrintReceipt reprint(Long jobId, int copies);
     PrintContent output(Long outputId);
+    List<PrintRecordView> recordsByEncounter(Long encounterId);
     List<PrintTemplateView> visibleTemplates();
 }

@@ -27,8 +27,8 @@ public class RegistrationBillingController {
     @ResponseStatus(HttpStatus.CREATED)
     RegistrationIntentView create(@Valid @RequestBody CreateRegistrationIntentRequest input) {
         return service.create(new CreateRegistrationIntentCommand(input.residentId(), input.organizationId(),
-                input.departmentId(), input.scheduleId(), input.idempotencyCode(), input.registrationSource(),
-                input.visitType()));
+                input.departmentId(), input.appointmentId(), input.scheduleId(), input.idempotencyCode(), input.registrationSource(),
+                input.visitType(), input.settlementMode(), input.coverageId()));
     }
 
     @GetMapping("/{intentId}")
@@ -42,7 +42,9 @@ public class RegistrationBillingController {
 
     record CreateRegistrationIntentRequest(
             @NotNull Long residentId, @NotNull Long organizationId, @NotNull Long departmentId,
-            Long scheduleId, @NotNull @Size(max = 128) String idempotencyCode,
+            Long appointmentId, Long scheduleId, @NotNull @Size(max = 128) String idempotencyCode,
             @Pattern(regexp = "WINDOW|WALK_IN|DIRECT|EMERGENCY") String registrationSource,
-            @Pattern(regexp = "GENERAL|FOLLOW_UP|EMERGENCY") String visitType) {}
+            @Pattern(regexp = "GENERAL|FOLLOW_UP|EMERGENCY") String visitType,
+            @Pattern(regexp = "SELF_PAY|MEDICAL_INSURANCE") String settlementMode,
+            Long coverageId) {}
 }

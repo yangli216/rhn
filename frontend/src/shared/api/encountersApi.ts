@@ -10,6 +10,7 @@ export type DiagnosisInput = DiagnosisInputContract & {
 }
 
 export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
+  commandCode: string
   presentIllness?: string
   medicalHistory?: string
   physicalExam?: string
@@ -20,6 +21,8 @@ export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {
   heightCm?: number
   weightKg?: number
   oxygenSaturation?: number
+  noteFormVersionId?: string
+  structuredData?: Record<string, unknown>
   diagnoses: DiagnosisInput[]
 }
 
@@ -38,6 +41,41 @@ export interface StartEncounterInput {
   commandCode: string
   factorResults: Record<string, boolean>
   terminalCode?: string
+}
+
+export interface CompleteEncounterInput {
+  commandCode: string
+  dispositionCode: 'HOME' | 'FOLLOW_UP' | 'OBSERVATION' | 'REFERRAL' | 'ADMISSION'
+  dispositionNote?: string
+}
+
+export interface SuspendEncounterInput {
+  commandCode?: string
+  reason: string
+}
+
+export interface ResumeEncounterInput {
+  commandCode?: string
+  terminalCode?: string
+}
+
+export interface CancelEncounterInput {
+  commandCode: string
+  reason: string
+  terminalCode?: string
+}
+
+export interface CancelEncounterResult {
+  encounterId: string
+  encounterStatus: 'REGISTERED' | 'CANCELLED'
+  registrationStatus: 'REGISTERED' | 'CANCELLED'
+  queueStatus: 'WAITING' | 'CANCELLED'
+  appointmentStatus?: 'REGISTERED' | 'CANCELLED'
+  billingStatus: string
+  refundOrderId?: string
+  refundStatus?: string
+  completed: boolean
+  message: string
 }
 
 export interface ServiceRequest {
@@ -115,6 +153,9 @@ export interface MedicationRequest {
   doseUnit?: string
   routeCode?: string
   frequencyCode?: string
+  frequencyId?: string
+  frequencyName?: string
+  frequencyRule?: Record<string, unknown>
   medicationInstruction?: string
   durationValue?: number
   durationUnit?: string
@@ -196,12 +237,29 @@ export function createEncountersApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       },
     ),
+    suspend: (encounterId: string, input: SuspendEncounterInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/suspend`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    resume: (encounterId: string, input: ResumeEncounterInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/resume`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    cancel: (encounterId: string, input: CancelEncounterInput) => client.request<CancelEncounterResult>(
+      `/api/encounters/${encounterId}/cancel`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
     recordClinicalData: (encounterId: string, input: ClinicalRecordInput) =>
       client.request<Encounter>(`/api/encounters/${encounterId}/clinical-record`, {
         method: 'PUT', body: JSON.stringify(input),
       }),
-    complete: (encounterId: string) => client.request<Encounter>(
-      `/api/encounters/${encounterId}/complete`, { method: 'POST' },
+    complete: (encounterId: string, input?: CompleteEncounterInput) => client.request<Encounter>(
+      `/api/encounters/${encounterId}/complete`, {
+        method: 'POST', ...(input ? { body: JSON.stringify(input) } : {}),
+      },
     ),
     serviceRequests: (encounterId: string) => client.request<ServiceRequest[]>(
       `/api/encounters/${encounterId}/service-requests`,

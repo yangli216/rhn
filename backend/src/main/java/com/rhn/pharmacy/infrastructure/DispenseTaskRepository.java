@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface DispenseTaskRepository extends JpaRepository<DispenseTask, Long> {
     Optional<DispenseTask> findByIdAndTenantId(Long id, Long tenantId);
@@ -18,4 +19,5 @@ public interface DispenseTaskRepository extends JpaRepository<DispenseTask, Long
     List<DispenseTask> findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(Long tenantId, Long stockSiteId);
     List<DispenseTask> findByTenantIdAndStockSiteIdAndStatusOrderByCreatedAtDesc(
             Long tenantId, Long stockSiteId, String status);
+    List<DispenseTask> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
 }

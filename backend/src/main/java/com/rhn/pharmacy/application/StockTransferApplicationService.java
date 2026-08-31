@@ -15,7 +15,6 @@ import com.rhn.pharmacy.domain.StockTransfer;
 import com.rhn.pharmacy.domain.StockTransferAllocation;
 import com.rhn.pharmacy.domain.StockTransferLine;
 import com.rhn.pharmacy.domain.StockSite;
-import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
 import com.rhn.pharmacy.infrastructure.InventoryDocumentEventRepository;
 import com.rhn.pharmacy.infrastructure.StockBinRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
@@ -34,6 +33,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,18 +50,18 @@ public class StockTransferApplicationService {
     private final StockTransferRepository repository; private final StockTransferLineRepository lineRepository;
     private final StockTransferAllocationRepository allocationRepository; private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository; private final StockBinRepository binRepository;
-    private final InventoryBalanceRepository balanceRepository; private final InventoryDocumentEventRepository eventRepository;
-    private final InventoryApplicationService inventoryService; private final InventoryTraceApplicationService traceService;
+    private final InventoryAvailabilityService availabilityService; private final InventoryDocumentEventRepository eventRepository;
+    private final InventoryLedgerPostingService inventoryService; private final InventoryTraceApplicationService traceService;
     private final ExecutionContextProvider contextProvider;
     public StockTransferApplicationService(StockTransferRepository repository, StockTransferLineRepository lineRepository,
             StockTransferAllocationRepository allocationRepository, StockSiteRepository siteRepository,
             StockItemRepository itemRepository, StockBinRepository binRepository,
-            InventoryBalanceRepository balanceRepository, InventoryDocumentEventRepository eventRepository,
-            InventoryApplicationService inventoryService, InventoryTraceApplicationService traceService,
+            InventoryAvailabilityService availabilityService, InventoryDocumentEventRepository eventRepository,
+            InventoryLedgerPostingService inventoryService, InventoryTraceApplicationService traceService,
             ExecutionContextProvider contextProvider) {
         this.repository=repository; this.lineRepository=lineRepository; this.allocationRepository=allocationRepository;
         this.siteRepository=siteRepository; this.itemRepository=itemRepository; this.binRepository=binRepository;
-        this.balanceRepository=balanceRepository; this.eventRepository=eventRepository;
+        this.availabilityService=availabilityService; this.eventRepository=eventRepository;
         this.inventoryService=inventoryService; this.traceService=traceService; this.contextProvider=contextProvider;
     }
 
@@ -107,18 +107,18 @@ public class StockTransferApplicationService {
     @Transactional
     public TransferView pick(Long id){
         ExecutionContext c=requireContext();StockTransfer v=lock(c,id,"SOURCE");if(!"APPROVED".equals(v.status()))throw conflict("TRANSFER_STATE_INVALID","只有已审核调拨单可以拣货");
-        List<StockTransferLine> lines=lineRepository.lockByTransfer(c.tenantId(),id);LocalDate date=LocalDate.now();
+        List<StockTransferLine> lines=lineRepository.lockByTransfer(c.tenantId(),id).stream().sorted(Comparator.comparing(StockTransferLine::sourceStockItemId).thenComparing(StockTransferLine::id)).toList();LocalDate date=LocalDate.now();
         for(StockTransferLine line:lines){if(!"APPROVED".equals(line.lineStatus()))continue;StockItem item=requireItem(c,line.sourceStockItemId(),v.sourceSiteId());
-            List<InventoryBalance> balances="FIFO".equals(item.issuePolicy())?balanceRepository.lockIssuableFifo(c.tenantId(),v.sourceSiteId(),item.id(),date):balanceRepository.lockIssuableFefo(c.tenantId(),v.sourceSiteId(),item.id(),date);
-            BigDecimal remaining=line.approvedQuantity();for(InventoryBalance balance:balances){if(remaining.signum()==0)break;BigDecimal q=remaining.min(balance.quantityAvailable());if(q.signum()<=0)continue;balance.reserve(q);balanceRepository.save(balance);allocationRepository.save(new StockTransferAllocation(c.tenantId(),line.id(),balance.stockBinId(),balance.stockLotId(),balance.stockStatus(),q,c.subjectId()));remaining=remaining.subtract(q);}if(remaining.signum()>0)throw conflict("TRANSFER_STOCK_INSUFFICIENT","可用库存不足，无法完成调拨拣货");line.markPicking();}
-        String from=v.status();transition(()->v.markPicking(c.subjectId()));append(c,v,"PICKED",from,v.status(),null);balanceRepository.flush();allocationRepository.flush();lineRepository.flush();return view(c,v);
+            List<InventoryBalance> balances=availabilityService.lockIssuable(c.tenantId(),v.sourceSiteId(),item.id(),date,item.issuePolicy());
+            BigDecimal remaining=line.approvedQuantity();for(InventoryBalance balance:balances){if(remaining.signum()==0)break;BigDecimal q=remaining.min(balance.quantityAvailable());if(q.signum()<=0)continue;balance.reserve(q);availabilityService.save(balance);allocationRepository.save(new StockTransferAllocation(c.tenantId(),line.id(),balance.stockBinId(),balance.stockLotId(),balance.stockStatus(),q,c.subjectId()));remaining=remaining.subtract(q);}if(remaining.signum()>0)throw conflict("TRANSFER_STOCK_INSUFFICIENT","可用库存不足，无法完成调拨拣货");line.markPicking();}
+        String from=v.status();transition(()->v.markPicking(c.subjectId()));append(c,v,"PICKED",from,v.status(),null);availabilityService.flush();allocationRepository.flush();lineRepository.flush();return view(c,v);
     }
 
     @Transactional
     public TransferView dispatch(Long id){
         ExecutionContext c=requireContext();StockTransfer v=lock(c,id,"SOURCE");if("IN_TRANSIT".equals(v.status()))return view(c,v);if(!"PICKING".equals(v.status()))throw conflict("TRANSFER_STATE_INVALID","只有完成拣货的调拨单可以调出");
         List<StockTransferLine> lines=lineRepository.lockByTransfer(c.tenantId(),id);List<DocumentPostingLineCommand> posting=new ArrayList<>();
-        for(StockTransferLine line:lines){if(!"PICKING".equals(line.lineStatus()))continue;List<StockTransferAllocation> allocations=allocationRepository.findByTenantIdAndStockTransferLineIdOrderById(c.tenantId(),line.id());BigDecimal total=allocations.stream().map(StockTransferAllocation::dispatchedQuantity).reduce(BigDecimal.ZERO,BigDecimal::add);if(total.compareTo(line.approvedQuantity())!=0)throw conflict("TRANSFER_ALLOCATION_INCOMPLETE","调拨分配数量与批准数量不一致");for(StockTransferAllocation a:allocations){InventoryBalance b=balanceRepository.lockDimension(c.tenantId(),a.sourceBinId(),line.sourceStockItemId(),a.stockLotId(),a.stockStatus()).orElseThrow(()->conflict("INVENTORY_BALANCE_NOT_FOUND","调拨库存不存在"));posting.add(new DocumentPostingLineCommand(a.sourceBinId(),line.sourceStockItemId(),a.stockLotId(),a.stockStatus(),a.dispatchedQuantity().negate(),b.averageUnitCost(),true));}}
+        for(StockTransferLine line:lines){if(!"PICKING".equals(line.lineStatus()))continue;List<StockTransferAllocation> allocations=allocationRepository.findByTenantIdAndStockTransferLineIdOrderById(c.tenantId(),line.id());BigDecimal total=allocations.stream().map(StockTransferAllocation::dispatchedQuantity).reduce(BigDecimal.ZERO,BigDecimal::add);if(total.compareTo(line.approvedQuantity())!=0)throw conflict("TRANSFER_ALLOCATION_INCOMPLETE","调拨分配数量与批准数量不一致");for(StockTransferAllocation a:allocations){posting.add(new DocumentPostingLineCommand(a.sourceBinId(),line.sourceStockItemId(),a.stockLotId(),a.stockStatus(),a.dispatchedQuantity().negate(),null,true));}}
         var txn=inventoryService.postDocument(new DocumentPostingCommand(v.requestCode()+":OUT","TRANSFER","STOCK_TRANSFER_OUT",v.transferNo(),v.sourceSiteId(),Instant.now(),"库间调拨调出",posting));
         List<TraceMovementLine> traceLines=new ArrayList<>();
         for(StockTransferLine line:lines){if(!"PICKING".equals(line.lineStatus()))continue;

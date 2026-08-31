@@ -1,14 +1,24 @@
 rhn:
+  ai:
+    mode: LOCAL_ASSIST
+    provider: local-assist
+    model: local-rules-v1
+    suggestion-ttl: PT30M
   id:
     allow-default-node: true
   security:
     dev-user-enabled: true
     dev-username: ${RHN_DEV_USERNAME:doctor}
     dev-password: ${RHN_DEV_PASSWORD:rhn-dev-2026}
+    session-registry: ${RHN_SESSION_REGISTRY:memory}
+    refresh-login:
+      cookie-secure: false
   crypto:
     # Development-only provider; production keeps the fail-closed defaults.
     active-provider: development-jca
     enforce-compliance: false
+  presence:
+    store: ${RHN_PRESENCE_STORE:memory}
 springdoc:
   api-docs:
     enabled: true

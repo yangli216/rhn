@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
+import org.springframework.test.context.TestPropertySource;
 
 import java.util.UUID;
 
@@ -14,8 +15,51 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@TestPropertySource(properties = "rhn.diagnostics.require-settlement-authorization=false")
 class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
+
+    @Test
+    void critical_laboratory_result_requires_explicit_acknowledgement_and_is_superseded_by_correction() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createActiveEncounter(residentId);
+        JsonNode request = createRequest(encounterId, "362387869795101", "危急值闭环测试");
+        String requestNo = request.get("requestNo").asText();
+
+        JsonNode report = json(mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(laboratoryReport(suffix, requestNo, "CRITICAL-" + suffix, 1,
+                                "FINAL", "CRITICAL-RPT-" + suffix, 32.8, "HH")))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        JsonNode active = json(mockMvc.perform(get("/api/critical-values").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.reportId == '%s')].status".formatted(report.get("id").asText()))
+                        .value("OPEN"))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode alert = null;
+        for (JsonNode item : active) if (item.get("reportId").asText().equals(report.get("id").asText())) alert = item;
+        if (alert == null) throw new AssertionError("危急值未形成持久化告警");
+
+        mockMvc.perform(post("/api/critical-values/{id}/acknowledge", alert.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"expectedRevision\":%d,\"note\":\"已确认并联系患者\"}"
+                                .formatted(alert.get("revision").asLong())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACKNOWLEDGED"))
+                .andExpect(jsonPath("$.acknowledgedAt").isNotEmpty());
+
+        mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(laboratoryReport(suffix + "C", requestNo, "CRITICAL-" + suffix, 2,
+                                "CORRECTED", "CRITICAL-RPT-" + suffix, 5.6, "N")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("CORRECTED"));
+        mockMvc.perform(get("/api/critical-values").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.reportId == '%s')]".formatted(report.get("id").asText())).isEmpty());
+        assertEquals("SUPERSEDED", jdbcTemplate.queryForObject(
+                "select status from critical_value_alerts where id = ?", String.class, alert.get("id").asLong()));
+    }
 
     @Test
     void laboratory_and_imaging_requests_exchange_acknowledgements_and_versioned_results_idempotently() throws Exception {

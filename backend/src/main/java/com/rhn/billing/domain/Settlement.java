@@ -60,7 +60,10 @@ public class Settlement {
     public String applyPaidAmount(BigDecimal paidAmount, Long actorId, Instant occurredAt) {
         if ("REVERSAL".equals(settlementType) || "REVERSED".equals(status)) return status;
         String previous = status;
-        if (paidAmount.signum() <= 0) status = "PRICED";
+        if (netAmount.signum() == 0) {
+            status = "SETTLED"; finalizedBy = actorId; finalizedAt = occurredAt;
+        }
+        else if (paidAmount.signum() <= 0) status = "PRICED";
         else if (paidAmount.compareTo(netAmount) < 0) status = "PARTIAL";
         else {
             status = "SETTLED"; finalizedBy = actorId; finalizedAt = occurredAt;

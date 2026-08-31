@@ -16,6 +16,12 @@ public final class PharmacyViews {
             String code, String name, String siteType, String serviceScope,
             boolean active, LocalDate validFrom, LocalDate validTo) {}
 
+    public record DispenseRouteView(
+            Long id, long revision, Long organizationId, String code, String name,
+            String careSetting, Long sourceDepartmentId, String medicationType, Long targetStockSiteId,
+            boolean active, LocalDate validFrom, LocalDate validTo,
+            String description, Instant updatedAt) {}
+
     public record StockItemView(
             Long id, long revision, Long stockSiteId, Long catalogItemId, Long packageId,
             Long medicationId, String productCode, String productName,
@@ -56,6 +62,10 @@ public final class PharmacyViews {
             Instant occurredAt, Instant postedAt, Long postedBy, String description,
             List<InventoryTransactionLineView> lines) {}
 
+    public record InventoryPageView<T>(
+            List<T> content, int page, int size, long totalElements, int totalPages,
+            boolean first, boolean last) {}
+
     public record InventoryReservationView(
             Long id, long revision, Long stockSiteId, Long stockBinId, String stockBinCode,
             Long stockItemId, Long stockLotId, String lotNo, LocalDate expiryDate,
@@ -71,11 +81,19 @@ public final class PharmacyViews {
 
     public record PharmacyInboxItem(
             MedicationRequestSnapshot request, Long taskId, String taskNo, String taskStatus,
-            Long stockItemId, String selectedProductName, String latestReviewResult) {}
+            String closureStatus, Long stockItemId, String selectedProductName, String latestReviewResult,
+            PharmacyClinicalContextView clinicalContext,
+            List<MedicationRequestSnapshot> prescriptionRequests) {}
+
+    public record PharmacyClinicalContextView(
+            Long encounterId, String encounterNo, String clinicianId, String chiefComplaint,
+            List<PharmacyDiagnosisView> diagnoses) {}
+
+    public record PharmacyDiagnosisView(String code, String display, String type) {}
 
     public record DispenseTaskView(
             Long id, long revision, Long residentId, Long encounterId, Long stockSiteId,
-            String taskNo, String taskType, String priority, String status,
+            String taskNo, String taskType, String priority, String status, String closureStatus,
             Instant createdAt, Instant dueAt, Instant pickedAt, Long assignedPractitionerId,
             Long pickedByUserId, Long pickedAssignmentId, String pickDescription, String description,
             List<DispenseTaskLineView> lines, List<PharmacyReviewView> reviews) {}
@@ -93,6 +111,9 @@ public final class PharmacyViews {
             Long id, String reviewNo, String result, String reasonCode, String description,
             Long pharmacistPractitionerId, Long reviewerUserId, Long reviewerAssignmentId,
             Instant reviewedAt) {}
+
+    public record PrescriptionReviewModeView(
+            String mode, boolean enabled, String timing, String parameterKey) {}
 
     public record MedicationDispenseLineView(
             Long id, Long taskLineId, Long originalDispenseLineId, int sortOrder,
@@ -129,4 +150,23 @@ public final class PharmacyViews {
             Long taskId, String taskNo, String taskStatus, Instant pickedAt,
             Long pickerPractitionerId, Long pickerUserId, Long pickerAssignmentId,
             String description) {}
+
+    public record WardDeliveryLineView(
+            Long id, Long dispenseId, Long residentId, Long encounterId,
+            String residentName, String medicationName, BigDecimal expectedQuantity,
+            BigDecimal receivedQuantity, String unitCode, String status,
+            String discrepancyCode, String discrepancyNote) {}
+
+    public record WardDeliveryEventView(
+            Long id, String eventType, String fromStatus, String toStatus,
+            String commandCode, Instant occurredAt, Long occurredBy, String note) {}
+
+    public record WardDeliveryView(
+            Long id, long revision, Long organizationId, Long stockSiteId,
+            Long nursingUnitDepartmentId, String deliveryNo, String status,
+            String stockSiteName, String nursingUnitName, Instant createdAt, Long createdBy,
+            Instant dispatchedAt, Long dispatchedBy, String dispatchNote,
+            Instant receivedAt, Long receivedBy, String receiptNote, String discrepancyNote,
+            Instant resolvedAt, Long resolvedBy, String resolutionCode, String resolutionNote,
+            List<WardDeliveryLineView> lines, List<WardDeliveryEventView> events) {}
 }

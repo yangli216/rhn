@@ -8,4 +8,6 @@ import java.util.List;
 public interface InventoryTransactionLineRepository extends JpaRepository<InventoryTransactionLine, Long> {
     List<InventoryTransactionLine> findByTenantIdAndInventoryTransactionIdOrderBySortOrder(
             Long tenantId, Long inventoryTransactionId);
+    List<InventoryTransactionLine> findByTenantIdAndInventoryTransactionIdInOrderByInventoryTransactionIdAscSortOrderAsc(
+            Long tenantId, List<Long> inventoryTransactionIds);
 }

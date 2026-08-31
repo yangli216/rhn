@@ -1,0 +1,56 @@
+.pharmacy-ward-daily-supply { margin-bottom: var(--space-4); overflow: hidden; }
+.pharmacy-ward-daily-supply > header { min-height: 5rem; padding: var(--space-3) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.pharmacy-ward-daily-supply > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply > header h2 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
+.pharmacy-ward-daily-supply > header p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply__body { padding: var(--space-4) var(--space-5) var(--space-5); display: grid; gap: var(--space-4); border-top: 1px solid var(--color-border); }
+.pharmacy-ward-daily-supply__filters { display: grid; grid-template-columns: minmax(10rem, .7fr) minmax(14rem, 1fr) minmax(15rem, 1.2fr) auto; align-items: end; gap: var(--space-3); }
+.pharmacy-ward-daily-supply__filters .ui-field { margin: 0; }
+.pharmacy-ward-daily-supply__batch { display: grid; gap: var(--space-3); }
+.pharmacy-ward-daily-supply__batch-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.pharmacy-ward-daily-supply__batch-meta { display: grid; gap: var(--space-1); }
+.pharmacy-ward-daily-supply__batch-actions { display: flex; align-items: center; gap: var(--space-2); }
+.pharmacy-ward-daily-supply__batch-head span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply__review { padding: var(--space-3); display: grid; grid-template-columns: minmax(14rem, 1fr) minmax(13rem, .8fr) minmax(14rem, .9fr) auto; align-items: end; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.pharmacy-ward-daily-supply__review > div:first-child { align-self: center; display: grid; gap: var(--space-1); }
+.pharmacy-ward-daily-supply__review small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply__review .ui-field { margin: 0; }
+.pharmacy-ward-daily-supply__fulfillment { padding: var(--space-3); display: grid; grid-template-columns: minmax(16rem, 1fr) auto auto; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.pharmacy-ward-daily-supply__fulfillment > div:first-child { display: grid; gap: var(--space-1); }
+.pharmacy-ward-daily-supply__fulfillment small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply__summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.pharmacy-ward-daily-supply__summary > div { min-width: 0; padding: var(--space-2) var(--space-3); display: grid; gap: var(--space-1); border-right: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.pharmacy-ward-daily-supply__summary > div:last-child { border-right: 0; }
+.pharmacy-ward-daily-supply__summary span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.pharmacy-ward-daily-supply__summary strong { font-size: var(--font-size-h2); font-variant-numeric: tabular-nums; }
+.pharmacy-ward-daily-supply__summary .is-success strong { color: var(--color-success); }
+.pharmacy-ward-daily-supply__summary .is-warning strong { color: var(--color-warning); }
+.pharmacy-ward-daily-supply__summary .is-danger strong { color: var(--color-danger); }
+.pharmacy-ward-daily-supply__lines { display: grid; gap: var(--space-2); }
+.pharmacy-ward-daily-supply__lines > article { padding: var(--space-3); display: grid; grid-template-columns: minmax(12rem, 1.1fr) minmax(20rem, 1.6fr) auto minmax(17rem, 1.2fr); align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-left: .1875rem solid var(--color-success); border-radius: var(--radius-md); background: var(--color-surface); }
+.pharmacy-ward-daily-supply__lines > article.is-exception { border-left-color: var(--color-warning); background: color-mix(in srgb, var(--color-warning-soft) 32%, var(--color-surface)); }
+.pharmacy-ward-daily-supply__identity { min-width: 0; display: grid; gap: var(--space-1); }
+.pharmacy-ward-daily-supply__identity span, .pharmacy-ward-daily-supply__settled { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.pharmacy-ward-daily-supply__quantities { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); font-variant-numeric: tabular-nums; }
+.pharmacy-ward-daily-supply__quantities .is-gap { color: var(--color-warning); font-weight: var(--font-weight-semibold); }
+.pharmacy-ward-daily-supply__intake { display: grid; grid-template-columns: minmax(11rem, 1fr) auto; align-items: center; gap: var(--space-2); }
+.pharmacy-ward-daily-supply__lines > article > p { grid-column: 1 / -1; margin: 0; padding: var(--space-2); border-radius: var(--radius-sm); color: var(--color-danger); background: var(--color-danger-soft); font-size: var(--font-size-small); }
+
+@media (max-width: 78rem) {
+  .pharmacy-ward-daily-supply__filters { grid-template-columns: repeat(2, minmax(14rem, 1fr)); }
+  .pharmacy-ward-daily-supply__review { grid-template-columns: repeat(2, minmax(14rem, 1fr)); }
+  .pharmacy-ward-daily-supply__fulfillment { grid-template-columns: 1fr auto auto; }
+  .pharmacy-ward-daily-supply__lines > article { grid-template-columns: minmax(12rem, 1fr) minmax(20rem, 1.5fr) auto; }
+  .pharmacy-ward-daily-supply__intake, .pharmacy-ward-daily-supply__settled { grid-column: 1 / -1; }
+}
+
+@media (max-width: 48rem) {
+  .pharmacy-ward-daily-supply > header { align-items: flex-start; flex-direction: column; }
+  .pharmacy-ward-daily-supply__body { padding: var(--space-3); }
+  .pharmacy-ward-daily-supply__filters, .pharmacy-ward-daily-supply__lines > article { grid-template-columns: 1fr; }
+  .pharmacy-ward-daily-supply__review { grid-template-columns: 1fr; }
+  .pharmacy-ward-daily-supply__fulfillment { grid-template-columns: 1fr; }
+  .pharmacy-ward-daily-supply__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pharmacy-ward-daily-supply__summary > div { border-bottom: 1px solid var(--color-border); }
+  .pharmacy-ward-daily-supply__intake { grid-template-columns: 1fr; }
+}

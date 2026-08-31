@@ -96,6 +96,14 @@ public class InventoryBalance {
         else issueAvailable(quantityDelta.abs());
     }
 
+    public void revalueCost(BigDecimal newUnitCost) {
+        if (newUnitCost == null || newUnitCost.signum() < 0) {
+            throw invalid("INVENTORY_REVALUE_COST_INVALID", "重估后的单位成本不能小于零");
+        }
+        averageUnitCost = newUnitCost;
+        projectedAt = Instant.now();
+    }
+
     private void recalculate() {
         quantityAvailable = quantityOnHand.subtract(quantityReserved).subtract(quantityFrozen);
         if (quantityAvailable.signum() < 0) throw invalid("INVENTORY_BALANCE_NEGATIVE", "库存投影不能形成负可用量");

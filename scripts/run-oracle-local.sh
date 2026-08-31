@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+rhn_backend_dir="$rhn_project_root/backend"
+rhn_server_port="${RHN_SERVER_PORT:-8080}"
+
+for rhn_required_variable in RHN_ORACLE_URL RHN_ORACLE_USER RHN_ORACLE_PASSWORD; do
+  if [[ -z "${!rhn_required_variable:-}" ]]; then
+    echo "缺少环境变量：$rhn_required_variable" >&2
+    exit 1
+  fi
+done
+
+if command -v lsof >/dev/null 2>&1 \
+    && lsof -nP -iTCP:"$rhn_server_port" -sTCP:LISTEN -t >/dev/null 2>&1; then
+  echo "端口 $rhn_server_port 已被占用，请先正常停止现有实例。" >&2
+  exit 1
+fi
+
+(cd "$rhn_backend_dir" && mvn -DskipTests package)
+
+rhn_build_artifact="$rhn_backend_dir/target/rhn-application-0.1.0-SNAPSHOT.jar"
+rhn_artifact_digest="$(shasum -a 256 "$rhn_build_artifact" | awk '{print substr($1, 1, 16)}')"
+rhn_runtime_dir="$rhn_backend_dir/target/runtime"
+rhn_runtime_artifact="$rhn_runtime_dir/rhn-application-$rhn_artifact_digest.jar"
+mkdir -p "$rhn_runtime_dir"
+if [[ ! -f "$rhn_runtime_artifact" ]]; then
+  cp "$rhn_build_artifact" "$rhn_runtime_artifact"
+fi
+
+exec java -jar "$rhn_runtime_artifact" \
+  --spring.profiles.active=oracle-local \
+  --server.port="$rhn_server_port" \
+  --management.health.redis.enabled=false \
+  "$@"

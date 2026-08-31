@@ -16,16 +16,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
 public class InventoryTraceController {
     private final InventoryTraceApplicationService service;
     public InventoryTraceController(InventoryTraceApplicationService service) { this.service = service; }
 
     @PostMapping("/goods-receipts/{receiptId}/trace-codes")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_RECEIVE)
     ReceiptTraceSummaryView register(@PathVariable Long receiptId,
                                      @Valid @RequestBody RegisterReceiptCodesRequest input) {
         return service.registerReceiptCodes(receiptId, input.command());

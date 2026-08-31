@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(32))
+                .andExpect(jsonPath("$.length()").value(35))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -39,9 +39,12 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[13].code").value("PARAM_VALUE_MODE"))
                 .andExpect(jsonPath("$[15].code").value("PARAM_CHANGE_TARGET_TYPE"))
                 .andExpect(jsonPath("$[24].code").value("SC_SCHEDULE_MANAGEMENT_MODE"))
-                .andExpect(jsonPath("$[29].code").value("SC_QUOTA_MODE"))
-                .andExpect(jsonPath("$[30].code").value("SC_VISIT_TYPE"))
-                .andExpect(jsonPath("$[31].code").value("SC_RECEPTION_STATUS"));
+                .andExpect(jsonPath("$[25].code").value("SC_PRESCRIPTION_REVIEW_MODE"))
+                .andExpect(jsonPath("$[30].code").value("SC_QUOTA_MODE"))
+                .andExpect(jsonPath("$[31].code").value("SC_VISIT_TYPE"))
+                .andExpect(jsonPath("$[32].code").value("SC_RECEPTION_STATUS"))
+                .andExpect(jsonPath("$[33].code").value("SC_APPOINTMENT_STATUS"))
+                .andExpect(jsonPath("$[34].code").value("SC_APPOINTMENT_SOURCE"));
 
         mockMvc.perform(get("/api/platform/dictionaries/system-enums/DICT_CHANGE_TYPE").with(rhn()))
                 .andExpect(status().isOk())

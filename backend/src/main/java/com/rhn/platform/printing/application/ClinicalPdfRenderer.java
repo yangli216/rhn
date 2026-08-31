@@ -82,16 +82,19 @@ class ClinicalPdfRenderer {
 
         Map<String, Object> content = map(snapshot.get("content"));
         addSection(document, "主诉", text(content, "chiefComplaint", "未记录"));
+        addSection(document, "现病史", text(content, "presentIllness", "未记录"));
+        addSection(document, "既往史", text(content, "medicalHistory", "未记录"));
         Map<String, Object> vitalSigns = map(content.get("vitalSigns"));
-        String pressure = text(vitalSigns, "systolic", "-") + "/" + text(vitalSigns, "diastolic", "-") + " mmHg";
-        addSection(document, "生命体征", "血压  " + pressure);
+        addSection(document, "生命体征", vitalSigns(vitalSigns));
+        addSection(document, "查体所见", text(content, "physicalExam", "未记录"));
         List<?> diagnoses = list(content.get("diagnoses"));
         String diagnosisText = diagnoses.isEmpty() ? "未记录" : diagnoses.stream().map(value -> {
             Map<String, Object> item = map(value);
             return text(item, "display", "-") + "（" + text(item, "code", "-") + "）";
         }).reduce((left, right) -> left + "；" + right).orElse("未记录");
         addSection(document, "诊断", diagnosisText);
-        addSection(document, "诊疗意见", text(content, "assessmentPlan", "按本次门诊医嘱执行。"));
+        addSection(document, "诊疗计划", text(content, "treatmentPlan", "按本次门诊医嘱执行。"));
+        renderStructuredNote(document, content);
 
         PdfPTable signature = new PdfPTable(new float[]{1, 2.4f, 1, 2.4f});
         signature.setWidthPercentage(100);
@@ -102,6 +105,56 @@ class ClinicalPdfRenderer {
         addLabelValue(signature, "签署含义", text(snapshot, "signatureMeaning", "-"));
         document.add(signature);
         addEvidence(document, snapshot);
+    }
+
+    private String vitalSigns(Map<String, Object> values) {
+        java.util.ArrayList<String> parts = new java.util.ArrayList<>();
+        parts.add("血压 " + text(values, "systolic", "-") + "/" + text(values, "diastolic", "-") + " mmHg");
+        appendMeasure(parts, values, "temperature", "体温", "℃");
+        appendMeasure(parts, values, "pulseRate", "脉搏", "次/分");
+        appendMeasure(parts, values, "respiratoryRate", "呼吸", "次/分");
+        appendMeasure(parts, values, "oxygenSaturation", "血氧", "%");
+        appendMeasure(parts, values, "heightCm", "身高", "cm");
+        appendMeasure(parts, values, "weightKg", "体重", "kg");
+        return String.join("    ", parts);
+    }
+
+    private void appendMeasure(List<String> parts, Map<String, Object> values,
+                               String key, String label, String unit) {
+        if (values.get(key) != null) parts.add(label + " " + number(values.get(key)) + " " + unit);
+    }
+
+    private void renderStructuredNote(Document document, Map<String, Object> content) throws Exception {
+        Map<String, Object> form = map(content.get("structuredForm"));
+        if (form.isEmpty()) return;
+        Map<String, Object> values = map(content.get("structuredData"));
+        String prefix = text(form, "name", "结构化记录") + " · V" + text(form, "version", "-");
+        for (Object sectionValue : list(form.get("sections"))) {
+            Map<String, Object> section = map(sectionValue);
+            java.util.ArrayList<String> lines = new java.util.ArrayList<>();
+            for (Object fieldValue : list(section.get("fields"))) {
+                Map<String, Object> field = map(fieldValue);
+                Object raw = values.get(text(field, "code", ""));
+                if (raw == null || raw.toString().isBlank()) continue;
+                lines.add(text(field, "label", "字段") + "：" + structuredValue(field, raw));
+            }
+            if (!lines.isEmpty()) {
+                addSection(document, prefix + " / " + text(section, "title", "补充记录"), String.join("\n", lines));
+                prefix = text(form, "name", "结构化记录");
+            }
+        }
+    }
+
+    private String structuredValue(Map<String, Object> field, Object raw) {
+        String type = text(field, "type", "TEXT");
+        String value;
+        if ("BOOLEAN".equals(type)) value = Boolean.parseBoolean(raw.toString()) ? "是" : "否";
+        else if ("SELECT".equals(type)) value = list(field.get("options")).stream()
+                .map(this::map).filter(option -> raw.toString().equals(text(option, "value", "")))
+                .map(option -> text(option, "label", raw.toString())).findFirst().orElse(raw.toString());
+        else value = raw.toString();
+        String unit = text(field, "unit", "");
+        return unit.isBlank() ? value : value + " " + unit;
     }
 
     private void renderPrescription(Document document, Map<String, Object> snapshot) throws Exception {

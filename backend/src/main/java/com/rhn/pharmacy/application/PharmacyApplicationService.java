@@ -1,21 +1,29 @@
 package com.rhn.pharmacy.application;
 
+import com.rhn.healthcore.api.EncounterCareSettingDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapshot;
+import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskLineView;
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskView;
+import com.rhn.pharmacy.api.PharmacyViews.PharmacyClinicalContextView;
+import com.rhn.pharmacy.api.PharmacyViews.PharmacyDiagnosisView;
 import com.rhn.pharmacy.api.PharmacyViews.PharmacyInboxItem;
 import com.rhn.pharmacy.api.PharmacyViews.PharmacyReviewView;
+import com.rhn.pharmacy.api.PharmacyViews.PrescriptionReviewModeView;
 import com.rhn.pharmacy.api.PharmacyViews.StockItemView;
 import com.rhn.pharmacy.api.PharmacyViews.StockSiteView;
+import com.rhn.pharmacy.api.InpatientMedicationStopDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
 import com.rhn.pharmacy.domain.PharmacyReview;
+import com.rhn.pharmacy.domain.PharmacyFulfillmentAuthorization;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
 import com.rhn.pharmacy.infrastructure.PharmacyReviewRepository;
+import com.rhn.pharmacy.infrastructure.PharmacyFulfillmentAuthorizationRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
 import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
@@ -25,6 +33,7 @@ import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,27 +67,49 @@ public class PharmacyApplicationService {
     private final DispenseTaskRepository taskRepository;
     private final DispenseTaskLineRepository lineRepository;
     private final PharmacyReviewRepository reviewRepository;
+    private final PharmacyFulfillmentAuthorizationRepository fulfillmentAuthorizations;
+    private final EncounterCareSettingDirectory encounterCareSettings;
+    private final EncounterDirectory encounterDirectory;
     private final MedicationRequestDirectory requestDirectory;
     private final CatalogLifecycleDirectory catalogDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final DispenseRouteApplicationService routing;
+    private final InpatientMedicationStopDirectory medicationStops;
+    private final PrescriptionReviewPolicy reviewPolicy;
+    private final boolean requireSettlementAuthorization;
 
     public PharmacyApplicationService(StockSiteRepository siteRepository, StockItemRepository itemRepository,
                                       DispenseTaskRepository taskRepository,
                                       DispenseTaskLineRepository lineRepository,
                                       PharmacyReviewRepository reviewRepository,
+                                      PharmacyFulfillmentAuthorizationRepository fulfillmentAuthorizations,
+                                      EncounterCareSettingDirectory encounterCareSettings,
+                                      EncounterDirectory encounterDirectory,
                                       MedicationRequestDirectory requestDirectory,
                                       CatalogLifecycleDirectory catalogDirectory,
                                       OrganizationDirectory organizationDirectory,
                                       DomainEventPublisher eventPublisher,
-                                      ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
+                                      ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
+                                      DispenseRouteApplicationService routing,
+                                      InpatientMedicationStopDirectory medicationStops,
+                                      PrescriptionReviewPolicy reviewPolicy,
+                                      @Value("${rhn.pharmacy.require-settlement-authorization:true}")
+                                      boolean requireSettlementAuthorization) {
         this.siteRepository = siteRepository; this.itemRepository = itemRepository;
         this.taskRepository = taskRepository; this.lineRepository = lineRepository;
-        this.reviewRepository = reviewRepository; this.requestDirectory = requestDirectory;
+        this.reviewRepository = reviewRepository; this.fulfillmentAuthorizations = fulfillmentAuthorizations;
+        this.encounterCareSettings = encounterCareSettings;
+        this.encounterDirectory = encounterDirectory;
+        this.requestDirectory = requestDirectory;
         this.catalogDirectory = catalogDirectory; this.organizationDirectory = organizationDirectory;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
+        this.routing = routing;
+        this.medicationStops = medicationStops;
+        this.reviewPolicy = reviewPolicy;
+        this.requireSettlementAuthorization = requireSettlementAuthorization;
     }
 
     @Transactional
@@ -191,25 +222,112 @@ public class PharmacyApplicationService {
     @Transactional(readOnly = true)
     public List<PharmacyInboxItem> inbox(Long organizationId) {
         ExecutionContext context = requireWorkContext(); requireOrganizationAccess(context, organizationId);
-        return requestDirectory.activeForPharmacy(organizationId).stream().map(request -> {
-            DispenseTaskLine line = lineRepository.findByTenantIdAndRequestId(context.tenantId(), request.id())
+        StockSite currentSite = siteRepository.findByTenantIdAndOrganizationIdAndDepartmentId(
+                context.tenantId(), organizationId, context.departmentId()).orElse(null);
+        if (currentSite == null || !"PHARMACY".equals(currentSite.siteType())) return List.of();
+        Map<Long, PharmacyInboxItem> result = new LinkedHashMap<>();
+        List<MedicationRequestSnapshot> activeRequests = requestDirectory.activeForPharmacy(organizationId);
+        for (MedicationRequestSnapshot request : activeRequests) {
+            DispenseTaskLine line = lineRepository
+                    .findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceId(
+                            context.tenantId(), "MEDICATION_REQUEST", request.id())
                     .orElse(null);
-            if (line == null) return new PharmacyInboxItem(request, null, null, null, null, null, null);
+            if (line == null) {
+                if (visibleInInbox(context, request, currentSite.id())) {
+                    result.put(request.id(), new PharmacyInboxItem(
+                            request, null, null, null, null, null, null, null,
+                            clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
+                }
+                continue;
+            }
             DispenseTask task = taskRepository.findByIdAndTenantId(line.taskId(), context.tenantId())
                     .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "接方任务不存在"));
+            if (!currentSite.id().equals(task.stockSiteId())) continue;
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
-            return new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(), line.stockItemId(),
-                    line.productNameSnapshot(), reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result());
-        }).toList();
+            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(), null,
+                    line.stockItemId(), line.productNameSnapshot(),
+                    reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
+                    clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
+        }
+        for (DispenseTask task : taskRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(
+                context.tenantId(), currentSite.id())) {
+            DispenseTaskLine line = lineRepository.findByTenantIdAndTaskId(context.tenantId(), task.id()).orElse(null);
+            if (line == null || result.containsKey(line.requestId())) continue;
+            var closure = medicationStops.closure(context.tenantId(), line.requestId());
+            if (!closure.returnRequired()) continue;
+            MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(line.requestId());
+            List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
+                    context.tenantId(), task.id());
+            result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(),
+                    closure.status(), line.stockItemId(), line.productNameSnapshot(),
+                    reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
+                    clinicalContext(context.tenantId(), request), List.of(request)));
+        }
+        return new ArrayList<>(result.values());
+    }
+
+    private PharmacyClinicalContextView clinicalContext(Long tenantId, MedicationRequestSnapshot request) {
+        var value = encounterDirectory.requireForPharmacy(tenantId, request.encounterId());
+        if (!request.residentId().equals(value.residentId())) {
+            throw conflict("PHARMACY_ENCOUNTER_RESIDENT_MISMATCH", "处方患者与就诊患者不一致");
+        }
+        return new PharmacyClinicalContextView(value.encounterId(), value.encounterNo(), value.clinicianId(),
+                value.chiefComplaint(), value.diagnoses().stream().map(diagnosis -> new PharmacyDiagnosisView(
+                        diagnosis.code(), diagnosis.display(), diagnosis.type())).toList());
+    }
+
+    private List<MedicationRequestSnapshot> prescriptionRequests(List<MedicationRequestSnapshot> activeRequests,
+                                                                 MedicationRequestSnapshot request) {
+        if (request.prescriptionId() == null) return List.of(request);
+        List<MedicationRequestSnapshot> result = activeRequests.stream()
+                .filter(value -> request.prescriptionId().equals(value.prescriptionId()))
+                .toList();
+        return result.isEmpty() ? List.of(request) : result;
     }
 
     @Transactional
     public DispenseTaskView intake(Long requestId, IntakeCommand input) {
+        MedicationRequestSnapshot request = requestDirectory.lockForPharmacyIntake(requestId);
+        return intake(request, "MEDICATION_REQUEST", requestId,
+                request.quantity(), request.quantityUnit(), request.baseQuantity(), request.baseUnit(), input);
+    }
+
+    /** Creates one independently fulfillable pharmacy task for a submitted inpatient supply line. */
+    @Transactional
+    public DispenseTaskView intakeSupplyLine(Long supplyLineId, Long requestId,
+                                             BigDecimal requestedQuantity, String quantityUnit,
+                                             BigDecimal requestedBaseQuantity, String baseUnit,
+                                             IntakeCommand input) {
+        MedicationRequestSnapshot request = requestDirectory.lockForPharmacyIntake(requestId);
+        return intake(request, "INPATIENT_SUPPLY_LINE", supplyLineId,
+                requestedQuantity, quantityUnit, requestedBaseQuantity, baseUnit, input);
+    }
+
+    private DispenseTaskView intake(MedicationRequestSnapshot request,
+                                    String fulfillmentSourceType, Long fulfillmentSourceId,
+                                    BigDecimal requestedQuantity, String quantityUnit,
+                                    BigDecimal requestedBaseQuantity, String baseUnit,
+                                    IntakeCommand input) {
         ExecutionContext context = requireWorkContext();
-        DispenseTaskLine existing = lineRepository.findByTenantIdAndRequestId(context.tenantId(), requestId).orElse(null);
+        DispenseTaskLine existing = lineRepository
+                .findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceId(
+                        context.tenantId(), fulfillmentSourceType, fulfillmentSourceId)
+                .orElse(null);
         if (existing != null) return taskView(requireTask(context, existing.taskId()));
-        MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(requestId);
+        var encounter = encounterCareSettings.require(context.tenantId(), request.encounterId());
+        String careSetting = encounter.encounterClass();
+        if (!request.residentId().equals(encounter.residentId())
+                || !request.performerOrganizationId().equals(encounter.organizationId())) {
+            throw conflict("MEDICATION_REQUEST_ENCOUNTER_MISMATCH", "药品请求与就诊范围不一致");
+        }
+        PharmacyFulfillmentAuthorization authorization = fulfillmentAuthorizations
+                .findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(context.tenantId(), request.id())
+                .orElse(null);
+        boolean settlementRequired = requireSettlementAuthorization && !"INPATIENT".equals(careSetting);
+        if (settlementRequired && (authorization == null || !authorization.allowsIntake())) {
+            throw conflict("MEDICATION_REQUEST_SETTLEMENT_REQUIRED", "处方尚未完成结算，不能进入药房接方流程");
+        }
         if (!"ACTIVE".equals(request.status())) throw conflict("MEDICATION_REQUEST_NOT_ACTIVE", "只有生效处方可以接方");
         if (request.selfProvided()) throw conflict("SELF_PROVIDED_MEDICATION_NOT_DISPENSABLE", "自备药不进入药房发药流程");
         StockItem stockItem = itemRepository.findByIdAndTenantId(input.stockItemId(), context.tenantId())
@@ -219,9 +337,26 @@ public class PharmacyApplicationService {
         if (!site.organizationId().equals(request.performerOrganizationId())) {
             throw badRequest("DISPENSE_ROUTE_ORGANIZATION_MISMATCH", "药房经营项目不属于处方执行机构");
         }
-        if (!site.effective(request.businessDate()) || !("OUTPATIENT".equals(site.serviceScope())
-                || "MIXED".equals(site.serviceScope())) || !"PHARMACY".equals(site.siteType())) {
-            throw conflict("OUTPATIENT_PHARMACY_NOT_EFFECTIVE", "所选站点不是业务日期内可用的门诊药房");
+        if (settlementRequired) {
+            var route = authorization.routedStockSiteId() == null
+                    ? routing.resolve(context.tenantId(), request.performerOrganizationId(),
+                            request.performerDepartmentId(), request.medicationType(), careSetting,
+                            request.businessDate())
+                    : java.util.Optional.of(new DispenseRouteApplicationService.ResolvedRoute(
+                            authorization.dispenseRouteId(), authorization.dispenseRouteRevision(), "SNAPSHOT",
+                            authorization.routedStockSiteId(), site.departmentId()));
+            var resolved = route.orElseThrow(() -> conflict("DISPENSE_ROUTE_NOT_CONFIGURED",
+                    "当前药品医嘱尚未配置发药药房，请联系管理员维护发药路由"));
+            if (!site.id().equals(resolved.stockSiteId())) {
+                throw conflict("DISPENSE_ROUTE_SITE_MISMATCH", "该药品医嘱已分配到其他发药药房");
+            }
+            if (authorization.routedStockSiteId() == null) {
+                authorization.assignRoute(resolved.routeId(), resolved.routeRevision(), resolved.stockSiteId(), Instant.now());
+            }
+        }
+        if (!site.effective(request.businessDate()) || !supports(site, careSetting)
+                || !"PHARMACY".equals(site.siteType())) {
+            throw conflict("PHARMACY_CARE_SETTING_MISMATCH", "所选站点不支持当前就诊类型的药品发放");
         }
         if (!"ACTIVE".equals(stockItem.status())) throw conflict("STOCK_ITEM_NOT_ACTIVE", "药房经营项目当前不可用");
         var catalog = catalogDirectory.resolve(context.tenantId(), stockItem.catalogItemId(), site.organizationId(),
@@ -234,22 +369,60 @@ public class PharmacyApplicationService {
                 && !request.substitutionAllowed()) {
             throw conflict("MEDICATION_SUBSTITUTION_NOT_ALLOWED", "处方不允许替换已指定的药品产品");
         }
-        DispensePlan plan = plan(request, catalog.itemPackage(), stockItem.splitAllowed());
-        DispenseTask task = taskRepository.save(new DispenseTask(context.tenantId(), request.residentId(),
-                request.encounterId(), site.id(), nextNo("DT"), "ROUTINE", clean(input.description())));
-        DispenseTaskLine line = new DispenseTaskLine(context.tenantId(), task.id(), request.id(), stockItem.id(),
-                stockItem.basePackageId(), request.quantity(), plan.quantity(), plan.unitCode(), plan.factor(),
+        DispensePlan plan = plan(requestedQuantity, quantityUnit, requestedBaseQuantity, baseUnit,
+                catalog.itemPackage(), stockItem.splitAllowed());
+        PrescriptionReviewPolicy.Mode reviewMode = reviewPolicy.resolve(
+                context, site.organizationId(), site.departmentId());
+        DispenseTask task = new DispenseTask(context.tenantId(), request.residentId(),
+                request.encounterId(), site.id(), nextNo("DT"), careSetting, "ROUTINE", clean(input.description()));
+        DispenseTaskLine line = new DispenseTaskLine(context.tenantId(), task.id(), request.id(),
+                fulfillmentSourceType, fulfillmentSourceId, stockItem.id(),
+                stockItem.basePackageId(), requestedQuantity, plan.quantity(), plan.unitCode(), plan.factor(),
                 plan.split(), stockItem.traceRequired(), catalog.item().code(), catalog.item().name(),
                 catalog.itemPackage().packageSpec(), jsonCodec.write(request.itemAttributeSnapshot()),
                 request.itemAttributeHash(), context.subjectId());
+        if (!reviewMode.beforeDispense()) {
+            task.bypassPreDispenseReview();
+            line.bypassPreDispenseReview();
+        }
+        taskRepository.save(task);
         try {
             lineRepository.saveAndFlush(line); taskRepository.flush();
         } catch (DataIntegrityViolationException exception) {
-            throw conflict("MEDICATION_REQUEST_ALREADY_INTAKE", "该药品请求已完成接方，请刷新任务列表");
+            throw conflict("MEDICATION_FULFILLMENT_ALREADY_INTAKE", "该供药来源已完成接方，请刷新任务列表");
         }
+        if (authorization != null) authorization.startIntake(Instant.now());
         publish(context, site.organizationId(), request.residentId(), task, "DISPENSE_TASK_CREATED",
-                "药房已接收处方并形成发药任务", Map.of("requestId", request.id(), "stockItemId", stockItem.id()));
+                "药房已接收处方并形成发药任务", Map.of("requestId", request.id(),
+                        "stockItemId", stockItem.id(), "fulfillmentSourceType", fulfillmentSourceType,
+                        "fulfillmentSourceId", fulfillmentSourceId));
         return taskView(task);
+    }
+
+    private boolean visibleInInbox(ExecutionContext context, MedicationRequestSnapshot request, Long currentSiteId) {
+        String careSetting = encounterCareSettings.require(context.tenantId(), request.encounterId()).encounterClass();
+        if ("INPATIENT".equals(careSetting)) {
+            return siteRepository.findByIdAndTenantId(currentSiteId, context.tenantId())
+                    .filter(site -> "PHARMACY".equals(site.siteType()) && supports(site, careSetting))
+                    .isPresent();
+        }
+        if (!requireSettlementAuthorization) return true;
+        PharmacyFulfillmentAuthorization authorization = fulfillmentAuthorizations
+                .findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(context.tenantId(), request.id())
+                .filter(PharmacyFulfillmentAuthorization::allowsIntake)
+                .filter(value -> value.organizationId().equals(request.performerOrganizationId()))
+                .orElse(null);
+        if (authorization == null) return false;
+        Long targetSiteId = authorization.routedStockSiteId();
+        if (targetSiteId == null) targetSiteId = routing.resolve(context.tenantId(), request.performerOrganizationId(),
+                request.performerDepartmentId(), request.medicationType(), careSetting, request.businessDate())
+                .map(DispenseRouteApplicationService.ResolvedRoute::stockSiteId).orElse(null);
+        return currentSiteId.equals(targetSiteId);
+    }
+
+    private boolean supports(StockSite site, String careSetting) {
+        return "MIXED".equals(site.serviceScope()) || careSetting.equals(site.serviceScope())
+                || ("HOME_CARE".equals(careSetting) && "COMMUNITY".equals(site.serviceScope()));
     }
 
     @Transactional(readOnly = true)
@@ -266,10 +439,25 @@ public class PharmacyApplicationService {
     @Transactional(readOnly = true)
     public DispenseTaskView task(Long taskId) { return taskView(requireTask(requireWorkContext(), taskId)); }
 
+    @Transactional(readOnly = true)
+    public PrescriptionReviewModeView prescriptionReviewMode(Long organizationId) {
+        ExecutionContext context = requireWorkContext();
+        requireOrganizationAccess(context, organizationId);
+        PrescriptionReviewPolicy.Mode mode = reviewPolicy.resolve(
+                context, organizationId, context.departmentId());
+        return new PrescriptionReviewModeView(mode.name(), mode.enabled(),
+                mode.beforeDispense() ? "PRE" : mode.afterDispense() ? "POST" : "NONE",
+                PrescriptionReviewPolicy.PARAMETER_KEY);
+    }
+
     @Transactional
     public DispenseTaskView review(Long taskId, ReviewCommand input) {
-        ExecutionContext context = requireWorkContext(); DispenseTask task = requireTask(context, taskId);
+        ExecutionContext context = requireWorkContext(); DispenseTask task = requireLockedTask(context, taskId);
         StockSite site = requireSite(context, task.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
+        PrescriptionReviewPolicy.Mode mode = reviewPolicy.resolve(context, site.organizationId(), site.departmentId());
+        if (!mode.enabled()) {
+            throw conflict("PHARMACY_REVIEW_DISABLED", "系统当前未启用处方审方");
+        }
         String result = upper(input.result());
         if (!REVIEW_RESULTS.contains(result)) throw badRequest("PHARMACY_REVIEW_RESULT_INVALID", "审方结论不受支持");
         String reason = clean(input.reasonCode()); String description = clean(input.description());
@@ -284,14 +472,28 @@ public class PharmacyApplicationService {
         DispenseTaskLine line = lineRepository.findByTenantIdAndTaskId(context.tenantId(), taskId)
                 .orElseThrow(() -> notFound("DISPENSE_TASK_LINE_NOT_FOUND", "发药任务缺少药品明细"));
         MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(line.requestId());
-        if (!"ACTIVE".equals(request.status())) throw conflict("MEDICATION_REQUEST_NOT_ACTIVE", "已撤销处方不能继续审方");
+        if (mode.beforeDispense() && !"ACTIVE".equals(request.status())) {
+            throw conflict("MEDICATION_REQUEST_NOT_ACTIVE", "已撤销处方不能继续审方");
+        }
+        if (mode.afterDispense() && "OVERRIDE".equals(result)) {
+            throw badRequest("PHARMACY_POST_REVIEW_OVERRIDE_INVALID", "事后审方不支持强制通过结论");
+        }
         PharmacyReview review = reviewRepository.save(new PharmacyReview(context.tenantId(), line.requestId(),
                 task.id(), nextNo("PR"), result, reason, description, input.pharmacistPractitionerId(),
                 context.subjectId(), input.reviewerAssignmentId()));
-        task.applyReview(review.id(), result); line.applyReview(result);
+        if (mode.beforeDispense()) {
+            task.applyReview(review.id(), result); line.applyReview(result);
+        } else {
+            if (line.dispensedQuantity().signum() <= 0) {
+                throw conflict("PHARMACY_POST_REVIEW_NOT_DISPENSED", "当前任务尚未实际发药，不能进行事后审方");
+            }
+            task.recordPostDispenseReview(review.id());
+        }
         reviewRepository.flush(); lineRepository.flush(); taskRepository.flush();
         publish(context, site.organizationId(), task.residentId(), task, "PHARMACY_REVIEW_RECORDED",
-                "药师审方结论已记录", Map.of("requestId", line.requestId(), "reviewId", review.id(), "result", result));
+                mode.beforeDispense() ? "事前审方结论已记录" : "事后审方结论已记录",
+                Map.of("requestId", line.requestId(), "reviewId", review.id(), "result", result,
+                        "reviewMode", mode.name()));
         return taskView(task);
     }
 
@@ -319,18 +521,24 @@ public class PharmacyApplicationService {
         }
     }
 
-    private DispensePlan plan(MedicationRequestSnapshot request,
+    private DispensePlan plan(BigDecimal requestedQuantity, String quantityUnit,
+                              BigDecimal requestedBaseQuantity, String baseUnit,
                               CatalogLifecycleDirectory.PackageSnapshot itemPackage, boolean splitAllowed) {
         BigDecimal factor = itemPackage.quantityFactor();
-        if (request.quantityUnit().equals(itemPackage.unitCode())) {
-            return new DispensePlan(request.quantity(), itemPackage.unitCode(), factor, false);
+        if (requestedQuantity == null || requestedBaseQuantity == null
+                || requestedQuantity.signum() <= 0 || requestedBaseQuantity.signum() <= 0
+                || quantityUnit == null || baseUnit == null) {
+            throw badRequest("DISPENSE_REQUEST_QUANTITY_INVALID", "接方数量及单位不完整");
         }
-        BigDecimal[] division = request.baseQuantity().divideAndRemainder(factor);
+        if (quantityUnit.equals(itemPackage.unitCode())) {
+            return new DispensePlan(requestedQuantity, itemPackage.unitCode(), factor, false);
+        }
+        BigDecimal[] division = requestedBaseQuantity.divideAndRemainder(factor);
         if (division[1].compareTo(BigDecimal.ZERO) == 0) {
             return new DispensePlan(division[0], itemPackage.unitCode(), factor, false);
         }
         if (!splitAllowed) throw conflict("DISPENSE_PACKAGE_QUANTITY_INCOMPATIBLE", "申请数量不能整包装换算且药房未允许拆零");
-        return new DispensePlan(request.baseQuantity(), request.baseUnit(), BigDecimal.ONE, true);
+        return new DispensePlan(requestedBaseQuantity, baseUnit, BigDecimal.ONE, true);
     }
 
     private void requireDispensableCatalog(CatalogLifecycleDirectory.CatalogOperationalSnapshot catalog) {
@@ -375,10 +583,12 @@ public class PharmacyApplicationService {
     private DispenseTaskView taskView(DispenseTask task) {
         List<DispenseTaskLineView> lines = lineRepository.findByTenantIdAndTaskIdOrderById(task.tenantId(), task.id())
                 .stream().map(this::lineView).toList();
+        String closureStatus = lines.isEmpty() ? null
+                : medicationStops.closure(task.tenantId(), lines.getFirst().requestId()).status();
         List<PharmacyReviewView> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                 task.tenantId(), task.id()).stream().map(this::reviewView).toList();
         return new DispenseTaskView(task.id(), task.revision(), task.residentId(), task.encounterId(),
-                task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status(),
+                task.stockSiteId(), task.taskNo(), task.taskType(), task.priority(), task.status(), closureStatus,
                 task.createdAt(), task.dueAt(), task.pickedAt(), task.assignedPractitionerId(),
                 task.pickedByUserId(), task.pickedAssignmentId(), task.pickDescription(),
                 task.description(), lines, reviews);
@@ -414,6 +624,13 @@ public class PharmacyApplicationService {
 
     private DispenseTask requireTask(ExecutionContext context, Long id) {
         DispenseTask task = taskRepository.findByIdAndTenantId(id, context.tenantId())
+                .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "未找到发药任务"));
+        StockSite site = requireSite(context, task.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
+        return task;
+    }
+
+    private DispenseTask requireLockedTask(ExecutionContext context, Long id) {
+        DispenseTask task = taskRepository.lockByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("DISPENSE_TASK_NOT_FOUND", "未找到发药任务"));
         StockSite site = requireSite(context, task.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         return task;

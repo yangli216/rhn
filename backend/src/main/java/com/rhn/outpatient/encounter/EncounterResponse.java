@@ -22,7 +22,11 @@ public record EncounterResponse(
         List<DiagnosisResponse> diagnoses,
         Instant registeredAt,
         Instant startedAt,
-        Instant completedAt
+        Instant completedAt,
+        String terminationCode,
+        String terminationReason,
+        Instant terminatedAt,
+        Long terminatedBy
 ) {
     static EncounterResponse from(Encounter encounter, List<EncounterDiagnosis> diagnoses) {
         return new EncounterResponse(encounter.id(), encounter.residentId(), encounter.encounterNo(),
@@ -31,7 +35,8 @@ public record EncounterResponse(
                 encounter.clinicianId(), encounter.status(),
                 encounter.chiefComplaint(), encounter.systolic(), encounter.diastolic(),
                 diagnoses.stream().map(DiagnosisResponse::from).toList(), encounter.registeredAt(),
-                encounter.startedAt(), encounter.completedAt());
+                encounter.startedAt(), encounter.completedAt(), encounter.terminationCode(),
+                encounter.terminationReason(), encounter.terminatedAt(), encounter.terminatedBy());
     }
 
     public record DiagnosisResponse(String code, String display, String type) {

@@ -5,8 +5,8 @@ import { DICTIONARY_SYSTEM_ENUM, errorMessage, systemEnumItems,
   type DictionaryCategory, type DictionaryChange, type DictionaryDetail, type DictionaryItem, type DictionaryScopeType,
   type RhnApi, type SystemEnumItem } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead,
-  Select, StatusBadge, TreePanel,
+  Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Pagination, Panel,
+  PanelHead, SearchField, Select, SplitWorkspace, StatusBadge, TableShell, TreePanel,
 } from '../../shared/ui'
 
 type DictionaryDialogState = 'create' | 'edit' | undefined
@@ -191,7 +191,7 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
   const queryError = dictionaries.error || categories.error || detail.error || systemEnums.error
 
   return <div className="dictionary-page">
-    <PageHeader eyebrow="平台管理 · 基础设置" title="字典管理"
+    <PageHeader compact eyebrow="平台管理 · 基础设置" title="字典管理"
       description="按平台或租户分类维护普通枚举字典；分类只用于治理和检索，不改变字典解析规则。"
       actions={<><Button variant="secondary" onClick={() => {
         const firstCategory = categoryOptions[0]?.category
@@ -205,15 +205,12 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
       {operationError || errorMessage(queryError)}
     </Alert>}
 
-    <section className="dictionary-workspace">
+    <SplitWorkspace className="dictionary-workspace">
       <Panel className="dictionary-catalog">
         <PanelHead title="字典目录" meta={`${dictionaries.data?.length ?? 0} 个`} />
         <div className="dictionary-catalog__filters">
-          <label className="dictionary-search">
-            <span className="visually-hidden">搜索字典</span><Icon name="search" />
-            <input value={dictionaryQuery} onChange={(event) => setDictionaryQuery(event.target.value)}
-              placeholder="搜索名称或编码" />
-          </label>
+          <SearchField className="dictionary-catalog__search" label="搜索字典" value={dictionaryQuery}
+            onChange={setDictionaryQuery} placeholder="搜索名称或编码" />
           <div className="dictionary-category-filter"><Select aria-label="作用域" value={scopeFilter}
             placeholder="全部范围" showValue onChange={setScopeFilter}
             options={scopeOptions.map((item) => ({ value: item.code, label: item.name }))} /></div>
@@ -296,17 +293,17 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
               ? '系统托管内容与代码枚举、数据库约束保持一致，仅供查看。'
               : '业务编码创建后不可修改；状态和展示属性的每次变化都会留下快照。'}</span></div>
             <div className="dictionary-items__actions">
-              <label className="dictionary-search compact"><span className="visually-hidden">搜索字典项</span>
-                <Icon name="search" /><input value={itemQuery} onChange={(event) => setItemQuery(event.target.value)}
-                  placeholder="搜索字典项" /></label>
+              <SearchField className="dictionary-items__search" label="搜索字典项" value={itemQuery}
+                onChange={setItemQuery} placeholder="搜索字典项" />
               <div className="dictionary-category-filter compact"><Select aria-label="字典项状态"
                 value={itemStatus} placeholder="全部状态" showValue onChange={setItemStatus}
                 options={itemStatusOptions.map((item) => ({ value: item.code, label: item.name }))} /></div>
               {!selected.systemManaged && <Button onClick={() => setEditingItem(null)}><Icon name="add" />新增字典项</Button>}
             </div>
           </div>
-          <div className="dictionary-table-wrap">
-            <table className="dictionary-table">
+          <TableShell scrollClassName="dictionary-table-wrap" footerClassName="dictionary-table__footer"
+            footer={`显示 ${visibleItems.length} 个字典项 · 共 ${selectedItems.length} 个`}>
+            <DataTable className="dictionary-table" aria-label="字典项">
               <thead><tr><th>显示名称 / 编码</th><th>说明</th><th>排序</th><th>状态</th><th aria-label="操作" /></tr></thead>
               <tbody>{visibleItems.map((item) => <tr key={item.id}>
                 <td><strong>{item.name}</strong><code>{item.code}</code></td><td>{item.description || '—'}</td>
@@ -317,14 +314,13 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
                   <Button size="sm" variant="text" busy={itemState.isPending} onClick={() => itemState.mutate(item)}>
                     {item.sdDictItemStatus === 'ACTIVE' ? '停用' : '启用'}</Button></div>}</td>
               </tr>)}</tbody>
-            </table>
+            </DataTable>
             {visibleItems.length === 0 && <EmptyState icon="search" title="暂无匹配字典项"
               copy={selectedItems.length === 0 ? '点击“新增字典项”补充第一个业务代码。' : '请调整搜索内容或状态筛选。'} />}
-          </div>
-          <footer className="dictionary-table__footer">显示 {visibleItems.length} 个字典项 · 共 {selectedItems.length} 个</footer>
+          </TableShell>
         </>}
       </Panel>
-    </section>
+    </SplitWorkspace>
 
     {dictionaryDialog && <DictionaryDefinitionDialog mode={dictionaryDialog}
       dictionary={dictionaryDialog === 'edit' ? selected : undefined} scopeOptions={scopeOptions}

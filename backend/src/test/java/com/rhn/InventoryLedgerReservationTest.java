@@ -159,6 +159,21 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[*].transactionType").value(org.hamcrest.Matchers.everyItem(
                         org.hamcrest.Matchers.is("RECEIPT"))));
+        mockMvc.perform(get("/api/pharmacy/inventory/balances/page").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()).queryParam("page", "0").queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
+        mockMvc.perform(get("/api/pharmacy/inventory/transactions/page").with(rhnWorkContext())
+                        .queryParam("stockSiteId", fixture.siteId()).queryParam("periodCode", "202608")
+                        .queryParam("stockItemId", fixture.stockItemId()).queryParam("page", "0")
+                        .queryParam("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].lines.length()").value(1))
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(2));
     }
 
     @Test
@@ -477,7 +492,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","quantity":%d,
-                                  "substitutionAllowed":false,"selfProvided":false,
+                                  "substitutionAllowed":false,"selfProvided":false,"allergyReviewConfirmed":true,
                                   "businessDate":"2026-08-27","reason":"M3.2 库存预留验收"
                                 }
                                 """.formatted(PRODUCT_ID, PACKAGE_ID, quantity)))

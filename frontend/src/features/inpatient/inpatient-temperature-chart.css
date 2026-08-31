@@ -1,0 +1,82 @@
+.inpatient-temperature-panel { margin-top: var(--space-3); overflow: hidden; }
+.inpatient-temperature-head { min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.inpatient-temperature-head h2 { margin: var(--space-1) 0 0; font-size: var(--font-size-h2); }
+.inpatient-temperature-head p, .inpatient-temperature-head > div:first-child > span { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-temperature-head__actions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
+.inpatient-temperature-head__actions > strong { min-width: 8.75rem; font-size: var(--font-size-small); text-align: center; font-variant-numeric: tabular-nums; }
+.inpatient-temperature-alert { margin: var(--space-3) var(--space-4) 0; }
+.inpatient-temperature-chart { padding: var(--space-3) var(--space-4) var(--space-2); }
+.inpatient-temperature-legend { margin-bottom: var(--space-2); display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-temperature-legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
+.inpatient-temperature-legend i { width: 1.25rem; height: .15rem; border-radius: var(--radius-round); background: var(--color-info); }
+.inpatient-temperature-legend i.is-pulse { background: var(--color-danger); }
+.inpatient-temperature-legend i.is-cooling { height: .5rem; border: 1px dashed var(--color-info); background: transparent; }
+.inpatient-temperature-svg-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); scrollbar-gutter: stable; }
+.inpatient-temperature-svg-wrap:focus-visible { outline: 3px solid var(--color-focus-ring); outline-offset: 2px; }
+.inpatient-temperature-svg-wrap svg { min-width: 70rem; display: block; }
+.temperature-chart-surface { fill: var(--color-surface); }
+.temperature-chart-day, .temperature-chart-day-alt { fill: transparent; }
+.temperature-chart-day-alt { fill: var(--color-surface-subtle); }
+.temperature-chart-grid-minor { stroke: var(--color-border); stroke-width: .7; }
+.temperature-chart-grid-major { stroke: var(--color-border-strong); stroke-width: 1; }
+.temperature-chart-grid-horizontal { stroke: var(--color-border); stroke-width: 1; }
+.temperature-chart-separator { stroke: var(--color-border-strong); stroke-width: 1.5; }
+.temperature-chart-date { fill: var(--color-text-primary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.temperature-chart-slot, .temperature-chart-axis, .temperature-chart-axis-title, .temperature-chart-row-label, .temperature-chart-summary { fill: var(--color-text-secondary); font-size: var(--font-size-small); font-variant-numeric: tabular-nums; }
+.temperature-chart-slot { font-size: var(--font-size-small); }
+.temperature-chart-axis.is-pulse { fill: var(--color-danger); }
+.temperature-chart-axis-title, .temperature-chart-row-label { font-weight: var(--font-weight-semibold); }
+.temperature-chart-summary { fill: var(--color-text-primary); }
+.temperature-chart-line { stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.temperature-chart-line.is-temperature { stroke: var(--color-info); }
+.temperature-chart-line.is-pulse { stroke: var(--color-danger); }
+.temperature-chart-mark { stroke-width: 1.6; }
+.temperature-chart-mark.is-temperature { fill: var(--color-info); stroke: var(--color-info); }
+.temperature-chart-mark.is-pulse { fill: var(--color-danger); stroke: var(--color-danger); }
+.temperature-chart-mark.is-hollow, .temperature-chart-mark.is-cooling { fill: var(--color-surface); }
+.temperature-chart-mark.is-cooling { stroke: var(--color-info); }
+.temperature-chart-outlier path { fill: var(--color-warning); }
+.temperature-chart-outlier text { fill: var(--color-warning-strong); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.temperature-chart-outlier.is-pulse path { fill: var(--color-danger); }
+.temperature-chart-outlier.is-pulse text { fill: var(--color-danger); }
+.temperature-chart-outlier.is-cooling path { fill: var(--color-info); }
+.temperature-chart-outlier.is-cooling text { fill: var(--color-info); }
+.temperature-chart-cooling-link { stroke: var(--color-info); stroke-width: 1.2; stroke-dasharray: 3 2; }
+.temperature-chart-event-mark { fill: var(--color-warning); }
+.temperature-chart-event-text { fill: var(--color-warning); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-temperature-facts { margin-top: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.inpatient-temperature-facts summary { padding: var(--space-2) var(--space-3); color: var(--color-text-secondary); background: var(--color-surface-subtle); cursor: pointer; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-temperature-facts p { margin: 0; padding: var(--space-3); color: var(--color-text-secondary); }
+.inpatient-temperature-facts table { width: 100%; border-collapse: collapse; font-size: var(--font-size-small); }
+.inpatient-temperature-facts th, .inpatient-temperature-facts td { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--color-border); text-align: left; }
+.inpatient-temperature-facts th { color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.inpatient-temperature-entry { border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-temperature-entry > header { min-height: 2.75rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; }
+.inpatient-temperature-entry > header h3 { display: inline; margin: 0 var(--space-2) 0 0; font-size: var(--font-size-h3); }
+.inpatient-temperature-entry > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-temperature-entry > .ui-alert { margin: 0 var(--space-4) var(--space-2); }
+.inpatient-vital-form, .inpatient-chart-event-form { padding: 0 var(--space-4) var(--space-3); display: grid; align-items: end; gap: var(--space-2); }
+.inpatient-vital-form { grid-template-columns: repeat(6, minmax(7.25rem, 1fr)) auto; }
+.inpatient-chart-event-form { grid-template-columns: minmax(8rem, .8fr) minmax(6rem, .6fr) minmax(7rem, .7fr) minmax(16rem, 2fr) auto; padding-top: var(--space-3); border-top: 1px dashed var(--color-border-strong); }
+.inpatient-compact-field { min-width: 0; display: grid; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-compact-field > input, .inpatient-compact-field > select { width: 100%; min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--font-size-small); }
+.inpatient-compact-field > .ui-select { width: 100%; min-width: 0; }
+.inpatient-compact-field > .ui-select .ui-select__trigger { min-height: var(--control-height-sm); font-size: var(--font-size-small); }
+.inpatient-compact-field.is-pressure > span:last-child { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--space-1); }
+.inpatient-compact-field.is-pressure input { width: 100%; min-width: 0; height: var(--control-height-sm); padding: 0 var(--space-1); font-size: var(--font-size-small); }
+.inpatient-compact-field.is-pressure b { color: var(--color-text-secondary); }
+.inpatient-chart-event-form .is-event-text { min-width: 0; }
+.inpatient-vital-form > .ui-button, .inpatient-chart-event-form > .ui-button { min-width: 5.25rem; }
+
+@media (max-width: 80rem) {
+  .inpatient-vital-form { grid-template-columns: repeat(4, minmax(7rem, 1fr)); }
+  .inpatient-vital-form > .ui-button { justify-self: start; }
+}
+
+@media (max-width: 52rem) {
+  .inpatient-temperature-head { align-items: flex-start; flex-direction: column; }
+  .inpatient-temperature-head__actions { justify-content: flex-start; }
+  .inpatient-vital-form { grid-template-columns: repeat(2, minmax(7rem, 1fr)); }
+  .inpatient-chart-event-form { grid-template-columns: repeat(2, minmax(7rem, 1fr)); }
+  .inpatient-chart-event-form .is-event-text { grid-column: 1 / -1; }
+}

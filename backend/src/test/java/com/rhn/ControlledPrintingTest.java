@@ -1,6 +1,7 @@
 package com.rhn;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -20,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@Tag("outpatient-main-flow")
 class ControlledPrintingTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
@@ -31,13 +33,20 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
 
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
-                                {"chiefComplaint":"反复头晕一周","systolic":146,"diastolic":91,
+                                {"chiefComplaint":"反复头晕一周","presentIllness":"近期家庭血压偏高",
+                                 "medicalHistory":"高血压病史三年","physicalExam":"心肺未见明显异常",
+                                 "treatmentPlan":"继续监测血压并评估用药","systolic":146,"diastolic":91,
+                                 "noteFormVersionId":"362387869799930","structuredData":{
+                                   "homeSystolic":142,"homeDiastolic":88,"medicationAdherence":"GOOD",
+                                   "adverseEffects":"无","smoking":false,"saltIntake":"MODERATE"},
                                  "diagnoses":[{"code":"I10","display":"原发性高血压","type":"PRIMARY"}]}
                                 """))
                 .andExpect(status().isOk());
         JsonNode documents = json(mockMvc.perform(get("/api/clinical-documents")
                         .param("encounterId", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        org.junit.jupiter.api.Assertions.assertEquals("RHN.OUTPATIENT_NOTE.V3",
+                documents.get(0).get("contentSchema").asText());
         String documentId = documents.get(0).get("id").asText();
 
         mockMvc.perform(post("/api/clinical-documents/{id}/print-jobs", documentId)
@@ -87,7 +96,8 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"prescriptionId":"%s","medicationId":"%s","quantity":14,"quantityUnit":"片",
                                  "doseValue":10,"doseUnit":"mg","routeCode":"PO","frequencyCode":"QD",
-                                 "substitutionAllowed":true,"selfProvided":false,"medicationInstruction":"每日一次"}
+                                 "substitutionAllowed":true,"selfProvided":false,"allergyReviewConfirmed":true,
+                                 "medicationInstruction":"每日一次"}
                                 """.formatted(prescriptionId, medication.get("id").asText())))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/submit",
@@ -104,6 +114,22 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_PRESCRIPTION_A4"))
                 .andReturn().getResponse().getContentAsString());
         assertPdf(download(prescriptionReceipt));
+
+        JsonNode printRecords = json(mockMvc.perform(get("/api/platform/printing/records")
+                        .param("encounterId", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(2, printRecords.size());
+        JsonNode noteRecord = java.util.stream.StreamSupport.stream(printRecords.spliterator(), false)
+                .filter(item -> "OUTPATIENT_NOTE".equals(item.get("documentType").asText()))
+                .findFirst().orElseThrow();
+        assertEquals(documentId, noteRecord.get("sourceId").asText());
+        assertEquals("PATIENT_COPY", noteRecord.get("purpose").asText());
+        assertEquals(noteReceipt.get("contentDigest").asText(), noteRecord.get("contentDigest").asText());
+        assertEquals(2, noteRecord.get("jobs").size());
+        assertEquals("REPRINT", noteRecord.get("jobs").get(0).get("requestType").asText());
+        assertEquals(noteReceipt.get("outputId").asText(), noteRecord.get("outputId").asText());
+        assertArrayEquals(notePdf, download(noteRecord));
 
         mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))

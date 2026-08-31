@@ -12,6 +12,13 @@ public interface CatalogLifecycleDirectory {
 
     MedicationSnapshot requireMedication(Long tenantId, Long medicationId);
 
+    PriceView replacePriceVersion(PriceReplacement command);
+
+    record PriceReplacement(Long tenantId, Long currentPriceId, long expectedRevision,
+                            Long catalogItemId, Long organizationId, Long packageId,
+                            String priceType, java.math.BigDecimal newPrice, String currencyCode,
+                            String priceDocumentCode, String reason, LocalDate validFrom) {}
+
     record CatalogOperationalSnapshot(
             Long catalogItemId, Long organizationId, Long packageId, String priceType,
             LocalDate businessDate, CatalogItemSnapshot item, PackageSnapshot itemPackage,
@@ -37,6 +44,6 @@ public interface CatalogLifecycleDirectory {
             java.math.BigDecimal strengthValue, String strengthUnit, String storageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
             String antimicrobialLevel, boolean skinTestRequired, java.math.BigDecimal defaultDose,
-            String defaultDoseUnit, String defaultRoute, String defaultFrequency,
+            String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder, String status) {}
 }

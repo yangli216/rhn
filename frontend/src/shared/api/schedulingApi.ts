@@ -99,10 +99,10 @@ export interface ReceptionQueueItem {
   ticketNo: string
   sequenceNo: number
   priority: number
-  registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY'
-  visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY'
+  registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY' | 'TRANSFER'
+  visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY' | 'TRANSFER'
   registrationStatus: 'REGISTERED' | 'CANCELLED'
-  status: 'WAITING' | 'IN_SERVICE' | 'COMPLETED' | 'CANCELLED'
+  status: 'WAITING' | 'IN_SERVICE' | 'SUSPENDED' | 'COMPLETED' | 'TRANSFERRED' | 'CANCELLED'
   practitionerName?: string
   serviceName?: string
   locationName?: string

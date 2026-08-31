@@ -72,7 +72,9 @@ public final class BillingViews {
             int createdCharges, int existingCharges, AccountStatementView statement) {}
 
     public record BillingWorkItemView(
-            Long encounterId, Long residentId, Long accountId, String currencyCode, String status,
+            Long encounterId, Long residentId, String residentName, String healthRecordNo,
+            String gender, LocalDate birthDate, String encounterNo,
+            Long accountId, String currencyCode, String status,
             int sourceEventCount, int chargedEventCount, String latestSourceNo, Instant latestOccurredAt,
             BigDecimal chargeAmount, BigDecimal accountBalance) {}
 

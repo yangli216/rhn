@@ -28,6 +28,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     private final PatientRegistrationRepository registrationRepository;
     private final AppointmentRepository appointmentRepository;
+    private final AppointmentEventRepository appointmentEventRepository;
     private final QueueCounterRepository counterRepository;
     private final QueueTicketRepository ticketRepository;
     private final QueueTicketEventRepository ticketEventRepository;
@@ -40,6 +41,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     public RegistrationApplicationService(PatientRegistrationRepository registrationRepository,
                                           AppointmentRepository appointmentRepository,
+                                          AppointmentEventRepository appointmentEventRepository,
                                           QueueCounterRepository counterRepository,
                                           QueueTicketRepository ticketRepository,
                                           QueueTicketEventRepository ticketEventRepository,
@@ -51,6 +53,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           ExecutionContextProvider contextProvider) {
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
+        this.appointmentEventRepository = appointmentEventRepository;
         this.counterRepository = counterRepository;
         this.ticketRepository = ticketRepository;
         this.ticketEventRepository = ticketEventRepository;
@@ -83,20 +86,28 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         ServiceSchedule schedule = null;
         ScheduleSlotPool pool = null;
         Appointment appointment = null;
-        if (command.scheduleId() != null) {
+        if (command.appointmentId() != null) {
+            if (command.slotHoldId() != null) {
+                throw badRequest("APPOINTMENT_SLOT_HOLD_CONFLICT", "预约转挂号不能重复锁定号源");
+            }
+            appointment = appointmentRepository.findWithLockByIdAndTenantId(command.appointmentId(), context.tenantId())
+                    .orElseThrow(() -> notFound("APPOINTMENT_NOT_FOUND", "未找到预约记录"));
+            if (!appointment.residentId().equals(command.residentId())) {
+                throw badRequest("APPOINTMENT_RESIDENT_MISMATCH", "预约居民与本次挂号居民不一致");
+            }
+            if (command.scheduleId() != null && !appointment.scheduleId().equals(command.scheduleId())) {
+                throw badRequest("APPOINTMENT_SCHEDULE_MISMATCH", "预约班次与本次挂号班次不一致");
+            }
+            schedule = scheduleRepository.findByIdAndTenantId(appointment.scheduleId(), context.tenantId())
+                    .orElseThrow(() -> notFound("SERVICE_SCHEDULE_NOT_FOUND", "未找到预约关联排班"));
+            validateRegistrationSchedule(command, context, schedule);
+            appointment.checkIn(context.subjectId());
+            appointmentEventRepository.save(new AppointmentEvent(context.tenantId(), appointment.id(), null,
+                    "REGISTERED", "BOOKED", "REGISTERED", idempotencyCode, context.subjectId(), "预约到院并转换为门诊挂号"));
+        } else if (command.scheduleId() != null) {
             schedule = scheduleRepository.findByIdAndTenantId(command.scheduleId(), context.tenantId())
                     .orElseThrow(() -> notFound("SERVICE_SCHEDULE_NOT_FOUND", "未找到所选排班"));
-            if (!schedule.organizationId().equals(command.organizationId())
-                    || !schedule.departmentId().equals(command.departmentId())) {
-                throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构科室");
-            }
-            if (!"PUBLISHED".equals(schedule.status())) {
-                throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
-            }
-            LocalDate today = LocalDate.now(BUSINESS_ZONE);
-            if (!schedule.serviceDate().equals(today)) {
-                throw badRequest("SERVICE_SCHEDULE_NOT_TODAY", "现场挂号只能选择今天的排班");
-            }
+            validateRegistrationSchedule(command, context, schedule);
             pool = poolRepository.findByTenantIdAndScheduleId(context.tenantId(), schedule.id())
                     .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "所选排班缺少号源池"));
             if (command.slotHoldId() == null) {
@@ -141,11 +152,32 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     @Transactional
     public void markInService(Long encounterId, String commandCode) {
         ExecutionContext context = contextProvider.requireCurrent();
-        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
+        PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
         String previous = ticket.start();
         registration.start();
         appendTicketEvent(context, ticket, "STARTED", previous, "IN_SERVICE", commandCode, "医生开始接诊");
+    }
+
+    @Override
+    @Transactional
+    public void markSuspended(Long encounterId, String commandCode, String reason) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
+        String previous = ticket.suspend();
+        appendTicketEvent(context, ticket, "SUSPENDED", previous, "SUSPENDED", commandCode,
+                "门诊接诊暂挂：" + reason);
+    }
+
+    @Override
+    @Transactional
+    public void markResumed(Long encounterId, String commandCode) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
+        String previous = ticket.resume();
+        appendTicketEvent(context, ticket, "RESUMED", previous, "IN_SERVICE", commandCode, "患者返回并恢复接诊");
     }
 
     @Override
@@ -158,9 +190,96 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         registration.complete();
         if (registration.appointmentId() != null) {
             appointmentRepository.findByIdAndTenantId(registration.appointmentId(), context.tenantId())
-                    .ifPresent(Appointment::visited);
+                    .filter(appointment -> appointment.visited(context.subjectId()))
+                    .ifPresent(appointment -> appointmentEventRepository.save(new AppointmentEvent(
+                            context.tenantId(), appointment.id(), null, "VISITED", "REGISTERED", "VISITED",
+                            commandCode, context.subjectId(), "门诊接诊完成")));
         }
         appendTicketEvent(context, ticket, "COMPLETED", previous, "COMPLETED", commandCode, "本次门诊接诊完成");
+    }
+
+    @Override
+    @Transactional
+    public void markTransferred(Long encounterId, String commandCode, String reason) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
+        String previous = ticket.transfer();
+        registration.complete();
+        appendTicketEvent(context, ticket, "TRANSFERRED", previous, "TRANSFERRED", commandCode, reason);
+    }
+
+    @Override
+    @Transactional
+    public void markTerminated(Long encounterId, String commandCode, String reason) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
+        String previous = ticket.terminate();
+        registration.complete();
+        if (registration.appointmentId() != null) {
+            appointmentRepository.findByIdAndTenantId(registration.appointmentId(), context.tenantId())
+                    .filter(appointment -> appointment.visited(context.subjectId()))
+                    .ifPresent(appointment -> appointmentEventRepository.save(new AppointmentEvent(
+                            context.tenantId(), appointment.id(), null, "VISITED", "REGISTERED", "VISITED",
+                            commandCode, context.subjectId(), "接诊后终止诊疗")));
+        }
+        appendTicketEvent(context, ticket, "TERMINATED", previous, "TERMINATED", commandCode, reason);
+    }
+
+    @Override
+    @Transactional
+    public CancellationSnapshot requireCancellationReady(Long encounterId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
+        Appointment appointment = lockAppointment(context, registration);
+        if (!"CANCELLED".equals(registration.status())) {
+            if (!"WAITING".equals(ticket.status())) {
+                throw conflict("REGISTRATION_ALREADY_IN_SERVICE", "该挂号已经开始接诊，不能退号");
+            }
+            if (appointment != null && !"REGISTERED".equals(appointment.status())) {
+                throw conflict("APPOINTMENT_NOT_WITHDRAWABLE", "挂号关联预约当前状态不能退号");
+            }
+        }
+        return cancellationSnapshot(registration, ticket, appointment);
+    }
+
+    @Override
+    @Transactional
+    public CancellationSnapshot cancelBeforeService(Long encounterId, String commandCode, String reason) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
+        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
+        Appointment appointment = lockAppointment(context, registration);
+        if ("CANCELLED".equals(registration.status())) {
+            return cancellationSnapshot(registration, ticket, appointment);
+        }
+        if (!"WAITING".equals(ticket.status())) {
+            throw conflict("REGISTRATION_ALREADY_IN_SERVICE", "该挂号已经开始接诊，不能退号");
+        }
+        String previous = ticket.cancel();
+        registration.cancel();
+        if (appointment != null) {
+            String appointmentFrom = appointment.status();
+            appointment.cancelAfterRegistration(reason, context.subjectId());
+            ScheduleSlotPool pool = poolRepository.findWithLockByIdAndTenantId(
+                            appointment.slotPoolId(), context.tenantId())
+                    .orElseThrow(() -> notFound("SCHEDULE_SLOT_POOL_NOT_FOUND", "挂号关联的号源池不存在"));
+            pool.releaseOccupiedOne();
+            int slotSequence = slotEventRepository
+                    .findTopByTenantIdAndPoolIdOrderBySequenceNoDesc(context.tenantId(), pool.id())
+                    .map(SlotEvent::sequenceNo).orElse(0) + 1;
+            slotEventRepository.save(new SlotEvent(context.tenantId(), pool.id(), appointment.scheduleId(),
+                    "RELEASED", slotSequence, 0, -1, commandCode, context.subjectId(), "退号返还共享号源"));
+            if (appointmentEventRepository.findByTenantIdAndAppointmentIdAndCommandCode(
+                    context.tenantId(), appointment.id(), commandCode).isEmpty()) {
+                appointmentEventRepository.save(new AppointmentEvent(context.tenantId(), appointment.id(), null,
+                        "CANCELLED", appointmentFrom, "CANCELLED", commandCode, context.subjectId(), reason));
+            }
+        }
+        appendTicketEvent(context, ticket, "CANCELLED", previous, "CANCELLED", commandCode, reason);
+        return cancellationSnapshot(registration, ticket, appointment);
     }
 
     @Override
@@ -171,7 +290,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Instant from = date.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant to = date.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
         List<PatientRegistration> registrations = registrationRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtBetweenOrderByRegisteredAt(
+                .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
                         context.tenantId(), context.organizationId(), context.departmentId(), from, to);
         if (registrations.isEmpty()) return List.of();
         Map<Long, QueueTicket> tickets = ticketRepository.findByTenantIdAndRegistrationIdIn(context.tenantId(),
@@ -212,9 +331,45 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .orElseThrow(() -> notFound("PATIENT_REGISTRATION_NOT_FOUND", "未找到该次就诊的挂号记录"));
     }
 
+    private PatientRegistration requireRegistrationWithLock(Long tenantId, Long encounterId) {
+        return registrationRepository.findWithLockByTenantIdAndEncounterId(tenantId, encounterId)
+                .orElseThrow(() -> notFound("PATIENT_REGISTRATION_NOT_FOUND", "未找到该次就诊的挂号记录"));
+    }
+
+    private void validateRegistrationSchedule(RegisterCommand command, ExecutionContext context,
+                                                ServiceSchedule schedule) {
+        if (!schedule.organizationId().equals(command.organizationId())
+                || !schedule.departmentId().equals(command.departmentId())) {
+            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构科室");
+        }
+        if (!"PUBLISHED".equals(schedule.status())) {
+            throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
+        }
+        if (!schedule.serviceDate().equals(LocalDate.now(BUSINESS_ZONE))) {
+            throw badRequest("SERVICE_SCHEDULE_NOT_TODAY", "现场挂号只能选择今天的排班");
+        }
+    }
+
     private QueueTicket requireTicket(Long tenantId, Long registrationId) {
         return ticketRepository.findByTenantIdAndRegistrationId(tenantId, registrationId)
                 .orElseThrow(() -> notFound("QUEUE_TICKET_NOT_FOUND", "未找到该次挂号的候诊票"));
+    }
+
+    private QueueTicket requireTicketWithLock(Long tenantId, Long registrationId) {
+        return ticketRepository.findWithLockByTenantIdAndRegistrationId(tenantId, registrationId)
+                .orElseThrow(() -> notFound("QUEUE_TICKET_NOT_FOUND", "未找到该次挂号的候诊票"));
+    }
+
+    private Appointment lockAppointment(ExecutionContext context, PatientRegistration registration) {
+        if (registration.appointmentId() == null) return null;
+        return appointmentRepository.findWithLockByIdAndTenantId(registration.appointmentId(), context.tenantId())
+                .orElseThrow(() -> notFound("APPOINTMENT_NOT_FOUND", "挂号关联的预约不存在"));
+    }
+
+    private CancellationSnapshot cancellationSnapshot(PatientRegistration registration, QueueTicket ticket,
+                                                      Appointment appointment) {
+        return new CancellationSnapshot(registration.id(), registration.appointmentId(), registration.scheduleId(),
+                registration.status(), ticket.status(), appointment == null ? null : appointment.status());
     }
 
     private void appendTicketEvent(ExecutionContext context, QueueTicket ticket, String eventType,
@@ -251,7 +406,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private String normalizeSource(String value, boolean scheduled) {
         String normalized = value == null || value.isBlank() ? (scheduled ? "WINDOW" : "DIRECT")
                 : value.trim().toUpperCase();
-        if (!List.of("WINDOW", "WALK_IN", "DIRECT", "EMERGENCY").contains(normalized)) {
+        if (!List.of("WINDOW", "WALK_IN", "DIRECT", "EMERGENCY", "TRANSFER").contains(normalized)) {
             throw badRequest("REGISTRATION_SOURCE_INVALID", "挂号来源不正确");
         }
         return normalized;
@@ -259,7 +414,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     private String normalizeVisitType(String value) {
         String normalized = value == null || value.isBlank() ? "GENERAL" : value.trim().toUpperCase();
-        if (!List.of("GENERAL", "FOLLOW_UP", "EMERGENCY").contains(normalized)) {
+        if (!List.of("GENERAL", "FOLLOW_UP", "EMERGENCY", "TRANSFER").contains(normalized)) {
             throw badRequest("REGISTRATION_VISIT_TYPE_INVALID", "就诊类型不正确");
         }
         return normalized;

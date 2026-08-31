@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { age, genderLabel } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import type {
@@ -8,8 +8,9 @@ import type {
 } from '../../shared/api/residentsApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, BackButton, Button, Dialog, DictionarySelect, EmptyState,
-  FormField, GridAddressInput, Icon, LoadingState, ObjectContextBar, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  Alert, BackButton, Button, Dialog, DictionarySelect,
+  FormField, GridAddressInput, Icon, LoadingState, ObjectContextBar, PageHeader, Panel, PanelHead,
+  PatientIdentitySearch, Select, StatusBadge,
 } from '../../shared/ui'
 
 const today = () => new Intl.DateTimeFormat('en-CA', {
@@ -17,28 +18,15 @@ const today = () => new Intl.DateTimeFormat('en-CA', {
 }).format(new Date())
 
 export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNavigate: (path: string) => void }) {
-  const [query, setQuery] = useState('')
-  const [submittedQuery, setSubmittedQuery] = useState('')
   const [selected, setSelected] = useState<Resident | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const queryClient = useQueryClient()
-  const residents = useQuery({
-    queryKey: ['residents', submittedQuery],
-    queryFn: () => api.residents.search(submittedQuery),
-    enabled: submittedQuery.length >= 2,
-  })
   const profile = useQuery({
     queryKey: ['resident-profile', selected?.id],
     queryFn: () => api.residents.profile(selected!.id),
     enabled: Boolean(selected),
   })
-
-  function search(event: FormEvent) {
-    event.preventDefault()
-    const value = query.trim()
-    if (value.length >= 2) setSubmittedQuery(value)
-  }
 
   async function profileUpdated(value: ResidentProfile) {
     setSelected(value.resident)
@@ -68,28 +56,10 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
       description="集中完成居民建档、人口学资料、地址、联系人和保障信息维护。"
       actions={<Button onClick={() => setShowCreate(true)}><Icon name="add" />新建居民</Button>} />
     <Panel className="search-panel">
-      <form className="resident-search" onSubmit={search}>
-        <span className="resident-search__icon" aria-hidden="true"><Icon name="search" /></span>
-        <label className="visually-hidden" htmlFor="resident-center-search">姓名、证件或卡号</label>
-        <input id="resident-center-search" value={query} onChange={(event) => setQuery(event.target.value)}
-          placeholder="输入姓名、证件或卡号查找" autoFocus />
-        <Button type="submit" busy={residents.isFetching}>查询</Button>
-      </form>
-      <div className="search-hint"><span>可按姓名、身份证、医保卡等标识检索</span><span>居民中心不发起门诊接诊</span></div>
-    </Panel>
-    {query.trim().length > 0 && query.trim().length < 2 && <Alert>至少输入 2 个字符</Alert>}
-    {residents.error && <Alert>{errorMessage(residents.error)}</Alert>}
-    <Panel className="results-panel">
-      <PanelHead title="居民检索结果" meta={`${residents.data?.length ?? 0} 位居民`} />
-      {residents.isFetching ? <LoadingState label="正在检索居民…" /> : !residents.data?.length
-        ? <EmptyState icon="residents" title="查找居民档案" copy="如果居民不存在，可先建立统一居民主索引。" />
-        : <div className="resident-list">{residents.data.map((resident) => <button key={resident.id}
-          className="resident-row" onClick={() => setSelected(resident)}>
-          <div className={`resident-avatar ${resident.gender.toLowerCase()}`}>{resident.fullName.slice(-1)}</div>
-          <div className="resident-main"><strong>{resident.fullName}</strong>
-            <span>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁 · {resident.maskedNationalId || '无身份证标识'}</span></div>
-          <div><small>健康档案号</small><strong>{resident.healthRecordNo}</strong></div><Icon name="chevron-right" />
-        </button>)}</div>}
+      <PatientIdentitySearch queryKey="resident-center" search={api.residents.search} selected={selected}
+        onSelect={setSelected} autoFocus emptyTitle="查找居民档案"
+        emptyCopy="支持姓名、身份证、卡号和健康档案号；外部识别方式按接口配置启用。" />
+      <div className="search-hint"><span>唯一标识命中后自动回填，姓名查询需从候选列表确认</span><span>居民中心不发起门诊接诊</span></div>
     </Panel>
     {showCreate && <CreateResidentDialog api={api} onClose={() => setShowCreate(false)} onCreated={(resident) => {
       setShowCreate(false); setSelected(resident)

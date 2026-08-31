@@ -56,6 +56,43 @@ class AllergyService implements AllergyDirectory {
                 context.tenantId(), canonicalId, "ACTIVE").stream().map(AllergyIntolerance::snapshot).toList();
     }
 
+    @Override
+    @Transactional
+    public AllergySnapshot recordPositiveDrugSkinTest(Long residentId, Long encounterId, String substanceCode,
+                                                      String substanceDisplay, String reactionText,
+                                                      Instant onsetAt, Long skinTestEventId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Long canonicalId = residentDirectory.resolveCanonicalResidentId(residentId);
+        List<AllergyIntolerance> active = repository
+                .findByTenantIdAndResidentIdAndClinicalStatusOrderByRecordedAtDesc(
+                        context.tenantId(), canonicalId, "ACTIVE");
+        AllergyIntolerance existing = active.stream().filter(value -> "ALLERGY".equals(value.assertionType())
+                        && "DRUG".equals(value.categoryCode()))
+                .filter(value -> {
+                    AllergySnapshot snapshot = value.snapshot();
+                    return substanceCode != null && snapshot.substanceCode() != null
+                            ? substanceCode.equalsIgnoreCase(snapshot.substanceCode())
+                            : java.util.Objects.equals(clean(substanceDisplay), clean(snapshot.substanceDisplay()));
+                }).findFirst().orElse(null);
+        if (existing != null) return existing.snapshot();
+
+        for (AllergyIntolerance value : active) {
+            if ("ALLERGY".equals(value.assertionType())) continue;
+            value.inactivate(value.revision(), "皮试阳性，自动替代原无已知药物过敏声明", context.subjectId());
+            publish(value, "ALLERGY_INACTIVATED", "皮试阳性后停用无已知过敏声明",
+                    Map.of("reason", "POSITIVE_SKIN_TEST", "skinTestEventId", skinTestEventId));
+        }
+        RecordAllergyRequest input = new RecordAllergyRequest(encounterId, "ALLERGY", "DRUG", "HIGH", null,
+                "CLINICIAN", null, clean(substanceCode), clean(substanceDisplay), clean(reactionText), onsetAt);
+        validate(input);
+        AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), canonicalId,
+                input, context.subjectId(), context.practitionerId()));
+        publish(value, "ALLERGY_RECORDED", "皮试阳性自动登记药物过敏", Map.of(
+                "assertionType", "ALLERGY", "categoryCode", "DRUG",
+                "substanceDisplay", input.substanceDisplay(), "skinTestEventId", skinTestEventId));
+        return value.snapshot();
+    }
+
     @Transactional
     AllergyResponse record(Long residentId, RecordAllergyRequest raw) {
         ExecutionContext context = contextProvider.requireCurrent();

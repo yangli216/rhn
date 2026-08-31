@@ -37,7 +37,8 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         JsonNode dispense = dispense(task.taskId(), "BIL-DSP-" + suffix, "2", pharmacist);
 
         JsonNode synchronizedCharges = synchronize(task.encounterId(), "BIL-SYNC-" + suffix);
-        assertEquals(1, synchronizedCharges.get("createdCharges").asInt());
+        assertEquals(0, synchronizedCharges.get("createdCharges").asInt());
+        assertEquals(1, synchronizedCharges.get("existingCharges").asInt());
         assertEquals(1, synchronizedCharges.at("/statement/charges").size());
         BigDecimal fullAmount = synchronizedCharges.at("/statement/chargeAmount").decimalValue();
         assertEquals(1, fullAmount.signum());
@@ -57,6 +58,13 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.settlementScene").value("OUTPATIENT"))
                 .andExpect(jsonPath("$.lines.length()").value(1))
                 .andExpect(jsonPath("$.tenders.length()").value(0));
+
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentOrderBody("PAY-INSURANCE-AS-METHOD-" + suffix, fullAmount)
+                                .replace("\"CASH\"", "\"MEDICAL_INSURANCE\"")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PAYMENT_METHOD_CLASSIFICATION_INVALID"));
 
         CompletableFuture<MvcResult> paymentA = paymentOrderAsync(invoice.get("id").asText(),
                 "PAY-A-" + suffix, fullAmount);
@@ -94,9 +102,14 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
 
         returnOne(dispense, "BIL-RET-" + suffix, pharmacist);
         JsonNode afterReturn = synchronize(task.encounterId(), "BIL-SYNC-RET-" + suffix);
-        assertEquals(1, afterReturn.get("createdCharges").asInt());
+        assertEquals(0, afterReturn.get("createdCharges").asInt());
+        assertEquals(2, afterReturn.get("existingCharges").asInt());
         assertEquals(2, afterReturn.at("/statement/charges").size());
-        BigDecimal refundAmount = afterReturn.at("/statement/charges/1/totalAmount").decimalValue().abs();
+        BigDecimal refundAmount = java.util.stream.StreamSupport
+                .stream(afterReturn.at("/statement/charges").spliterator(), false)
+                .map(value -> value.get("totalAmount").decimalValue())
+                .filter(value -> value.signum() < 0)
+                .findFirst().orElseThrow().abs();
         assertEquals(fullAmount.divide(BigDecimal.valueOf(2)), refundAmount);
         JsonNode creditInvoice = issueInvoice(accountId, "CRN-" + suffix);
         assertEquals("CREDIT", creditInvoice.get("invoiceType").asText());
@@ -281,7 +294,7 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","quantity":%d,
-                                  "substitutionAllowed":false,"selfProvided":false,
+                                  "substitutionAllowed":false,"selfProvided":false,"allergyReviewConfirmed":true,
                                   "businessDate":"2026-08-27","reason":"M3.4 收费结算验收"
                                 }
                                 """.formatted(PRODUCT_ID, PACKAGE_ID, quantity)))

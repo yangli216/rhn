@@ -96,6 +96,10 @@ class PaymentOrderTransactionService {
         String paymentMethod = upper(input.paymentMethodCode());
         String paymentScene = upper(input.paymentSceneCode());
         String businessScene = upper(input.businessScene());
+        if ("MEDICAL_INSURANCE".equals(paymentMethod)) {
+            throw badRequest("PAYMENT_METHOD_CLASSIFICATION_INVALID",
+                    "医保属于结算类型，不是患者支付方式；请在医保结算后选择个人自付支付方式");
+        }
         if (businessScene == null) businessScene = "OUTPATIENT";
         if (!formalSettlement.settlementScene().equals(businessScene)) {
             throw conflict("PAYMENT_BUSINESS_SCENE_MISMATCH", "支付业务场景与结算单场景不一致");

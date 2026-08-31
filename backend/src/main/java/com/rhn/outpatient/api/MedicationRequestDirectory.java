@@ -10,8 +10,11 @@ import java.util.List;
 /** Public, read-only medication-order contract consumed by pharmacy and billing modules. */
 public interface MedicationRequestDirectory {
     MedicationRequestSnapshot requireForPharmacy(Long requestId);
+    MedicationRequestSnapshot lockForPharmacyIntake(Long requestId);
+    MedicationRequestSnapshot requireForRouting(Long tenantId, Long requestId);
 
     List<MedicationRequestSnapshot> activeForPharmacy(Long organizationId);
+    List<MedicationRequestSnapshot> activeForExecution(Long organizationId, Long departmentId);
 
     record MedicationRequestSnapshot(
             Long id, long revision, Long tenantId, Long residentId, Long encounterId,
@@ -23,6 +26,10 @@ public interface MedicationRequestDirectory {
             String medicationCode, String medicationName, String medicationType,
             BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, String baseUnit,
             BigDecimal packageFactor, boolean substitutionAllowed, boolean selfProvided,
+            Long parentRequestId, BigDecimal doseValue, String doseUnit, String routeCode,
+            String frequencyCode, Long frequencyId, String frequencyName, JsonNode frequencyRule,
+            BigDecimal durationValue, String durationUnit,
+            boolean skinTestRequired,
             Long priceId, Long priceRevision, String priceType,
             BigDecimal unitPrice, BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
             JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,

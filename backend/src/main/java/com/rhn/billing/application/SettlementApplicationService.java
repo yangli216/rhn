@@ -16,6 +16,7 @@ import com.rhn.billing.domain.SettlementEvent;
 import com.rhn.billing.domain.SettlementLine;
 import com.rhn.billing.domain.SettlementTender;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
+import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.LedgerEntryRepository;
 import com.rhn.billing.infrastructure.SettlementCategorySummaryRepository;
 import com.rhn.billing.infrastructure.SettlementEventRepository;
@@ -24,6 +25,7 @@ import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.billing.infrastructure.SettlementTenderRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.platform.eventing.api.DomainEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static com.rhn.shared.api.BusinessErrors.forbidden;
@@ -45,23 +48,26 @@ public class SettlementApplicationService {
     private final SettlementEventRepository events;
     private final SettlementCategorySummaryRepository categories;
     private final PatientAccountRepository accounts;
+    private final ChargeItemRepository chargeItems;
     private final LedgerEntryRepository ledger;
     private final ExecutionContextProvider contextProvider;
+    private final DomainEventPublisher eventPublisher;
 
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
                                         SettlementTenderRepository tenders, SettlementEventRepository events,
                                         SettlementCategorySummaryRepository categories,
-                                        PatientAccountRepository accounts, LedgerEntryRepository ledger,
-                                        ExecutionContextProvider contextProvider) {
+                                        PatientAccountRepository accounts, ChargeItemRepository chargeItems,
+                                        LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
+                                        DomainEventPublisher eventPublisher) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
-        this.categories = categories; this.accounts = accounts; this.ledger = ledger; this.contextProvider = contextProvider;
+        this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
+        this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     Settlement createFromInvoice(ExecutionContext context, PatientAccount account, Invoice invoice,
                                  List<ChargeItem> chargeItems, List<InvoiceLine> invoiceLines,
-                                 String settlementScene, String terminalScene, String terminalCode,
-                                 String categoryCode, String categoryName) {
+                                 String settlementScene, String terminalScene, String terminalCode) {
         Settlement existing = settlements.findByTenantIdAndLegacyInvoiceId(context.tenantId(), invoice.id()).orElse(null);
         if (existing != null) return existing;
         String type = "CREDIT".equals(invoice.invoiceType()) ? "REVERSAL" : "NORMAL";
@@ -75,11 +81,51 @@ public class SettlementApplicationService {
             lines.save(new SettlementLine(context.tenantId(), value.id(), line.chargeItemId(), line.id(),
                     line.lineNo(), charge.quantity(), line.amount()));
         }
-        categories.save(new SettlementCategorySummary(context.tenantId(), value.id(), categoryCode,
-                categoryName, invoice.netAmount(), invoice.issuedAt()));
+        Map<ChargeCategory, BigDecimal> categoryAmounts = new LinkedHashMap<>();
+        for (ChargeItem charge : chargeItems) categoryAmounts.merge(chargeCategory(charge),
+                charge.totalAmount(), BigDecimal::add);
+        categoryAmounts.forEach((category, amount) -> categories.save(new SettlementCategorySummary(
+                context.tenantId(), value.id(), category.code(), category.name(), money(amount), invoice.issuedAt())));
         events.save(new SettlementEvent(context.tenantId(), value.id(), "CREATE", null, value.status(),
                 "CREATE-" + invoice.invoiceNo(), context.subjectId(), invoice.issuedAt()));
         return value;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    void applyInpatientPrepayments(ExecutionContext context, Settlement settlement, List<Payment> payments) {
+        if (!"INPATIENT".equals(settlement.settlementScene()) || settlement.netAmount().signum() < 0) return;
+        if (settlement.netAmount().signum() == 0) {
+            Instant occurredAt = Instant.now();
+            String previous = settlement.applyPaidAmount(BigDecimal.ZERO.setScale(6), context.subjectId(), occurredAt);
+            events.save(new SettlementEvent(context.tenantId(), settlement.id(), "FINALIZE", previous,
+                    settlement.status(), "ZERO-AMOUNT-" + settlement.id(), context.subjectId(), occurredAt));
+            publishStatusTransition(context, settlement, settlement.legacyInvoiceId(), previous, occurredAt);
+            return;
+        }
+        BigDecimal outstanding = money(settlement.netAmount().subtract(
+                tenders.totalTendered(context.tenantId(), settlement.id())));
+        for (Payment payment : payments) {
+            if (outstanding.signum() <= 0) break;
+            if (!"PAYMENT".equals(payment.paymentType()) || !"COMPLETED".equals(payment.status())
+                    || payment.invoiceId() != null
+                    || !"INPATIENT_PREPAYMENT".equals(payment.paymentSceneCode())
+                    || tenders.findByTenantIdAndPaymentId(context.tenantId(), payment.id()).isPresent()) continue;
+            BigDecimal amount = money(payment.amount().min(outstanding));
+            if (amount.signum() <= 0) continue;
+            int lineNo = Math.toIntExact(tenders.countByTenantIdAndSettlementId(
+                    context.tenantId(), settlement.id()) + 1);
+            tenders.save(new SettlementTender(context.tenantId(), settlement.id(), payment.id(), lineNo,
+                    "PREPAYMENT", payment.paymentMethodCode(), "住院预交金", amount, payment.currencyCode()));
+            outstanding = money(outstanding.subtract(amount));
+        }
+        BigDecimal funded = money(tenders.totalTendered(context.tenantId(), settlement.id()));
+        if (funded.signum() <= 0) return;
+        Instant occurredAt = Instant.now();
+        String previous = settlement.applyPaidAmount(funded, context.subjectId(), occurredAt);
+        events.save(new SettlementEvent(context.tenantId(), settlement.id(),
+                "SETTLED".equals(settlement.status()) ? "FINALIZE" : "PARTIAL_PAY", previous,
+                settlement.status(), "PREPAYMENT-" + settlement.id(), context.subjectId(), occurredAt));
+        publishStatusTransition(context, settlement, settlement.legacyInvoiceId(), previous, occurredAt);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -97,6 +143,7 @@ public class SettlementApplicationService {
         String eventType = "SETTLED".equals(value.status()) ? "FINALIZE" : "PARTIAL_PAY";
         events.save(new SettlementEvent(context.tenantId(), value.id(), eventType, previous, value.status(),
                 "PAYMENT-" + payment.id(), context.subjectId(), payment.paidAt()));
+        publishStatusTransition(context, value, invoice.id(), previous, payment.paidAt());
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -131,6 +178,7 @@ public class SettlementApplicationService {
         events.save(new SettlementEvent(context.tenantId(), settlementId,
                 "SETTLED".equals(value.status()) ? "FINALIZE" : "PARTIAL_PAY", previous, value.status(),
                 "INSURANCE-" + claimResponseId, context.subjectId(), occurredAt));
+        publishStatusTransition(context, value, value.legacyInvoiceId(), previous, occurredAt);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -170,6 +218,51 @@ public class SettlementApplicationService {
         events.save(new SettlementEvent(context.tenantId(), settlementId, "REVERSE_COMPLETE", previous,
                 value.status(), "INSURANCE-REVERSE-" + reversalClaimResponseId,
                 context.subjectId(), occurredAt));
+        publishStatusTransition(context, value, value.legacyInvoiceId(), previous, occurredAt);
+    }
+
+    private void publishStatusTransition(ExecutionContext context, Settlement settlement, Long invoiceId,
+                                         String previousStatus, Instant occurredAt) {
+        boolean finalized = !"SETTLED".equals(previousStatus) && "SETTLED".equals(settlement.status());
+        boolean reversed = "SETTLED".equals(previousStatus) && !"SETTLED".equals(settlement.status());
+        if (!finalized && !reversed) return;
+        PatientAccount account = accounts.findByIdAndTenantId(settlement.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
+        List<Map<String, Object>> medicationRequests = lines
+                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id()).stream()
+                .map(line -> chargeItems.findByIdAndTenantId(line.chargeItemId(), context.tenantId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .filter(charge -> charge.requestId() != null && charge.totalAmount().signum() > 0
+                        && charge.sourceType().startsWith("MEDICATION_"))
+                .map(charge -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("requestId", charge.requestId());
+                    item.put("organizationId", account.organizationId());
+                    item.put("departmentId", account.departmentId());
+                    return Map.copyOf(item);
+                }).distinct().toList();
+        List<Map<String, Object>> serviceRequests = lines
+                .findByTenantIdAndSettlementIdOrderByLineNoAsc(context.tenantId(), settlement.id()).stream()
+                .map(line -> chargeItems.findByIdAndTenantId(line.chargeItemId(), context.tenantId()).orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .filter(charge -> charge.requestId() != null && charge.totalAmount().signum() > 0
+                        && "SERVICE_REQUEST".equals(charge.sourceType()))
+                .map(charge -> {
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("requestId", charge.requestId());
+                    item.put("organizationId", account.organizationId());
+                    item.put("departmentId", account.departmentId());
+                    return Map.copyOf(item);
+                }).distinct().toList();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("settlementId", settlement.id());
+        if (invoiceId != null) payload.put("invoiceId", invoiceId);
+        if (account.encounterId() != null) payload.put("encounterId", account.encounterId());
+        payload.put("medicationRequests", medicationRequests);
+        payload.put("serviceRequests", serviceRequests);
+        eventPublisher.publish(context.tenantId(), account.organizationId(),
+                finalized ? "BILLING_SETTLEMENT_FINALIZED" : "BILLING_SETTLEMENT_REVERSED", 1,
+                "Settlement", settlement.id(), settlement.revision() + 1, account.residentId(), occurredAt, payload);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -208,6 +301,12 @@ public class SettlementApplicationService {
 
     BigDecimal nonPaymentTendered(ExecutionContext context, Long settlementId) {
         return money(tenders.nonPaymentTendered(context.tenantId(), settlementId));
+    }
+
+    BigDecimal tenderedForInvoice(ExecutionContext context, Long invoiceId) {
+        return settlements.findByTenantIdAndLegacyInvoiceId(context.tenantId(), invoiceId)
+                .map(value -> money(tenders.totalTendered(context.tenantId(), value.id())))
+                .orElse(null);
     }
 
     List<SettlementView> listByAccount(ExecutionContext context, Long accountId) {
@@ -249,6 +348,13 @@ public class SettlementApplicationService {
             default -> "COMMERCIAL_INSURANCE";
         };
     }
+    private ChargeCategory chargeCategory(ChargeItem charge) {
+        if (charge.sourceType().startsWith("REGISTRATION")) return new ChargeCategory("REGISTRATION", "挂号费");
+        if (charge.sourceType().startsWith("INPATIENT_BED_DAY")) return new ChargeCategory("BED", "床位费");
+        if (charge.sourceType().startsWith("MEDICATION_")) return new ChargeCategory("MEDICATION", "药品费");
+        if (charge.sourceType().startsWith("SERVICE_REQUEST")) return new ChargeCategory("TREATMENT", "诊疗费");
+        return new ChargeCategory("OTHER", "其他费");
+    }
     private void allocateLines(List<SettlementLine> values, BigDecimal total, BigDecimal insurance, BigDecimal other) {
         BigDecimal insuranceAssigned = BigDecimal.ZERO.setScale(6);
         BigDecimal otherAssigned = BigDecimal.ZERO.setScale(6);
@@ -285,4 +391,5 @@ public class SettlementApplicationService {
     private String terminal(String value, String fallback) { return clean(value) == null ? fallback : clean(value).toUpperCase(); }
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
+    private record ChargeCategory(String code, String name) {}
 }

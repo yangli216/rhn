@@ -56,12 +56,20 @@ public class PrintOutput {
     public Long tenantId() { return tenantId; }
     public Long templateId() { return templateId; }
     public Long templateVersionId() { return templateVersionId; }
+    public String sourceType() { return sourceType; }
+    public Long sourceId() { return sourceId; }
+    public long sourceVersion() { return sourceVersion; }
     public String documentType() { return documentType; }
+    public Long residentId() { return residentId; }
+    public Long encounterId() { return encounterId; }
     public Long organizationId() { return organizationId; }
     public Long departmentId() { return departmentId; }
+    public String purpose() { return purpose; }
     public String fileName() { return fileName; }
     public String mediaType() { return mediaType; }
     public byte[] content() { return Base64.getDecoder().decode(contentBase64); }
     public String contentDigestAlgorithm() { return contentDigestAlgorithm; }
     public String contentDigest() { return contentDigest; }
+    public Instant generatedAt() { return generatedAt; }
+    public Long generatedBy() { return generatedBy; }
 }

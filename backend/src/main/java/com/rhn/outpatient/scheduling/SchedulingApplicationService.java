@@ -135,9 +135,10 @@ class SchedulingApplicationService {
 
         StaffDetailView staff = organizationDirectory.requireStaff(context.tenantId(), request.practitionerId());
         StaffAssignmentView assignment = assignmentFor(context, staff, request.dateFrom(), request.dateTo());
-        ServiceCatalogSnapshot service = serviceCatalogDirectory.requireActiveService(
-                context.tenantId(), request.catalogItemId(), request.dateFrom());
-        serviceCatalogDirectory.requireActiveService(context.tenantId(), request.catalogItemId(), request.dateTo());
+        ServiceCatalogSnapshot service = serviceCatalogDirectory.requireSchedulableOutpatientService(
+                context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateFrom());
+        serviceCatalogDirectory.requireSchedulableOutpatientService(
+                context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateTo());
         String timezoneCode = StrUtil.blankToDefault(organizationDirectory
                 .requireOrganization(context.tenantId(), context.organizationId()).timezoneCode(), "Asia/Shanghai");
         ZoneId zoneId = ZoneId.of(timezoneCode);

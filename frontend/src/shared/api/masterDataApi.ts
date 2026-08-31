@@ -318,6 +318,7 @@ export interface MedicationKnowledge {
   defaultDose?: number
   defaultDoseUnit?: string
   defaultRoute?: string
+  defaultFrequencyId?: string
   defaultFrequency?: string
   chronicDiseaseDrug: boolean
   singleOrder: boolean
@@ -624,6 +625,41 @@ export interface UnitConversionInput {
 export interface UnitConversionResult {
   input: number; fromUnitCode: string; result: number; toUnitCode: string
   catalogItemId?: string; effectiveDate: string; path: string[]
+}
+
+export type OrderFrequencyRuleType = 'ONCE' | 'TIMES_PER_PERIOD' | 'FIXED_INTERVAL' | 'CALENDAR' | 'PRN' | 'CONTINUOUS'
+export type OrderFrequencyAnchorType = 'ORDER_START' | 'STANDARD_TIME' | 'CALENDAR' | 'EVENT'
+export interface OrderFrequencyConfiguration {
+  id: string; revision: number; organizationId: string; departmentId?: string; frequencyId: string
+  localCode?: string; localName?: string; executionTimes: string[]
+  firstDayPolicy: 'REMAINING_SLOTS' | 'FULL_SCHEDULE' | 'FROM_ORDER_TIME'
+  enabled: boolean; status: OperationalStatus; validFrom: string; validTo?: string
+}
+export interface OrderFrequency {
+  id: string; revision: number; code: string; name: string; shortName?: string; description?: string
+  ruleType: OrderFrequencyRuleType; frequencyCount?: number; periodValue?: number; periodUnit?: string
+  anchorType: OrderFrequencyAnchorType; defaultExecutionTimes: string[]
+  outpatientApplicable: boolean; inpatientApplicable: boolean; emergencyApplicable: boolean
+  medicationApplicable: boolean; treatmentApplicable: boolean; nursingApplicable: boolean
+  automaticTaskGeneration: boolean; sortOrder: number; status: OperationalStatus
+  validFrom: string; validTo?: string; configurations: OrderFrequencyConfiguration[]
+}
+export interface ActiveOrderFrequency {
+  id: string; revision: number; code: string; name: string; shortName?: string; description?: string
+  ruleType: OrderFrequencyRuleType; frequencyCount?: number; periodValue?: number; periodUnit?: string
+  anchorType: OrderFrequencyAnchorType; executionTimes: string[]
+  firstDayPolicy: OrderFrequencyConfiguration['firstDayPolicy']; automaticTaskGeneration: boolean
+}
+export interface OrderFrequencyInput extends Omit<OrderFrequency, 'id' | 'revision' | 'defaultExecutionTimes' | 'configurations'> {
+  defaultExecutionTimes?: string
+}
+export interface OrderFrequencyConfigurationInput extends Omit<OrderFrequencyConfiguration,
+  'id' | 'revision' | 'frequencyId' | 'executionTimes'> {
+  executionTimes?: string
+}
+export interface OrderFrequencySchedulePreview {
+  frequencyCode: string; frequencyName: string; ruleType: OrderFrequencyRuleType
+  explanation: string; plannedTimes: string[]
 }
 
 export interface AdoptionBatchInput {
@@ -1328,5 +1364,33 @@ export function createMasterDataApi(client: ApiClient) {
             catalogItemId: catalogItemId || undefined, effectiveDate: effectiveDate || undefined }),
         },
       ),
+    orderFrequencies: (query = '', status = '') => client.request<OrderFrequency[]>(
+      `/api/platform/master-data/order-frequencies${queryString({ query, status })}`,
+    ),
+    activeOrderFrequencies: (organizationId?: string, departmentId?: string,
+      scene = 'OUTPATIENT', orderType = 'MEDICATION', businessDate = '') => client.request<ActiveOrderFrequency[]>(
+      `/api/platform/master-data/order-frequencies/active${queryString({ organizationId, departmentId,
+        scene, orderType, businessDate })}`,
+    ),
+    createOrderFrequency: (input: OrderFrequencyInput) => client.request<OrderFrequency>(
+      '/api/platform/master-data/order-frequencies', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    updateOrderFrequency: (value: OrderFrequency, input: OrderFrequencyInput) => client.request<OrderFrequency>(
+      `/api/platform/master-data/order-frequencies/${value.id}`,
+      { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+    ),
+    createOrderFrequencyConfiguration: (frequencyId: string, input: OrderFrequencyConfigurationInput) =>
+      client.request<OrderFrequency>(`/api/platform/master-data/order-frequencies/${frequencyId}/configurations`,
+        { method: 'POST', body: JSON.stringify(input) }),
+    updateOrderFrequencyConfiguration: (frequencyId: string, value: OrderFrequencyConfiguration,
+      input: OrderFrequencyConfigurationInput) => client.request<OrderFrequency>(
+        `/api/platform/master-data/order-frequencies/${frequencyId}/configurations/${value.id}`,
+        { method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: value.revision }) },
+      ),
+    previewOrderFrequency: (code: string, organizationId?: string, departmentId?: string,
+      start?: string, occurrences = 8) => client.request<OrderFrequencySchedulePreview>(
+      '/api/platform/master-data/order-frequencies/preview',
+      { method: 'POST', body: JSON.stringify({ code, organizationId, departmentId, start, occurrences }) },
+    ),
   }
 }

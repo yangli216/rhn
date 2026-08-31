@@ -64,6 +64,15 @@ interface ScheduleSlotPoolRepository extends JpaRepository<ScheduleSlotPool, Lon
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<ScheduleSlotPool> findByTenantIdAndScheduleId(Long tenantId, Long scheduleId);
+
+    @Query("select value from ScheduleSlotPool value where value.tenantId = :tenantId and value.scheduleId = :scheduleId")
+    Optional<ScheduleSlotPool> findSnapshotByTenantIdAndScheduleId(@Param("tenantId") Long tenantId,
+                                                                   @Param("scheduleId") Long scheduleId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select value from ScheduleSlotPool value where value.id = :id and value.tenantId = :tenantId")
+    Optional<ScheduleSlotPool> findWithLockByIdAndTenantId(@Param("id") Long id,
+                                                           @Param("tenantId") Long tenantId);
 }
 
 interface ScheduleSlotHoldRepository extends JpaRepository<ScheduleSlotHold, Long> {

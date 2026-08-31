@@ -75,7 +75,7 @@ class PrescriptionService {
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
         List<MedicationRequest> drafts = requests.stream().filter(request -> "DRAFT".equals(request.status())).toList();
         if (drafts.isEmpty()) throw conflict("PRESCRIPTION_EMPTY", "处方至少需要一条有效药品请求才能提交");
-        drafts.forEach(MedicationRequest::activateFromPrescription);
+        drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));
         value.submit(action.expectedRevision(), context.subjectId());
         medicationRepository.flush(); repository.flush();
         publish(value, "PRESCRIPTION_SUBMITTED", "提交门诊处方", Map.of("medicationCount", drafts.size()));
@@ -90,7 +90,8 @@ class PrescriptionService {
         if (reason == null) throw badRequest("PRESCRIPTION_CANCEL_REASON_REQUIRED", "撤销处方必须填写原因");
         Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
-        requests.forEach(request -> request.cancelFromPrescription(reason, context.subjectId()));
+        requests.forEach(request -> medicationService.cancelFromPrescription(
+                request, reason, context.subjectId()));
         value.cancel(action.expectedRevision(), context.subjectId(), reason);
         medicationRepository.flush(); repository.flush();
         publish(value, "PRESCRIPTION_CANCELLED", "撤销门诊处方", Map.of(

@@ -15,6 +15,16 @@ spring:
           time_zone: UTC
   flyway:
     enabled: true
+  data:
+    redis:
+      host: ${RHN_REDIS_HOST:localhost}
+      port: ${RHN_REDIS_PORT:6379}
+      password: ${RHN_REDIS_PASSWORD:}
+      database: ${RHN_REDIS_DATABASE:0}
+      connect-timeout: ${RHN_REDIS_CONNECT_TIMEOUT:2s}
+      timeout: ${RHN_REDIS_COMMAND_TIMEOUT:2s}
+      repositories:
+        enabled: false
   web:
     error:
       include-message: never
@@ -37,12 +47,27 @@ springdoc:
     enabled: ${RHN_OPENAPI_ENABLED:false}
 
 rhn:
+  instance-id: ${RHN_INSTANCE_ID:${HOSTNAME:${random.uuid}}}
+  ai:
+    mode: ${RHN_AI_MODE:DISABLED}
+    provider: ${RHN_AI_PROVIDER:disabled}
+    model: ${RHN_AI_MODEL:}
+    suggestion-ttl: ${RHN_AI_SUGGESTION_TTL:PT30M}
   id:
     data-center-id: ${RHN_ID_DATA_CENTER_ID:0}
     worker-id: ${RHN_ID_WORKER_ID:0}
     allow-default-node: ${RHN_ID_ALLOW_DEFAULT_NODE:false}
   security:
     dev-user-enabled: false
+    session-registry: ${RHN_SESSION_REGISTRY:redis}
+    session-key-prefix: ${RHN_SESSION_KEY_PREFIX:rhn:sessions}
+    revocation-ttl: ${RHN_SESSION_REVOCATION_TTL:PT12H}
+    refresh-login:
+      enabled: ${RHN_REFRESH_LOGIN_ENABLED:false}
+      ttl: ${RHN_REFRESH_LOGIN_TTL:PT8H}
+      cookie-name: ${RHN_REFRESH_LOGIN_COOKIE_NAME:RHN_LOGIN}
+      cookie-secure: ${RHN_REFRESH_LOGIN_COOKIE_SECURE:true}
+      key-prefix: ${RHN_REFRESH_LOGIN_KEY_PREFIX:rhn:login-sessions}
   crypto:
     # Production deliberately has no fallback provider. Critical-data writes fail closed
     # until a compliant cryptographic service adapter is configured.
@@ -59,3 +84,24 @@ rhn:
       cache:
         maximum-size: ${RHN_DICTIONARY_TRANSLATION_CACHE_MAXIMUM_SIZE:10000}
         maximum-ttl: ${RHN_DICTIONARY_TRANSLATION_CACHE_MAXIMUM_TTL:PT5M}
+  pharmacy:
+    require-settlement-authorization: ${RHN_PHARMACY_REQUIRE_SETTLEMENT_AUTHORIZATION:true}
+  realtime:
+    connection-timeout-ms: ${RHN_REALTIME_CONNECTION_TIMEOUT_MS:1800000}
+    heartbeat-interval-ms: ${RHN_REALTIME_HEARTBEAT_INTERVAL_MS:20000}
+    max-connections-per-user: ${RHN_REALTIME_MAX_CONNECTIONS_PER_USER:5}
+  presence:
+    store: ${RHN_PRESENCE_STORE:redis}
+    active-window: ${RHN_PRESENCE_ACTIVE_WINDOW:PT5M}
+    lease-ttl: ${RHN_PRESENCE_LEASE_TTL:PT75S}
+    redis-key-prefix: ${RHN_PRESENCE_REDIS_KEY_PREFIX:rhn:presence}
+    redis-change-topic: ${RHN_PRESENCE_REDIS_CHANGE_TOPIC:rhn:presence:changes}
+    redis-control-topic: ${RHN_PRESENCE_REDIS_CONTROL_TOPIC:rhn:presence:controls}
+    metrics:
+      sample-cron: ${RHN_PRESENCE_METRIC_SAMPLE_CRON:0 * * * * *}
+      cleanup-cron: ${RHN_PRESENCE_METRIC_CLEANUP_CRON:0 30 3 * * *}
+      retention: ${RHN_PRESENCE_METRIC_RETENTION:P30D}
+  diagnostics:
+    critical-value:
+      acknowledgement-window: ${RHN_CRITICAL_VALUE_ACKNOWLEDGEMENT_WINDOW:PT15M}
+      escalation-interval-ms: ${RHN_CRITICAL_VALUE_ESCALATION_INTERVAL_MS:60000}

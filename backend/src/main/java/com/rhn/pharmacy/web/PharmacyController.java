@@ -2,6 +2,7 @@ package com.rhn.pharmacy.web;
 
 import com.rhn.pharmacy.api.PharmacyViews.DispenseTaskView;
 import com.rhn.pharmacy.api.PharmacyViews.PharmacyInboxItem;
+import com.rhn.pharmacy.api.PharmacyViews.PrescriptionReviewModeView;
 import com.rhn.pharmacy.api.PharmacyViews.StockItemView;
 import com.rhn.pharmacy.api.PharmacyViews.StockSiteView;
 import com.rhn.pharmacy.application.PharmacyApplicationService;
@@ -15,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,25 +31,30 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
 public class PharmacyController {
     private final PharmacyApplicationService service;
 
     public PharmacyController(PharmacyApplicationService service) { this.service = service; }
 
     @PostMapping("/stock-sites")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     @ResponseStatus(HttpStatus.CREATED)
     StockSiteView createSite(@Valid @RequestBody CreateSiteRequest input) { return service.createSite(input.command()); }
 
     @GetMapping("/stock-sites")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<StockSiteView> sites(@RequestParam Long organizationId) { return service.sites(organizationId); }
 
     @PostMapping("/stock-sites/{siteId}/stock-items")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     @ResponseStatus(HttpStatus.CREATED)
     StockItemView createStockItem(@PathVariable Long siteId, @Valid @RequestBody CreateStockItemRequest input) {
         return service.createStockItem(siteId, input.command());
     }
 
     @PostMapping("/stock-sites/{siteId}/stock-items/batch")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
     @ResponseStatus(HttpStatus.CREATED)
     List<StockItemView> createStockItems(@PathVariable Long siteId,
                                          @Valid @RequestBody BatchCreateStockItemsRequest input) {
@@ -55,10 +62,16 @@ public class PharmacyController {
     }
 
     @GetMapping("/stock-sites/{siteId}/stock-items")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<StockItemView> stockItems(@PathVariable Long siteId) { return service.stockItems(siteId); }
 
     @GetMapping("/inbox")
     List<PharmacyInboxItem> inbox(@RequestParam Long organizationId) { return service.inbox(organizationId); }
+
+    @GetMapping("/prescription-review-mode")
+    PrescriptionReviewModeView prescriptionReviewMode(@RequestParam Long organizationId) {
+        return service.prescriptionReviewMode(organizationId);
+    }
 
     @PostMapping("/requests/{requestId}/intake")
     @ResponseStatus(HttpStatus.CREATED)

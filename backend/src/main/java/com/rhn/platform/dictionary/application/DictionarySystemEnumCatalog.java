@@ -44,6 +44,7 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String POSITION_TYPE = "POSITION_TYPE";
     public static final String ASSIGNMENT_TYPE = "ASSIGNMENT_TYPE";
     public static final String SC_SCHEDULE_MANAGEMENT_MODE = "SC_SCHEDULE_MANAGEMENT_MODE";
+    public static final String SC_PRESCRIPTION_REVIEW_MODE = "SC_PRESCRIPTION_REVIEW_MODE";
     public static final String SC_SCHEDULE_DAY_PART = "SC_SCHEDULE_DAY_PART";
     public static final String SC_SCHEDULE_STATUS = "SC_SCHEDULE_STATUS";
     public static final String SC_BOOKING_POLICY = "SC_BOOKING_POLICY";
@@ -51,6 +52,8 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String SC_QUOTA_MODE = "SC_QUOTA_MODE";
     public static final String SC_VISIT_TYPE = "SC_VISIT_TYPE";
     public static final String SC_RECEPTION_STATUS = "SC_RECEPTION_STATUS";
+    public static final String SC_APPOINTMENT_STATUS = "SC_APPOINTMENT_STATUS";
+    public static final String SC_APPOINTMENT_SOURCE = "SC_APPOINTMENT_SOURCE";
     public static final Set<String> PERSISTED_SYSTEM_ENUM_CODES = Set.of(
             PARAM_SCOPE_TYPE, PARAM_VALUE_TYPE, PARAM_CONTROL_TYPE, PARAM_CONFIG_TYPE,
             PARAM_SENSITIVITY, PARAM_DISPLAY_POLICY, PARAM_STATUS, PARAM_VALUE_MODE,
@@ -201,6 +204,10 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
             definition(SC_SCHEDULE_MANAGEMENT_MODE, "排班管理模式", "基层简易排班与精细化专业排班的管理模式", List.of(
                             item("SIMPLE", "简易模式", "以医生、日期时段和号源数快速生成排班", 10),
                             item("PROFESSIONAL", "专业模式", "启用渠道配额、分时号和规则等精细化能力", 20))),
+            definition(SC_PRESCRIPTION_REVIEW_MODE, "处方审方模式", "控制处方审方是否启用及其发生时点", List.of(
+                            item("DISABLED", "不启用", "门诊发药不设置审方前置或事后任务", 10),
+                            item("PRE_DISPENSE", "事前审方", "审方通过后方可预留库存并发药", 20),
+                            item("POST_DISPENSE", "事后审方", "先完成发药，再对已发处方进行审方留痕", 30))),
             definition(SC_SCHEDULE_DAY_PART, "排班时段", "排班模板和实际排班使用的日内时段", List.of(
                             item("MORNING", "上午", "上午门诊时段", 10),
                             item("AFTERNOON", "下午", "下午门诊时段", 20),
@@ -228,7 +235,20 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("WAITING", "候诊中", "已挂号并等待接诊", 10),
                             item("IN_SERVICE", "接诊中", "医生已经开始接诊", 20),
                             item("COMPLETED", "已诊毕", "本次门诊接诊已经完成", 30),
-                            item("CANCELLED", "已取消", "挂号或候诊已经取消", 40)))
+                            item("CANCELLED", "已取消", "挂号或候诊已经取消", 40))),
+            definition(SC_APPOINTMENT_STATUS, "预约状态", "预约业务当前生命周期状态", List.of(
+                            item("BOOKED", "待就诊", "预约已确认并占用号源", 10),
+                            item("REGISTERED", "已挂号", "预约已转换为门诊挂号", 20),
+                            item("VISITED", "已就诊", "预约关联的门诊服务已经完成", 30),
+                            item("CANCELLED", "已取消", "预约已取消并返还号源", 40),
+                            item("NO_SHOW", "已爽约", "预约到期未到诊", 50))),
+            definition(SC_APPOINTMENT_SOURCE, "预约来源", "创建预约的业务渠道", List.of(
+                            item("WINDOW", "窗口预约", "由医疗机构窗口工作人员办理", 10),
+                            item("PHONE", "电话预约", "由工作人员根据来电办理", 20),
+                            item("INTERNAL", "院内预约", "由院内其他业务工作台发起", 30),
+                            item("PATIENT_APP", "患者端", "由患者移动应用发起", 40),
+                            item("WECHAT", "微信端", "由微信服务入口发起", 50),
+                            item("THIRD_PARTY", "第三方", "由授权第三方渠道发起", 60)))
     );
     private final Map<String, SystemEnumDefinition> definitionsByCode = definitions.stream()
             .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity()));

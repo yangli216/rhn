@@ -374,6 +374,15 @@ class ScheduleSlotPool {
         updatedAt = Instant.now();
     }
 
+    void releaseOccupiedOne() {
+        if (occupiedCount <= 0) {
+            throw com.rhn.shared.api.BusinessErrors.conflict("SCHEDULE_OCCUPIED_SLOT_MISSING",
+                    "预约占用的号源不存在，请刷新后重试");
+        }
+        occupiedCount--;
+        updatedAt = Instant.now();
+    }
+
     void releaseHeldOne() {
         if (heldCount <= 0) return;
         heldCount--;

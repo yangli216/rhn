@@ -6,7 +6,7 @@ import {
   type ItemAttributeDefinitionInput, type ItemAttributeJson,
   type ItemTypeAttributeConfiguration, type ItemTypeAttributeInput, type RhnApi,
 } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, SearchField, Select, StatusBadge } from '../../shared/ui'
 
 type SubjectType = '' | 'MEDICATION' | 'CATALOG_ITEM'
 type Scope = 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'
@@ -88,9 +88,8 @@ export function ItemAttributeConfigurationPanel({ api }: { api: RhnApi }) {
       <Select value={itemTypeId} onChange={setItemTypeId} placeholder="全部项目类型" showValue
         options={(values?.itemTypes ?? []).map((value) => ({ value: value.id, label: value.name,
           secondaryText: value.code }))} />
-      <label className="master-data-search"><Icon name="search" /><span className="visually-hidden">搜索属性</span>
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索属性名称、编码或说明" />
-      </label>
+      <SearchField className="attribute-config-filters__search" label="搜索属性" value={query}
+        onChange={setQuery} placeholder="搜索属性名称、编码或说明" />
       <span className="master-data-count">{definitions.length} 项属性</span>
     </div>
     {configuration.isPending ? <LoadingState label="正在加载项目类型与属性配置…" />

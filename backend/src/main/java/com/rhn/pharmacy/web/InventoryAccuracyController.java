@@ -11,6 +11,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,6 +27,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/pharmacy/inventory")
+@PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_ADJUST)
 public class InventoryAccuracyController {
     private final InventorySplitApplicationService splitService;
     private final InventoryReconciliationApplicationService reconciliationService;
@@ -40,9 +42,11 @@ public class InventoryAccuracyController {
     OpenPackageView open(@Valid @RequestBody OpenPackageRequest input) { return splitService.open(input.command()); }
 
     @GetMapping("/open-packages")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<OpenPackageView> openPackages(@RequestParam Long stockSiteId) { return splitService.list(stockSiteId); }
 
     @GetMapping("/open-packages/{id}/events")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<SplitEventView> splitEvents(@PathVariable Long id) { return splitService.events(id); }
 
     @PostMapping("/reconciliations")
@@ -52,6 +56,7 @@ public class InventoryAccuracyController {
     }
 
     @GetMapping("/reconciliations/latest")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     ReconciliationRunView latest(@RequestParam Long stockSiteId) {
         return reconciliationService.latest(stockSiteId);
     }

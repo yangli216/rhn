@@ -204,9 +204,30 @@ public class ResidentService implements ResidentDirectory {
     @Override
     @Transactional(readOnly = true)
     public ResidentSnapshot requireSnapshot(Long residentId) {
-        Long canonicalId = resolveCanonicalResidentId(residentId);
-        Resident resident = requireEntity(canonicalId);
+        return requireSnapshot(TenantContext.requireTenantId(), residentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ResidentSnapshot requireSnapshot(Long tenantId, Long residentId) {
+        Long canonicalId = resolveCanonicalResidentId(tenantId, residentId);
+        Resident resident = requireEntity(tenantId, canonicalId);
         return snapshot(resident);
+    }
+
+    private Long resolveCanonicalResidentId(Long tenantId, Long residentId) {
+        Resident resident = requireEntity(tenantId, residentId);
+        Set<Long> visited = new LinkedHashSet<>();
+        while (resident.status() == ResidentStatus.MERGED) {
+            if (resident.mergedIntoId() == null || !visited.add(resident.id()) || visited.size() > 10) {
+                throw new IllegalStateException("Invalid resident merge chain");
+            }
+            resident = requireEntity(tenantId, resident.mergedIntoId());
+        }
+        if (resident.status() != ResidentStatus.ACTIVE) {
+            throw conflict("RESIDENT_NOT_ACTIVE", "居民主索引当前不可用于业务登记");
+        }
+        return resident.id();
     }
 
     @Override
@@ -346,7 +367,11 @@ public class ResidentService implements ResidentDirectory {
     }
 
     Resident requireEntity(Long residentId) {
-        return residentRepository.findByIdAndTenantId(residentId, TenantContext.requireTenantId())
+        return requireEntity(TenantContext.requireTenantId(), residentId);
+    }
+
+    private Resident requireEntity(Long tenantId, Long residentId) {
+        return residentRepository.findByIdAndTenantId(residentId, tenantId)
                 .orElseThrow(() -> notFound("RESIDENT_NOT_FOUND", "未找到居民"));
     }
 

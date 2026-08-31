@@ -78,13 +78,42 @@ public class TaskService {
     public void projectEncounterEvents(DomainEventEnvelope event) {
         if (!Set.of("OUTPATIENT_REGISTERED", "ENCOUNTER_STARTED", "ENCOUNTER_COMPLETED",
                 "CLINICAL_DOCUMENT_READY_FOR_SIGNATURE", "CLINICAL_DOCUMENT_SIGNED",
-                "CARE_TASK_READY").contains(event.eventType())) return;
+                "CARE_TASK_READY", "DIAGNOSTIC_CRITICAL_VALUE_OPENED",
+                "DIAGNOSTIC_CRITICAL_VALUE_ACKNOWLEDGED", "DIAGNOSTIC_CRITICAL_VALUE_CLOSED",
+                "DIAGNOSTIC_CRITICAL_VALUE_SUPERSEDED").contains(event.eventType())) return;
         eventConsumer.consume("work-task-projector", event, () -> {
             if (event.eventType().equals("OUTPATIENT_REGISTERED")) createEncounterTask(event);
             else if (event.eventType().equals("CLINICAL_DOCUMENT_READY_FOR_SIGNATURE")) createSignatureTask(event);
             else if (event.eventType().equals("CLINICAL_DOCUMENT_SIGNED")) completeSignatureTask(event);
             else if (event.eventType().equals("CARE_TASK_READY")) createCareTaskProjection(event);
+            else if (event.eventType().equals("DIAGNOSTIC_CRITICAL_VALUE_OPENED")) createCriticalValueTask(event);
+            else if (event.eventType().startsWith("DIAGNOSTIC_CRITICAL_VALUE_")) completeCriticalValueTask(event);
             else completeEncounterTask(event);
+        });
+    }
+
+    private void createCriticalValueTask(DomainEventEnvelope event) {
+        String dedupKey = "CRITICAL_VALUE:" + event.aggregateId();
+        if (repository.existsByTenantIdAndDedupKey(event.tenantId(), dedupKey)) return;
+        Long departmentId = longPayload(event, "departmentId");
+        WorkTask task = WorkTask.userTask(event.tenantId(), event.organizationId(), departmentId,
+                longPayload(event, "recipientUserId"), "CRITICAL_VALUE_ACKNOWLEDGE", "检验危急值待确认",
+                "收到检验危急值，请立即查看并确认", TaskPriority.URGENT, event.subjectId(),
+                longPayload(event, "encounterId"), event.aggregateType(), event.aggregateId(),
+                "/outpatient/reception?encounterId=" + longPayload(event, "encounterId"), dedupKey,
+                Instant.now().plus(Duration.ofMinutes(15)), actorId(event));
+        repository.save(task);
+        historyRepository.save(new WorkTaskHistory(task, "CREATE", null, actorId(event),
+                "由危急值告警自动创建", event.correlationId()));
+    }
+
+    private void completeCriticalValueTask(DomainEventEnvelope event) {
+        repository.findByTenantIdAndSourceTypeAndSourceIdAndTaskType(event.tenantId(), event.aggregateType(),
+                event.aggregateId(), "CRITICAL_VALUE_ACKNOWLEDGE").ifPresent(task -> {
+            if (task.status() == TaskStatus.COMPLETED || task.status() == TaskStatus.CANCELLED) return;
+            TaskStatus before = task.complete(actorId(event));
+            historyRepository.save(new WorkTaskHistory(task, "AUTO_COMPLETE", before, actorId(event),
+                    "危急值已确认或报告已替代", event.correlationId()));
         });
     }
 

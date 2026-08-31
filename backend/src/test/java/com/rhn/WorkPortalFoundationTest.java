@@ -17,6 +17,7 @@ class WorkPortalFoundationTest extends RhnIntegrationTestSupport {
     void trusted_context_tasks_notifications_and_portal_summary_form_a_closed_loop() throws Exception {
         mockMvc.perform(get("/api/session").with(rhn()))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.refreshLoginEnabled").value(false))
                 .andExpect(jsonPath("$.userId").value("362387869790222"))
                 .andExpect(jsonPath("$.workContexts[?(@.departmentId == '%s')].organizationId"
                         .formatted(DEPARTMENT)).value(ORGANIZATION))

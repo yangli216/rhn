@@ -137,10 +137,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 attributes.hashItemAttrSnapshot(), attributes.resolvedAt(), jsonCodec.write(mappings),
                 item.serviceType(), item.specimenType(), item.examinationType(),
                 input.quantity(), clean(input.clinicalDescription())));
-        publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目", Map.of(
-                "catalogItemId", value.catalogItemId(), "itemCode", value.itemCodeSnapshot(),
-                "itemName", value.itemNameSnapshot(), "quantity", value.quantity(),
-                "unitCode", value.unitCodeSnapshot()));
+        publish(value, "SERVICE_REQUEST_AUTHORED", "开立诊疗项目",
+                financialEventDetails(value, encounter));
         return response(value);
     }
 
@@ -160,8 +158,11 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 .orElseThrow(() -> notFound("SERVICE_REQUEST_NOT_FOUND", "未找到诊疗请求"));
         value.cancel(input.expectedRevision(), input.reason().trim(), context.subjectId());
         repository.flush();
-        publish(value, "SERVICE_REQUEST_CANCELLED", "撤销诊疗项目", Map.of(
-                "catalogItemId", value.catalogItemId(), "reason", input.reason().trim()));
+        Map<String, Object> eventDetails = new LinkedHashMap<>();
+        eventDetails.put("catalogItemId", value.catalogItemId());
+        eventDetails.put("reason", input.reason().trim());
+        eventDetails.put("cancelledBy", context.subjectId());
+        publish(value, "SERVICE_REQUEST_CANCELLED", "撤销诊疗项目", eventDetails);
         return response(value);
     }
 
@@ -207,6 +208,18 @@ class ServiceRequestService implements ServiceRequestDirectory {
         return snapshot(value);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ServiceRequestSnapshot> activeForExecution(Long organizationId, Long departmentId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.canAccessOrganization(organizationId) || !context.canAccessDepartment(departmentId)) {
+            throw com.rhn.shared.api.BusinessErrors.forbidden(
+                    "SERVICE_REQUEST_EXECUTION_SCOPE_INVALID", "无权读取当前工作上下文之外的诊疗请求");
+        }
+        return repository.findActiveForExecution(context.tenantId(), organizationId, departmentId)
+                .stream().map(this::snapshot).toList();
+    }
+
     private ServiceRequestSnapshot snapshot(ServiceRequest value) {
         return new ServiceRequestSnapshot(value.id(), value.revision(), value.tenantId(), value.residentId(),
                 value.encounterId(), value.requestNo(), value.status(), value.serviceTypeSnapshot(),
@@ -215,6 +228,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.examinationTypeSnapshot(), value.quantity(), value.unitCodeSnapshot(),
                 value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.clinicalDescription(),
+                value.totalAmount(), value.currencyCode(),
                 value.itemAttributeHash(), value.itemAttributeSnapshot(), value.standardMappingSnapshot());
     }
 
@@ -224,6 +238,32 @@ class ServiceRequestService implements ServiceRequestDirectory {
         payload.put("summary", summary);
         eventPublisher.publish(value.tenantId(), value.performerOrganizationId(), type, 1,
                 "ServiceRequest", value.id(), value.revision(), value.residentId(), Instant.now(), payload);
+    }
+
+    private Map<String, Object> financialEventDetails(ServiceRequest value,
+                                                       EncounterDirectory.EncounterSnapshot encounter) {
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("encounterId", encounter.id());
+        details.put("residentId", encounter.residentId());
+        details.put("encounterOrganizationId", encounter.organizationId());
+        details.put("encounterDepartmentId", encounter.departmentId());
+        details.put("catalogItemId", value.catalogItemId());
+        details.put("serviceType", value.serviceTypeSnapshot());
+        details.put("performerDepartmentId", value.performerDepartmentId());
+        if (value.specimenTypeSnapshot() != null) details.put("specimenType", value.specimenTypeSnapshot());
+        if (value.examinationTypeSnapshot() != null) details.put("examinationType", value.examinationTypeSnapshot());
+        details.put("authoredBy", value.authoredBy());
+        details.put("chargeQuantity", value.quantity());
+        details.put("chargeUnit", value.unitCodeSnapshot());
+        details.put("itemCode", value.itemCodeSnapshot());
+        details.put("itemName", value.itemNameSnapshot());
+        if (value.priceId() != null) details.put("priceId", value.priceId());
+        if (value.priceRevision() != null) details.put("priceRevision", value.priceRevision());
+        if (value.priceType() != null) details.put("priceType", value.priceType());
+        if (value.unitPrice() != null) details.put("unitPrice", value.unitPrice());
+        if (value.totalAmount() != null) details.put("totalAmount", value.totalAmount());
+        if (value.currencyCode() != null) details.put("currencyCode", value.currencyCode());
+        return details;
     }
 
     private String nextRequestNo() {

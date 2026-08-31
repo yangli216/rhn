@@ -15,8 +15,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
+@SpringBootTest(classes = RhnApplication.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -34,6 +36,7 @@ abstract class RhnIntegrationTestSupport {
         return request -> {
             httpBasic("doctor", "test-password").postProcessRequest(request);
             ((MockHttpServletRequest) request).addHeader("X-Tenant-Id", TENANT);
+            ((MockHttpServletRequest) request).addHeader("X-Client-Session-Id", "test-session-doctor");
             return request;
         };
     }
@@ -42,6 +45,7 @@ abstract class RhnIntegrationTestSupport {
         return request -> {
             httpBasic("doctor", "test-password").postProcessRequest(request);
             ((MockHttpServletRequest) request).addHeader("X-Tenant-Id", tenantId);
+            ((MockHttpServletRequest) request).addHeader("X-Client-Session-Id", "test-session-doctor");
             return request;
         };
     }
@@ -66,5 +70,66 @@ abstract class RhnIntegrationTestSupport {
 
     protected JsonNode json(String value) {
         return objectMapper.readTree(value);
+    }
+
+    protected void prepareSignedDischargeRecord(String residentId, String encounterId, String commandPrefix)
+            throws Exception {
+        createAndSignDocument(residentId, encounterId, "INPATIENT_DISCHARGE_RECORD", "出院记录",
+                commandPrefix + "-RECORD");
+    }
+
+    protected void recordInpatientNoKnownDrugAllergy(String residentId, String encounterId) throws Exception {
+        mockMvc.perform(post("/api/residents/{residentId}/allergies", residentId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "encounterId":"%s",
+                                  "assertionType":"NO_KNOWN_DRUG_ALLERGY",
+                                  "informationSource":"PATIENT"
+                                }
+                                """.formatted(encounterId)))
+                .andExpect(status().isCreated());
+    }
+
+    protected String createAndSignDocument(String residentId, String encounterId, String documentType,
+                                           String title, String contentText) throws Exception {
+        String response = mockMvc.perform(post("/api/clinical-documents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s",
+                                  "encounterId":"%s",
+                                  "organizationId":"%s",
+                                  "departmentId":"%s",
+                                  "documentType":"%s",
+                                  "title":"%s",
+                                  "contentSchema":"RHN.CANVAS_EDITOR_DOCUMENT.V1",
+                                  "content":{"plainText":"%s","structuredValues":{}},
+                                  "changeReason":"住院出院资料准备"
+                                }
+                                """.formatted(residentId, encounterId, ORGANIZATION, DEPARTMENT,
+                                documentType, title, contentText)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        JsonNode document = json(response);
+        String documentId = document.get("id").asText();
+        mockMvc.perform(post("/api/clinical-documents/{documentId}/sign", documentId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"expectedCurrentVersion":%d,"signatureMeaning":"AUTHOR"}
+                                """.formatted(document.get("currentVersion").asInt())))
+                .andExpect(status().isOk());
+        return documentId;
+    }
+
+    protected void recordPrimaryDischargeDiagnosis(String episodeId, long expectedEpisodeRevision,
+                                                    String code, String display, String commandCode)
+            throws Exception {
+        mockMvc.perform(put("/api/inpatient/episodes/{episodeId}/discharge-diagnoses", episodeId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "expectedEpisodeRevision":%d,
+                                  "diagnoses":[{"code":"%s","display":"%s","diagnosisType":"PRIMARY"}],
+                                  "commandCode":"%s"
+                                }
+                                """.formatted(expectedEpisodeRevision, code, display, commandCode)))
+                .andExpect(status().isOk());
     }
 }

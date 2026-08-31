@@ -8,6 +8,13 @@ import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.lang.ConditionEvents;
 import com.tngtech.archunit.lang.SimpleConditionEvent;
+import com.rhn.pharmacy.application.InventoryAvailabilityService;
+import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
+import com.rhn.pharmacy.infrastructure.InventoryTransactionRepository;
+import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
+import com.rhn.pharmacy.application.InventoryApplicationService;
+import com.rhn.pharmacy.application.DispenseApplicationService;
+import org.junit.jupiter.api.Tag;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.ObjectMapper;
 
@@ -19,9 +26,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 
 @AnalyzeClasses(packages = "com.rhn", importOptions = ImportOption.DoNotIncludeTests.class)
+@Tag("outpatient-main-flow")
 class ArchitectureTest {
     private static final Set<String> BUSINESS_MODULES = Set.of(
-            "billing", "diagnostics", "healthcore", "healthplanning", "outpatient", "pharmacy");
+            "ai", "billing", "coordination", "diagnostics", "healthcore", "healthplanning", "inpatient", "outpatient", "pharmacy", "treatment");
 
     @ArchTest
     static final ArchRule persistent_model_does_not_reintroduce_uuid_identifiers = noClasses()
@@ -29,14 +37,52 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule business_modules_are_free_of_cycles = slices()
-            .matching("com.rhn.(billing|diagnostics|healthcore|healthplanning|outpatient|pharmacy|platform)..")
+            .matching("com.rhn.(ai|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
             .should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule mutable_inventory_balance_repository_is_hidden_behind_availability_gateway = classes()
+            .that().resideInAPackage("com.rhn.pharmacy..")
+            .should(new ArchCondition<>("access mutable inventory balances only through InventoryAvailabilityService") {
+                @Override
+                public void check(JavaClass source, ConditionEvents events) {
+                    if (source.getName().equals(InventoryAvailabilityService.class.getName())) return;
+                    source.getDirectDependenciesFromSelf().stream()
+                            .filter(dependency -> dependency.getTargetClass().getName()
+                                    .equals(InventoryBalanceRepository.class.getName()))
+                            .forEach(dependency -> events.add(SimpleConditionEvent.violated(source,
+                                    source.getName() + " bypasses InventoryAvailabilityService")));
+                }
+            });
+
+    @ArchTest
+    static final ArchRule inventory_ledger_repositories_are_hidden_behind_ledger_service = classes()
+            .that().resideInAPackage("com.rhn.pharmacy..")
+            .should(new ArchCondition<>("access ledger repositories only through the ledger service") {
+                @Override
+                public void check(JavaClass source, ConditionEvents events) {
+                    boolean postingService = source.getName().equals(InventoryApplicationService.class.getName());
+                    boolean originalLineReader = source.getName().equals(DispenseApplicationService.class.getName());
+                    source.getDirectDependenciesFromSelf().forEach(dependency -> {
+                        String target = dependency.getTargetClass().getName();
+                        boolean forbiddenTransactionAccess = target.equals(InventoryTransactionRepository.class.getName())
+                                && !postingService;
+                        boolean forbiddenLineAccess = target.equals(InventoryTransactionLineRepository.class.getName())
+                                && !postingService && !originalLineReader;
+                        if (forbiddenTransactionAccess || forbiddenLineAccess) {
+                            events.add(SimpleConditionEvent.violated(source,
+                                    source.getName() + " bypasses InventoryLedgerPostingService"));
+                        }
+                    });
+                }
+            });
 
     @ArchTest
     static final ArchRule business_modules_depend_only_on_other_business_modules_public_api = classes()
             .that().resideInAnyPackage(
-                    "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
-                    "com.rhn.healthplanning..", "com.rhn.outpatient..", "com.rhn.pharmacy..")
+                    "com.rhn.ai..", "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
+                    "com.rhn.healthplanning..", "com.rhn.inpatient..", "com.rhn.outpatient..", "com.rhn.pharmacy..", "com.rhn.treatment..",
+                    "com.rhn.coordination..")
             .should(new ArchCondition<>("depend on other business modules only through their api packages") {
                 @Override
                 public void check(JavaClass source, ConditionEvents events) {

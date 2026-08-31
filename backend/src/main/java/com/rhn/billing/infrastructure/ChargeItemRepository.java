@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,6 +16,8 @@ public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
     List<ChargeItem> findByTenantIdAndReversesChargeItemIdOrderByOccurredAtAscIdAsc(Long tenantId,
                                                                                      Long reversesChargeItemId);
     List<ChargeItem> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);
+    List<ChargeItem> findByTenantIdAndPatientAccountIdInOrderByOccurredAtDescIdDesc(
+            Long tenantId, Collection<Long> accountIds);
 
     @Query("""
             select c from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId = :accountId
@@ -22,6 +25,13 @@ public interface ChargeItemRepository extends JpaRepository<ChargeItem, Long> {
             order by c.occurredAt, c.id
             """)
     List<ChargeItem> findUninvoiced(@Param("tenantId") Long tenantId, @Param("accountId") Long accountId);
+
+    @Query("""
+            select c from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId in :accountIds
+              and not exists (select l.id from InvoiceLine l where l.tenantId = c.tenantId and l.chargeItemId = c.id)
+            """)
+    List<ChargeItem> findUninvoiced(@Param("tenantId") Long tenantId,
+                                    @Param("accountIds") Collection<Long> accountIds);
 
     @Query("""
             select c from ChargeItem c where c.tenantId = :tenantId and c.patientAccountId in :accountIds

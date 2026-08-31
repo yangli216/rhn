@@ -19,6 +19,7 @@ record MedicationRequestResponse(
         String preparationSpec, String preparationUnit, boolean skinTestRequired,
         boolean antimicrobial, String antimicrobialLevel,
         BigDecimal doseValue, String doseUnit, String routeCode, String frequencyCode,
+        Long frequencyId, String frequencyName, JsonNode frequencyRule,
         BigDecimal durationValue, String durationUnit,
         BigDecimal quantity, String quantityUnit, BigDecimal baseQuantity, String baseUnit,
         BigDecimal packageFactor, String packageUnitName, String packageSpec,

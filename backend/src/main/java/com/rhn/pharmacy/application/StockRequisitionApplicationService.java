@@ -13,7 +13,6 @@ import com.rhn.pharmacy.domain.StockRequisition;
 import com.rhn.pharmacy.domain.StockRequisitionAllocation;
 import com.rhn.pharmacy.domain.StockRequisitionLine;
 import com.rhn.pharmacy.domain.StockSite;
-import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
 import com.rhn.pharmacy.infrastructure.InventoryDocumentEventRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
 import com.rhn.pharmacy.infrastructure.StockRequisitionAllocationRepository;
@@ -33,6 +32,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -52,9 +52,9 @@ public class StockRequisitionApplicationService {
     private final StockRequisitionAllocationRepository allocationRepository;
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
-    private final InventoryBalanceRepository balanceRepository;
+    private final InventoryAvailabilityService availabilityService;
     private final InventoryDocumentEventRepository eventRepository;
-    private final InventoryApplicationService inventoryService;
+    private final InventoryLedgerPostingService inventoryService;
     private final InventoryTraceApplicationService traceService;
     private final OrganizationDirectory organizationDirectory;
     private final ExecutionContextProvider contextProvider;
@@ -62,12 +62,12 @@ public class StockRequisitionApplicationService {
     public StockRequisitionApplicationService(
             StockRequisitionRepository repository, StockRequisitionLineRepository lineRepository,
             StockRequisitionAllocationRepository allocationRepository, StockSiteRepository siteRepository,
-            StockItemRepository itemRepository, InventoryBalanceRepository balanceRepository,
-            InventoryDocumentEventRepository eventRepository, InventoryApplicationService inventoryService,
+            StockItemRepository itemRepository, InventoryAvailabilityService availabilityService,
+            InventoryDocumentEventRepository eventRepository, InventoryLedgerPostingService inventoryService,
             InventoryTraceApplicationService traceService,
             OrganizationDirectory organizationDirectory, ExecutionContextProvider contextProvider) {
         this.repository = repository; this.lineRepository = lineRepository; this.allocationRepository = allocationRepository;
-        this.siteRepository = siteRepository; this.itemRepository = itemRepository; this.balanceRepository = balanceRepository;
+        this.siteRepository = siteRepository; this.itemRepository = itemRepository; this.availabilityService = availabilityService;
         this.eventRepository = eventRepository; this.inventoryService = inventoryService; this.traceService = traceService;
         this.organizationDirectory = organizationDirectory; this.contextProvider = contextProvider;
     }
@@ -126,7 +126,9 @@ public class StockRequisitionApplicationService {
     @Transactional
     public RequisitionView approve(Long id, ApproveRequisitionCommand input) {
         ExecutionContext context = requireWorkContext(); StockRequisition value = lock(context, id, true);
-        List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id);
+        List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id).stream()
+                .sorted(Comparator.comparing(StockRequisitionLine::stockItemId)
+                        .thenComparing(StockRequisitionLine::id)).toList();
         if (input.lines() == null || input.lines().size() != lines.size()) {
             throw badRequest("REQUISITION_APPROVAL_INCOMPLETE", "必须逐条审批全部请领明细");
         }
@@ -163,20 +165,22 @@ public class StockRequisitionApplicationService {
     public RequisitionView pick(Long id) {
         ExecutionContext context = requireWorkContext(); StockRequisition value = lock(context, id, true);
         if (!"APPROVED".equals(value.status())) throw conflict("REQUISITION_STATE_INVALID", "只有已审核请领单可以拣货");
-        List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id);
+        List<StockRequisitionLine> lines = lineRepository.lockByRequisition(context.tenantId(), id).stream()
+                .sorted(Comparator.comparing(StockRequisitionLine::stockItemId)
+                        .thenComparing(StockRequisitionLine::id)).toList();
         LocalDate businessDate = LocalDate.now();
         for (StockRequisitionLine line : lines) {
             if (!"APPROVED".equals(line.lineStatus())) continue;
             StockItem item = requireItem(context, line.stockItemId(), value.sourceSiteId());
             List<InventoryBalance> candidates = "FIFO".equals(item.issuePolicy())
-                    ? balanceRepository.lockIssuableFifo(context.tenantId(), value.sourceSiteId(), item.id(), businessDate)
-                    : balanceRepository.lockIssuableFefo(context.tenantId(), value.sourceSiteId(), item.id(), businessDate);
+                    ? availabilityService.lockIssuable(context.tenantId(), value.sourceSiteId(), item.id(), businessDate, "FIFO")
+                    : availabilityService.lockIssuable(context.tenantId(), value.sourceSiteId(), item.id(), businessDate, "FEFO");
             BigDecimal remaining = line.approvedQuantity();
             for (InventoryBalance balance : candidates) {
                 if (remaining.signum() == 0) break;
                 BigDecimal quantity = remaining.min(balance.quantityAvailable());
                 if (quantity.signum() <= 0) continue;
-                balance.reserve(quantity); balanceRepository.save(balance);
+                balance.reserve(quantity); availabilityService.save(balance);
                 allocationRepository.save(new StockRequisitionAllocation(context.tenantId(), line.id(),
                         balance.stockBinId(), balance.stockLotId(), balance.stockStatus(), quantity, context.subjectId()));
                 remaining = remaining.subtract(quantity);
@@ -186,7 +190,7 @@ public class StockRequisitionApplicationService {
         }
         String from = value.status(); transition(() -> value.markPicking(context.subjectId()));
         appendEvent(context, value, "PICKED", from, value.status(), null);
-        balanceRepository.flush(); allocationRepository.flush(); lineRepository.flush(); return view(context, value);
+        availabilityService.flush(); allocationRepository.flush(); lineRepository.flush(); return view(context, value);
     }
 
     @Transactional
@@ -205,12 +209,9 @@ public class StockRequisitionApplicationService {
             if (allocated.compareTo(line.approvedQuantity()) != 0) throw conflict("REQUISITION_ALLOCATION_INCOMPLETE", "请领分配数量与批准数量不一致");
             for (StockRequisitionAllocation allocation : allocations) {
                 if (!"ALLOCATED".equals(allocation.status())) throw conflict("REQUISITION_ALLOCATION_STATE_INVALID", "请领分配明细已处理");
-                InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), allocation.stockBinId(),
-                        line.stockItemId(), allocation.stockLotId(), allocation.stockStatus())
-                        .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "请领分配库存不存在"));
                 postingLines.add(new DocumentPostingLineCommand(allocation.stockBinId(), line.stockItemId(),
                         allocation.stockLotId(), allocation.stockStatus(), allocation.allocatedQuantity().negate(),
-                        balance.averageUnitCost(), true));
+                        null, true));
             }
         }
         var transaction = inventoryService.postDocument(new DocumentPostingCommand(value.requestCode() + ":ISSUE",

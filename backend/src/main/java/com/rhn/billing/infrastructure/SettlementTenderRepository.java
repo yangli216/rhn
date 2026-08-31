@@ -17,6 +17,6 @@ public interface SettlementTenderRepository extends JpaRepository<SettlementTend
     boolean existsByTenantIdAndClaimResponseId(Long tenantId, Long claimResponseId);
     @Query("select coalesce(sum(value.tenderAmount), 0) from SettlementTender value where value.tenantId = :tenantId and value.settlementId = :settlementId")
     BigDecimal totalTendered(@Param("tenantId") Long tenantId, @Param("settlementId") Long settlementId);
-    @Query("select coalesce(sum(value.tenderAmount), 0) from SettlementTender value where value.tenantId = :tenantId and value.settlementId = :settlementId and value.paymentId is null")
+    @Query("select coalesce(sum(value.tenderAmount), 0) from SettlementTender value where value.tenantId = :tenantId and value.settlementId = :settlementId and (value.paymentId is null or value.tenderType = 'PREPAYMENT')")
     BigDecimal nonPaymentTendered(@Param("tenantId") Long tenantId, @Param("settlementId") Long settlementId);
 }

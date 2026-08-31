@@ -9,7 +9,6 @@ import com.rhn.pharmacy.domain.StockBin;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockLot;
 import com.rhn.pharmacy.domain.StockSite;
-import com.rhn.pharmacy.infrastructure.InventoryBalanceRepository;
 import com.rhn.pharmacy.infrastructure.InventoryOpenPackageRepository;
 import com.rhn.pharmacy.infrastructure.InventorySplitEventRepository;
 import com.rhn.pharmacy.infrastructure.StockBinRepository;
@@ -38,7 +37,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 public class InventorySplitApplicationService {
     private final InventoryOpenPackageRepository openRepository;
     private final InventorySplitEventRepository eventRepository;
-    private final InventoryBalanceRepository balanceRepository;
+    private final InventoryAvailabilityService availabilityService;
     private final StockSiteRepository siteRepository;
     private final StockItemRepository itemRepository;
     private final StockBinRepository binRepository;
@@ -50,7 +49,7 @@ public class InventorySplitApplicationService {
 
     public InventorySplitApplicationService(InventoryOpenPackageRepository openRepository,
                                             InventorySplitEventRepository eventRepository,
-                                            InventoryBalanceRepository balanceRepository,
+                                            InventoryAvailabilityService availabilityService,
                                             StockSiteRepository siteRepository, StockItemRepository itemRepository,
                                             StockBinRepository binRepository, StockLotRepository lotRepository,
                                             CatalogLifecycleDirectory catalogDirectory,
@@ -58,7 +57,7 @@ public class InventorySplitApplicationService {
                                             InventoryTraceApplicationService traceService,
                                             ExecutionContextProvider contextProvider) {
         this.openRepository = openRepository; this.eventRepository = eventRepository;
-        this.balanceRepository = balanceRepository; this.siteRepository = siteRepository;
+        this.availabilityService = availabilityService; this.siteRepository = siteRepository;
         this.itemRepository = itemRepository; this.binRepository = binRepository; this.lotRepository = lotRepository;
         this.catalogDirectory = catalogDirectory; this.quantityPolicy = quantityPolicy;
         this.traceService = traceService;
@@ -74,7 +73,7 @@ public class InventorySplitApplicationService {
         StockSite site = requireSite(context, input.stockSiteId()); StockItem item = requireItem(context, input.stockItemId());
         StockBin bin = requireBin(context, input.stockBinId()); StockLot lot = requireLot(context, input.stockLotId());
         validateDimension(site, item, bin, lot);
-        InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), bin.id(), item.id(), lot.id(), "AVAILABLE")
+        InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), bin.id(), item.id(), lot.id(), "AVAILABLE")
                 .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "拆零对应的可用库存不存在"));
         InventoryOpenPackage value = createOpen(context, site, item, bin.id(), lot.id(), balance,
                 requestCode, "MANUAL_SPLIT", null, requestCode, input.description(), input.occurredAt());
@@ -102,7 +101,7 @@ public class InventorySplitApplicationService {
         if (!item.splitAllowed()) throw conflict("SPLIT_NOT_ALLOWED", "当前经营项目不允许拆零发药");
         BigDecimal requiredQuantity = quantityPolicy.require(context.tenantId(), item.baseUnitCode(), baseQuantity,
                 "SPLIT_QUANTITY_PRECISION_INVALID", "拆零发药数量");
-        InventoryBalance balance = balanceRepository.lockDimension(context.tenantId(), binId, item.id(), lotId, "AVAILABLE")
+        InventoryBalance balance = availabilityService.lockDimension(context.tenantId(), binId, item.id(), lotId, "AVAILABLE")
                 .orElseThrow(() -> conflict("INVENTORY_BALANCE_NOT_FOUND", "拆零发药对应库存不存在"));
         List<InventoryOpenPackage> packages = new ArrayList<>(
                 openRepository.lockOpenByDimension(context.tenantId(), binId, item.id(), lotId));

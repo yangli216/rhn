@@ -1,6 +1,7 @@
 package com.rhn.outpatient.scheduling;
 
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory.ReceptionQueueItem;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,6 +20,7 @@ class ReceptionController {
     }
 
     @GetMapping("/queue")
+    @PreAuthorize("hasAnyAuthority('OUTPATIENT_REGISTRATION.ACCESS','OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
     List<ReceptionQueueItem> queue(@RequestParam(required = false) LocalDate date) {
         return service.queue(date);
     }

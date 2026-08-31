@@ -1,0 +1,62 @@
+.inpatient-record-amendment,
+.inpatient-record-picker {
+  padding: var(--space-2) var(--space-4);
+  display: flex;
+  align-items: end;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.inpatient-record-amendment .ui-field,
+.inpatient-record-picker .ui-field {
+  min-width: 0;
+  margin: 0;
+  flex: 1;
+}
+
+.inpatient-record-versions {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.inpatient-record-versions summary {
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+.inpatient-record-versions > div {
+  padding: 0 var(--space-4) var(--space-3);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-2);
+}
+
+.inpatient-record-versions article {
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.inpatient-record-versions article span,
+.inpatient-record-versions article small {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.inpatient-record-editor > .ui-alert .ui-button {
+  margin-left: var(--space-3);
+}
+
+@media (max-width: 47.5rem) {
+  .inpatient-record-amendment,
+  .inpatient-record-picker {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

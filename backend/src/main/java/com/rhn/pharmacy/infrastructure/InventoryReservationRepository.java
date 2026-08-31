@@ -14,6 +14,19 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     List<InventoryReservation> findByTenantIdAndReservationGroupCodeOrderByCreatedAt(
             Long tenantId, String reservationGroupCode);
     List<InventoryReservation> findByTenantIdAndRequestIdOrderByCreatedAt(Long tenantId, Long requestId);
+    List<InventoryReservation> findByTenantIdAndDispenseTaskLineIdOrderByCreatedAt(
+            Long tenantId, Long dispenseTaskLineId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from InventoryReservation r
+            where r.tenantId = :tenantId and r.dispenseTaskLineId = :dispenseTaskLineId
+              and r.status in ('ACTIVE', 'PARTIAL')
+            order by r.createdAt, r.id
+            """)
+    List<InventoryReservation> lockActiveByDispenseTaskLine(
+            @Param("tenantId") Long tenantId,
+            @Param("dispenseTaskLineId") Long dispenseTaskLineId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -28,25 +41,26 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from InventoryReservation r
-            where r.tenantId = :tenantId and r.requestId = :requestId
+            where r.tenantId = :tenantId and r.dispenseTaskLineId = :dispenseTaskLineId
               and r.status in ('ACTIVE', 'PARTIAL') and r.expiresAt <= :now
             order by r.createdAt, r.id
             """)
-    List<InventoryReservation> lockDueByRequest(@Param("tenantId") Long tenantId,
-                                                 @Param("requestId") Long requestId,
-                                                 @Param("now") Instant now);
+    List<InventoryReservation> lockDueByDispenseTaskLine(
+            @Param("tenantId") Long tenantId,
+            @Param("dispenseTaskLineId") Long dispenseTaskLineId,
+            @Param("now") Instant now);
 
     @Query("""
-            select distinct r.tenantId as tenantId, r.requestId as requestId
+            select distinct r.tenantId as tenantId, r.dispenseTaskLineId as dispenseTaskLineId
             from InventoryReservation r
             where r.reservationType = 'DISPENSE' and r.status in ('ACTIVE', 'PARTIAL')
               and r.expiresAt <= :now
-            order by r.tenantId, r.requestId
+            order by r.tenantId, r.dispenseTaskLineId
             """)
     List<DueReservationKey> findDueKeys(@Param("now") Instant now);
 
     interface DueReservationKey {
         Long getTenantId();
-        Long getRequestId();
+        Long getDispenseTaskLineId();
     }
 }

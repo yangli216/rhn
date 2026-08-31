@@ -38,7 +38,7 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
         String body = """
                 {
                   "practitionerId":"362387869790223",
-                  "catalogItemId":"362387869795101",
+                  "catalogItemId":"362387869795104",
                   "dateFrom":"%s",
                   "dateTo":"%s",
                   "weekdays":[1],
@@ -118,7 +118,6 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdStatusText").value("已取消"));
 
         String overlappingBody = body
-                .replace("362387869795101", "362387869795102")
                 .replace(requestCode, "test-schedule-overlap-" + GlobalIds.next())
                 .replace("[\"MORNING\",\"AFTERNOON\"]", "[\"MORNING\"]");
         mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
@@ -126,6 +125,15 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.generatedCount").value(0))
                 .andExpect(jsonPath("$.skippedCount").value(1));
+
+        String invalidLaboratoryBody = body
+                .replace("362387869795104", "362387869795101")
+                .replace(requestCode, "test-invalid-laboratory-" + GlobalIds.next());
+        mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(invalidLaboratoryBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("SCHEDULE_SERVICE_CATEGORY_INVALID"));
 
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from schedule_slot_pools where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));

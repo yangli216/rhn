@@ -9,6 +9,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Collection;
 
 public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> {
     Optional<LedgerEntry> findByTenantIdAndChargeItemId(Long tenantId, Long chargeItemId);
@@ -23,6 +24,20 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
               from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId = :accountId
             """)
     BigDecimal balance(@Param("tenantId") Long tenantId, @Param("accountId") Long accountId);
+
+    @Query("""
+            select e.patientAccountId as accountId,
+                   coalesce(sum(case when e.direction = 'DEBIT' then e.amount else -e.amount end), 0) as balance
+              from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId in :accountIds
+             group by e.patientAccountId
+            """)
+    List<AccountBalance> balances(@Param("tenantId") Long tenantId,
+                                  @Param("accountIds") Collection<Long> accountIds);
+
+    interface AccountBalance {
+        Long getAccountId();
+        BigDecimal getBalance();
+    }
 
     @Query("""
             select e from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId in :accountIds

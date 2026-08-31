@@ -76,11 +76,16 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":2,\"signatureMeaning\":\"AUTHOR\"}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(post("/api/encounters/{id}/complete", encounterId).with(rhnWorkContext()))
+        mockMvc.perform(post("/api/encounters/{id}/complete", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dispositionCode\":\"FOLLOW_UP\",\"dispositionNote\":\"一周后复诊\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
 
         assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_completion_checks where encounter_id=? and result='PASS'", Integer.class, Long.valueOf(encounterId)));
         assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_work_sessions where encounter_id=? and status='CLOSED' and close_reason='COMPLETED'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals("诊毕检查通过；转归=FOLLOW_UP；说明=一周后复诊", jdbcTemplate.queryForObject(
+                "select reason from encounter_status_events where encounter_id=? and status_to='COMPLETED'",
+                String.class, Long.valueOf(encounterId)));
         assertEquals(3, count("encounter_status_events", encounterId));
     }
 

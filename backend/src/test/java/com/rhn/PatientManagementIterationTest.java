@@ -69,7 +69,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
         JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "practitionerId":"362387869790223","catalogItemId":"362387869795101",
+                                  "practitionerId":"362387869790223","catalogItemId":"362387869795104",
                                   "dateFrom":"%s","dateTo":"%s","weekdays":[%d],"dayParts":["MORNING"],
                                   "morningStart":"08:00","morningEnd":"12:00","capacity":5,
                                   "locationName":"全科门诊一诊室","idempotencyCode":"reception-schedule-%s"
