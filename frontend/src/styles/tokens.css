@@ -104,6 +104,6 @@
   --layout-sidebar-width: 15.5rem;
   --layout-sidebar-collapsed-width: 4.5rem;
   --layout-topbar-height: 2.75rem;
-  --layout-content-max: 92.5rem;
-  --layout-page-gutter: 2rem;
+  --layout-content-max: 100%;
+  --layout-page-gutter: 1.5rem;
 }
