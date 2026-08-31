@@ -1,19 +1,32 @@
 :root {
   color-scheme: light;
 
-  /* Feature styles consume semantic tokens instead of raw values. */
+  /* 默认：松石翡翠 (Emerald Jade) */
   --color-brand-primary: #0b6b62;
   --color-brand-strong: #064f49;
   --color-brand-soft: #e4f2ef;
   --color-brand-highlight: #7dd5c6;
+  --color-sidebar-start: #0a5d56;
+  --color-sidebar-middle: #073d3a;
+  --color-sidebar-end: #062f2d;
+  --color-sidebar-text: #d6e9e5;
+  --color-sidebar-text-muted: #a9c3bf;
+  --color-brand-halo: rgba(125, 213, 198, 0.12);
+  --color-focus-ring: rgba(11, 107, 98, 0.24);
+
+  --color-theme-dot-emerald: #0b6b62;
+  --color-theme-dot-ocean-blue: #0284c7;
+  --color-theme-dot-cobalt-indigo: #2563eb;
+  --color-theme-dot-forest-pine: #15803d;
+
   --color-text-primary: #172b29;
   --color-text-secondary: #526663;
   --color-text-disabled: #7e8d8a;
   --color-text-inverse: #ffffff;
-  --color-canvas: #f3f6f5;
+  --color-canvas: #f4f7f6;
   --color-surface: #ffffff;
-  --color-surface-subtle: #f7faf9;
-  --color-surface-muted: #eff3f2;
+  --color-surface-subtle: #f8faf9;
+  --color-surface-muted: #eff4f2;
   --color-border: #dfe7e5;
   --color-border-strong: #b8c8c5;
   --color-success: #17735f;
@@ -30,17 +43,10 @@
   --color-violet: #665587;
   --color-violet-soft: #efebf6;
   --color-overlay: rgba(4, 25, 23, 0.48);
-  --color-focus-ring: rgba(11, 107, 98, 0.22);
 
-  --color-sidebar-start: #0a5d56;
-  --color-sidebar-middle: #073d3a;
-  --color-sidebar-end: #062f2d;
-  --color-sidebar-text: #d6e9e5;
-  --color-sidebar-text-muted: #a9c3bf;
   --color-sidebar-hover: rgba(255, 255, 255, 0.08);
-  --color-sidebar-active: rgba(255, 255, 255, 0.14);
+  --color-sidebar-active: rgba(255, 255, 255, 0.15);
   --color-sidebar-border: rgba(255, 255, 255, 0.12);
-  --color-brand-halo: rgba(125, 213, 198, 0.1);
 
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   --font-size-display: 2rem;
@@ -79,9 +85,12 @@
   --radius-xl: 1rem;
   --radius-round: 999px;
 
-  --shadow-panel: 0 8px 24px rgba(23, 43, 41, 0.06);
-  --shadow-button: 0 7px 18px rgba(11, 107, 98, 0.16);
-  --shadow-modal: 0 24px 70px rgba(0, 0, 0, 0.22);
+  /* 多层环境光柔和阴影 */
+  --shadow-sm: 0 1px 3px rgba(15, 34, 32, 0.05), 0 1px 2px rgba(15, 34, 32, 0.03);
+  --shadow-panel: 0 1px 3px rgba(15, 34, 32, 0.04), 0 8px 24px -4px rgba(15, 34, 32, 0.07);
+  --shadow-hover: 0 4px 6px rgba(15, 34, 32, 0.04), 0 16px 32px -4px rgba(15, 34, 32, 0.10);
+  --shadow-button: 0 4px 12px color-mix(in srgb, var(--color-brand-primary) 22%, transparent);
+  --shadow-modal: 0 20px 50px -8px rgba(4, 25, 23, 0.28), 0 0 1px rgba(4, 25, 23, 0.12);
 
   --control-height-sm: 2rem;
   --control-height-md: 2.5rem;
@@ -106,4 +115,64 @@
   --layout-topbar-height: 2.75rem;
   --layout-content-max: 100%;
   --layout-page-gutter: 1.5rem;
+}
+
+/* 主题 1：松石翡翠 (Emerald Jade) */
+:root[data-theme-color="emerald"] {
+  --color-brand-primary: #0b6b62;
+  --color-brand-strong: #064f49;
+  --color-brand-soft: #e4f2ef;
+  --color-brand-highlight: #7dd5c6;
+  --color-sidebar-start: #0a5d56;
+  --color-sidebar-middle: #073d3a;
+  --color-sidebar-end: #062f2d;
+  --color-sidebar-text: #d6e9e5;
+  --color-sidebar-text-muted: #a9c3bf;
+  --color-brand-halo: rgba(125, 213, 198, 0.12);
+  --color-focus-ring: rgba(11, 107, 98, 0.24);
+}
+
+/* 主题 2：科技海蓝 (Ocean Blue - 现代综合医院) */
+:root[data-theme-color="ocean-blue"] {
+  --color-brand-primary: #0284c7;
+  --color-brand-strong: #0369a1;
+  --color-brand-soft: #e0f2fe;
+  --color-brand-highlight: #38bdf8;
+  --color-sidebar-start: #0c4a6e;
+  --color-sidebar-middle: #082f49;
+  --color-sidebar-end: #031c2e;
+  --color-sidebar-text: #dbeafe;
+  --color-sidebar-text-muted: #93c5fd;
+  --color-brand-halo: rgba(56, 189, 248, 0.12);
+  --color-focus-ring: rgba(2, 132, 199, 0.24);
+}
+
+/* 主题 3：深黛钴蓝 (Cobalt Indigo - 专科严谨) */
+:root[data-theme-color="cobalt-indigo"] {
+  --color-brand-primary: #2563eb;
+  --color-brand-strong: #1d4ed8;
+  --color-brand-soft: #eff6ff;
+  --color-brand-highlight: #60a5fa;
+  --color-sidebar-start: #1e3a8a;
+  --color-sidebar-middle: #172554;
+  --color-sidebar-end: #0f172a;
+  --color-sidebar-text: #e0e7ff;
+  --color-sidebar-text-muted: #a5b4fc;
+  --color-brand-halo: rgba(96, 165, 250, 0.12);
+  --color-focus-ring: rgba(37, 99, 235, 0.24);
+}
+
+/* 主题 4：苍林雅绿 (Forest Pine - 中医康复照护) */
+:root[data-theme-color="forest-pine"] {
+  --color-brand-primary: #15803d;
+  --color-brand-strong: #166534;
+  --color-brand-soft: #dcfce7;
+  --color-brand-highlight: #4ade80;
+  --color-sidebar-start: #14532d;
+  --color-sidebar-middle: #052e16;
+  --color-sidebar-end: #021a0c;
+  --color-sidebar-text: #dcfce7;
+  --color-sidebar-text-muted: #86efac;
+  --color-brand-halo: rgba(74, 222, 128, 0.12);
+  --color-focus-ring: rgba(21, 128, 61, 0.24);
 }

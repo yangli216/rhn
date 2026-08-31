@@ -2966,9 +2966,25 @@
 .inpatient-station-tabs .ui-tabs__items { overflow-x: auto; }
 .inpatient-doctor-overview { display: grid; grid-template-columns: minmax(18rem, .7fr) minmax(30rem, 1.3fr); align-items: start; gap: var(--space-3); }
 .inpatient-doctor-overview > .inpatient-episode-detail { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
-.inpatient-metrics > div { min-height: 5rem; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: 1fr auto; align-content: center; gap: var(--space-1) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
-.inpatient-metrics span, .inpatient-metrics small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.inpatient-metrics strong { grid-row: span 2; align-self: center; font-size: var(--font-size-h2); font-variant-numeric: tabular-nums; }
+.inpatient-metrics > div {
+  min-height: 5rem;
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: center;
+  gap: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.inpatient-metrics > div:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border));
+  box-shadow: var(--shadow-panel);
+}
+.inpatient-metrics span, .inpatient-metrics small { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.inpatient-metrics strong { grid-row: span 2; align-self: center; color: var(--color-brand-strong); font-size: 1.5rem; font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
 .inpatient-handover { margin-bottom: var(--space-3); overflow: hidden; }
 .inpatient-handover > .inpatient-section-head > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .inpatient-handover__metrics { padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-muted); }

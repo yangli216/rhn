@@ -87,6 +87,15 @@ export interface ClinicalContext {
   department: Department
 }
 
+export type ThemeColor = 'emerald' | 'ocean-blue' | 'cobalt-indigo' | 'forest-pine'
+
+export const THEME_OPTIONS: Array<{ id: ThemeColor; label: string; desc: string }> = [
+  { id: 'emerald', label: '松石翡翠', desc: '经典临床' },
+  { id: 'ocean-blue', label: '科技海蓝', desc: '综合医院' },
+  { id: 'cobalt-indigo', label: '深黛钴蓝', desc: '专科严谨' },
+  { id: 'forest-pine', label: '苍林雅绿', desc: '康复照护' },
+]
+
 interface AuthenticatedState {
   session: Session
   api: RhnApi
@@ -382,6 +391,15 @@ export function AppShell() {
   const [expandedDirectories, setExpandedDirectories] = useState(initialExpandedDirectories)
   const [hoveredNavigation, setHoveredNavigation] = useState<{ node: NavigationNode; top: number } | null>(null)
   const [collapsedDirectory, setCollapsedDirectory] = useState<{ node: NavigationNode; top: number } | null>(null)
+  const [themeColor, setThemeColor] = useState<ThemeColor>(() => {
+    const saved = localStorage.getItem('rhn.theme.color') as ThemeColor | null
+    return saved && THEME_OPTIONS.some((t) => t.id === saved) ? saved : 'emerald'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.themeColor = themeColor
+    localStorage.setItem('rhn.theme.color', themeColor)
+  }, [themeColor])
   const navigationHoverOpenTimer = useRef<number | null>(null)
   const navigationHoverCloseTimer = useRef<number | null>(null)
   const [tabs, setTabs] = useState<WorkspaceTab[]>([HOME_TAB])
@@ -782,6 +800,7 @@ export function AppShell() {
               onNavigate={(path) => navigate(path)} />
             <UserAccountMenu session={session} activeContexts={activeContexts}
               activeContextType={activeSlot.option.workContextType}
+              themeColor={themeColor} onThemeChange={setThemeColor}
               onSwitchWorkContext={switchWorkContext} onNavigate={(path) => navigate(path)} onLogout={logout} />
           </div>
         </header>
@@ -898,10 +917,12 @@ export function AppShell() {
   )
 }
 
-function UserAccountMenu({ session, activeContexts, activeContextType, onSwitchWorkContext, onNavigate, onLogout }: {
+function UserAccountMenu({ session, activeContexts, activeContextType, themeColor, onThemeChange, onSwitchWorkContext, onNavigate, onLogout }: {
   session: Session
   activeContexts: Partial<Record<WorkContextType, WorkContextSlot>>
   activeContextType: WorkContextType
+  themeColor: ThemeColor
+  onThemeChange: (theme: ThemeColor) => void
   onSwitchWorkContext: (contextType: WorkContextType, contextKey: string) => Promise<void>
   onNavigate: (path: string) => void
   onLogout: () => void
@@ -1006,6 +1027,20 @@ function UserAccountMenu({ session, activeContexts, activeContextType, onSwitchW
             <small>{WORK_CONTEXT_LABELS[slot.option.workContextType]}</small>
             <strong>{slot.clinicalContext.department.name}</strong>
           </span>)}
+        </div>
+      </div>
+
+      <div className="account-panel__theme-section">
+        <div className="account-panel__section-label"><span>系统主色调</span><small>自由切换</small></div>
+        <div className="account-panel__theme-grid" role="radiogroup" aria-label="系统主色调选择">
+          {THEME_OPTIONS.map((theme) => (
+            <button key={theme.id} type="button" role="radio" aria-checked={themeColor === theme.id}
+              className={`account-panel__theme-btn ${themeColor === theme.id ? 'is-active' : ''}`}
+              onClick={() => onThemeChange(theme.id)}>
+              <span className={`account-panel__theme-dot is-${theme.id}`} />
+              <span><strong>{theme.label}</strong><small>{theme.desc}</small></span>
+            </button>
+          ))}
         </div>
       </div>
 
