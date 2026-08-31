@@ -105,6 +105,7 @@
   --z-content: 0;
   --z-sticky: 10;
   --z-sidebar: 20;
+  --z-topbar: 30;
   --z-popover: 40;
   --z-modal: 50;
   --z-modal-popover: 55;
