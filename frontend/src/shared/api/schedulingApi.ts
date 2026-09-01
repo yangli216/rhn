@@ -121,9 +121,19 @@ export function createSchedulingApi(client: ApiClient) {
     schedules: (dateFrom: string, dateTo: string) => client.request<ServiceSchedule[]>(
       `/api/outpatient/scheduling/schedules?${dates(dateFrom, dateTo)}`,
     ),
-    receptionQueue: (date: string) => client.request<ReceptionQueueItem[]>(
-      `/api/outpatient/reception/queue?date=${encodeURIComponent(date)}`,
-    ),
+    receptionQueue: (dateOrFrom?: string, dateTo?: string) => {
+      const params = new URLSearchParams()
+      if (dateOrFrom && dateTo) {
+        params.set('dateFrom', dateOrFrom)
+        params.set('dateTo', dateTo)
+      } else if (dateOrFrom) {
+        params.set('date', dateOrFrom)
+      }
+      const queryStr = params.toString()
+      return client.request<ReceptionQueueItem[]>(
+        `/api/outpatient/reception/queue${queryStr ? `?${queryStr}` : ''}`,
+      )
+    },
     quickCreate: (input: QuickScheduleInput) => client.request<QuickScheduleResult>(
       '/api/outpatient/scheduling/quick-schedules', { method: 'POST', body: JSON.stringify(input) },
     ),

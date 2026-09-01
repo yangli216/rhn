@@ -30,9 +30,11 @@ public class OutpatientFlowController {
 
     @GetMapping
     BoardView board(@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+                    @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
                     @RequestParam(required = false) String flowStatus,
                     @RequestParam(required = false) String keyword) {
-        return service.board(date, flowStatus, keyword);
+        return service.board(date, dateFrom, dateTo, flowStatus, keyword);
     }
 
     @GetMapping("/{encounterId}/termination-readiness")

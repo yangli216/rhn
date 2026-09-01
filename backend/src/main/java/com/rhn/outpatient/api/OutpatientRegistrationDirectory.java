@@ -29,6 +29,8 @@ public interface OutpatientRegistrationDirectory {
 
     List<ReceptionQueueItem> queue(LocalDate queueDate);
 
+    List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo);
+
     record RegisterCommand(Long residentId, Long encounterId, Long organizationId, Long departmentId,
                            Long appointmentId, Long scheduleId, Long slotHoldId, String idempotencyCode, String registrationSource,
                            String visitType) {}

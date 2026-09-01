@@ -4,6 +4,7 @@ export type IconName =
   | 'add'
   | 'arrow-left'
   | 'billing'
+  | 'calendar'
   | 'card'
   | 'check'
   | 'chevron-down'
@@ -45,6 +46,7 @@ function iconPath(name: IconName) {
     case 'add': return <><path d="M12 5v14" /><path d="M5 12h14" /></>
     case 'arrow-left': return <><path d="m15 18-6-6 6-6" /><path d="M9 12h10" /></>
     case 'billing': return <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z" /><path d="M9 7h6M9 11h6M9 15h3" /></>
+    case 'calendar': return <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
     case 'card': return <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M7 14h4" /></>
     case 'check': return <path d="m5 12 4 4L19 6" />
     case 'chevron-down': return <path d="m6 9 6 6 6-6" />

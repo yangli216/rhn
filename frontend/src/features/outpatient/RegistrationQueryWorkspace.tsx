@@ -7,8 +7,8 @@ import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/ap
 import { age, genderLabel } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select,
-  StatusBadge,
+  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Panel, PanelHead, Select,
+  StatusBadge, type DateRange,
 } from '../../shared/ui'
 
 const queueStatuses: ReceptionQueueItem['status'][] = [
@@ -23,10 +23,6 @@ const fallbackStatusNames: Record<ReceptionQueueItem['status'], string> = {
   TRANSFERRED: '已转诊',
   CANCELLED: '已取消',
 }
-
-const businessDate = () => new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-}).format(new Date())
 
 function clock(value: string) {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -55,7 +51,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
   onNavigate: (path: string) => void
 }) {
   const queryClient = useQueryClient()
-  const [date, setDate] = useState(businessDate)
+  const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
   const [status, setStatus] = useState<ReceptionQueueItem['status'] | ''>('')
   const [query, setQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
@@ -64,10 +60,10 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
 
   const registrations = useQuery({
     queryKey: [
-      'outpatient-registrations', clinicalContext.organization.id, clinicalContext.department.id, date,
+      'outpatient-registrations', clinicalContext.organization.id, clinicalContext.department.id, dateRange.from, dateRange.to,
     ],
-    queryFn: () => api.scheduling.receptionQueue(date),
-    enabled: Boolean(date),
+    queryFn: () => api.scheduling.receptionQueue(dateRange.from, dateRange.to),
+    enabled: Boolean(dateRange.from && dateRange.to),
   })
   const visitTypes = useQuery({
     queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.visitType],
@@ -128,10 +124,11 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
   const active = registrationItems.filter((item) => ['IN_SERVICE', 'SUSPENDED'].includes(item.status)).length
   const completed = registrationItems.filter((item) => item.status === 'COMPLETED').length
   const cancelled = registrationItems.filter((item) => item.status === 'CANCELLED').length
+  const dateRangeLabel = dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} 至 ${dateRange.to}`
 
   return <>
     <PageHeader eyebrow="门诊医疗 · 挂号业务" title="挂号查询"
-      description="按日期查询当前科室的挂号记录，查看候诊进度，并办理未接诊退号。"
+      description="按日期范围查询当前科室的挂号记录，查看候诊进度，并办理未接诊退号。"
       actions={<><Button onClick={() => onNavigate('/outpatient/registration')}><Icon name="add" />办理挂号</Button>
         <Button variant="secondary" onClick={() => void registrations.refetch()}>
           <Icon name="refresh" />刷新</Button></>} />
@@ -142,7 +139,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
       {cancellationResult.refundStatus ? `（退款状态：${cancellationResult.refundStatus}）` : ''}</Alert>}
 
     <section className="registration-metrics" aria-label="挂号查询摘要">
-      <div><span>查询结果</span><strong>{registrationItems.length}</strong><small>{date}</small></div>
+      <div><span>查询结果</span><strong>{registrationItems.length}</strong><small>{dateRangeLabel}</small></div>
       <div><span>候诊中</span><strong>{waiting}</strong><small>等待医生接诊</small></div>
       <div><span>接诊中 / 暂挂</span><strong>{active}</strong><small>仍在本次诊疗流程</small></div>
       <div><span>已诊毕 / 已取消</span><strong>{completed} / {cancelled}</strong><small>已结束记录</small></div>
@@ -150,8 +147,9 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
 
     <Panel className="registration-query-filter-panel">
       <form className="registration-query-filter-form" onSubmit={search}>
-        <FormField label="挂号日期"><input aria-label="挂号日期" type="date" value={date}
-          onChange={(event) => setDate(event.target.value)} /></FormField>
+        <FormField label="挂号日期范围">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </FormField>
         <FormField label="接诊状态"><Select value={status} options={statusOptions} placeholder="全部状态"
           searchable={false} clearable={false}
           onChange={(value) => setStatus(value as ReceptionQueueItem['status'] | '')} /></FormField>
@@ -165,7 +163,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     <Panel className="registration-query-list-panel">
       <PanelHead title="挂号记录" meta={`${registrationItems.length} 条 · ${clinicalContext.department.name}`} />
       {registrations.isPending ? <LoadingState label="正在加载挂号记录…" /> : registrationItems.length === 0
-        ? <EmptyState icon="clinical" title={(registrations.data ?? []).length === 0 ? `${date} 暂无挂号` : '没有匹配的挂号记录'}
+        ? <EmptyState icon="clinical" title={(registrations.data ?? []).length === 0 ? `${dateRangeLabel} 暂无挂号` : '没有匹配的挂号记录'}
           copy={(registrations.data ?? []).length === 0 ? '可前往门诊挂号办理新的挂号。' : '请调整状态或关键词后重新查询。'}
           action={(registrations.data ?? []).length === 0
             ? <Button onClick={() => onNavigate('/outpatient/registration')}>办理挂号</Button> : undefined} />

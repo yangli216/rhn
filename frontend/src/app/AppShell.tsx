@@ -91,7 +91,7 @@ export type ThemeColor = 'emerald' | 'ocean-blue' | 'cobalt-indigo' | 'forest-pi
 
 export const THEME_OPTIONS: Array<{ id: ThemeColor; label: string; desc: string }> = [
   { id: 'emerald', label: '松石翡翠', desc: '经典临床' },
-  { id: 'ocean-blue', label: '科技海蓝', desc: '综合医院' },
+  { id: 'ocean-blue', label: '科技海蓝', desc: 'Element 经典蓝' },
   { id: 'cobalt-indigo', label: '深黛钴蓝', desc: '专科严谨' },
   { id: 'forest-pine', label: '苍林雅绿', desc: '康复照护' },
 ]
@@ -821,7 +821,8 @@ export function AppShell() {
                   copy={`当前工作上下文缺少权限：${requiredAuthority}`} /> :
                 <Suspense fallback={<LoadingState label="正在加载功能…" />}><Routes location={tab.path}>
                   <Route path="/" element={<Dashboard api={tabSlot.api} onStart={() => navigate('/outpatient/registration')}
-                    onOpenTasks={() => navigate('/tasks')} />} />
+                    onOpenTasks={() => navigate('/tasks')}
+                    onNavigate={(path) => navigate(path)} />} />
                   <Route path="/residents" element={<ResidentCenterWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/tasks" element={<TasksWorkspace api={tabSlot.api} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/pharmacy" element={<PharmacyWorkspace api={tabSlot.api}

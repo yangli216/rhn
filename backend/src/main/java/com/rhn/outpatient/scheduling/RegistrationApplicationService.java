@@ -285,10 +285,22 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     @Override
     @Transactional(readOnly = true)
     public List<ReceptionQueueItem> queue(LocalDate queueDate) {
+        return queue(queueDate, queueDate);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo) {
         ExecutionContext context = requireContext(null, null);
-        LocalDate date = queueDate == null ? LocalDate.now(BUSINESS_ZONE) : queueDate;
-        Instant from = date.atStartOfDay(BUSINESS_ZONE).toInstant();
-        Instant to = date.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
+        LocalDate end = dateTo == null ? start : dateTo;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
         List<PatientRegistration> registrations = registrationRepository
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
                         context.tenantId(), context.organizationId(), context.departmentId(), from, to);

@@ -12,9 +12,9 @@ import { age, genderLabel } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
+  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, FUTURE_QUERY_PRESETS, Icon, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, Select,
-  StatusBadge,
+  StatusBadge, type DateRange,
 } from '../../shared/ui'
 
 function businessDate(days = 0) {
@@ -43,8 +43,10 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
   onNavigate: (path: string) => void
 }) {
   const queryClient = useQueryClient()
-  const [dateFrom, setDateFrom] = useState(() => businessDate())
-  const [dateTo, setDateTo] = useState(() => businessDate(30))
+  const [dateRange, setDateRange] = useState<DateRange>(() => ({
+    from: businessDate(),
+    to: businessDate(30),
+  }))
   const [status, setStatus] = useState<AppointmentStatus | ''>('')
   const [query, setQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
@@ -54,12 +56,12 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
   const [success, setSuccess] = useState('')
 
   const appointments = useQuery({
-    queryKey: ['appointments', clinicalContext.department.id, dateFrom, dateTo, status, submittedQuery],
-    queryFn: () => api.appointments.list({ dateFrom, dateTo, status, query: submittedQuery }),
+    queryKey: ['appointments', clinicalContext.department.id, dateRange.from, dateRange.to, status, submittedQuery],
+    queryFn: () => api.appointments.list({ dateFrom: dateRange.from, dateTo: dateRange.to, status, query: submittedQuery }),
   })
   const schedules = useQuery({
-    queryKey: ['appointment-schedules', clinicalContext.department.id, dateFrom, dateTo],
-    queryFn: () => api.scheduling.schedules(dateFrom, dateTo),
+    queryKey: ['appointment-schedules', clinicalContext.department.id, dateRange.from, dateRange.to],
+    queryFn: () => api.scheduling.schedules(dateRange.from, dateRange.to),
   })
   const statuses = useQuery({
     queryKey: ['system-enum', APPOINTMENT_SYSTEM_ENUM.status],
@@ -135,8 +137,10 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
 
   function search(event: FormEvent) {
     event.preventDefault()
-    setSubmittedQuery(query.trim())
+    setSubmittedQuery(query)
   }
+
+  const dateRangeLabel = dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} 至 ${dateRange.to}`
 
   return <>
     <PageHeader eyebrow="门诊医疗 · 预约业务" title="预约管理"
@@ -149,7 +153,7 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
     {success && <Alert className="ui-page-feedback" tone="success">{success}</Alert>}
 
     <section className="registration-metrics" aria-label="预约摘要">
-      <div><span>查询结果</span><strong>{values.length}</strong><small>{dateFrom} 至 {dateTo}</small></div>
+      <div><span>查询结果</span><strong>{values.length}</strong><small>{dateRangeLabel}</small></div>
       <div><span>待就诊</span><strong>{values.filter((value) => value.sdStatus === 'BOOKED').length}</strong><small>已确认并占用号源</small></div>
       <div><span>已挂号 / 已就诊</span><strong>{values.filter((value) => value.sdStatus === 'REGISTERED').length} / {values.filter((value) => value.sdStatus === 'VISITED').length}</strong><small>预约后续进度</small></div>
       <div><span>可预约班次</span><strong>{bookableSchedules.length}</strong><small>当前日期范围</small></div>
@@ -157,8 +161,9 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
 
     <Panel className="appointment-filter-panel">
       <form className="appointment-filter-form" onSubmit={search}>
-        <FormField label="开始日期"><input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></FormField>
-        <FormField label="结束日期"><input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></FormField>
+        <FormField label="预约日期范围">
+          <DateRangePicker value={dateRange} onChange={setDateRange} presets={FUTURE_QUERY_PRESETS} />
+        </FormField>
         <FormField label="预约状态"><Select value={status} options={statusOptions}
           onChange={(value) => setStatus(value as AppointmentStatus | '')} searchable={false} clearable={false} /></FormField>
         <FormField label="居民或预约号"><input value={query} onChange={(event) => setQuery(event.target.value)}

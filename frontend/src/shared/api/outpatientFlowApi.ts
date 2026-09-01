@@ -85,11 +85,24 @@ export interface EncounterTerminationResult {
 
 export function createOutpatientFlowApi(client: ApiClient) {
   return {
-    board: (date?: string, flowStatus?: OutpatientFlowStatus, keyword?: string) => {
+    board: (
+      dateFromOrSingleDate?: string,
+      dateToOrStatus?: string | OutpatientFlowStatus,
+      flowStatusOrKeyword?: OutpatientFlowStatus | string,
+      keywordParam?: string,
+    ) => {
       const query = new URLSearchParams()
-      if (date) query.set('date', date)
-      if (flowStatus) query.set('flowStatus', flowStatus)
-      if (keyword?.trim()) query.set('keyword', keyword.trim())
+      const isSecondParamDate = dateToOrStatus && /^\d{4}-\d{2}-\d{2}$/.test(dateToOrStatus)
+      if (isSecondParamDate) {
+        if (dateFromOrSingleDate) query.set('dateFrom', dateFromOrSingleDate)
+        query.set('dateTo', dateToOrStatus as string)
+        if (flowStatusOrKeyword) query.set('flowStatus', flowStatusOrKeyword as string)
+        if (keywordParam?.trim()) query.set('keyword', keywordParam.trim())
+      } else {
+        if (dateFromOrSingleDate) query.set('date', dateFromOrSingleDate)
+        if (dateToOrStatus) query.set('flowStatus', dateToOrStatus as string)
+        if ((flowStatusOrKeyword as string)?.trim()) query.set('keyword', (flowStatusOrKeyword as string).trim())
+      }
       return client.request<OutpatientFlowBoard>(`/api/outpatient-flow${query.size ? `?${query}` : ''}`)
     },
     terminationReadiness: (encounterId: string) => client.request<EncounterTerminationReadiness>(

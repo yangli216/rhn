@@ -143,10 +143,21 @@ public class OutpatientFlowService {
 
     @Transactional(readOnly = true)
     public BoardView board(LocalDate businessDate, String flowStatus, String keyword) {
+        return board(businessDate, null, null, flowStatus, keyword);
+    }
+
+    @Transactional(readOnly = true)
+    public BoardView board(LocalDate businessDate, LocalDate dateFrom, LocalDate dateTo, String flowStatus, String keyword) {
         ExecutionContext context = requireWorkContext();
-        LocalDate date = businessDate == null ? LocalDate.now(ZoneId.systemDefault()) : businessDate;
-        Instant from = date.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant to = date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        LocalDate start = dateFrom != null ? dateFrom : (businessDate != null ? businessDate : LocalDate.now(ZoneId.systemDefault()));
+        LocalDate end = dateTo != null ? dateTo : (dateFrom != null ? dateFrom : start);
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        Instant from = start.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
         List<EncounterFlowSnapshot> encounterValues = encounters.findRecent(context.tenantId(),
                 context.organizationId(), context.departmentId(), from, to, 200);
         List<Long> encounterIds = encounterValues.stream().map(EncounterFlowSnapshot::encounterId).toList();
@@ -171,7 +182,7 @@ public class OutpatientFlowService {
                 .filter(value -> term == null || searchable(value).contains(term))
                 .sorted(this::compareForClosure)
                 .toList();
-        return new BoardView(date, refreshedAt, summary(visits), visits);
+        return new BoardView(start, refreshedAt, summary(visits), visits);
     }
 
     private VisitView visit(EncounterFlowSnapshot encounter, ResidentDirectory.ResidentSnapshot resident,

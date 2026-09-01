@@ -21,7 +21,12 @@ class ReceptionController {
 
     @GetMapping("/queue")
     @PreAuthorize("hasAnyAuthority('OUTPATIENT_REGISTRATION.ACCESS','OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
-    List<ReceptionQueueItem> queue(@RequestParam(required = false) LocalDate date) {
+    List<ReceptionQueueItem> queue(@RequestParam(required = false) LocalDate date,
+                                  @RequestParam(required = false) LocalDate dateFrom,
+                                  @RequestParam(required = false) LocalDate dateTo) {
+        if (dateFrom != null || dateTo != null) {
+            return service.queue(dateFrom, dateTo);
+        }
         return service.queue(date);
     }
 }

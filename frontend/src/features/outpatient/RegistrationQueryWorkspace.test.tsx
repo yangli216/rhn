@@ -80,8 +80,9 @@ describe('RegistrationQueryWorkspace', () => {
     expect(screen.getByText('REG002')).toBeInTheDocument()
     expect(screen.getAllByText('候诊中')).toHaveLength(2)
 
-    fireEvent.change(screen.getByLabelText('挂号日期'), { target: { value: '2026-08-28' } })
-    await waitFor(() => expect(api.scheduling.receptionQueue).toHaveBeenCalledWith('2026-08-28'))
+    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-08-28' } })
+    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-08-28' } })
+    await waitFor(() => expect(api.scheduling.receptionQueue).toHaveBeenCalledWith('2026-08-28', '2026-08-28'))
 
     await userEvent.type(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'), 'REG002')
     await userEvent.click(screen.getByRole('button', { name: '查询' }))

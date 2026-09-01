@@ -5,7 +5,10 @@ import type { OutpatientFlowStage, OutpatientFlowStatus, OutpatientFlowVisit } f
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge, type StatusTone } from '../../shared/ui'
+import {
+  Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Panel,
+  StatusBadge, type DateRange, type StatusTone,
+} from '../../shared/ui'
 
 type FlowFilter = 'ACTIVE' | 'DOWNSTREAM' | 'EXCEPTION' | 'COMPLETED' | 'ALL'
 
@@ -13,12 +16,6 @@ const activeStatuses: OutpatientFlowStatus[] = ['WAITING_CONSULTATION', 'IN_CONS
   'WAITING_COORDINATION', 'WAITING_TRANSFER']
 const downstreamStatuses: OutpatientFlowStatus[] = ['WAITING_SETTLEMENT', 'WAITING_PHARMACY',
   'WAITING_DIAGNOSTICS', 'WAITING_TREATMENT', 'DOWNSTREAM_IN_PROGRESS']
-
-function localDate() {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-}
-
 function flowTone(status: OutpatientFlowStatus): StatusTone {
   if (status === 'COMPLETED' || status === 'TRANSFERRED') return 'success'
   if (status === 'EXCEPTION' || status === 'TERMINATED' || status === 'CANCELLED') return 'danger'
@@ -44,12 +41,12 @@ function pendingAge(minutes: number) {
 export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
   api: RhnApi; clinicalContext: ClinicalContext; onNavigate: (path: string) => void
 }) {
-  const [date, setDate] = useState(localDate)
+  const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
   const [keyword, setKeyword] = useState('')
   const [filter, setFilter] = useState<FlowFilter>('ACTIVE')
   const board = useQuery({
-    queryKey: ['outpatient-flow', date, keyword.trim()],
-    queryFn: () => api.outpatientFlow.board(date, undefined, keyword),
+    queryKey: ['outpatient-flow', dateRange.from, dateRange.to, keyword.trim()],
+    queryFn: () => api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, keyword),
     refetchInterval: 20_000,
   })
   const values = useMemo(() => (board.data?.visits ?? []).filter((value) => {
@@ -85,7 +82,7 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
           ['ACTIVE', '诊前诊中'], ['DOWNSTREAM', '诊后待办'], ['EXCEPTION', '异常'], ['COMPLETED', '已完成'], ['ALL', '全部'],
         ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
           className={filter === value ? 'is-active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</nav>
-        <input type="date" aria-label="业务日期" value={date} onChange={(event) => setDate(event.target.value)} />
+        <DateRangePicker compact value={dateRange} onChange={setDateRange} />
         <input type="search" aria-label="搜索患者" value={keyword} placeholder="姓名 / 档案号 / 就诊号"
           onChange={(event) => setKeyword(event.target.value)} />
       </header>
