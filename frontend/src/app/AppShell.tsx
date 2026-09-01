@@ -772,18 +772,11 @@ export function AppShell() {
             label={mobileLayout ? sidebarOpen ? '关闭主导航' : '打开主导航' : sidebarCollapsed ? '展开菜单栏' : '收缩菜单栏'}
             aria-controls="primary-navigation" aria-expanded={mobileLayout ? sidebarOpen : !sidebarCollapsed}
             onClick={toggleNavigation} />
-          <label className="context context-switcher">
-            <span className="visually-hidden">切换当前业务类型的工作机构与科室</span>
-            <select value={workContextKey(activeSlot.option)}
-              aria-label={`${WORK_CONTEXT_LABELS[activeSlot.option.workContextType]}工作上下文`}
-              onChange={(event) => void switchWorkContext(activeSlot.option.workContextType, event.target.value)}>
-              {availableForActiveType.map((context) => <option
-                key={`${context.organizationId}:${context.departmentId ?? ''}`}
-                value={`${context.organizationId}:${context.departmentId ?? ''}`}>
-                {WORK_CONTEXT_LABELS[context.workContextType]} · {context.departmentName ?? context.organizationName}
-              </option>)}
-            </select>
-          </label>
+          <WorkContextSwitcher
+            activeOption={activeSlot.option}
+            availableContexts={availableForActiveType}
+            onSwitch={(type, key) => void switchWorkContext(type, key)}
+          />
           <WorkspaceTabs tabs={tabs} activeTabId={activeTabId} onActivate={(path) => navigate(path)}
             onClose={closeTab} onManage={manageTabs} />
           <div className="top-actions">
@@ -915,6 +908,102 @@ export function AppShell() {
   )
 }
 
+function AccountContextSelect({
+  workContextType,
+  currentKey,
+  options,
+  disabled,
+  onSelect,
+}: {
+  workContextType: WorkContextType
+  currentKey: string
+  options: WorkContextOption[]
+  disabled?: boolean
+  onSelect: (key: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const selectedOption = options.find((opt) => workContextKey(opt) === currentKey) ?? options[0]
+
+  useEffect(() => {
+    if (!open) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        rootRef.current?.querySelector<HTMLButtonElement>('.account-context-select__trigger')?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  const label = selectedOption
+    ? `${selectedOption.organizationName}${selectedOption.departmentName ? ` · ${selectedOption.departmentName}` : ''}`
+    : '请选择工作科室'
+
+  return (
+    <div className="account-context-select" ref={rootRef}>
+      <button
+        type="button"
+        disabled={disabled || options.length === 0}
+        className={`account-context-select__trigger ${open ? 'is-open' : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        title={`${label}（点击切换/查看）`}
+      >
+        <span className="account-context-select__tag">
+          {WORK_CONTEXT_LABELS[workContextType]}
+        </span>
+        <span className="account-context-select__value">{label}</span>
+        {options.length > 1 && <Icon name="chevron-down" className="account-context-select__arrow" />}
+      </button>
+
+      {open && (
+        <div className="account-context-select__popover" role="listbox" aria-label={`选择${WORK_CONTEXT_LABELS[workContextType]}工作科室`}>
+          <div className="account-context-select__list">
+            {options.map((option) => {
+              const key = workContextKey(option)
+              const isSelected = key === currentKey
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`account-context-select__option ${isSelected ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setOpen(false)
+                    onSelect(key)
+                  }}
+                >
+                  <div className="account-context-select__option-main">
+                    <strong className="account-context-select__option-dept">
+                      {option.departmentName ?? option.organizationName}
+                    </strong>
+                    {option.organizationName && option.departmentName && (
+                      <span className="account-context-select__option-org">{option.organizationName}</span>
+                    )}
+                  </div>
+                  {isSelected && <Icon name="check" className="account-context-select__option-check" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function UserAccountMenu({ session, activeContexts, activeContextType, themeColor, onThemeChange, onSwitchWorkContext, onNavigate, onLogout }: {
   session: Session
   activeContexts: Partial<Record<WorkContextType, WorkContextSlot>>
@@ -931,13 +1020,28 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
   const [fullscreen, setFullscreen] = useState(Boolean(document.fullscreenElement))
   const menuRef = useRef<HTMLDivElement>(null)
   const queryClient = useQueryClient()
+
+  const availableTypes = (Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[])
+    .filter((type) => session.workContexts.some((c) => c.workContextType === type))
+
+  const [selectedType, setSelectedType] = useState<WorkContextType>(() => {
+    if (availableTypes.includes(activeContextType)) return activeContextType
+    return availableTypes[0] ?? 'GENERAL'
+  })
+
+  useEffect(() => {
+    if (availableTypes.includes(activeContextType)) {
+      setSelectedType(activeContextType)
+    }
+  }, [activeContextType])
+
   const fallbackSlot = Object.values(activeContexts)[0]
-  const activeSlot = (activeContexts[activeContextType] ?? fallbackSlot)!
-  const effectiveContextType = activeSlot.option.workContextType
-  const contextKey = workContextKey(activeSlot.option)
-  const availableContexts = selectableWorkContexts(session.workContexts, effectiveContextType)
-  const visibleSlots = (Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[])
-    .map((type) => activeContexts[type]).filter((slot): slot is WorkContextSlot => Boolean(slot))
+  const currentActiveSlot = (activeContexts[activeContextType] ?? fallbackSlot)!
+  const targetSlot = activeContexts[selectedType]
+  const availableForSelectedType = selectableWorkContexts(session.workContexts, selectedType)
+  const selectedSlotKey = targetSlot?.option
+    ? workContextKey(targetSlot.option)
+    : availableForSelectedType[0] ? workContextKey(availableForSelectedType[0]) : ''
 
   useEffect(() => {
     const updateFullscreen = () => setFullscreen(Boolean(document.fullscreenElement))
@@ -983,12 +1087,11 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
     else await document.documentElement.requestFullscreen()
   }
 
-  async function changeWorkContext(nextContextKey: string) {
-    if (nextContextKey === contextKey) return
+  async function changeWorkContext(type: WorkContextType, nextContextKey: string) {
+    if (nextContextKey === selectedSlotKey) return
     setSwitchingContext(true)
     try {
-      await onSwitchWorkContext(effectiveContextType, nextContextKey)
-      setOpen(false)
+      await onSwitchWorkContext(type, nextContextKey)
     } finally {
       setSwitchingContext(false)
     }
@@ -998,7 +1101,7 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
     <button type="button" className="profile-trigger" aria-expanded={open}
       aria-controls="account-menu-panel" onClick={() => setOpen((current) => !current)}>
       <span className="avatar" aria-hidden="true">{session.username.slice(0, 1).toUpperCase()}</span>
-      <span className="profile-copy"><strong>{session.username}</strong><span>{activeSlot.clinicalContext.department.name}</span></span>
+      <span className="profile-copy"><strong>{session.username}</strong><span>{currentActiveSlot.clinicalContext.department.name}</span></span>
       <Icon name={open ? 'chevron-up' : 'chevron-down'} />
     </button>
     {open && <section id="account-menu-panel" className="account-panel" role="region" aria-label="用户与账户">
@@ -1008,23 +1111,41 @@ function UserAccountMenu({ session, activeContexts, activeContextType, themeColo
       </header>
 
       <div className="account-panel__context">
-        <div className="account-panel__section-label"><span>{WORK_CONTEXT_LABELS[effectiveContextType]}工作上下文</span><small>同类型单选</small></div>
-        <label>
-          <span className="visually-hidden">切换{WORK_CONTEXT_LABELS[effectiveContextType]}工作机构与科室</span>
-          <select value={contextKey} disabled={switchingContext}
-            onChange={(event) => void changeWorkContext(event.target.value)}>
-            {availableContexts.map((context) => <option
-              key={`${context.organizationId}:${context.departmentId ?? ''}`}
-              value={`${context.organizationId}:${context.departmentId ?? ''}`}>
-              {context.organizationName}{context.departmentName ? ` · ${context.departmentName}` : ''}
-            </option>)}
-          </select>
-        </label>
-        <div className="account-panel__context-slots" aria-label="已激活的业务上下文">
-          {visibleSlots.map((slot) => <span key={slot.option.workContextType}>
-            <small>{WORK_CONTEXT_LABELS[slot.option.workContextType]}</small>
-            <strong>{slot.clinicalContext.department.name}</strong>
-          </span>)}
+        <div className="account-panel__section-label">
+          <span>业务工作上下文</span>
+          <small>多类型自由配置</small>
+        </div>
+
+        <div className="account-panel__context-group">
+          {availableTypes.length > 1 && (
+            <div className="account-panel__group-tabs" role="tablist" aria-label="业务类型选择">
+              {availableTypes.map((type) => {
+                const isSelected = type === selectedType
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    role="tab"
+                    aria-selected={isSelected}
+                    className={`account-panel__group-tab ${isSelected ? 'is-active' : ''}`}
+                    onClick={() => setSelectedType(type)}
+                  >
+                    {WORK_CONTEXT_LABELS[type]}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+
+          <div className="account-panel__group-body">
+            <AccountContextSelect
+              workContextType={selectedType}
+              currentKey={selectedSlotKey}
+              options={availableForSelectedType}
+              disabled={switchingContext}
+              onSelect={(nextKey) => void changeWorkContext(selectedType, nextKey)}
+            />
+          </div>
         </div>
       </div>
 
@@ -1129,6 +1250,104 @@ function NotificationCenter({ api, contextKey, onNavigate }: {
       </div>}
     </Dialog>}
   </div>
+}
+
+function WorkContextSwitcher({
+  activeOption,
+  availableContexts,
+  onSwitch,
+}: {
+  activeOption: WorkContextOption
+  availableContexts: WorkContextOption[]
+  onSwitch: (workContextType: WorkContextType, key: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+  const activeKey = workContextKey(activeOption)
+  const currentLabel = `${WORK_CONTEXT_LABELS[activeOption.workContextType]} · ${activeOption.departmentName ?? activeOption.organizationName}`
+
+  useEffect(() => {
+    if (!open) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+        rootRef.current?.querySelector<HTMLButtonElement>('.context-switcher__trigger')?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [open])
+
+  return (
+    <div className="context context-switcher" ref={rootRef}>
+      <button
+        type="button"
+        className={`context-switcher__trigger ${open ? 'is-open' : ''}`}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`切换工作科室，当前：${currentLabel}`}
+        title={`${currentLabel}（点击切换）`}
+        onClick={() => setOpen((prev) => !prev)}
+      >
+        <span className="context-switcher__type-tag">
+          {WORK_CONTEXT_LABELS[activeOption.workContextType]}
+        </span>
+        <strong className="context-switcher__title">
+          {activeOption.departmentName ?? activeOption.organizationName}
+        </strong>
+        <Icon name="chevron-down" className="context-switcher__arrow" />
+      </button>
+
+      {open && (
+        <div className="context-switcher__popover" role="listbox" aria-label="切换工作科室与机构">
+          <div className="context-switcher__list">
+            {availableContexts.map((context) => {
+              const key = workContextKey(context)
+              const isSelected = key === activeKey
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`context-switcher__option ${isSelected ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setOpen(false)
+                    onSwitch(context.workContextType, key)
+                  }}
+                >
+                  <div className="context-switcher__option-left">
+                    <span className="context-switcher__option-tag">
+                      {WORK_CONTEXT_LABELS[context.workContextType]}
+                    </span>
+                    <div className="context-switcher__option-text">
+                      <strong className="context-switcher__option-dept">
+                        {context.departmentName ?? context.organizationName}
+                      </strong>
+                      {context.organizationName && context.departmentName && (
+                        <span className="context-switcher__option-org">{context.organizationName}</span>
+                      )}
+                    </div>
+                  </div>
+                  {isSelected && <Icon name="check" className="context-switcher__option-check" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
 }
 
 function FullscreenButton() {
