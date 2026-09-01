@@ -22,6 +22,7 @@ export type IconName =
   | 'menu'
   | 'minimize'
   | 'notification'
+  | 'organization'
   | 'logout'
   | 'pharmacy'
   | 'print'
@@ -30,6 +31,7 @@ export type IconName =
   | 'roadmap'
   | 'search'
   | 'settings'
+  | 'emergency'
   | 'sparkles'
   | 'success'
   | 'tasks'
@@ -65,6 +67,7 @@ function iconPath(name: IconName) {
     case 'menu': return <><path d="M4 7h16M4 12h16M4 17h16" /></>
     case 'minimize': return <><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></>
     case 'notification': return <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>
+    case 'organization': return <><path d="M4 21V5h10v16M14 10h6v11M8 9h2M8 13h2M8 17h2M17 14h1M17 17h1M2 21h20" /></>
     case 'logout': return <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>
     case 'pharmacy': return <><path d="M5 4h14M8 4v5l-3 5a4 4 0 0 0 3.5 6h7a4 4 0 0 0 3.5-6l-3-5V4" /><path d="M7 13h10" /></>
     case 'print': return <><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M7 14h10v7H7zM17 11h.01" /></>
@@ -73,6 +76,7 @@ function iconPath(name: IconName) {
     case 'roadmap': return <><path d="M6 3v18M18 3v18" /><path d="M6 6h8l4 4M18 14h-8l-4 4" /></>
     case 'search': return <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>
     case 'settings': return <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H3v-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>
+    case 'emergency': return <><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6Z" /></>
     case 'sparkles': return <><path d="m12 3 1.25 3.75L17 8l-3.75 1.25L12 13l-1.25-3.75L7 8l3.75-1.25Z" /><path d="m18 13 .85 2.15L21 16l-2.15.85L18 19l-.85-2.15L15 16l2.15-.85ZM5 14l.65 1.35L7 16l-1.35.65L5 18l-.65-1.35L3 16l1.35-.65Z" /></>
     case 'success': return <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 9" /></>
     case 'tasks': return <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 9 2 2 4-4M8 16h8" /></>

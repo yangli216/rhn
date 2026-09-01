@@ -7,7 +7,7 @@ import {
   type DiseaseManagementExceptionInput, type CodeSystemSummary,
   type Department, type DictionaryValue, type Manufacturer, type MasterDataStatus,
   type MedicationInput, type MedicationKnowledge, type MedicationProduct, type PackageInput,
-  type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
+  type MedicationProductSetupInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
   type ItemAttributeJson, type ItemAttributeOverride, type ItemAttributeSchema,
   type ItemAttributeSubjectType, type ItemAttributeValue, type MasterDataImportBatch,
   type MasterDataImportRow, type MasterDataImportType, type ItemTermMapping,
@@ -229,10 +229,10 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           targetId={value.id} itemName={value.name} systemType="MEDICATION"
           onClose={() => setDialog(undefined)} />)}
         onProduct={(value) => setDialog(<ProductDialog medication={value} manufacturers={manufacturers.data ?? []}
-          dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
-          onSave={(input) => api.masterData.createProduct(input, organization.id)
-            .then(() => invalidate('药品产品已创建')).catch(fail)} />)}
-        onPackage={(product) => setDialog(<PackageDialog product={product} dictionaries={dictionaries.data!}
+          organization={organization} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
+          onSave={(input) => api.masterData.createProductSetup(input)
+            .then(() => invalidate('药品产品、包装和机构价格已创建')).catch(fail)} />)}
+        onPackage={(product, medication) => setDialog(<PackageDialog product={product} medication={medication} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createPackage(product.id, input)
             .then(() => invalidate('产品包装已新增')).catch(fail)} />)}
         onLifecycle={(product) => setDialog(<CatalogLifecycleDialog api={api} catalogItemId={product.id}
@@ -332,7 +332,8 @@ function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, on
   values?: MedicationKnowledge[]; loading: boolean; onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
-  onProduct: (value: MedicationKnowledge) => void; onPackage: (value: MedicationProduct) => void;
+  onProduct: (value: MedicationKnowledge) => void;
+  onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onLifecycle: (value: MedicationProduct) => void }) {
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
@@ -358,14 +359,14 @@ function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, on
         value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
         value.chronicDiseaseDrug && '慢病用药', !value.singleOrder && '仅组合使用'].filter(Boolean).join(' · ') || '普通'}</strong></span></div>
     {!value.products.length ? <EmptyState icon="pharmacy" title="暂无厂家产品" copy="通用药品知识已经建立，可继续新增批准产品。" />
-      : <Table compact headers={['产品 / 厂家', '批准信息', '包装换算', '机构状态', '价格', '操作']}>
+      : <Table compact headers={['产品 / 厂家', '批准信息', '包装规格', '机构状态', '价格', '操作']}>
         {value.products.map((product) => <tr key={product.id}><td><strong>{product.name}</strong><small>{product.manufacturerName}</small><code>{product.code}</code></td>
           <td>{product.approvalCode || '—'}<small>{[product.tradeName || '无商品名', product.sdMarketStatusText,
-            product.sdProductionPlaceText].filter(Boolean).join(' · ')}</small></td>
+            product.sdProductionPlaceText, product.traceCode && `追溯码 ${product.traceCode}`].filter(Boolean).join(' · ')}</small></td>
           <td>{product.packages.length ? product.packages.map((item) => `${item.packageSpec || item.unitName} = ${item.quantityFactor}${product.unitCode || '最小单位'}`).join('；') : '未维护'}</td>
           <td>{product.organizationAdoption ? <DataStatus value={product.organizationAdoption.sdStatus} text={product.organizationAdoption.sdStatusText} /> : <StatusBadge>未采用</StatusBadge>}</td>
           <td>{activePrice(product.prices)}</td><td><RowActions>
-            <Button size="sm" variant="text" onClick={() => onPackage(product)}>加包装</Button>
+            <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
             <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>机构目录与价格</Button>
           </RowActions></td></tr>)}</Table>}
   </article>)}</div>
@@ -705,7 +706,7 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
             : <><StatusBadge>未采用</StatusBadge><strong>当前日期无有效版本</strong></>}</article>
           <article><span>有效价格</span>{values?.currentPrices.length ? values.currentPrices.map((value) =>
             <div key={value.id}><strong>¥ {Number(value.price).toFixed(2)}</strong>
-              <small>{value.sdPriceTypeText} · {value.packageId ? '指定包装' : '默认单位'}</small></div>)
+              <small>{value.sdPriceTypeText} · {value.packageId ? '指定包装计价' : '最小单位拆零计价'}</small></div>)
             : <strong>当前日期未维护价格</strong>}</article>
         </div>}
       </section>
@@ -753,9 +754,10 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
           {replacementPrice && <Alert tone="info">调价：¥ {Number(replacementPrice.price).toFixed(2)} · {replacementPrice.sdPriceTypeText}
             <Button size="sm" variant="text" onClick={() => setReplacementPrice(undefined)}>取消</Button></Alert>}
           {packages.length > 0 && <StaticSelectField name="packageId" label="计价包装" required={false}
-            defaultValue={priceSeed?.packageId} placeholder="默认单位" options={packages.map((item) => ({
+            defaultValue={priceSeed?.packageId} placeholder="最小单位（拆零计价）" options={packages.map((item) => ({
               value: item.id, label: item.packageSpec || item.unitName,
             }))} />}
+          <p className="master-data-field-hint span-2">选择包装时按盒、瓶等包装计价；不选择包装时按产品最小单位计价，供允许拆零销售的处方使用。</p>
           <SelectField name="priceType" label="价格类型" values={dictionaries.BD_PRICE_TYPE}
             defaultValue={priceSeed?.sdPriceType ?? 'SALE'} />
           <FormField label="金额" required><input name="price" type="number" min="0" step="0.000001"
@@ -785,11 +787,11 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
                   onClick={() => void changeAdoptionStatus(value, 'ACTIVE')}>恢复</Button>}</RowActions></td></tr>)}</Table>}
       </section>
       <section className="master-data-lifecycle-history">
-        <header><h3>价格历史</h3><p>机构价与默认单位价格均保留完整调价链。</p></header>
+        <header><h3>价格历史</h3><p>包装价格与最小单位拆零价格均保留完整调价链。</p></header>
         {!values?.priceHistory.length ? <EmptyState icon="clinical" title="暂无价格历史" copy="可在右上新增价格。" />
           : <Table compact headers={['价格 / 类型', '计价范围', '依据', '有效期', '状态', '操作']}>{values.priceHistory.map((value) =>
             <tr key={`${value.id}-${value.revision}`}><td><strong>¥ {Number(value.price).toFixed(2)}</strong><small>{value.sdPriceTypeText}</small></td>
-              <td>{value.packageId ? '指定包装' : '默认单位'}</td><td>{value.priceDocumentCode || '—'}<small>{value.priceReason || '未说明'}</small></td>
+              <td>{value.packageId ? '指定包装计价' : '最小单位拆零计价'}</td><td>{value.priceDocumentCode || '—'}<small>{value.priceReason || '未说明'}</small></td>
               <td>{value.validFrom}<small>至 {value.validTo || '长期'}</small></td><td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
               <td><RowActions>{value.sdStatus === 'ACTIVE' && <><Button size="sm" variant="text" onClick={() => startPriceReplacement(value)}>调价</Button>
                 <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'SUSPENDED')}>暂停</Button>
@@ -1504,94 +1506,163 @@ function MedicationDialog({ dictionaries, frequencies, value, onClose, onSave }:
   </DataFormDialog>
 }
 
-function ProductDialog({ medication, manufacturers, dictionaries, onClose, onSave }: { medication: MedicationKnowledge;
-  manufacturers: Manufacturer[]; dictionaries: DictionaryMap; onClose: () => void; onSave: (input: ProductInput) => void }) {
-  return <DataFormDialog title="新增药品产品" eyebrow={`${medication.name} · 厂家产品层`} onClose={onClose}
-    size="xwide" description="厂家产品承载批准、注册和机构经营能力，不重复维护通用药品知识。"
-    onSubmit={(form) => onSave({ medicationId: medication.id, manufacturerId: text(form, 'manufacturerId'),
-      code: text(form, 'code'), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
-      tradeName: optionalText(form, 'tradeName'), approvalCode: optionalText(form, 'approvalCode'),
-      approvalFrom: optionalText(form, 'approvalFrom'), approvalTo: optionalText(form, 'approvalTo'),
-      registrationCode: optionalText(form, 'registrationCode'), registrationFrom: optionalText(form, 'registrationFrom'),
-      registrationTo: optionalText(form, 'registrationTo'), purchaseCode: optionalText(form, 'purchaseCode'),
-      sdMarketStatus: optionalText(form, 'sdMarketStatus'), sdProductionPlace: optionalText(form, 'sdProductionPlace'),
-      otc: checked(form, 'otc'), centralPurchase: checked(form, 'centralPurchase'), importAllowed: checked(form, 'importAllowed'),
-      traceSplitRequired: checked(form, 'traceSplitRequired'), orderable: checked(form, 'orderable'),
-      chargeable: checked(form, 'chargeable'), stocked: checked(form, 'stocked'), sdStatus: 'ACTIVE',
-      shelfLifeValue: optionalNumber(form, 'shelfLifeValue'), sdShelfLifeUnit: optionalText(form, 'sdShelfLifeUnit'),
-      validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), indication: optionalText(form, 'indication'),
-      instruction: optionalText(form, 'instruction') })}>
-    <FormSection title="产品身份" description="关联生产企业并维护产品级名称、编码和最小单位。">
+function medicationPackageSpec(preparationSpec: string | undefined, factor: string,
+  itemUnit: string | undefined, packageUnit: string) {
+  if (!factor || !packageUnit) return ''
+  const quantitySpec = `${factor}${itemUnit || '最小单位'}/${packageUnit}`
+  return preparationSpec?.trim() ? `${preparationSpec.trim()}*${quantitySpec}` : quantitySpec
+}
+
+function ProductDialog({ medication, manufacturers, organization, dictionaries, onClose, onSave }: {
+  medication: MedicationKnowledge; manufacturers: Manufacturer[]; organization: Organization;
+  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: MedicationProductSetupInput) => void
+}) {
+  const [markupMode, setMarkupMode] = useState<'NONE' | 'RATE'>('NONE')
+  const [purchasePrice, setPurchasePrice] = useState('')
+  const [salePrice, setSalePrice] = useState('')
+  const [markupRate, setMarkupRate] = useState('')
+  const [packageUnitName, setPackageUnitName] = useState('盒')
+  const [quantityFactor, setQuantityFactor] = useState('')
+  const [packageSpec, setPackageSpec] = useState('')
+  const generatedPackageSpec = (factor: string, packageUnit: string) => medicationPackageSpec(
+    medication.preparationSpec, factor, medication.preparationUnit, packageUnit)
+  const calculateSalePrice = (purchase: string, rate: string) => {
+    const cost = Number(purchase); const percent = Number(rate)
+    if (purchase && rate && Number.isFinite(cost) && Number.isFinite(percent)) {
+      setSalePrice((cost * (1 + percent / 100)).toFixed(2))
+    }
+  }
+  const submit = (form: FormData) => {
+    const activeFrom = today()
+    const productOrderable = checked(form, 'orderable')
+    const productChargeable = checked(form, 'chargeable')
+    const productStocked = checked(form, 'stocked')
+    onSave({
+      product: { medicationId: medication.id, manufacturerId: text(form, 'manufacturerId'),
+        code: text(form, 'code'), tradeName: optionalText(form, 'tradeName'),
+        approvalCode: optionalText(form, 'approvalCode'), traceCode: optionalText(form, 'traceCode'),
+        registrationCode: optionalText(form, 'registrationCode'), purchaseCode: undefined,
+        sdMarketStatus: optionalText(form, 'sdMarketStatus'), sdProductionPlace: optionalText(form, 'sdProductionPlace'),
+        otc: checked(form, 'otc'), centralPurchase: checked(form, 'centralPurchase'),
+        importAllowed: checked(form, 'purchasable'), traceSplitRequired: checked(form, 'traceSplitRequired'),
+        orderable: productOrderable, chargeable: productChargeable, stocked: productStocked, sdStatus: 'ACTIVE',
+        shelfLifeValue: optionalNumber(form, 'shelfLifeValue'), sdShelfLifeUnit: optionalText(form, 'sdShelfLifeUnit'),
+        validFrom: activeFrom },
+      packaging: { unitCode: text(form, 'packageUnitName'), unitName: text(form, 'packageUnitName'),
+        packageSpec: optionalText(form, 'packageSpec'), quantityFactor: Number(text(form, 'quantityFactor')),
+        sdUsageType: 'SALE', barcode: optionalText(form, 'barcode'), defaultPurchase: true,
+        defaultSale: true, defaultDispense: checked(form, 'defaultDispense'), sdStatus: 'ACTIVE', validFrom: activeFrom },
+      organization: { organizationId: organization.id, localCode: optionalText(form, 'localCode'),
+        localName: optionalText(form, 'localName'), orderable: productOrderable, executable: false,
+        chargeable: productChargeable, purchasable: checked(form, 'purchasable'), stocked: productStocked,
+        dispensable: checked(form, 'dispensable'), returnable: checked(form, 'returnable'),
+        sdStatus: 'ACTIVE', validFrom: activeFrom },
+      purchasePrice: Number(purchasePrice), salePrice: Number(salePrice),
+      priceDocumentCode: optionalText(form, 'priceDocumentCode'),
+    })
+  }
+  return <DataFormDialog title="新增药品产品" eyebrow={`${medication.name} · ${organization.name}`} onClose={onClose}
+    size="xwide" description="一次完成厂家产品、首个包装、机构经营编码及初始价格建档。" onSubmit={submit}>
+    <FormSection title="常用产品信息" description="优先维护开立、采购、入库和收费都会使用的字段。">
       <FormGrid columns={3}>
-        <StaticSelectField name="manufacturerId" label="生产企业"
+        <StaticSelectField name="manufacturerId" label="生产厂家"
           options={manufacturers.map((item) => ({ value: item.id, label: item.name }))}
           defaultValue={manufacturers[0]?.id} />
         <FormField label="产品编码" required><input name="code" placeholder="如 PROD_0001" autoFocus required /></FormField>
-        <FormField label="最小单位"><input name="unitCode" defaultValue={medication.preparationUnit}
-          placeholder="片、粒、支" /></FormField>
-        <FormField label="产品名称" required className="span-2"><input name="name"
-          defaultValue={`${medication.name}${medication.sdDoseFormText ?? ''}`} required /></FormField>
+        <FormField label="机构货品码"><input name="localCode" placeholder="院内药品编码" /></FormField>
+        <FormField label="产品名称" required className="span-2" hint="来自药品通用信息；如需调整，请返回通用信息维护。">
+          <input value={medication.name} readOnly aria-readonly="true" />
+        </FormField>
         <FormField label="商品名"><input name="tradeName" placeholder="无商品名可留空" /></FormField>
+        <FormField label="机构显示名称"><input name="localName" placeholder="默认沿用产品名称" /></FormField>
+        <FormField label="批准文号"><input name="approvalCode" placeholder="国药准字或注册证编号" /></FormField>
+        <FormField label="追溯码" hint="通常为7位数字，用于标识厂家产品。"><input name="traceCode"
+          inputMode="numeric" maxLength={7} pattern="[0-9]{7}" placeholder="如 8690001" /></FormField>
+        <FormField label="最小单位" required hint="来自药品通用信息；厂家产品不可单独修改。"><input
+          value={medication.preparationUnit || ''} placeholder="请先维护药品通用信息" readOnly aria-readonly="true" /></FormField>
       </FormGrid>
     </FormSection>
-    <FormSection title="批准与采购信息" description="批准有效期用于合规校验，采购编码用于机构业务对接。">
+    <FormSection title="包装、条码与价格" description="包装规格由制剂规格、包装系数、最小单位和包装单位自动生成，也可以按实际商品规格手动修正。">
+      <FormGrid columns={4}>
+        <FormField label="包装单位" required><input name="packageUnitName" value={packageUnitName} placeholder="盒、瓶、支" required
+          onChange={(event) => { const next = event.target.value; setPackageUnitName(next); setPackageSpec(generatedPackageSpec(quantityFactor, next)) }} /></FormField>
+        <FormField label={`包装系数（${medication.preparationUnit || '最小单位'}）`} required>
+          <input name="quantityFactor" type="number" min="0.000001" step="any" placeholder="如 24" value={quantityFactor} required
+            onChange={(event) => { const next = event.target.value; setQuantityFactor(next); setPackageSpec(generatedPackageSpec(next, packageUnitName)) }} />
+        </FormField>
+        <FormField label="包装规格" required className="span-2" hint="系统自动组合制剂规格与包装数量，允许按厂家包装文字手动修改。"><input
+          name="packageSpec" value={packageSpec} placeholder="如 5mg*24片/盒" required onChange={(event) => setPackageSpec(event.target.value)} /></FormField>
+        <FormField label="条形码"><input name="barcode" placeholder="扫描或录入商品条码" /></FormField>
+        <FormField label="进货价格" required><input name="purchasePrice" type="number" min="0" step="0.000001" value={purchasePrice} required
+          onChange={(event) => { setPurchasePrice(event.target.value); if (markupMode === 'RATE') calculateSalePrice(event.target.value, markupRate) }} /></FormField>
+        <FormField label="零售价格" required><input name="salePrice" type="number" min="0" step="0.000001" value={salePrice} required
+          onChange={(event) => setSalePrice(event.target.value)} /></FormField>
+        <FormField label="价格文件号"><input name="priceDocumentCode" placeholder="调价或采购依据编号" /></FormField>
+        <FormField label="加成方式"><Select value={markupMode} onChange={(value) => {
+          const next = value as 'NONE' | 'RATE'; setMarkupMode(next); if (next === 'RATE') calculateSalePrice(purchasePrice, markupRate)
+        }} options={[{ value: 'NONE', label: '不自动计算' }, { value: 'RATE', label: '按加成率计算' }]} /></FormField>
+        <FormField label="加成率（%）"><input name="markupRate" type="number" min="0" step="0.01" disabled={markupMode === 'NONE'}
+          value={markupRate} onChange={(event) => { setMarkupRate(event.target.value); calculateSalePrice(purchasePrice, event.target.value) }} /></FormField>
+      </FormGrid>
+    </FormSection>
+    <FormSection title="机构业务能力" description="控制该产品是否可以进入医生开立、采购库存、药房发药和收费流程。">
+      <FormGrid>
+        <Checkboxes title="当前机构启用能力">
+          <Checkbox name="orderable" label="允许开立" defaultChecked />
+          <Checkbox name="purchasable" label="允许采购" defaultChecked />
+          <Checkbox name="stocked" label="库存商品" defaultChecked />
+          <Checkbox name="dispensable" label="允许发药" defaultChecked />
+          <Checkbox name="chargeable" label="允许收费" defaultChecked />
+          <Checkbox name="returnable" label="允许退药" defaultChecked />
+          <Checkbox name="defaultDispense" label="默认发药包装" />
+          <Checkbox name="traceSplitRequired" label="拆零需处理追溯码" defaultChecked />
+        </Checkboxes>
+      </FormGrid>
+    </FormSection>
+    <details className="master-data-advanced-fields">
+      <summary>监管与产品补充信息（非日常必填）</summary>
       <FormGrid columns={3}>
-        <FormField label="批准文号"><input name="approvalCode" placeholder="录入批准文号" /></FormField>
-        <FormField label="注册证号"><input name="registrationCode" placeholder="如适用" /></FormField>
-        <FormField label="采购编码"><input name="purchaseCode" placeholder="机构或平台采购编码" /></FormField>
+        <FormField label="注册证号"><input name="registrationCode" placeholder="进口药品或器械适用" /></FormField>
         <SelectField name="sdMarketStatus" label="上市状态" values={dictionaries.BD_PRODUCT_MARKET_STATUS}
           defaultValue="MARKETED" />
-        <DateRangeFields fromName="approvalFrom" toName="approvalTo" fromLabel="批准起始" toLabel="批准截止"
-          required={false} />
-        <DateRangeFields fromName="registrationFrom" toName="registrationTo" fromLabel="注册起始" toLabel="注册截止"
-          required={false} />
-      </FormGrid>
-    </FormSection>
-    <FormSection title="目录能力与生命周期" description="目录失效日期为空表示持续有效。">
-      <FormGrid>
-        <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="目录生效" toLabel="目录失效" />
-        <SelectField name="sdProductionPlace" label="产品生产地" values={dictionaries.BD_PRODUCTION_PLACE}
-          required={false} />
-        <FormField label="产品有效期数值"><input name="shelfLifeValue" type="number" min="0" step="any"
-          placeholder="如 24" /></FormField>
-        <SelectField name="sdShelfLifeUnit" label="产品有效期单位" values={dictionaries.BD_SHELF_LIFE_UNIT}
-          required={false} />
-        <Checkboxes title="产品能力">
-          <Checkbox name="orderable" label="允许开立" defaultChecked />
-          <Checkbox name="chargeable" label="允许收费" defaultChecked />
-          <Checkbox name="stocked" label="库存商品" defaultChecked />
+        <SelectField name="sdProductionPlace" label="产品生产地" values={dictionaries.BD_PRODUCTION_PLACE} required={false} />
+        <FormField label="产品有效期数值"><input name="shelfLifeValue" type="number" min="0" step="any" placeholder="如 24" /></FormField>
+        <SelectField name="sdShelfLifeUnit" label="产品有效期单位" values={dictionaries.BD_SHELF_LIFE_UNIT} required={false} />
+        <Checkboxes title="监管标识">
           <Checkbox name="otc" label="OTC" />
-          <Checkbox name="centralPurchase" label="集采产品" />
-          <Checkbox name="importAllowed" label="允许机构调入" defaultChecked />
-          <Checkbox name="traceSplitRequired" label="追溯码拆零" defaultChecked />
+          <Checkbox name="centralPurchase" label="国家/省级集采" />
         </Checkboxes>
-        <FormField label="适应证" className="span-2"><textarea name="indication"
-          placeholder="录入厂家产品批准的适应证" rows={2} /></FormField>
-        <FormField label="说明书" className="span-2"><textarea name="instruction"
-          placeholder="录入或粘贴产品说明书摘要" rows={3} /></FormField>
       </FormGrid>
-    </FormSection>
+    </details>
   </DataFormDialog>
 }
 
-function PackageDialog({ product, dictionaries, onClose, onSave }: { product: MedicationProduct;
+function PackageDialog({ product, medication, dictionaries, onClose, onSave }: { product: MedicationProduct;
+  medication: MedicationKnowledge;
   dictionaries: DictionaryMap; onClose: () => void; onSave: (input: PackageInput) => void }) {
+  const [unitName, setUnitName] = useState('盒')
+  const [quantityFactor, setQuantityFactor] = useState('')
+  const [packageSpec, setPackageSpec] = useState('')
+  const generatedPackageSpec = (factor: string, packageUnit: string) => medicationPackageSpec(
+    medication.preparationSpec, factor, product.unitCode, packageUnit)
   return <DataFormDialog title="新增产品包装" eyebrow={product.name} onClose={onClose}
-    size="xwide" description={`定义包装单位与${product.unitCode || '最小单位'}之间的换算关系，并声明采购、销售和发放用途。`}
-    onSubmit={(form) => onSave({ unitCode: text(form, 'unitCode'), unitName: text(form, 'unitName'),
+    size="xwide" description={`根据包装系数维护包装规格，并声明采购、销售和发放用途。`}
+    onSubmit={(form) => onSave({ unitCode: text(form, 'unitName'), unitName: text(form, 'unitName'),
       packageSpec: optionalText(form, 'packageSpec'), quantityFactor: Number(text(form, 'quantityFactor')),
       sdUsageType: text(form, 'sdUsageType'), barcode: optionalText(form, 'barcode'),
       defaultPurchase: checked(form, 'defaultPurchase'), defaultSale: checked(form, 'defaultSale'),
       defaultDispense: checked(form, 'defaultDispense'), sdStatus: 'ACTIVE', validFrom: text(form, 'validFrom'),
       validTo: optionalText(form, 'validTo') })}>
-    <FormSection title="包装与换算" description="包装编码在产品范围内保持稳定。">
+    <FormSection title="包装与规格" description={`最小单位为${product.unitCode || '未维护'}，包装规格可在自动生成后手动修正。`}>
       <FormGrid columns={3}>
-        <FormField label="包装单位编码" required><input name="unitCode" placeholder="BOX" autoFocus required /></FormField>
-        <FormField label="包装单位名称" required><input name="unitName" placeholder="盒" required /></FormField>
+        <FormField label="包装单位" required><input name="unitName" placeholder="盒" autoFocus required value={unitName}
+          onChange={(event) => { const next = event.target.value; setUnitName(next); setPackageSpec(generatedPackageSpec(quantityFactor, next)) }} /></FormField>
         <SelectField name="sdUsageType" label="包装用途" values={dictionaries.BD_PACKAGE_USE} defaultValue="SALE" />
-        <FormField label="包装规格"><input name="packageSpec" placeholder="如 24粒/盒" /></FormField>
-        <FormField label={`换算数量（${product.unitCode || '最小单位'}）`} required><input name="quantityFactor"
-          type="number" min="0.000001" step="any" placeholder="如 24" required /></FormField>
+        <FormField label={`包装系数（${product.unitCode || '最小单位'}）`} required><input name="quantityFactor"
+          type="number" min="0.000001" step="any" placeholder="如 24" required value={quantityFactor}
+          onChange={(event) => { const next = event.target.value; setQuantityFactor(next); setPackageSpec(generatedPackageSpec(next, unitName)) }} /></FormField>
+        <FormField label="包装规格" className="span-2" hint="系统自动组合制剂规格与包装数量，允许按厂家包装文字手动修改。"><input
+          name="packageSpec" placeholder="如 5mg*24片/盒" value={packageSpec} onChange={(event) => setPackageSpec(event.target.value)} /></FormField>
         <FormField label="条码"><input name="barcode" placeholder="扫描或录入商品条码" /></FormField>
       </FormGrid>
     </FormSection>

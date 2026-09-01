@@ -13,13 +13,28 @@ import java.util.List;
 import java.util.Optional;
 
 interface ServiceResourceRepository extends JpaRepository<ServiceResource, Long> {
+    Optional<ServiceResource> findByIdAndTenantId(Long id, Long tenantId);
+
     Optional<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
             Long tenantId, Long organizationId, Long departmentId, Long practitionerId, Long catalogItemId);
+
+    List<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentId(
+            Long tenantId, Long organizationId, Long departmentId);
 }
 
-interface ScheduleTemplateRepository extends JpaRepository<ScheduleTemplate, Long> {}
+interface ScheduleTemplateRepository extends JpaRepository<ScheduleTemplate, Long> {
+    Optional<ScheduleTemplate> findByIdAndTenantId(Long id, Long tenantId);
+    List<ScheduleTemplate> findByTenantIdAndResourceIdInOrderByUpdatedAtDesc(
+            Long tenantId, Collection<Long> resourceIds);
+}
 
-interface ScheduleTemplatePeriodRepository extends JpaRepository<ScheduleTemplatePeriod, Long> {}
+interface ScheduleTemplatePeriodRepository extends JpaRepository<ScheduleTemplatePeriod, Long> {
+    List<ScheduleTemplatePeriod> findByTenantIdAndTemplateIdOrderByDayOfWeek(Long tenantId, Long templateId);
+}
+
+interface ScheduleExceptionRepository extends JpaRepository<ScheduleException, Long> {
+    List<ScheduleException> findByTenantIdAndTemplateIdOrderByExceptionDate(Long tenantId, Long templateId);
+}
 
 interface ScheduleGenerationRunRepository extends JpaRepository<ScheduleGenerationRun, Long> {
     Optional<ScheduleGenerationRun> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
@@ -57,6 +72,9 @@ interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule, Long>
 
     List<ServiceSchedule> findByTenantIdAndOrganizationIdAndDepartmentIdAndServiceDateBetweenOrderByStartAt(
             Long tenantId, Long organizationId, Long departmentId, LocalDate dateFrom, LocalDate dateTo);
+
+    List<ServiceSchedule> findByTenantIdAndOrganizationIdAndServiceDateBetweenOrderByStartAt(
+            Long tenantId, Long organizationId, LocalDate dateFrom, LocalDate dateTo);
 }
 
 interface ScheduleSlotPoolRepository extends JpaRepository<ScheduleSlotPool, Long> {

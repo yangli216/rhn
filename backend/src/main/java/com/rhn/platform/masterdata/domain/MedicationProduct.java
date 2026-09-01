@@ -42,6 +42,7 @@ public class MedicationProduct {
     @Column(table = "medication_products", name = "manufacturer_id", nullable = false) private Long manufacturerId;
     @Column(table = "medication_products", name = "trade_name") private String tradeName;
     @Column(table = "medication_products", name = "approval_code") private String approvalCode;
+    @Column(table = "medication_products", name = "trace_code") private String traceCode;
     @Column(table = "medication_products", name = "approval_from") private LocalDate approvalFrom;
     @Column(table = "medication_products", name = "approval_to") private LocalDate approvalTo;
     @Column(table = "medication_products", name = "registration_code") private String registrationCode;
@@ -63,7 +64,7 @@ public class MedicationProduct {
 
     public MedicationProduct(Long tenantId, Long actorId, Long itemTypeId, Long medicationId, Long manufacturerId, String code,
                              String name, String unitCode, String tradeName, String approvalCode,
-                             LocalDate approvalFrom, LocalDate approvalTo, String registrationCode,
+                             String traceCode, LocalDate approvalFrom, LocalDate approvalTo, String registrationCode,
                              LocalDate registrationFrom, LocalDate registrationTo, String purchaseCode,
                              String marketStatus, String productionPlace, boolean otc, boolean centralPurchase,
                              boolean importAllowed, boolean traceSplitRequired, boolean orderable,
@@ -80,7 +81,8 @@ public class MedicationProduct {
         this.itemTypeId = itemTypeId;
         this.medicationId = medicationId; this.manufacturerId = manufacturerId; this.code = code; this.name = name;
         this.itemType = "MED_PRODUCT"; this.unitCode = unitCode; this.tradeName = tradeName;
-        this.approvalCode = approvalCode; this.approvalFrom = approvalFrom; this.approvalTo = approvalTo;
+        this.approvalCode = approvalCode; this.traceCode = traceCode;
+        this.approvalFrom = approvalFrom; this.approvalTo = approvalTo;
         this.registrationCode = registrationCode; this.registrationFrom = registrationFrom;
         this.registrationTo = registrationTo; this.purchaseCode = purchaseCode;
         this.marketStatus = marketStatus; this.productionPlace = productionPlace; this.otc = otc;
@@ -102,6 +104,7 @@ public class MedicationProduct {
     public Long medicationId() { return medicationId; } public Long manufacturerId() { return manufacturerId; }
     public String code() { return code; } public String name() { return name; } public String unitCode() { return unitCode; }
     public String tradeName() { return tradeName; } public String approvalCode() { return approvalCode; }
+    public String traceCode() { return traceCode; }
     public LocalDate approvalFrom() { return approvalFrom; } public LocalDate approvalTo() { return approvalTo; }
     public String registrationCode() { return registrationCode; }
     public LocalDate registrationFrom() { return registrationFrom; } public LocalDate registrationTo() { return registrationTo; }

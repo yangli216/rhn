@@ -140,6 +140,14 @@ public class MasterDataController {
         return service.createProduct(request.command(), organizationId);
     }
 
+    @PostMapping("/medication-products/setup")
+    @ResponseStatus(HttpStatus.CREATED)
+    MedicationProductView createProductSetup(@Valid @RequestBody ProductSetupRequest request) {
+        return service.createProductSetup(request.product().command(), request.packaging().command(),
+                request.organization().command(), request.purchasePrice(), request.salePrice(),
+                optional(request.priceDocumentCode()));
+    }
+
     @PostMapping("/catalog-items/{id}/packages")
     @ResponseStatus(HttpStatus.CREATED)
     PackageView createPackage(@PathVariable Long id, @Valid @RequestBody PackageRequest request) {
@@ -310,10 +318,9 @@ public class MasterDataController {
     record ProductRequest(
             @NotNull Long medicationId, @NotNull Long manufacturerId,
             @NotBlank @Pattern(regexp = CODE_PATTERN) String code,
-            @NotBlank @Size(max = 300) String name,
-            @Size(max = 64) String unitCode,
             @Size(max = 300) String tradeName,
             @Size(max = 128) String approvalCode,
+            @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
             LocalDate approvalFrom, LocalDate approvalTo,
             @Size(max = 128) String registrationCode,
             LocalDate registrationFrom, LocalDate registrationTo,
@@ -328,13 +335,21 @@ public class MasterDataController {
             @NotNull LocalDate validFrom, LocalDate validTo,
             @Size(max = 4000) String indication,
             String instruction) {
-        ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, clean(code), clean(name),
-                optional(unitCode), optional(tradeName), optional(approvalCode), approvalFrom, approvalTo,
+        ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, clean(code),
+                optional(tradeName), optional(approvalCode), optional(traceCode), approvalFrom, approvalTo,
                 optional(registrationCode), registrationFrom, registrationTo, optional(purchaseCode),
                 optional(sdMarketStatus), optional(sdProductionPlace), otc, centralPurchase, importAllowed,
                 traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, optional(sdShelfLifeUnit),
                 sdStatus, validFrom, validTo, optional(indication), optional(instruction)); }
     }
+
+    record ProductSetupRequest(
+            @NotNull @Valid ProductRequest product,
+            @NotNull @Valid PackageRequest packaging,
+            @NotNull @Valid AdoptionRequest organization,
+            @NotNull @DecimalMin("0") BigDecimal purchasePrice,
+            @NotNull @DecimalMin("0") BigDecimal salePrice,
+            @Size(max = 128) String priceDocumentCode) {}
 
     record PackageRequest(
             Long basePackageId,

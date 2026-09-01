@@ -11,6 +11,8 @@ spring:
       ddl-auto: none
   flyway:
     locations: classpath:db/oracle,classpath:db/oracle-local
+    # Local demo datasets may be added behind the current schema version during parallel iteration.
+    out-of-order: true
 
 rhn:
   id:
@@ -31,3 +33,8 @@ rhn:
 springdoc:
   api-docs:
     enabled: true
+
+management:
+  health:
+    redis:
+      enabled: false

@@ -345,6 +345,7 @@ export interface MedicationProduct {
   unitCode?: string
   tradeName?: string
   approvalCode?: string
+  traceCode?: string
   approvalFrom?: string
   approvalTo?: string
   registrationCode?: string
@@ -501,10 +502,9 @@ export interface ProductInput {
   medicationId: string
   manufacturerId: string
   code: string
-  name: string
-  unitCode?: string
   tradeName?: string
   approvalCode?: string
+  traceCode?: string
   approvalFrom?: string
   approvalTo?: string
   registrationCode?: string
@@ -527,6 +527,15 @@ export interface ProductInput {
   validTo?: string
   indication?: string
   instruction?: string
+}
+
+export interface MedicationProductSetupInput {
+  product: ProductInput
+  packaging: PackageInput
+  organization: AdoptionInput
+  purchasePrice: number
+  salePrice: number
+  priceDocumentCode?: string
 }
 
 export interface ManufacturerInput {
@@ -1318,6 +1327,11 @@ export function createMasterDataApi(client: ApiClient) {
     ),
     createProduct: (input: ProductInput, organizationId = '') => client.request<MedicationProduct>(
       `/api/platform/master-data/medication-products${queryString({ organizationId })}`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    createProductSetup: (input: MedicationProductSetupInput) => client.request<MedicationProduct>(
+      '/api/platform/master-data/medication-products/setup', {
         method: 'POST', body: JSON.stringify(input),
       },
     ),

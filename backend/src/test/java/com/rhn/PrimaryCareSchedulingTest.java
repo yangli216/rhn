@@ -135,18 +135,23 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("SCHEDULE_SERVICE_CATEGORY_INVALID"));
 
+        Long morningId = Long.valueOf(morningScheduleId);
+        Long afternoonId = Long.valueOf(afternoonScheduleId);
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?)",
+                Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(6, jdbcTemplate.queryForObject(
-                "select count(*) from service_schedule_events where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from service_schedule_events where tenant_id = ? and schedule_id in (?, ?)",
+                Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(6, jdbcTemplate.queryForObject(
-                "select count(*) from slot_events where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from slot_events where tenant_id = ? and schedule_id in (?, ?)",
+                Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ? and status = 'ACTIVE'",
-                Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?) and status = 'ACTIVE'",
+                Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ? and status = 'CLOSED'",
-                Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?) and status = 'CLOSED'",
+                Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
     }
 
     private org.springframework.test.web.servlet.ResultActions performAction(

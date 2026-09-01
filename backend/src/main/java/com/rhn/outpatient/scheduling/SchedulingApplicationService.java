@@ -9,6 +9,12 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.ScheduleView;
 import com.rhn.outpatient.scheduling.SchedulingContracts.SchedulingBootstrap;
 import com.rhn.outpatient.scheduling.SchedulingContracts.ChangeScheduleStatusRequest;
 import com.rhn.outpatient.scheduling.SchedulingContracts.UpdateScheduleRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalExceptionInput;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalExceptionView;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalScheduleRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalScheduleResult;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplatePeriodView;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplateView;
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
 import com.rhn.platform.configuration.api.ConfigurationValue;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
@@ -53,6 +59,7 @@ class SchedulingApplicationService {
     private final ServiceResourceRepository resourceRepository;
     private final ScheduleTemplateRepository templateRepository;
     private final ScheduleTemplatePeriodRepository periodRepository;
+    private final ScheduleExceptionRepository exceptionRepository;
     private final ScheduleGenerationRunRepository runRepository;
     private final ServiceScheduleRepository scheduleRepository;
     private final ScheduleSlotPoolRepository poolRepository;
@@ -67,6 +74,7 @@ class SchedulingApplicationService {
     SchedulingApplicationService(ServiceResourceRepository resourceRepository,
                                  ScheduleTemplateRepository templateRepository,
                                  ScheduleTemplatePeriodRepository periodRepository,
+                                 ScheduleExceptionRepository exceptionRepository,
                                  ScheduleGenerationRunRepository runRepository,
                                  ServiceScheduleRepository scheduleRepository,
                                  ScheduleSlotPoolRepository poolRepository,
@@ -80,6 +88,7 @@ class SchedulingApplicationService {
         this.resourceRepository = resourceRepository;
         this.templateRepository = templateRepository;
         this.periodRepository = periodRepository;
+        this.exceptionRepository = exceptionRepository;
         this.runRepository = runRepository;
         this.scheduleRepository = scheduleRepository;
         this.poolRepository = poolRepository;
@@ -115,8 +124,8 @@ class SchedulingApplicationService {
         LocalDate to = dateTo == null ? from.plusDays(13) : dateTo;
         requireDateRange(from, to, false);
         return toViews(context.tenantId(), scheduleRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndServiceDateBetweenOrderByStartAt(
-                        context.tenantId(), context.organizationId(), context.departmentId(), from, to));
+                .findByTenantIdAndOrganizationIdAndServiceDateBetweenOrderByStartAt(
+                        context.tenantId(), context.organizationId(), from, to));
     }
 
     @Transactional
@@ -212,6 +221,154 @@ class SchedulingApplicationService {
         run.complete(generated.size(), skipped);
         runRepository.save(run);
         return new QuickScheduleResult(run.id(), false, generated.size(), skipped,
+                toViews(context.tenantId(), generated));
+    }
+
+    @Transactional(readOnly = true)
+    List<ProfessionalTemplateView> professionalTemplates() {
+        ExecutionContext context = requireWorkContext();
+        List<ServiceResource> resources = resourceRepository
+                .findByTenantIdAndOrganizationIdAndDepartmentId(
+                        context.tenantId(), context.organizationId(), context.departmentId());
+        if (resources.isEmpty()) return List.of();
+        Map<Long, ServiceResource> resourceById = resources.stream()
+                .collect(Collectors.toMap(ServiceResource::id, Function.identity()));
+        return templateRepository.findByTenantIdAndResourceIdInOrderByUpdatedAtDesc(
+                        context.tenantId(), resourceById.keySet()).stream()
+                .filter(value -> ScheduleManagementMode.PROFESSIONAL.name().equals(value.managementMode()))
+                .map(value -> toProfessionalTemplate(context.tenantId(), value, resourceById.get(value.resourceId())))
+                .toList();
+    }
+
+    @Transactional
+    ProfessionalScheduleResult createProfessionalTemplate(ProfessionalScheduleRequest request) {
+        ExecutionContext context = requireWorkContext();
+        if (!ScheduleManagementMode.PROFESSIONAL.name().equals(textValue(context, MODE_KEY))) {
+            throw conflict("PROFESSIONAL_SCHEDULING_NOT_ENABLED", "当前科室尚未启用专业排班，请先在参数管理中启用");
+        }
+        requireProfessionalRequest(request);
+        String idempotencyCode = request.idempotencyCode().trim();
+        ScheduleGenerationRun replay = runRepository
+                .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode).orElse(null);
+        if (replay != null) {
+            ScheduleTemplate template = templateRepository.findByIdAndTenantId(replay.templateId(), context.tenantId())
+                    .orElseThrow(() -> notFound("SCHEDULE_TEMPLATE_NOT_FOUND", "专业排班模板不存在"));
+            ServiceResource resource = resourceRepository.findByIdAndTenantId(template.resourceId(), context.tenantId())
+                    .orElseThrow(() -> notFound("SCHEDULE_RESOURCE_NOT_FOUND", "专业排班资源不存在"));
+            List<ServiceSchedule> existing = scheduleRepository
+                    .findByTenantIdAndGenerationRunIdOrderByStartAt(context.tenantId(), replay.id());
+            return new ProfessionalScheduleResult(replay.id(), true, replay.generatedCount(), replay.skippedCount(),
+                    toProfessionalTemplate(context.tenantId(), template, resource),
+                    toViews(context.tenantId(), existing));
+        }
+
+        StaffDetailView staff = organizationDirectory.requireStaff(context.tenantId(), request.practitionerId());
+        StaffAssignmentView assignment = assignmentFor(context, staff, request.dateFrom(), request.dateTo());
+        ServiceCatalogSnapshot service = serviceCatalogDirectory.requireSchedulableOutpatientService(
+                context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateFrom());
+        serviceCatalogDirectory.requireSchedulableOutpatientService(
+                context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateTo());
+        String timezoneCode = StrUtil.blankToDefault(organizationDirectory
+                .requireOrganization(context.tenantId(), context.organizationId()).timezoneCode(), "Asia/Shanghai");
+        ZoneId zoneId = ZoneId.of(timezoneCode);
+        String locationName = StrUtil.isBlank(request.locationName()) ? null : request.locationName().trim();
+
+        ServiceResource resource = resourceRepository
+                .findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
+                        context.tenantId(), context.organizationId(), context.departmentId(),
+                        request.practitionerId(), request.catalogItemId())
+                .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
+                        context.departmentId(), request.practitionerId(), assignment.id(), request.catalogItemId(),
+                        staff.practitioner().fullName(), service.code(), service.name(), context.subjectId()));
+        resource.refresh(assignment.id(), staff.practitioner().fullName(), service.code(), service.name(), context.subjectId());
+        resourceRepository.saveAndFlush(resource);
+
+        ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
+                resource.id(), request.templateName().trim(), ScheduleManagementMode.PROFESSIONAL, timezoneCode,
+                request.dateFrom(), request.dateTo(), context.subjectId()));
+        ScheduleDayPart templateDayPart = dayPart(request.startTime(), request.endTime());
+        List<ScheduleTemplatePeriod> periods = request.weekdays().stream().sorted()
+                .map(weekday -> new ScheduleTemplatePeriod(context.tenantId(), template.id(), weekday,
+                        templateDayPart, minute(request.startTime()), minute(request.endTime()), request.capacity(),
+                        request.slotMode().name(), request.slotMinutes()))
+                .toList();
+        periodRepository.saveAllAndFlush(periods);
+        List<ScheduleException> exceptions = (request.exceptions() == null ? List.<ProfessionalExceptionInput>of()
+                : request.exceptions()).stream().map(value -> new ScheduleException(
+                        context.tenantId(), template.id(), value.exceptionDate(), value.exceptionType().name(),
+                        value.startTime() == null ? null : minute(value.startTime()),
+                        value.endTime() == null ? null : minute(value.endTime()), value.capacity(),
+                        value.slotMinutes(), value.reason().trim(), context.subjectId())).toList();
+        exceptionRepository.saveAllAndFlush(exceptions);
+
+        ScheduleGenerationRun run = runRepository.saveAndFlush(new ScheduleGenerationRun(context.tenantId(),
+                template.id(), idempotencyCode, request.dateFrom(), request.dateTo(), "MANUAL",
+                jsonCodec.write(request), context.subjectId()));
+        Map<Integer, ScheduleTemplatePeriod> periodByWeekday = periods.stream()
+                .collect(Collectors.toMap(ScheduleTemplatePeriod::dayOfWeek, Function.identity()));
+        Map<LocalDate, ScheduleException> exceptionByDate = exceptions.stream()
+                .collect(Collectors.toMap(ScheduleException::exceptionDate, Function.identity()));
+        ScheduleTemplatePeriod defaultPeriod = periods.getFirst();
+        List<ServiceSchedule> generated = new ArrayList<>();
+        int skipped = 0;
+        for (LocalDate date = request.dateFrom(); !date.isAfter(request.dateTo()); date = date.plusDays(1)) {
+            LocalDate serviceDate = date;
+            ScheduleException exception = exceptionByDate.get(date);
+            ScheduleTemplatePeriod period = periodByWeekday.get(date.getDayOfWeek().getValue());
+            if (exception != null && ScheduleExceptionType.CLOSED.name().equals(exception.exceptionType())) continue;
+            if (period == null && exception == null) continue;
+            ScheduleTemplatePeriod sourcePeriod = period == null ? defaultPeriod : period;
+            int startMinute = exception == null ? sourcePeriod.minuteStart() : exception.minuteStart();
+            int endMinute = exception == null ? sourcePeriod.minuteEnd() : exception.minuteEnd();
+            int capacity = exception == null ? sourcePeriod.defaultCapacity() : exception.capacity();
+            int slotMinutes = exception != null && exception.slotMinutes() != null
+                    ? exception.slotMinutes() : sourcePeriod.slotMinutes() == null ? 0 : sourcePeriod.slotMinutes();
+            List<int[]> windows = scheduleWindows(startMinute, endMinute, request.slotMode(), slotMinutes);
+            for (int[] window : windows) {
+                Instant startAt = date.atTime(toTime(window[0])).atZone(zoneId).toInstant();
+                Instant endAt = date.atTime(toTime(window[1])).atZone(zoneId).toInstant();
+                boolean overlaps = scheduleRepository.countPractitionerOverlaps(context.tenantId(),
+                        request.practitionerId(), date, 0L, startAt, endAt) > 0
+                        || generated.stream().anyMatch(value -> value.serviceDate().equals(serviceDate)
+                        && value.practitionerId().equals(request.practitionerId())
+                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt));
+                if (overlaps || scheduleRepository.existsByTenantIdAndResourceIdAndStartAtAndEndAt(
+                        context.tenantId(), resource.id(), startAt, endAt)) {
+                    skipped++;
+                    continue;
+                }
+                generated.add(new ServiceSchedule(context.tenantId(), resource.id(), template.id(), sourcePeriod.id(),
+                        run.id(), context.organizationId(), context.departmentId(), request.practitionerId(),
+                        assignment.id(), request.catalogItemId(), dayPart(toTime(window[0]), toTime(window[1])),
+                        staff.practitioner().fullName(), service.code(), service.name(), locationName, timezoneCode,
+                        date, startAt, endAt, capacity, ScheduleManagementMode.PROFESSIONAL, "SHARED",
+                        context.subjectId()));
+            }
+        }
+        scheduleRepository.saveAllAndFlush(generated);
+
+        List<ScheduleSlotPool> pools = new ArrayList<>();
+        for (ServiceSchedule schedule : generated) {
+            pools.add(new ScheduleSlotPool(context.tenantId(), schedule.id(), schedule.totalCapacity(),
+                    request.slotMode().name()));
+        }
+        poolRepository.saveAllAndFlush(pools);
+        Map<Long, ScheduleSlotPool> poolsBySchedule = pools.stream()
+                .collect(Collectors.toMap(ScheduleSlotPool::scheduleId, Function.identity()));
+        scheduleEventRepository.saveAll(generated.stream()
+                .map(value -> new ServiceScheduleEvent(context.tenantId(), value.id(), "PUBLISHED", null,
+                        "PUBLISHED", idempotencyCode + ":schedule:" + value.id(), context.subjectId(),
+                        "专业模板生成并发布"))
+                .toList());
+        slotEventRepository.saveAll(generated.stream().map(value -> {
+            ScheduleSlotPool pool = poolsBySchedule.get(value.id());
+            return new SlotEvent(context.tenantId(), pool.id(), value.id(), pool.totalCount(),
+                    idempotencyCode + ":pool:" + pool.id(), context.subjectId());
+        }).toList());
+        run.complete(generated.size(), skipped);
+        runRepository.save(run);
+        return new ProfessionalScheduleResult(run.id(), false, generated.size(), skipped,
+                toProfessionalTemplate(context.tenantId(), template, resource),
                 toViews(context.tenantId(), generated));
     }
 
@@ -312,6 +469,115 @@ class SchedulingApplicationService {
                 nextSlotSequence(context.tenantId(), pool.id()), 0, 0,
                 CommandCodes.prefixed("POOL-", commandCode), context.subjectId(), request.reason().trim()));
         return toView(context.tenantId(), schedule);
+    }
+
+    private ProfessionalTemplateView toProfessionalTemplate(Long tenantId, ScheduleTemplate template,
+                                                            ServiceResource resource) {
+        List<ProfessionalTemplatePeriodView> periods = periodRepository
+                .findByTenantIdAndTemplateIdOrderByDayOfWeek(tenantId, template.id()).stream()
+                .map(value -> new ProfessionalTemplatePeriodView(value.dayOfWeek(), toTime(value.minuteStart()),
+                        toTime(value.minuteEnd()), value.defaultCapacity(), value.slotMode(), value.slotMinutes()))
+                .toList();
+        List<ProfessionalExceptionView> exceptions = exceptionRepository
+                .findByTenantIdAndTemplateIdOrderByExceptionDate(tenantId, template.id()).stream()
+                .map(value -> new ProfessionalExceptionView(value.id(), value.exceptionDate(), value.exceptionType(),
+                        value.minuteStart() == null ? null : toTime(value.minuteStart()),
+                        value.minuteEnd() == null ? null : toTime(value.minuteEnd()), value.capacity(),
+                        value.slotMinutes(), value.reason()))
+                .toList();
+        return new ProfessionalTemplateView(template.id(), template.templateCode(), template.templateName(),
+                resource.practitionerId(), organizationDirectory.requireStaff(tenantId, resource.practitionerId())
+                        .practitioner().fullName(), resource.catalogItemId(), resource.serviceCode(),
+                resource.serviceName(), template.validFrom(), template.validTo(), template.status(), periods, exceptions);
+    }
+
+    private void requireProfessionalRequest(ProfessionalScheduleRequest request) {
+        requireDateRange(request.dateFrom(), request.dateTo(), true);
+        if (!request.endTime().isAfter(request.startTime())) {
+            throw badRequest("PROFESSIONAL_SCHEDULE_TIME_INVALID", "专业排班结束时间必须晚于开始时间");
+        }
+        requireSlotConfiguration(request.slotMode(), request.startTime(), request.endTime(), request.slotMinutes());
+        List<ProfessionalExceptionInput> exceptions = request.exceptions() == null ? List.of() : request.exceptions();
+        if (exceptions.stream().map(ProfessionalExceptionInput::exceptionDate).distinct().count() != exceptions.size()) {
+            throw badRequest("PROFESSIONAL_EXCEPTION_DUPLICATE", "同一模板日期只能配置一条例外");
+        }
+        Map<LocalDate, ProfessionalExceptionInput> exceptionByDate = exceptions.stream()
+                .collect(Collectors.toMap(ProfessionalExceptionInput::exceptionDate, Function.identity()));
+        for (ProfessionalExceptionInput value : exceptions) {
+            if (value.exceptionDate().isBefore(request.dateFrom()) || value.exceptionDate().isAfter(request.dateTo())) {
+                throw badRequest("PROFESSIONAL_EXCEPTION_OUTSIDE_PERIOD", "例外日期必须位于模板有效期内");
+            }
+            if (value.exceptionType() == ScheduleExceptionType.CLOSED) {
+                if (value.startTime() != null || value.endTime() != null || value.capacity() != null
+                        || value.slotMinutes() != null) {
+                    throw badRequest("PROFESSIONAL_CLOSED_EXCEPTION_INVALID", "停诊例外不需要填写时段和号源数");
+                }
+            } else {
+                if (value.startTime() == null || value.endTime() == null || value.capacity() == null) {
+                    throw badRequest("PROFESSIONAL_OVERRIDE_EXCEPTION_INCOMPLETE", "调整例外必须填写起止时间和号源数");
+                }
+                requireSlotConfiguration(request.slotMode(), value.startTime(), value.endTime(),
+                        value.slotMinutes() == null ? request.slotMinutes() : value.slotMinutes());
+            }
+        }
+        int estimated = 0;
+        for (LocalDate date = request.dateFrom(); !date.isAfter(request.dateTo()); date = date.plusDays(1)) {
+            ProfessionalExceptionInput exception = exceptionByDate.get(date);
+            if (exception != null && exception.exceptionType() == ScheduleExceptionType.CLOSED) continue;
+            if (!request.weekdays().contains(date.getDayOfWeek().getValue()) && exception == null) continue;
+            LocalTime start = exception == null ? request.startTime() : exception.startTime();
+            LocalTime end = exception == null ? request.endTime() : exception.endTime();
+            Integer slotMinutes = exception != null && exception.slotMinutes() != null
+                    ? exception.slotMinutes() : request.slotMinutes();
+            estimated += request.slotMode() == ProfessionalSlotMode.POOL ? 1
+                    : (minute(end) - minute(start)) / slotMinutes;
+        }
+        if (estimated > 2_000) {
+            throw badRequest("PROFESSIONAL_SCHEDULE_TOO_MANY_SLOTS", "单次最多生成 2000 个分时班次，请缩短日期范围或增大时间片");
+        }
+    }
+
+    private void requireSlotConfiguration(ProfessionalSlotMode mode, LocalTime start, LocalTime end,
+                                          Integer slotMinutes) {
+        if (!end.isAfter(start)) {
+            throw badRequest("PROFESSIONAL_SCHEDULE_TIME_INVALID", "排班结束时间必须晚于开始时间");
+        }
+        if (mode == ProfessionalSlotMode.POOL) {
+            if (slotMinutes != null) {
+                throw badRequest("PROFESSIONAL_POOL_SLOT_MINUTES_INVALID", "号池模式不需要填写时间片长度");
+            }
+            return;
+        }
+        if (slotMinutes == null || slotMinutes < 5 || slotMinutes > 120) {
+            throw badRequest("PROFESSIONAL_TIMED_SLOT_MINUTES_REQUIRED", "分时模式时间片长度必须在 5 至 120 分钟之间");
+        }
+        int duration = minute(end) - minute(start);
+        if (duration % slotMinutes != 0) {
+            throw badRequest("PROFESSIONAL_TIMED_SLOT_NOT_DIVISIBLE", "排班时长必须能被时间片长度整除");
+        }
+    }
+
+    private List<int[]> scheduleWindows(int startMinute, int endMinute, ProfessionalSlotMode mode,
+                                        int slotMinutes) {
+        if (mode == ProfessionalSlotMode.POOL) return List.of(new int[]{startMinute, endMinute});
+        List<int[]> result = new ArrayList<>();
+        for (int start = startMinute; start < endMinute; start += slotMinutes) {
+            result.add(new int[]{start, start + slotMinutes});
+        }
+        return result;
+    }
+
+    private static ScheduleDayPart dayPart(LocalTime start, LocalTime end) {
+        if (!start.isBefore(LocalTime.NOON) && start.isBefore(LocalTime.of(18, 0))) {
+            return ScheduleDayPart.AFTERNOON;
+        }
+        if (!start.isBefore(LocalTime.of(18, 0))) return ScheduleDayPart.EVENING;
+        if (!end.isAfter(LocalTime.NOON)) return ScheduleDayPart.MORNING;
+        return ScheduleDayPart.CUSTOM;
+    }
+
+    private static int minute(LocalTime value) {
+        return value.toSecondOfDay() / 60;
     }
 
     private List<ScheduleTemplatePeriod> buildPeriods(Long tenantId, Long templateId, QuickScheduleRequest request) {

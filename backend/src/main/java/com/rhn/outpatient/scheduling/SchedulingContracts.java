@@ -1,6 +1,7 @@
 package com.rhn.outpatient.scheduling;
 
 import com.rhn.platform.dictionary.api.DictionaryBinding;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -91,5 +92,77 @@ final class SchedulingContracts {
             @NotNull ScheduleAction action,
             @NotBlank @Size(max = 128) String commandCode,
             @NotBlank @Size(max = 500) String reason
+    ) {}
+
+    record ProfessionalScheduleRequest(
+            @NotBlank @Size(max = 200) String templateName,
+            @NotNull Long practitionerId,
+            @NotNull Long catalogItemId,
+            @NotNull LocalDate dateFrom,
+            @NotNull LocalDate dateTo,
+            @NotEmpty Set<@Min(1) @Max(7) Integer> weekdays,
+            @NotNull LocalTime startTime,
+            @NotNull LocalTime endTime,
+            @NotNull @Min(1) @Max(500) Integer capacity,
+            @NotNull ProfessionalSlotMode slotMode,
+            @Min(5) @Max(120) Integer slotMinutes,
+            @Size(max = 200) String locationName,
+            @Size(max = 31) List<@Valid ProfessionalExceptionInput> exceptions,
+            @NotBlank @Size(max = 128) String idempotencyCode
+    ) {}
+
+    record ProfessionalExceptionInput(
+            @NotNull LocalDate exceptionDate,
+            @NotNull ScheduleExceptionType exceptionType,
+            LocalTime startTime,
+            LocalTime endTime,
+            @Min(1) @Max(500) Integer capacity,
+            @Min(5) @Max(120) Integer slotMinutes,
+            @NotBlank @Size(max = 500) String reason
+    ) {}
+
+    record ProfessionalTemplatePeriodView(
+            int dayOfWeek,
+            LocalTime startTime,
+            LocalTime endTime,
+            int capacity,
+            @DictionaryBinding("SC_SLOT_MODE") String sdSlotMode,
+            Integer slotMinutes
+    ) {}
+
+    record ProfessionalExceptionView(
+            Long id,
+            LocalDate exceptionDate,
+            String exceptionType,
+            LocalTime startTime,
+            LocalTime endTime,
+            Integer capacity,
+            Integer slotMinutes,
+            String reason
+    ) {}
+
+    record ProfessionalTemplateView(
+            Long id,
+            String templateCode,
+            String templateName,
+            Long practitionerId,
+            String practitionerName,
+            Long catalogItemId,
+            String serviceCode,
+            String serviceName,
+            LocalDate validFrom,
+            LocalDate validTo,
+            String status,
+            List<ProfessionalTemplatePeriodView> periods,
+            List<ProfessionalExceptionView> exceptions
+    ) {}
+
+    record ProfessionalScheduleResult(
+            Long generationRunId,
+            boolean replayed,
+            int generatedCount,
+            int skippedCount,
+            ProfessionalTemplateView template,
+            List<ScheduleView> schedules
     ) {}
 }

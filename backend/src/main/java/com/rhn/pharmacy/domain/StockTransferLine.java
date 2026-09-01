@@ -19,6 +19,9 @@ public class StockTransferLine {
     @Column(name = "source_stock_item_id", nullable = false) private Long sourceStockItemId;
     @Column(name = "destination_stock_item_id", nullable = false) private Long destinationStockItemId;
     @Column(name = "requested_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "requested_operation_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedOperationQuantity;
+    @Column(name = "operation_unit_code", nullable = false) private String operationUnitCode;
+    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
     @Column(name = "approved_quantity", precision = 28, scale = 8) private BigDecimal approvedQuantity;
     @Column(name = "dispatched_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
     @Column(name = "received_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
@@ -29,9 +32,17 @@ public class StockTransferLine {
     protected StockTransferLine() {}
     public StockTransferLine(Long tenantId, Long transferId, int sortOrder, Long sourceItemId, Long destinationItemId,
                              BigDecimal requestedQuantity, String baseUnitCode) {
+        this(tenantId, transferId, sortOrder, sourceItemId, destinationItemId,
+                requestedQuantity, baseUnitCode, BigDecimal.ONE, requestedQuantity, baseUnitCode);
+    }
+    public StockTransferLine(Long tenantId, Long transferId, int sortOrder, Long sourceItemId, Long destinationItemId,
+                             BigDecimal requestedOperationQuantity, String operationUnitCode,
+                             BigDecimal baseQuantityFactor, BigDecimal requestedQuantity, String baseUnitCode) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockTransferId = transferId; this.sortOrder = sortOrder;
         this.sourceStockItemId = sourceItemId; this.destinationStockItemId = destinationItemId;
-        this.requestedQuantity = requestedQuantity; this.dispatchedQuantity = BigDecimal.ZERO;
+        this.requestedOperationQuantity = requestedOperationQuantity; this.operationUnitCode = operationUnitCode;
+        this.baseQuantityFactor = baseQuantityFactor; this.requestedQuantity = requestedQuantity;
+        this.dispatchedQuantity = BigDecimal.ZERO;
         this.receivedQuantity = BigDecimal.ZERO; this.damagedQuantity = BigDecimal.ZERO;
         this.baseUnitCode = baseUnitCode; this.lineStatus = "REQUESTED";
     }
@@ -50,6 +61,9 @@ public class StockTransferLine {
     public Long stockTransferId() { return stockTransferId; } public int sortOrder() { return sortOrder; }
     public Long sourceStockItemId() { return sourceStockItemId; } public Long destinationStockItemId() { return destinationStockItemId; }
     public BigDecimal requestedQuantity() { return requestedQuantity; } public BigDecimal approvedQuantity() { return approvedQuantity; }
+    public BigDecimal requestedOperationQuantity() { return requestedOperationQuantity; }
+    public String operationUnitCode() { return operationUnitCode; }
+    public BigDecimal baseQuantityFactor() { return baseQuantityFactor; }
     public BigDecimal dispatchedQuantity() { return dispatchedQuantity; } public BigDecimal receivedQuantity() { return receivedQuantity; }
     public BigDecimal damagedQuantity() { return damagedQuantity; } public String baseUnitCode() { return baseUnitCode; }
     public String lineStatus() { return lineStatus; } public String discrepancyReason() { return discrepancyReason; }

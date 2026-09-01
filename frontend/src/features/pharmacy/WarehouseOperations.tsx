@@ -165,9 +165,9 @@ function TransferWorkbench({ api, site, sites, items, bins }: { api: RhnApi; sit
       <OperationTable headers={['调拨单', '方向', '数量进度', '差异', '状态', '操作']}>{rows.map(value => { const inbound = value.destinationSiteId === site.id
         return <tr key={value.id}><td><strong>{value.transferNo}</strong><small>{formatTime(value.requestedAt)}</small></td>
           <td>{inbound ? `调入 · ${sites.find(v => v.id === value.sourceSiteId)?.name ?? '来源库'}` : `调出 · ${sites.find(v => v.id === value.destinationSiteId)?.name ?? '目标库'}`}</td>
-          <td><strong>申请 {formatQuantity(value.lines.reduce((sum, line) => sum + Number(line.requestedQuantity), 0))}</strong>
-            <small>批准 {formatQuantity(value.lines.reduce((sum, line) => sum + Number(line.approvedQuantity ?? 0), 0))} · 调出 {formatQuantity(value.lines.reduce((sum, line) => sum + Number(line.dispatchedQuantity), 0))} · 调入 {formatQuantity(value.lines.reduce((sum, line) => sum + Number(line.receivedQuantity), 0))}</small></td>
-          <td>{formatQuantity(value.lines.reduce((sum, line) => sum + Number(line.damagedQuantity), 0))}<small>破损 / 短少</small></td>
+          <td><strong>{transferRequestSummary(value, items)}</strong>
+            <small>已调出 {value.lines.filter(line => Number(line.dispatchedQuantity) > 0).length}/{value.lines.length} 项 · 已调入 {value.lines.filter(line => Number(line.receivedQuantity) > 0).length}/{value.lines.length} 项</small></td>
+          <td>{value.lines.filter(line => Number(line.damagedQuantity) > 0).length} 项<small>破损 / 短少</small></td>
           <td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
             {inbound && value.status === 'IN_TRANSIT' && <Button variant="text" size="sm" onClick={() => setReceiving(value)}>调入确认</Button>}
             {!inbound && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} onClick={() => action.mutate(value)}>{({ DRAFT: '提交', SUBMITTED: '审核', APPROVED: '拣货', PICKING: '确认调出' } as Record<string, string>)[value.status]}</Button>}
@@ -210,12 +210,12 @@ function OperationTable({ headers, children }: { headers: string[]; children: Re
 }
 
 type ItemRow = { item: StockItem; quantity: number; price: number }
-function MultiItemDialog({ title, submitText, items, quantityLabel, withPrice = false, lead, emptyCopy = '当前没有可选经营项目。', onClose, onSubmit }: { title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean; lead?: ReactNode; emptyCopy?: string; onClose: () => void; onSubmit: (reason: string, rows: ItemRow[]) => Promise<void> }) {
+function MultiItemDialog({ title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false, lead, emptyCopy = '当前没有可选经营项目。', onClose, onSubmit }: { title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean; showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; onClose: () => void; onSubmit: (reason: string, rows: ItemRow[]) => Promise<void> }) {
   const [selected, setSelected] = useState<Record<string, boolean>>({}); const [quantity, setQuantity] = useState<Record<string, string>>({}); const [price, setPrice] = useState<Record<string, string>>({}); const [reason, setReason] = useState(''); const [error, setError] = useState<unknown>(); const [busy, setBusy] = useState(false)
   const rows = items.filter(v => selected[v.id]).map(item => ({ item, quantity: Number(quantity[item.id]), price: Number(price[item.id] || 0) })).filter(v => v.quantity > 0 && (!withPrice || v.price >= 0))
   return <Dialog title={title} eyebrow="批量业务" size="wide" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={busy} disabled={!rows.length} onClick={async () => { setBusy(true); setError(undefined); try { await onSubmit(reason, rows) } catch (e) { setError(e) } finally { setBusy(false) } }}>{submitText}</Button></>}>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}{lead}<FormField label="用途说明"><input className="ui-field__control" value={reason} onChange={e => setReason(e.target.value)} placeholder="填写本次业务用途" /></FormField>
-    <div className="warehouse-batch-table-wrap"><table className="warehouse-table warehouse-batch-table"><thead><tr><th>选择</th><th>药品</th><th>包装</th><th>{quantityLabel}</th>{withPrice && <th>采购单价</th>}</tr></thead><tbody>{!items.length && <tr><td className="warehouse-batch-empty" colSpan={withPrice ? 5 : 4}>{emptyCopy}</td></tr>}{items.map(item => <tr key={item.id} className={selected[item.id] ? 'is-selected' : ''}><td><input type="checkbox" checked={Boolean(selected[item.id])} onChange={e => setSelected(v => ({ ...v, [item.id]: e.target.checked }))} /></td><td><strong>{item.productName}</strong><code>{item.productCode}</code></td><td>{item.packageSpec || item.packageUnitName}</td><td><input className="ui-field__control" type="number" min="0" value={quantity[item.id] ?? ''} onChange={e => setQuantity(v => ({ ...v, [item.id]: e.target.value }))} /></td>{withPrice && <td><input className="ui-field__control" type="number" min="0" value={price[item.id] ?? ''} onChange={e => setPrice(v => ({ ...v, [item.id]: e.target.value }))} /></td>}</tr>)}</tbody></table></div>
+    <div className="warehouse-batch-table-wrap"><table className="warehouse-table warehouse-batch-table"><thead><tr><th>选择</th><th>药品</th><th>包装</th><th>{quantityLabel}</th>{withPrice && <th>采购单价</th>}</tr></thead><tbody>{!items.length && <tr><td className="warehouse-batch-empty" colSpan={withPrice ? 5 : 4}>{emptyCopy}</td></tr>}{items.map(item => <tr key={item.id} className={selected[item.id] ? 'is-selected' : ''}><td><input type="checkbox" checked={Boolean(selected[item.id])} onChange={e => setSelected(v => ({ ...v, [item.id]: e.target.checked }))} /></td><td><strong>{item.productName}</strong><code>{item.productCode}</code></td><td>{item.packageSpec || item.packageUnitName}<small>1{item.packageUnitName} = {formatQuantity(item.packageFactor)}{displayUnitName(item.baseUnitCode)}</small></td><td><input className="ui-field__control" type="number" min="0" value={quantity[item.id] ?? ''} onChange={e => setQuantity(v => ({ ...v, [item.id]: e.target.value }))} />{showBaseConversion && Number(quantity[item.id]) > 0 && <small>= {formatQuantity(Number(quantity[item.id]) * Number(item.packageFactor))}{displayUnitName(item.baseUnitCode)} 入账</small>}</td>{withPrice && <td><input className="ui-field__control" type="number" min="0" value={price[item.id] ?? ''} onChange={e => setPrice(v => ({ ...v, [item.id]: e.target.value }))} /></td>}</tr>)}</tbody></table></div>
   </Dialog>
 }
 
@@ -410,10 +410,10 @@ function TransferDialog({ api, site, sites, items, onClose, onDone }: { api: Rhn
   if (!destinations.length) return <Dialog title="新建库间调拨" eyebrow="调拨作业" onClose={onClose}>
     <EmptyState icon="pharmacy" title="暂无可调入库房" copy="请先在组织与人员中将目标科室启用为库存站点，再为其配置经营项目和收货货位。" />
   </Dialog>
-  return <MultiItemDialog title="新建库间调拨" submitText="创建调拨单" items={items.filter(item => destinationItems.data?.some(d => d.catalogItemId === item.catalogItemId && d.packageId === item.packageId))} quantityLabel="调拨数量（基本单位）" emptyCopy="调入站点尚未配置与本库匹配的经营项目，请先在目标科室完成批量调入。"
+  return <MultiItemDialog title="新建库间调拨" submitText="创建调拨单" items={items.filter(item => destinationItems.data?.some(d => d.catalogItemId === item.catalogItemId && d.packageId === item.packageId))} quantityLabel="调拨数量（包装单位）" showBaseConversion emptyCopy="调入站点尚未配置与本库匹配的经营项目，请先在目标科室完成批量调入。"
     lead={<FormField label="调入站点" required><Select value={destinationId} onChange={setDestinationId} clearable={false} showValue options={destinations.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>}
     onClose={onClose} onSubmit={async (reason, rows) => {
-    await api.pharmacy.createTransfer({ sourceSiteId: site.id, destinationSiteId: destinationId, requestCode: `TR-${crypto.randomUUID()}`, reason, lines: rows.map(row => ({ sourceStockItemId: row.item.id, destinationStockItemId: destinationItems.data!.find(d => d.catalogItemId === row.item.catalogItemId && d.packageId === row.item.packageId)!.id, requestedQuantity: row.quantity })) }); onDone()
+    await api.pharmacy.createTransfer({ sourceSiteId: site.id, destinationSiteId: destinationId, requestCode: `TR-${crypto.randomUUID()}`, reason, lines: rows.map(row => ({ sourceStockItemId: row.item.id, destinationStockItemId: destinationItems.data!.find(d => d.catalogItemId === row.item.catalogItemId && d.packageId === row.item.packageId)!.id, requestedQuantity: row.quantity, operationUnitCode: row.item.packageUnitCode, baseQuantityFactor: row.item.packageFactor })) }); onDone()
   }} />
 }
 
@@ -447,8 +447,12 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
     {Boolean(mutation.error || lots.error) && <Alert>{errorMessage(mutation.error || lots.error)}</Alert>}{!receiveBins.length && <Alert>当前库房没有允许收货的货位，请先维护货位。</Alert>}
     <OperationTable headers={['药品 / 批号 / 效期', '调出数', '正常入库', '破损 / 短少', '目标货位', '差异原因']}>
       {allocations.map(({ line, allocation }) => { const lot = lots.data?.find(value => value.id === allocation.stockLotId)
-        return <tr key={allocation.id}><td><strong>{items.find(v => v.id === line.destinationStockItemId)?.productName ?? line.destinationStockItemId}</strong>
-          <small>{lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '无效期'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失'}</small></td><td>{allocation.dispatchedQuantity}</td>
+        const item = items.find(v => v.id === line.destinationStockItemId)
+        const operationUnitName = item?.packageUnitName ?? line.operationUnitCode
+        const baseUnitName = displayUnitName(line.baseUnitCode)
+        return <tr key={allocation.id}><td><strong>{item?.productName ?? line.destinationStockItemId}</strong>
+          <small>{lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '无效期'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失'}</small></td><td>{formatQuantity(allocation.dispatchedQuantity)}{baseUnitName}
+          <small>申请 {formatQuantity(line.requestedOperationQuantity)}{operationUnitName} · 1{operationUnitName} = {formatQuantity(line.baseQuantityFactor)}{baseUnitName}</small></td>
         <td><input aria-label="正常调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={received[allocation.id]} onChange={e => setReceived(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
         <td><input aria-label="破损调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={damaged[allocation.id]} onChange={e => setDamaged(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
         <td><Select value={binIds[allocation.id]} onChange={id => setBinIds(v => ({ ...v, [allocation.id]: id }))} clearable={false} options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></td>
@@ -515,5 +519,15 @@ function CountRecordDialog({ api, value, items, bins, onClose, onDone }: { api: 
 }
 
 function formatTime(value: string) { return new Date(value).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }
+function displayUnitName(value: string) {
+  return ({ BOX: '盒', BOTTLE: '瓶', BAG: '袋', PACK: '包', VIAL: '瓶', AMP: '支', AMPOULE: '支',
+    TABLET: '片', TAB: '片', CAPSULE: '粒', CAP: '粒', PIECE: '个', PCS: '个', ML: '毫升', G: '克' } as Record<string, string>)[value] ?? value
+}
+function transferRequestSummary(value: StockTransfer, items: StockItem[]) {
+  if (value.lines.length !== 1) return `申请 ${value.lines.length} 项包装明细`
+  const line = value.lines[0]
+  const item = items.find(candidate => candidate.id === line.sourceStockItemId || candidate.id === line.destinationStockItemId)
+  return `申请 ${formatQuantity(line.requestedOperationQuantity)}${item?.packageUnitName ?? line.operationUnitCode}`
+}
 function formatQuantity(value: number) { return new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 8 }).format(Number(value)) }
 function formatMoney(value: number) { return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 2 }).format(value) }

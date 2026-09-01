@@ -29,8 +29,8 @@ public final class MasterDataCommands {
             String productionPlace, String countryCode, String address, String status) {}
 
     public record ProductCommand(
-            Long medicationId, Long manufacturerId, String code, String name, String unitCode,
-            String tradeName, String approvalCode, LocalDate approvalFrom, LocalDate approvalTo,
+            Long medicationId, Long manufacturerId, String code, String tradeName,
+            String approvalCode, String traceCode, LocalDate approvalFrom, LocalDate approvalTo,
             String registrationCode, LocalDate registrationFrom, LocalDate registrationTo,
             String purchaseCode, String marketStatus, String productionPlace,
             boolean otc, boolean centralPurchase, boolean importAllowed, boolean traceSplitRequired,

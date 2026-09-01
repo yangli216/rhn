@@ -10,7 +10,7 @@ import {
   Alert, Button, ClinicalResourceSearch, Select, StatusBadge, type ClinicalResourceOption,
 } from '../../shared/ui'
 import {
-  canPrintPrescription, resolveDispensableProduct, type MedicationPlanDraft,
+  canPrintPrescription, resolveDispensableOptions, type MedicationPlanDraft,
 } from './PrescriptionListEditor'
 
 export type OrderEntryType = 'MEDICATION' | 'HERBAL' | 'LABORATORY' | 'EXAMINATION' | 'TREATMENT'
@@ -35,6 +35,7 @@ interface MedicationEntry {
   frequencyCode: string
   durationValue: number | ''
   quantity: number | ''
+  dispenseOptionKey: string
   instruction: string
   herbalDoseCount: number
   herbalMethod: string
@@ -44,7 +45,8 @@ interface MedicationEntry {
 
 const emptyMedicationEntry = (): MedicationEntry => ({
   doseValue: '', doseUnit: '', routeCode: '', frequencyCode: '', durationValue: '', quantity: 1,
-  instruction: '', herbalDoseCount: 7, herbalMethod: '水煎服', safetyReviewed: false, allergyOverrideReason: '',
+  dispenseOptionKey: '', instruction: '', herbalDoseCount: 7, herbalMethod: '水煎服', safetyReviewed: false,
+  allergyOverrideReason: '',
 })
 
 export function UnifiedOrderListEditor({
@@ -91,8 +93,10 @@ export function UnifiedOrderListEditor({
   }))
   const isMedication = entryType === 'MEDICATION' || entryType === 'HERBAL'
   const currentMedication = medicationEntry.medication?.raw
-  const selectedProduct = currentMedication
-    ? resolveDispensableProduct(currentMedication, encounter.organizationId) : undefined
+  const dispensableOptions = currentMedication
+    ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
+  const selectedProduct = dispensableOptions.find((value) => value.key === medicationEntry.dispenseOptionKey)
+    ?? dispensableOptions[0]
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
   const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
     || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
@@ -124,12 +128,15 @@ export function UnifiedOrderListEditor({
 
   function selectMedication(option?: ClinicalResourceOption<MedicationKnowledge>) {
     const value = option?.raw
+    const defaultDispenseOption = value
+      ? resolveDispensableOptions(value, encounter.organizationId)[0] : undefined
     setMedicationEntry((current) => ({
       ...current, medication: option, doseValue: value?.defaultDose ?? '',
       doseUnit: value?.defaultDoseUnit ?? value?.preparationUnit ?? '',
       routeCode: entryType === 'HERBAL' ? 'PO' : value?.defaultRoute ?? '',
       frequencyCode: value?.defaultFrequency ?? (entryType === 'HERBAL' ? 'BID' : ''),
-      instruction: '', safetyReviewed: false, allergyOverrideReason: '',
+      dispenseOptionKey: defaultDispenseOption?.key ?? '', instruction: '', safetyReviewed: false,
+      allergyOverrideReason: '',
     }))
     setValidationError('')
     if (option) focusControl('doctor-unified-dose')
@@ -159,7 +166,9 @@ export function UnifiedOrderListEditor({
     }
     const medication = medicationEntry.medication?.raw
     if (!medication) { setValidationError('请选择药品'); return }
-    const product = resolveDispensableProduct(medication, encounter.organizationId)
+    const product = resolveDispensableOptions(medication, encounter.organizationId)
+      .find((value) => value.key === medicationEntry.dispenseOptionKey)
+      ?? resolveDispensableOptions(medication, encounter.organizationId)[0]
     if (!product) { setValidationError('该药品未配置当前机构可发药产品、包装或有效价格'); return }
     if (medicationEntry.doseValue === '' || Number(medicationEntry.doseValue) <= 0 || !medicationEntry.doseUnit.trim()) {
       setValidationError('请完整填写剂量'); return
@@ -182,7 +191,7 @@ export function UnifiedOrderListEditor({
       categoryCode: medication.sdMedicationType, medicationName: medication.name, medicationCode: medication.code,
       preparationSpec: medication.preparationSpec, productName: product.product.name,
       request: {
-        medicationId: medication.id, catalogItemId: product.product.id, packageId: product.itemPackage.id,
+        medicationId: medication.id, catalogItemId: product.product.id, packageId: product.itemPackage?.id,
         doseValue, doseUnit: medicationEntry.doseUnit.trim(),
         routeCode: herbal ? 'PO' : medicationEntry.routeCode.trim(),
         frequencyCode: medicationEntry.frequencyCode.trim(),
@@ -190,7 +199,7 @@ export function UnifiedOrderListEditor({
           : medicationEntry.durationValue === '' ? undefined : Number(medicationEntry.durationValue),
         durationUnit: herbal ? '剂' : medicationEntry.durationValue === '' ? undefined : '天',
         quantity: herbal ? doseValue * medicationEntry.herbalDoseCount : Number(medicationEntry.quantity),
-        quantityUnit: product.itemPackage.unitCode, substitutionAllowed: true, selfProvided: false,
+        quantityUnit: product.unitCode, substitutionAllowed: true, selfProvided: false,
         medicationInstruction: herbal
           ? [medicationEntry.herbalMethod, medicationEntry.instruction.trim()].filter(Boolean).join('；')
           : medicationEntry.instruction.trim(),
@@ -317,8 +326,14 @@ export function UnifiedOrderListEditor({
       {(validationError || frequencies.error) && <Alert className="doctor-unified-order-alert">
         {validationError || '频次数据加载失败'}</Alert>}
       {currentMedication && <div className={`doctor-unified-order-safety ${requiresSafetyReview ? 'is-warning' : ''}`}>
-        <span>{selectedProduct ? `${selectedProduct.product.name} · ${selectedProduct.itemPackage.packageSpec
-          || selectedProduct.itemPackage.unitName}` : '当前机构无可发药产品或有效价格'}</span>
+        <span>{selectedProduct ? selectedProduct.product.name : '当前机构无可发药产品或有效价格'}</span>
+        {selectedProduct && <label className="doctor-dispense-unit-inline">发药单位
+          <Select aria-label="发药单位与计价" value={selectedProduct.key}
+            onChange={(value) => updateMedication('dispenseOptionKey', value)} clearable={false} showValue
+            options={dispensableOptions.map((value) => ({
+              value: value.key, label: value.label, secondaryText: value.secondaryText,
+              searchKeywords: [value.unitCode, value.unitName],
+            }))} /></label>}
         {drugAllergies.length > 0 && <span>药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}</span>}
         {matchedAllergies.length > 0 && <input aria-label="继续开立理由" value={medicationEntry.allergyOverrideReason}
           placeholder="继续开立理由" onChange={(event) => updateMedication('allergyOverrideReason', event.target.value)} />}

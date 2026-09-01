@@ -25,7 +25,12 @@ public class StockTransferController {
     @PostMapping("/{id}/pick") TransferView pick(@PathVariable Long id){return service.pick(id);}
     @PostMapping("/{id}/dispatch") TransferView dispatch(@PathVariable Long id){return service.dispatch(id);}
     @PostMapping("/{id}/receive") TransferView receive(@PathVariable Long id,@Valid @RequestBody ReceiveRequest input){return service.receive(id,input.command());}
-    record LineRequest(@NotNull Long sourceStockItemId,@NotNull Long destinationStockItemId,@NotNull @DecimalMin(value="0",inclusive=false) @Digits(integer=20,fraction=8) BigDecimal requestedQuantity){TransferLineCommand command(){return new TransferLineCommand(sourceStockItemId,destinationStockItemId,requestedQuantity);}}
+    record LineRequest(@NotNull Long sourceStockItemId,@NotNull Long destinationStockItemId,
+                       @NotNull @DecimalMin(value="0",inclusive=false) @Digits(integer=20,fraction=8) BigDecimal requestedQuantity,
+                       @Size(max=64) String operationUnitCode,
+                       @DecimalMin(value="0",inclusive=false) @Digits(integer=20,fraction=8) BigDecimal baseQuantityFactor){
+        TransferLineCommand command(){return new TransferLineCommand(sourceStockItemId,destinationStockItemId,
+                requestedQuantity,operationUnitCode,baseQuantityFactor);}}
     record CreateRequest(@NotNull Long sourceSiteId,@NotNull Long destinationSiteId,@Size(max=64)String transferNo,@NotBlank @Size(max=128)String requestCode,Instant requestedAt,@Size(max=1000)String reason,@Size(max=1000)String description,@NotNull @Size(min=1,max=500)List<@Valid LineRequest> lines){CreateTransferCommand command(){return new CreateTransferCommand(sourceSiteId,destinationSiteId,transferNo,requestCode,requestedAt,reason,description,lines.stream().map(LineRequest::command).toList());}}
     record ApproveLineRequest(@NotNull Long transferLineId,@NotNull @DecimalMin("0") @Digits(integer=20,fraction=8)BigDecimal approvedQuantity){ApproveLineCommand command(){return new ApproveLineCommand(transferLineId,approvedQuantity);}}
     record ApproveRequest(@Size(max=1000)String reason,@NotNull @Size(min=1,max=500)List<@Valid ApproveLineRequest> lines){ApproveTransferCommand command(){return new ApproveTransferCommand(reason,lines.stream().map(ApproveLineRequest::command).toList());}}

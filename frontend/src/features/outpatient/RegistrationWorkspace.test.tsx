@@ -27,6 +27,16 @@ const schedule: ServiceSchedule = {
   sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
 }
 
+const internalSchedule: ServiceSchedule = {
+  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: '2026-08-29', sdDayPart: 'AFTERNOON',
+  sdDayPartText: '下午', startAt: '2026-08-29T06:00:00Z', endAt: '2026-08-29T09:00:00Z',
+  practitionerId: 'doctor-2', practitionerName: '王专家', catalogItemId: 'service-2',
+  serviceCode: 'INTERNAL', serviceName: '内科门诊', totalCount: 15, heldCount: 0, occupiedCount: 13,
+  frozenCount: 0, availableCount: 2, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
+  sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', sdBookingPolicy: 'SHARED',
+  sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
+}
+
 const encounter: Encounter = {
   id: 'encounter-1', residentId: resident.id, encounterNo: 'E20260829001', organizationId: 'org-1',
   departmentId: 'dept-1', registrationId: 'registration-1', scheduleId: schedule.id,
@@ -73,6 +83,7 @@ describe('OutpatientRegistrationWorkspace', () => {
         registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
       },
       encounters: { byResident: vi.fn().mockResolvedValue([encounter]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
     } as unknown as RhnApi
     const clinicalContext = {
       organization: { id: 'org-1', name: '基层医疗机构' },
@@ -90,7 +101,7 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    await screen.findByText('健康档案号')
+    await screen.findByText(/健康档案号/)
     await userEvent.click(screen.getByRole('button', { name: /确认挂号/ }))
 
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
@@ -108,5 +119,189 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(screen.queryByText('今日挂号记录')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '挂号查询' }))
     expect(onNavigate).toHaveBeenCalledWith('/outpatient/registration-query')
+  })
+
+  it('supports 30s quick registration dialog flow and auto-fills selected patient', async () => {
+    const createdResident: Resident = {
+      id: 'resident-quick', healthRecordNo: 'HR0099', fullName: '李小龙', maskedNationalId: '3301********9999',
+      gender: 'MALE', birthDate: '1985-05-05', deceased: false, createdAt: '2026-08-29T01:00:00Z',
+      status: 'ACTIVE', version: 0, identifiers: [],
+    }
+    const createResident = vi.fn().mockResolvedValue(createdResident)
+    const api = {
+      residents: {
+        get: vi.fn(), search: vi.fn(), create: createResident,
+        profile: vi.fn().mockResolvedValue({ resident: createdResident, demographicProfile: {}, addresses: [], relatedPersons: [], coverages: [], employments: [] }),
+      },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // Open quick resident create modal
+    const quickCreateButtons = screen.getAllByRole('button', { name: /快速建/ })
+    await userEvent.click(quickCreateButtons[0])
+
+    expect(screen.getByRole('heading', { name: '30秒极速建档' })).toBeInTheDocument()
+    await userEvent.type(screen.getByPlaceholderText('如 张三'), '李小龙')
+    await userEvent.click(screen.getByRole('button', { name: '确认建档并挂号' }))
+
+    await waitFor(() => expect(createResident).toHaveBeenCalledWith(expect.objectContaining({
+      fullName: '李小龙',
+    })))
+    expect(await screen.findByText('李小龙')).toBeInTheDocument()
+  })
+
+  it('filters schedules by department category and pinyin search', async () => {
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule, internalSchedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // Both schedules visible initially
+    expect(await screen.findByText('全科门诊')).toBeInTheDocument()
+    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+
+    // Filter by pinyin `nk`
+    const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)
+    await userEvent.type(searchInput, 'nk')
+
+    // Only internal schedule should match
+    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+    expect(screen.queryByText('全科门诊')).not.toBeInTheDocument()
+
+    // Clear search
+    await userEvent.clear(searchInput)
+    expect(screen.getByText('全科门诊')).toBeInTheDocument()
+    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+
+    // Filter by '👑 专家/名医号'
+    await userEvent.click(screen.getByRole('button', { name: /专家\/名医号/ }))
+    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+    expect(screen.queryByText('全科门诊')).not.toBeInTheDocument()
+
+    // Filter by '🏢 普通门诊'
+    await userEvent.click(screen.getByRole('button', { name: /普通门诊/ }))
+    expect(screen.getByText('全科门诊')).toBeInTheDocument()
+    expect(screen.queryByText('内科门诊')).not.toBeInTheDocument()
+  })
+
+  it('renders thermal receipt modal with ticket and fee details after successful registration', async () => {
+    const registrationIntent = {
+      id: 'intent-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, slotHoldId: 'hold-1', encounterId: encounter.id,
+      idempotencyCode: 'REG-INTENT-request-1', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY',
+      status: 'COMPLETED', feeAmount: 0, currencyCode: 'CNY', completionAttempts: 1,
+      createdAt: '2026-08-29T01:59:00Z', updatedAt: '2026-08-29T02:00:00Z', duplicate: false,
+    } as RegistrationBillingIntent
+    const api = {
+      residents: { get: vi.fn().mockResolvedValue(resident), search: vi.fn(),
+        profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [],
+          relatedPersons: [], coverages: [], employments: [] }) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: {
+        createRegistrationIntent: vi.fn().mockResolvedValue(registrationIntent),
+        registrationIntent: vi.fn().mockResolvedValue(registrationIntent),
+      },
+      encounters: { byResident: vi.fn().mockResolvedValue([encounter]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '青禾镇中心卫生院' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await screen.findByText(/健康档案号/)
+    await userEvent.click(screen.getByRole('button', { name: /确认挂号/ }))
+
+    // Thermal receipt modal should open automatically
+    expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
+    expect(screen.getByText('青禾镇中心卫生院')).toBeInTheDocument()
+    expect(screen.getAllByText(/A001/)[0]).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /立即打印小票/ })).toBeInTheDocument()
+  })
+
+  it('displays today registration stream and supports cancelling a waiting registration', async () => {
+    const cancelEncounter = vi.fn().mockResolvedValue({ completed: true, message: '退号成功', refundStatus: 'SUCCESS' })
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([receipt]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: cancelEncounter },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // Verify today's stream row
+    expect(await screen.findByText('本窗口今日挂号记录（最近流水）')).toBeInTheDocument()
+    expect(await screen.findByText('张三')).toBeInTheDocument()
+    expect(screen.getByText('候诊中')).toBeInTheDocument()
+
+    // Click '退号'
+    await userEvent.click(screen.getByRole('button', { name: '退号' }))
+    expect(screen.getByRole('heading', { name: '办理退号与退款' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: '确认退号并退费' }))
+
+    await waitFor(() => expect(cancelEncounter).toHaveBeenCalledWith(
+      receipt.encounterId,
+      expect.objectContaining({ reason: '患者主动要求退号' }),
+    ))
   })
 })

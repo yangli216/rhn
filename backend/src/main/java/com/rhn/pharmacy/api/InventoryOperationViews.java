@@ -67,6 +67,8 @@ public final class InventoryOperationViews {
                                          BigDecimal receivedQuantity, BigDecimal damagedQuantity, String status) {}
     public record TransferLineView(Long id, long revision, int sortOrder, Long sourceStockItemId,
                                    Long destinationStockItemId, BigDecimal requestedQuantity,
+                                   BigDecimal requestedOperationQuantity, String operationUnitCode,
+                                   BigDecimal baseQuantityFactor,
                                    BigDecimal approvedQuantity, BigDecimal dispatchedQuantity,
                                    BigDecimal receivedQuantity, BigDecimal damagedQuantity, String baseUnitCode,
                                    String lineStatus, String discrepancyReason,

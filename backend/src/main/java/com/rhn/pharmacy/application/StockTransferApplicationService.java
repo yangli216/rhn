@@ -22,12 +22,14 @@ import com.rhn.pharmacy.infrastructure.StockSiteRepository;
 import com.rhn.pharmacy.infrastructure.StockTransferAllocationRepository;
 import com.rhn.pharmacy.infrastructure.StockTransferLineRepository;
 import com.rhn.pharmacy.infrastructure.StockTransferRepository;
+import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -52,17 +54,19 @@ public class StockTransferApplicationService {
     private final StockItemRepository itemRepository; private final StockBinRepository binRepository;
     private final InventoryAvailabilityService availabilityService; private final InventoryDocumentEventRepository eventRepository;
     private final InventoryLedgerPostingService inventoryService; private final InventoryTraceApplicationService traceService;
+    private final CatalogLifecycleDirectory catalogDirectory;
     private final ExecutionContextProvider contextProvider;
     public StockTransferApplicationService(StockTransferRepository repository, StockTransferLineRepository lineRepository,
             StockTransferAllocationRepository allocationRepository, StockSiteRepository siteRepository,
             StockItemRepository itemRepository, StockBinRepository binRepository,
             InventoryAvailabilityService availabilityService, InventoryDocumentEventRepository eventRepository,
             InventoryLedgerPostingService inventoryService, InventoryTraceApplicationService traceService,
-            ExecutionContextProvider contextProvider) {
+            CatalogLifecycleDirectory catalogDirectory, ExecutionContextProvider contextProvider) {
         this.repository=repository; this.lineRepository=lineRepository; this.allocationRepository=allocationRepository;
         this.siteRepository=siteRepository; this.itemRepository=itemRepository; this.binRepository=binRepository;
         this.availabilityService=availabilityService; this.eventRepository=eventRepository;
-        this.inventoryService=inventoryService; this.traceService=traceService; this.contextProvider=contextProvider;
+        this.inventoryService=inventoryService; this.traceService=traceService;
+        this.catalogDirectory=catalogDirectory; this.contextProvider=contextProvider;
     }
 
     @Transactional
@@ -87,7 +91,10 @@ public class StockTransferApplicationService {
                     ||!sourceItem.baseUnitCode().equals(destinationItem.baseUnitCode())) throw badRequest("TRANSFER_ITEM_MAPPING_INVALID","调出与调入经营项目不是同一产品包装");
             if(sourceItem.traceRequired()!=destinationItem.traceRequired()) throw badRequest("TRANSFER_TRACE_POLICY_MISMATCH","调出与调入经营项目的追溯策略必须一致");
             positive(command.requestedQuantity(),"TRANSFER_QUANTITY_INVALID","调拨数量必须大于零");
-            lineRepository.save(new StockTransferLine(context.tenantId(),value.id(),++sort,sourceItem.id(),destinationItem.id(),command.requestedQuantity(),sourceItem.baseUnitCode()));
+            TransferQuantity quantity=transferQuantity(context,source,sourceItem,command);
+            lineRepository.save(new StockTransferLine(context.tenantId(),value.id(),++sort,sourceItem.id(),destinationItem.id(),
+                    command.requestedQuantity(),quantity.operationUnitCode(),quantity.baseQuantityFactor(),
+                    quantity.baseQuantity(),sourceItem.baseUnitCode()));
         }
         append(context,value,"CREATED",null,value.status(),null); lineRepository.flush(); repository.flush(); return view(context,value);
     }
@@ -146,12 +153,31 @@ public class StockTransferApplicationService {
     private StockItem requireItem(ExecutionContext c,Long id,Long siteId){StockItem v=itemRepository.findByIdAndTenantId(id,c.tenantId()).orElseThrow(()->notFound("STOCK_ITEM_NOT_FOUND","未找到库房经营项目"));if(!siteId.equals(v.stockSiteId()))throw badRequest("STOCK_ITEM_SITE_MISMATCH","调拨经营项目不属于对应站点");return v;}
     private StockBin requireBin(ExecutionContext c,Long id,Long siteId){StockBin v=binRepository.findByIdAndTenantId(id,c.tenantId()).orElseThrow(()->notFound("STOCK_BIN_NOT_FOUND","未找到库存货位"));if(!siteId.equals(v.stockSiteId()))throw badRequest("STOCK_BIN_SITE_MISMATCH","调入货位不属于目标站点");return v;}
     private void append(ExecutionContext c,StockTransfer v,String event,String from,String to,String reason){eventRepository.save(new InventoryDocumentEvent(c.tenantId(),v.organizationId(),"TRANSFER",v.id(),v.transferNo(),event,from,to,c.subjectId(),reason,v.requestCode()));}
-    private TransferView view(ExecutionContext c,StockTransfer v){List<TransferLineView> lines=lineRepository.findByTenantIdAndStockTransferIdOrderBySortOrder(c.tenantId(),v.id()).stream().map(line->new TransferLineView(line.id(),line.revision(),line.sortOrder(),line.sourceStockItemId(),line.destinationStockItemId(),line.requestedQuantity(),line.approvedQuantity(),line.dispatchedQuantity(),line.receivedQuantity(),line.damagedQuantity(),line.baseUnitCode(),line.lineStatus(),line.discrepancyReason(),allocationRepository.findByTenantIdAndStockTransferLineIdOrderById(c.tenantId(),line.id()).stream().map(a->new TransferAllocationView(a.id(),a.stockTransferLineId(),a.sourceBinId(),a.destinationBinId(),a.stockLotId(),a.stockStatus(),a.dispatchedQuantity(),a.receivedQuantity(),a.damagedQuantity(),a.status())).toList())).toList();return new TransferView(v.id(),v.revision(),v.organizationId(),v.sourceSiteId(),v.destinationSiteId(),v.transferNo(),v.requestCode(),v.status(),v.requestedAt(),v.requestedBy(),v.approvedAt(),v.approvedBy(),v.dispatchedAt(),v.dispatchedBy(),v.receivedAt(),v.receivedBy(),v.reason(),v.description(),v.outboundTransactionId(),v.inboundTransactionId(),lines);}
+    private TransferView view(ExecutionContext c,StockTransfer v){List<TransferLineView> lines=lineRepository.findByTenantIdAndStockTransferIdOrderBySortOrder(c.tenantId(),v.id()).stream().map(line->new TransferLineView(line.id(),line.revision(),line.sortOrder(),line.sourceStockItemId(),line.destinationStockItemId(),line.requestedQuantity(),line.requestedOperationQuantity(),line.operationUnitCode(),line.baseQuantityFactor(),line.approvedQuantity(),line.dispatchedQuantity(),line.receivedQuantity(),line.damagedQuantity(),line.baseUnitCode(),line.lineStatus(),line.discrepancyReason(),allocationRepository.findByTenantIdAndStockTransferLineIdOrderById(c.tenantId(),line.id()).stream().map(a->new TransferAllocationView(a.id(),a.stockTransferLineId(),a.sourceBinId(),a.destinationBinId(),a.stockLotId(),a.stockStatus(),a.dispatchedQuantity(),a.receivedQuantity(),a.damagedQuantity(),a.status())).toList())).toList();return new TransferView(v.id(),v.revision(),v.organizationId(),v.sourceSiteId(),v.destinationSiteId(),v.transferNo(),v.requestCode(),v.status(),v.requestedAt(),v.requestedBy(),v.approvedAt(),v.approvedBy(),v.dispatchedAt(),v.dispatchedBy(),v.receivedAt(),v.receivedBy(),v.reason(),v.description(),v.outboundTransactionId(),v.inboundTransactionId(),lines);}
+    private TransferQuantity transferQuantity(ExecutionContext c,StockSite site,StockItem item,TransferLineCommand input){
+        String requestedUnit=clean(input.operationUnitCode()); BigDecimal requestedFactor=input.baseQuantityFactor();
+        if(requestedUnit==null&&requestedFactor==null)return new TransferQuantity(item.baseUnitCode(),BigDecimal.ONE,input.requestedQuantity());
+        if(requestedUnit==null||requestedFactor==null)throw badRequest("TRANSFER_OPERATION_UNIT_INCOMPLETE","调拨包装单位与换算系数必须同时提供");
+        var catalog=catalogDirectory.resolve(c.tenantId(),item.catalogItemId(),site.organizationId(),item.basePackageId(),"SALE",LocalDate.now());
+        String operationUnit; BigDecimal factor;
+        if(item.baseUnitCode().equalsIgnoreCase(requestedUnit)){operationUnit=item.baseUnitCode();factor=BigDecimal.ONE;}
+        else if(catalog.itemPackage()!=null&&catalog.itemPackage().unitCode().equalsIgnoreCase(requestedUnit)){
+            operationUnit=catalog.itemPackage().unitCode();factor=catalog.itemPackage().quantityFactor();
+        }else throw badRequest("TRANSFER_OPERATION_UNIT_INVALID","调拨单位必须是经营包装单位或库存最小单位");
+        if(requestedFactor.compareTo(factor)!=0)throw badRequest("TRANSFER_PACKAGE_FACTOR_MISMATCH","调拨包装换算系数与当前产品包装配置不一致");
+        BigDecimal baseQuantity;
+        try{baseQuantity=input.requestedQuantity().multiply(factor).setScale(8,RoundingMode.UNNECESSARY).stripTrailingZeros();}
+        catch(ArithmeticException error){throw badRequest("TRANSFER_BASE_QUANTITY_PRECISION_INVALID","调拨换算后的最小单位数量精度超过 8 位小数");}
+        positive(baseQuantity,"TRANSFER_QUANTITY_INVALID","调拨换算后的最小单位数量必须大于零");
+        return new TransferQuantity(operationUnit,factor,baseQuantity);
+    }
     private ExecutionContext requireContext(){ExecutionContext c=contextProvider.requireCurrent();if(!c.hasWorkContext())throw badRequest("PHARMACY_WORK_CONTEXT_REQUIRED","库存操作必须选择工作机构和科室");return c;}
     private void transition(Runnable r){try{r.run();}catch(IllegalStateException e){throw conflict("TRANSFER_STATE_INVALID",e.getMessage());}}
     private BigDecimal nonNegative(BigDecimal v){if(v==null||v.signum()<0)throw badRequest("TRANSFER_RECEIPT_QUANTITY_INVALID","调入数量不能小于零");return v;}
     private void positive(BigDecimal v,String code,String msg){if(v==null||v.signum()<=0)throw badRequest(code,msg);} private String required(String v,String code,String msg){String r=clean(v);if(r==null)throw badRequest(code,msg);return r;}private String clean(String v){return v==null||v.isBlank()?null:v.trim();}private String nextNo(String p){return p+NUMBER_TIME.format(Instant.now())+com.rhn.shared.id.GlobalIds.randomSuffix(6);}
-    public record TransferLineCommand(Long sourceStockItemId,Long destinationStockItemId,BigDecimal requestedQuantity){}
+    private record TransferQuantity(String operationUnitCode,BigDecimal baseQuantityFactor,BigDecimal baseQuantity){}
+    public record TransferLineCommand(Long sourceStockItemId,Long destinationStockItemId,BigDecimal requestedQuantity,
+                                      String operationUnitCode,BigDecimal baseQuantityFactor){}
     public record CreateTransferCommand(Long sourceSiteId,Long destinationSiteId,String transferNo,String requestCode,Instant requestedAt,String reason,String description,List<TransferLineCommand> lines){}
     public record ApproveLineCommand(Long transferLineId,BigDecimal approvedQuantity){}
     public record ApproveTransferCommand(String reason,List<ApproveLineCommand> lines){}

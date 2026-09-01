@@ -25,6 +25,67 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     CatalogLifecycleDirectory catalogLifecycleDirectory;
 
     @Test
+    void medication_product_setup_creates_common_his_profile_atomically() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "code":"MED-SETUP-%s","name":"建档测试药品","sdMedicationType":"WESTERN",
+                                  "sdDoseForm":"TABLET","preparationSpec":"10mg","preparationUnit":"片",
+                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                                  "skinTestRequired":false,"chronicDiseaseDrug":false,"singleOrder":false,
+                                  "sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "code":"MFR-SETUP-%s","name":"建档测试制药企业",
+                                  "sdManufacturerType":"DRUG","sdStatus":"ACTIVE"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "product":{
+                                    "medicationId":"%s","manufacturerId":"%s","code":"PROD-SETUP-%s",
+                                    "tradeName":"测试商品名","approvalCode":"国药准字TEST%s","traceCode":"8690001",
+                                    "sdMarketStatus":"MARKETED",
+                                    "otc":false,"centralPurchase":false,"importAllowed":true,
+                                    "traceSplitRequired":true,"orderable":true,"chargeable":true,"stocked":true,
+                                    "sdStatus":"ACTIVE","validFrom":"2026-09-01"
+                                  },
+                                  "packaging":{
+                                    "unitCode":"BOX","unitName":"盒","packageSpec":"24片/盒","quantityFactor":24,
+                                    "sdUsageType":"SALE","barcode":"690%s","defaultPurchase":true,
+                                    "defaultSale":true,"defaultDispense":true,"sdStatus":"ACTIVE","validFrom":"2026-09-01"
+                                  },
+                                  "organization":{
+                                    "organizationId":"%s","localCode":"GOODS-%s","localName":"院内测试药品",
+                                    "orderable":true,"executable":false,"chargeable":true,"purchasable":true,
+                                    "stocked":true,"dispensable":true,"returnable":true,
+                                    "sdStatus":"ACTIVE","validFrom":"2026-09-01"
+                                  },
+                                  "purchasePrice":8.50,"salePrice":10.00,"priceDocumentCode":"PRICE-%s"
+                                }
+                                """.formatted(medication.get("id").asText(), manufacturer.get("id").asText(), suffix,
+                                suffix, suffix, ORGANIZATION, suffix, suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("建档测试药品"))
+                .andExpect(jsonPath("$.unitCode").value("片"))
+                .andExpect(jsonPath("$.traceCode").value("8690001"))
+                .andExpect(jsonPath("$.packages[0].packageSpec").value("24片/盒"))
+                .andExpect(jsonPath("$.packages[0].barcode").value("690" + suffix))
+                .andExpect(jsonPath("$.organizationAdoption.localCode").value("GOODS-" + suffix))
+                .andExpect(jsonPath("$.prices.length()").value(2))
+                .andExpect(jsonPath("$.prices[?(@.sdPriceType == 'PURCHASE')].price").value(8.5))
+                .andExpect(jsonPath("$.prices[?(@.sdPriceType == 'SALE')].price").value(10.0));
+    }
+
+    @Test
     void catalog_lifecycle_preserves_versions_resolves_business_date_and_audits_partial_batches() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode item = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhn())

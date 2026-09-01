@@ -200,7 +200,13 @@ export interface RequisitionAllocation { id: string; stockBinId: string; stockLo
 export interface RequisitionLine { id: string; stockItemId: string; requestedQuantity: number; approvedQuantity?: number; issuedQuantity: number; baseUnitCode: string; lineStatus: string; description?: string; allocations: RequisitionAllocation[] }
 export interface Requisition { id: string; revision: number; sourceSiteId: string; requestingDepartmentId: string; destinationSiteId?: string; requisitionNo: string; status: string; requestedAt: string; requestedBy?: string; approvedAt?: string; pickedAt?: string; issuedAt?: string; reason?: string; description?: string; inventoryTransactionId?: string; lines: RequisitionLine[] }
 export interface TransferAllocation { id: string; sourceBinId: string; destinationBinId?: string; stockLotId: string; stockStatus: string; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; status: string }
-export interface TransferLine { id: string; sourceStockItemId: string; destinationStockItemId: string; requestedQuantity: number; approvedQuantity?: number; dispatchedQuantity: number; receivedQuantity: number; damagedQuantity: number; baseUnitCode: string; lineStatus: string; discrepancyReason?: string; allocations: TransferAllocation[] }
+export interface TransferLine {
+  id: string; sourceStockItemId: string; destinationStockItemId: string
+  requestedQuantity: number; requestedOperationQuantity: number; operationUnitCode: string
+  baseQuantityFactor: number; approvedQuantity?: number; dispatchedQuantity: number
+  receivedQuantity: number; damagedQuantity: number; baseUnitCode: string
+  lineStatus: string; discrepancyReason?: string; allocations: TransferAllocation[]
+}
 export interface StockTransfer { id: string; revision: number; sourceSiteId: string; destinationSiteId: string; transferNo: string; status: string; requestedAt: string; reason?: string; outboundTransactionId?: string; inboundTransactionId?: string; lines: TransferLine[] }
 export interface CountLine { id: string; stockBinId: string; stockItemId: string; stockLotId: string; stockStatus: string; bookQuantity: number; countedQuantity?: number; varianceQuantity?: number; countResult?: string; varianceReason?: string }
 export interface StockCount { id: string; revision: number; stockSiteId: string; stockBinId?: string; countNo: string; countType: string; status: string; snapshotAt: string; inventoryTransactionId?: string; lines: CountLine[] }
@@ -924,7 +930,7 @@ export function createPharmacyApi(client: ApiClient) {
     pickRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/pick`, { method: 'POST' }),
     issueRequisition: (id: string) => client.request<Requisition>(`/api/pharmacy/stock-requisitions/${id}/issue`, { method: 'POST' }),
     transfers: (siteId: string, role: 'SOURCE' | 'DESTINATION' = 'SOURCE') => client.request<StockTransfer[]>(`/api/pharmacy/stock-transfers?stockSiteId=${encodeURIComponent(siteId)}&role=${role}`),
-    createTransfer: (input: { sourceSiteId: string; destinationSiteId: string; requestCode: string; reason?: string; lines: Array<{ sourceStockItemId: string; destinationStockItemId: string; requestedQuantity: number }> }) => client.request<StockTransfer>('/api/pharmacy/stock-transfers', { method: 'POST', body: JSON.stringify(input) }),
+    createTransfer: (input: { sourceSiteId: string; destinationSiteId: string; requestCode: string; reason?: string; lines: Array<{ sourceStockItemId: string; destinationStockItemId: string; requestedQuantity: number; operationUnitCode?: string; baseQuantityFactor?: number }> }) => client.request<StockTransfer>('/api/pharmacy/stock-transfers', { method: 'POST', body: JSON.stringify(input) }),
     submitTransfer: (id: string) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/submit`, { method: 'POST' }),
     approveTransfer: (id: string, lines: Array<{ transferLineId: string; approvedQuantity: number }>) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/approve`, { method: 'POST', body: JSON.stringify({ lines }) }),
     pickTransfer: (id: string) => client.request<StockTransfer>(`/api/pharmacy/stock-transfers/${id}/pick`, { method: 'POST' }),

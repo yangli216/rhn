@@ -59,6 +59,7 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.time.LocalDate;
 import java.util.List;
@@ -416,8 +417,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         }
         MedicationProduct product = productRepository.save(new MedicationProduct(context.tenantId(), context.subjectId(),
                 MasterDataItemTypes.MEDICATION_PRODUCT, medication.id(), manufacturer.id(), command.code(),
-                command.name(), command.unitCode(), command.tradeName(),
-                command.approvalCode(), command.approvalFrom(), command.approvalTo(), command.registrationCode(),
+                medication.name(), medication.preparationUnit(), command.tradeName(),
+                command.approvalCode(), command.traceCode(), command.approvalFrom(), command.approvalTo(), command.registrationCode(),
                 command.registrationFrom(), command.registrationTo(), command.purchaseCode(), command.marketStatus(),
                 command.productionPlace(), command.otc(), command.centralPurchase(), command.importAllowed(),
                 command.traceSplitRequired(), command.orderable(), command.chargeable(), command.stocked(),
@@ -427,6 +428,30 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 context.tenantId(), product.id(), context.subjectId()));
         return productViews(context.tenantId(), List.of(product), Map.of(manufacturer.id(), manufacturer),
                 organizationId).getFirst();
+    }
+
+    @Transactional
+    public MedicationProductView createProductSetup(ProductCommand productCommand, PackageCommand packageCommand,
+                                                    AdoptionCommand adoptionCommand, BigDecimal purchasePrice,
+                                                    BigDecimal salePrice, String priceDocumentCode) {
+        MedicationProductView created = createProduct(productCommand, adoptionCommand.organizationId());
+        PackageView itemPackage = createPackage(created.id(), packageCommand);
+        adopt(created.id(), adoptionCommand);
+        if (purchasePrice != null) {
+            createPrice(created.id(), new PriceCommand(adoptionCommand.organizationId(), itemPackage.id(), "PURCHASE",
+                    purchasePrice, "CNY", priceDocumentCode, "药品建档初始采购价",
+                    adoptionCommand.validFrom(), adoptionCommand.validTo(), "ACTIVE"));
+        }
+        if (salePrice != null) {
+            createPrice(created.id(), new PriceCommand(adoptionCommand.organizationId(), itemPackage.id(), "SALE",
+                    salePrice, "CNY", priceDocumentCode, "药品建档初始零售价",
+                    adoptionCommand.validFrom(), adoptionCommand.validTo(), "ACTIVE"));
+        }
+        MedicationProduct product = requireProduct(current().tenantId(), created.id());
+        Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(product.manufacturerId(), current().tenantId())
+                .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
+        return productViews(current().tenantId(), List.of(product), Map.of(manufacturer.id(), manufacturer),
+                adoptionCommand.organizationId()).getFirst();
     }
 
     @Transactional
@@ -588,7 +613,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.itemTypeId(), value.itemMasterId(), value.medicationId(), value.manufacturerId(),
                 nameOf(manufacturers.get(value.manufacturerId())),
                 value.code(), value.name(), value.unitCode(), value.tradeName(), value.approvalCode(),
-                value.approvalFrom(), value.approvalTo(), value.registrationCode(), value.registrationFrom(),
+                value.traceCode(), value.approvalFrom(), value.approvalTo(), value.registrationCode(), value.registrationFrom(),
                 value.registrationTo(), value.purchaseCode(), value.marketStatus(), value.productionPlace(),
                 value.otc(), value.centralPurchase(), value.importAllowed(), value.traceSplitRequired(),
                 value.orderable(), value.chargeable(), value.stocked(), value.shelfLifeValue(), value.shelfLifeUnit(),

@@ -24,6 +24,7 @@ interface PrescriptionLineDraft {
   frequencyCode: string
   durationValue: number | ''
   quantity: number | ''
+  dispenseOptionKey: string
   instruction: string
   safetyReviewed: boolean
   allergyOverrideReason: string
@@ -112,8 +113,10 @@ function PrescriptionEditorSection({
   const [herbalFrequency, setHerbalFrequency] = useState('BID')
   const [validationError, setValidationError] = useState('')
   const currentMedication = line.medication?.raw
-  const selectedProduct = currentMedication
-    ? resolveDispensableProduct(currentMedication, encounter.organizationId) : undefined
+  const dispensableOptions = currentMedication
+    ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
+  const selectedProduct = dispensableOptions.find((value) => value.key === line.dispenseOptionKey)
+    ?? dispensableOptions[0]
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
   const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
     || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
@@ -132,6 +135,8 @@ function PrescriptionEditorSection({
 
   function selectMedication(option?: ClinicalResourceOption<MedicationKnowledge>) {
     const medication = option?.raw
+    const defaultDispenseOption = medication
+      ? resolveDispensableOptions(medication, encounter.organizationId)[0] : undefined
     setValidationError('')
     setLine((current) => ({
       ...current,
@@ -141,6 +146,7 @@ function PrescriptionEditorSection({
       routeCode: medication?.defaultRoute ?? (mode === 'herbal' ? 'PO' : ''),
       frequencyCode: medication?.defaultFrequency ?? (mode === 'herbal' ? herbalFrequency : ''),
       quantity: mode === 'herbal' ? 1 : current.quantity,
+      dispenseOptionKey: defaultDispenseOption?.key ?? '',
       instruction: mode === 'herbal' ? '' : '遵医嘱使用',
       safetyReviewed: false,
       allergyOverrideReason: '',
@@ -156,7 +162,9 @@ function PrescriptionEditorSection({
   function addLine() {
     const medication = line.medication?.raw
     if (!medication) { setValidationError('请先选择药品'); return }
-    const product = resolveDispensableProduct(medication, encounter.organizationId)
+    const product = resolveDispensableOptions(medication, encounter.organizationId)
+      .find((value) => value.key === line.dispenseOptionKey)
+      ?? resolveDispensableOptions(medication, encounter.organizationId)[0]
     if (!product) { setValidationError('所选药品尚未配置当前机构可发药的产品、包装或有效价格'); return }
     if (!isLineComplete(line, mode)) { setValidationError('请完整填写当前医嘱行'); return }
     if (mode === 'herbal' && (!herbalMethod.trim() || !herbalFrequency.trim())) {
@@ -182,7 +190,7 @@ function PrescriptionEditorSection({
       request: {
         medicationId: medication.id,
         catalogItemId: product.product.id,
-        packageId: product.itemPackage.id,
+        packageId: product.itemPackage?.id,
         doseValue,
         doseUnit: line.doseUnit.trim(),
         routeCode: mode === 'herbal' ? 'PO' : line.routeCode.trim(),
@@ -191,7 +199,7 @@ function PrescriptionEditorSection({
           : line.durationValue === '' ? undefined : Number(line.durationValue),
         durationUnit: mode === 'herbal' ? '剂' : line.durationValue === '' ? undefined : '天',
         quantity,
-        quantityUnit: product.itemPackage.unitCode,
+        quantityUnit: product.unitCode,
         substitutionAllowed: true,
         selfProvided: false,
         medicationInstruction: instruction,
@@ -305,8 +313,17 @@ function PrescriptionEditorSection({
     {currentMedication && <div className={`doctor-medication-safety ${requiresSafetyReview ? 'is-warning' : 'is-clear'}`}>
       <strong>{requiresSafetyReview ? '当前行需完成用药安全核对' : '当前行未命中高风险提示'}</strong>
       {!selectedProduct && <p>当前机构未配置可发药产品、销售包装或有效价格，暂不能加入方案。</p>}
-      {selectedProduct && <p>发药产品：{selectedProduct.product.name} · {selectedProduct.itemPackage.packageSpec
-        || selectedProduct.itemPackage.unitName}</p>}
+      {selectedProduct && <><p>发药产品：{selectedProduct.product.name}</p>
+        <div className="doctor-dispense-unit-picker"><span>发药单位与计价</span>
+          <Select aria-label="发药单位与计价" value={selectedProduct.key}
+            onChange={(value) => update('dispenseOptionKey', value)} clearable={false} showValue
+            options={dispensableOptions.map((value) => ({
+              value: value.key, label: value.label, secondaryText: value.secondaryText,
+              searchKeywords: [value.unitCode, value.unitName],
+            }))} />
+          <small>{dispenseEstimate(selectedProduct, mode === 'herbal'
+            ? line.doseValue === '' ? 0 : Number(line.doseValue) * herbalDoseCount
+            : line.quantity === '' ? 0 : Number(line.quantity))}</small></div></>}
       {!allergyReviewRecorded && <p>患者过敏状态尚未确认，请先核对后继续。</p>}
       {drugAllergies.length > 0 && <p>患者药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}</p>}
       {currentMedication.skinTestRequired && <p>该药品标记为需皮试，请确认皮试流程。</p>}
@@ -384,7 +401,7 @@ function HerbalPlanRow({ value, index, onRemove }: {
 function emptyLine(key: number): PrescriptionLineDraft {
   return {
     key, doseValue: '', doseUnit: '', routeCode: '', frequencyCode: '', durationValue: '', quantity: 1,
-    instruction: '', safetyReviewed: false, allergyOverrideReason: '',
+    dispenseOptionKey: '', instruction: '', safetyReviewed: false, allergyOverrideReason: '',
   }
 }
 
@@ -465,26 +482,78 @@ export function canPrintPrescription(value: { status: string; medicationRequests
     && value.medicationRequests.every((item) => item.status === 'ACTIVE')
 }
 
-export function resolveDispensableProduct(medication: MedicationKnowledge, organizationId: string): {
-  product: MedicationProduct; itemPackage: ItemPackage; priceType: string
-} | undefined {
+export interface DispensableProductOption {
+  key: string
+  product: MedicationProduct
+  itemPackage?: ItemPackage
+  unitCode: string
+  unitName: string
+  packageFactor: number
+  priceType: string
+  price: number
+  currencyCode: string
+  split: boolean
+  label: string
+  secondaryText: string
+}
+
+export function resolveDispensableOptions(
+  medication: MedicationKnowledge, organizationId: string,
+): DispensableProductOption[] {
   const today = new Date().toISOString().slice(0, 10)
+  const result: DispensableProductOption[] = []
   for (const product of medication.products) {
     const adoption = product.organizationAdoption
     if (product.sdStatus !== 'ACTIVE' || !product.orderable || !product.chargeable
       || !adoption || adoption.organizationId !== organizationId || adoption.sdStatus !== 'ACTIVE'
       || !adoption.orderable || !adoption.chargeable || !adoption.dispensable) continue
+    const prices = product.prices.filter((value) => value.sdStatus === 'ACTIVE'
+      && value.sdPriceType === 'SALE' && (!value.organizationId || value.organizationId === organizationId)
+      && value.validFrom <= today && (!value.validTo || value.validTo >= today))
+      .sort((left, right) => Number(Boolean(right.organizationId)) - Number(Boolean(left.organizationId)))
     const packages = [...product.packages].filter((value) => value.sdStatus === 'ACTIVE'
       && value.validFrom <= today && (!value.validTo || value.validTo >= today))
       .sort((left, right) => Number(right.defaultDispense) - Number(left.defaultDispense)
         || Number(right.defaultSale) - Number(left.defaultSale))
     for (const itemPackage of packages) {
-      const price = product.prices.find((value) => value.sdStatus === 'ACTIVE'
-        && value.sdPriceType === 'SALE' && value.packageId === itemPackage.id
-        && (!value.organizationId || value.organizationId === organizationId)
-        && value.validFrom <= today && (!value.validTo || value.validTo >= today))
-      if (price) return { product, itemPackage, priceType: price.sdPriceType }
+      const price = prices.find((value) => value.packageId === itemPackage.id)
+      if (price) result.push({
+        key: `${product.id}:${itemPackage.id}`, product, itemPackage,
+        unitCode: itemPackage.unitCode, unitName: itemPackage.unitName,
+        packageFactor: Number(itemPackage.quantityFactor), priceType: price.sdPriceType,
+        price: Number(price.price), currencyCode: price.currencyCode, split: false,
+        label: itemPackage.packageSpec || itemPackage.unitName,
+        secondaryText: `${itemPackage.quantityFactor}${product.unitCode || medication.preparationUnit || '最小单位'} · ${unitPriceText(Number(price.price), price.currencyCode)}/${itemPackage.unitName}`,
+      })
     }
+    const basePrice = prices.find((value) => !value.packageId)
+    const baseUnit = product.unitCode || medication.preparationUnit
+    if (basePrice && baseUnit) result.push({
+      key: `${product.id}:BASE`, product, unitCode: baseUnit, unitName: baseUnit,
+      packageFactor: 1, priceType: basePrice.sdPriceType, price: Number(basePrice.price),
+      currencyCode: basePrice.currencyCode, split: true, label: `${baseUnit}（拆零）`,
+      secondaryText: `${unitPriceText(Number(basePrice.price), basePrice.currencyCode)}/${baseUnit} · 按最小单位计价`,
+    })
   }
-  return undefined
+  return result
+}
+
+export function resolveDispensableProduct(medication: MedicationKnowledge, organizationId: string): {
+  product: MedicationProduct; itemPackage: ItemPackage; priceType: string
+} | undefined {
+  const value = resolveDispensableOptions(medication, organizationId).find((option) => option.itemPackage)
+  return value?.itemPackage ? { product: value.product, itemPackage: value.itemPackage, priceType: value.priceType } : undefined
+}
+
+function dispenseEstimate(value: DispensableProductOption, quantity: number) {
+  const conversion = value.split ? '库存按最小单位直接扣减'
+    : `1${value.unitName} = ${value.packageFactor}${value.product.unitCode || '最小单位'}`
+  const amount = quantity > 0 ? ` · 预计 ${unitPriceText(quantity * value.price, value.currencyCode)}` : ''
+  return `${conversion}${amount}`
+}
+
+function unitPriceText(value: number, currencyCode: string) {
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency', currency: currencyCode || 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 4,
+  }).format(value)
 }

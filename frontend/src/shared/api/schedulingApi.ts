@@ -1,6 +1,8 @@
 import type { ApiClient } from './httpClient'
 
-export type ScheduleDayPart = 'MORNING' | 'AFTERNOON'
+export type ScheduleDayPart = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'CUSTOM'
+export type ProfessionalSlotMode = 'POOL' | 'TIMED'
+export type ScheduleExceptionType = 'CLOSED' | 'OVERRIDE'
 
 export const SCHEDULING_SYSTEM_ENUM = {
   visitType: 'SC_VISIT_TYPE',
@@ -70,6 +72,79 @@ export interface QuickScheduleResult {
   schedules: ServiceSchedule[]
 }
 
+export interface ProfessionalScheduleExceptionInput {
+  exceptionDate: string
+  exceptionType: ScheduleExceptionType
+  startTime?: string
+  endTime?: string
+  capacity?: number
+  slotMinutes?: number
+  reason: string
+}
+
+export interface ProfessionalScheduleInput {
+  templateName: string
+  practitionerId: string
+  catalogItemId: string
+  dateFrom: string
+  dateTo: string
+  weekdays: number[]
+  startTime: string
+  endTime: string
+  capacity: number
+  slotMode: ProfessionalSlotMode
+  slotMinutes?: number
+  locationName?: string
+  exceptions: ProfessionalScheduleExceptionInput[]
+  idempotencyCode: string
+}
+
+export interface ProfessionalTemplatePeriod {
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+  capacity: number
+  sdSlotMode: ProfessionalSlotMode
+  sdSlotModeText: string
+  slotMinutes?: number
+}
+
+export interface ProfessionalScheduleException {
+  id: string
+  exceptionDate: string
+  exceptionType: ScheduleExceptionType
+  startTime?: string
+  endTime?: string
+  capacity?: number
+  slotMinutes?: number
+  reason: string
+}
+
+export interface ProfessionalTemplate {
+  id: string
+  templateCode: string
+  templateName: string
+  practitionerId: string
+  practitionerName: string
+  catalogItemId: string
+  serviceCode: string
+  serviceName: string
+  validFrom: string
+  validTo: string
+  status: string
+  periods: ProfessionalTemplatePeriod[]
+  exceptions: ProfessionalScheduleException[]
+}
+
+export interface ProfessionalScheduleResult {
+  generationRunId: string
+  replayed: boolean
+  generatedCount: number
+  skippedCount: number
+  template: ProfessionalTemplate
+  schedules: ServiceSchedule[]
+}
+
 export interface UpdateScheduleInput {
   startTime: string
   endTime: string
@@ -105,6 +180,7 @@ export interface ReceptionQueueItem {
   status: 'WAITING' | 'IN_SERVICE' | 'SUSPENDED' | 'COMPLETED' | 'TRANSFERRED' | 'CANCELLED'
   practitionerName?: string
   serviceName?: string
+  sdDayPartText?: string
   locationName?: string
   registeredAt: string
   calledAt?: string
@@ -136,6 +212,12 @@ export function createSchedulingApi(client: ApiClient) {
     },
     quickCreate: (input: QuickScheduleInput) => client.request<QuickScheduleResult>(
       '/api/outpatient/scheduling/quick-schedules', { method: 'POST', body: JSON.stringify(input) },
+    ),
+    professionalTemplates: () => client.request<ProfessionalTemplate[]>(
+      '/api/outpatient/scheduling/professional/templates',
+    ),
+    createProfessionalTemplate: (input: ProfessionalScheduleInput) => client.request<ProfessionalScheduleResult>(
+      '/api/outpatient/scheduling/professional/templates', { method: 'POST', body: JSON.stringify(input) },
     ),
     update: (scheduleId: string, input: UpdateScheduleInput) => client.request<ServiceSchedule>(
       `/api/outpatient/scheduling/schedules/${scheduleId}`, { method: 'PUT', body: JSON.stringify(input) },

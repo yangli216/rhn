@@ -844,7 +844,7 @@ export function AppShell() {
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}

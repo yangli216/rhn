@@ -1764,6 +1764,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medication-products/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createProductSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/platform/master-data/manufacturers": {
         parameters: {
             query?: never;
@@ -7422,6 +7438,8 @@ export interface components {
             sdOccupationType?: string;
             sdBloodType?: string;
             sdRhType?: string;
+            /** @description 字典 PI_RESIDENCY_TYPE 的显示文本 */
+            readonly sdResidencyTypeText?: string;
             /** @description 字典 PI_EDUCATION_LEVEL 的显示文本 */
             readonly sdEducationLevelText?: string;
             /** @description 字典 PI_RH_TYPE 的显示文本 */
@@ -7432,8 +7450,6 @@ export interface components {
             readonly sdMaritalStatusText?: string;
             /** @description 字典 PI_BLOOD_TYPE 的显示文本 */
             readonly sdBloodTypeText?: string;
-            /** @description 字典 PI_RESIDENCY_TYPE 的显示文本 */
-            readonly sdResidencyTypeText?: string;
         };
         EmploymentView: {
             /** @example 824633720832983041 */
@@ -7448,12 +7464,12 @@ export interface components {
             validFrom?: string;
             /** Format: date */
             validTo?: string;
-            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
-            readonly sdOccupationTypeText?: string;
             /** @description 字典 EMPLOYMENT_TYPE 的显示文本 */
             readonly sdEmploymentTypeText?: string;
             /** @description 字典 PERSONNEL_STATUS 的显示文本 */
             readonly sdPersonnelStatusText?: string;
+            /** @description 字典 PI_OCCUPATION_TYPE 的显示文本 */
+            readonly sdOccupationTypeText?: string;
         };
         IdentifierView: {
             /** @example 824633720832983041 */
@@ -7581,12 +7597,12 @@ export interface components {
             replacementConceptId?: string;
             aliases?: components["schemas"]["ConceptAliasView"][];
             managementPrograms?: components["schemas"]["DiseaseManagementTagView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
             readonly sdConceptTypeText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         DiseaseManagementTagView: {
             /** @example 824633720832983041 */
@@ -7644,12 +7660,12 @@ export interface components {
             exceptionCount?: number;
             rules?: components["schemas"]["RuleView"][];
             members?: components["schemas"]["MemberView"][];
+            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
+            readonly sdManagementTypeText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_DISEASE_TRIGGER_ACTION 的显示文本 */
             readonly sdTriggerActionText?: string;
-            /** @description 字典 BD_DISEASE_MANAGEMENT_TYPE 的显示文本 */
-            readonly sdManagementTypeText?: string;
         };
         MemberView: {
             /** @example 824633720832983041 */
@@ -7676,10 +7692,10 @@ export interface components {
             codeFrom?: string;
             codeTo?: string;
             note?: string;
-            /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
-            readonly sdConceptTypeText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_CONCEPT_TYPE 的显示文本 */
+            readonly sdConceptTypeText?: string;
         };
         DiseaseManagementExceptionRequest: {
             /** @example 824633720832983041 */
@@ -7727,10 +7743,10 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
-            readonly sdPersonnelStatusText?: string;
             /** @description 字典 PRACT_GENDER 的显示文本 */
             readonly sdPractGenderText?: string;
+            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
+            readonly sdPersonnelStatusText?: string;
         };
         UpdateOrganizationUnitRequest: {
             /** Format: int64 */
@@ -7785,18 +7801,18 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 ORG_KIND 的显示文本 */
-            readonly sdOrgKindText?: string;
-            /** @description 字典 ORG_STATUS 的显示文本 */
-            readonly sdOrgStatusText?: string;
-            /** @description 字典 ORG_PROPERTY 的显示文本 */
-            readonly sdOrgPropertyText?: string;
             /** @description 字典 DEPT_TYPE 的显示文本 */
             readonly sdDepartmentTypeText?: string;
             /** @description 字典 ORG_TYPE 的显示文本 */
             readonly sdOrgTypeText?: string;
             /** @description 字典 DEPT_PROPERTY 的显示文本 */
             readonly sdDepartmentPropertyText?: string;
+            /** @description 字典 ORG_KIND 的显示文本 */
+            readonly sdOrgKindText?: string;
+            /** @description 字典 ORG_STATUS 的显示文本 */
+            readonly sdOrgStatusText?: string;
+            /** @description 字典 ORG_PROPERTY 的显示文本 */
+            readonly sdOrgPropertyText?: string;
         };
         UpdateServiceRequest: {
             expectedRevision: number;
@@ -7982,14 +7998,14 @@ export interface components {
             examination?: components["schemas"]["ExaminationServiceView"];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_SERVICE_USE 的显示文本 */
-            readonly sdUsageTypeText?: string;
             /** @description 字典 BD_SERVICE_DUPLICATE_RULE 的显示文本 */
             readonly sdDuplicateRuleText?: string;
             /** @description 字典 BD_SERVICE_TYPE 的显示文本 */
             readonly sdServiceTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_SERVICE_USE 的显示文本 */
+            readonly sdUsageTypeText?: string;
         };
         UpdateFrequencyRequest: {
             /** @example 824633720832983041 */
@@ -8552,6 +8568,7 @@ export interface components {
             unitCode?: string;
             tradeName?: string;
             approvalCode?: string;
+            traceCode?: string;
             /** Format: date */
             approvalFrom?: string;
             /** Format: date */
@@ -8583,14 +8600,14 @@ export interface components {
             packages?: components["schemas"]["PackageView"][];
             organizationAdoption?: components["schemas"]["OrganizationAdoptionView"];
             prices?: components["schemas"]["PriceView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
-            readonly sdShelfLifeUnitText?: string;
             /** @description 字典 BD_PRODUCT_MARKET_STATUS 的显示文本 */
             readonly sdMarketStatusText?: string;
             /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
             readonly sdProductionPlaceText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_SHELF_LIFE_UNIT 的显示文本 */
+            readonly sdShelfLifeUnitText?: string;
         };
         MedicationView: {
             /** @example 824633720832983041 */
@@ -8626,16 +8643,16 @@ export interface components {
             singleOrder?: boolean;
             sdStatus?: string;
             products?: components["schemas"]["MedicationProductView"][];
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
             /** @description 字典 BD_ANTIMICROBIAL_LEVEL 的显示文本 */
             readonly sdAntimicrobialLevelText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
             readonly sdMedicationTypeText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
         };
         PackageView: {
             /** @example 824633720832983041 */
@@ -8685,12 +8702,12 @@ export interface components {
             countryCode?: string;
             address?: string;
             sdStatus?: string;
-            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
-            readonly sdProductionPlaceText?: string;
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_MANUFACTURER_TYPE 的显示文本 */
             readonly sdManufacturerTypeText?: string;
+            /** @description 字典 BD_PRODUCTION_PLACE 的显示文本 */
+            readonly sdProductionPlaceText?: string;
         };
         JsonNode: {
             array?: boolean;
@@ -8698,14 +8715,14 @@ export interface components {
             null?: boolean;
             float?: boolean;
             number?: boolean;
+            valueNode?: boolean;
+            container?: boolean;
+            missingNode?: boolean;
+            object?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
             string?: boolean;
             integralNumber?: boolean;
-            missingNode?: boolean;
-            valueNode?: boolean;
-            container?: boolean;
-            object?: boolean;
             pojo?: boolean;
             floatingPointNumber?: boolean;
             short?: boolean;
@@ -9244,10 +9261,10 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
-            readonly sdDictScopeTypeText?: string;
             /** @description 字典 DICT_CATEGORY_STATUS 的显示文本 */
             readonly sdDictCategoryStatusText?: string;
+            /** @description 字典 DICT_SCOPE_TYPE 的显示文本 */
+            readonly sdDictScopeTypeText?: string;
         };
         DefinitionRequest: {
             expectedRevision?: number;
@@ -9321,6 +9338,10 @@ export interface components {
             /** @example 824633720832983041 */
             updatedBy?: string;
             values?: components["schemas"]["ParameterValueResponse"][];
+            /** @description 字典 PARAM_STATUS 的显示文本 */
+            readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
+            readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_DISPLAY_POLICY 的显示文本 */
             readonly sdParamDisplayPolicyText?: string;
             /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
@@ -9329,10 +9350,6 @@ export interface components {
             readonly sdParamSensitivityText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
-            /** @description 字典 PARAM_STATUS 的显示文本 */
-            readonly sdParamStatusText?: string;
-            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
-            readonly sdParamConfigTypeText?: string;
         };
         ParameterValueResponse: {
             /** @example 824633720832983041 */
@@ -9361,12 +9378,12 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
-            readonly sdParamValueModeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
             /** @description 字典 PARAM_SCOPE_TYPE 的显示文本 */
             readonly sdParamScopeTypeText?: string;
+            /** @description 字典 PARAM_VALUE_MODE 的显示文本 */
+            readonly sdParamValueModeText?: string;
         };
         SaveValueRequest: {
             expectedRevision?: number;
@@ -9550,16 +9567,16 @@ export interface components {
             sdManagementMode?: string;
             sdBookingPolicy?: string;
             sdSlotMode?: string;
+            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
+            readonly sdBookingPolicyText?: string;
+            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
+            readonly sdDayPartText?: string;
             /** @description 字典 SC_SCHEDULE_MANAGEMENT_MODE 的显示文本 */
             readonly sdManagementModeText?: string;
             /** @description 字典 SC_SCHEDULE_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 SC_SLOT_MODE 的显示文本 */
             readonly sdSlotModeText?: string;
-            /** @description 字典 SC_BOOKING_POLICY 的显示文本 */
-            readonly sdBookingPolicyText?: string;
-            /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
-            readonly sdDayPartText?: string;
         };
         DiagnosisRequest: {
             code: string;
@@ -10340,10 +10357,10 @@ export interface components {
             sdPositionType?: string;
             dutyDescription?: string;
             sdPersonnelStatus?: string;
-            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
-            readonly sdPersonnelStatusText?: string;
             /** @description 字典 POSITION_TYPE 的显示文本 */
             readonly sdPositionTypeText?: string;
+            /** @description 字典 PERSONNEL_STATUS 的显示文本 */
+            readonly sdPersonnelStatusText?: string;
         };
         LegacyOrganizationRequest: {
             /** @example 824633720832983041 */
@@ -10414,10 +10431,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_ADDRESS_TYPE 的显示文本 */
-            readonly sdAddressTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_ADDRESS_TYPE 的显示文本 */
+            readonly sdAddressTypeText?: string;
         };
         Capability: {
             /** @example 824633720832983041 */
@@ -10431,12 +10448,12 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
+            readonly sdCapabilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_CAPABILITY_TYPE 的显示文本 */
-            readonly sdCapabilityTypeText?: string;
         };
         Contact: {
             /** @example 824633720832983041 */
@@ -10452,12 +10469,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
+            readonly sdContactTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_USE 的显示文本 */
             readonly sdContactUseText?: string;
-            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
-            readonly sdContactTypeText?: string;
         };
         Identifier: {
             /** @example 824633720832983041 */
@@ -10478,12 +10495,12 @@ export interface components {
             /** @example 824633720832983041 */
             verifiedBy?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
+            readonly sdIdentifierTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 ORG_IDENTIFIER_TYPE 的显示文本 */
-            readonly sdIdentifierTypeText?: string;
         };
         OrganizationProfileView: {
             organization?: components["schemas"]["OrganizationView"];
@@ -10508,10 +10525,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         Responsibility: {
             /** @example 824633720832983041 */
@@ -10526,10 +10543,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 ORG_RESPONSIBILITY_TYPE 的显示文本 */
-            readonly sdResponsibilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 ORG_RESPONSIBILITY_TYPE 的显示文本 */
+            readonly sdResponsibilityTypeText?: string;
         };
         CreateRelationRequest: {
             /** @example 824633720832983041 */
@@ -10995,10 +11012,9 @@ export interface components {
             /** @example 824633720832983041 */
             manufacturerId: string;
             code: string;
-            name: string;
-            unitCode?: string;
             tradeName?: string;
             approvalCode?: string;
+            traceCode?: string;
             /** Format: date */
             approvalFrom?: string;
             /** Format: date */
@@ -11027,6 +11043,52 @@ export interface components {
             validTo?: string;
             indication?: string;
             instruction?: string;
+        };
+        AdoptionRequest: {
+            /** @example 824633720832983041 */
+            organizationId: string;
+            /** @example 824633720832983041 */
+            defaultDepartmentId?: string;
+            localCode?: string;
+            localName?: string;
+            orderable?: boolean;
+            executable?: boolean;
+            chargeable?: boolean;
+            purchasable?: boolean;
+            stocked?: boolean;
+            dispensable?: boolean;
+            returnable?: boolean;
+            sdStatus: string;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string;
+        };
+        PackageRequest: {
+            /** @example 824633720832983041 */
+            basePackageId?: string;
+            unitCode: string;
+            unitName: string;
+            packageSpec?: string;
+            quantityFactor: number;
+            sdUsageType: string;
+            barcode?: string;
+            defaultPurchase?: boolean;
+            defaultSale?: boolean;
+            defaultDispense?: boolean;
+            sdStatus: string;
+            /** Format: date */
+            validFrom: string;
+            /** Format: date */
+            validTo?: string;
+        };
+        ProductSetupRequest: {
+            product: components["schemas"]["ProductRequest"];
+            packaging: components["schemas"]["PackageRequest"];
+            organization: components["schemas"]["AdoptionRequest"];
+            purchasePrice: number;
+            salePrice: number;
+            priceDocumentCode?: string;
         };
         ManufacturerRequest: {
             code: string;
@@ -11249,26 +11311,6 @@ export interface components {
             validTo?: string;
             status: string;
         };
-        AdoptionRequest: {
-            /** @example 824633720832983041 */
-            organizationId: string;
-            /** @example 824633720832983041 */
-            defaultDepartmentId?: string;
-            localCode?: string;
-            localName?: string;
-            orderable?: boolean;
-            executable?: boolean;
-            chargeable?: boolean;
-            purchasable?: boolean;
-            stocked?: boolean;
-            dispensable?: boolean;
-            returnable?: boolean;
-            status: string;
-            /** Format: date */
-            validFrom: string;
-            /** Format: date */
-            validTo?: string;
-        };
         ReplaceAdoptionRequest: {
             expectedRevision: number;
             /** @example 824633720832983041 */
@@ -11313,24 +11355,6 @@ export interface components {
             dispensable?: boolean;
             returnable?: boolean;
             status: string;
-            /** Format: date */
-            validTo?: string;
-        };
-        PackageRequest: {
-            /** @example 824633720832983041 */
-            basePackageId?: string;
-            unitCode: string;
-            unitName: string;
-            packageSpec?: string;
-            quantityFactor: number;
-            sdUsageType: string;
-            barcode?: string;
-            defaultPurchase?: boolean;
-            defaultSale?: boolean;
-            defaultDispense?: boolean;
-            sdStatus: string;
-            /** Format: date */
-            validFrom: string;
             /** Format: date */
             validTo?: string;
         };
@@ -11538,14 +11562,14 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 DEPT_PROPERTY 的显示文本 */
-            readonly sdDepartmentPropertyText?: string;
             /** @description 字典 ORG_STATUS 的显示文本 */
             readonly sdOrgStatusText?: string;
             /** @description 字典 ORG_TYPE 的显示文本 */
             readonly sdOrgTypeText?: string;
             /** @description 字典 DEPT_TYPE 的显示文本 */
             readonly sdDepartmentTypeText?: string;
+            /** @description 字典 DEPT_PROPERTY 的显示文本 */
+            readonly sdDepartmentPropertyText?: string;
         };
         DepartmentCapability: {
             /** @example 824633720832983041 */
@@ -11559,12 +11583,12 @@ export interface components {
             validTo?: string;
             sdVerifyStatus?: string;
             sdDetailStatus?: string;
+            /** @description 字典 DEPT_CAPABILITY_TYPE 的显示文本 */
+            readonly sdCapabilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_VERIFY_STATUS 的显示文本 */
             readonly sdVerifyStatusText?: string;
-            /** @description 字典 DEPT_CAPABILITY_TYPE 的显示文本 */
-            readonly sdCapabilityTypeText?: string;
         };
         DepartmentContact: {
             /** @example 824633720832983041 */
@@ -11580,12 +11604,12 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
+            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
+            readonly sdContactTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
             /** @description 字典 ORG_CONTACT_USE 的显示文本 */
             readonly sdContactUseText?: string;
-            /** @description 字典 ORG_CONTACT_TYPE 的显示文本 */
-            readonly sdContactTypeText?: string;
         };
         DepartmentProfileView: {
             department?: components["schemas"]["DepartmentView"];
@@ -11608,10 +11632,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
-            readonly sdRelationTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 DEPT_RELATION_TYPE 的显示文本 */
+            readonly sdRelationTypeText?: string;
         };
         DepartmentResponsibility: {
             /** @example 824633720832983041 */
@@ -11626,10 +11650,10 @@ export interface components {
             /** Format: date */
             validTo?: string;
             sdDetailStatus?: string;
-            /** @description 字典 DEPT_RESPONSIBILITY_TYPE 的显示文本 */
-            readonly sdResponsibilityTypeText?: string;
             /** @description 字典 ORG_DETAIL_STATUS 的显示文本 */
             readonly sdDetailStatusText?: string;
+            /** @description 字典 DEPT_RESPONSIBILITY_TYPE 的显示文本 */
+            readonly sdResponsibilityTypeText?: string;
         };
         CreateDepartmentRelationRequest: {
             /** @example 824633720832983041 */
@@ -13557,12 +13581,12 @@ export interface components {
             createdAt?: string;
             /** Format: date-time */
             updatedAt?: string;
-            /** @description 字典 SC_APPOINTMENT_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 SC_SCHEDULE_DAY_PART 的显示文本 */
             readonly sdDayPartText?: string;
             /** @description 字典 SC_APPOINTMENT_SOURCE 的显示文本 */
             readonly sdBookingSourceText?: string;
+            /** @description 字典 SC_APPOINTMENT_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         RescheduleAppointmentRequest: {
             /** @example 824633720832983041 */
@@ -15924,10 +15948,10 @@ export interface components {
             /** Format: date */
             effectiveTo?: string;
             publisher?: string;
-            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
-            readonly sdStatusText?: string;
             /** @description 字典 BD_DIAGNOSIS_DOMAIN 的显示文本 */
             readonly sdDiagnosisDomainText?: string;
+            /** @description 字典 BD_MASTER_STATUS 的显示文本 */
+            readonly sdStatusText?: string;
         };
         PrintTemplateView: {
             /** @example 824633720832983041 */
@@ -16274,14 +16298,14 @@ export interface components {
             updatedAt?: string;
             /** @example 824633720832983041 */
             updatedBy?: string;
-            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
-            readonly sdParamControlTypeText?: string;
-            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
-            readonly sdParamConfigTypeText?: string;
             /** @description 字典 PARAM_VALUE_TYPE 的显示文本 */
             readonly sdParamValueTypeText?: string;
             /** @description 字典 PARAM_STATUS 的显示文本 */
             readonly sdParamStatusText?: string;
+            /** @description 字典 PARAM_CONTROL_TYPE 的显示文本 */
+            readonly sdParamControlTypeText?: string;
+            /** @description 字典 PARAM_CONFIG_TYPE 的显示文本 */
+            readonly sdParamConfigTypeText?: string;
         };
         ParameterChangeResponse: {
             /** @example 824633720832983041 */
@@ -21610,6 +21634,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ProductRequest"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationProductView"];
+                };
+            };
+        };
+    };
+    createProductSetup: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductSetupRequest"];
             };
         };
         responses: {

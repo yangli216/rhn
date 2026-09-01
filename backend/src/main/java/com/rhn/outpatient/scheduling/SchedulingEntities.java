@@ -73,6 +73,12 @@ class ServiceResource {
     Long tenantId() { return tenantId; }
     Long organizationId() { return organizationId; }
     Long departmentId() { return departmentId; }
+    Long practitionerId() { return practitionerId; }
+    Long assignmentId() { return assignmentId; }
+    Long catalogItemId() { return catalogItemId; }
+    String resourceName() { return resourceName; }
+    String serviceCode() { return serviceCodeSnapshot; }
+    String serviceName() { return serviceNameSnapshot; }
 }
 
 @Entity
@@ -98,12 +104,18 @@ class ScheduleTemplate {
 
     ScheduleTemplate(Long tenantId, Long resourceId, String name, String timezoneCode,
                      LocalDate validFrom, LocalDate validTo, Long actorId) {
+        this(tenantId, resourceId, name, ScheduleManagementMode.SIMPLE, timezoneCode,
+                validFrom, validTo, actorId);
+    }
+
+    ScheduleTemplate(Long tenantId, Long resourceId, String name, ScheduleManagementMode managementMode,
+                     String timezoneCode, LocalDate validFrom, LocalDate validTo, Long actorId) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.resourceId = resourceId;
         this.templateCode = "ST-" + id;
         this.templateName = name;
-        this.managementMode = ScheduleManagementMode.SIMPLE.name();
+        this.managementMode = managementMode.name();
         this.timezoneCode = timezoneCode;
         this.validFrom = validFrom;
         this.validTo = validTo;
@@ -115,6 +127,15 @@ class ScheduleTemplate {
     }
 
     Long id() { return id; }
+    Long tenantId() { return tenantId; }
+    Long resourceId() { return resourceId; }
+    String templateCode() { return templateCode; }
+    String templateName() { return templateName; }
+    String managementMode() { return managementMode; }
+    LocalDate validFrom() { return validFrom; }
+    LocalDate validTo() { return validTo; }
+    String status() { return status; }
+    Instant updatedAt() { return updatedAt; }
 }
 
 @Entity
@@ -129,12 +150,20 @@ class ScheduleTemplatePeriod {
     @Column(name = "minute_end", nullable = false) private int minuteEnd;
     @Column(name = "default_capacity", nullable = false) private int defaultCapacity;
     @Column(name = "slot_mode", nullable = false) private String slotMode;
+    @Column(name = "slot_minutes") private Integer slotMinutes;
     @Column(nullable = false) private boolean active;
 
     protected ScheduleTemplatePeriod() {}
 
     ScheduleTemplatePeriod(Long tenantId, Long templateId, int dayOfWeek, ScheduleDayPart dayPart,
                            int minuteStart, int minuteEnd, int defaultCapacity) {
+        this(tenantId, templateId, dayOfWeek, dayPart, minuteStart, minuteEnd,
+                defaultCapacity, "POOL", null);
+    }
+
+    ScheduleTemplatePeriod(Long tenantId, Long templateId, int dayOfWeek, ScheduleDayPart dayPart,
+                           int minuteStart, int minuteEnd, int defaultCapacity,
+                           String slotMode, Integer slotMinutes) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.templateId = templateId;
@@ -143,7 +172,8 @@ class ScheduleTemplatePeriod {
         this.minuteStart = minuteStart;
         this.minuteEnd = minuteEnd;
         this.defaultCapacity = defaultCapacity;
-        this.slotMode = "POOL";
+        this.slotMode = slotMode;
+        this.slotMinutes = slotMinutes;
         this.active = true;
     }
 
@@ -152,6 +182,54 @@ class ScheduleTemplatePeriod {
     String dayPart() { return dayPart; }
     int minuteStart() { return minuteStart; }
     int minuteEnd() { return minuteEnd; }
+    int defaultCapacity() { return defaultCapacity; }
+    String slotMode() { return slotMode; }
+    Integer slotMinutes() { return slotMinutes; }
+}
+
+@Entity
+@Table(name = "schedule_exceptions")
+class ScheduleException {
+    @Id private Long id;
+    @Column(name = "tenant_id", nullable = false) private Long tenantId;
+    @Column(name = "template_id", nullable = false) private Long templateId;
+    @Column(name = "exception_date", nullable = false) private LocalDate exceptionDate;
+    @Column(name = "exception_type", nullable = false) private String exceptionType;
+    @Column(name = "minute_start") private Integer minuteStart;
+    @Column(name = "minute_end") private Integer minuteEnd;
+    private Integer capacity;
+    @Column(name = "slot_minutes") private Integer slotMinutes;
+    @Column(nullable = false) private String reason;
+    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Column(name = "created_by", nullable = false) private Long createdBy;
+
+    protected ScheduleException() {}
+
+    ScheduleException(Long tenantId, Long templateId, LocalDate exceptionDate, String exceptionType,
+                      Integer minuteStart, Integer minuteEnd, Integer capacity, Integer slotMinutes,
+                      String reason, Long actorId) {
+        this.id = GlobalIds.next();
+        this.tenantId = tenantId;
+        this.templateId = templateId;
+        this.exceptionDate = exceptionDate;
+        this.exceptionType = exceptionType;
+        this.minuteStart = minuteStart;
+        this.minuteEnd = minuteEnd;
+        this.capacity = capacity;
+        this.slotMinutes = slotMinutes;
+        this.reason = reason;
+        this.createdAt = Instant.now();
+        this.createdBy = actorId;
+    }
+
+    Long id() { return id; }
+    LocalDate exceptionDate() { return exceptionDate; }
+    String exceptionType() { return exceptionType; }
+    Integer minuteStart() { return minuteStart; }
+    Integer minuteEnd() { return minuteEnd; }
+    Integer capacity() { return capacity; }
+    Integer slotMinutes() { return slotMinutes; }
+    String reason() { return reason; }
 }
 
 @Entity
@@ -178,13 +256,19 @@ class ScheduleGenerationRun {
 
     ScheduleGenerationRun(Long tenantId, Long templateId, String idempotencyCode,
                           LocalDate dateFrom, LocalDate dateTo, String requestJson, Long actorId) {
+        this(tenantId, templateId, idempotencyCode, dateFrom, dateTo, "QUICK_CREATE", requestJson, actorId);
+    }
+
+    ScheduleGenerationRun(Long tenantId, Long templateId, String idempotencyCode,
+                          LocalDate dateFrom, LocalDate dateTo, String triggerType,
+                          String requestJson, Long actorId) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.templateId = templateId;
         this.idempotencyCode = idempotencyCode;
         this.dateFrom = dateFrom;
         this.dateTo = dateTo;
-        this.triggerType = "QUICK_CREATE";
+        this.triggerType = triggerType;
         this.status = "RUNNING";
         this.requestJson = requestJson;
         this.startedAt = Instant.now();
@@ -199,6 +283,7 @@ class ScheduleGenerationRun {
     }
 
     Long id() { return id; }
+    Long templateId() { return templateId; }
     int generatedCount() { return generatedCount; }
     int skippedCount() { return skippedCount; }
 }
@@ -246,6 +331,19 @@ class ServiceSchedule {
                     String practitionerName, String serviceCode, String serviceName, String locationName,
                     String timezoneCode, LocalDate serviceDate, Instant startAt, Instant endAt,
                     int totalCapacity, Long actorId) {
+        this(tenantId, resourceId, templateId, templatePeriodId, generationRunId, organizationId,
+                departmentId, practitionerId, assignmentId, catalogItemId, dayPart, practitionerName,
+                serviceCode, serviceName, locationName, timezoneCode, serviceDate, startAt, endAt,
+                totalCapacity, ScheduleManagementMode.SIMPLE, "SHARED", actorId);
+    }
+
+    ServiceSchedule(Long tenantId, Long resourceId, Long templateId, Long templatePeriodId,
+                    Long generationRunId, Long organizationId, Long departmentId, Long practitionerId,
+                    Long assignmentId, Long catalogItemId, ScheduleDayPart dayPart,
+                    String practitionerName, String serviceCode, String serviceName, String locationName,
+                    String timezoneCode, LocalDate serviceDate, Instant startAt, Instant endAt,
+                    int totalCapacity, ScheduleManagementMode managementMode, String bookingPolicy,
+                    Long actorId) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.resourceId = resourceId;
@@ -258,9 +356,9 @@ class ServiceSchedule {
         this.assignmentId = assignmentId;
         this.catalogItemId = catalogItemId;
         this.scheduleCode = "SCH-" + id;
-        this.managementMode = ScheduleManagementMode.SIMPLE.name();
+        this.managementMode = managementMode.name();
         this.scheduleType = "OUTPATIENT";
-        this.bookingPolicy = "SHARED";
+        this.bookingPolicy = bookingPolicy;
         this.dayPart = dayPart.name();
         this.practitionerNameSnapshot = practitionerName;
         this.serviceCodeSnapshot = serviceCode;
@@ -297,6 +395,7 @@ class ServiceSchedule {
     String managementMode() { return managementMode; }
     String bookingPolicy() { return bookingPolicy; }
     String timezoneCode() { return timezoneCode; }
+    int totalCapacity() { return totalCapacity; }
 
     void update(Instant startAt, Instant endAt, int totalCapacity, String locationName, Long actorId) {
         this.startAt = startAt;
@@ -337,11 +436,15 @@ class ScheduleSlotPool {
     protected ScheduleSlotPool() {}
 
     ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount) {
+        this(tenantId, scheduleId, totalCount, "POOL");
+    }
+
+    ScheduleSlotPool(Long tenantId, Long scheduleId, int totalCount, String slotMode) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.scheduleId = scheduleId;
         this.poolCode = "SP-" + id;
-        this.slotMode = "POOL";
+        this.slotMode = slotMode;
         this.quotaMode = "SHARED";
         this.totalCount = totalCount;
         this.status = "ACTIVE";

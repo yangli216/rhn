@@ -6,6 +6,9 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.ScheduleView;
 import com.rhn.outpatient.scheduling.SchedulingContracts.SchedulingBootstrap;
 import com.rhn.outpatient.scheduling.SchedulingContracts.ChangeScheduleStatusRequest;
 import com.rhn.outpatient.scheduling.SchedulingContracts.UpdateScheduleRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalScheduleRequest;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalScheduleResult;
+import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplateView;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,6 +48,18 @@ class SchedulingController {
     @ResponseStatus(HttpStatus.CREATED)
     QuickScheduleResult quickCreate(@Valid @RequestBody QuickScheduleRequest request) {
         return service.quickCreate(request);
+    }
+
+    @GetMapping("/professional/templates")
+    List<ProfessionalTemplateView> professionalTemplates() {
+        return service.professionalTemplates();
+    }
+
+    @PostMapping("/professional/templates")
+    @ResponseStatus(HttpStatus.CREATED)
+    ProfessionalScheduleResult createProfessionalTemplate(
+            @Valid @RequestBody ProfessionalScheduleRequest request) {
+        return service.createProfessionalTemplate(request);
     }
 
     @PutMapping("/schedules/{scheduleId}")

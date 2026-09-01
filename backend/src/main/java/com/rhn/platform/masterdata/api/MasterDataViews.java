@@ -66,7 +66,7 @@ public final class MasterDataViews {
             Long id, long revision, Long itemTypeId, Long itemMasterId,
             Long medicationId, Long manufacturerId, String manufacturerName,
             String code, String name, String unitCode, String tradeName, String approvalCode,
-            LocalDate approvalFrom, LocalDate approvalTo, String registrationCode,
+            String traceCode, LocalDate approvalFrom, LocalDate approvalTo, String registrationCode,
             LocalDate registrationFrom, LocalDate registrationTo, String purchaseCode,
             @DictionaryBinding(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS) String sdMarketStatus,
             @DictionaryBinding(MasterDataDictionaryCodes.PRODUCTION_PLACE) String sdProductionPlace,
