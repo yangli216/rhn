@@ -183,4 +183,34 @@ describe('ResidentCenterWorkspace', () => {
 
     expect(onNavigate).toHaveBeenCalledWith('/outpatient/registration?residentId=resident-1')
   })
+
+  it('opens CreateResidentDialog and parses national ID automatically', async () => {
+    const api = createMockApi()
+    renderWorkspace(api)
+
+    await waitFor(() => {
+      expect(screen.getByText('赵大海')).toBeInTheDocument()
+    })
+
+    const newResidentBtn = screen.getByRole('button', { name: /新建居民/ })
+    fireEvent.click(newResidentBtn)
+
+    await waitFor(() => {
+      expect(screen.getByText('身份与基本信息')).toBeInTheDocument()
+    })
+
+    const idInput = screen.getByPlaceholderText(/录入18位身份证/)
+    fireEvent.change(idInput, { target: { value: '330102199008151234' } })
+
+    await waitFor(() => {
+      const birthDateInput = screen.getByLabelText(/出生日期/) as HTMLInputElement
+      expect(birthDateInput.value).toBe('1990-08-15')
+    })
+
+    // Also check that coverage is synced
+    await waitFor(() => {
+      const memberNoInput = screen.getByPlaceholderText(/自动关联社保卡或身份证/) as HTMLInputElement
+      expect(memberNoInput.value).toBe('330102199008151234')
+    })
+  })
 })

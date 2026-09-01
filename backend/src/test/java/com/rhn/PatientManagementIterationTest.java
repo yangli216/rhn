@@ -40,32 +40,35 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                                 {
                                   "expectedVersion":0,"fullName":"基层门诊患者%s","gender":"FEMALE",
                                   "birthDate":"1990-01-01","phone":"13800138088","deceased":false,
-                                  "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"HAN",
-                                    "sdResidencyType":"HOUSEHOLD","sdMaritalStatus":"MARRIED",
-                                    "sdEducationLevel":"COLLEGE","sdOccupationType":"PROFESSIONAL",
+                                  "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"01",
+                                    "sdResidencyType":"HOUSEHOLD","sdMaritalStatus":"2",
+                                    "sdEducationLevel":"30","sdOccupationType":"200",
                                     "sdBloodType":"A","sdRhType":"POSITIVE"},
                                   "addresses":[{"sdUse":"HOME","provinceCode":"330000000000","cityCode":"330100000000",
                                     "districtCode":"330102000000","addressText":"示范街道一号","postalCode":"310000",
                                     "primary":true,"validFrom":"2020-01-01"}],
-                                  "relatedPersons":[{"fullName":"患者家属","sdRelationship":"SPOUSE",
+                                  "relatedPersons":[{"fullName":"患者家属","sdRelationship":"1",
                                     "phone":"13800138089","guardian":false,"emergencyContact":true,
                                     "validFrom":"2020-01-01"}],
-                                  "coverages":[{"sdCoverageType":"EMPLOYEE_BASIC","payerName":"职工基本医疗保险",
+                                  "coverages":[{"sdCoverageType":"01","payerName":"城镇职工基本医疗保险",
                                     "memberNo":"YB%s","primary":true,"validFrom":"2020-01-01"}]
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.resident.version").value(1))
-                .andExpect(jsonPath("$.demographicProfile.sdMaritalStatus").value("MARRIED"))
+                .andExpect(jsonPath("$.demographicProfile.sdMaritalStatus").value("2"))
                 .andExpect(jsonPath("$.demographicProfile.sdMaritalStatusText").value("已婚"))
                 .andExpect(jsonPath("$.demographicProfile.sdResidencyTypeText").value("户籍人口"))
-                .andExpect(jsonPath("$.demographicProfile.sdEducationLevelText").value("大学专科"))
+                .andExpect(jsonPath("$.demographicProfile.sdEducationLevelText").value("大学专科教育"))
                 .andExpect(jsonPath("$.addresses[0].primary").value(true))
                 .andExpect(jsonPath("$.relatedPersons[0].emergencyContact").value(true))
-                .andExpect(jsonPath("$.coverages[0].sdCoverageType").value("EMPLOYEE_BASIC"))
-                .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("职工基本医疗保险"));
+                .andExpect(jsonPath("$.coverages[0].sdCoverageType").value("01"))
+                .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城镇职工基本医疗保险"));
 
         LocalDate today = LocalDate.now();
+        jdbcTemplate.update("delete from schedule_slot_pools where schedule_id in (select id from service_schedules where practitioner_id = 362387869790223 and service_date = ?)", today);
+        jdbcTemplate.update("delete from appointments where schedule_id in (select id from service_schedules where practitioner_id = 362387869790223 and service_date = ?)", today);
+        jdbcTemplate.update("delete from service_schedules where practitioner_id = 362387869790223 and service_date = ?", today);
         JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -158,22 +161,22 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                                   "fullName":"完整建档居民%s","nationalId":"",
                                   "gender":"MALE","birthDate":"1988-01-01","phone":"1380013%s",
                                   "identifiers":[
-                                    {"system":"NATIONAL_ID","value":"33010219880101%s","useType":"OFFICIAL"},
-                                    {"system":"HEALTH_CARD","value":"JK%s","useType":"SECONDARY"}
+                                    {"system":"1","value":"33010219880101%s","useType":"OFFICIAL"},
+                                    {"system":"9","value":"JK%s","useType":"SECONDARY"}
                                   ],
-                                  "demographicProfile":{"nationalityCode":"CHN","ethnicityCode":"01",
-                                    "sdResidencyType":"NON_HOUSEHOLD","sdMaritalStatus":"MARRIED",
-                                    "sdEducationLevel":"BACHELOR","sdOccupationType":"PROFESSIONAL",
+                                  "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"01",
+                                    "sdResidencyType":"NON_HOUSEHOLD","sdMaritalStatus":"2",
+                                    "sdEducationLevel":"20","sdOccupationType":"200",
                                     "sdBloodType":"O","sdRhType":"POSITIVE"},
                                   "addresses":[{"sdUse":"HOME","addressText":"幸福街道健康路 8 号",
                                     "primary":true,"validFrom":"2024-01-01"}],
-                                  "relatedPersons":[{"fullName":"紧急联系人","sdRelationship":"SPOUSE",
+                                  "relatedPersons":[{"fullName":"紧急联系人","sdRelationship":"1",
                                     "phone":"1390013%s","guardian":false,"emergencyContact":true,
                                     "validFrom":"2024-01-01"}],
-                                  "coverages":[{"sdCoverageType":"RESIDENT_BASIC","payerName":"城乡居民医保",
+                                  "coverages":[{"sdCoverageType":"02","payerName":"城镇居民基本医疗保险",
                                     "memberNo":"YB%s","primary":true,"validFrom":"2024-01-01"}],
                                   "employments":[{"employerName":"基层健康服务中心",
-                                    "sdOccupationType":"PROFESSIONAL","phone":"0571-12345678",
+                                    "sdOccupationType":"200","phone":"0571-12345678",
                                     "addressText":"健康路 10 号","primary":true,"validFrom":"2024-01-01"}]
                                 }
                                 """.formatted(suffix, suffix, suffix, suffix, suffix, suffix)))
@@ -185,10 +188,10 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.demographicProfile.sdResidencyTypeText").value("非户籍常住人口"))
-                .andExpect(jsonPath("$.demographicProfile.sdEducationLevelText").value("大学本科"))
+                .andExpect(jsonPath("$.demographicProfile.sdEducationLevelText").value("大学本科教育"))
                 .andExpect(jsonPath("$.addresses[0].addressText").value("幸福街道健康路 8 号"))
                 .andExpect(jsonPath("$.relatedPersons[0].sdRelationshipText").value("配偶"))
-                .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城乡居民基本医疗保险"))
+                .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城镇居民基本医疗保险"))
                 .andExpect(jsonPath("$.employments[0].employerName").value("基层健康服务中心"))
                 .andExpect(jsonPath("$.employments[0].sdOccupationTypeText").value("专业技术人员"));
     }

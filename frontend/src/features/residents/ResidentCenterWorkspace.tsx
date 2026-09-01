@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Controller, useFieldArray, useForm } from 'react-hook-form'
+import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useState, type ReactNode } from 'react'
 import { age, formatTime, genderLabel } from '../../shared/format'
 import type { Resident } from '../../shared/model'
@@ -9,7 +9,7 @@ import type {
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
   Alert, BackButton, Button, DataTable, Dialog, DictionarySelect,
-  EmptyState, FormField, GridAddressInput, Icon, LoadingState, ObjectContextBar,
+  EmptyState, FormField, GridAddressInput, Icon, IconButton, LoadingState, ObjectContextBar,
   PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, TableShell,
 } from '../../shared/ui'
 
@@ -344,7 +344,7 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
 function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
   api: RhnApi; profile: ResidentProfile; onClose: () => void; onSaved: (value: ResidentProfile) => void
 }) {
-  const { control, register, handleSubmit } = useForm<UpdateResidentProfileInput>({
+  const { control, register, handleSubmit, watch } = useForm<UpdateResidentProfileInput>({
     defaultValues: {
       expectedVersion: profile.resident.version, fullName: profile.resident.fullName,
       gender: profile.resident.gender, birthDate: profile.resident.birthDate, phone: profile.resident.phone ?? '',
@@ -354,6 +354,7 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
       employments: profile.employments,
     },
   })
+  const isDeceased = watch('deceased')
   const addresses = useFieldArray({ control, name: 'addresses' })
   const relatedPersons = useFieldArray({ control, name: 'relatedPersons' })
   const coverages = useFieldArray({ control, name: 'coverages' })
@@ -376,94 +377,221 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
   })
 
   return <Dialog title="维护居民档案" eyebrow="居民中心" size="xwide" closeOnBackdrop={false} onClose={onClose}
-    description="基本资料与地址、联系人、保障信息一次保存；证件标识仍由主索引流程单独管理。"
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
       <Button type="submit" form="resident-profile-form" busy={save.isPending}>保存档案</Button></>}>
     <form id="resident-profile-form" className="resident-profile-form" onSubmit={handleSubmit((value) => save.mutate(value))}>
-      <section><h3>基本资料</h3><div className="ui-form-row">
-        <FormField className="ui-field--grow" label="姓名" required><input {...register('fullName')} required /></FormField>
-        <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select
-          options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
-          value={field.value} onChange={field.onChange} showValue />}/></FormField>
-        <FormField label="出生日期" required><input type="date" {...register('birthDate')} required /></FormField>
-        <FormField label="联系电话"><input {...register('phone')} /></FormField>
-      </div><div className="ui-form-row">
-        <FormField label="国籍代码"><input {...register('demographicProfile.nationalityCode')} placeholder="如 CHN" /></FormField>
-        <FormField label="民族代码"><input {...register('demographicProfile.ethnicityCode')} placeholder="如 01" /></FormField>
-        <FormField label="常住类型"><Controller control={control} name="demographicProfile.sdResidencyType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RESIDENCY_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="婚姻状况"><Controller control={control} name="demographicProfile.sdMaritalStatus" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_MARITAL_STATUS" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-      </div><div className="ui-form-row">
-        <FormField label="文化程度"><Controller control={control} name="demographicProfile.sdEducationLevel" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_EDUCATION_LEVEL" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="职业类别"><Controller control={control} name="demographicProfile.sdOccupationType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="ABO 血型"><Controller control={control} name="demographicProfile.sdBloodType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_BLOOD_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="Rh 血型"><Controller control={control} name="demographicProfile.sdRhType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RH_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <label className="resident-profile-check"><input type="checkbox" {...register('deceased')} />登记死亡</label>
-        <FormField label="死亡时间"><input type="datetime-local" {...register('deceasedAt')} /></FormField>
-      </div></section>
+      <section className="resident-profile-section">
+        <header className="resident-profile-section-head">
+          <div className="resident-profile-section-title">
+            <h3>基本资料</h3>
+          </div>
+        </header>
+        <div className="ui-form-row">
+          <FormField className="ui-field--grow" label="姓名" required><input {...register('fullName')} required /></FormField>
+          <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select
+            options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
+            value={field.value} onChange={field.onChange} showValue />}/></FormField>
+          <FormField label="出生日期" required><input type="date" max={today()} {...register('birthDate')} required /></FormField>
+          <FormField label="联系电话"><input {...register('phone')} placeholder="手机/座机号" /></FormField>
+        </div>
+        <div className="ui-form-row">
+          <FormField label="国籍/地区"><Controller control={control} name="demographicProfile.nationalityCode" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_NATIONALITY" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="民族"><Controller control={control} name="demographicProfile.ethnicityCode" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ETHNICITY" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="常住类型"><Controller control={control} name="demographicProfile.sdResidencyType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RESIDENCY_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="婚姻状况"><Controller control={control} name="demographicProfile.sdMaritalStatus" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_MARITAL_STATUS" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+        </div>
+        <div className="ui-form-row">
+          <FormField label="文化程度"><Controller control={control} name="demographicProfile.sdEducationLevel" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_EDUCATION_LEVEL" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="职业类别"><Controller control={control} name="demographicProfile.sdOccupationType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="ABO 血型"><Controller control={control} name="demographicProfile.sdBloodType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_BLOOD_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="Rh 血型"><Controller control={control} name="demographicProfile.sdRhType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RH_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+        </div>
+        <div className="resident-deceased-strip">
+          <label className="resident-profile-check">
+            <input type="checkbox" {...register('deceased')} />
+            <span>登记死亡</span>
+          </label>
+          {isDeceased && <FormField label="死亡时间" className="resident-deceased-date">
+            <input type="datetime-local" {...register('deceasedAt')} />
+          </FormField>}
+        </div>
+      </section>
 
-      <ProfileArraySection title="地址" onAdd={() => addresses.append({ sdUse: 'HOME', addressText: '', primary: addresses.fields.length === 0, validFrom: today() })}>
-        {addresses.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="地址用途"><Controller control={control} name={`addresses.${index}.sdUse`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ADDRESS_USE" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField className="resident-grid-address-field" label="网格地址" required><Controller control={control}
-            name={`addresses.${index}`} render={({ field: address }) => <GridAddressInput
-              className="resident-grid-address" api={api.gridAddresses} levels={5} required value={address.value}
-              onChange={(grid) => address.onChange({ ...address.value, ...grid })} />}/></FormField>
-          <FormField className="ui-field--grow" label="详细地址"><input {...register(`addresses.${index}.addressText`)} required /></FormField>
-          <FormField label="邮编"><input {...register(`addresses.${index}.postalCode`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`addresses.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => addresses.remove(index)}>移除</Button>
+      <ProfileArraySection title="地址" count={addresses.fields.length} onAdd={() => addresses.append({ sdUse: 'HOME', addressText: '', postalCode: '', primary: addresses.fields.length === 0, validFrom: today() })}>
+        {addresses.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="地址用途" className="field-compact-use"><Controller control={control} name={`addresses.${index}.sdUse`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ADDRESS_USE" value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField className="resident-grid-address-field" label="网格地址" required><Controller control={control}
+              name={`addresses.${index}`} render={({ field: address }) => <GridAddressInput
+                className="resident-grid-address" api={api.gridAddresses} levels={5} required value={address.value}
+                onChange={(grid) => address.onChange({ ...address.value, ...grid })} />}/></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`addresses.${index}.primary`)} />主要地址</label>
+              <IconButton icon="close" label="移除地址" onClick={() => addresses.remove(index)} />
+            </div>
+          </div>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="详细门牌地址"><input {...register(`addresses.${index}.addressText`)} placeholder="如 劳动路18号2单元301室" required /></FormField>
+            <FormField label="邮政编码" className="field-compact-postal"><input {...register(`addresses.${index}.postalCode`)} placeholder="如 310002" /></FormField>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="工作单位" onAdd={() => employments.append({ employerName: '', sdOccupationType: '', phone: '', postalCode: '', addressText: '', primary: employments.fields.length === 0, validFrom: today() })}>
-        {employments.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField className="ui-field--grow" label="单位名称"><input {...register(`employments.${index}.employerName`)} required /></FormField>
-          <FormField label="职业类别"><Controller control={control} name={`employments.${index}.sdOccupationType`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={value.value ?? ''} onChange={value.onChange} clearable />}/></FormField>
-          <FormField label="单位电话"><input {...register(`employments.${index}.phone`)} /></FormField>
-          <FormField className="ui-field--grow" label="单位地址"><input {...register(`employments.${index}.addressText`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`employments.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => employments.remove(index)}>移除</Button>
+      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: 'RESIDENT_BASIC', payerName: '基本医疗保险', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
+        {coverages.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="保障类型" className="field-compact-cov"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField className="ui-field--grow" label="个人编号/卡号"><input {...register(`coverages.${index}.memberNo`)} placeholder="医保卡号/个人编号" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要保障</label>
+              <IconButton icon="close" label="移除保障" onClick={() => coverages.remove(index)} />
+            </div>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="联系人与监护人" onAdd={() => relatedPersons.append({ fullName: '', sdRelationship: 'OTHER', phone: '', addressText: '', guardian: false, emergencyContact: false, validFrom: today() })}>
-        {relatedPersons.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="姓名"><input {...register(`relatedPersons.${index}.fullName`)} required /></FormField>
-          <FormField label="关系"><Controller control={control} name={`relatedPersons.${index}.sdRelationship`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField label="电话"><input {...register(`relatedPersons.${index}.phone`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.guardian`)} />监护人</label>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.emergencyContact`)} />紧急联系人</label>
-          <Button variant="text" onClick={() => relatedPersons.remove(index)}>移除</Button>
+      <ProfileArraySection title="工作单位" count={employments.fields.length} onAdd={() => employments.append({ employerName: '', sdOccupationType: '', phone: '', postalCode: '', addressText: '', primary: employments.fields.length === 0, validFrom: today() })}>
+        {employments.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="单位名称"><input {...register(`employments.${index}.employerName`)} placeholder="单位/公司全称" required /></FormField>
+            <FormField label="职业类别" className="field-compact-occ"><Controller control={control} name={`employments.${index}.sdOccupationType`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={value.value ?? ''} onChange={value.onChange} clearable />}/></FormField>
+            <FormField label="单位电话" className="field-compact-phone"><input {...register(`employments.${index}.phone`)} placeholder="办公电话" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`employments.${index}.primary`)} />主要单位</label>
+              <IconButton icon="close" label="移除单位" onClick={() => employments.remove(index)} />
+            </div>
+          </div>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="单位详细地址"><input {...register(`employments.${index}.addressText`)} placeholder="详细办公地点" /></FormField>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="保障信息" onAdd={() => coverages.append({ sdCoverageType: 'RESIDENT_BASIC', payerName: '', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
-        {coverages.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="保障类型"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField className="ui-field--grow" label="支付方/经办机构"><input {...register(`coverages.${index}.payerName`)} required /></FormField>
-          <FormField label="个人编号"><input {...register(`coverages.${index}.memberNo`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => coverages.remove(index)}>移除</Button>
+      <ProfileArraySection title="联系人与监护人" count={relatedPersons.fields.length} onAdd={() => relatedPersons.append({ fullName: '', sdRelationship: 'OTHER', phone: '', addressText: '', guardian: false, emergencyContact: false, validFrom: today() })}>
+        {relatedPersons.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="姓名" className="field-compact-name"><input {...register(`relatedPersons.${index}.fullName`)} placeholder="联系人姓名" required /></FormField>
+            <FormField label="关系" className="field-compact-rel"><Controller control={control} name={`relatedPersons.${index}.sdRelationship`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP" value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField label="联系电话" className="field-compact-phone"><input {...register(`relatedPersons.${index}.phone`)} placeholder="手机/座机" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.guardian`)} />监护人</label>
+              <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.emergencyContact`)} />紧急联系人</label>
+              <IconButton icon="close" label="移除联系人" onClick={() => relatedPersons.remove(index)} />
+            </div>
+          </div>
         </div>)}
       </ProfileArraySection>
+
       {save.error && <Alert>{errorMessage(save.error)}</Alert>}
     </form>
   </Dialog>
 }
 
-function ProfileArraySection({ title, onAdd, children }: { title: string; onAdd: () => void; children: ReactNode }) {
-  return <section><header className="resident-profile-section-head"><h3>{title}</h3>
-    <Button size="sm" variant="secondary" onClick={onAdd}><Icon name="add" />新增</Button></header>{children}</section>
+function ProfileArraySection({
+  title, count, onAdd, children,
+}: {
+  title: string; count: number; onAdd: () => void; children: ReactNode
+}) {
+  return <section className={`resident-profile-section ${count === 0 ? 'is-empty' : ''}`}>
+    <header className="resident-profile-section-head">
+      <div className="resident-profile-section-title">
+        <h3>{title}</h3>
+        <span className="resident-profile-section-count">{count > 0 ? `(${count})` : '(暂无登记)'}</span>
+      </div>
+      <Button size="sm" variant="secondary" onClick={onAdd}><Icon name="add" />新增{title}</Button>
+    </header>
+    {count > 0 && <div className="resident-profile-items-container">{children}</div>}
+  </section>
+}
+
+function getIdentifierPlaceholder(system?: string): string {
+  switch (system) {
+    case '1':
+    case 'NATIONAL_ID':
+      return '录入18位身份证号，将自动解析出生日期与性别'
+    case '2':
+      return '录入军官证/军人身份证件号码'
+    case '3':
+      return '录入武警身份证件号码'
+    case '4':
+      return '录入港澳居民来往内地通行证号码'
+    case '5':
+      return '录入台湾居民来往大陆通行证号码'
+    case '6':
+    case 'PASSPORT':
+      return '录入护照号码'
+    case 'SOCIAL_SECURITY_CARD':
+      return '录入社保卡号 / 社会保障号码'
+    case 'HEALTH_CARD':
+      return '录入居民健康卡号 / 电子健康卡码'
+    case '9':
+    default:
+      return '请输入证件或卡号'
+  }
+}
+
+function IdentifierCardItem({
+  index, fieldId, control, register, remove, canRemove, onValueChange, api,
+}: {
+  index: number
+  fieldId: string
+  control: any
+  register: any
+  remove: () => void
+  canRemove: boolean
+  onValueChange: (index: number, val: string, changedSystem?: string) => void
+  api: RhnApi
+}) {
+  const currentSystem = useWatch({ control, name: `identifiers.${index}.system` })
+  return (
+    <div className="resident-profile-item-card" key={fieldId}>
+      <div className="resident-profile-item-row">
+        <FormField label="证件/卡类型" required className="field-compact-cov">
+          <Controller
+            control={control}
+            name={`identifiers.${index}.system`}
+            render={({ field: value }) => (
+              <DictionarySelect
+                api={api.dictionaries}
+                dictionaryCode="PI_IDENTIFIER_TYPE"
+                value={value.value}
+                onChange={(val) => {
+                  value.onChange(val)
+                  onValueChange(index, '', val)
+                }}
+              />
+            )}
+          />
+        </FormField>
+        <FormField className="ui-field--grow" label="证件或卡号" required>
+          <input
+            {...register(`identifiers.${index}.value`, {
+              onChange: (e: any) => onValueChange(index, e.target.value),
+              onBlur: (e: any) => onValueChange(index, e.target.value),
+            })}
+            placeholder={getIdentifierPlaceholder(currentSystem)}
+            required
+            maxLength={200}
+          />
+        </FormField>
+        {canRemove && (
+          <IconButton icon="close" label="移除证件" onClick={remove} />
+        )}
+      </div>
+    </div>
+  )
 }
 
 function CreateResidentDialog({ api, onClose, onCreated }: {
@@ -472,8 +600,8 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
   const { control, register, handleSubmit, getValues, setValue } = useForm<CreateResidentInput>({
     defaultValues: {
       fullName: '', nationalId: '', gender: 'UNKNOWN', birthDate: '', phone: '',
-      identifiers: [{ system: 'NATIONAL_ID', value: '', useType: 'OFFICIAL' }],
-      demographicProfile: { nationalityCode: 'CHN', ethnicityCode: '', sdResidencyType: 'UNKNOWN' },
+      identifiers: [{ system: '1', value: '', useType: 'OFFICIAL' }],
+      demographicProfile: { nationalityCode: 'CN', ethnicityCode: '01', sdResidencyType: 'UNKNOWN' },
       addresses: [], relatedPersons: [], coverages: [], employments: [],
     },
   })
@@ -483,108 +611,235 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
   const coverages = useFieldArray({ control, name: 'coverages' })
   const employments = useFieldArray({ control, name: 'employments' })
   const create = useMutation({ mutationFn: api.residents.create, onSuccess: onCreated })
-  function fillFromNationalId(index: number, value: string) {
-    if (getValues(`identifiers.${index}.system`) !== 'NATIONAL_ID' || !/^\d{17}[\dXx]$/.test(value)) return
-    const rawDate = value.slice(6, 14)
-    setValue('birthDate', `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`)
-    setValue('gender', Number(value[16]) % 2 === 1 ? 'MALE' : 'FEMALE')
+
+  function parseIdCard(id: string) {
+    const clean = id.trim()
+    if (!/^\d{17}[\dXx]$/.test(clean)) return null
+    const year = clean.slice(6, 10)
+    const month = clean.slice(10, 12)
+    const day = clean.slice(12, 14)
+    const m = Number(month)
+    const d = Number(day)
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null
+    const birthDate = `${year}-${month}-${day}`
+    const gender: 'MALE' | 'FEMALE' = Number(clean[16]) % 2 === 1 ? 'MALE' : 'FEMALE'
+    return { birthDate, gender }
+  }
+
+  function syncCoverageWithIdentifiers(updatedIdentifiers?: ResidentIdentifierInput[]) {
+    const currentIdentifiers = updatedIdentifiers ?? getValues('identifiers') ?? []
+    const socialSecurity = currentIdentifiers.find((id) => id.system === 'SOCIAL_SECURITY_CARD' && id.value?.trim())
+    const nationalId = currentIdentifiers.find((id) => (id.system === '1' || id.system === 'NATIONAL_ID' || !id.system) && id.value?.trim())
+
+    if (socialSecurity) {
+      const cardNo = socialSecurity.value.trim()
+      const currentCoverages = getValues('coverages') ?? []
+      if (currentCoverages.length === 0) {
+        coverages.append({
+          sdCoverageType: '01',
+          payerName: '城镇职工基本医疗保险',
+          memberNo: cardNo,
+          primary: true,
+          validFrom: today(),
+        })
+      } else {
+        setValue('coverages.0.sdCoverageType', '01', { shouldDirty: true, shouldValidate: true })
+        setValue('coverages.0.memberNo', cardNo, { shouldDirty: true, shouldValidate: true })
+        setValue('coverages.0.payerName', '城镇职工基本医疗保险', { shouldDirty: true })
+      }
+    } else if (nationalId) {
+      const idNo = nationalId.value.trim()
+      const currentCoverages = getValues('coverages') ?? []
+      if (currentCoverages.length === 0) {
+        coverages.append({
+          sdCoverageType: '02',
+          payerName: '城镇居民基本医疗保险',
+          memberNo: idNo,
+          primary: true,
+          validFrom: today(),
+        })
+      } else {
+        setValue('coverages.0.sdCoverageType', '02', { shouldDirty: true, shouldValidate: true })
+        setValue('coverages.0.memberNo', idNo, { shouldDirty: true, shouldValidate: true })
+        setValue('coverages.0.payerName', '城镇居民基本医疗保险', { shouldDirty: true })
+      }
+    }
+  }
+
+  function handleIdentifierChange(index: number, val: string, changedSystem?: string) {
+    const currentIds = getValues('identifiers') ?? []
+    const system = changedSystem ?? currentIds[index]?.system ?? '1'
+    const clean = val.trim()
+    // Auto-parse ID card if system is 1 / NATIONAL_ID or length is 18 digits
+    if (system === '1' || system === 'NATIONAL_ID' || /^\d{17}[\dXx]$/.test(clean)) {
+      const parsed = parseIdCard(clean)
+      if (parsed) {
+        setValue('birthDate', parsed.birthDate, { shouldValidate: true, shouldDirty: true })
+        setValue('gender', parsed.gender, { shouldValidate: true, shouldDirty: true })
+      }
+    }
+    // Real-time sync with coverages
+    const updated = currentIds.map((id, i) => i === index ? { ...id, system, value: val } : id)
+    syncCoverageWithIdentifiers(updated)
+  }
+
+  function handleRemoveIdentifier(index: number) {
+    identifiers.remove(index)
+    setTimeout(() => {
+      syncCoverageWithIdentifiers()
+    }, 0)
   }
 
   return <Dialog title="新建居民" eyebrow="居民中心" size="xwide" className="resident-create-dialog" onClose={onClose} closeOnBackdrop={false}
-    description="先录入基本信息与证件或卡；其他资料可按需补充，也可建档后维护。"
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
       <Button type="submit" form="resident-center-create" busy={create.isPending}>保存居民档案</Button></>}>
-    <form id="resident-center-create" className="resident-profile-form resident-create-form" onSubmit={handleSubmit((value) => create.mutate(value))}>
-      <section><h3>身份与基本信息</h3>
-        <div className="ui-form-row resident-create-basics"><FormField label="姓名" required>
-          <input {...register('fullName')} autoFocus required maxLength={100} /></FormField>
-        <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select
-          options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
-          value={field.value} onChange={field.onChange} showValue />}/></FormField>
-        <FormField label="出生日期" required><input type="date" max={today()} {...register('birthDate')} required /></FormField>
-          <FormField label="联系电话"><input {...register('phone')} maxLength={32} /></FormField></div>
+    <form id="resident-center-create" className="resident-profile-form" onSubmit={handleSubmit((value) => {
+      const payload: CreateResidentInput = {
+        ...value,
+        coverages: value.coverages?.map((c) => ({
+          ...c,
+          payerName: c.payerName?.trim() || '基本医疗保险',
+        })),
+      }
+      create.mutate(payload)
+    })}>
+      <section className="resident-profile-section">
+        <header className="resident-profile-section-head">
+          <div className="resident-profile-section-title">
+            <h3>身份与基本信息</h3>
+          </div>
+        </header>
+        <div className="ui-form-row">
+          <FormField className="ui-field--grow" label="姓名" required>
+            <input {...register('fullName')} autoFocus required maxLength={100} />
+          </FormField>
+          <FormField label="性别" required>
+            <Controller control={control} name="gender" render={({ field }) => <Select
+              options={[{ value: 'UNKNOWN', label: '未知' }, { value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }]}
+              value={field.value} onChange={field.onChange} showValue />} />
+          </FormField>
+          <FormField label="出生日期" required>
+            <input type="date" max={today()} {...register('birthDate')} required />
+          </FormField>
+          <FormField label="联系电话">
+            <input {...register('phone')} maxLength={32} placeholder="手机/座机号" />
+          </FormField>
+        </div>
       </section>
 
-      <ProfileArraySection title="地址信息" onAdd={() => addresses.append({ sdUse: 'HOME', addressText: '', primary: addresses.fields.length === 0, validFrom: today() })}>
-        {addresses.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="地址用途"><Controller control={control} name={`addresses.${index}.sdUse`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ADDRESS_USE" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField className="resident-grid-address-field" label="网格地址" required><Controller control={control}
-            name={`addresses.${index}`} render={({ field: address }) => <GridAddressInput
-              className="resident-grid-address" api={api.gridAddresses} levels={5} required value={address.value}
-              onChange={(grid) => address.onChange({ ...address.value, ...grid })} />}/></FormField>
-          <FormField className="ui-field--grow" label="详细地址"><input {...register(`addresses.${index}.addressText`)} required /></FormField>
-          <FormField label="邮编"><input {...register(`addresses.${index}.postalCode`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`addresses.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => addresses.remove(index)}>移除</Button>
+      <ProfileArraySection title="证件和卡" count={identifiers.fields.length} onAdd={() => identifiers.append({ system: '1', value: '', useType: 'SECONDARY' })}>
+        {identifiers.fields.map((field, index) => (
+          <IdentifierCardItem
+            key={field.id}
+            index={index}
+            fieldId={field.id}
+            control={control}
+            register={register}
+            remove={() => handleRemoveIdentifier(index)}
+            canRemove={identifiers.fields.length > 1}
+            onValueChange={handleIdentifierChange}
+            api={api}
+          />
+        ))}
+      </ProfileArraySection>
+
+      <ProfileArraySection title="地址信息" count={addresses.fields.length} onAdd={() => addresses.append({ sdUse: 'HOME', addressText: '', postalCode: '', primary: addresses.fields.length === 0, validFrom: today() })}>
+        {addresses.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="地址用途" className="field-compact-use">
+              <Controller control={control} name={`addresses.${index}.sdUse`} render={({ field: value }) =>
+                <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ADDRESS_USE" value={value.value} onChange={value.onChange} />} />
+            </FormField>
+            <FormField className="resident-grid-address-field" label="网格地址" required>
+              <Controller control={control} name={`addresses.${index}`} render={({ field: address }) =>
+                <GridAddressInput className="resident-grid-address" api={api.gridAddresses} levels={5} required value={address.value}
+                  onChange={(grid) => address.onChange({ ...address.value, ...grid })} />} />
+            </FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`addresses.${index}.primary`)} />主要地址</label>
+              <IconButton icon="close" label="移除地址" onClick={() => addresses.remove(index)} />
+            </div>
+          </div>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="详细门牌地址"><input {...register(`addresses.${index}.addressText`)} placeholder="如 劳动路18号2单元301室" required /></FormField>
+            <FormField label="邮政编码" className="field-compact-postal"><input {...register(`addresses.${index}.postalCode`)} placeholder="如 310002" /></FormField>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="证件和卡" onAdd={() => identifiers.append({ system: 'HEALTH_CARD', value: '', useType: 'SECONDARY' })}>
-        {identifiers.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="证件/卡类型" required><Controller control={control} name={`identifiers.${index}.system`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_IDENTIFIER_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField className="ui-field--grow" label="证件或卡号" required><input {...register(`identifiers.${index}.value`, {
-            onBlur: (event) => fillFromNationalId(index, event.target.value),
-          })} required maxLength={200} /></FormField>
-          <FormField label="用途"><Controller control={control} name={`identifiers.${index}.useType`} render={({ field: value }) => <Select
-            options={[{ value: 'OFFICIAL', label: '正式' }, { value: 'SECONDARY', label: '辅助' }, { value: 'TEMP', label: '临时' }]}
-            value={value.value} onChange={value.onChange} />}/></FormField>
-          {identifiers.fields.length > 1 && <Button variant="text" onClick={() => identifiers.remove(index)}>移除</Button>}
-        </div>)}
-        <p className="resident-identifier-hint">录入 18 位身份证后自动带出出生日期和性别，并参与租户内重复识别。</p>
-      </ProfileArraySection>
-
-      <ProfileArraySection title="联系人信息" onAdd={() => relatedPersons.append({ fullName: '', sdRelationship: 'OTHER', phone: '', addressText: '', guardian: false, emergencyContact: true, validFrom: today() })}>
-        {relatedPersons.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="姓名"><input {...register(`relatedPersons.${index}.fullName`)} required /></FormField>
-          <FormField label="关系"><Controller control={control} name={`relatedPersons.${index}.sdRelationship`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField label="电话"><input {...register(`relatedPersons.${index}.phone`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.guardian`)} />监护人</label>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.emergencyContact`)} />紧急联系人</label>
-          <Button variant="text" onClick={() => relatedPersons.remove(index)}>移除</Button>
+      <ProfileArraySection title="联系人信息" count={relatedPersons.fields.length} onAdd={() => relatedPersons.append({ fullName: '', sdRelationship: '97', phone: '', addressText: '', guardian: false, emergencyContact: true, validFrom: today() })}>
+        {relatedPersons.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="姓名" className="field-compact-name"><input {...register(`relatedPersons.${index}.fullName`)} placeholder="联系人姓名" required /></FormField>
+            <FormField label="关系" className="field-compact-rel"><Controller control={control} name={`relatedPersons.${index}.sdRelationship`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP" value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField label="联系电话" className="field-compact-phone"><input {...register(`relatedPersons.${index}.phone`)} placeholder="手机/座机" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.guardian`)} />监护人</label>
+              <label className="resident-profile-check"><input type="checkbox" {...register(`relatedPersons.${index}.emergencyContact`)} />紧急联系人</label>
+              <IconButton icon="close" label="移除联系人" onClick={() => relatedPersons.remove(index)} />
+            </div>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <section><h3>其他信息</h3><div className="ui-form-row">
-        <FormField label="国籍代码"><input {...register('demographicProfile.nationalityCode')} placeholder="如 CHN" /></FormField>
-        <FormField label="民族代码"><input {...register('demographicProfile.ethnicityCode')} placeholder="如 01" /></FormField>
-        <FormField label="常住类型"><Controller control={control} name="demographicProfile.sdResidencyType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RESIDENCY_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="婚姻状况"><Controller control={control} name="demographicProfile.sdMaritalStatus" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_MARITAL_STATUS" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-      </div><div className="ui-form-row">
-        <FormField label="文化程度"><Controller control={control} name="demographicProfile.sdEducationLevel" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_EDUCATION_LEVEL" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="职业类别"><Controller control={control} name="demographicProfile.sdOccupationType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="ABO 血型"><Controller control={control} name="demographicProfile.sdBloodType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_BLOOD_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-        <FormField label="Rh 血型"><Controller control={control} name="demographicProfile.sdRhType" render={({ field }) =>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RH_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
-      </div></section>
+      <section className="resident-profile-section">
+        <header className="resident-profile-section-head">
+          <div className="resident-profile-section-title">
+            <h3>其他信息</h3>
+          </div>
+        </header>
+        <div className="ui-form-row">
+          <FormField label="国籍/地区"><Controller control={control} name="demographicProfile.nationalityCode" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_NATIONALITY" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="民族"><Controller control={control} name="demographicProfile.ethnicityCode" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_ETHNICITY" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="常住类型"><Controller control={control} name="demographicProfile.sdResidencyType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RESIDENCY_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="婚姻状况"><Controller control={control} name="demographicProfile.sdMaritalStatus" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_MARITAL_STATUS" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+        </div>
+        <div className="ui-form-row">
+          <FormField label="文化程度"><Controller control={control} name="demographicProfile.sdEducationLevel" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_EDUCATION_LEVEL" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="职业类别"><Controller control={control} name="demographicProfile.sdOccupationType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="ABO 血型"><Controller control={control} name="demographicProfile.sdBloodType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_BLOOD_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+          <FormField label="Rh 血型"><Controller control={control} name="demographicProfile.sdRhType" render={({ field }) =>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RH_TYPE" value={field.value ?? ''} onChange={field.onChange} clearable />}/></FormField>
+        </div>
+      </section>
 
-      <ProfileArraySection title="保障信息" onAdd={() => coverages.append({ sdCoverageType: 'RESIDENT_BASIC', payerName: '', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
-        {coverages.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField label="保障类型"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
-          <FormField className="ui-field--grow" label="支付方/经办机构"><input {...register(`coverages.${index}.payerName`)} required /></FormField>
-          <FormField label="个人编号"><input {...register(`coverages.${index}.memberNo`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => coverages.remove(index)}>移除</Button>
+      <ProfileArraySection title="保障信息" count={coverages.fields.length} onAdd={() => coverages.append({ sdCoverageType: '02', payerName: '城镇居民基本医疗保险', memberNo: '', primary: coverages.fields.length === 0, validFrom: today() })}>
+        {coverages.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField label="保障类型" className="field-compact-cov"><Controller control={control} name={`coverages.${index}.sdCoverageType`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="INS_COVERAGE_TYPE" value={value.value} onChange={value.onChange} />}/></FormField>
+            <FormField className="ui-field--grow" label="个人编号/卡号"><input {...register(`coverages.${index}.memberNo`)} placeholder="医保卡号/个人编号（自动关联社保卡或身份证）" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`coverages.${index}.primary`)} />主要保障</label>
+              <IconButton icon="close" label="移除保障" onClick={() => coverages.remove(index)} />
+            </div>
+          </div>
         </div>)}
       </ProfileArraySection>
 
-      <ProfileArraySection title="工作单位" onAdd={() => employments.append({ employerName: '', sdOccupationType: '', phone: '', postalCode: '', addressText: '', primary: employments.fields.length === 0, validFrom: today() })}>
-        {employments.fields.map((field, index) => <div className="resident-profile-array-row" key={field.id}>
-          <FormField className="ui-field--grow" label="单位名称"><input {...register(`employments.${index}.employerName`)} required /></FormField>
-          <FormField label="职业类别"><Controller control={control} name={`employments.${index}.sdOccupationType`} render={({ field: value }) =>
-            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={value.value ?? ''} onChange={value.onChange} clearable />}/></FormField>
-          <FormField label="单位电话"><input {...register(`employments.${index}.phone`)} /></FormField>
-          <FormField className="ui-field--grow" label="单位地址"><input {...register(`employments.${index}.addressText`)} /></FormField>
-          <label className="resident-profile-check"><input type="checkbox" {...register(`employments.${index}.primary`)} />主要</label>
-          <Button variant="text" onClick={() => employments.remove(index)}>移除</Button>
+      <ProfileArraySection title="工作单位" count={employments.fields.length} onAdd={() => employments.append({ employerName: '', sdOccupationType: '', phone: '', postalCode: '', addressText: '', primary: employments.fields.length === 0, validFrom: today() })}>
+        {employments.fields.map((field, index) => <div className="resident-profile-item-card" key={field.id}>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="单位名称"><input {...register(`employments.${index}.employerName`)} placeholder="单位/公司全称" required /></FormField>
+            <FormField label="职业类别" className="field-compact-occ"><Controller control={control} name={`employments.${index}.sdOccupationType`} render={({ field: value }) =>
+              <DictionarySelect api={api.dictionaries} dictionaryCode="PI_OCCUPATION_TYPE" value={value.value ?? ''} onChange={value.onChange} clearable />}/></FormField>
+            <FormField label="单位电话" className="field-compact-phone"><input {...register(`employments.${index}.phone`)} placeholder="办公电话" /></FormField>
+            <div className="resident-profile-item-actions">
+              <label className="resident-profile-check"><input type="checkbox" {...register(`employments.${index}.primary`)} />主要单位</label>
+              <IconButton icon="close" label="移除单位" onClick={() => employments.remove(index)} />
+            </div>
+          </div>
+          <div className="resident-profile-item-row">
+            <FormField className="ui-field--grow" label="单位详细地址"><input {...register(`employments.${index}.addressText`)} placeholder="详细办公地点" /></FormField>
+          </div>
         </div>)}
       </ProfileArraySection>
       {create.error && <Alert>{errorMessage(create.error)}</Alert>}

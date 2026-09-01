@@ -108,7 +108,7 @@ public class ResidentService implements ResidentDirectory {
         ProfileValues profile = validateProfile(tenantId, request.demographicProfile(), request.addresses(),
                 request.relatedPersons(), request.coverages(), request.employments());
 
-        String nationalId = identifiers.stream().filter(identifier -> identifier.system().equals("NATIONAL_ID"))
+        String nationalId = identifiers.stream().filter(identifier -> identifier.system().equals("1") || identifier.system().equals("NATIONAL_ID"))
                 .map(NormalizedIdentifier::value).findFirst().orElse(null);
         Resident resident = new Resident(tenantId, nextRecordNo(), request.fullName().trim(), nationalId,
                 request.gender(), request.birthDate(), normalize(request.phone()), actor());
@@ -449,7 +449,7 @@ public class ResidentService implements ResidentDirectory {
             String nationalId, List<ResidentIdentifierInput> inputs) {
         Map<String, NormalizedIdentifier> result = new LinkedHashMap<>();
         if (StrUtil.isNotBlank(nationalId)) {
-            NormalizedIdentifier identifier = normalizeIdentifier("NATIONAL_ID", nationalId, "OFFICIAL");
+            NormalizedIdentifier identifier = normalizeIdentifier("1", nationalId, "OFFICIAL");
             result.put(identifier.system() + "|" + identifier.normalized(), identifier);
         }
         if (inputs != null) {
@@ -462,10 +462,21 @@ public class ResidentService implements ResidentDirectory {
     }
 
     private NormalizedIdentifier normalizeIdentifier(String system, String value, String useType) {
-        String normalizedSystem = system.trim().toUpperCase(Locale.ROOT);
+        String normalizedSystem = normalizeIdentifierSystem(system);
         String trimmedValue = value.trim();
         return new NormalizedIdentifier(normalizedSystem, trimmedValue, normalizeIdentifierValue(trimmedValue),
                 StrUtil.isBlank(useType) ? "OFFICIAL" : useType.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private String normalizeIdentifierSystem(String system) {
+        if (StrUtil.isBlank(system)) return "1";
+        String trimmed = system.trim();
+        return switch (trimmed.toUpperCase(Locale.ROOT)) {
+            case "NATIONAL_ID" -> "1";
+            case "PASSPORT" -> "6";
+            case "SOCIAL_SECURITY_CARD", "HEALTH_CARD", "OTHER" -> "9";
+            default -> trimmed;
+        };
     }
 
     private String normalizeIdentifierValue(String value) {

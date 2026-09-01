@@ -166,10 +166,10 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
       gender,
       birthDate,
       phone,
-      identifiers: nationalId ? [{ system: 'NATIONAL_ID', value: nationalId, useType: 'OFFICIAL' }] : [],
-      coverages: coverageType !== 'SELF_PAY' ? [{
+      identifiers: nationalId ? [{ system: '1', value: nationalId, useType: 'OFFICIAL' }] : [],
+      coverages: (coverageType !== '07' && coverageType !== 'SELF_PAY') ? [{
         sdCoverageType: coverageType,
-        payerName: coverageType === 'EMPLOYEE_BASIC' ? '城镇职工基本医疗保险' : '城乡居民基本医疗保险',
+        payerName: (coverageType === '01' || coverageType === 'EMPLOYEE_BASIC') ? '城镇职工基本医疗保险' : '城乡居民基本医疗保险',
         primary: true,
         validFrom: businessDate(),
       }] : [],
@@ -198,9 +198,9 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
       </div>
       <div className="ui-form-row">
         <FormField label="医保保障类别"><Select value={coverageType} onChange={(v) => setCoverageType(v)} options={[
-          { value: 'SELF_PAY', label: '自费患者' },
-          { value: 'EMPLOYEE_BASIC', label: '城镇职工基本医疗保险' },
-          { value: 'RESIDENT_BASIC', label: '城乡居民基本医疗保险' },
+          { value: '07', label: '自费患者' },
+          { value: '01', label: '城镇职工基本医疗保险' },
+          { value: '02', label: '城乡居民基本医疗保险' },
         ]} /></FormField>
       </div>
     </form>
@@ -1024,13 +1024,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 }
 
 function isActiveMedicalCoverage(value: ResidentCoverageInput, today: string): value is ActiveMedicalCoverage {
-  if (!value.id || ['SELF_PAY', 'COMMERCIAL', 'OTHER'].includes(value.sdCoverageType)) return false
+  if (!value.id || ['07', '05', '99', 'SELF_PAY', 'COMMERCIAL', 'OTHER'].includes(value.sdCoverageType)) return false
   return value.validFrom <= today && (!value.validTo || value.validTo >= today)
 }
 
 function medicalCoverageLabel(code: string) {
-  return ({ EMPLOYEE_BASIC: '职工基本医疗保险', RESIDENT_BASIC: '城乡居民基本医疗保险',
-    BASIC: '基本医疗保险' } as Record<string, string>)[code] ?? '医疗保险'
+  return ({
+    '01': '城镇职工基本医疗保险',
+    '0101': '本市城镇职工基本医疗保险',
+    '0102': '外埠城镇职工基本医疗保险',
+    '02': '城镇居民基本医疗保险',
+    '0201': '本市城乡居民基本医疗保险',
+    '0202': '外埠城镇居民基本医疗保险',
+    '03': '新型农村合作医疗',
+    EMPLOYEE_BASIC: '职工基本医疗保险',
+    RESIDENT_BASIC: '城乡居民基本医疗保险',
+    BASIC: '基本医疗保险',
+  } as Record<string, string>)[code] ?? '医疗保险'
 }
 
 function insuranceSettlementReady(settlement: Settlement) {
