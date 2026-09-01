@@ -23,12 +23,24 @@ class EncounterDiagnosis {
     private Long tenantId;
     @Column(name = "encounter_id", nullable = false)
     private Long encounterId;
+    @Column(name = "concept_id")
+    private Long conceptId;
     @Column(name = "diagnosis_stage", nullable = false)
     private String diagnosisStage;
     @Column(nullable = false)
     private String code;
     @Column(nullable = false)
     private String display;
+    @Column(name = "code_system_code_snapshot")
+    private String codeSystemCodeSnapshot;
+    @Column(name = "code_system_version_snapshot")
+    private String codeSystemVersionSnapshot;
+    @Column(name = "diagnosis_domain", nullable = false)
+    private String diagnosisDomain;
+    @Column(name = "diagnosis_group_id")
+    private String diagnosisGroupId;
+    @Column(name = "management_snapshot_json")
+    private String managementSnapshotJson;
     @Enumerated(EnumType.STRING)
     @Column(name = "diagnosis_type", nullable = false)
     private DiagnosisType diagnosisType;
@@ -62,12 +74,26 @@ class EncounterDiagnosis {
 
     EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, String code, String display,
                        DiagnosisType diagnosisType, String verificationStatus, Long updatedBy) {
+        this(tenantId, encounterId, diagnosisStage, null, null, null, "WESTERN_MEDICINE", null,
+                code, display, diagnosisType, verificationStatus, null, updatedBy);
+    }
+
+    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, Long conceptId,
+                       String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
+                       String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
+                       String verificationStatus, String managementSnapshotJson, Long updatedBy) {
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
         this.encounterId = encounterId;
         this.diagnosisStage = diagnosisStage;
+        this.conceptId = conceptId;
+        this.codeSystemCodeSnapshot = codeSystemCode;
+        this.codeSystemVersionSnapshot = codeSystemVersion;
+        this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
+        this.diagnosisGroupId = diagnosisGroupId;
         this.code = code;
         this.display = display;
+        this.managementSnapshotJson = managementSnapshotJson;
         this.diagnosisType = diagnosisType;
         this.recordedAt = Instant.now();
         this.businessVersionNo = 1;
@@ -82,9 +108,22 @@ class EncounterDiagnosis {
     }
 
     void revise(String display, DiagnosisType type, String verificationStatus, Long actor) {
+        revise(conceptId, codeSystemCodeSnapshot, codeSystemVersionSnapshot, diagnosisDomain, diagnosisGroupId,
+                display, type, verificationStatus, managementSnapshotJson, actor);
+    }
+
+    void revise(Long conceptId, String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
+                String diagnosisGroupId, String display, DiagnosisType type, String verificationStatus,
+                String managementSnapshotJson, Long actor) {
+        this.conceptId = conceptId;
+        this.codeSystemCodeSnapshot = codeSystemCode;
+        this.codeSystemVersionSnapshot = codeSystemVersion;
+        this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
+        this.diagnosisGroupId = diagnosisGroupId;
         this.display = display;
         this.diagnosisType = type;
         this.verificationStatus = verificationStatus;
+        this.managementSnapshotJson = managementSnapshotJson;
         this.diagnosisStatus = "ACTIVE";
         this.businessVersionNo++;
         this.updatedAt = Instant.now();
@@ -101,9 +140,16 @@ class EncounterDiagnosis {
     Long id() { return id; }
     Long tenantId() { return tenantId; }
     Long encounterId() { return encounterId; }
+    Long conceptId() { return conceptId; }
     String diagnosisStage() { return diagnosisStage; }
     String code() { return code; }
     String display() { return display; }
+    String codeSystemCodeSnapshot() { return codeSystemCodeSnapshot; }
+    String codeSystemVersionSnapshot() { return codeSystemVersionSnapshot; }
+    String diagnosisDomain() { return diagnosisDomain; }
+    String diagnosisGroupId() { return diagnosisGroupId; }
+    String managementSnapshotJson() { return managementSnapshotJson; }
+    String terminologyKey() { return (codeSystemCodeSnapshot == null ? "LEGACY" : codeSystemCodeSnapshot) + "|" + code; }
     DiagnosisType diagnosisType() { return diagnosisType; }
     int businessVersionNo() { return businessVersionNo; }
     String verificationStatus() { return verificationStatus; }

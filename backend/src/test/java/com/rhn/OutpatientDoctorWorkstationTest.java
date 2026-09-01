@@ -58,6 +58,9 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         assertEquals(2, jdbcTemplate.queryForObject("select count(*) from encounter_diagnoses where encounter_id=? and diagnosis_status='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
         assertEquals(3, count("encounter_diagnosis_revisions", encounterId));
         assertEquals(2, jdbcTemplate.queryForObject("select business_version_no from encounter_diagnoses where encounter_id=? and code='I10'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals("WHO.BD.CS.ICD10", jdbcTemplate.queryForObject(
+                "select code_system_code_snapshot from encounter_diagnoses where encounter_id=? and code='I10'",
+                String.class, Long.valueOf(encounterId)));
 
         mockMvc.perform(post("/api/encounters/{id}/complete", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DOCUMENT_SIGNATURE_REQUIRED"));
@@ -180,9 +183,12 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                 {"chiefComplaint":"%s","presentIllness":"晨起头晕明显，无意识障碍",
                                  "medicalHistory":"既往血压偏高","physicalExam":"神志清，心肺查体未见明显异常",
                                  "treatmentPlan":"完善评估并监测血压","systolic":148,"diastolic":92,
-                                 "diagnoses":[{"code":"I10","display":"%s","type":"PRIMARY"}%s]}
+                                 "diagnoses":[{"conceptId":"362387869795011","diagnosisDomain":"WESTERN_MEDICINE",
+                                  "code":"I10","display":"%s","type":"PRIMARY"}%s]}
                                 """.formatted(complaint, diagnosisDisplay, secondary)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.diagnoses[0].code").value("I10"));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.diagnoses[0].code").value("I10"))
+                .andExpect(jsonPath("$.diagnoses[0].systemCode").value("WHO.BD.CS.ICD10"))
+                .andExpect(jsonPath("$.diagnoses[0].managementPrograms[0].code").value("CHRONIC_HYPERTENSION"));
     }
 
     private int count(String table, String encounterId) {

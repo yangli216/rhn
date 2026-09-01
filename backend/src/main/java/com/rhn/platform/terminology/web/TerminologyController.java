@@ -4,6 +4,7 @@ import com.rhn.platform.tenant.TenantContext;
 import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.CodeSystemSummary;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
+import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
 import com.rhn.platform.terminology.application.TerminologyApplicationService;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
 import jakarta.validation.Valid;
@@ -81,12 +82,52 @@ public class TerminologyController {
                 request.sdStatus(), request.replacementConceptId());
     }
 
+    @GetMapping("/disease-management-programs")
+    List<DiseaseManagementProgramView> diseaseManagementPrograms(
+            @RequestParam(required = false) com.rhn.platform.terminology.domain.TerminologyStatus status) {
+        return service.listDiseaseManagementPrograms(TenantContext.requireTenantId(), status);
+    }
+
+    @PostMapping("/disease-management-programs")
+    @ResponseStatus(HttpStatus.CREATED)
+    DiseaseManagementProgramView createDiseaseManagementProgram(
+            @Valid @RequestBody DiseaseManagementProgramRequest request) {
+        return service.createDiseaseManagementProgram(TenantContext.requireTenantId(), request.productScope(),
+                request.code().trim(), request.name().trim(), request.sdManagementType(), request.sdTriggerAction(),
+                trimToNull(request.description()), trimToNull(request.reportCardType()), request.reportDeadlineHours(),
+                request.effectiveFrom(), request.effectiveTo());
+    }
+
+    @PutMapping("/disease-management-programs/{id}")
+    DiseaseManagementProgramView updateDiseaseManagementProgram(@PathVariable Long id,
+            @Valid @RequestBody UpdateDiseaseManagementProgramRequest request) {
+        return service.updateDiseaseManagementProgram(TenantContext.requireTenantId(), id,
+                revision(request.expectedRevision()), request.name().trim(), request.sdManagementType(),
+                request.sdTriggerAction(), trimToNull(request.description()), trimToNull(request.reportCardType()),
+                request.reportDeadlineHours(), request.effectiveFrom(), request.effectiveTo());
+    }
+
+    @PutMapping("/disease-management-programs/{id}/members")
+    DiseaseManagementProgramView replaceDiseaseManagementMembers(@PathVariable Long id,
+            @Valid @RequestBody DiseaseManagementMembersRequest request) {
+        return service.replaceDiseaseManagementMembers(TenantContext.requireTenantId(), id,
+                revision(request.expectedRevision()), request.conceptIds());
+    }
+
+    @PostMapping("/disease-management-programs/{id}/status")
+    DiseaseManagementProgramView changeDiseaseManagementProgramStatus(@PathVariable Long id,
+            @Valid @RequestBody DiseaseManagementStatusRequest request) {
+        return service.changeDiseaseManagementProgramStatus(TenantContext.requireTenantId(), id,
+                revision(request.expectedRevision()), request.sdStatus());
+    }
+
     @PostMapping("/code-systems")
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> createCodeSystem(@Valid @RequestBody CreateCodeSystemRequest request) {
         Long id = service.createCodeSystem(TenantContext.requireTenantId(), request.productScope(),
                 request.code().trim(), request.name().trim(), trimToNull(request.canonicalUri()),
                 request.version().trim(), request.systemType() == null ? "COMMON" : request.systemType(),
+                trimToNull(request.sdDiagnosisDomain()),
                 trimToNull(request.publisher()), trimToNull(request.description()),
                 request.authorityType() == null ? "INTERNAL" : request.authorityType(),
                 trimToNull(request.sourceUri()), trimToNull(request.contentHash()),
@@ -140,6 +181,8 @@ public class TerminologyController {
                                    @Size(max = 500) String canonicalUri,
                                    @NotBlank @Size(max = 64) String version,
                                    @Size(max = 32) String systemType,
+                                   @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME")
+                                   String sdDiagnosisDomain,
                                    @Size(max = 300) String publisher,
                                    @Size(max = 2000) String description,
                                    @Pattern(regexp = "NATIONAL|INSURANCE|REGULATORY|LOCAL|INTERNAL|OTHER")
@@ -147,6 +190,39 @@ public class TerminologyController {
                                    @Size(max = 1000) String sourceUri,
                                    @Size(max = 128) String contentHash,
                                    @NotNull LocalDate effectiveFrom, LocalDate effectiveTo) {}
+
+    record DiseaseManagementProgramRequest(
+            boolean productScope,
+            @NotBlank @Size(max = 64) @Pattern(regexp = "[A-Z][A-Z0-9_]{0,63}") String code,
+            @NotBlank @Size(max = 200) String name,
+            @NotBlank @Pattern(regexp = "CHRONIC_CARE|DISEASE_REPORT|SPECIAL_REGISTRY") String sdManagementType,
+            @NotBlank @Pattern(regexp = "PROMPT_CONFIRMATION|CREATE_FOLLOW_UP_TASK|CREATE_REPORT_DRAFT")
+            String sdTriggerAction,
+            @Size(max = 1000) String description,
+            @Size(max = 64) String reportCardType,
+            @Min(1) Integer reportDeadlineHours,
+            @NotNull LocalDate effectiveFrom,
+            LocalDate effectiveTo) {}
+
+    record UpdateDiseaseManagementProgramRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotBlank @Size(max = 200) String name,
+            @NotBlank @Pattern(regexp = "CHRONIC_CARE|DISEASE_REPORT|SPECIAL_REGISTRY") String sdManagementType,
+            @NotBlank @Pattern(regexp = "PROMPT_CONFIRMATION|CREATE_FOLLOW_UP_TASK|CREATE_REPORT_DRAFT")
+            String sdTriggerAction,
+            @Size(max = 1000) String description,
+            @Size(max = 64) String reportCardType,
+            @Min(1) Integer reportDeadlineHours,
+            @NotNull LocalDate effectiveFrom,
+            LocalDate effectiveTo) {}
+
+    record DiseaseManagementMembersRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull @Size(max = 1000) List<@NotNull Long> conceptIds) {}
+
+    record DiseaseManagementStatusRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull com.rhn.platform.terminology.domain.TerminologyStatus sdStatus) {}
 
     record DiseaseRequest(
             @NotNull Long codeSystemId,

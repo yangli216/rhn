@@ -623,7 +623,48 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].systemVersion").value("2019"))
                 .andExpect(jsonPath("$[0].sdConceptType").value("DISEASE"))
                 .andExpect(jsonPath("$[0].sdConceptTypeText").value("疾病"))
+                .andExpect(jsonPath("$[0].sdDiagnosisDomain").value("WESTERN_MEDICINE"))
+                .andExpect(jsonPath("$[0].sdDiagnosisDomainText").value("西医诊断"))
+                .andExpect(jsonPath("$[0].managementPrograms[0].code").value("CHRONIC_HYPERTENSION"))
+                .andExpect(jsonPath("$[0].managementPrograms[0].sdManagementTypeText").value("慢病管理"))
                 .andExpect(jsonPath("$[0].aliases[0].name").value("高血压病"));
+
+        mockMvc.perform(get("/api/platform/terminology/diseases")
+                        .param("query", "肝阳上亢").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("GY_SK_ZHENG"))
+                .andExpect(jsonPath("$[0].sdDiagnosisDomain").value("TCM_SYNDROME"))
+                .andExpect(jsonPath("$[0].sdDiagnosisDomainText").value("中医证候"));
+    }
+
+    @Test
+    void disease_management_programs_support_multi_member_configuration_and_reporting_metadata() throws Exception {
+        JsonNode created = json(mockMvc.perform(post("/api/platform/terminology/disease-management-programs")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "productScope":false,"code":"SPECIAL_TEST_REGISTRY","name":"专项登记测试",
+                                  "sdManagementType":"SPECIAL_REGISTRY","sdTriggerAction":"PROMPT_CONFIRMATION",
+                                  "description":"用于验证多疾病归类","effectiveFrom":"2026-09-01"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sdManagementTypeText").value("专项登记"))
+                .andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(put("/api/platform/terminology/disease-management-programs/{id}/members",
+                                created.get("id").asText()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":%d,"conceptIds":["362387869795011","362387869795012"]}
+                                """.formatted(created.get("revision").asLong())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.members.length()").value(2))
+                .andExpect(jsonPath("$.members[?(@.code == 'I10')].display").value("原发性高血压"))
+                .andExpect(jsonPath("$.members[?(@.code == 'E11.9')].display").value("2型糖尿病，不伴并发症"));
+
+        mockMvc.perform(get("/api/platform/terminology/disease-management-programs").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code == 'NOTIFIABLE_DISEASE')].reportCardType")
+                        .value("INFECTIOUS_DISEASE"));
     }
 
     @Test

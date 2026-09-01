@@ -6,7 +6,19 @@ type DiagnosisInputContract = components['schemas']['DiagnosisInput']
 type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
 
 export type DiagnosisInput = DiagnosisInputContract & {
+  conceptId?: string
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
   type: 'PRIMARY' | 'SECONDARY'
+  diagnosisGroupId?: string
+  managementPrograms?: Array<{
+    id: string
+    code: string
+    name: string
+    managementType: 'CHRONIC_CARE' | 'DISEASE_REPORT' | 'SPECIAL_REGISTRY'
+    triggerAction: 'PROMPT_CONFIRMATION' | 'CREATE_FOLLOW_UP_TASK' | 'CREATE_REPORT_DRAFT'
+    reportCardType?: string
+    reportDeadlineHours?: number
+  }>
 }
 
 export type ClinicalRecordInput = Omit<ClinicalRecordContract, 'diagnoses'> & {

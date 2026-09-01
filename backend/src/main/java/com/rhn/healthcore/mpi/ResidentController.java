@@ -38,6 +38,17 @@ public class ResidentController {
         return residentService.search(query);
     }
 
+    @GetMapping("/page")
+    ResidentPageView page(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String gender,
+            @RequestParam(required = false) ResidentStatus status,
+            @RequestParam(required = false) Boolean deceased,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return residentService.page(query, gender, status, deceased, page, size);
+    }
+
     @GetMapping("/{residentId}")
     ResidentResponse get(@PathVariable Long residentId) {
         return residentService.get(residentId);

@@ -44,9 +44,23 @@ export interface Resident extends RequiredFields<Contract['ResidentResponse'], '
 }
 
 export interface Diagnosis extends RequiredFields<Contract['DiagnosisResponse'], 'code' | 'display' | 'type'> {
+  conceptId?: string
+  systemCode?: string
+  systemVersion?: string
+  diagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+  diagnosisGroupId?: string
   code: string
   display: string
   type: 'PRIMARY' | 'SECONDARY'
+  managementPrograms?: Array<{
+    id: string
+    code: string
+    name: string
+    managementType: 'CHRONIC_CARE' | 'DISEASE_REPORT' | 'SPECIAL_REGISTRY'
+    triggerAction: 'PROMPT_CONFIRMATION' | 'CREATE_FOLLOW_UP_TASK' | 'CREATE_REPORT_DRAFT'
+    reportCardType?: string
+    reportDeadlineHours?: number
+  }>
 }
 
 export interface Encounter extends Omit<RequiredFields<Contract['EncounterResponse'], 'id' | 'residentId' | 'encounterNo' | 'organizationId' | 'departmentId' | 'status' | 'diagnoses' | 'registeredAt'>, 'status'> {

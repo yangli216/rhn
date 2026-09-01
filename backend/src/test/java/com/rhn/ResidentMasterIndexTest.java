@@ -89,6 +89,46 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.residentId").value(duplicateId));
     }
 
+    @Test
+    void resident_page_query_supports_filtering_and_pagination() throws Exception {
+        String testName = "分页测试" + Long.toString(System.currentTimeMillis()).substring(8);
+        String id1 = createResident(testName + "甲", "330102197001018881", null);
+        String id2 = createResident(testName + "乙", "330102197001018882", null);
+
+        mockMvc.perform(get("/api/residents/page")
+                        .with(rhn())
+                        .queryParam("query", testName)
+                        .queryParam("page", "0")
+                        .queryParam("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].fullName").value(testName + "乙"))
+                .andExpect(jsonPath("$.content[0].maskedNationalId").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].status").value("ACTIVE"))
+                .andExpect(jsonPath("$.content[1].fullName").value(testName + "甲"));
+
+        mockMvc.perform(get("/api/residents/page")
+                        .with(rhn())
+                        .queryParam("query", testName + "甲")
+                        .queryParam("gender", "MALE")
+                        .queryParam("status", "ACTIVE")
+                        .queryParam("page", "0")
+                        .queryParam("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(id1));
+
+        mockMvc.perform(get("/api/residents/page")
+                        .with(rhn())
+                        .queryParam("gender", "FEMALE")
+                        .queryParam("query", testName))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content.length()").value(0));
+    }
+
     private String createResident(String name, String nationalId, String identifiers) throws Exception {
         String nationalIdField = nationalId == null ? "" : "\"nationalId\":\"" + nationalId + "\",";
         String identifiersField = identifiers == null ? "" : ",\"identifiers\":" + identifiers;

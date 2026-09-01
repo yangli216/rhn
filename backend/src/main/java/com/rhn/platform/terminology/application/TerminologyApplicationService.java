@@ -6,11 +6,16 @@ import com.rhn.platform.terminology.api.ConceptSnapshot;
 import com.rhn.platform.terminology.api.ConceptAliasView;
 import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
+import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
+import com.rhn.platform.terminology.api.DiseaseManagementTagView;
+import com.rhn.platform.terminology.api.DiseaseReferenceSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.platform.terminology.api.TerminologyConceptSnapshot;
 import com.rhn.platform.terminology.domain.CodeSystem;
 import com.rhn.platform.terminology.domain.Concept;
 import com.rhn.platform.terminology.domain.ConceptAlias;
+import com.rhn.platform.terminology.domain.DiseaseManagementMember;
+import com.rhn.platform.terminology.domain.DiseaseManagementProgram;
 import com.rhn.platform.terminology.domain.TerminologyScope;
 import com.rhn.platform.terminology.domain.TerminologyStatus;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
@@ -19,6 +24,8 @@ import com.rhn.platform.terminology.domain.ValueSetMember;
 import com.rhn.platform.terminology.infrastructure.CodeSystemRepository;
 import com.rhn.platform.terminology.infrastructure.ConceptRepository;
 import com.rhn.platform.terminology.infrastructure.ConceptAliasRepository;
+import com.rhn.platform.terminology.infrastructure.DiseaseManagementMemberRepository;
+import com.rhn.platform.terminology.infrastructure.DiseaseManagementProgramRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetMemberRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetRepository;
 import com.rhn.shared.api.BusinessException;
@@ -48,17 +55,23 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     private final ConceptAliasRepository aliasRepository;
     private final ValueSetRepository valueSetRepository;
     private final ValueSetMemberRepository memberRepository;
+    private final DiseaseManagementProgramRepository managementProgramRepository;
+    private final DiseaseManagementMemberRepository managementMemberRepository;
 
     public TerminologyApplicationService(CodeSystemRepository codeSystemRepository,
                                          ConceptRepository conceptRepository,
                                          ConceptAliasRepository aliasRepository,
                                          ValueSetRepository valueSetRepository,
-                                         ValueSetMemberRepository memberRepository) {
+                                         ValueSetMemberRepository memberRepository,
+                                         DiseaseManagementProgramRepository managementProgramRepository,
+                                         DiseaseManagementMemberRepository managementMemberRepository) {
         this.codeSystemRepository = codeSystemRepository;
         this.conceptRepository = conceptRepository;
         this.aliasRepository = aliasRepository;
         this.valueSetRepository = valueSetRepository;
         this.memberRepository = memberRepository;
+        this.managementProgramRepository = managementProgramRepository;
+        this.managementMemberRepository = managementMemberRepository;
     }
 
     @Transactional
@@ -81,13 +94,22 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                                  String version, String systemType, String publisher, String description,
                                  String authorityType, String sourceUri, String contentHash,
                                  LocalDate effectiveFrom, LocalDate effectiveTo) {
+        return createCodeSystem(tenantId, productScope, code, name, canonicalUri, version, systemType, null,
+                publisher, description, authorityType, sourceUri, contentHash, effectiveFrom, effectiveTo);
+    }
+
+    @Transactional
+    public Long createCodeSystem(Long tenantId, boolean productScope, String code, String name, String canonicalUri,
+                                 String version, String systemType, String diagnosisDomain, String publisher,
+                                 String description, String authorityType, String sourceUri, String contentHash,
+                                 LocalDate effectiveFrom, LocalDate effectiveTo) {
         if (!Set.of("NATIONAL", "INSURANCE", "REGULATORY", "LOCAL", "INTERNAL", "OTHER")
                 .contains(authorityType == null ? "INTERNAL" : authorityType)) {
             throw badRequest("CODE_SYSTEM_AUTHORITY_INVALID", "标准发布权威类型不正确");
         }
         CodeSystem system = new CodeSystem(productScope ? TerminologyScope.PRODUCT : TerminologyScope.TENANT,
                 productScope ? PRODUCT_SCOPE_ID : tenantId, code, name, canonicalUri, version,
-                systemType, publisher, description, authorityType, sourceUri, contentHash,
+                systemType, diagnosisDomain, publisher, description, authorityType, sourceUri, contentHash,
                 effectiveFrom, effectiveTo);
         return codeSystemRepository.save(system).id();
     }
@@ -248,7 +270,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     public List<CodeSystemSummary> listDiseaseCodeSystems(Long tenantId) {
         return visibleDiseaseSystems(tenantId).stream()
                 .map(system -> new CodeSystemSummary(system.id(), system.revision(), system.code(), system.name(),
-                        system.versionCode(), system.status().name(), system.effectiveFrom(), system.effectiveTo(),
+                        system.versionCode(), system.diagnosisDomain(), system.status().name(), system.effectiveFrom(), system.effectiveTo(),
                         system.publisher()))
                 .sorted(Comparator.comparing(CodeSystemSummary::name))
                 .toList();
@@ -263,6 +285,8 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
         List<Concept> concepts = conceptRepository.findByCodeSystemIdInOrderByDisplay(systemById.keySet());
         Map<Long, List<ConceptAlias>> aliases = aliasesByConcept(concepts.stream().map(Concept::id).toList());
+        Map<Long, List<DiseaseManagementProgram>> programs = programsByConcept(
+                tenantId, concepts.stream().map(Concept::id).toList(), LocalDate.now(), false);
         String normalized = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         return concepts.stream()
                 .filter(value -> conceptType == null || conceptType.isBlank() || conceptType.equals(value.conceptType()))
@@ -271,7 +295,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                         || matches(value, aliases.getOrDefault(value.id(), List.of()), normalized))
                 .limit(500)
                 .map(value -> diseaseView(value, systemById.get(value.codeSystemId()),
-                        aliases.getOrDefault(value.id(), List.of())))
+                        aliases.getOrDefault(value.id(), List.of()), programs.getOrDefault(value.id(), List.of())))
                 .toList();
     }
 
@@ -290,7 +314,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 shortDisplay, chapterCode, chapterName, searchCode, effectiveFrom, effectiveTo,
                 status == null ? TerminologyStatus.DRAFT : status));
         saveNewAliases(concept.id(), aliases);
-        return diseaseView(concept, system, aliasRepository.findByConceptIdOrderByAliasName(concept.id()));
+        return diseaseView(concept, system, aliasRepository.findByConceptIdOrderByAliasName(concept.id()), List.of());
     }
 
     @Transactional
@@ -305,7 +329,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 chapterName, searchCode, effectiveFrom, effectiveTo);
         synchronizeAliases(concept.id(), aliases);
         return diseaseView(concept, requireVisibleDiseaseSystem(tenantId, concept.codeSystemId()),
-                aliasRepository.findByConceptIdOrderByAliasName(concept.id()));
+                aliasRepository.findByConceptIdOrderByAliasName(concept.id()), programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
     }
 
     @Transactional
@@ -316,7 +340,93 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         if (replacementConceptId != null) requireDisease(tenantId, replacementConceptId);
         concept.changeStatus(status, replacementConceptId);
         return diseaseView(concept, requireVisibleDiseaseSystem(tenantId, concept.codeSystemId()),
-                aliasRepository.findByConceptIdOrderByAliasName(concept.id()));
+                aliasRepository.findByConceptIdOrderByAliasName(concept.id()), programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public DiseaseReferenceSnapshot requireDisease(Long tenantId, Long conceptId, LocalDate atDate) {
+        Concept concept = requireDisease(tenantId, conceptId);
+        CodeSystem system = requireVisibleDiseaseSystem(tenantId, concept.codeSystemId());
+        if (!concept.isActive() || !concept.isEffectiveAt(atDate) || system.status() != TerminologyStatus.ACTIVE
+                || !system.isEffectiveAt(atDate)) {
+            throw badRequest("DISEASE_NOT_EFFECTIVE", "所选疾病在当前业务日期不可用");
+        }
+        List<DiseaseReferenceSnapshot.DiseaseManagementSnapshot> programs = programsForConcept(
+                tenantId, concept.id(), atDate, true).stream().map(value ->
+                new DiseaseReferenceSnapshot.DiseaseManagementSnapshot(value.id(), value.code(), value.name(),
+                        value.managementType(), value.triggerAction(), value.reportCardType(),
+                        value.reportDeadlineHours())).toList();
+        return new DiseaseReferenceSnapshot(concept.id(), system.code(), system.canonicalUri(), system.versionCode(),
+                system.diagnosisDomain(), concept.code(), concept.display(), programs);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DiseaseManagementProgramView> listDiseaseManagementPrograms(Long tenantId, TerminologyStatus status) {
+        List<DiseaseManagementProgram> programs = visibleManagementPrograms(tenantId).stream()
+                .filter(value -> status == null || value.status() == status).toList();
+        Map<Long, List<DiseaseManagementMember>> members = managementMemberRepository
+                .findByProgramIdIn(programs.stream().map(DiseaseManagementProgram::id).toList()).stream()
+                .collect(Collectors.groupingBy(DiseaseManagementMember::programId));
+        Set<Long> conceptIds = members.values().stream().flatMap(Collection::stream)
+                .map(DiseaseManagementMember::conceptId).collect(Collectors.toSet());
+        Map<Long, Concept> concepts = conceptRepository.findAllById(conceptIds).stream()
+                .collect(Collectors.toMap(Concept::id, Function.identity()));
+        Set<Long> systemIds = concepts.values().stream().map(Concept::codeSystemId).collect(Collectors.toSet());
+        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(systemIds).stream()
+                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+        return programs.stream().map(value -> programView(value, members.getOrDefault(value.id(), List.of()),
+                concepts, systems)).toList();
+    }
+
+    @Transactional
+    public DiseaseManagementProgramView createDiseaseManagementProgram(Long tenantId, boolean productScope,
+            String code, String name, String managementType, String triggerAction, String description,
+            String reportCardType, Integer reportDeadlineHours, LocalDate effectiveFrom, LocalDate effectiveTo) {
+        TerminologyScope scope = productScope ? TerminologyScope.PRODUCT : TerminologyScope.TENANT;
+        Long scopeId = productScope ? PRODUCT_SCOPE_ID : tenantId;
+        if (managementProgramRepository.existsByScopeTypeAndScopeIdAndCode(scope, scopeId, code)) {
+            throw conflict("DISEASE_PROGRAM_CODE_DUPLICATE", "当前作用域已存在相同的疾病管理项目编码");
+        }
+        DiseaseManagementProgram value = managementProgramRepository.save(new DiseaseManagementProgram(scope,
+                scopeId, code, name, managementType, triggerAction, description, reportCardType,
+                reportDeadlineHours, effectiveFrom, effectiveTo));
+        return programView(value, List.of(), Map.of(), Map.of());
+    }
+
+    @Transactional
+    public DiseaseManagementProgramView updateDiseaseManagementProgram(Long tenantId, Long id,
+            long expectedRevision, String name, String managementType, String triggerAction, String description,
+            String reportCardType, Integer reportDeadlineHours, LocalDate effectiveFrom, LocalDate effectiveTo) {
+        DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        value.update(expectedRevision, name, managementType, triggerAction, description, reportCardType,
+                reportDeadlineHours, effectiveFrom, effectiveTo);
+        return programWithMembers(value);
+    }
+
+    @Transactional
+    public DiseaseManagementProgramView replaceDiseaseManagementMembers(Long tenantId, Long id,
+                                                                          long expectedRevision,
+                                                                          Collection<Long> conceptIds) {
+        DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        value.replaceMembers(expectedRevision);
+        List<Long> normalized = conceptIds == null ? List.of() : conceptIds.stream().distinct().limit(1000).toList();
+        normalized.forEach(conceptId -> requireDisease(tenantId, conceptId));
+        managementMemberRepository.deleteByProgramId(id);
+        managementMemberRepository.flush();
+        normalized.forEach(conceptId -> managementMemberRepository.save(new DiseaseManagementMember(
+                id, conceptId, value.effectiveFrom(), value.effectiveTo(), null)));
+        managementProgramRepository.flush();
+        return programWithMembers(value);
+    }
+
+    @Transactional
+    public DiseaseManagementProgramView changeDiseaseManagementProgramStatus(Long tenantId, Long id,
+                                                                               long expectedRevision,
+                                                                               TerminologyStatus status) {
+        DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        value.changeStatus(expectedRevision, status);
+        return programWithMembers(value);
     }
 
     private List<CodeSystem> visibleDiseaseSystems(Long tenantId) {
@@ -399,15 +509,84 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 .filter(value -> !value.isBlank()).distinct().limit(30).toList();
     }
 
-    private DiseaseConceptView diseaseView(Concept concept, CodeSystem system, List<ConceptAlias> aliases) {
+    private DiseaseConceptView diseaseView(Concept concept, CodeSystem system, List<ConceptAlias> aliases,
+                                           List<DiseaseManagementProgram> programs) {
         return new DiseaseConceptView(concept.id(), concept.revision(), concept.codeSystemId(), system.code(),
-                system.name(), system.versionCode(), concept.code(), concept.display(), concept.shortDisplay(),
+                system.name(), system.versionCode(), system.diagnosisDomain(), concept.code(), concept.display(), concept.shortDisplay(),
                 concept.conceptType(), concept.chapterCode(), concept.chapterName(), concept.definition(),
                 concept.searchCode(), concept.status().name(), concept.effectiveFrom(), concept.effectiveTo(),
                 concept.replacementConceptId(), aliases.stream()
                         .filter(value -> value.status() == TerminologyStatus.ACTIVE)
                         .map(value -> new ConceptAliasView(value.id(), value.aliasType(), value.aliasName(),
-                                value.searchCode())).toList());
+                                value.searchCode())).toList(), programs.stream().map(this::managementTag).toList());
+    }
+
+    private DiseaseManagementTagView managementTag(DiseaseManagementProgram value) {
+        return new DiseaseManagementTagView(value.id(), value.code(), value.name(), value.managementType(),
+                value.triggerAction(), value.reportCardType(), value.reportDeadlineHours());
+    }
+
+    private List<DiseaseManagementProgram> visibleManagementPrograms(Long tenantId) {
+        return managementProgramRepository.findAllByOrderByName().stream()
+                .filter(value -> value.scopeType() == TerminologyScope.PRODUCT
+                        || (value.scopeType() == TerminologyScope.TENANT && tenantId.equals(value.scopeId())))
+                .sorted(Comparator.comparing((DiseaseManagementProgram value) ->
+                        value.scopeType() == TerminologyScope.TENANT ? 0 : 1).thenComparing(DiseaseManagementProgram::name))
+                .toList();
+    }
+
+    private Map<Long, List<DiseaseManagementProgram>> programsByConcept(Long tenantId, Collection<Long> conceptIds,
+                                                                         LocalDate atDate, boolean activeOnly) {
+        if (conceptIds.isEmpty()) return Map.of();
+        Map<Long, DiseaseManagementProgram> programs = visibleManagementPrograms(tenantId).stream()
+                .filter(value -> !activeOnly || (value.status() == TerminologyStatus.ACTIVE && value.isEffectiveAt(atDate)))
+                .collect(Collectors.toMap(DiseaseManagementProgram::id, Function.identity()));
+        return managementMemberRepository.findByConceptIdIn(conceptIds).stream()
+                .filter(value -> !activeOnly || value.isEffectiveAt(atDate))
+                .filter(value -> programs.containsKey(value.programId()))
+                .collect(Collectors.groupingBy(DiseaseManagementMember::conceptId,
+                        Collectors.mapping(value -> programs.get(value.programId()), Collectors.toList())));
+    }
+
+    private List<DiseaseManagementProgram> programsForConcept(Long tenantId, Long conceptId, LocalDate atDate,
+                                                               boolean activeOnly) {
+        return programsByConcept(tenantId, List.of(conceptId), atDate, activeOnly)
+                .getOrDefault(conceptId, List.of());
+    }
+
+    private DiseaseManagementProgram requireManagementProgram(Long tenantId, Long id) {
+        DiseaseManagementProgram value = managementProgramRepository.findById(id)
+                .orElseThrow(() -> notFound("DISEASE_PROGRAM_NOT_FOUND", "未找到疾病管理项目"));
+        if (value.scopeType() == TerminologyScope.TENANT && !tenantId.equals(value.scopeId())) {
+            throw notFound("DISEASE_PROGRAM_NOT_FOUND", "未找到疾病管理项目");
+        }
+        return value;
+    }
+
+    private DiseaseManagementProgramView programWithMembers(DiseaseManagementProgram value) {
+        List<DiseaseManagementMember> members = managementMemberRepository.findByProgramIdOrderByCreatedAt(value.id());
+        Map<Long, Concept> concepts = conceptRepository.findAllById(
+                members.stream().map(DiseaseManagementMember::conceptId).toList()).stream()
+                .collect(Collectors.toMap(Concept::id, Function.identity()));
+        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(concepts.values().stream()
+                .map(Concept::codeSystemId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+        return programView(value, members, concepts, systems);
+    }
+
+    private DiseaseManagementProgramView programView(DiseaseManagementProgram value,
+            List<DiseaseManagementMember> members, Map<Long, Concept> concepts, Map<Long, CodeSystem> systems) {
+        return new DiseaseManagementProgramView(value.id(), value.revision(), value.scopeType().name(), value.scopeId(),
+                value.code(), value.name(), value.managementType(), value.triggerAction(), value.description(),
+                value.reportCardType(), value.reportDeadlineHours(), value.status().name(), value.effectiveFrom(),
+                value.effectiveTo(), members.stream().map(member -> {
+                    Concept concept = concepts.get(member.conceptId());
+                    CodeSystem system = concept == null ? null : systems.get(concept.codeSystemId());
+                    return new DiseaseManagementProgramView.MemberView(member.conceptId(),
+                            concept == null ? "" : concept.code(), concept == null ? "已删除概念" : concept.display(),
+                            system == null ? "未知编码体系" : system.name(),
+                            system == null ? "WESTERN_MEDICINE" : system.diagnosisDomain());
+                }).toList());
     }
 
     private ValueSet findValueSet(Long tenantId, String code, LocalDate atDate) {

@@ -1,27 +1,67 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { useState, type ReactNode } from 'react'
-import { age, genderLabel } from '../../shared/format'
+import { age, formatTime, genderLabel } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import type {
   CreateResidentInput, ResidentProfile, UpdateResidentProfileInput,
 } from '../../shared/api/residentsApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, BackButton, Button, Dialog, DictionarySelect,
-  FormField, GridAddressInput, Icon, LoadingState, ObjectContextBar, PageHeader, Panel, PanelHead,
-  PatientIdentitySearch, Select, StatusBadge,
+  Alert, BackButton, Button, DataTable, Dialog, DictionarySelect,
+  EmptyState, FormField, GridAddressInput, Icon, LoadingState, ObjectContextBar,
+  PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, TableShell,
 } from '../../shared/ui'
 
 const today = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
+const genderOptions = [
+  { value: '', label: '全部性别' },
+  { value: 'MALE', label: '男' },
+  { value: 'FEMALE', label: '女' },
+  { value: 'UNKNOWN', label: '未知' },
+]
+
+const statusOptions = [
+  { value: '', label: '全部状态' },
+  { value: 'ACTIVE', label: '有效居民' },
+  { value: 'MERGED', label: '已合并' },
+]
+
+const deceasedOptions = [
+  { value: 'ALL', label: '全部存活状态' },
+  { value: 'ALIVE', label: '仅健在' },
+  { value: 'DECEASED', label: '已登记死亡' },
+]
+
 export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNavigate: (path: string) => void }) {
   const [selected, setSelected] = useState<Resident | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
+  const [keyword, setKeyword] = useState('')
+  const [submittedKeyword, setSubmittedKeyword] = useState('')
+  const [genderFilter, setGenderFilter] = useState<'MALE' | 'FEMALE' | 'UNKNOWN' | ''>('')
+  const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'MERGED' | ''>('')
+  const [deceasedFilter, setDeceasedFilter] = useState<'ALL' | 'ALIVE' | 'DECEASED'>('ALL')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+
   const queryClient = useQueryClient()
+
+  const residentsPageQuery = useQuery({
+    queryKey: ['residents-page', submittedKeyword, genderFilter, statusFilter, deceasedFilter, page, pageSize],
+    queryFn: () => api.residents.page({
+      query: submittedKeyword || undefined,
+      gender: genderFilter || undefined,
+      status: statusFilter || undefined,
+      deceased: deceasedFilter === 'ALL' ? undefined : deceasedFilter === 'DECEASED',
+      page,
+      size: pageSize,
+    }),
+  })
+
   const profile = useQuery({
     queryKey: ['resident-profile', selected?.id],
     queryFn: () => api.residents.profile(selected!.id),
@@ -33,12 +73,32 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
     setShowEdit(false)
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['resident-profile', value.resident.id] }),
-      queryClient.invalidateQueries({ queryKey: ['residents'] }),
+      queryClient.invalidateQueries({ queryKey: ['residents-page'] }),
     ])
   }
 
+  function handleSearch(e?: React.FormEvent) {
+    if (e) e.preventDefault()
+    setSubmittedKeyword(keyword.trim())
+    setPage(0)
+  }
+
+  function handleReset() {
+    setKeyword('')
+    setSubmittedKeyword('')
+    setGenderFilter('')
+    setStatusFilter('')
+    setDeceasedFilter('ALL')
+    setPage(0)
+  }
+
+  const pageData = residentsPageQuery.data
+  const residentsList = pageData?.content ?? []
+  const totalElements = pageData?.totalElements ?? 0
+  const totalPages = pageData?.totalPages ?? 0
+
   if (selected) return <>
-    <BackButton onClick={() => { setSelected(null); setShowEdit(false) }}>返回居民检索</BackButton>
+    <BackButton onClick={() => { setSelected(null); setShowEdit(false) }}>返回居民列表</BackButton>
     <ObjectContextBar avatar={selected.fullName.slice(-1)} eyebrow="统一居民主索引" title={selected.fullName}
       description={`${genderLabel(selected.gender)} · ${age(selected.birthDate)} 岁 · ${selected.maskedNationalId || '无身份证标识'}`}
       facts={[{ label: '健康档案号', value: selected.healthRecordNo }, { label: '联系电话', value: selected.phone || '未登记' }]}
@@ -53,17 +113,189 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
 
   return <>
     <PageHeader eyebrow="共享健康内核 · MPI" title="居民中心"
-      description="集中完成居民建档、人口学资料、地址、联系人和保障信息维护。"
-      actions={<Button onClick={() => setShowCreate(true)}><Icon name="add" />新建居民</Button>} />
-    <Panel className="search-panel">
-      <PatientIdentitySearch queryKey="resident-center" search={api.residents.search} selected={selected}
-        onSelect={setSelected} autoFocus emptyTitle="查找居民档案"
-        emptyCopy="支持姓名、身份证、卡号和健康档案号；外部识别方式按接口配置启用。" />
-      <div className="search-hint"><span>唯一标识命中后自动回填，姓名查询需从候选列表确认</span><span>居民中心不发起门诊接诊</span></div>
+      description="集中完成居民建档、档案查询与检索、人口学资料、地址、联系人和保障信息维护。"
+      actions={<><Button variant="secondary" onClick={() => void residentsPageQuery.refetch()}><Icon name="refresh" />刷新</Button>
+        <Button onClick={() => setShowCreate(true)}><Icon name="add" />新建居民</Button></>} />
+
+    <Panel className="resident-filter-panel">
+      <form className="resident-filter-form" onSubmit={handleSearch}>
+        <FormField label="居民检索">
+          <input
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            placeholder="姓名、身份证、档案号或手机号"
+          />
+        </FormField>
+        <FormField label="性别">
+          <Select
+            value={genderFilter}
+            options={genderOptions}
+            placeholder="全部性别"
+            searchable={false}
+            clearable={false}
+            onChange={(val) => { setGenderFilter(val as any); setPage(0) }}
+          />
+        </FormField>
+        <FormField label="档案状态">
+          <Select
+            value={statusFilter}
+            options={statusOptions}
+            placeholder="全部状态"
+            searchable={false}
+            clearable={false}
+            onChange={(val) => { setStatusFilter(val as any); setPage(0) }}
+          />
+        </FormField>
+        <FormField label="存活状态">
+          <Select
+            value={deceasedFilter}
+            options={deceasedOptions}
+            placeholder="全部存活状态"
+            searchable={false}
+            clearable={false}
+            onChange={(val) => { setDeceasedFilter(val as any); setPage(0) }}
+          />
+        </FormField>
+        <div className="resident-filter-actions">
+          <Button type="submit" variant="secondary" busy={residentsPageQuery.isFetching}>
+            <Icon name="search" />查询
+          </Button>
+          <Button variant="secondary" onClick={handleReset}>重置</Button>
+        </div>
+      </form>
     </Panel>
-    {showCreate && <CreateResidentDialog api={api} onClose={() => setShowCreate(false)} onCreated={(resident) => {
-      setShowCreate(false); setSelected(resident)
-    }} />}
+
+    <Panel className="resident-roster-panel">
+      <PanelHead
+        title="已建档居民列表"
+        meta={residentsPageQuery.isPending ? '加载中…' : `共 ${totalElements} 条档案记录`}
+      />
+
+      {residentsPageQuery.isPending && <LoadingState label="正在加载居民档案列表…" />}
+      {residentsPageQuery.error && <Alert>{errorMessage(residentsPageQuery.error)}</Alert>}
+
+      {!residentsPageQuery.isPending && !residentsPageQuery.error && residentsList.length === 0 && (
+        <EmptyState
+          icon="residents"
+          title="未找到居民档案记录"
+          copy={submittedKeyword || genderFilter || statusFilter || deceasedFilter !== 'ALL'
+            ? '请尝试调整筛选条件或清空查询要素。'
+            : '系统中暂无已建档居民，请点击上方“新建居民”完成第一条档案录入。'}
+          action={submittedKeyword || genderFilter || statusFilter || deceasedFilter !== 'ALL'
+            ? <Button variant="secondary" onClick={handleReset}>清空筛选</Button>
+            : <Button onClick={() => setShowCreate(true)}><Icon name="add" />立即建档</Button>}
+        />
+      )}
+
+      {!residentsPageQuery.isPending && !residentsPageQuery.error && residentsList.length > 0 && (
+        <TableShell
+          footer={
+            <div className="resident-table-footer">
+              <div className="resident-table-page-size">
+                <span>每页显示</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value))
+                    setPage(0)
+                  }}
+                >
+                  <option value={10}>10 条</option>
+                  <option value={20}>20 条</option>
+                  <option value={50}>50 条</option>
+                </select>
+                <span>共 {totalElements} 条记录</span>
+              </div>
+              <Pagination page={page} totalPages={totalPages} onChange={setPage} label="居民列表分页" />
+            </div>
+          }
+        >
+          <DataTable className="resident-table">
+            <thead>
+              <tr>
+                <th>居民姓名</th>
+                <th>性别 / 年龄</th>
+                <th>健康档案号</th>
+                <th>身份证件 / 卡号</th>
+                <th>联系电话</th>
+                <th>档案状态</th>
+                <th>建档时间</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {residentsList.map((resident) => {
+                const primaryIdentifier = resident.identifiers?.find((id) => id.system === 'NATIONAL_ID')
+                  ?? resident.identifiers?.[0]
+                return (
+                  <tr key={resident.id} className="resident-table-row">
+                    <td>
+                      <div className="resident-cell-name">
+                        <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>
+                          {resident.fullName.slice(-1)}
+                        </span>
+                        <strong>{resident.fullName}</strong>
+                      </div>
+                    </td>
+                    <td>
+                      <span>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</span>
+                      <small className="resident-birth-sub">{resident.birthDate}</small>
+                    </td>
+                    <td>
+                      <code>{resident.healthRecordNo}</code>
+                    </td>
+                    <td>
+                      {resident.maskedNationalId ? (
+                        <span>{resident.maskedNationalId}</span>
+                      ) : primaryIdentifier ? (
+                        <span>{primaryIdentifier.system} {primaryIdentifier.maskedValue}</span>
+                      ) : (
+                        <span className="resident-cell-muted">未登记</span>
+                      )}
+                    </td>
+                    <td>
+                      {resident.phone ? <span>{resident.phone}</span> : <span className="resident-cell-muted">未登记</span>}
+                    </td>
+                    <td>
+                      <StatusBadge tone={resident.deceased ? 'warning' : resident.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                        {resident.deceased ? '已登记死亡' : resident.status === 'ACTIVE' ? '有效居民' : '已合并'}
+                      </StatusBadge>
+                    </td>
+                    <td>
+                      <span>{formatTime(resident.createdAt)}</span>
+                    </td>
+                    <td>
+                      <div className="resident-cell-actions">
+                        <Button size="sm" variant="secondary" onClick={() => setSelected(resident)}>
+                          <Icon name="search" />查看档案
+                        </Button>
+                        {resident.status === 'ACTIVE' && !resident.deceased && (
+                          <Button size="sm" variant="text" onClick={() => onNavigate(`/outpatient/registration?residentId=${resident.id}`)}>
+                            <Icon name="clinical" />挂号
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </DataTable>
+        </TableShell>
+      )}
+    </Panel>
+
+    {showCreate && (
+      <CreateResidentDialog
+        api={api}
+        onClose={() => setShowCreate(false)}
+        onCreated={(resident) => {
+          setShowCreate(false)
+          setSelected(resident)
+          void queryClient.invalidateQueries({ queryKey: ['residents-page'] })
+        }}
+      />
+    )}
   </>
 }
 

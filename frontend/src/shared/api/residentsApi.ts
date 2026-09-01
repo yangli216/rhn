@@ -152,6 +152,25 @@ export interface UpdateResidentProfileInput {
   employments: ResidentEmploymentInput[]
 }
 
+export interface ResidentPageView {
+  content: Resident[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
+export interface ResidentPageParams {
+  query?: string
+  gender?: string
+  status?: string
+  deceased?: boolean
+  page?: number
+  size?: number
+}
+
 export function createResidentsApi(client: ApiClient) {
   return {
     get: (residentId: string) => client.request<Resident>(`/api/residents/${encodeURIComponent(residentId)}`),
@@ -175,6 +194,17 @@ export function createResidentsApi(client: ApiClient) {
     search: (query: string) => client.request<Resident[]>(
       `/api/residents?query=${encodeURIComponent(query)}`,
     ),
+    page: (params: ResidentPageParams = {}) => {
+      const searchParams = new URLSearchParams()
+      if (params.query?.trim()) searchParams.set('query', params.query.trim())
+      if (params.gender) searchParams.set('gender', params.gender)
+      if (params.status) searchParams.set('status', params.status)
+      if (params.deceased !== undefined) searchParams.set('deceased', String(params.deceased))
+      if (params.page !== undefined) searchParams.set('page', String(params.page))
+      if (params.size !== undefined) searchParams.set('size', String(params.size))
+      const qs = searchParams.toString()
+      return client.request<ResidentPageView>(`/api/residents/page${qs ? `?${qs}` : ''}`)
+    },
     create: (input: CreateResidentInput) => client.request<Resident>('/api/residents', {
       method: 'POST', body: JSON.stringify(input),
     }),

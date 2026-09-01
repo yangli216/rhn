@@ -840,7 +840,7 @@
 .doctor-settlement-content { padding: var(--space-2) var(--space-3); border-top: 1px solid var(--color-border); }
 .doctor-settlement-content > .ui-alert { margin-bottom: var(--space-3); }
 .doctor-diagnosis-content { padding: var(--space-2) var(--space-3); }
-.doctor-diagnosis-editor { display: grid; grid-template-columns: minmax(11rem, 1fr) 7rem auto; align-items: end; gap: var(--space-2); }
+.doctor-diagnosis-editor { display: grid; grid-template-columns: 8rem minmax(11rem, 1fr) 7rem auto; align-items: end; gap: var(--space-2); }
 .doctor-diagnosis-editor .ui-field { min-width: 0; margin: 0; }
 .doctor-sign-panel { position: static; overflow: hidden; }
 .doctor-sign-panel > .ui-panel__head { min-height: 2.75rem; padding: var(--space-1) var(--space-3); }
@@ -857,6 +857,9 @@
 .doctor-diagnosis-list > div:last-child { border-bottom: 0; }
 .doctor-diagnosis-list strong, .doctor-diagnosis-list small { display: block; }
 .doctor-diagnosis-list small { color: var(--color-text-secondary); }
+.doctor-diagnosis-management-tags { color: var(--color-brand-primary) !important; font-weight: var(--font-weight-semibold); }
+.doctor-diagnosis-management-alert { margin-top: var(--space-2); display: flex; align-items: baseline; gap: var(--space-2); }
+.doctor-diagnosis-management-alert strong { white-space: nowrap; }
 .doctor-completion-checklist { margin: 0; padding: .25rem var(--space-2); display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .doctor-completion-checklist span { color: var(--color-text-secondary); }
 .doctor-completion-checklist span.is-ready { color: var(--color-success); }
@@ -1757,6 +1760,7 @@
 .partner-form-grid__wide { grid-column: 1 / -1; }
 .master-data-panel { min-width: 0; overflow: hidden; }
 .master-data-body { min-width: 0; }
+.disease-management-mode { min-height: 2.75rem; padding: 0 var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .master-data-toolbar { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
 .master-data-toolbar > .ui-select { width: 9.5rem; }
 .master-data-toolbar__search { min-width: 16rem; max-width: 32rem; flex: 1; }
@@ -1789,12 +1793,22 @@
 @media (max-width: 900px) { .dispense-route-summary { grid-template-columns: 1fr; } }
 .master-data-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); flex-wrap: wrap; }
 .master-data-row-actions .ui-button { white-space: nowrap; }
+.disease-management-member-dialog { margin-top: var(--space-5); }
+.disease-management-member-toolbar { display: grid; grid-template-columns: minmax(20rem, 1fr) 12rem auto; align-items: end; gap: var(--space-3); }
+.disease-management-member-toolbar .ui-field { margin: 0; }
+.disease-management-member-toolbar > span { min-height: var(--control-height-md); display: flex; align-items: center; color: var(--color-text-secondary); white-space: nowrap; }
+.disease-management-member-list { max-height: 34rem; margin-top: var(--space-4); overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); scrollbar-gutter: stable; }
+.disease-management-member-list > label { min-width: 0; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); cursor: pointer; }
+.disease-management-member-list > label:has(input:checked) { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.disease-management-member-list input { width: 1rem; height: 1rem; accent-color: var(--color-brand-primary); }
+.disease-management-member-list strong, .disease-management-member-list small { display: block; }
+.disease-management-member-list small, .disease-management-member-list code { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 
 @media (min-width: 70.01rem) {
   .master-data-page { height: calc(100dvh - var(--layout-topbar-height) - var(--space-4) - var(--space-4)); min-height: 0; display: flex; flex-direction: column; }
   .master-data-page > .ui-page-header, .master-data-page > .master-data-feedback { flex: none; }
   .master-data-page > .master-data-panel { min-height: 0; display: flex; flex: 1; flex-direction: column; }
-  .master-data-page .master-data-tabs, .master-data-page .master-data-toolbar { flex: none; }
+  .master-data-page .master-data-tabs, .master-data-page .master-data-toolbar, .master-data-page .disease-management-mode { flex: none; }
   .master-data-page .master-data-body { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
   .master-data-page .master-data-table-wrap { overflow: visible; }
   .master-data-page .master-data-table th { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--color-border); box-shadow: 0 1px 0 var(--color-border); }
@@ -2151,6 +2165,7 @@
   .master-data-form-section > header { align-items: flex-start; flex-direction: column; gap: var(--space-1); }
   .master-data-form-section > header p { text-align: left; }
   .master-data-checkboxes { grid-column: auto; }
+  .disease-management-member-list { grid-template-columns: 1fr; }
   .medication-card > header { grid-template-columns: 1fr; }
   .medication-card > header .master-data-row-actions { grid-column: auto; }
   .medication-card__meta { justify-content: flex-start; }
@@ -2694,6 +2709,25 @@
 .reception-queue-list strong, .reception-queue-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reception-queue-list small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .reception-ticket { width: 2.75rem; height: 2.75rem; display: grid; place-items: center; border-radius: var(--radius-md); color: var(--color-brand-primary); background: var(--color-brand-soft); font-size: var(--font-size-h3); font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+
+.resident-filter-panel { margin-bottom: var(--space-4); }
+.resident-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(15rem, 1fr) 8.5rem 9rem 9.5rem auto; gap: var(--space-3); align-items: end; }
+.resident-filter-form .ui-field { min-width: 0; margin: 0; }
+.resident-filter-form > .ui-field > input, .resident-filter-form input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); font-size: var(--font-size-body); }
+.resident-filter-form > .ui-field > input:focus, .resident-filter-form input:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+.resident-filter-actions { display: flex; align-items: center; gap: var(--space-2); }
+.resident-filter-actions .ui-button { min-height: var(--control-height-md); white-space: nowrap; }
+.resident-roster-panel { margin-bottom: var(--space-5); overflow: hidden; }
+.resident-table th { white-space: nowrap; }
+.resident-table-row:hover { background: var(--color-surface-subtle); }
+.resident-cell-name { display: flex; align-items: center; gap: var(--space-2); }
+.resident-cell-name strong { font-weight: var(--font-weight-bold); font-size: var(--font-size-body); }
+.resident-birth-sub { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.resident-cell-muted { color: var(--color-text-disabled); font-size: var(--font-size-small); }
+.resident-cell-actions { display: flex; align-items: center; gap: var(--space-2); }
+.resident-table-footer { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.resident-table-page-size { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.resident-table-page-size select { height: var(--control-height-sm); padding: 0 var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-primary); }
 
 .resident-profile-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-5); }
 .resident-profile-grid .ui-panel { overflow: hidden; }

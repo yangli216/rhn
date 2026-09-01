@@ -22,6 +22,8 @@ export interface CodeSystemSummary {
   code: string
   name: string
   version: string
+  sdDiagnosisDomain?: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+  sdDiagnosisDomainText?: string
   sdStatus: MasterDataStatus
   sdStatusText: string
   effectiveFrom: string
@@ -44,6 +46,8 @@ export interface DiseaseConcept {
   systemCode: string
   systemName: string
   systemVersion: string
+  sdDiagnosisDomain: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+  sdDiagnosisDomainText: string
   code: string
   display: string
   shortDisplay?: string
@@ -59,6 +63,51 @@ export interface DiseaseConcept {
   effectiveTo?: string
   replacementConceptId?: string
   aliases: ConceptAlias[]
+  managementPrograms: DiseaseManagementTag[]
+}
+
+export interface DiseaseManagementTag {
+  id: string
+  code: string
+  name: string
+  sdManagementType: 'CHRONIC_CARE' | 'DISEASE_REPORT' | 'SPECIAL_REGISTRY'
+  sdManagementTypeText: string
+  sdTriggerAction: 'PROMPT_CONFIRMATION' | 'CREATE_FOLLOW_UP_TASK' | 'CREATE_REPORT_DRAFT'
+  sdTriggerActionText: string
+  reportCardType?: string
+  reportDeadlineHours?: number
+}
+
+export interface DiseaseManagementProgram extends DiseaseManagementTag {
+  revision: number
+  scopeType: 'PRODUCT' | 'TENANT'
+  scopeId: string
+  description?: string
+  sdStatus: MasterDataStatus
+  sdStatusText: string
+  effectiveFrom: string
+  effectiveTo?: string
+  members: Array<{
+    conceptId: string
+    code: string
+    display: string
+    systemName: string
+    sdDiagnosisDomain: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
+    sdDiagnosisDomainText: string
+  }>
+}
+
+export interface DiseaseManagementProgramInput {
+  productScope: boolean
+  code: string
+  name: string
+  sdManagementType: DiseaseManagementTag['sdManagementType']
+  sdTriggerAction: DiseaseManagementTag['sdTriggerAction']
+  description?: string
+  reportCardType?: string
+  reportDeadlineHours?: number
+  effectiveFrom: string
+  effectiveTo?: string
 }
 
 export interface OrganizationAdoption {
@@ -1141,6 +1190,27 @@ export function createMasterDataApi(client: ApiClient) {
       }),
     diseaseStatus: (id: string, revision: number, sdStatus: MasterDataStatus) =>
       client.request<DiseaseConcept>(`/api/platform/terminology/diseases/${id}/status`, {
+        method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
+      }),
+    diseaseManagementPrograms: (status = '') => client.request<DiseaseManagementProgram[]>(
+      `/api/platform/terminology/disease-management-programs${queryString({ status })}`,
+    ),
+    createDiseaseManagementProgram: (input: DiseaseManagementProgramInput) =>
+      client.request<DiseaseManagementProgram>('/api/platform/terminology/disease-management-programs', {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    updateDiseaseManagementProgram: (id: string, revision: number, input: DiseaseManagementProgramInput) => {
+      const { productScope: _productScope, code: _code, ...payload } = input
+      return client.request<DiseaseManagementProgram>(`/api/platform/terminology/disease-management-programs/${id}`, {
+        method: 'PUT', body: JSON.stringify({ ...payload, expectedRevision: revision }),
+      })
+    },
+    replaceDiseaseManagementMembers: (id: string, revision: number, conceptIds: string[]) =>
+      client.request<DiseaseManagementProgram>(`/api/platform/terminology/disease-management-programs/${id}/members`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision: revision, conceptIds }),
+      }),
+    diseaseManagementProgramStatus: (id: string, revision: number, sdStatus: MasterDataStatus) =>
+      client.request<DiseaseManagementProgram>(`/api/platform/terminology/disease-management-programs/${id}/status`, {
         method: 'POST', body: JSON.stringify({ expectedRevision: revision, sdStatus }),
       }),
     services: (query = '', serviceType = '', status = '', organizationId = '') =>

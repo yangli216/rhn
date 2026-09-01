@@ -28,20 +28,23 @@ public record EncounterResponse(
         Instant terminatedAt,
         Long terminatedBy
 ) {
-    static EncounterResponse from(Encounter encounter, List<EncounterDiagnosis> diagnoses) {
+    static EncounterResponse from(Encounter encounter, List<DiagnosisResponse> diagnoses) {
         return new EncounterResponse(encounter.id(), encounter.residentId(), encounter.encounterNo(),
                 encounter.organizationId(), encounter.departmentId(), encounter.registrationId(), encounter.scheduleId(),
                 encounter.appointmentId(), encounter.registrationSource(), encounter.visitType(),
                 encounter.clinicianId(), encounter.status(),
                 encounter.chiefComplaint(), encounter.systolic(), encounter.diastolic(),
-                diagnoses.stream().map(DiagnosisResponse::from).toList(), encounter.registeredAt(),
+                diagnoses, encounter.registeredAt(),
                 encounter.startedAt(), encounter.completedAt(), encounter.terminationCode(),
                 encounter.terminationReason(), encounter.terminatedAt(), encounter.terminatedBy());
     }
 
-    public record DiagnosisResponse(String code, String display, String type) {
-        static DiagnosisResponse from(EncounterDiagnosis diagnosis) {
-            return new DiagnosisResponse(diagnosis.code(), diagnosis.display(), diagnosis.diagnosisType().name());
-        }
-    }
+    public record DiagnosisResponse(Long conceptId, String systemCode, String systemVersion,
+                                    String diagnosisDomain, String diagnosisGroupId,
+                                    String code, String display, String type,
+                                    List<ManagementProgramResponse> managementPrograms) {}
+
+    public record ManagementProgramResponse(Long id, String code, String name, String managementType,
+                                            String triggerAction, String reportCardType,
+                                            Integer reportDeadlineHours) {}
 }

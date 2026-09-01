@@ -31,6 +31,8 @@ public class CodeSystem {
     private String versionCode;
     @Column(name = "system_type", nullable = false)
     private String systemType;
+    @Column(name = "diagnosis_domain")
+    private String diagnosisDomain;
     private String publisher;
     private String description;
     @Column(name = "source_type", nullable = false)
@@ -75,6 +77,14 @@ public class CodeSystem {
                       String versionCode, String systemType, String publisher, String description,
                       String authorityType, String sourceUri, String contentHash,
                       LocalDate effectiveFrom, LocalDate effectiveTo) {
+        this(scopeType, scopeId, code, name, canonicalUri, versionCode, systemType, null, publisher, description,
+                authorityType, sourceUri, contentHash, effectiveFrom, effectiveTo);
+    }
+
+    public CodeSystem(TerminologyScope scopeType, Long scopeId, String code, String name, String canonicalUri,
+                      String versionCode, String systemType, String diagnosisDomain, String publisher,
+                      String description, String authorityType, String sourceUri, String contentHash,
+                      LocalDate effectiveFrom, LocalDate effectiveTo) {
         validateDates(effectiveFrom, effectiveTo);
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.scopeType = scopeType;
@@ -84,6 +94,12 @@ public class CodeSystem {
         this.canonicalUri = canonicalUri;
         this.versionCode = TerminologyCodePolicy.requireVersion(code, versionCode);
         this.systemType = systemType == null || systemType.isBlank() ? "COMMON" : systemType.trim();
+        this.diagnosisDomain = diagnosisDomain == null || diagnosisDomain.isBlank()
+                ? ("DISEASE".equals(this.systemType) ? "WESTERN_MEDICINE" : null) : diagnosisDomain.trim();
+        if (this.diagnosisDomain != null && !java.util.Set.of(
+                "WESTERN_MEDICINE", "TCM_DISEASE", "TCM_SYNDROME").contains(this.diagnosisDomain)) {
+            throw new IllegalArgumentException("诊断体系不正确");
+        }
         this.publisher = publisher;
         this.description = description;
         this.sourceType = "MANUAL";
@@ -106,6 +122,7 @@ public class CodeSystem {
     public String canonicalUri() { return canonicalUri; }
     public String versionCode() { return versionCode; }
     public String systemType() { return systemType; }
+    public String diagnosisDomain() { return diagnosisDomain; }
     public String publisher() { return publisher; }
     public String description() { return description; }
     public String authorityType() { return authorityType; }

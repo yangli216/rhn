@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type CatalogPrice, type DiseaseConcept, type DiseaseInput,
+  type DiseaseManagementProgram, type DiseaseManagementProgramInput,
   type Department, type DictionaryValue, type Manufacturer, type MasterDataStatus,
   type MedicationInput, type MedicationKnowledge, type MedicationProduct, type PackageInput,
   type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
@@ -22,6 +23,7 @@ import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPan
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
 
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
+type DiseaseMode = 'terms' | 'management'
 type DictionaryMap = Record<string, DictionaryValue[]>
 
 const dictionaryCodes = [
@@ -31,6 +33,7 @@ const dictionaryCodes = [
   'BD_PRODUCT_MARKET_STATUS', 'BD_PRODUCTION_PLACE', 'BD_SHELF_LIFE_UNIT',
   'BD_SPECIMEN_TYPE', 'BD_SPECIMEN_CONTAINER', 'BD_LAB_METHOD', 'BD_EXAM_TYPE',
   'BD_SERVICE_VARIANT_METHOD',
+  'BD_DIAGNOSIS_DOMAIN', 'BD_DISEASE_MANAGEMENT_TYPE', 'BD_DISEASE_TRIGGER_ACTION',
 ] as const
 
 const today = () => new Date().toISOString().slice(0, 10)
@@ -40,6 +43,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
 }) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('disease')
+  const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -59,6 +63,10 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const diseases = useQuery({
     queryKey: ['master-data-diseases', query, typeFilter, statusFilter],
     queryFn: () => api.masterData.diseases(query, typeFilter, statusFilter), enabled: tab === 'disease',
+  })
+  const diseasePrograms = useQuery({
+    queryKey: ['master-data-disease-management-programs'],
+    queryFn: () => api.masterData.diseaseManagementPrograms(), enabled: tab === 'disease',
   })
   const services = useQuery({
     queryKey: ['master-data-services', query, typeFilter, statusFilter, organization.id],
@@ -80,19 +88,26 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     enabled: tab === 'medication' || tab === 'operations',
   })
 
-  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery('') }, [tab])
+  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery('') }, [diseaseMode, tab])
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
-    await queryClient.invalidateQueries({ queryKey: ['master-data'] })
+    await queryClient.invalidateQueries({ predicate: (value) => String(value.queryKey[0]).startsWith('master-data') })
   }
   const fail = (error: unknown) => setOperationError(errorMessage(error))
-  const busy = diseases.isFetching || services.isFetching || medications.isFetching
-  const currentError = diseases.error || services.error || medications.error || dictionaries.error || codeSystems.error
-  const typeOptions = tab === 'disease' ? options(dictionaries.data, 'BD_CONCEPT_TYPE')
+  const busy = diseases.isFetching || diseasePrograms.isFetching || services.isFetching || medications.isFetching
+  const currentError = diseases.error || diseasePrograms.error || services.error || medications.error || dictionaries.error || codeSystems.error
+  const typeOptions = tab === 'disease' && diseaseMode === 'management'
+    ? options(dictionaries.data, 'BD_DISEASE_MANAGEMENT_TYPE')
+    : tab === 'disease' ? options(dictionaries.data, 'BD_CONCEPT_TYPE')
     : tab === 'service' ? options(dictionaries.data, 'BD_SERVICE_TYPE')
       : options(dictionaries.data, 'BD_MEDICATION_TYPE')
-  const count = tab === 'disease' ? diseases.data?.length : tab === 'service' ? services.data?.length : medications.data?.length
+  const visibleDiseasePrograms = useMemo(() => (diseasePrograms.data ?? []).filter((value) =>
+    (!query || [value.name, value.code, value.description].some((item) => item?.toLowerCase().includes(query.toLowerCase())))
+    && (!typeFilter || value.sdManagementType === typeFilter)
+    && (!statusFilter || value.sdStatus === statusFilter)), [diseasePrograms.data, query, statusFilter, typeFilter])
+  const count = tab === 'disease' && diseaseMode === 'management' ? visibleDiseasePrograms.length
+    : tab === 'disease' ? diseases.data?.length : tab === 'service' ? services.data?.length : medications.data?.length
   const lifecycleCandidates = useMemo(() => tab === 'service' ? (services.data ?? []).map((value) => ({
     id: value.id, code: value.code, name: value.name,
   })) : (medications.data ?? []).flatMap((value) => value.products.map((product) => ({
@@ -109,17 +124,21 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           onClose={() => setDialog(undefined)} onCompleted={() => invalidate(`${tabLabel(tab)}批量导入已完成`)} />
       )}>批量导入</Button>
     </>}
-    <Button disabled={!dictionaries.data || (tab === 'disease' && !codeSystems.data?.length)} onClick={() => {
-      if (tab === 'disease') setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
+    <Button disabled={!dictionaries.data || (tab === 'disease' && diseaseMode === 'terms' && !codeSystems.data?.length)} onClick={() => {
+      if (tab === 'disease' && diseaseMode === 'terms') setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
         codeSystems={codeSystems.data ?? []} onClose={() => setDialog(undefined)}
         onSave={(input) => api.masterData.createDisease(input).then(() => invalidate('疾病概念已创建')).catch(fail)} />)
+      if (tab === 'disease' && diseaseMode === 'management') setDialog(<DiseaseManagementProgramDialog
+        dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
+        onSave={(input) => api.masterData.createDiseaseManagementProgram(input)
+          .then(() => invalidate('疾病管理项目已创建')).catch(fail)} />)
       if (tab === 'service') setDialog(<ServiceDialog dictionaries={dictionaries.data!}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
           .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
       if (tab === 'medication') setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createMedication(input, organization.id)
           .then(() => invalidate('通用药品知识已创建')).catch(fail)} />)
-    }}><Icon name="add" />新增{tabLabel(tab)}</Button>
+    }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : `新增${tabLabel(tab)}`}</Button>
   </>
 
   return <div className="master-data-page">
@@ -140,9 +159,15 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           { value: 'operations', label: '运营主数据', meta: '组套 · 耗材 · 计量' },
           { value: 'attribute', label: '属性配置', meta: '定义 · 装配 · 继承' },
         ]} />
+      {tab === 'disease' && <Tabs value={diseaseMode} onChange={setDiseaseMode} label="疾病维护视图"
+        variant="line" className="disease-management-mode" items={[
+          { value: 'terms', label: '疾病术语' },
+          { value: 'management', label: '管理分类与规则' },
+        ]} />}
       {tab !== 'attribute' && tab !== 'operations' && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
-          placeholder={tab === 'disease' ? '名称、别名、编码或检索码' : tab === 'service' ? '项目名称、编码或分类' : '通用名、别名、剂型或编码'} />
+          placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
+            : tab === 'disease' ? '名称、别名、编码或检索码' : tab === 'service' ? '项目名称、编码或分类' : '通用名、别名、剂型或编码'} />
         <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
@@ -152,13 +177,26 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
       </div>}
 
       <div className="master-data-body">
-        {tab === 'disease' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
+        {tab === 'disease' && diseaseMode === 'terms' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
         onEdit={(value) => setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
           codeSystems={codeSystems.data ?? []} value={value} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updateDisease(value.id, value.revision, input)
             .then(() => invalidate('疾病概念已更新')).catch(fail)} />)}
         onStatus={(value) => api.masterData.diseaseStatus(value.id, value.revision,
           value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE').then(() => invalidate('疾病状态已更新')).catch(fail)} />}
+        {tab === 'disease' && diseaseMode === 'management' && <DiseaseManagementTable
+          values={visibleDiseasePrograms} loading={diseasePrograms.isPending}
+          onEdit={(value) => setDialog(<DiseaseManagementProgramDialog dictionaries={dictionaries.data!}
+            value={value} onClose={() => setDialog(undefined)}
+            onSave={(input) => api.masterData.updateDiseaseManagementProgram(value.id, value.revision, input)
+              .then(() => invalidate('疾病管理项目已更新')).catch(fail)} />)}
+          onMembers={(value) => setDialog(<DiseaseManagementMembersDialog program={value}
+            diseases={diseases.data ?? []} onClose={() => setDialog(undefined)}
+            onSave={(conceptIds) => api.masterData.replaceDiseaseManagementMembers(value.id, value.revision, conceptIds)
+              .then(() => invalidate('适用疾病范围已更新')).catch(fail)} />)}
+          onStatus={(value) => api.masterData.diseaseManagementProgramStatus(value.id, value.revision,
+            value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
+            .then(() => invalidate('疾病管理项目状态已更新')).catch(fail)} />}
       {tab === 'service' && <ServiceTable values={services.data} loading={services.isPending}
         onConfigure={(value) => setDialog(<ClinicalServiceConfigurationDialog api={api} service={value}
           organizationId={organization.id} dictionaries={dictionaries.data!}
@@ -213,14 +251,44 @@ function DiseaseTable({ values, loading, onEdit, onStatus }: { values?: DiseaseC
   onEdit: (value: DiseaseConcept) => void; onStatus: (value: DiseaseConcept) => void }) {
   if (loading) return <LoadingState label="正在加载疾病术语…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到疾病概念" copy="请调整筛选条件或新增疾病概念。" />
-  return <Table headers={['疾病概念', '标准编码', '类型 / 章节', '别名', '状态', '操作']}>
+  return <Table headers={['疾病概念', '标准编码', '诊断体系 / 类型', '管理标识', '别名', '状态', '操作']}>
     {values.map((value) => <tr key={value.id}><td><strong>{value.display}</strong><small>{value.shortDisplay || value.definition || '—'}</small></td>
       <td><code>{value.code}</code><small>{value.systemName} · {value.systemVersion}</small></td>
-      <td>{value.sdConceptTypeText}<small>{value.chapterName || '未分类'}</small></td>
+      <td><strong>{value.sdDiagnosisDomainText}</strong><small>{value.sdConceptTypeText} · {value.chapterName || '未分类'}</small></td>
+      <td>{value.managementPrograms.length ? value.managementPrograms.map((item) => <StatusBadge key={item.id}
+        tone={item.sdManagementType === 'DISEASE_REPORT' ? 'warning' : 'success'}>{item.name}</StatusBadge>) : '—'}</td>
       <td>{value.aliases.slice(0, 2).map((item) => item.name).join('、') || '—'}</td>
       <td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
       <td><RowActions><Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑</Button>
         <Button size="sm" variant="text" onClick={() => onStatus(value)}>{value.sdStatus === 'ACTIVE' ? '暂停' : '启用'}</Button></RowActions></td></tr>)}
+  </Table>
+}
+
+function DiseaseManagementTable({ values, loading, onEdit, onMembers, onStatus }: {
+  values: DiseaseManagementProgram[]; loading: boolean
+  onEdit: (value: DiseaseManagementProgram) => void
+  onMembers: (value: DiseaseManagementProgram) => void
+  onStatus: (value: DiseaseManagementProgram) => void
+}) {
+  if (loading) return <LoadingState label="正在加载疾病管理项目…" />
+  if (!values.length) return <EmptyState icon="clinical" title="未找到疾病管理项目"
+    copy="请新增慢病管理、疾病报告或专项登记项目。" />
+  return <Table headers={['管理项目', '类别 / 触发动作', '适用疾病', '报卡要求', '有效期 / 状态', '操作']}>
+    {values.map((value) => <tr key={value.id}>
+      <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.description || '未填写说明'}</small></td>
+      <td><StatusBadge tone={value.sdManagementType === 'DISEASE_REPORT' ? 'warning' : 'success'}>
+        {value.sdManagementTypeText}</StatusBadge><small>{value.sdTriggerActionText}</small></td>
+      <td><strong>{value.members.length} 项</strong><small>{value.members.slice(0, 3).map((item) => item.display).join('、')
+        || '尚未配置疾病'}{value.members.length > 3 ? ` 等 ${value.members.length} 项` : ''}</small></td>
+      <td>{value.reportCardType || '不适用'}<small>{value.reportDeadlineHours
+        ? `${value.reportDeadlineHours} 小时内` : value.sdManagementType === 'DISEASE_REPORT' ? '按适用规则确认' : '—'}</small></td>
+      <td><DataStatus value={value.sdStatus} text={value.sdStatusText} />
+        <small>{value.effectiveFrom} 至 {value.effectiveTo || '长期'}</small></td>
+      <td><RowActions><Button size="sm" variant="text" onClick={() => onMembers(value)}>配置疾病</Button>
+        <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑规则</Button>
+        <Button size="sm" variant="text" onClick={() => onStatus(value)}>
+          {value.sdStatus === 'ACTIVE' ? '暂停' : '启用'}</Button></RowActions></td>
+    </tr>)}
   </Table>
 }
 
@@ -1117,6 +1185,86 @@ function DiseaseDialog({ dictionaries, codeSystems, value, onClose, onSave }: { 
       </FormGrid>
     </FormSection>
   </DataFormDialog>
+}
+
+function DiseaseManagementProgramDialog({ dictionaries, value, onClose, onSave }: {
+  dictionaries: DictionaryMap; value?: DiseaseManagementProgram; onClose: () => void
+  onSave: (input: DiseaseManagementProgramInput) => void
+}) {
+  return <DataFormDialog title={value ? '编辑疾病管理项目' : '新增疾病管理项目'} eyebrow="疾病管理分类"
+    size="xwide" onClose={onClose}
+    description="管理项目可以关联多个疾病；诊断命中后只生成受控提示或草稿，不会静默完成纳管和上报。"
+    onSubmit={(form) => onSave({ productScope: value?.scopeType === 'PRODUCT',
+      code: text(form, 'code'), name: text(form, 'name'),
+      sdManagementType: text(form, 'sdManagementType') as DiseaseManagementProgramInput['sdManagementType'],
+      sdTriggerAction: text(form, 'sdTriggerAction') as DiseaseManagementProgramInput['sdTriggerAction'],
+      description: optionalText(form, 'description'), reportCardType: optionalText(form, 'reportCardType'),
+      reportDeadlineHours: optionalNumber(form, 'reportDeadlineHours'), effectiveFrom: text(form, 'effectiveFrom'),
+      effectiveTo: optionalText(form, 'effectiveTo') })}>
+    <FormSection title="项目身份" description="项目编码创建后不可修改；租户项目只在当前租户内生效。">
+      <FormGrid columns={3}>
+        <FormField label="项目编码" required><input name="code" defaultValue={value?.code}
+          disabled={Boolean(value)} placeholder="如 CHRONIC_COPD" required /></FormField>
+        {value && <input type="hidden" name="code" value={value.code} />}
+        <FormField label="项目名称" required className="span-2"><input name="name" defaultValue={value?.name}
+          placeholder="如 慢阻肺慢病管理" required /></FormField>
+        <SelectField name="sdManagementType" label="管理类别" values={dictionaries.BD_DISEASE_MANAGEMENT_TYPE}
+          defaultValue={value?.sdManagementType ?? 'CHRONIC_CARE'} />
+        <SelectField name="sdTriggerAction" label="诊断触发动作" values={dictionaries.BD_DISEASE_TRIGGER_ACTION}
+          defaultValue={value?.sdTriggerAction ?? 'PROMPT_CONFIRMATION'} />
+        <FormField label="当前作用域"><input value={value?.scopeType === 'PRODUCT' ? '平台公共' : '当前租户'} disabled /></FormField>
+      </FormGrid>
+    </FormSection>
+    <FormSection title="报告与有效期" description="疾病报告信息为空时，由医生按当前适用规则确认具体时限。">
+      <FormGrid columns={3}>
+        <FormField label="报卡类型"><input name="reportCardType" defaultValue={value?.reportCardType}
+          placeholder="如 INFECTIOUS_DISEASE" /></FormField>
+        <FormField label="报告时限（小时）"><input name="reportDeadlineHours" type="number" min="1"
+          defaultValue={value?.reportDeadlineHours} placeholder="按规则选填" /></FormField>
+        <span />
+        <DateRangeFields fromName="effectiveFrom" toName="effectiveTo" fromLabel="生效日期" toLabel="失效日期"
+          fromDefault={value?.effectiveFrom} toDefault={value?.effectiveTo} />
+        <FormField label="规则说明" className="span-3"><textarea name="description" rows={3}
+          defaultValue={value?.description} placeholder="说明纳入条件、人工确认边界和后续责任岗位" /></FormField>
+      </FormGrid>
+    </FormSection>
+  </DataFormDialog>
+}
+
+function DiseaseManagementMembersDialog({ program, diseases, onClose, onSave }: {
+  program: DiseaseManagementProgram; diseases: DiseaseConcept[]; onClose: () => void
+  onSave: (conceptIds: string[]) => void
+}) {
+  const [query, setQuery] = useState('')
+  const [domain, setDomain] = useState('')
+  const [selected, setSelected] = useState(() => new Set(program.members.map((item) => item.conceptId)))
+  const visible = diseases.filter((value) => (!domain || value.sdDiagnosisDomain === domain)
+    && (!query || [value.display, value.code, value.shortDisplay, value.searchCode]
+      .some((item) => item?.toLowerCase().includes(query.toLowerCase()))))
+  const toggle = (id: string) => setSelected((current) => {
+    const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next
+  })
+  return <Dialog title="配置适用疾病" eyebrow={program.name} size="xwide" onClose={onClose}
+    description="同一疾病可以属于多个管理项目；保存后医生诊断检索会立即显示相应标识。">
+    <div className="disease-management-member-dialog">
+      <div className="disease-management-member-toolbar">
+        <SearchField label="检索疾病" value={query} onChange={setQuery} placeholder="名称、编码或拼音码" />
+        <Select value={domain} onChange={setDomain} placeholder="全部诊断体系" options={[
+          { value: 'WESTERN_MEDICINE', label: '西医诊断' }, { value: 'TCM_DISEASE', label: '中医病名' },
+          { value: 'TCM_SYNDROME', label: '中医证候' },
+        ]} />
+        <span>已选择 <strong>{selected.size}</strong> 项</span>
+      </div>
+      <div className="disease-management-member-list">
+        {visible.map((value) => <label key={value.id}><input type="checkbox" checked={selected.has(value.id)}
+          onChange={() => toggle(value.id)} /><span><strong>{value.display}</strong>
+            <small>{value.sdDiagnosisDomainText} · {value.systemName}</small></span><code>{value.code}</code></label>)}
+        {!visible.length && <EmptyState icon="clinical" title="未找到疾病" copy="请调整检索条件。" />}
+      </div>
+      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>取消</Button>
+        <Button onClick={() => onSave([...selected])}>保存适用范围</Button></div>
+    </div>
+  </Dialog>
 }
 
 function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries: DictionaryMap;

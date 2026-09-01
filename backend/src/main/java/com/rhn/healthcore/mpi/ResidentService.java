@@ -10,7 +10,9 @@ import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -141,6 +143,43 @@ public class ResidentService implements ResidentDirectory {
                         .filter(resident -> resident.status() == ResidentStatus.ACTIVE)
                         .ifPresent(resident -> matches.putIfAbsent(resident.id(), resident)));
         return matches.values().stream().limit(20).map(this::toResponse).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public ResidentPageView page(String query, String gender, ResidentStatus status, Boolean deceased, int page, int size) {
+        Long tenantId = TenantContext.requireTenantId();
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        String normalizedQuery = StrUtil.trimToNull(query);
+        String normalizedGender = StrUtil.trimToNull(gender);
+        Page<Resident> residentPage = residentRepository.findResidents(
+                tenantId,
+                normalizedQuery,
+                normalizedGender,
+                status,
+                deceased,
+                PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
+        List<Long> residentIds = residentPage.getContent().stream().map(Resident::id).toList();
+        Map<Long, List<ResidentIdentifier>> identifiersByResidentId = residentIds.isEmpty()
+                ? Map.of()
+                : identifierRepository.findByTenantIdAndResidentIdInAndStatusOrderByCreatedAt(tenantId, residentIds, ACTIVE)
+                        .stream().collect(java.util.stream.Collectors.groupingBy(ResidentIdentifier::residentId));
+
+        List<ResidentResponse> content = residentPage.getContent().stream()
+                .map(resident -> ResidentResponse.from(resident, identifiersByResidentId.getOrDefault(resident.id(), List.of())))
+                .toList();
+
+        return new ResidentPageView(
+                content,
+                residentPage.getNumber(),
+                residentPage.getSize(),
+                residentPage.getTotalElements(),
+                residentPage.getTotalPages(),
+                residentPage.isFirst(),
+                residentPage.isLast()
+        );
     }
 
     @Transactional(readOnly = true)

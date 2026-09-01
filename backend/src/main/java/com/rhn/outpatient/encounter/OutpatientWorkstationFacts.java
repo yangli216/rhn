@@ -136,6 +136,12 @@ class EncounterDiagnosisRevision {
     @Column(name = "diagnosis_status", nullable = false) private String diagnosisStatus;
     @Column(name = "code_snapshot", nullable = false) private String codeSnapshot;
     @Column(name = "display_snapshot", nullable = false) private String displaySnapshot;
+    @Column(name = "concept_id") private Long conceptId;
+    @Column(name = "code_system_code_snapshot") private String codeSystemCodeSnapshot;
+    @Column(name = "code_system_version_snapshot") private String codeSystemVersionSnapshot;
+    @Column(name = "diagnosis_domain", nullable = false) private String diagnosisDomain;
+    @Column(name = "diagnosis_group_id") private String diagnosisGroupId;
+    @Column(name = "management_snapshot_json") private String managementSnapshotJson;
     @Column(name = "clinical_note") private String clinicalNote;
     @Column(name = "change_reason", nullable = false) private String changeReason;
     @Column(name = "practitioner_id") private Long practitionerId;
@@ -158,6 +164,12 @@ class EncounterDiagnosisRevision {
         this.diagnosisStatus = diagnosis.diagnosisStatus();
         this.codeSnapshot = diagnosis.code();
         this.displaySnapshot = diagnosis.display();
+        this.conceptId = diagnosis.conceptId();
+        this.codeSystemCodeSnapshot = diagnosis.codeSystemCodeSnapshot();
+        this.codeSystemVersionSnapshot = diagnosis.codeSystemVersionSnapshot();
+        this.diagnosisDomain = diagnosis.diagnosisDomain();
+        this.diagnosisGroupId = diagnosis.diagnosisGroupId();
+        this.managementSnapshotJson = diagnosis.managementSnapshotJson();
         this.clinicalNote = diagnosis.clinicalNote();
         this.changeReason = changeReason;
         this.practitionerId = practitionerId;

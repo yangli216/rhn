@@ -1174,7 +1174,8 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
 }
 
 export function diagnosisDraftSignature(values: DiagnosisInput[]) {
-  return values.map((value) => `${value.code}|${value.display}|${value.type}`).sort().join('\n')
+  return values.map((value) => `${value.conceptId ?? ''}|${value.diagnosisDomain ?? ''}|${value.code}|${value.display}|${value.type}`)
+    .sort().join('\n')
 }
 
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
@@ -1188,6 +1189,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
 }) {
   const queryClient = useQueryClient()
   const [diagnosisSearch, setDiagnosisSearch] = useState<ClinicalResourceOption<DiseaseConcept>>()
+  const [diagnosisDomainFilter, setDiagnosisDomainFilter] = useState('')
   const [diagnosisType, setDiagnosisType] = useState<DiagnosisInput['type']>('SECONDARY')
   const [diagnoses, setDiagnoses] = useState<DiagnosisInput[]>([])
   const [medicationDrafts, setMedicationDrafts] = useState<MedicationPlanDraft[]>([])
@@ -1226,7 +1228,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const currentStructuredSignature = structuredFormSignature(selectedNoteFormId, structuredValues)
   const structuredChanged = currentStructuredSignature !== structuredBaseline
   const diagnosesChanged = diagnosisDraftSignature(diagnoses) !== diagnosisDraftSignature(
-    encounter.diagnoses.map(({ code, display, type }) => ({ code, display, type })))
+    encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms }) =>
+      ({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms })))
   useEffect(() => {
     const hasLocalWork = formState.isDirty || structuredChanged || diagnosesChanged
       || medicationDrafts.length > 0 || serviceDrafts.length > 0
@@ -1237,7 +1240,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       temperature: document?.content.vitalSigns?.temperature, pulseRate: document?.content.vitalSigns?.pulseRate,
       respiratoryRate: document?.content.vitalSigns?.respiratoryRate, heightCm: document?.content.vitalSigns?.heightCm,
       weightKg: document?.content.vitalSigns?.weightKg, oxygenSaturation: document?.content.vitalSigns?.oxygenSaturation })
-    setDiagnoses(encounter.diagnoses.map(({ code, display, type }) => ({ code, display, type })))
+    setDiagnoses(encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
+      managementPrograms }) => ({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
+      managementPrograms })))
     const savedFormId = document?.content.structuredForm?.versionId ?? ''
     const savedValues = document?.content.structuredData ?? {}
     setSelectedNoteFormId(savedFormId)
@@ -1280,7 +1285,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         pulseRate: form.pulseRate, respiratoryRate: form.respiratoryRate, heightCm: form.heightCm,
         weightKg: form.weightKg, oxygenSaturation: form.oxygenSaturation,
         noteFormVersionId: selectedNoteFormId || undefined,
-        structuredData: selectedNoteFormId ? structuredValues : undefined, diagnoses,
+        structuredData: selectedNoteFormId ? structuredValues : undefined,
+        diagnoses: diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type }) => ({
+          conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
+        })),
       }
       const fingerprint = JSON.stringify(content)
       if (pendingRecordCommand.current?.fingerprint !== fingerprint) {
@@ -1361,19 +1369,29 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const addDiagnosis = () => {
     const selected = diagnosisSearch?.raw
     if (!selected) { setDiagnosisError('请先检索并选择诊断'); return }
-    if (diagnoses.some((item) => item.code === selected.code)) { setDiagnosisError('该诊断已经录入'); return }
+    if (diagnoses.some((item) => item.conceptId === selected.id
+      || (item.diagnosisDomain === selected.sdDiagnosisDomain && item.code === selected.code))) {
+      setDiagnosisError('该诊断已经录入'); return
+    }
+    const diagnosisGroupId = selected.sdDiagnosisDomain === 'WESTERN_MEDICINE'
+      ? undefined : `TCM-${encounter.id}`
     setDiagnoses((current) => [
       ...current.map((item) => diagnosisType === 'PRIMARY' ? { ...item, type: 'SECONDARY' as const } : item),
-      { code: selected.code, display: selected.display, type: diagnosisType },
+      { conceptId: selected.id, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
+        code: selected.code, display: selected.display, type: diagnosisType,
+        managementPrograms: selected.managementPrograms.map((program) => ({ id: program.id, code: program.code,
+          name: program.name, managementType: program.sdManagementType, triggerAction: program.sdTriggerAction,
+          reportCardType: program.reportCardType, reportDeadlineHours: program.reportDeadlineHours })) },
     ])
     setDiagnosisSearch(undefined)
     setDiagnosisType('SECONDARY')
     setDiagnosisError('')
   }
-  const makePrimary = (code: string) => setDiagnoses((current) => current.map((item) => ({
-    ...item, type: item.code === code ? 'PRIMARY' : 'SECONDARY',
+  const makePrimary = (key: string) => setDiagnoses((current) => current.map((item) => ({
+    ...item, type: (item.conceptId || `${item.diagnosisDomain}|${item.code}`) === key ? 'PRIMARY' : 'SECONDARY',
   })))
-  const removeDiagnosis = (code: string) => setDiagnoses((current) => current.filter((item) => item.code !== code))
+  const removeDiagnosis = (key: string) => setDiagnoses((current) => current.filter((item) =>
+    (item.conceptId || `${item.diagnosisDomain}|${item.code}`) !== key))
   const currentNoteContent = (): OutpatientNoteTemplateContent => {
     const value = getValues()
     return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
@@ -1479,8 +1497,14 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             allergies={allergies} api={api} disabled={signed} />} />
         <div className="doctor-diagnosis-content">
           <div className="doctor-diagnosis-editor">
+            <FormField label="诊断体系"><select value={diagnosisDomainFilter} disabled={signed}
+              onChange={(event) => { setDiagnosisDomainFilter(event.target.value); setDiagnosisSearch(undefined) }}>
+              <option value="">全部体系</option><option value="WESTERN_MEDICINE">西医诊断</option>
+              <option value="TCM_DISEASE">中医病名</option><option value="TCM_SYNDROME">中医证候</option>
+            </select></FormField>
             <FormField label="诊断检索" required error={diagnosisError || undefined}>
               <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={diagnosisSearch}
+                filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
                 disabled={signed} onChange={(option) => { setDiagnosisSearch(option); setDiagnosisError('') }} />
             </FormField>
             <FormField label="诊断类型"><select value={diagnosisType} disabled={signed}
@@ -1490,15 +1514,27 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             <Button type="button" variant="secondary" disabled={signed || !diagnosisSearch} onClick={addDiagnosis}>加入诊断</Button>
           </div>
           <div className="doctor-diagnosis-list" aria-label="本次诊断">
-            {diagnoses.length === 0 ? <p>尚未录入诊断</p> : diagnoses.map((item) => <div key={item.code}>
+            {diagnoses.length === 0 ? <p>尚未录入诊断</p> : diagnoses.map((item) => {
+              const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
+              return <div key={key}>
               <StatusBadge tone={item.type === 'PRIMARY' ? 'success' : 'neutral'}>{item.type === 'PRIMARY' ? '主要' : '次要'}</StatusBadge>
-              <span><strong>{item.display}</strong><small>{item.code}</small></span>
+              <span><strong>{item.display}</strong><small>{item.code} · {
+                item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
+                  : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'
+              }</small>{item.managementPrograms?.length ? <small className="doctor-diagnosis-management-tags">
+                {item.managementPrograms.map((program) => program.name).join(' · ')}</small> : null}</span>
               {item.type !== 'PRIMARY' && <Button type="button" size="sm" variant="text" disabled={signed}
-                onClick={() => makePrimary(item.code)}>设为主要</Button>}
+                onClick={() => makePrimary(key)}>设为主要</Button>}
               <Button type="button" size="sm" variant="text" disabled={signed}
-                onClick={() => removeDiagnosis(item.code)}>移除</Button>
-            </div>)}
+                onClick={() => removeDiagnosis(key)}>移除</Button>
+            </div>})}
           </div>
+          {diagnoses.some((item) => item.managementPrograms?.length) && <Alert tone="warning"
+            className="doctor-diagnosis-management-alert">
+            <strong>公共卫生管理提示</strong>
+            <span>{Array.from(new Set(diagnoses.flatMap((item) => item.managementPrograms?.map((program) =>
+              `${item.display}：${program.name}${program.managementType === 'DISEASE_REPORT' ? '（需生成报卡草稿）' : '（需确认是否纳入管理）'}`) ?? []))).join('；')}</span>
+          </Alert>}
         </div>
       </Panel>
       <OrdersPanel encounter={encounter} allergies={allergies} api={api}

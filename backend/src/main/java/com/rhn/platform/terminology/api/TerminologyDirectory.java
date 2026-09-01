@@ -17,4 +17,5 @@ public interface TerminologyDirectory {
     List<ConceptSnapshot> listConcepts(Long codeSystemId);
     List<ConceptSnapshot> findConcepts(Collection<Long> ids);
     Optional<ConceptSnapshot> findConcept(Long id);
+    DiseaseReferenceSnapshot requireDisease(Long tenantId, Long conceptId, LocalDate atDate);
 }

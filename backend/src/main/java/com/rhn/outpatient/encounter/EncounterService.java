@@ -11,6 +11,8 @@ import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
 import com.rhn.platform.tenant.TenantContext;
+import com.rhn.platform.terminology.api.DiseaseReferenceSnapshot;
+import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.api.BusinessException;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Collection;
@@ -60,6 +63,7 @@ public class EncounterService implements EncounterDirectory {
     private final ClinicalDocumentDirectory clinicalDocumentDirectory;
     private final ClinicalObservationDirectory clinicalObservationDirectory;
     private final HypertensionCareDirectory hypertensionCareDirectory;
+    private final TerminologyDirectory terminologyDirectory;
     private final DomainEventPublisher eventPublisher;
     private final IdempotencyService idempotencyService;
     private final ExecutionContextProvider executionContextProvider;
@@ -80,6 +84,7 @@ public class EncounterService implements EncounterDirectory {
                             ClinicalDocumentDirectory clinicalDocumentDirectory,
                             ClinicalObservationDirectory clinicalObservationDirectory,
                             HypertensionCareDirectory hypertensionCareDirectory,
+                            TerminologyDirectory terminologyDirectory,
                             DomainEventPublisher eventPublisher,
                             IdempotencyService idempotencyService,
                             ExecutionContextProvider executionContextProvider,
@@ -99,6 +104,7 @@ public class EncounterService implements EncounterDirectory {
         this.clinicalDocumentDirectory = clinicalDocumentDirectory;
         this.clinicalObservationDirectory = clinicalObservationDirectory;
         this.hypertensionCareDirectory = hypertensionCareDirectory;
+        this.terminologyDirectory = terminologyDirectory;
         this.eventPublisher = eventPublisher;
         this.idempotencyService = idempotencyService;
         this.executionContextProvider = executionContextProvider;
@@ -262,27 +268,32 @@ public class EncounterService implements EncounterDirectory {
                 .findByTenantIdAndEncounterIdAndDiagnosisStageOrderByRecordedAt(
                         tenantId, encounterId, "ENCOUNTER");
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
-                EncounterDiagnosis::code, Function.identity(), (left, right) -> left, LinkedHashMap::new));
+                EncounterDiagnosis::terminologyKey, Function.identity(), (left, right) -> left, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
         List<EncounterDiagnosisRevision> revisions = new java.util.ArrayList<>();
         for (RecordClinicalDataRequest.DiagnosisInput input : request.diagnoses()) {
-            String code = input.code().trim();
-            incomingCodes.add(code);
-            EncounterDiagnosis diagnosis = byCode.get(code);
+            ResolvedDiagnosis resolved = resolveDiagnosis(tenantId, input);
+            String key = resolved.terminologyKey();
+            incomingCodes.add(key);
+            EncounterDiagnosis diagnosis = byCode.get(key);
             String changeType;
             if (diagnosis == null) {
-                diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId, encounterId, code,
-                        input.display().trim(), input.type(), context.subjectId()));
+                diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId, encounterId, "ENCOUNTER",
+                        resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(), resolved.diagnosisDomain(),
+                        clean(input.diagnosisGroupId()), resolved.code(), resolved.display(), input.type(), "CONFIRMED",
+                        resolved.managementJson(), context.subjectId()));
                 changeType = "ADDED";
             } else {
                 changeType = "ACTIVE".equals(diagnosis.diagnosisStatus()) ? "UPDATED" : "RESTORED";
-                diagnosis.revise(input.display().trim(), input.type(), context.subjectId());
+                diagnosis.revise(resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(),
+                        resolved.diagnosisDomain(), clean(input.diagnosisGroupId()), resolved.display(), input.type(),
+                        "CONFIRMED", resolved.managementJson(), context.subjectId());
             }
             revisions.add(new EncounterDiagnosisRevision(diagnosis, changeType, "门诊病历保存",
                     context.practitionerId(), context.subjectId()));
         }
         for (EncounterDiagnosis diagnosis : existing) {
-            if ("ACTIVE".equals(diagnosis.diagnosisStatus()) && !incomingCodes.contains(diagnosis.code())) {
+            if ("ACTIVE".equals(diagnosis.diagnosisStatus()) && !incomingCodes.contains(diagnosis.terminologyKey())) {
                 diagnosis.exclude(context.subjectId());
                 revisions.add(new EncounterDiagnosisRevision(diagnosis, "EXCLUDED", "本次病历已移除该诊断",
                         context.practitionerId(), context.subjectId()));
@@ -354,10 +365,23 @@ public class EncounterService implements EncounterDirectory {
         publish(encounter, "VITAL_SIGNS_RECORDED",
                 "血压 " + request.systolic() + "/" + request.diastolic() + " mmHg", vitalPayload);
         for (EncounterDiagnosis diagnosis : diagnoses) {
-            publish(encounter, "DIAGNOSIS_RECORDED", diagnosis.display(), Map.of(
-                    "code", diagnosis.code(), "display", diagnosis.display(), "type", diagnosis.diagnosisType().name()));
+            Map<String, Object> payload = new LinkedHashMap<>();
+            if (diagnosis.conceptId() != null) payload.put("conceptId", diagnosis.conceptId());
+            if (diagnosis.codeSystemCodeSnapshot() != null) {
+                payload.put("systemCode", diagnosis.codeSystemCodeSnapshot());
+            }
+            if (diagnosis.codeSystemVersionSnapshot() != null) {
+                payload.put("systemVersion", diagnosis.codeSystemVersionSnapshot());
+            }
+            payload.put("diagnosisDomain", diagnosis.diagnosisDomain());
+            payload.put("code", diagnosis.code());
+            payload.put("display", diagnosis.display());
+            payload.put("type", diagnosis.diagnosisType().name());
+            payload.put("managementPrograms", managementEnvelope(diagnosis).programs());
+            publish(encounter, "DIAGNOSIS_RECORDED", diagnosis.display(), payload);
         }
-        EncounterResponse response = EncounterResponse.from(encounter, diagnoses);
+        EncounterResponse response = EncounterResponse.from(encounter,
+                diagnoses.stream().map(this::diagnosisResponse).toList());
         idempotencyService.complete(RECORD_OPERATION, commandCode, "Encounter", encounter.id(), 200,
                 jsonCodec.write(response));
         return response;
@@ -520,19 +544,64 @@ public class EncounterService implements EncounterDirectory {
     private EncounterResponse toResponse(Encounter encounter) {
         return EncounterResponse.from(encounter, diagnosisRepository
                 .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
-                        encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE"));
+                        encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE")
+                .stream().map(this::diagnosisResponse).toList());
     }
 
     private void validateDiagnoses(RecordClinicalDataRequest request) {
         long primaryCount = request.diagnoses().stream()
                 .filter(input -> input.type() == EncounterDiagnosis.DiagnosisType.PRIMARY).count();
-        long distinctCodes = request.diagnoses().stream().map(input -> input.code().trim()).distinct().count();
+        long distinctCodes = request.diagnoses().stream().map(input -> input.conceptId() == null
+                ? "LEGACY|" + input.code().trim() : "CONCEPT|" + input.conceptId()).distinct().count();
         if (primaryCount > 1) {
             throw badRequest("PRIMARY_DIAGNOSIS_DUPLICATED", "病历草稿最多只能有一个主要诊断");
         }
         if (distinctCodes != request.diagnoses().size()) {
             throw badRequest("DIAGNOSIS_DUPLICATED", "同一诊断不能重复录入");
         }
+    }
+
+    private ResolvedDiagnosis resolveDiagnosis(Long tenantId, RecordClinicalDataRequest.DiagnosisInput input) {
+        if (input.conceptId() == null) {
+            return new ResolvedDiagnosis(null, null, null,
+                    input.diagnosisDomain() == null ? "WESTERN_MEDICINE" : input.diagnosisDomain(), input.code().trim(),
+                    input.display().trim(), jsonCodec.write(new DiseaseManagementEnvelope(List.of())));
+        }
+        DiseaseReferenceSnapshot value = terminologyDirectory.requireDisease(tenantId, input.conceptId(), LocalDate.now());
+        if (input.diagnosisDomain() != null && !input.diagnosisDomain().equals(value.diagnosisDomain())) {
+            throw badRequest("DIAGNOSIS_DOMAIN_MISMATCH", "诊断体系与所选疾病术语不一致");
+        }
+        return new ResolvedDiagnosis(value.conceptId(), value.systemCode(), value.systemVersion(),
+                value.diagnosisDomain(), value.code(), value.display(),
+                jsonCodec.write(new DiseaseManagementEnvelope(value.managementPrograms())));
+    }
+
+    private EncounterResponse.DiagnosisResponse diagnosisResponse(EncounterDiagnosis value) {
+        return new EncounterResponse.DiagnosisResponse(value.conceptId(), value.codeSystemCodeSnapshot(),
+                value.codeSystemVersionSnapshot(), value.diagnosisDomain(), value.diagnosisGroupId(), value.code(),
+                value.display(), value.diagnosisType().name(), managementEnvelope(value).programs().stream()
+                .map(program -> new EncounterResponse.ManagementProgramResponse(program.id(), program.code(),
+                        program.name(), program.managementType(), program.triggerAction(), program.reportCardType(),
+                        program.reportDeadlineHours())).toList());
+    }
+
+    private DiseaseManagementEnvelope managementEnvelope(EncounterDiagnosis value) {
+        if (value.managementSnapshotJson() == null || value.managementSnapshotJson().isBlank()) {
+            return new DiseaseManagementEnvelope(List.of());
+        }
+        return jsonCodec.read(value.managementSnapshotJson(), DiseaseManagementEnvelope.class);
+    }
+
+    private record DiseaseManagementEnvelope(
+            List<DiseaseReferenceSnapshot.DiseaseManagementSnapshot> programs) {
+        private DiseaseManagementEnvelope {
+            programs = programs == null ? List.of() : List.copyOf(programs);
+        }
+    }
+
+    private record ResolvedDiagnosis(Long conceptId, String systemCode, String systemVersion,
+                                     String diagnosisDomain, String code, String display, String managementJson) {
+        String terminologyKey() { return (systemCode == null ? "LEGACY" : systemCode) + "|" + code; }
     }
 
     private String canonicalCommand(Long encounterId, Object request) {
