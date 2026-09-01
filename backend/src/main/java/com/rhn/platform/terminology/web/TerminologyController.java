@@ -5,6 +5,7 @@ import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.CodeSystemSummary;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
 import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
+import com.rhn.platform.terminology.api.DiseaseSearchPage;
 import com.rhn.platform.terminology.application.TerminologyApplicationService;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
 import jakarta.validation.Valid;
@@ -56,6 +57,18 @@ public class TerminologyController {
                                       @RequestParam(required = false)
                                       com.rhn.platform.terminology.domain.TerminologyStatus status) {
         return service.listDiseases(TenantContext.requireTenantId(), query, conceptType, status);
+    }
+
+    @GetMapping("/diseases/search")
+    DiseaseSearchPage searchDiseases(@RequestParam(required = false) String query,
+                                     @RequestParam(required = false) String conceptType,
+                                     @RequestParam(required = false)
+                                     com.rhn.platform.terminology.domain.TerminologyStatus status,
+                                     @RequestParam(required = false) String diagnosisDomain,
+                                     @RequestParam(defaultValue = "0") @Min(0) int page,
+                                     @RequestParam(defaultValue = "20") @Min(10) int size) {
+        return service.searchDiseases(TenantContext.requireTenantId(), query, conceptType, status,
+                diagnosisDomain, page, size);
     }
 
     @PostMapping("/diseases")
@@ -112,6 +125,20 @@ public class TerminologyController {
             @Valid @RequestBody DiseaseManagementMembersRequest request) {
         return service.replaceDiseaseManagementMembers(TenantContext.requireTenantId(), id,
                 revision(request.expectedRevision()), request.conceptIds());
+    }
+
+    @PutMapping("/disease-management-programs/{id}/scope")
+    DiseaseManagementProgramView replaceDiseaseManagementScope(@PathVariable Long id,
+            @Valid @RequestBody DiseaseManagementScopeRequest request) {
+        return service.replaceDiseaseManagementScope(TenantContext.requireTenantId(), id,
+                revision(request.expectedRevision()), request.rules().stream().map(rule ->
+                        new TerminologyApplicationService.DiseaseRuleCommand(rule.inclusionMode(),
+                                trimToNull(rule.sdDiagnosisDomain()), rule.codeSystemId(),
+                                trimToNull(rule.sdConceptType()), trimToNull(rule.chapterCode()),
+                                trimToNull(rule.codeFrom()), trimToNull(rule.codeTo()), trimToNull(rule.note())))
+                        .toList(), request.exceptions().stream().map(exception ->
+                        new TerminologyApplicationService.DiseaseExceptionCommand(exception.conceptId(),
+                                exception.inclusionMode(), trimToNull(exception.note()))).toList());
     }
 
     @PostMapping("/disease-management-programs/{id}/status")
@@ -219,6 +246,26 @@ public class TerminologyController {
     record DiseaseManagementMembersRequest(
             @NotNull @Min(0) BigInteger expectedRevision,
             @NotNull @Size(max = 1000) List<@NotNull Long> conceptIds) {}
+
+    record DiseaseManagementScopeRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull @Size(max = 100) List<@Valid DiseaseManagementRuleRequest> rules,
+            @NotNull @Size(max = 1000) List<@Valid DiseaseManagementExceptionRequest> exceptions) {}
+
+    record DiseaseManagementRuleRequest(
+            @NotBlank @Pattern(regexp = "INCLUDE|EXCLUDE") String inclusionMode,
+            @Pattern(regexp = "WESTERN_MEDICINE|TCM_DISEASE|TCM_SYNDROME") String sdDiagnosisDomain,
+            Long codeSystemId,
+            @Pattern(regexp = "DISEASE|SYMPTOM|SIGN|CONDITION|SYNDROME") String sdConceptType,
+            @Size(max = 64) String chapterCode,
+            @Size(max = 100) String codeFrom,
+            @Size(max = 100) String codeTo,
+            @Size(max = 500) String note) {}
+
+    record DiseaseManagementExceptionRequest(
+            @NotNull Long conceptId,
+            @NotBlank @Pattern(regexp = "INCLUDE|EXCLUDE") String inclusionMode,
+            @Size(max = 500) String note) {}
 
     record DiseaseManagementStatusRequest(
             @NotNull @Min(0) BigInteger expectedRevision,

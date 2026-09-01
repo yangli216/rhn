@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 're
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type CatalogPrice, type DiseaseConcept, type DiseaseInput,
-  type DiseaseManagementProgram, type DiseaseManagementProgramInput,
+  type DiseaseManagementProgram, type DiseaseManagementProgramInput, type DiseaseManagementRule,
+  type DiseaseManagementExceptionInput, type CodeSystemSummary,
   type Department, type DictionaryValue, type Manufacturer, type MasterDataStatus,
   type MedicationInput, type MedicationKnowledge, type MedicationProduct, type PackageInput,
   type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
@@ -191,8 +192,10 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             onSave={(input) => api.masterData.updateDiseaseManagementProgram(value.id, value.revision, input)
               .then(() => invalidate('疾病管理项目已更新')).catch(fail)} />)}
           onMembers={(value) => setDialog(<DiseaseManagementMembersDialog program={value}
-            diseases={diseases.data ?? []} onClose={() => setDialog(undefined)}
-            onSave={(conceptIds) => api.masterData.replaceDiseaseManagementMembers(value.id, value.revision, conceptIds)
+            api={api} dictionaries={dictionaries.data!} codeSystems={codeSystems.data ?? []}
+            onClose={() => setDialog(undefined)}
+            onSave={(rules, exceptions) => api.masterData.replaceDiseaseManagementScope(
+              value.id, value.revision, rules, exceptions)
               .then(() => invalidate('适用疾病范围已更新')).catch(fail)} />)}
           onStatus={(value) => api.masterData.diseaseManagementProgramStatus(value.id, value.revision,
             value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
@@ -278,13 +281,13 @@ function DiseaseManagementTable({ values, loading, onEdit, onMembers, onStatus }
       <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.description || '未填写说明'}</small></td>
       <td><StatusBadge tone={value.sdManagementType === 'DISEASE_REPORT' ? 'warning' : 'success'}>
         {value.sdManagementTypeText}</StatusBadge><small>{value.sdTriggerActionText}</small></td>
-      <td><strong>{value.members.length} 项</strong><small>{value.members.slice(0, 3).map((item) => item.display).join('、')
-        || '尚未配置疾病'}{value.members.length > 3 ? ` 等 ${value.members.length} 项` : ''}</small></td>
+      <td><strong>{value.ruleCount} 条规则</strong><small>{value.exceptionCount
+        ? `${value.exceptionCount} 个精确例外` : value.ruleCount ? '按规则自动识别，无精确例外' : '尚未配置适用范围'}</small></td>
       <td>{value.reportCardType || '不适用'}<small>{value.reportDeadlineHours
         ? `${value.reportDeadlineHours} 小时内` : value.sdManagementType === 'DISEASE_REPORT' ? '按适用规则确认' : '—'}</small></td>
       <td><DataStatus value={value.sdStatus} text={value.sdStatusText} />
         <small>{value.effectiveFrom} 至 {value.effectiveTo || '长期'}</small></td>
-      <td><RowActions><Button size="sm" variant="text" onClick={() => onMembers(value)}>配置疾病</Button>
+      <td><RowActions><Button size="sm" variant="text" onClick={() => onMembers(value)}>配置识别范围</Button>
         <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑规则</Button>
         <Button size="sm" variant="text" onClick={() => onStatus(value)}>
           {value.sdStatus === 'ACTIVE' ? '暂停' : '启用'}</Button></RowActions></td>
@@ -1231,38 +1234,115 @@ function DiseaseManagementProgramDialog({ dictionaries, value, onClose, onSave }
   </DataFormDialog>
 }
 
-function DiseaseManagementMembersDialog({ program, diseases, onClose, onSave }: {
-  program: DiseaseManagementProgram; diseases: DiseaseConcept[]; onClose: () => void
-  onSave: (conceptIds: string[]) => void
+type EditableDiseaseRule = DiseaseManagementRule & { key: string }
+
+function DiseaseManagementMembersDialog({ program, api, dictionaries, codeSystems, onClose, onSave }: {
+  program: DiseaseManagementProgram; api: RhnApi; dictionaries: DictionaryMap; codeSystems: CodeSystemSummary[]
+  onClose: () => void
+  onSave: (rules: DiseaseManagementRule[], exceptions: DiseaseManagementExceptionInput[]) => void
 }) {
   const [query, setQuery] = useState('')
   const [domain, setDomain] = useState('')
-  const [selected, setSelected] = useState(() => new Set(program.members.map((item) => item.conceptId)))
-  const visible = diseases.filter((value) => (!domain || value.sdDiagnosisDomain === domain)
-    && (!query || [value.display, value.code, value.shortDisplay, value.searchCode]
-      .some((item) => item?.toLowerCase().includes(query.toLowerCase()))))
-  const toggle = (id: string) => setSelected((current) => {
-    const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next
+  const [page, setPage] = useState(0)
+  const [rules, setRules] = useState<EditableDiseaseRule[]>(() => program.rules.map((rule) => ({
+    ...rule, key: rule.id ?? crypto.randomUUID(),
+  })))
+  const [exceptions, setExceptions] = useState(() => new Map(program.members.map((item) => [item.conceptId, {
+    conceptId: item.conceptId, inclusionMode: item.inclusionMode, note: '', display: item.display,
+    code: item.code, systemName: item.systemName, domainText: item.sdDiagnosisDomainText,
+  }])))
+  useEffect(() => setPage(0), [domain, query])
+  const search = useQuery({
+    queryKey: ['disease-management-scope-search', query, domain, page],
+    queryFn: () => api.masterData.searchDiseases(query.trim(), '', 'ACTIVE', domain, page, 10),
+    enabled: query.trim().length >= 2,
   })
-  return <Dialog title="配置适用疾病" eyebrow={program.name} size="xwide" onClose={onClose}
-    description="同一疾病可以属于多个管理项目；保存后医生诊断检索会立即显示相应标识。">
-    <div className="disease-management-member-dialog">
-      <div className="disease-management-member-toolbar">
-        <SearchField label="检索疾病" value={query} onChange={setQuery} placeholder="名称、编码或拼音码" />
-        <Select value={domain} onChange={setDomain} placeholder="全部诊断体系" options={[
-          { value: 'WESTERN_MEDICINE', label: '西医诊断' }, { value: 'TCM_DISEASE', label: '中医病名' },
-          { value: 'TCM_SYNDROME', label: '中医证候' },
-        ]} />
-        <span>已选择 <strong>{selected.size}</strong> 项</span>
-      </div>
-      <div className="disease-management-member-list">
-        {visible.map((value) => <label key={value.id}><input type="checkbox" checked={selected.has(value.id)}
-          onChange={() => toggle(value.id)} /><span><strong>{value.display}</strong>
-            <small>{value.sdDiagnosisDomainText} · {value.systemName}</small></span><code>{value.code}</code></label>)}
-        {!visible.length && <EmptyState icon="clinical" title="未找到疾病" copy="请调整检索条件。" />}
-      </div>
+  const addRule = () => setRules((current) => [...current, {
+    key: crypto.randomUUID(), inclusionMode: 'INCLUDE', sdDiagnosisDomain: 'WESTERN_MEDICINE',
+  }])
+  const updateRule = (key: string, field: keyof DiseaseManagementRule, value: string) => setRules((current) =>
+    current.map((rule) => rule.key === key ? { ...rule, [field]: value || undefined } : rule))
+  const addException = (disease: DiseaseConcept, inclusionMode: 'INCLUDE' | 'EXCLUDE') =>
+    setExceptions((current) => new Map(current).set(disease.id, { conceptId: disease.id, inclusionMode, note: '',
+      display: disease.display, code: disease.code, systemName: disease.systemName,
+      domainText: disease.sdDiagnosisDomainText }))
+  const domainOptions = options(dictionaries, 'BD_DIAGNOSIS_DOMAIN')
+  const conceptTypeOptions = options(dictionaries, 'BD_CONCEPT_TYPE')
+  const exceptionValues = [...exceptions.values()]
+  return <Dialog title="配置疾病识别范围" eyebrow={program.name} size="xwide" onClose={onClose}
+    description="使用规则覆盖大批量疾病，只为少数特殊疾病配置精确例外；精确例外的优先级最高。">
+    <div className="disease-scope-editor">
+      <section className="disease-scope-section">
+        <div className="disease-scope-section__head"><div><h3>批量识别规则</h3>
+          <p>同一行内的条件同时满足，多条“纳入”规则取并集；命中“排除”规则时不纳入。</p></div>
+          <Button variant="secondary" size="sm" onClick={addRule}><Icon name="add" />新增规则</Button></div>
+        {!rules.length && <Alert tone="info">尚未配置批量规则。可以按诊断体系、编码体系、疾病类型、章节或编码范围建立规则。</Alert>}
+        <div className="disease-rule-list">{rules.map((rule, index) => <div className="disease-rule-card" key={rule.key}>
+          <div className="disease-rule-card__title"><strong>规则 {index + 1}</strong>
+            <StatusBadge tone={rule.inclusionMode === 'INCLUDE' ? 'success' : 'warning'}>
+              {rule.inclusionMode === 'INCLUDE' ? '纳入' : '排除'}</StatusBadge>
+            <Button variant="text" size="sm" onClick={() => setRules((current) => current.filter((item) => item.key !== rule.key))}>删除</Button></div>
+          <div className="disease-rule-grid">
+            <FormField label="处理方式"><Select value={rule.inclusionMode}
+              onChange={(value) => updateRule(rule.key, 'inclusionMode', value)} options={[
+                { value: 'INCLUDE', label: '纳入' }, { value: 'EXCLUDE', label: '排除' },
+              ]} /></FormField>
+            <FormField label="诊断体系"><Select value={rule.sdDiagnosisDomain ?? ''}
+              onChange={(value) => updateRule(rule.key, 'sdDiagnosisDomain', value)}
+              placeholder="不限" options={domainOptions} /></FormField>
+            <FormField label="编码体系"><Select value={rule.codeSystemId ?? ''}
+              onChange={(value) => updateRule(rule.key, 'codeSystemId', value)} placeholder="不限"
+              options={codeSystems.map((item) => ({ value: item.id, label: `${item.name} · ${item.version}` }))} /></FormField>
+            <FormField label="疾病类型"><Select value={rule.sdConceptType ?? ''}
+              onChange={(value) => updateRule(rule.key, 'sdConceptType', value)}
+              placeholder="不限" options={conceptTypeOptions} /></FormField>
+            <FormField label="章节编码"><input value={rule.chapterCode ?? ''} placeholder="如 I"
+              onChange={(event) => updateRule(rule.key, 'chapterCode', event.target.value)} /></FormField>
+            <FormField label="编码起始"><input value={rule.codeFrom ?? ''} placeholder="如 I10"
+              onChange={(event) => updateRule(rule.key, 'codeFrom', event.target.value)} /></FormField>
+            <FormField label="编码结束"><input value={rule.codeTo ?? ''} placeholder="如 I15.9"
+              onChange={(event) => updateRule(rule.key, 'codeTo', event.target.value)} /></FormField>
+            <FormField label="规则说明"><input value={rule.note ?? ''} placeholder="便于后续审查"
+              onChange={(event) => updateRule(rule.key, 'note', event.target.value)} /></FormField>
+          </div>
+        </div>)}</div>
+      </section>
+
+      <section className="disease-scope-section">
+        <div className="disease-scope-section__head"><div><h3>精确疾病例外</h3>
+          <p>仅维护规则无法表达的特殊疾病；可明确纳入，也可从规则结果中明确排除。</p></div>
+          <span>{exceptionValues.length} 个例外</span></div>
+        {!!exceptionValues.length && <div className="disease-exception-list">{exceptionValues.map((item) => <div key={item.conceptId}>
+          <span><strong>{item.display}</strong><small>{item.domainText} · {item.systemName}</small></span><code>{item.code}</code>
+          <Select value={item.inclusionMode} options={[{ value: 'INCLUDE', label: '明确纳入' }, { value: 'EXCLUDE', label: '明确排除' }]}
+            onChange={(value) => setExceptions((current) => {
+              const next = new Map(current); next.set(item.conceptId, { ...item, inclusionMode: value as 'INCLUDE' | 'EXCLUDE' }); return next
+            })} />
+          <Button variant="text" size="sm" onClick={() => setExceptions((current) => {
+            const next = new Map(current); next.delete(item.conceptId); return next
+          })}>移除</Button></div>)}</div>}
+        <div className="disease-management-member-toolbar">
+          <SearchField label="查找精确疾病" value={query} onChange={setQuery} placeholder="至少输入 2 个字符，支持名称、编码或拼音码" />
+          <Select value={domain} onChange={setDomain} placeholder="全部诊断体系" options={domainOptions} />
+          <span>{query.trim().length < 2 ? '输入关键词后检索' : search.isFetching ? '正在检索…' : `共 ${search.data?.totalElements ?? 0} 条`}</span>
+        </div>
+        {query.trim().length >= 2 && <div className="disease-search-results">
+          {search.data?.content.map((disease) => <div key={disease.id}><span><strong>{disease.display}</strong>
+            <small>{disease.sdDiagnosisDomainText} · {disease.systemName}</small></span><code>{disease.code}</code>
+            <Button variant="secondary" size="sm" onClick={() => addException(disease, 'INCLUDE')}>明确纳入</Button>
+            <Button variant="text" size="sm" onClick={() => addException(disease, 'EXCLUDE')}>明确排除</Button></div>)}
+          {!search.isFetching && !search.data?.content.length && <EmptyState icon="clinical" title="未找到疾病" copy="请调整检索条件。" />}
+          {!!search.data?.totalPages && search.data.totalPages > 1 && <div className="disease-search-pagination">
+            <Button variant="secondary" size="sm" disabled={page === 0} onClick={() => setPage((value) => value - 1)}>上一页</Button>
+            <span>第 {page + 1} / {search.data.totalPages} 页</span>
+            <Button variant="secondary" size="sm" disabled={page + 1 >= search.data.totalPages}
+              onClick={() => setPage((value) => value + 1)}>下一页</Button></div>}
+        </div>}
+      </section>
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>取消</Button>
-        <Button onClick={() => onSave([...selected])}>保存适用范围</Button></div>
+        <Button onClick={() => onSave(rules.map(({ key: _key, id: _id, ...rule }) => rule),
+          exceptionValues.map(({ display: _display, code: _code, systemName: _systemName,
+            domainText: _domainText, ...item }) => item))}>保存识别范围</Button></div>
     </div>
   </Dialog>
 }

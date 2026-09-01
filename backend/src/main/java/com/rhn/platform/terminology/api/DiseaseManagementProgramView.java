@@ -11,8 +11,15 @@ public record DiseaseManagementProgramView(
         @DictionaryBinding("BD_DISEASE_TRIGGER_ACTION") String sdTriggerAction,
         String description, String reportCardType, Integer reportDeadlineHours,
         @DictionaryBinding("BD_MASTER_STATUS") String sdStatus,
-        LocalDate effectiveFrom, LocalDate effectiveTo, List<MemberView> members
+        LocalDate effectiveFrom, LocalDate effectiveTo, int ruleCount, int exceptionCount,
+        List<RuleView> rules, List<MemberView> members
 ) {
-    public record MemberView(Long conceptId, String code, String display, String systemName,
+    public record RuleView(Long id, String inclusionMode,
+                           @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String sdDiagnosisDomain,
+                           Long codeSystemId, String systemCode, String systemName,
+                           @DictionaryBinding("BD_CONCEPT_TYPE") String sdConceptType,
+                           String chapterCode, String codeFrom, String codeTo, String note) {}
+
+    public record MemberView(Long conceptId, String inclusionMode, String code, String display, String systemName,
                              @DictionaryBinding("BD_DIAGNOSIS_DOMAIN") String sdDiagnosisDomain) {}
 }

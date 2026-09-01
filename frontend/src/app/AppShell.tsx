@@ -1463,16 +1463,22 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
       setContextMenu(null)
       document.getElementById(`workspace-tab-${encodeURIComponent(targetTabId)}`)?.focus()
     }
-    const closeOnViewportChange = () => setContextMenu(null)
+    const closeOnScroll = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest('.workspace-tab-context-menu')) {
+        return
+      }
+      setContextMenu(null)
+    }
+    const closeOnResize = () => setContextMenu(null)
     document.addEventListener('pointerdown', closeContextMenu)
     document.addEventListener('keydown', closeOnEscape)
-    window.addEventListener('resize', closeOnViewportChange)
-    window.addEventListener('scroll', closeOnViewportChange, true)
+    window.addEventListener('resize', closeOnResize)
+    window.addEventListener('scroll', closeOnScroll, true)
     return () => {
       document.removeEventListener('pointerdown', closeContextMenu)
       document.removeEventListener('keydown', closeOnEscape)
-      window.removeEventListener('resize', closeOnViewportChange)
-      window.removeEventListener('scroll', closeOnViewportChange, true)
+      window.removeEventListener('resize', closeOnResize)
+      window.removeEventListener('scroll', closeOnScroll, true)
     }
   }, [contextMenu])
 
@@ -1484,13 +1490,13 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
 
   function openContextMenu(tabId: string, x: number, y: number) {
     const margin = 8
-    const menuWidth = 180
-    const menuHeight = 260
+    const menuWidth = 200
+    const estimatedHeight = Math.min(window.innerHeight - margin * 2, 190 + (tabs.length > 1 ? 40 + Math.min(tabs.length * 34, 224) : 0))
     setManagementOpen(false)
     setContextMenu({
       tabId,
       x: Math.max(margin, Math.min(x, window.innerWidth - menuWidth - margin)),
-      y: Math.max(margin, Math.min(y, window.innerHeight - menuHeight - margin)),
+      y: Math.max(margin, Math.min(y, window.innerHeight - estimatedHeight - margin)),
     })
   }
 

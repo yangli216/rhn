@@ -625,8 +625,8 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].sdConceptTypeText").value("疾病"))
                 .andExpect(jsonPath("$[0].sdDiagnosisDomain").value("WESTERN_MEDICINE"))
                 .andExpect(jsonPath("$[0].sdDiagnosisDomainText").value("西医诊断"))
-                .andExpect(jsonPath("$[0].managementPrograms[0].code").value("CHRONIC_HYPERTENSION"))
-                .andExpect(jsonPath("$[0].managementPrograms[0].sdManagementTypeText").value("慢病管理"))
+                .andExpect(jsonPath("$[0].managementPrograms[?(@.code == 'CHRONIC_HYPERTENSION')].sdManagementTypeText")
+                        .value("慢病管理"))
                 .andExpect(jsonPath("$[0].aliases[0].name").value("高血压病"));
 
         mockMvc.perform(get("/api/platform/terminology/diseases")
@@ -665,6 +665,55 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'NOTIFIABLE_DISEASE')].reportCardType")
                         .value("INFECTIOUS_DISEASE"));
+    }
+
+    @Test
+    void disease_management_scope_supports_rules_paged_search_and_exact_exceptions() throws Exception {
+        JsonNode created = json(mockMvc.perform(post("/api/platform/terminology/disease-management-programs")
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "productScope":false,"code":"RULE_BASED_TEST","name":"规则化疾病管理测试",
+                                  "sdManagementType":"CHRONIC_CARE","sdTriggerAction":"PROMPT_CONFIRMATION",
+                                  "description":"验证大规模疾病目录按规则维护","effectiveFrom":"2026-09-01"
+                                }
+                                """))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(put("/api/platform/terminology/disease-management-programs/{id}/scope",
+                                created.get("id").asText()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "expectedRevision":%d,
+                                  "rules":[{
+                                    "inclusionMode":"INCLUDE","sdDiagnosisDomain":"WESTERN_MEDICINE",
+                                    "sdConceptType":"DISEASE","codeFrom":"I10","codeTo":"I15.9",
+                                    "note":"高血压相关编码范围"
+                                  }],
+                                  "exceptions":[
+                                    {"conceptId":"362387869795011","inclusionMode":"EXCLUDE","note":"精确排除"},
+                                    {"conceptId":"362387869795012","inclusionMode":"INCLUDE","note":"精确纳入"}
+                                  ]
+                                }
+                                """.formatted(created.get("revision").asLong())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.ruleCount").value(1))
+                .andExpect(jsonPath("$.exceptionCount").value(2))
+                .andExpect(jsonPath("$.rules[0].codeFrom").value("I10"))
+                .andExpect(jsonPath("$.members[?(@.code == 'I10')].inclusionMode").value("EXCLUDE"));
+
+        mockMvc.perform(get("/api/platform/terminology/diseases/search")
+                        .param("query", "高血压病").param("page", "0").param("size", "10").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].code").value("I10"))
+                .andExpect(jsonPath("$.content[0].managementPrograms[?(@.code == 'RULE_BASED_TEST')]").isEmpty());
+
+        mockMvc.perform(get("/api/platform/terminology/diseases/search")
+                        .param("query", "E11.9").param("diagnosisDomain", "WESTERN_MEDICINE")
+                        .param("page", "0").param("size", "10").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].managementPrograms[?(@.code == 'RULE_BASED_TEST')].name")
+                        .value("规则化疾病管理测试"));
     }
 
     @Test

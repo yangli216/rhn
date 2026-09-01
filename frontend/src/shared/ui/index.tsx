@@ -265,8 +265,9 @@ export function Dialog({
       onMouseDown={(event) => event.stopPropagation()}
     >
       <div className="ui-dialog__head">
-        <div>
+        <div className="ui-dialog__heading">
           {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
+          {eyebrow && <span className="ui-dialog__heading-sep" aria-hidden="true">·</span>}
           <h2 id={titleId}>{title}</h2>
         </div>
         <IconButton icon="close" label="关闭弹窗" onClick={onClose} />

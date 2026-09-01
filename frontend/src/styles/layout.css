@@ -833,6 +833,8 @@
 
 .workspace-tab-context-menu {
   position: fixed;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
 }
 
 .workspace-tab-menu__section {

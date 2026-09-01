@@ -87,14 +87,50 @@ export interface DiseaseManagementProgram extends DiseaseManagementTag {
   sdStatusText: string
   effectiveFrom: string
   effectiveTo?: string
+  ruleCount: number
+  exceptionCount: number
+  rules: DiseaseManagementRule[]
   members: Array<{
     conceptId: string
+    inclusionMode: DiseaseInclusionMode
     code: string
     display: string
     systemName: string
     sdDiagnosisDomain: 'WESTERN_MEDICINE' | 'TCM_DISEASE' | 'TCM_SYNDROME'
     sdDiagnosisDomainText: string
   }>
+}
+
+export type DiseaseInclusionMode = 'INCLUDE' | 'EXCLUDE'
+
+export interface DiseaseManagementRule {
+  id?: string
+  inclusionMode: DiseaseInclusionMode
+  sdDiagnosisDomain?: DiseaseConcept['sdDiagnosisDomain']
+  sdDiagnosisDomainText?: string
+  codeSystemId?: string
+  systemCode?: string
+  systemName?: string
+  sdConceptType?: string
+  sdConceptTypeText?: string
+  chapterCode?: string
+  codeFrom?: string
+  codeTo?: string
+  note?: string
+}
+
+export interface DiseaseManagementExceptionInput {
+  conceptId: string
+  inclusionMode: DiseaseInclusionMode
+  note?: string
+}
+
+export interface DiseaseSearchPage {
+  content: DiseaseConcept[]
+  totalElements: number
+  totalPages: number
+  page: number
+  size: number
 }
 
 export interface DiseaseManagementProgramInput {
@@ -1181,6 +1217,10 @@ export function createMasterDataApi(client: ApiClient) {
     diseases: (query = '', conceptType = '', status = '') => client.request<DiseaseConcept[]>(
       `/api/platform/terminology/diseases${queryString({ query, conceptType, status })}`,
     ),
+    searchDiseases: (query = '', conceptType = '', status = '', diagnosisDomain = '', page = 0, size = 20) =>
+      client.request<DiseaseSearchPage>(`/api/platform/terminology/diseases/search${queryString({
+        query, conceptType, status, diagnosisDomain, page: String(page), size: String(size),
+      })}`),
     createDisease: (input: DiseaseInput) => client.request<DiseaseConcept>('/api/platform/terminology/diseases', {
       method: 'POST', body: JSON.stringify(input),
     }),
@@ -1208,6 +1248,11 @@ export function createMasterDataApi(client: ApiClient) {
     replaceDiseaseManagementMembers: (id: string, revision: number, conceptIds: string[]) =>
       client.request<DiseaseManagementProgram>(`/api/platform/terminology/disease-management-programs/${id}/members`, {
         method: 'PUT', body: JSON.stringify({ expectedRevision: revision, conceptIds }),
+      }),
+    replaceDiseaseManagementScope: (id: string, revision: number, rules: DiseaseManagementRule[],
+      exceptions: DiseaseManagementExceptionInput[]) => client.request<DiseaseManagementProgram>(
+      `/api/platform/terminology/disease-management-programs/${id}/scope`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision: revision, rules, exceptions }),
       }),
     diseaseManagementProgramStatus: (id: string, revision: number, sdStatus: MasterDataStatus) =>
       client.request<DiseaseManagementProgram>(`/api/platform/terminology/disease-management-programs/${id}/status`, {

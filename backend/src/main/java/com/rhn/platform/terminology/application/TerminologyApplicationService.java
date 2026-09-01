@@ -7,6 +7,7 @@ import com.rhn.platform.terminology.api.ConceptAliasView;
 import com.rhn.platform.terminology.api.ConceptView;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
 import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
+import com.rhn.platform.terminology.api.DiseaseSearchPage;
 import com.rhn.platform.terminology.api.DiseaseManagementTagView;
 import com.rhn.platform.terminology.api.DiseaseReferenceSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
@@ -16,6 +17,7 @@ import com.rhn.platform.terminology.domain.Concept;
 import com.rhn.platform.terminology.domain.ConceptAlias;
 import com.rhn.platform.terminology.domain.DiseaseManagementMember;
 import com.rhn.platform.terminology.domain.DiseaseManagementProgram;
+import com.rhn.platform.terminology.domain.DiseaseManagementRule;
 import com.rhn.platform.terminology.domain.TerminologyScope;
 import com.rhn.platform.terminology.domain.TerminologyStatus;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
@@ -26,10 +28,14 @@ import com.rhn.platform.terminology.infrastructure.ConceptRepository;
 import com.rhn.platform.terminology.infrastructure.ConceptAliasRepository;
 import com.rhn.platform.terminology.infrastructure.DiseaseManagementMemberRepository;
 import com.rhn.platform.terminology.infrastructure.DiseaseManagementProgramRepository;
+import com.rhn.platform.terminology.infrastructure.DiseaseManagementRuleRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetMemberRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetRepository;
 import com.rhn.shared.api.BusinessException;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,6 +63,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     private final ValueSetMemberRepository memberRepository;
     private final DiseaseManagementProgramRepository managementProgramRepository;
     private final DiseaseManagementMemberRepository managementMemberRepository;
+    private final DiseaseManagementRuleRepository managementRuleRepository;
 
     public TerminologyApplicationService(CodeSystemRepository codeSystemRepository,
                                          ConceptRepository conceptRepository,
@@ -64,7 +71,8 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                                          ValueSetRepository valueSetRepository,
                                          ValueSetMemberRepository memberRepository,
                                          DiseaseManagementProgramRepository managementProgramRepository,
-                                         DiseaseManagementMemberRepository managementMemberRepository) {
+                                         DiseaseManagementMemberRepository managementMemberRepository,
+                                         DiseaseManagementRuleRepository managementRuleRepository) {
         this.codeSystemRepository = codeSystemRepository;
         this.conceptRepository = conceptRepository;
         this.aliasRepository = aliasRepository;
@@ -72,6 +80,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         this.memberRepository = memberRepository;
         this.managementProgramRepository = managementProgramRepository;
         this.managementMemberRepository = managementMemberRepository;
+        this.managementRuleRepository = managementRuleRepository;
     }
 
     @Transactional
@@ -279,24 +288,35 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     @Transactional(readOnly = true)
     public List<DiseaseConceptView> listDiseases(Long tenantId, String query, String conceptType,
                                                  TerminologyStatus status) {
-        List<CodeSystem> systems = visibleDiseaseSystems(tenantId);
-        if (systems.isEmpty()) return List.of();
+        return searchDiseases(tenantId, query, conceptType, status, null, 0, 500).content();
+    }
+
+    @Transactional(readOnly = true)
+    public DiseaseSearchPage searchDiseases(Long tenantId, String query, String conceptType,
+                                             TerminologyStatus status, String diagnosisDomain,
+                                             int page, int size) {
+        List<CodeSystem> systems = visibleDiseaseSystems(tenantId).stream()
+                .filter(system -> diagnosisDomain == null || diagnosisDomain.isBlank()
+                        || diagnosisDomain.equals(system.diagnosisDomain())).toList();
+        int normalizedPage = Math.max(0, page);
+        int normalizedSize = Math.max(10, Math.min(size, 100));
+        if (systems.isEmpty()) return new DiseaseSearchPage(List.of(), 0, 0, normalizedPage, normalizedSize);
         Map<Long, CodeSystem> systemById = systems.stream()
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
-        List<Concept> concepts = conceptRepository.findByCodeSystemIdInOrderByDisplay(systemById.keySet());
+        Page<Concept> result = conceptRepository.searchDiseases(systemById.keySet(),
+                query == null ? "" : query.trim(), conceptType == null ? "" : conceptType.trim(), status,
+                TerminologyStatus.ACTIVE,
+                PageRequest.of(normalizedPage, normalizedSize, Sort.by("display").ascending().and(Sort.by("code"))));
+        List<Concept> concepts = result.getContent();
         Map<Long, List<ConceptAlias>> aliases = aliasesByConcept(concepts.stream().map(Concept::id).toList());
         Map<Long, List<DiseaseManagementProgram>> programs = programsByConcept(
                 tenantId, concepts.stream().map(Concept::id).toList(), LocalDate.now(), false);
-        String normalized = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
-        return concepts.stream()
-                .filter(value -> conceptType == null || conceptType.isBlank() || conceptType.equals(value.conceptType()))
-                .filter(value -> status == null || status == value.status())
-                .filter(value -> normalized.isBlank()
-                        || matches(value, aliases.getOrDefault(value.id(), List.of()), normalized))
-                .limit(500)
+        List<DiseaseConceptView> content = concepts.stream()
                 .map(value -> diseaseView(value, systemById.get(value.codeSystemId()),
                         aliases.getOrDefault(value.id(), List.of()), programs.getOrDefault(value.id(), List.of())))
                 .toList();
+        return new DiseaseSearchPage(content, result.getTotalElements(), result.getTotalPages(), normalizedPage,
+                normalizedSize);
     }
 
     @Transactional
@@ -368,15 +388,20 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         Map<Long, List<DiseaseManagementMember>> members = managementMemberRepository
                 .findByProgramIdIn(programs.stream().map(DiseaseManagementProgram::id).toList()).stream()
                 .collect(Collectors.groupingBy(DiseaseManagementMember::programId));
+        Map<Long, List<DiseaseManagementRule>> rules = managementRuleRepository
+                .findByProgramIdIn(programs.stream().map(DiseaseManagementProgram::id).toList()).stream()
+                .collect(Collectors.groupingBy(DiseaseManagementRule::programId));
         Set<Long> conceptIds = members.values().stream().flatMap(Collection::stream)
                 .map(DiseaseManagementMember::conceptId).collect(Collectors.toSet());
         Map<Long, Concept> concepts = conceptRepository.findAllById(conceptIds).stream()
                 .collect(Collectors.toMap(Concept::id, Function.identity()));
         Set<Long> systemIds = concepts.values().stream().map(Concept::codeSystemId).collect(Collectors.toSet());
+        rules.values().stream().flatMap(Collection::stream).map(DiseaseManagementRule::codeSystemId)
+                .filter(java.util.Objects::nonNull).forEach(systemIds::add);
         Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(systemIds).stream()
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
-        return programs.stream().map(value -> programView(value, members.getOrDefault(value.id(), List.of()),
-                concepts, systems)).toList();
+        return programs.stream().map(value -> programView(value, rules.getOrDefault(value.id(), List.of()),
+                members.getOrDefault(value.id(), List.of()), concepts, systems)).toList();
     }
 
     @Transactional
@@ -391,7 +416,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         DiseaseManagementProgram value = managementProgramRepository.save(new DiseaseManagementProgram(scope,
                 scopeId, code, name, managementType, triggerAction, description, reportCardType,
                 reportDeadlineHours, effectiveFrom, effectiveTo));
-        return programView(value, List.of(), Map.of(), Map.of());
+        return programView(value, List.of(), List.of(), Map.of(), Map.of());
     }
 
     @Transactional
@@ -419,6 +444,41 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         managementProgramRepository.flush();
         return programWithMembers(value);
     }
+
+    @Transactional
+    public DiseaseManagementProgramView replaceDiseaseManagementScope(Long tenantId, Long id,
+            long expectedRevision, Collection<DiseaseRuleCommand> rules,
+            Collection<DiseaseExceptionCommand> exceptions) {
+        DiseaseManagementProgram value = requireManagementProgram(tenantId, id);
+        value.replaceMembers(expectedRevision);
+        List<DiseaseRuleCommand> normalizedRules = rules == null ? List.of() : rules.stream().limit(100).toList();
+        List<DiseaseExceptionCommand> normalizedExceptions = exceptions == null ? List.of()
+                : exceptions.stream().filter(java.util.Objects::nonNull)
+                .collect(Collectors.toMap(DiseaseExceptionCommand::conceptId, Function.identity(),
+                        (left, right) -> right)).values().stream().limit(1000).toList();
+        normalizedRules.forEach(rule -> {
+            if (rule.codeSystemId() != null) requireVisibleDiseaseSystem(tenantId, rule.codeSystemId());
+        });
+        normalizedExceptions.forEach(exception -> requireDisease(tenantId, exception.conceptId()));
+        managementRuleRepository.deleteByProgramId(id);
+        managementMemberRepository.deleteByProgramId(id);
+        managementRuleRepository.flush();
+        managementMemberRepository.flush();
+        normalizedRules.forEach(rule -> managementRuleRepository.save(new DiseaseManagementRule(id,
+                rule.inclusionMode(), clean(rule.diagnosisDomain()), rule.codeSystemId(), clean(rule.conceptType()),
+                clean(rule.chapterCode()), clean(rule.codeFrom()), clean(rule.codeTo()), clean(rule.note()))));
+        normalizedExceptions.forEach(exception -> managementMemberRepository.save(new DiseaseManagementMember(
+                id, exception.conceptId(), exception.inclusionMode(), value.effectiveFrom(), value.effectiveTo(),
+                clean(exception.note()))));
+        managementProgramRepository.flush();
+        return programWithMembers(value);
+    }
+
+    public record DiseaseRuleCommand(String inclusionMode, String diagnosisDomain, Long codeSystemId,
+                                     String conceptType, String chapterCode, String codeFrom, String codeTo,
+                                     String note) {}
+
+    public record DiseaseExceptionCommand(Long conceptId, String inclusionMode, String note) {}
 
     @Transactional
     public DiseaseManagementProgramView changeDiseaseManagementProgramStatus(Long tenantId, Long id,
@@ -541,11 +601,37 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         Map<Long, DiseaseManagementProgram> programs = visibleManagementPrograms(tenantId).stream()
                 .filter(value -> !activeOnly || (value.status() == TerminologyStatus.ACTIVE && value.isEffectiveAt(atDate)))
                 .collect(Collectors.toMap(DiseaseManagementProgram::id, Function.identity()));
-        return managementMemberRepository.findByConceptIdIn(conceptIds).stream()
+        if (programs.isEmpty()) return Map.of();
+        Map<Long, List<DiseaseManagementRule>> rules = managementRuleRepository
+                .findByProgramIdIn(programs.keySet()).stream()
+                .collect(Collectors.groupingBy(DiseaseManagementRule::programId));
+        Map<Long, Map<Long, DiseaseManagementMember>> exceptions = managementMemberRepository
+                .findByConceptIdIn(conceptIds).stream()
                 .filter(value -> !activeOnly || value.isEffectiveAt(atDate))
                 .filter(value -> programs.containsKey(value.programId()))
                 .collect(Collectors.groupingBy(DiseaseManagementMember::conceptId,
-                        Collectors.mapping(value -> programs.get(value.programId()), Collectors.toList())));
+                        Collectors.toMap(DiseaseManagementMember::programId, Function.identity())));
+        Map<Long, Concept> concepts = conceptRepository.findAllById(conceptIds).stream()
+                .collect(Collectors.toMap(Concept::id, Function.identity()));
+        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(concepts.values().stream()
+                .map(Concept::codeSystemId).collect(Collectors.toSet())).stream()
+                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+        return concepts.values().stream().collect(Collectors.toMap(Concept::id, concept -> programs.values().stream()
+                .filter(program -> appliesToConcept(program.id(), concept, systems.get(concept.codeSystemId()),
+                        rules.getOrDefault(program.id(), List.of()),
+                        exceptions.getOrDefault(concept.id(), Map.of()).get(program.id())))
+                .sorted(Comparator.comparing(DiseaseManagementProgram::name)).toList()));
+    }
+
+    private boolean appliesToConcept(Long programId, Concept concept, CodeSystem system,
+                                     List<DiseaseManagementRule> rules,
+                                     DiseaseManagementMember exception) {
+        if (exception != null) return "INCLUDE".equals(exception.inclusionMode());
+        boolean included = rules.stream().filter(rule -> "INCLUDE".equals(rule.inclusionMode()))
+                .anyMatch(rule -> rule.matches(concept, system));
+        if (!included) return false;
+        return rules.stream().filter(rule -> "EXCLUDE".equals(rule.inclusionMode()))
+                .noneMatch(rule -> rule.matches(concept, system));
     }
 
     private List<DiseaseManagementProgram> programsForConcept(Long tenantId, Long conceptId, LocalDate atDate,
@@ -565,28 +651,43 @@ public class TerminologyApplicationService implements TerminologyDirectory {
 
     private DiseaseManagementProgramView programWithMembers(DiseaseManagementProgram value) {
         List<DiseaseManagementMember> members = managementMemberRepository.findByProgramIdOrderByCreatedAt(value.id());
+        List<DiseaseManagementRule> rules = managementRuleRepository.findByProgramIdOrderByCreatedAt(value.id());
         Map<Long, Concept> concepts = conceptRepository.findAllById(
                 members.stream().map(DiseaseManagementMember::conceptId).toList()).stream()
                 .collect(Collectors.toMap(Concept::id, Function.identity()));
         Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(concepts.values().stream()
                 .map(Concept::codeSystemId).collect(Collectors.toSet())).stream()
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
-        return programView(value, members, concepts, systems);
+        rules.stream().map(DiseaseManagementRule::codeSystemId).filter(java.util.Objects::nonNull)
+                .filter(id -> !systems.containsKey(id)).forEach(id -> codeSystemRepository.findById(id)
+                        .ifPresent(system -> systems.put(id, system)));
+        return programView(value, rules, members, concepts, systems);
     }
 
     private DiseaseManagementProgramView programView(DiseaseManagementProgram value,
-            List<DiseaseManagementMember> members, Map<Long, Concept> concepts, Map<Long, CodeSystem> systems) {
+            List<DiseaseManagementRule> rules, List<DiseaseManagementMember> members,
+            Map<Long, Concept> concepts, Map<Long, CodeSystem> systems) {
         return new DiseaseManagementProgramView(value.id(), value.revision(), value.scopeType().name(), value.scopeId(),
                 value.code(), value.name(), value.managementType(), value.triggerAction(), value.description(),
                 value.reportCardType(), value.reportDeadlineHours(), value.status().name(), value.effectiveFrom(),
-                value.effectiveTo(), members.stream().map(member -> {
+                value.effectiveTo(), rules.size(), members.size(), rules.stream().map(rule -> {
+                    CodeSystem system = rule.codeSystemId() == null ? null : systems.get(rule.codeSystemId());
+                    return new DiseaseManagementProgramView.RuleView(rule.id(), rule.inclusionMode(),
+                            rule.diagnosisDomain(), rule.codeSystemId(), system == null ? null : system.code(),
+                            system == null ? null : system.name(), rule.conceptType(), rule.chapterCode(),
+                            rule.codeFrom(), rule.codeTo(), rule.note());
+                }).toList(), members.stream().map(member -> {
                     Concept concept = concepts.get(member.conceptId());
                     CodeSystem system = concept == null ? null : systems.get(concept.codeSystemId());
-                    return new DiseaseManagementProgramView.MemberView(member.conceptId(),
+                    return new DiseaseManagementProgramView.MemberView(member.conceptId(), member.inclusionMode(),
                             concept == null ? "" : concept.code(), concept == null ? "已删除概念" : concept.display(),
                             system == null ? "未知编码体系" : system.name(),
                             system == null ? "WESTERN_MEDICINE" : system.diagnosisDomain());
                 }).toList());
+    }
+
+    private String clean(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private ValueSet findValueSet(Long tenantId, String code, LocalDate atDate) {
