@@ -107,11 +107,10 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       const availableAbove = rect.top - gap - margin
       const placement = availableBelow < 320 && availableAbove > availableBelow ? 'top' : 'bottom'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const displayedLevelCount = searching ? Math.min(levels, 3) : expandedLevelCount
-      const preferredWidth = Math.max(440, Math.min(levels === 5 ? 880 : 680, displayedLevelCount * 220))
+      const preferredWidth = levels === 5 ? 780 : 520
       const width = Math.min(preferredWidth, window.innerWidth - margin * 2)
       const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin))
-      setPosition({ left, width, maxHeight: Math.max(240, Math.min(480, availableHeight)),
+      setPosition({ left, width, maxHeight: Math.max(260, Math.min(480, availableHeight)),
         top: placement === 'bottom' ? rect.bottom + gap : undefined,
         bottom: placement === 'top' ? window.innerHeight - rect.top + gap : undefined, placement })
     }
@@ -122,7 +121,7 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [expandedLevelCount, levels, open, searching])
+  }, [levels, open])
 
   useEffect(() => {
     if (open && position) searchRef.current?.focus()
@@ -202,20 +201,25 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
           <span><strong>{node.name}</strong><small>{node.fullPath.replaceAll('/', ' / ')}</small></span><code>{node.code}</code>
         </button>)}
       </div> : <div className="ui-grid-address-input__columns"
-        style={{ gridTemplateColumns: `repeat(${expandedLevels.length}, minmax(13rem, 1fr))` }}>
-        {expandedLevels.map((item, index) => {
+        style={{ gridTemplateColumns: `repeat(${visibleLevels.length}, minmax(0, 1fr))` }}>
+        {visibleLevels.map((item, index) => {
           const parentCode = index ? draft[visibleLevels[index - 1].key] : undefined
           const parentId = parentCode ? nodeByCode.get(parentCode)?.id : undefined
           const options = nodes.filter((node) => node.level === item.level && (index === 0 ? !node.parentId : node.parentId === parentId))
           const enabled = index === 0 || Boolean(parentCode)
-          return <section key={item.level} aria-label={item.label}>
-            <header>{item.label}<span>{index + 1}/{levels}</span></header>
+          const isCurrentActive = enabled && !draft[item.key]
+          return <section key={item.level} aria-label={item.label} className={isCurrentActive ? 'is-active-level' : ''}>
+            <header className={draft[item.key] ? 'is-completed' : isCurrentActive ? 'is-active' : ''}>
+              <span>{item.label}</span>
+              <small>{index + 1}/{levels}</small>
+            </header>
             <div role="listbox" aria-label={`${item.label}选项`}>
-              {!enabled && <p>请先选择{visibleLevels[index - 1].label}</p>}
-              {enabled && options.length === 0 && <p>暂无下级地址</p>}
+              {!enabled && <p className="ui-grid-address-input__placeholder">请先选择{visibleLevels[index - 1].label}</p>}
+              {enabled && options.length === 0 && <p className="ui-grid-address-input__placeholder">暂无下级区划</p>}
               {enabled && options.map((node) => {
                 const selected = draft[item.key] === node.code
                 return <button key={node.id} type="button" role="option" aria-selected={selected}
+                  title={node.name}
                   className={selected ? 'is-selected' : ''} onClick={() => chooseAt(index, node)}>
                   <span>{node.name}</span>{index === levels - 1 ? <Icon name="check" /> : <Icon name="chevron-right" />}
                 </button>

@@ -423,16 +423,18 @@ textarea.ui-field__control { min-height: 6rem; padding-top: var(--space-3); padd
 .ui-grid-address-input__search > svg { width: 1rem; height: 1rem; flex: none; }
 .ui-grid-address-input__search input { min-width: 0; height: var(--control-height-sm); flex: 1; padding: 0; border: 0; outline: 0; color: var(--color-text-primary); background: transparent; font: inherit; }
 .ui-grid-address-input__search button { width: var(--control-height-sm); height: var(--control-height-sm); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; }
-.ui-grid-address-input__columns { min-height: 0; flex: 1; display: grid; overflow-x: auto; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
-.ui-grid-address-input__columns section { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--color-border); }
+.ui-grid-address-input__columns { min-height: 0; flex: 1; display: grid; overflow-x: hidden; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.ui-grid-address-input__columns section { min-width: 0; display: flex; flex-direction: column; border-left: 1px solid var(--color-border); background: var(--color-surface); }
 .ui-grid-address-input__columns section:first-child { border-left: 0; }
-.ui-grid-address-input__columns header { min-height: 2.25rem; padding: 0 var(--space-3); display: flex; align-items: center; justify-content: space-between; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
-.ui-grid-address-input__columns header span { color: var(--color-text-disabled); font-weight: var(--font-weight-regular); }
-.ui-grid-address-input__columns section > div { min-height: 11rem; max-height: 16rem; padding: var(--space-1); overflow-y: auto; }
-.ui-grid-address-input__columns section p { margin: var(--space-4) var(--space-2); color: var(--color-text-disabled); font-size: var(--font-size-small); text-align: center; }
-.ui-grid-address-input__columns section button { width: 100%; min-height: var(--target-size-min); padding: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border: 0; border-radius: var(--radius-md); color: var(--color-text-primary); background: transparent; font: inherit; text-align: left; transition: all var(--motion-fast) var(--ease-standard); }
+.ui-grid-address-input__columns header { min-height: 2.25rem; padding: 0 var(--space-2); display: flex; align-items: center; justify-content: space-between; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); border-bottom: 1px solid var(--color-border); transition: background-color var(--motion-fast), color var(--motion-fast); }
+.ui-grid-address-input__columns header.is-active { color: var(--color-brand-primary); background: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-surface)); }
+.ui-grid-address-input__columns header.is-completed { color: var(--color-text-primary); }
+.ui-grid-address-input__columns header small { color: var(--color-text-disabled); font-weight: var(--font-weight-regular); font-size: 0.75rem; }
+.ui-grid-address-input__columns section > div { min-height: 14rem; max-height: 18rem; padding: var(--space-1); overflow-y: auto; overflow-x: hidden; }
+.ui-grid-address-input__placeholder { margin: var(--space-5) var(--space-2); color: var(--color-text-disabled); font-size: var(--font-size-small); text-align: center; user-select: none; }
+.ui-grid-address-input__columns section button { width: 100%; min-height: 2.125rem; padding: var(--space-1) var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); border: 0; border-radius: var(--radius-md); color: var(--color-text-primary); background: transparent; font: inherit; font-size: var(--font-size-small); text-align: left; transition: all var(--motion-fast) var(--ease-standard); }
 .ui-grid-address-input__columns section button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ui-grid-address-input__columns section button svg { width: 1rem; height: 1rem; flex: none; color: var(--color-text-disabled); }
+.ui-grid-address-input__columns section button svg { width: 0.875rem; height: 0.875rem; flex: none; color: var(--color-text-disabled); }
 .ui-grid-address-input__columns section button:hover, .ui-grid-address-input__columns section button:focus-visible { outline: 0; background: var(--color-surface-subtle); }
 .ui-grid-address-input__columns section button.is-selected { color: var(--color-brand-primary); background: var(--color-brand-soft); font-weight: var(--font-weight-semibold); }
 .ui-grid-address-input__columns section button.is-selected svg { color: var(--color-brand-primary); }
