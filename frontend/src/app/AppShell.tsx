@@ -11,7 +11,6 @@ import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
 import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
 import { AnnouncementCenter } from '../shared/realtime/AnnouncementCenter'
-import { PresenceIndicator } from '../shared/realtime/PresenceIndicator'
 
 const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
   .then((module) => ({ default: module.DoctorWorkstation })))
@@ -788,9 +787,6 @@ export function AppShell() {
           <WorkspaceTabs tabs={tabs} activeTabId={activeTabId} onActivate={(path) => navigate(path)}
             onClose={closeTab} onManage={manageTabs} />
           <div className="top-actions">
-            {activeAuthorities.has('PRESENCE.SUMMARY.READ') && <PresenceIndicator api={activeSlot.api}
-              contextKey={activeContextKey}
-              onNavigate={activeAuthorities.has('PRESENCE.USER.READ') ? (path) => navigate(path) : undefined} />}
             <CriticalValueCenter api={activeSlot.api} contextKey={activeContextKey}
               workContextType={activeSlot.option.workContextType}
               onNavigate={(path) => navigate(path)} />
@@ -798,6 +794,7 @@ export function AppShell() {
               contextKey={activeContextKey} />}
             <NotificationCenter api={activeSlot.api} contextKey={activeContextKey}
               onNavigate={(path) => navigate(path)} />
+            <FullscreenButton />
             <UserAccountMenu session={session} activeContexts={activeContexts}
               activeContextType={activeSlot.option.workContextType}
               themeColor={themeColor} onThemeChange={setThemeColor}
@@ -1134,6 +1131,36 @@ function NotificationCenter({ api, contextKey, onNavigate }: {
   </div>
 }
 
+function FullscreenButton() {
+  const [isFullscreen, setIsFullscreen] = useState(() => Boolean(typeof document !== 'undefined' && document.fullscreenElement))
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement))
+    }
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return <IconButton
+    icon={isFullscreen ? 'minimize' : 'fullscreen'}
+    label={isFullscreen ? '退出全屏' : '全屏显示'}
+    onClick={() => void toggleFullscreen()}
+  />
+}
+
 function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
   tabs: WorkspaceTab[]
   activeTabId: string
@@ -1144,12 +1171,44 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
   const [managementOpen, setManagementOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ tabId: string; x: number; y: number } | null>(null)
   const managementRef = useRef<HTMLDivElement>(null)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const [canScrollLeft, setCanScrollLeft] = useState(false)
+  const [canScrollRight, setCanScrollRight] = useState(false)
+
+  const checkScroll = useCallback(() => {
+    const el = trackRef.current
+    if (!el) return
+    const hasOverflow = el.scrollWidth > el.clientWidth + 8
+    setCanScrollLeft(hasOverflow && el.scrollLeft > 4)
+    setCanScrollRight(hasOverflow && el.scrollLeft < el.scrollWidth - el.clientWidth - 4)
+  }, [])
 
   useEffect(() => {
-    document.getElementById(`workspace-tab-${encodeURIComponent(activeTabId)}`)?.scrollIntoView({
+    checkScroll()
+    const el = trackRef.current
+    if (!el) return
+    const observer = new ResizeObserver(checkScroll)
+    observer.observe(el)
+    el.addEventListener('scroll', checkScroll, { passive: true })
+    window.addEventListener('resize', checkScroll)
+    return () => {
+      observer.disconnect()
+      el.removeEventListener('scroll', checkScroll)
+      window.removeEventListener('resize', checkScroll)
+    }
+  }, [checkScroll, tabs.length])
+
+  useEffect(() => {
+    const activeEl = document.getElementById(`workspace-tab-${encodeURIComponent(activeTabId)}`)
+    activeEl?.scrollIntoView({
       behavior: 'smooth', block: 'nearest', inline: 'nearest',
     })
-  }, [activeTabId])
+    checkScroll()
+  }, [activeTabId, checkScroll])
+
+  const scrollBy = (offset: number) => {
+    trackRef.current?.scrollBy({ left: offset, behavior: 'smooth' })
+  }
 
   useEffect(() => {
     if (!managementOpen) return
@@ -1206,8 +1265,8 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
 
   function openContextMenu(tabId: string, x: number, y: number) {
     const margin = 8
-    const menuWidth = 168
-    const menuHeight = 224
+    const menuWidth = 180
+    const menuHeight = 260
     setManagementOpen(false)
     setContextMenu({
       tabId,
@@ -1233,47 +1292,72 @@ function WorkspaceTabs({ tabs, activeTabId, onActivate, onClose, onManage }: {
   }
 
   return <nav className="workspace-tabs" aria-label="已打开页面">
-    <div className="workspace-tabs__track" role="tablist" aria-label="工作区标签页">
-      {tabs.map((tab, index) => <div
-        className={`workspace-tab ${tab.id === activeTabId ? 'active' : ''} ${contextMenu?.tabId === tab.id ? 'context-target' : ''}`}
-        key={tab.id} onContextMenu={(event) => {
-          event.preventDefault()
-          openContextMenu(tab.id, event.clientX, event.clientY)
-        }}>
-        <button id={`workspace-tab-${encodeURIComponent(tab.id)}`} className="workspace-tab__main" type="button"
-          role="tab" aria-selected={tab.id === activeTabId}
-          aria-controls={`workspace-panel-${encodeURIComponent(tab.id)}`} tabIndex={tab.id === activeTabId ? 0 : -1}
-          title={`${tab.title}（右键管理）`} onClick={() => onActivate(tab.path)}
-          onKeyDown={(event) => handleTabKeyDown(event, index, tab.id)}
-          onAuxClick={(event) => { if (event.button === 1 && tab.closeable) onClose(tab.id) }}>
-          <Icon name={tab.icon} /><span>{tab.title}</span>
-        </button>
-        {tab.closeable && <IconButton className="workspace-tab__close" icon="close" label={`关闭${tab.title}`}
-          onClick={() => onClose(tab.id)} />}
-      </div>)}
+    {canScrollLeft && (
+      <IconButton
+        className="workspace-tabs__scroll-btn workspace-tabs__scroll-btn--left"
+        icon="chevron-left"
+        label="向左滚动标签页"
+        onClick={() => scrollBy(-200)}
+      />
+    )}
+
+    <div ref={trackRef} className="workspace-tabs__track" role="tablist" aria-label="工作区标签页">
+      {tabs.map((tab, index) => {
+        const isPinned = !tab.closeable && tab.id === 'home'
+        return <div
+          className={`workspace-tab ${tab.id === activeTabId ? 'active' : ''} ${isPinned ? 'workspace-tab--pinned' : ''} ${contextMenu?.tabId === tab.id ? 'context-target' : ''}`}
+          key={tab.id} onContextMenu={(event) => {
+            event.preventDefault()
+            openContextMenu(tab.id, event.clientX, event.clientY)
+          }}>
+          <button id={`workspace-tab-${encodeURIComponent(tab.id)}`} className="workspace-tab__main" type="button"
+            role="tab" aria-selected={tab.id === activeTabId}
+            aria-controls={`workspace-panel-${encodeURIComponent(tab.id)}`} tabIndex={tab.id === activeTabId ? 0 : -1}
+            title={`${tab.title}（右键管理）`} onClick={() => onActivate(tab.path)}
+            onKeyDown={(event) => handleTabKeyDown(event, index, tab.id)}
+            onAuxClick={(event) => { if (event.button === 1 && tab.closeable) onClose(tab.id) }}>
+            <Icon name={tab.icon} /><span>{tab.title}</span>
+          </button>
+          {tab.closeable && <IconButton className="workspace-tab__close" icon="close" label={`关闭${tab.title}`}
+            onClick={() => onClose(tab.id)} />}
+        </div>
+      })}
     </div>
+
+    {canScrollRight && (
+      <IconButton
+        className="workspace-tabs__scroll-btn workspace-tabs__scroll-btn--right"
+        icon="chevron-right"
+        label="向右滚动标签页"
+        onClick={() => scrollBy(200)}
+      />
+    )}
+
     <div className="workspace-tabs__management" ref={managementRef}>
       <IconButton className="workspace-tabs__management-trigger" icon="chevron-down"
         label="管理标签页" aria-haspopup="menu" aria-expanded={managementOpen}
         aria-controls="workspace-tab-management-menu" onClick={() => setManagementOpen((open) => !open)} />
       {managementOpen && <WorkspaceTabManagementMenu id="workspace-tab-management-menu"
         className="workspace-tabs__management-menu" tabs={tabs} targetTabId={activeTabId}
-        onAction={(action) => runManagementAction(action)} />}
+        onAction={(action) => runManagementAction(action)}
+        onActivate={(path) => { setManagementOpen(false); onActivate(path) }} />}
     </div>
     {contextMenu && createPortal(<WorkspaceTabManagementMenu id="workspace-tab-context-menu"
       className="workspace-tab-context-menu" tabs={tabs} targetTabId={contextMenu.tabId}
       style={{ left: contextMenu.x, top: contextMenu.y }}
-      onAction={(action) => runManagementAction(action, contextMenu.tabId)} />, document.body)}
+      onAction={(action) => runManagementAction(action, contextMenu.tabId)}
+      onActivate={(path) => { setContextMenu(null); onActivate(path) }} />, document.body)}
   </nav>
 }
 
-function WorkspaceTabManagementMenu({ id, className, tabs, targetTabId, style, onAction }: {
+function WorkspaceTabManagementMenu({ id, className, tabs, targetTabId, style, onAction, onActivate }: {
   id: string
   className: string
   tabs: WorkspaceTab[]
   targetTabId: string
   style?: CSSProperties
   onAction: (action: WorkspaceTabAction) => void
+  onActivate?: (path: string) => void
 }) {
   const targetIndex = tabs.findIndex((tab) => tab.id === targetTabId)
   const canCloseTarget = tabs[targetIndex]?.closeable ?? false
@@ -1283,16 +1367,36 @@ function WorkspaceTabManagementMenu({ id, className, tabs, targetTabId, style, o
   const canCloseAll = tabs.some((tab) => tab.closeable)
 
   return <div id={id} className={`workspace-tab-menu ${className}`} style={style} role="menu">
-    <button type="button" role="menuitem" disabled={!canCloseTarget}
-      onClick={() => onAction('close-active')}>关闭当前页</button>
-    <button type="button" role="menuitem" disabled={!canCloseLeft}
-      onClick={() => onAction('close-left')}>关闭左侧页面</button>
-    <button type="button" role="menuitem" disabled={!canCloseRight}
-      onClick={() => onAction('close-right')}>关闭右侧页面</button>
-    <button type="button" role="menuitem" disabled={!canCloseOthers}
-      onClick={() => onAction('close-others')}>关闭其他页面</button>
-    <button type="button" role="menuitem" disabled={!canCloseAll}
-      onClick={() => onAction('close-all')}>关闭全部页面</button>
+    <div className="workspace-tab-menu__section">
+      <button type="button" role="menuitem" disabled={!canCloseTarget}
+        onClick={() => onAction('close-active')}>关闭当前标签</button>
+      <button type="button" role="menuitem" disabled={!canCloseOthers}
+        onClick={() => onAction('close-others')}>关闭其他标签</button>
+      <button type="button" role="menuitem" disabled={!canCloseLeft}
+        onClick={() => onAction('close-left')}>关闭左侧标签</button>
+      <button type="button" role="menuitem" disabled={!canCloseRight}
+        onClick={() => onAction('close-right')}>关闭右侧标签</button>
+      <button type="button" role="menuitem" disabled={!canCloseAll}
+        onClick={() => onAction('close-all')}>关闭全部标签</button>
+    </div>
+    {onActivate && tabs.length > 1 && <div className="workspace-tab-menu__list-section">
+      <div className="workspace-tab-menu__title">已打开页面 ({tabs.length})</div>
+      <div className="workspace-tab-menu__tabs-list">
+        {tabs.map((tab) => {
+          const isActive = tab.id === targetTabId
+          return <button
+            key={tab.id}
+            type="button"
+            className={`workspace-tab-menu__tab-item ${isActive ? 'is-active' : ''}`}
+            onClick={() => onActivate(tab.path)}
+          >
+            <Icon name={tab.icon} />
+            <span>{tab.title}</span>
+            {isActive && <Icon name="check" className="workspace-tab-menu__check" />}
+          </button>
+        })}
+      </div>
+    </div>}
   </div>
 }
 

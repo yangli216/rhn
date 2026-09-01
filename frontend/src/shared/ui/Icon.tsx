@@ -20,6 +20,7 @@ export type IconName =
   | 'home'
   | 'info'
   | 'menu'
+  | 'minimize'
   | 'notification'
   | 'logout'
   | 'pharmacy'
@@ -62,6 +63,7 @@ function iconPath(name: IconName) {
     case 'home': return <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>
     case 'info': return <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>
     case 'menu': return <><path d="M4 7h16M4 12h16M4 17h16" /></>
+    case 'minimize': return <><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></>
     case 'notification': return <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>
     case 'logout': return <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>
     case 'pharmacy': return <><path d="M5 4h14M8 4v5l-3 5a4 4 0 0 0 3.5 6h7a4 4 0 0 0 3.5-6l-3-5V4" /><path d="M7 13h10" /></>
