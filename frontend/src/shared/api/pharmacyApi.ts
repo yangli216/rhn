@@ -86,6 +86,7 @@ export interface StockItem {
   controlLevel?: string
   highAlert: boolean
   status: string
+  manufacturerName?: string
 }
 
 export interface StockBin {

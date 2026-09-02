@@ -75,7 +75,7 @@ class InpatientCareRequestStoreOracleBindingTest {
         CatalogItemSnapshot item = new CatalogItemSnapshot(
                 10L, 11L, "MED_PRODUCT", medication.id(), "AMOX-025", "阿莫西林胶囊 0.25g",
                 "盒", true, true, true, "ACTIVE", today.minusDays(1), null,
-                null, null, null);
+                null, null, null, null, "示范制药有限公司");
         OrganizationAdoptionView adoption = new OrganizationAdoptionView(
                 30L, 0, 5L, item.id(), 6L, "AMOX-LOCAL", "阿莫西林",
                 true, true, true, true, true, true, true,

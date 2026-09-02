@@ -21,6 +21,7 @@ import com.rhn.platform.masterdata.infrastructure.CatalogChangeBatchRepository;
 import com.rhn.platform.masterdata.infrastructure.CatalogChangeBatchRowRepository;
 import com.rhn.platform.masterdata.infrastructure.CatalogPriceRepository;
 import com.rhn.platform.masterdata.infrastructure.ItemPackageRepository;
+import com.rhn.platform.masterdata.infrastructure.ManufacturerRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationProductRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemRepository;
@@ -61,6 +62,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private final ServiceCatalogItemRepository serviceRepository;
     private final MedicationProductRepository productRepository;
     private final SupplyItemRepository supplyRepository;
+    private final ManufacturerRepository manufacturerRepository;
     private final MedicationRepository medicationRepository;
     private final ItemPackageRepository packageRepository;
     private final DictionaryDirectory dictionaryDirectory;
@@ -75,6 +77,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                    ServiceCatalogItemRepository serviceRepository,
                                    MedicationProductRepository productRepository,
                                    SupplyItemRepository supplyRepository,
+                                   ManufacturerRepository manufacturerRepository,
                                    MedicationRepository medicationRepository,
                                    ItemPackageRepository packageRepository,
                                    DictionaryDirectory dictionaryDirectory,
@@ -84,6 +87,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         this.batchRepository = batchRepository; this.batchRowRepository = batchRowRepository;
         this.serviceRepository = serviceRepository; this.productRepository = productRepository;
         this.supplyRepository = supplyRepository;
+        this.manufacturerRepository = manufacturerRepository;
         this.medicationRepository = medicationRepository;
         this.packageRepository = packageRepository; this.dictionaryDirectory = dictionaryDirectory;
         this.organizationDirectory = organizationDirectory; this.contextProvider = contextProvider;
@@ -140,19 +144,27 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
             return new CatalogItemSnapshot(service.id(), service.itemTypeId(), "SERVICE", null,
                     service.code(), service.name(), service.unitCode(), service.orderable(), service.chargeable(),
                     false, service.status(), service.validFrom(), service.validTo(), service.serviceType(),
-                    service.specimenType(), service.examinationType());
+                    service.specimenType(), service.examinationType(), null, null);
         }
         var product = productRepository.findByIdAndTenantIdAndItemType(catalogItemId, tenantId, "MED_PRODUCT").orElse(null);
         if (product != null) {
+            String manufacturerName = product.manufacturerId() == null ? null
+                    : manufacturerRepository.findByIdAndTenantId(product.manufacturerId(), tenantId)
+                            .map(com.rhn.platform.masterdata.domain.Manufacturer::name).orElse(null);
             return new CatalogItemSnapshot(product.id(), product.itemTypeId(), "MED_PRODUCT", product.medicationId(),
                     product.code(), product.name(), product.unitCode(), product.orderable(), product.chargeable(),
-                    product.stocked(), product.status(), product.validFrom(), product.validTo(), null, null, null);
+                    product.stocked(), product.status(), product.validFrom(), product.validTo(), null, null, null,
+                    product.manufacturerId(), manufacturerName);
         }
         var supply = supplyRepository.findByIdAndTenantId(catalogItemId, tenantId)
                 .orElseThrow(() -> notFound("CATALOG_ITEM_NOT_FOUND", "未找到目录项目"));
+        String manufacturerName = supply.manufacturerId() == null ? null
+                : manufacturerRepository.findByIdAndTenantId(supply.manufacturerId(), tenantId)
+                        .map(com.rhn.platform.masterdata.domain.Manufacturer::name).orElse(null);
         return new CatalogItemSnapshot(supply.id(), supply.itemTypeId(), "SUPPLY", null,
                 supply.code(), supply.name(), supply.unitCode(), supply.orderable(), supply.chargeable(),
-                supply.stocked(), supply.status(), supply.validFrom(), supply.validTo(), null, null, null);
+                supply.stocked(), supply.status(), supply.validFrom(), supply.validTo(), null, null, null,
+                supply.manufacturerId(), manufacturerName);
     }
 
     private PackageSnapshot packageSnapshot(Long tenantId, Long catalogItemId, Long packageId) {

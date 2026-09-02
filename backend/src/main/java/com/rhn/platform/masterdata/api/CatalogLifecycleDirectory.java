@@ -29,7 +29,8 @@ public interface CatalogLifecycleDirectory {
             Long id, Long itemTypeId, String itemType, Long medicationId,
             String code, String name, String unitCode, boolean orderable, boolean chargeable,
             boolean stocked, String status, LocalDate validFrom, LocalDate validTo,
-            String serviceType, String specimenType, String examinationType) {}
+            String serviceType, String specimenType, String examinationType,
+            Long manufacturerId, String manufacturerName) {}
 
     /** Optional package definition when pricing or dispensing is package-specific. */
     record PackageSnapshot(

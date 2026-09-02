@@ -3,7 +3,9 @@ import { useEffect, useMemo, useState } from 'react'
 import type { InventoryOpenPackage, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import {
+  Alert, Button, Dialog, EmptyState, FormField, LoadingState, Pagination, Select, StatusBadge,
+} from '../../shared/ui'
 
 const issueText: Record<string, string> = {
   LEDGER_BALANCE: '流水与余额', RESERVATION_BALANCE: '预留量',
@@ -16,6 +18,9 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
 }) {
   const queryClient = useQueryClient()
   const [openDialog, setOpenDialog] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+
   const latest = useQuery({
     queryKey: ['warehouse-reconciliation-latest', siteId],
     queryFn: async () => (await api.pharmacy.latestInventoryReconciliation(siteId)) ?? null,
@@ -26,8 +31,11 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
     queryFn: () => api.pharmacy.openPackages(siteId), enabled: Boolean(siteId),
   })
   const packageItemIds = [...new Set((packages.data ?? []).map(value => value.stockItemId))]
-  const lots = useQuery({ queryKey: ['warehouse-open-package-lots', siteId, packageItemIds.join(',')],
-    queryFn: async () => (await Promise.all(packageItemIds.map(itemId => api.pharmacy.lots(itemId)))).flat(), enabled: Boolean(packageItemIds.length) })
+  const lots = useQuery({
+    queryKey: ['warehouse-open-package-lots', siteId, packageItemIds.join(',')],
+    queryFn: async () => (await Promise.all(packageItemIds.map(itemId => api.pharmacy.lots(itemId)))).flat(),
+    enabled: Boolean(packageItemIds.length),
+  })
   const reconcile = useMutation({
     mutationFn: () => api.pharmacy.reconcileInventory(siteId),
     onSuccess: (value) => queryClient.setQueryData(['warehouse-reconciliation-latest', siteId], value),
@@ -37,30 +45,49 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
   const last = latest.data
   const error = latest.error || packages.error || lots.error || reconcile.error
 
+  const pkgList = packages.data ?? []
+  const total = pkgList.length
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const paginatedPackages = useMemo(() => {
+    const start = (safePage - 1) * pageSize
+    return pkgList.slice(start, start + pageSize)
+  }, [pkgList, safePage, pageSize])
+
   return <section className="warehouse-section warehouse-accuracy">
-    <header className="warehouse-section__toolbar"><div><strong>库存准确性控制</strong>
-      <span>核对不可变流水、库存余额、有效预留、拆零余量和追溯码数量</span></div>
+    <div className="warehouse-inventory-filters">
+      <div className="warehouse-metrics-inline">
+        <span className="warehouse-metric-chip">
+          最近校验 <strong>{last ? statusLabel(last.status) : '尚未执行'}</strong>
+          {last && <small>（{formatTime(last.completedAt ?? last.startedAt)}）</small>}
+        </span>
+        <span className="warehouse-metric-chip">校验维度 <strong>{last?.dimensionCount ?? 0}</strong></span>
+        <span className="warehouse-metric-chip">
+          差异项 <strong>{last?.issueCount ?? 0}</strong>
+          {Boolean(last?.issueCount) && <small className="warehouse-metric-chip__warn">（需核查）</small>}
+        </span>
+        <span className="warehouse-metric-chip">在用拆零 <strong>{activePackages.length}</strong>（余 {formatQuantity(remaining)}）</span>
+      </div>
       <div className="warehouse-accuracy__actions">
         <Button size="sm" variant="secondary" onClick={() => setOpenDialog(true)}>登记拆零</Button>
         <Button size="sm" busy={reconcile.isPending} onClick={() => reconcile.mutate()}>立即校验</Button>
-      </div></header>
+      </div>
+    </div>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
     {latest.isPending || packages.isPending ? <LoadingState label="正在读取账目校验结果…" /> : <>
-      <div className="warehouse-metrics warehouse-accuracy__metrics">
-        <div><span>最近校验</span><strong className="warehouse-accuracy__metric-text">{last ? statusLabel(last.status) : '尚未执行'}</strong>
-          <small>{last ? formatTime(last.completedAt ?? last.startedAt) : '建议首次启用后立即校验'}</small></div>
-        <div><span>校验维度</span><strong>{last?.dimensionCount ?? 0}</strong><small>库存余额组合</small></div>
-        <div><span>差异项</span><strong>{last?.issueCount ?? 0}</strong><small>{last?.issueCount ? '请逐项核查' : '未发现账目差异'}</small></div>
-        <div><span>在用拆零包装</span><strong>{activePackages.length}</strong><small>剩余 {formatQuantity(remaining)} 基本单位</small></div>
-      </div>
       <div className="warehouse-accuracy__grid">
-        <article className="warehouse-accuracy__card"><header><div><strong>账目校验结果</strong>
-          <span>{last?.runNo ?? '尚无校验记录'}</span></div>
-          {last && <StatusBadge tone={last.status === 'PASSED' ? 'success' : last.status === 'ISSUES' ? 'warning' : 'danger'}>
-            {statusLabel(last.status)}</StatusBadge>}</header>
-          {last && <dl className="warehouse-reconciliation-facts"><div><dt>运行方式</dt><dd>{last.runType === 'MANUAL' ? '人工执行' : '定时任务'}</dd></div>
-            <div><dt>业务日期</dt><dd>{last.businessDate}</dd></div><div><dt>执行人</dt><dd>{last.runBy ?? '系统任务'}</dd></div>
-            <div><dt>耗时</dt><dd>{last.completedAt ? formatDuration(last.startedAt, last.completedAt) : '执行中'}</dd></div></dl>}
+        <article className="warehouse-accuracy__card">
+          <header>
+            <div><strong>账目校验结果</strong>{last && <span>单号 {last.runNo}</span>}</div>
+            {last && <StatusBadge tone={last.status === 'PASSED' ? 'success' : last.status === 'ISSUES' ? 'warning' : 'danger'}>
+              {statusLabel(last.status)}</StatusBadge>}
+          </header>
+          {last && <dl className="warehouse-reconciliation-facts">
+            <div><dt>运行方式</dt><dd>{last.runType === 'MANUAL' ? '人工执行' : '定时任务'}</dd></div>
+            <div><dt>业务日期</dt><dd>{last.businessDate}</dd></div>
+            <div><dt>执行人</dt><dd>{last.runBy ?? '系统任务'}</dd></div>
+            <div><dt>耗时</dt><dd>{last.completedAt ? formatDuration(last.startedAt, last.completedAt) : '执行中'}</dd></div>
+          </dl>}
           {!last ? <EmptyState icon="pharmacy" title="尚未执行库存校验" copy="点击“立即校验”，系统将自动比对四类库存账目。" />
             : !last.lines.length ? <div className="warehouse-accuracy__passed"><span aria-hidden="true">✓</span>
               <div><strong>账实关系一致</strong><p>流水、余额、预留、拆零与追溯账目未发现差异。</p></div></div>
@@ -75,13 +102,27 @@ export function InventoryAccuracyManagement({ api, siteId, items, bins }: {
                   {line.severity === 'ERROR' ? '错误' : '预警'}</StatusBadge></td>
               </tr>)}</tbody></table></div>}
         </article>
-        <article className="warehouse-accuracy__card"><header><div><strong>拆零包装台账</strong>
-          <span>每次开包、消耗和退回均保留余额轨迹</span></div><StatusBadge tone="info">{packages.data?.length ?? 0} 条</StatusBadge></header>
-          {!packages.data?.length ? <EmptyState icon="pharmacy" title="暂无拆零包装" copy="发生拆零发药时系统会自动建账，也可人工登记已开包装。" />
-            : <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
-              <th>药品 / 开包时间</th><th>批号 / 追溯</th><th>库位</th><th>开包数量</th><th>当前余量</th><th>状态</th>
-            </tr></thead><tbody>{packages.data.map(value => <PackageRow key={value.id} value={value} items={items} bins={bins}
-              lot={lots.data?.find(lot => lot.id === value.stockLotId)} />)}</tbody></table></div>}
+        <article className="warehouse-accuracy__card">
+          <header>
+            <strong>拆零包装台账</strong>
+            <StatusBadge tone="info">{total} 条</StatusBadge>
+          </header>
+          {!total ? <EmptyState icon="pharmacy" title="暂无拆零包装" copy="发生拆零发药时系统会自动建账，也可人工登记已开包装。" />
+            : <>
+              <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-accuracy__table"><thead><tr>
+                <th>药品 / 开包时间</th><th>批号 / 追溯</th><th>库位</th><th>开包数量</th><th>当前余量</th><th>状态</th>
+              </tr></thead><tbody>{paginatedPackages.map(value => <PackageRow key={value.id} value={value} items={items} bins={bins}
+                lot={lots.data?.find(lot => lot.id === value.stockLotId)} />)}</tbody></table></div>
+              {totalPages > 1 && <Pagination
+                page={safePage}
+                totalPages={totalPages}
+                total={total}
+                pageSize={pageSize}
+                onPageSizeChange={(size) => { setPageSize(size); setPage(1) }}
+                onChange={setPage}
+                label="拆零包装台账分页"
+              />}
+            </>}
         </article>
       </div>
     </>}

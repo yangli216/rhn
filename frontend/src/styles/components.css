@@ -557,16 +557,42 @@ input[type="checkbox"]:disabled {
   justify-content: space-between;
   gap: var(--space-3);
   border: 0;
+  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--ease-standard);
+  transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard);
 }
-.ui-select__option:hover:not(:disabled), .ui-select__option:focus-visible, .ui-select__option.is-active { outline: 0; background: var(--color-surface-subtle); }
-.ui-select__option.is-selected { color: var(--color-brand-strong); background: var(--color-brand-soft); font-weight: var(--font-weight-semibold); }
+.ui-select__option.is-active, .ui-select__option:focus-visible {
+  outline: 0;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 85%, white);
+  border-left-color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+.ui-select__option.is-active .ui-select__option-trailing code, .ui-select__option:focus-visible .ui-select__option-trailing code {
+  color: var(--color-text-secondary);
+}
+.ui-select__option.is-selected {
+  color: var(--color-text-primary);
+  background: var(--color-brand-soft);
+  border-left-color: transparent;
+  font-weight: var(--font-weight-semibold);
+}
+.ui-select__option.is-selected .ui-select__option-trailing code {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+.ui-select__option.is-selected .ui-select__option-trailing svg {
+  color: var(--color-brand-primary);
+}
+.ui-select__option.is-selected.is-active, .ui-select__option.is-selected:focus-visible {
+  background: color-mix(in srgb, var(--color-brand-soft) 80%, var(--color-brand-primary) 20%);
+  border-left-color: var(--color-brand-primary);
+}
 .ui-select__option:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
 .ui-select__option-label { min-width: 0; max-width: calc(100% - var(--space-8)); flex: 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ui-select__option-trailing { min-width: 0; flex: 1 1 0; display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); overflow: hidden; }
@@ -633,16 +659,32 @@ input[type="checkbox"]:disabled {
   justify-content: space-between;
   gap: var(--space-4);
   border: 0;
+  border-left: 3px solid transparent;
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   background: transparent;
   font: inherit;
   text-align: left;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--ease-standard);
+  transition: background-color var(--motion-fast) var(--ease-standard), border-color var(--motion-fast) var(--ease-standard);
 }
-.ui-remote-search__option:hover:not(:disabled), .ui-remote-search__option.is-active { outline: 0; background: var(--color-surface-subtle); }
-.ui-remote-search__option.is-selected { color: var(--color-brand-strong); background: var(--color-brand-soft); font-weight: var(--font-weight-semibold); }
+.ui-remote-search__option.is-active, .ui-remote-search__option:focus-visible {
+  outline: 0;
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 85%, white);
+  border-left-color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+.ui-remote-search__option.is-selected {
+  color: var(--color-text-primary);
+  background: var(--color-brand-soft);
+  border-left-color: transparent;
+  font-weight: var(--font-weight-semibold);
+}
+.ui-remote-search__option.is-selected.is-active, .ui-remote-search__option.is-selected:focus-visible {
+  background: color-mix(in srgb, var(--color-brand-soft) 80%, var(--color-brand-primary) 20%);
+  border-left-color: var(--color-brand-primary);
+}
 .ui-remote-search__option-main { min-width: 0; flex: 1 1 auto; display: grid; gap: .1875rem; overflow: hidden; }
 .ui-remote-search__option-main strong { overflow: hidden; font-weight: var(--font-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
 .ui-remote-search__option-main small { min-width: 0; display: flex; align-items: center; gap: var(--space-2); overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }

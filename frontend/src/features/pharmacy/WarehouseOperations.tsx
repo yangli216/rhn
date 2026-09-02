@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { GoodsReceipt, PurchaseOrder, Requisition, StockBin, StockCount, StockItem, StockSite, StockTransfer } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -35,11 +35,11 @@ export function WarehouseOperations({ tab, api, site, sites, items, bins, onNavi
   return <CountWorkbench api={api} site={site} items={items} bins={bins} />
 }
 
-function Worklist({ title, copy, action, loading, empty, children }: {
-  title: string; copy: string; action?: ReactNode; loading: boolean; empty: boolean; children: ReactNode
+function Worklist({ title, action, loading, empty, children }: {
+  title: string; copy?: string; action?: ReactNode; loading: boolean; empty: boolean; children: ReactNode
 }) {
   return <section className="warehouse-section warehouse-operation">
-    <header className="warehouse-section__toolbar"><div><strong>{title}</strong><span>{copy}</span></div>{action}</header>
+    <header className="warehouse-section__toolbar"><strong>{title}</strong>{action}</header>
     {loading ? <LoadingState label="正在加载作业单据…" /> : empty
       ? <EmptyState icon="pharmacy" title="暂无作业单据" copy="可从右上角发起新的业务单据。" /> : children}
   </section>
@@ -210,12 +210,299 @@ function OperationTable({ headers, children }: { headers: string[]; children: Re
 }
 
 type ItemRow = { item: StockItem; quantity: number; price: number }
-function MultiItemDialog({ title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false, lead, emptyCopy = '当前没有可选经营项目。', onClose, onSubmit }: { title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean; showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; onClose: () => void; onSubmit: (reason: string, rows: ItemRow[]) => Promise<void> }) {
-  const [selected, setSelected] = useState<Record<string, boolean>>({}); const [quantity, setQuantity] = useState<Record<string, string>>({}); const [price, setPrice] = useState<Record<string, string>>({}); const [reason, setReason] = useState(''); const [error, setError] = useState<unknown>(); const [busy, setBusy] = useState(false)
-  const rows = items.filter(v => selected[v.id]).map(item => ({ item, quantity: Number(quantity[item.id]), price: Number(price[item.id] || 0) })).filter(v => v.quantity > 0 && (!withPrice || v.price >= 0))
-  return <Dialog title={title} eyebrow="批量业务" size="wide" onClose={onClose} footer={<><Button variant="secondary" onClick={onClose}>取消</Button><Button busy={busy} disabled={!rows.length} onClick={async () => { setBusy(true); setError(undefined); try { await onSubmit(reason, rows) } catch (e) { setError(e) } finally { setBusy(false) } }}>{submitText}</Button></>}>
-    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}{lead}<FormField label="用途说明"><input className="ui-field__control" value={reason} onChange={e => setReason(e.target.value)} placeholder="填写本次业务用途" /></FormField>
-    <div className="warehouse-batch-table-wrap"><table className="warehouse-table warehouse-batch-table"><thead><tr><th>选择</th><th>药品</th><th>包装</th><th>{quantityLabel}</th>{withPrice && <th>采购单价</th>}</tr></thead><tbody>{!items.length && <tr><td className="warehouse-batch-empty" colSpan={withPrice ? 5 : 4}>{emptyCopy}</td></tr>}{items.map(item => <tr key={item.id} className={selected[item.id] ? 'is-selected' : ''}><td><input type="checkbox" checked={Boolean(selected[item.id])} onChange={e => setSelected(v => ({ ...v, [item.id]: e.target.checked }))} /></td><td><strong>{item.productName}</strong><code>{item.productCode}</code></td><td>{item.packageSpec || item.packageUnitName}<small>1{item.packageUnitName} = {formatQuantity(item.packageFactor)}{displayUnitName(item.baseUnitCode)}</small></td><td><input className="ui-field__control" type="number" min="0" value={quantity[item.id] ?? ''} onChange={e => setQuantity(v => ({ ...v, [item.id]: e.target.value }))} />{showBaseConversion && Number(quantity[item.id]) > 0 && <small>= {formatQuantity(Number(quantity[item.id]) * Number(item.packageFactor))}{displayUnitName(item.baseUnitCode)} 入账</small>}</td>{withPrice && <td><input className="ui-field__control" type="number" min="0" value={price[item.id] ?? ''} onChange={e => setPrice(v => ({ ...v, [item.id]: e.target.value }))} /></td>}</tr>)}</tbody></table></div>
+type EntryRow = { key: string; stockItemId: string; quantity: string; price: string }
+
+function MultiItemDialog({
+  title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false,
+  lead, emptyCopy = '当前没有可选经营项目。', onClose, onSubmit,
+}: {
+  title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean
+  showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; onClose: () => void
+  onSubmit: (reason: string, rows: ItemRow[]) => Promise<void>
+}) {
+  const [rows, setRows] = useState<EntryRow[]>([
+    { key: 'row-0', stockItemId: '', quantity: '1', price: '' },
+  ])
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState<unknown>()
+  const [busy, setBusy] = useState(false)
+  const [focusedIndex, setFocusedIndex] = useState(0)
+
+  const quantityInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const priceInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+  const selectWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  const itemMap = useMemo(() => new Map(items.map(item => [item.id, item])), [items])
+  const itemOptions = useMemo(() => items.map(item => ({
+    value: item.id,
+    label: item.productName,
+    secondaryText: [item.packageSpec || item.packageUnitName, item.manufacturerName].filter(Boolean).join(' · '),
+    searchKeywords: [item.productCode, item.manufacturerName ?? '', item.packageSpec ?? ''].filter(Boolean),
+  })), [items])
+
+  const focusSelect = (key: string) => {
+    setTimeout(() => {
+      const btn = selectWrapperRefs.current[key]?.querySelector<HTMLButtonElement>('button[role="combobox"]')
+      if (btn) {
+        btn.focus()
+        btn.click()
+      }
+    }, 60)
+  }
+
+  const focusQuantity = (key: string) => {
+    setTimeout(() => {
+      const input = quantityInputRefs.current[key]
+      if (input) {
+        input.focus()
+        input.select()
+      }
+    }, 60)
+  }
+
+  const focusPrice = (key: string) => {
+    setTimeout(() => {
+      const input = priceInputRefs.current[key]
+      if (input) {
+        input.focus()
+        input.select()
+      }
+    }, 60)
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      focusSelect('row-0')
+    }, 150)
+    return () => clearTimeout(timer)
+  }, [])
+
+  const addRow = (autoFocus = true) => {
+    const newKey = `row-${Date.now()}-${Math.random()}`
+    setRows(prev => [...prev, { key: newKey, stockItemId: '', quantity: '1', price: '' }])
+    if (autoFocus) {
+      focusSelect(newKey)
+    }
+    return newKey
+  }
+
+  const removeRow = (index: number) => {
+    setRows(prev => {
+      if (prev.length <= 1) {
+        const resetKey = `row-${Date.now()}`
+        focusSelect(resetKey)
+        return [{ key: resetKey, stockItemId: '', quantity: '1', price: '' }]
+      }
+      const next = prev.filter((_, i) => i !== index)
+      const targetIndex = Math.max(0, index - 1)
+      if (next[targetIndex]) {
+        focusQuantity(next[targetIndex].key)
+      }
+      return next
+    })
+  }
+
+  const updateRow = (index: number, field: keyof EntryRow, value: string) => {
+    setRows(prev => prev.map((row, i) => {
+      if (i !== index) return row
+      return { ...row, [field]: value }
+    }))
+  }
+
+  const handleItemSelect = (index: number, val: string) => {
+    updateRow(index, 'stockItemId', val)
+    const currentRow = rows[index]
+    if (currentRow) {
+      focusQuantity(currentRow.key)
+    }
+  }
+
+  const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      void triggerSubmit()
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const currentRow = rows[index]
+      if (!currentRow) return
+      if (withPrice) {
+        focusPrice(currentRow.key)
+      } else {
+        if (index === rows.length - 1) {
+          addRow(true)
+        } else {
+          focusSelect(rows[index + 1].key)
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (index < rows.length - 1) {
+        e.preventDefault()
+        focusQuantity(rows[index + 1].key)
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (index > 0) {
+        e.preventDefault()
+        focusQuantity(rows[index - 1].key)
+      }
+    }
+  }
+
+  const handlePriceKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault()
+      void triggerSubmit()
+      return
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (index === rows.length - 1) {
+        addRow(true)
+      } else {
+        focusSelect(rows[index + 1].key)
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (index < rows.length - 1) {
+        e.preventDefault()
+        focusPrice(rows[index + 1].key)
+      }
+    } else if (e.key === 'ArrowUp') {
+      if (index > 0) {
+        e.preventDefault()
+        focusPrice(rows[index - 1].key)
+      }
+    }
+  }
+
+  const validRows = rows.map(row => {
+    const item = itemMap.get(row.stockItemId)
+    const qty = Number(row.quantity)
+    const prc = withPrice ? Number(row.price) : 0
+    const isValid = Boolean(item && qty > 0 && (!withPrice || (!isNaN(prc) && prc >= 0 && row.price.trim() !== '')))
+    return { item, quantity: qty, price: prc, isValid }
+  }).filter((v): v is { item: StockItem; quantity: number; price: number; isValid: true } => v.isValid)
+
+  const totalQuantity = validRows.reduce((sum, r) => sum + r.quantity, 0)
+  const totalAmount = validRows.reduce((sum, r) => sum + r.quantity * r.price, 0)
+  const canSubmit = validRows.length > 0 && !busy
+
+  const triggerSubmit = async () => {
+    if (!canSubmit) return
+    setBusy(true); setError(undefined)
+    try {
+      await onSubmit(reason, validRows.map(r => ({ item: r.item, quantity: r.quantity, price: r.price })))
+    } catch (e) {
+      setError(e)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return <Dialog title={title} eyebrow="批量业务" size="xwide" onClose={onClose} footer={<div className="warehouse-entry-dialog-footer">
+    <div className="warehouse-entry-summary">
+      <span>已录入 <strong>{validRows.length}</strong> 个品种</span>
+      <span>合计数量 <strong>{formatQuantity(totalQuantity)}</strong></span>
+      {withPrice && <span>预估总金额 <strong className="warehouse-entry-total">{formatMoney(totalAmount)}</strong></span>}
+    </div>
+    <div className="warehouse-entry-actions">
+      <Button variant="secondary" onClick={onClose}>取消</Button>
+      <Button busy={busy} disabled={!canSubmit} onClick={triggerSubmit}>{submitText}</Button>
+    </div>
+  </div>}>
+    {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+    {lead}
+    <FormField label="用途说明">
+      <input className="ui-field__control" value={reason} onChange={e => setReason(e.target.value)} placeholder="填写本次业务用途（选填）" />
+    </FormField>
+
+    {!items.length ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy={emptyCopy} />
+      : <div className="warehouse-entry-table-container">
+        <div className="warehouse-entry-kbd-hint">
+          <span className="warehouse-entry-kbd-badge">⌨️ 全键盘连续录入</span>
+          <span>按 <code>Enter</code> 确认并跳转下个字段 / 自动增行</span>
+          <span>按 <code>↑</code> / <code>↓</code> 跨行切换</span>
+          <span>按 <code>Ctrl+Enter</code> 直接提交</span>
+        </div>
+        <table className="warehouse-table warehouse-entry-table">
+          <thead>
+            <tr>
+              <th style={{ width: '3rem', textAlign: 'center' }}>#</th>
+              <th style={{ minWidth: '16rem' }}>选择药品</th>
+              <th style={{ width: '13rem' }}>包装规格</th>
+              <th style={{ width: '10rem' }}>{quantityLabel}</th>
+              {withPrice && <th style={{ width: '10rem' }}>采购单价</th>}
+              {withPrice && <th style={{ width: '9rem' }}>金额小计</th>}
+              <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, index) => {
+              const item = itemMap.get(row.stockItemId)
+              const lineTotal = item && withPrice && Number(row.quantity) > 0 && Number(row.price) >= 0
+                ? Number(row.quantity) * Number(row.price)
+                : 0
+              const isActiveRow = focusedIndex === index
+              return <tr key={row.key} className={isActiveRow ? 'is-active-entry-row' : ''} onFocus={() => setFocusedIndex(index)}>
+                <td className="warehouse-entry-index">{index + 1}</td>
+                <td>
+                  <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
+                    <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
+                      onChange={(val) => handleItemSelect(index, val)}
+                      placeholder="输入药品名称、拼音或编码搜索"
+                      options={itemOptions} />
+                  </div>
+                </td>
+                <td>
+                  {item ? <div className="warehouse-entry-spec">
+                    <strong>{item.productName}</strong>
+                    <small>{[item.packageSpec || item.packageUnitName, item.manufacturerName].filter(Boolean).join(' · ')}</small>
+                    <small>1 {item.packageUnitName} = {formatQuantity(item.packageFactor)} {displayUnitName(item.baseUnitCode)}</small>
+                  </div> : <span className="warehouse-entry-placeholder">选择药品后自动带入</span>}
+                </td>
+                <td>
+                  <input
+                    ref={el => { quantityInputRefs.current[row.key] = el }}
+                    className="ui-field__control warehouse-entry-input"
+                    type="number"
+                    min="0.0001"
+                    step="any"
+                    value={row.quantity}
+                    onChange={(e) => updateRow(index, 'quantity', e.target.value)}
+                    onKeyDown={(e) => handleQuantityKeyDown(e, index)}
+                    placeholder="数量"
+                  />
+                  {showBaseConversion && item && Number(row.quantity) > 0 && <small className="warehouse-entry-conv">
+                    = {formatQuantity(Number(row.quantity) * Number(item.packageFactor))} {displayUnitName(item.baseUnitCode)}
+                  </small>}
+                </td>
+                {withPrice && <td>
+                  <input
+                    ref={el => { priceInputRefs.current[row.key] = el }}
+                    className="ui-field__control warehouse-entry-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={row.price}
+                    onChange={(e) => updateRow(index, 'price', e.target.value)}
+                    onKeyDown={(e) => handlePriceKeyDown(e, index)}
+                    placeholder="0.00"
+                  />
+                </td>}
+                {withPrice && <td className="warehouse-entry-amount">
+                  {lineTotal > 0 ? formatMoney(lineTotal) : '—'}
+                </td>}
+                <td style={{ textAlign: 'center' }}>
+                  <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除此行">删除</Button>
+                </td>
+              </tr>
+            })}
+          </tbody>
+        </table>
+        <div className="warehouse-entry-add-bar">
+          <Button size="sm" variant="secondary" onClick={() => addRow(true)}>+ 添加一行药品 (Enter)</Button>
+        </div>
+      </div>}
   </Dialog>
 }
 
@@ -257,11 +544,14 @@ function RequisitionApprovalDialog({ api, value, items, onClose, onDone }: {
       <Button busy={mutation.isPending} disabled={!valid} onClick={() => mutation.mutate()}>确认审核</Button></>}>
     {Boolean(mutation.error) && <Alert>{errorMessage(mutation.error)}</Alert>}
     <OperationTable headers={['药品', '申请数量', '批准数量', '单位', '当前分配']}>
-      {value.lines.map(line => <tr key={line.id}><td><strong>{items.find(item => item.id === line.stockItemId)?.productName ?? line.stockItemId}</strong>
-        <small>{items.find(item => item.id === line.stockItemId)?.productCode}</small></td><td>{formatQuantity(line.requestedQuantity)}</td>
-        <td><input aria-label="批准数量" className="ui-field__control" type="number" min="0" max={line.requestedQuantity}
-          value={approved[line.id]} onChange={event => setApproved(current => ({ ...current, [line.id]: event.target.value }))} /></td>
-        <td>{line.baseUnitCode}</td><td>{line.allocations.length ? `${line.allocations.length} 个批次` : '批准后自动分配'}</td></tr>)}
+      {value.lines.map(line => {
+        const item = items.find(v => v.id === line.stockItemId)
+        return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong>
+          <small>{[item?.productCode, item?.packageSpec || item?.packageUnitName, item?.manufacturerName].filter(Boolean).join(' · ')}</small></td><td>{formatQuantity(line.requestedQuantity)}</td>
+          <td><input aria-label="批准数量" className="ui-field__control" type="number" min="0" max={line.requestedQuantity}
+            value={approved[line.id]} onChange={event => setApproved(current => ({ ...current, [line.id]: event.target.value }))} /></td>
+          <td>{line.baseUnitCode}</td><td>{line.allocations.length ? `${line.allocations.length} 个批次` : '批准后自动分配'}</td></tr>
+      })}
     </OperationTable>
     <FormField label="审核说明"><input className="ui-field__control" value={reason}
       onChange={event => setReason(event.target.value)} placeholder="可填写调整原因；审核记录保留数量明细" /></FormField>
@@ -319,7 +609,7 @@ function GoodsReceiptDialog({ api, order, items, bins, onClose, onDone }: { api:
     <OperationTable headers={['药品 / 包装', '剩余', '本次到货', '批号', '生产日期', '有效期', '收货货位']}>
       {availableLines.map(line => { const item = items.find(value => value.id === line.stockItemId); const selected = Number(quantities[line.id]) > 0
         return <tr key={line.id} className={selected ? 'is-selected' : ''}><td><strong>{item?.productName ?? line.stockItemId}</strong>
-          <small>{item?.packageSpec || item?.packageUnitName} · 单价 {formatMoney(line.unitPrice)}</small></td><td>{formatQuantity(line.remainingQuantity)}</td>
+          <small>{[item?.packageSpec || item?.packageUnitName, item?.manufacturerName, `单价 ${formatMoney(line.unitPrice)}`].filter(Boolean).join(' · ')}</small></td><td>{formatQuantity(line.remainingQuantity)}</td>
           <td><input aria-label="本次到货数量" className="ui-field__control" type="number" min="0" max={line.remainingQuantity}
             value={quantities[line.id] ?? ''} onChange={event => setQuantities(current => ({ ...current, [line.id]: event.target.value }))} /></td>
           <td><input aria-label="批号" className="ui-field__control" disabled={!selected} value={lots[line.id] ?? ''}
@@ -357,11 +647,14 @@ function GoodsInspectionDialog({ api, receipt, items, onClose, onDone }: { api: 
     {Boolean(mutation.error) && <Alert>{errorMessage(mutation.error)}</Alert>}
     <Alert>每批“合格数 + 不合格数”必须等于到货数；存在不合格数量时必须填写原因。</Alert>
     <OperationTable headers={['药品 / 批号', '生产 / 有效期', '到货数', '合格数', '不合格数', '不合格原因']}>
-      {receipt.lines.map(line => <tr key={line.id}><td><strong>{items.find(v => v.id === line.stockItemId)?.productName ?? line.stockItemId}</strong><small>批号 {line.lotNo}</small></td>
-        <td><strong>{line.expiryDate ?? '无效期'}</strong><small>生产 {line.productionDate ?? '未记录'}</small></td><td>{line.deliveredQuantity}</td>
-        <td><input aria-label={`${line.lotNo}合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={accepted[line.id]} onChange={e => setAccepted(v => ({ ...v, [line.id]: e.target.value }))} /></td>
-        <td><input aria-label={`${line.lotNo}不合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={rejected[line.id]} onChange={e => setRejected(v => ({ ...v, [line.id]: e.target.value }))} /></td>
-        <td><input aria-label={`${line.lotNo}不合格原因`} className="ui-field__control" disabled={Number(rejected[line.id]) === 0} value={reasons[line.id] ?? ''} onChange={e => setReasons(v => ({ ...v, [line.id]: e.target.value }))} placeholder="存在不合格时必填" /></td></tr>)}
+      {receipt.lines.map(line => {
+        const item = items.find(v => v.id === line.stockItemId)
+        return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong><small>{[item?.manufacturerName, `批号 ${line.lotNo}`].filter(Boolean).join(' · ')}</small></td>
+          <td><strong>{line.expiryDate ?? '无效期'}</strong><small>生产 {line.productionDate ?? '未记录'}</small></td><td>{line.deliveredQuantity}</td>
+          <td><input aria-label={`${line.lotNo}合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={accepted[line.id]} onChange={e => setAccepted(v => ({ ...v, [line.id]: e.target.value }))} /></td>
+          <td><input aria-label={`${line.lotNo}不合格数`} className="ui-field__control" type="number" min="0" max={line.deliveredQuantity} value={rejected[line.id]} onChange={e => setRejected(v => ({ ...v, [line.id]: e.target.value }))} /></td>
+          <td><input aria-label={`${line.lotNo}不合格原因`} className="ui-field__control" disabled={Number(rejected[line.id]) === 0} value={reasons[line.id] ?? ''} onChange={e => setReasons(v => ({ ...v, [line.id]: e.target.value }))} placeholder="存在不合格时必填" /></td></tr>
+      })}
     </OperationTable>
   </Dialog>
 }
@@ -392,7 +685,7 @@ function TraceRegistrationDialog({ api, receipt, items, onClose, onDone }: {
       const expected = Number(line.acceptedQuantity)
       return <section key={line.id} className={count === expected ? 'is-complete' : ''}>
         <header><div><strong>{item?.productName ?? line.stockItemId}</strong>
-          <span>{item?.productCode} · 批号 {line.lotNo}</span></div>
+          <span>{[item?.productCode, item?.manufacturerName, `批号 ${line.lotNo}`].filter(Boolean).join(' · ')}</span></div>
           <b>{count} / {expected} 码</b></header>
         <textarea className="ui-field__control" autoFocus={line === traceLines[0]}
           aria-label={`${item?.productName ?? line.stockItemId}追溯码`}
@@ -451,7 +744,7 @@ function TransferReceiveDialog({ api, value, items, bins, onClose, onDone }: { a
         const operationUnitName = item?.packageUnitName ?? line.operationUnitCode
         const baseUnitName = displayUnitName(line.baseUnitCode)
         return <tr key={allocation.id}><td><strong>{item?.productName ?? line.destinationStockItemId}</strong>
-          <small>{lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '无效期'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失'}</small></td><td>{formatQuantity(allocation.dispatchedQuantity)}{baseUnitName}
+          <small>{[lot ? `批号 ${lot.lotNo} · 效期 ${lot.expiryDate ?? '无效期'}` : lots.isPending ? '正在读取批次…' : '批次资料缺失', item?.manufacturerName].filter(Boolean).join(' · ')}</small></td><td>{formatQuantity(allocation.dispatchedQuantity)}{baseUnitName}
           <small>申请 {formatQuantity(line.requestedOperationQuantity)}{operationUnitName} · 1{operationUnitName} = {formatQuantity(line.baseQuantityFactor)}{baseUnitName}</small></td>
         <td><input aria-label="正常调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={received[allocation.id]} onChange={e => setReceived(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
         <td><input aria-label="破损调入数" className="ui-field__control" type="number" min="0" max={allocation.dispatchedQuantity} value={damaged[allocation.id]} onChange={e => setDamaged(v => ({ ...v, [allocation.id]: e.target.value }))} /></td>
@@ -480,7 +773,7 @@ function CountCreateDialog({ api, site, items, bins, onClose, onDone }: { api: R
         options={bins.filter(v => v.active && v.countAllowed).map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>}
       {itemScoped && <FormField label={type === 'CYCLE' ? '本次循环盘点项目' : '盘点经营项目'} required><Select multiple searchable showValue
         value={itemIds} onChange={setItemIds} placeholder="可多选经营项目" options={items.map(item => ({ value: item.id,
-          label: item.productName, secondaryText: item.productCode }))} /></FormField>}
+          label: item.productName, secondaryText: [item.productCode, item.manufacturerName].filter(Boolean).join(' · ') }))} /></FormField>}
       <FormField className="warehouse-form-grid__full" label="盘点原因" required><input className="ui-field__control" value={reason}
         onChange={event => setReason(event.target.value)} placeholder="说明本次盘点目的" /></FormField></div>
   </Dialog>
@@ -504,8 +797,9 @@ function CountRecordDialog({ api, value, items, bins, onClose, onDone }: { api: 
         options={[{ value: 'BLIND', label: '盲盘', secondaryText: '隐藏账面数' }, { value: 'OPEN', label: '明盘', secondaryText: '显示账面数' }]} /></div>
     <OperationTable headers={['药品 / 库位', '批号 / 效期 / 状态', '账面数量', '实盘数量', '差异原因']}>{value.lines.map(line => {
       const lot = lots.data?.find(item => item.id === line.stockLotId)
-      return <tr key={line.id}><td><strong>{items.find(item => item.id === line.stockItemId)?.productName ?? line.stockItemId}</strong>
-        <small>{bins.find(bin => bin.id === line.stockBinId)?.name ?? line.stockBinId}</small></td>
+      const item = items.find(v => v.id === line.stockItemId)
+      return <tr key={line.id}><td><strong>{item?.productName ?? line.stockItemId}</strong>
+        <small>{[bins.find(bin => bin.id === line.stockBinId)?.name ?? line.stockBinId, item?.manufacturerName].filter(Boolean).join(' · ')}</small></td>
         <td><strong>{lot?.lotNo ?? (lots.isPending ? '正在读取…' : '批次资料缺失')}</strong>
           <small>{lot?.expiryDate ?? '无效期'} · {stockStatusText[line.stockStatus] ?? line.stockStatus}</small></td>
         <td>{blind ? '盲盘隐藏' : formatQuantity(line.bookQuantity)}</td><td><input aria-label={`${line.id}实盘数量`} className="ui-field__control"

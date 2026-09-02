@@ -91,7 +91,7 @@ export function Panel({ children, className = '', ...props }: PropsWithChildren<
 }
 
 export function PageHeader({ eyebrow, title, description, actions, compact = false }: {
-  eyebrow: string
+  eyebrow?: string
   title: string
   description?: string
   actions?: ReactNode
@@ -99,7 +99,7 @@ export function PageHeader({ eyebrow, title, description, actions, compact = fal
 }) {
   return <header className={`ui-page-header ${compact ? 'is-compact' : ''} ${actions ? 'has-actions' : ''}`}>
     <div>
-      <span className="ui-eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       {description && <p title={description}>{description}</p>}
     </div>

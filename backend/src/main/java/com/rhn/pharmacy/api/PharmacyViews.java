@@ -29,7 +29,8 @@ public final class PharmacyViews {
             BigDecimal packageFactor, String baseUnitCode, String issuePolicy,
             boolean negativeAllowed, boolean lotRequired, boolean traceRequired,
             boolean splitAllowed, boolean coldChain, boolean controlled,
-            String controlLevel, boolean highAlert, String status) {}
+            String controlLevel, boolean highAlert, String status,
+            String manufacturerName) {}
 
     public record StockBinView(
             Long id, long revision, Long stockSiteId, Long parentBinId,

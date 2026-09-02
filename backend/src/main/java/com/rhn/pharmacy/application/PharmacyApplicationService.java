@@ -577,7 +577,8 @@ public class PharmacyApplicationService {
                 catalog.itemPackage().unitCode(), catalog.itemPackage().unitName(), catalog.itemPackage().packageSpec(),
                 catalog.itemPackage().quantityFactor(), value.baseUnitCode(), value.issuePolicy(),
                 value.negativeAllowed(), value.lotRequired(), value.traceRequired(), value.splitAllowed(),
-                value.coldChain(), value.controlled(), value.controlLevel(), value.highAlert(), value.status());
+                value.coldChain(), value.controlled(), value.controlLevel(), value.highAlert(), value.status(),
+                catalog.item().manufacturerName());
     }
 
     private DispenseTaskView taskView(DispenseTask task) {

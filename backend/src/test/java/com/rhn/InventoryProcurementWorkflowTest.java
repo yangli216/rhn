@@ -77,7 +77,9 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.lines[0].inventoryTransactionId").value(transaction1));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(rhnWorkContext())
-                        .param("stockSiteId", fixture.siteId()))
+                        .param("stockSiteId", fixture.siteId())
+                        .param("stockItemId", fixture.item1Id())
+                        .param("allPeriods", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.sourceType == 'GOODS_RECEIPT')].sourceCode")
                         .value(receipt.get("receiptNo").asText()));

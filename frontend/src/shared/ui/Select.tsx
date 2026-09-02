@@ -35,6 +35,7 @@ interface SelectBaseProps {
   noResultsText?: string
   pinyinSearch?: boolean
   showValue?: boolean
+  popoverMinWidth?: number
   'aria-label'?: string
   'aria-describedby'?: string
   'aria-invalid'?: boolean | 'false' | 'true'
@@ -130,7 +131,9 @@ export function Select(props: SelectProps) {
       const availableAbove = rect.top - gap - margin
       const placement = availableBelow < 240 && availableAbove > availableBelow ? 'top' : 'bottom'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const width = Math.min(Math.max(rect.width, 288), Math.max(0, viewportWidth - margin * 2))
+      const defaultMin = (options.some((o) => o.secondaryText) || props.searchable) ? 460 : 288
+      const effectiveMinWidth = props.popoverMinWidth ?? defaultMin
+      const width = Math.min(Math.max(rect.width, effectiveMinWidth), Math.max(0, viewportWidth - margin * 2))
       const left = Math.min(Math.max(margin, rect.left), Math.max(margin, viewportWidth - width - margin))
       setPopoverPosition({
         left,
@@ -309,8 +312,8 @@ export function Select(props: SelectProps) {
             disabled={option.disabled}
             onClick={() => changeSelection(option)}
             onFocus={() => setActiveIndex(index)}
-            onMouseEnter={() => {
-              if (!option.disabled) setActiveIndex(index)
+            onMouseMove={() => {
+              if (!option.disabled && activeIndex !== index) setActiveIndex(index)
             }}
             onKeyDown={(event) => moveFocus(event, index)}
           >

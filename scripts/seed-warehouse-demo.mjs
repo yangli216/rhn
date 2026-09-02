@@ -27,6 +27,7 @@ function headers(departmentId, withBody = false) {
     'X-Tenant-Id': tenantId,
     'X-Organization-Id': organizationId,
     'X-Department-Id': departmentId,
+    'X-Client-Session-Id': '11111111-2222-3333-4444-555555555555',
     ...(withBody ? { 'Content-Type': 'application/json' } : {}),
   }
 }

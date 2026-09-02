@@ -289,7 +289,7 @@ export function RemoteSearchSelect<T>({
           aria-selected={value?.value === option.value}
           disabled={option.disabled}
           onClick={() => select(option)}
-          onMouseEnter={() => { if (!option.disabled) setActiveIndex(index) }}
+          onMouseMove={() => { if (!option.disabled && activeIndex !== index) setActiveIndex(index) }}
         >
           <span className="ui-remote-search__option-main">
             <strong>{option.label}</strong>

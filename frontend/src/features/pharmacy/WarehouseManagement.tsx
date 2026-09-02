@@ -6,7 +6,7 @@ import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
-  Select, StatusBadge, TreePanel,
+  SearchField, Select, StatusBadge, TreePanel,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import { TraceCodeManagement } from './TraceCodeManagement'
@@ -65,7 +65,8 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   const departmentId = clinicalContext.department.id
   const [tab, setTab] = useState<ActiveTab>('purchase')
   const [selectedBinId, setSelectedBinId] = useState<string>()
-  const [inventoryItemId, setInventoryItemId] = useState('')
+  const [ledgerItemId, setLedgerItemId] = useState('')
+  const [receiptItemId, setReceiptItemId] = useState('')
   const [binDialogParentId, setBinDialogParentId] = useState<string | null>()
   const [itemDialogOpen, setItemDialogOpen] = useState(false)
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
@@ -93,13 +94,13 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   })
 
   useEffect(() => {
-    setSelectedBinId(undefined); setInventoryItemId('')
+    setSelectedBinId(undefined); setLedgerItemId(''); setReceiptItemId('')
   }, [siteId])
   useEffect(() => {
-    if (inventoryItemId && items.data && !items.data.some((item) => item.id === inventoryItemId)) {
-      setInventoryItemId('')
+    if (ledgerItemId && items.data && !items.data.some((item) => item.id === ledgerItemId)) {
+      setLedgerItemId('')
     }
-  }, [inventoryItemId, items.data])
+  }, [ledgerItemId, items.data])
 
   const createBin = useMutation({
     mutationFn: (input: BinInput) => api.pharmacy.createStockBin(siteId, input),
@@ -112,7 +113,7 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     mutationFn: (input: ItemInput[]) => api.pharmacy.createStockItems(siteId, input),
     onSuccess: async (values) => {
       await queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-items', siteId] })
-      setInventoryItemId(values[0]?.id ?? ''); setItemDialogOpen(false)
+      setLedgerItemId(values[0]?.id ?? ''); setItemDialogOpen(false)
     },
   })
   const receive = useMutation({
@@ -137,32 +138,20 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   })
 
   const selectedBin = bins.data?.find((bin) => bin.id === selectedBinId)
-  const selectedInventoryItem = items.data?.find((item) => item.id === inventoryItemId)
+  const selectedReceiptItem = items.data?.find((item) => item.id === receiptItemId)
   const inventoryVarietyCount = new Set((balances.data ?? []).filter(row => row.quantityOnHand !== 0)
     .map(row => row.stockItemId)).size
   const error = sites.error || bins.error || items.error || balances.error || transactions.error
 
   return <>
-    <PageHeader eyebrow="药事管理 · 库房作业" title="库房管理" compact
-      description="在科室库存基础上完成采购、请领、调拨、盘点与不可变库存记账。" />
+    <PageHeader title="库房管理" compact />
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
-    <div className="warehouse-context-strip">
-      <div><span>当前机构</span><strong>{clinicalContext.organization.name}</strong></div>
-      <div><span>当前科室</span><strong>{clinicalContext.department.name}</strong></div>
-      <div><span>科室类型</span><strong>{clinicalContext.department.sdDepartmentTypeText}</strong></div>
-    </div>
 
     <div className="warehouse-workspace warehouse-workspace--department">
       <Panel className="warehouse-detail">
         {sites.isPending ? <LoadingState label="正在加载科室库存配置…" /> : !selectedSite
           ? <EmptyState icon="pharmacy" title="当前科室未启用库存能力"
             copy="库房不在此单独新建。请在组织与人员中维护科室类型，库存配置将随科室建立。" /> : <>
-          <header className="warehouse-detail__head">
-            <div className="warehouse-detail__identity"><span className="ui-eyebrow">{clinicalContext.department.code}</span><h2>{clinicalContext.department.name}</h2>
-              <p>{siteTypeText[selectedSite.siteType]} · {serviceScopeText[selectedSite.serviceScope]}
-                {' · '}科室库存配置</p></div>
-            <StatusBadge tone={selectedSite.active ? 'success' : 'neutral'}>{selectedSite.active ? '当前有效' : '已停用'}</StatusBadge>
-          </header>
           <nav className="warehouse-tabs" aria-label="库房管理内容">
             {([['purchase', '采购验收', undefined], ['requisition', '科室请领', undefined],
               ['transfer', '库间调拨', undefined], ['count', '库存盘点', undefined],
@@ -178,12 +167,12 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
             selectedId={selectedBinId} loading={bins.isPending} onSelect={setSelectedBinId}
             onAdd={(parentId) => setBinDialogParentId(parentId ?? null)} />}
           {tab === 'items' && <ItemSection items={items.data ?? []} loading={items.isPending}
-            onAdd={() => setItemDialogOpen(true)} onInspect={(id) => { setInventoryItemId(id); setTab('inventory') }} />}
+            onAdd={() => setItemDialogOpen(true)} onInspect={(id) => { setLedgerItemId(id); setTab('inventory') }} />}
           {tab === 'inventory' && <InventorySection api={api} siteId={siteId} items={items.data ?? []}
-            bins={bins.data ?? []} selectedItemId={inventoryItemId} onInspect={setInventoryItemId}
+            bins={bins.data ?? []} selectedItemId={ledgerItemId} onInspect={setLedgerItemId}
             loading={balances.isPending || transactions.isPending} balances={balances.data ?? []}
             transactions={transactions.data ?? []} onReceive={(itemId) => {
-              setInventoryItemId(itemId); setReceiptDialogOpen(true)
+              setReceiptItemId(itemId); setReceiptDialogOpen(true)
             }} />}
           {tab === 'trace' && <TraceCodeManagement api={api} siteId={siteId}
             items={items.data ?? []} bins={bins.data ?? []} />}
@@ -206,9 +195,9 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     {itemDialogOpen && selectedSite && <ItemDialog api={api} organizationId={organizationId} stockSiteType={selectedSite.siteType}
       existingItems={items.data ?? []} busy={createItems.isPending} error={createItems.error}
       onClose={() => { createItems.reset(); setItemDialogOpen(false) }} onSubmit={(input) => createItems.mutate(input)} />}
-    {receiptDialogOpen && selectedInventoryItem && <ReceiptDialog item={selectedInventoryItem} bins={bins.data ?? []}
+    {receiptDialogOpen && selectedReceiptItem && <ReceiptDialog item={selectedReceiptItem} bins={bins.data ?? []}
       busy={receive.isPending} error={receive.error}
-      onClose={() => { receive.reset(); setReceiptDialogOpen(false) }} onSubmit={(input) => receive.mutate(input)} />}
+      onClose={() => { receive.reset(); setReceiptDialogOpen(false); setReceiptItemId('') }} onSubmit={(input) => receive.mutate(input)} />}
   </>
 }
 
@@ -241,7 +230,7 @@ function ItemSection({ items, loading, onAdd, onInspect }: {
   items: StockItem[]; loading: boolean; onAdd: () => void; onInspect: (id: string) => void
 }) {
   return <section className="warehouse-section">
-    <header className="warehouse-section__toolbar"><div><strong>库房经营目录</strong><span>控制当前库房可收、可存、可发的药品包装</span></div>
+    <header className="warehouse-section__toolbar"><strong>库房经营目录</strong>
       <Button size="sm" onClick={onAdd}>批量调入</Button></header>
     {loading ? <LoadingState label="正在加载经营项目…" /> : !items.length
       ? <EmptyState icon="pharmacy" title="尚未配置经营项目" copy="从机构已启用的药品产品中批量选择包装调入当前科室。"
@@ -305,7 +294,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
   const normalizedQuery = query.trim().toLowerCase()
   const filtered = summaries.filter(summary => {
     const matchesQuery = !normalizedQuery || [summary.item.productName, summary.item.productCode,
-      summary.item.packageSpec, ...summary.balances.map(row => row.lotNo)]
+      summary.item.packageSpec, summary.item.manufacturerName, ...summary.balances.map(row => row.lotNo)]
       .some(value => value?.toLowerCase().includes(normalizedQuery))
     const matchesStock = stockFilter === 'ALL'
       || stockFilter === 'IN_STOCK' && summary.onHand !== 0
@@ -319,20 +308,21 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
   const expiringCount = summaries.reduce((sum, row) => sum + row.expiringLots, 0)
   const hasReceiveBin = bins.some(bin => bin.active && bin.receiveAllowed)
   return <section className="warehouse-section warehouse-inventory-list">
-    <header className="warehouse-inventory-toolbar"><div><strong>全库实时库存</strong>
-      <span>集中展示全部经营项目；逐条查看批次余额与完整账目变动</span></div></header>
     <div className="warehouse-inventory-filters">
-      <label className="warehouse-search"><span aria-hidden="true">⌕</span><input aria-label="搜索库存"
-        value={query} onChange={event => setQuery(event.target.value)} placeholder="搜索药品名称、编码或批号" /></label>
-      <Select value={stockFilter} onChange={setStockFilter} showValue options={[
-        { value: 'ALL', label: '全部库存' }, { value: 'IN_STOCK', label: '有库存' },
-        { value: 'ZERO', label: '零库存' }, { value: 'ATTENTION', label: '需关注' },
-      ]} />
+      <div className="warehouse-inventory-filters__left">
+        <SearchField label="搜索库存" value={query} onChange={setQuery} placeholder="搜索药品名称、编码或批号" />
+        <Select value={stockFilter} onChange={setStockFilter} showValue options={[
+          { value: 'ALL', label: '全部库存' }, { value: 'IN_STOCK', label: '有库存' },
+          { value: 'ZERO', label: '零库存' }, { value: 'ATTENTION', label: '需关注' },
+        ]} />
+      </div>
+      <div className="warehouse-metrics-inline">
+        <span className="warehouse-metric-chip">品种 <strong>{items.length}</strong></span>
+        <span className="warehouse-metric-chip">在库 <strong>{inStockCount}</strong></span>
+        <span className="warehouse-metric-chip">批次 <strong>{activeLotCount}</strong>{expiringCount > 0 && <small className="warehouse-metric-chip__warn">（临期 {expiringCount}）</small>}</span>
+        <span className="warehouse-metric-chip">本期记账 <strong>{transactions.length}</strong></span>
+      </div>
     </div>
-    <div className="warehouse-metrics"><div><span>经营品种</span><strong>{items.length}</strong><small>种</small></div>
-      <div><span>当前有库存</span><strong>{inStockCount}</strong><small>种</small></div>
-      <div><span>在库批次</span><strong>{activeLotCount}</strong><small>批 · 临期 {expiringCount}</small></div>
-      <div><span>本期记账流水</span><strong>{transactions.length}</strong><small>笔</small></div></div>
     {!items.length ? <EmptyState icon="pharmacy" title="没有可查询的经营项目" copy="请先维护库房经营项目。" />
       : loading ? <LoadingState label="正在汇总全库库存…" /> : !filtered.length
         ? <EmptyState icon="pharmacy" title="没有符合条件的库存" copy="请调整搜索词或库存状态筛选。" />
@@ -348,7 +338,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
               : summary.expiringLots > 0 ? <StatusBadge tone="warning">存在临期</StatusBadge>
                 : <StatusBadge tone="success">库存正常</StatusBadge>
           return <tr key={item.id}>
-            <td><strong>{item.productName}</strong><code>{item.productCode}</code><small>{item.packageSpec || item.packageUnitName}</small></td>
+            <td><strong>{item.productName}</strong><code>{item.productCode}</code><small>{[item.packageSpec || item.packageUnitName, item.manufacturerName].filter(Boolean).join(' · ')}</small></td>
             <td>{status}{summary.earliestExpiry && <small>最近效期 {summary.earliestExpiry}</small>}</td>
             <td><strong>{summary.activeLots} 批</strong><small>{summary.binCount} 个库位</small></td>
             <td><strong>{formatWarehouseQuantity(summary.onHand)} {item.baseUnitCode}</strong>
@@ -445,7 +435,7 @@ function ReceiptDialog({ item, bins, busy, error, onClose, onSubmit }: {
         lotNo: lotNo.trim(), expiryDate: expiryDate || undefined, operationQuantity: quantityValue,
         unitCost: costValue, sourceCode: sourceCode.trim(), description: description.trim() || undefined })}>确认入库</Button></>}>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
-    <div className="warehouse-receipt-product"><div><span>经营项目</span><strong>{item.productName}</strong><code>{item.productCode}</code></div>
+    <div className="warehouse-receipt-product"><div><span>经营项目</span><strong>{item.productName}</strong><code>{item.productCode}</code>{item.manufacturerName && <small>{item.manufacturerName}</small>}</div>
       <div><span>库存包装</span><strong>{item.packageSpec || item.packageUnitName}</strong><small>换算系数 {item.packageFactor}</small></div></div>
     <div className="warehouse-form-grid"><FormField label="收货库位" required><Select value={stockBinId}
       onChange={setStockBinId} showValue clearable={false} options={receivableBins.map((bin) => ({ value: bin.id,
