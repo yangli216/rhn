@@ -2578,7 +2578,7 @@
 .scheduling-mode-switch { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 2px; gap: 2px; box-shadow: var(--shadow-sm); }
 .scheduling-mode-btn { height: var(--control-height-sm); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1-5); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); white-space: nowrap; }
 .scheduling-mode-btn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface-subtle); }
-.scheduling-mode-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.scheduling-mode-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
 .scheduling-mode-btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; opacity: 0.6; }
 
 .quick-schedule-panel, .schedule-list-panel { margin-bottom: var(--space-4); overflow: hidden; }
@@ -2603,6 +2603,7 @@
 .schedule-list-panel__head > strong { color: var(--color-brand-primary); font-size: var(--font-size-h1); font-variant-numeric: tabular-nums; }
 .schedule-list-panel__head > strong small { margin-left: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
 .schedule-list { min-width: 72rem; }
+.schedule-list-scroll { max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; scrollbar-gutter: stable; }
 .schedule-list__head, .schedule-list article { min-height: 4.5rem; padding: 0 var(--space-5); display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(16rem, 1.2fr) minmax(8rem, .65fr) minmax(7rem, .5fr) 5.5rem minmax(12rem, .8fr); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
 .schedule-list__head { min-height: 2.75rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .schedule-list article:last-child { border-bottom: 0; }
@@ -2626,20 +2627,40 @@
 .professional-schedule-form input:focus, .professional-exception-list input:focus { outline: none; border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .professional-schedule-weekdays { grid-column: span 2; }
 .professional-schedule-weekdays button { min-width: 2.75rem; padding: 0 var(--space-2); flex: 1; }
-.professional-exceptions { margin: 0 var(--space-5) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: hidden; }
-.professional-exceptions > header { min-height: 4.25rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); background: var(--color-surface-subtle); }
+.professional-exceptions { max-height: 36rem; margin: 0 var(--space-5) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable both-edges; }
+.professional-exceptions > header { position: sticky; z-index: 2; top: 0; min-width: 68rem; min-height: 4.25rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); background: var(--color-surface-subtle); }
 .professional-exceptions h3 { margin: 0; font-size: var(--font-size-body); }
 .professional-exceptions p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .professional-exceptions__empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.professional-exception-list { display: grid; }
+.professional-exception-list { min-width: 68rem; display: grid; }
 .professional-exception-list > div { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: repeat(6, minmax(7rem, 1fr)) auto; align-items: end; gap: var(--space-3); border-top: 1px solid var(--color-border); }
 .professional-exception-list .ui-field { min-width: 0; margin: 0; }
 .professional-template-panel__head > strong { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
 .professional-template-panel__head > strong small { margin-left: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.professional-template-list-scroll { max-height: 30rem; max-width: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.professional-template-list { min-width: 64rem; }
 .professional-template-list article { min-height: 4.5rem; padding: 0 var(--space-5); display: grid; grid-template-columns: minmax(16rem, 1.2fr) minmax(13rem, 1fr) minmax(18rem, 1.2fr) auto; align-items: center; gap: var(--space-4); border-top: 1px solid var(--color-border); }
 .professional-template-list article > div { min-width: 0; }
 .professional-template-list strong, .professional-template-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .professional-template-list small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+.registration-fee-maintenance-panel { margin-bottom: var(--space-4); overflow: hidden; }
+.registration-fee-maintenance-panel__head { min-height: 5.75rem; padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.registration-fee-maintenance-panel__head h2 { margin: var(--space-1) 0; }
+.registration-fee-maintenance-panel__head p { max-width: 56rem; margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-fee-list-scroll { max-height: 28rem; max-width: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.registration-fee-list { min-width: 66rem; }
+.registration-fee-list__head, .registration-fee-list article { min-height: 4rem; padding: 0 var(--space-5); display: grid; grid-template-columns: minmax(16rem, 1.4fr) minmax(8rem, .7fr) minmax(13rem, 1fr) minmax(14rem, 1fr) 6rem; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.registration-fee-list__head { position: sticky; z-index: 1; top: 0; min-height: 2.75rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.registration-fee-list article:last-child { border-bottom: 0; }
+.registration-fee-list article > div { min-width: 0; }
+.registration-fee-list article small { display: block; margin-top: var(--space-1); color: var(--color-text-secondary); }
+.registration-fee-list article > span { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.registration-fee-list .is-missing { color: var(--color-danger); }
+.registration-fee-maintenance-panel__note { padding: var(--space-3) var(--space-5); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
+.registration-fee-edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.registration-fee-edit-form .ui-field { min-width: 0; margin: 0; }
+.registration-fee-edit-form input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
 
 /* Window registration focuses on resident lookup and schedule selection; the registration ledger has its own query page. */
 .registration-metrics { margin-bottom: var(--space-4); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
@@ -3196,6 +3217,8 @@
   .quick-schedule-form, .professional-schedule-form { grid-template-columns: 1fr; }
   .professional-schedule-weekdays { grid-column: auto; }
   .professional-exception-list > div, .professional-template-list article { grid-template-columns: 1fr; }
+  .professional-exceptions > header, .professional-exception-list, .professional-template-list { min-width: 0; }
+  .registration-fee-edit-form { grid-template-columns: 1fr; }
   .quick-schedule-field { grid-column: auto; }
   .registration-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .registration-workspace { grid-template-columns: 1fr; }

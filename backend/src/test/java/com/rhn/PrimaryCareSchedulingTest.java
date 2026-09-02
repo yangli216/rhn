@@ -154,6 +154,48 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
     }
 
+    @Test
+    void department_scoped_inventory_does_not_require_a_practitioner() throws Exception {
+        LocalDate monday = LocalDate.now().with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY)).plusWeeks(3);
+        String command = "test-department-schedule-" + GlobalIds.next();
+        String body = """
+                {
+                  "registrationScope":"DEPARTMENT",
+                  "catalogItemId":"362387869795104",
+                  "dateFrom":"%s",
+                  "dateTo":"%s",
+                  "weekdays":[1],
+                  "dayParts":["MORNING"],
+                  "morningStart":"08:00",
+                  "morningEnd":"12:00",
+                  "afternoonStart":"14:00",
+                  "afternoonEnd":"17:00",
+                  "capacity":50,
+                  "locationName":"全科普通门诊",
+                  "idempotencyCode":"%s"
+                }
+                """.formatted(monday, monday, command);
+
+        String response = mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.generatedCount").value(1))
+                .andExpect(jsonPath("$.schedules[0].sdRegistrationScope").value("DEPARTMENT"))
+                .andExpect(jsonPath("$.schedules[0].sdRegistrationScopeText").value("科室号"))
+                .andExpect(jsonPath("$.schedules[0].practitionerId").doesNotExist())
+                .andExpect(jsonPath("$.schedules[0].feeConfigured").value(true))
+                .andExpect(jsonPath("$.schedules[0].registrationFee").value(10.0))
+                .andReturn().getResponse().getContentAsString();
+
+        Long scheduleId = Long.valueOf(json(response).at("/schedules/0/id").asText());
+        assertEquals("DEPARTMENT", jdbcTemplate.queryForObject(
+                "select registration_scope from service_schedules where tenant_id = ? and id = ?",
+                String.class, Long.valueOf(TENANT), scheduleId));
+        assertEquals(0, jdbcTemplate.queryForObject(
+                "select count(*) from service_schedules where id = ? and practitioner_id is not null",
+                Integer.class, scheduleId));
+    }
+
     private org.springframework.test.web.servlet.ResultActions performAction(
             String scheduleId, String action, String reason) throws Exception {
         String body = """

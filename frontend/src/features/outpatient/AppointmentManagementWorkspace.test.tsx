@@ -29,6 +29,8 @@ const schedule: ServiceSchedule = {
   frozenCount: 0, availableCount: 19, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
   sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', sdBookingPolicy: 'SHARED',
   sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
+  sdRegistrationScope: 'PRACTITIONER', sdRegistrationScopeText: '医生号',
+  feeCurrencyCode: 'CNY', feeConfigured: true,
 }
 
 const definitions: Record<string, SystemEnumDefinition> = {

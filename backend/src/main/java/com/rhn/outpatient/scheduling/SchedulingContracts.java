@@ -19,7 +19,8 @@ final class SchedulingContracts {
     private SchedulingContracts() {}
 
     record QuickScheduleRequest(
-            @NotNull Long practitionerId,
+            ScheduleRegistrationScope registrationScope,
+            Long practitionerId,
             @NotNull Long catalogItemId,
             @NotNull LocalDate dateFrom,
             @NotNull LocalDate dateTo,
@@ -54,6 +55,7 @@ final class SchedulingContracts {
             @DictionaryBinding("SC_SCHEDULE_DAY_PART") String sdDayPart,
             Instant startAt,
             Instant endAt,
+            @DictionaryBinding("SC_REGISTRATION_SCOPE") String sdRegistrationScope,
             Long practitionerId,
             String practitionerName,
             Long catalogItemId,
@@ -68,7 +70,11 @@ final class SchedulingContracts {
             @DictionaryBinding("SC_SCHEDULE_STATUS") String sdStatus,
             @DictionaryBinding("SC_SCHEDULE_MANAGEMENT_MODE") String sdManagementMode,
             @DictionaryBinding("SC_BOOKING_POLICY") String sdBookingPolicy,
-            @DictionaryBinding("SC_SLOT_MODE") String sdSlotMode
+            @DictionaryBinding("SC_SLOT_MODE") String sdSlotMode,
+            java.math.BigDecimal registrationFee,
+            String feeCurrencyCode,
+            boolean feeConfigured,
+            String feePriceDocumentCode
     ) {}
 
     record QuickScheduleResult(
@@ -96,7 +102,8 @@ final class SchedulingContracts {
 
     record ProfessionalScheduleRequest(
             @NotBlank @Size(max = 200) String templateName,
-            @NotNull Long practitionerId,
+            ScheduleRegistrationScope registrationScope,
+            Long practitionerId,
             @NotNull Long catalogItemId,
             @NotNull LocalDate dateFrom,
             @NotNull LocalDate dateTo,
@@ -145,6 +152,7 @@ final class SchedulingContracts {
             Long id,
             String templateCode,
             String templateName,
+            @DictionaryBinding("SC_REGISTRATION_SCOPE") String sdRegistrationScope,
             Long practitionerId,
             String practitionerName,
             Long catalogItemId,

@@ -4,7 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { age, formatTime, genderLabel } from '../../shared/format'
 import type { Resident } from '../../shared/model'
 import type {
-  CreateResidentInput, ResidentProfile, UpdateResidentProfileInput,
+  CreateResidentInput, ResidentIdentifierInput, ResidentProfile, UpdateResidentProfileInput,
 } from '../../shared/api/residentsApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {

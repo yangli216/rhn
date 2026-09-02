@@ -23,8 +23,10 @@ class ServiceResource {
     @Column(name = "tenant_id", nullable = false) private Long tenantId;
     @Column(name = "organization_id", nullable = false) private Long organizationId;
     @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "practitioner_id", nullable = false) private Long practitionerId;
-    @Column(name = "assignment_id", nullable = false) private Long assignmentId;
+    @Column(name = "resource_type", nullable = false) private String resourceType;
+    @Column(name = "resource_key", nullable = false) private String resourceKey;
+    @Column(name = "practitioner_id") private Long practitionerId;
+    @Column(name = "assignment_id") private Long assignmentId;
     @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
     @Column(name = "resource_code", nullable = false) private String resourceCode;
     @Column(name = "resource_name", nullable = false) private String resourceName;
@@ -38,18 +40,21 @@ class ServiceResource {
 
     protected ServiceResource() {}
 
-    ServiceResource(Long tenantId, Long organizationId, Long departmentId, Long practitionerId,
-                    Long assignmentId, Long catalogItemId, String practitionerName,
+    ServiceResource(Long tenantId, Long organizationId, Long departmentId, ScheduleRegistrationScope scope,
+                    Long practitionerId, Long assignmentId, Long catalogItemId, String ownerName,
                     String serviceCode, String serviceName, Long actorId) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
         this.organizationId = organizationId;
         this.departmentId = departmentId;
+        this.resourceType = scope.name();
+        this.resourceKey = scope == ScheduleRegistrationScope.DEPARTMENT
+                ? "DEPARTMENT:" + departmentId : "PRACTITIONER:" + practitionerId;
         this.practitionerId = practitionerId;
         this.assignmentId = assignmentId;
         this.catalogItemId = catalogItemId;
         this.resourceCode = "SR-" + id;
-        this.resourceName = practitionerName + " · " + serviceName;
+        this.resourceName = ownerName + " · " + serviceName;
         this.serviceCodeSnapshot = serviceCode;
         this.serviceNameSnapshot = serviceName;
         this.status = "ACTIVE";
@@ -59,9 +64,9 @@ class ServiceResource {
         this.updatedBy = actorId;
     }
 
-    void refresh(Long assignmentId, String practitionerName, String serviceCode, String serviceName, Long actorId) {
+    void refresh(Long assignmentId, String ownerName, String serviceCode, String serviceName, Long actorId) {
         this.assignmentId = assignmentId;
-        this.resourceName = practitionerName + " · " + serviceName;
+        this.resourceName = ownerName + " · " + serviceName;
         this.serviceCodeSnapshot = serviceCode;
         this.serviceNameSnapshot = serviceName;
         this.status = "ACTIVE";
@@ -73,6 +78,8 @@ class ServiceResource {
     Long tenantId() { return tenantId; }
     Long organizationId() { return organizationId; }
     Long departmentId() { return departmentId; }
+    String resourceType() { return resourceType; }
+    String resourceKey() { return resourceKey; }
     Long practitionerId() { return practitionerId; }
     Long assignmentId() { return assignmentId; }
     Long catalogItemId() { return catalogItemId; }
@@ -300,15 +307,16 @@ class ServiceSchedule {
     @Column(name = "generation_run_id", nullable = false) private Long generationRunId;
     @Column(name = "organization_id", nullable = false) private Long organizationId;
     @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "practitioner_id", nullable = false) private Long practitionerId;
-    @Column(name = "assignment_id", nullable = false) private Long assignmentId;
+    @Column(name = "registration_scope", nullable = false) private String registrationScope;
+    @Column(name = "practitioner_id") private Long practitionerId;
+    @Column(name = "assignment_id") private Long assignmentId;
     @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
     @Column(name = "schedule_code", nullable = false) private String scheduleCode;
     @Column(name = "management_mode", nullable = false) private String managementMode;
     @Column(name = "schedule_type", nullable = false) private String scheduleType;
     @Column(name = "booking_policy", nullable = false) private String bookingPolicy;
     @Column(name = "day_part", nullable = false) private String dayPart;
-    @Column(name = "practitioner_name_snapshot", nullable = false) private String practitionerNameSnapshot;
+    @Column(name = "practitioner_name_snapshot") private String practitionerNameSnapshot;
     @Column(name = "service_code_snapshot", nullable = false) private String serviceCodeSnapshot;
     @Column(name = "service_name_snapshot", nullable = false) private String serviceNameSnapshot;
     @Column(name = "location_name") private String locationName;
@@ -352,6 +360,8 @@ class ServiceSchedule {
         this.generationRunId = generationRunId;
         this.organizationId = organizationId;
         this.departmentId = departmentId;
+        this.registrationScope = practitionerId == null
+                ? ScheduleRegistrationScope.DEPARTMENT.name() : ScheduleRegistrationScope.PRACTITIONER.name();
         this.practitionerId = practitionerId;
         this.assignmentId = assignmentId;
         this.catalogItemId = catalogItemId;
@@ -385,6 +395,7 @@ class ServiceSchedule {
     String dayPart() { return dayPart; }
     Instant startAt() { return startAt; }
     Instant endAt() { return endAt; }
+    String registrationScope() { return registrationScope; }
     Long practitionerId() { return practitionerId; }
     String practitionerName() { return practitionerNameSnapshot; }
     Long catalogItemId() { return catalogItemId; }

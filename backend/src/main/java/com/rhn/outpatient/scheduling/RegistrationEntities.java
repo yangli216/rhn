@@ -29,8 +29,8 @@ class Appointment {
     @Column(nullable = false) private String status;
     @Column(name = "service_code", nullable = false) private String serviceCode;
     @Column(name = "service_name_snapshot", nullable = false) private String serviceNameSnapshot;
-    @Column(name = "practitioner_id", nullable = false) private Long practitionerId;
-    @Column(name = "practitioner_name_snapshot", nullable = false) private String practitionerNameSnapshot;
+    @Column(name = "practitioner_id") private Long practitionerId;
+    @Column(name = "practitioner_name_snapshot") private String practitionerNameSnapshot;
     @Column(name = "start_at", nullable = false) private Instant startAt;
     @Column(name = "end_at", nullable = false) private Instant endAt;
     @Column(nullable = false) private int quantity;

@@ -15,8 +15,8 @@ import java.util.Optional;
 interface ServiceResourceRepository extends JpaRepository<ServiceResource, Long> {
     Optional<ServiceResource> findByIdAndTenantId(Long id, Long tenantId);
 
-    Optional<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
-            Long tenantId, Long organizationId, Long departmentId, Long practitionerId, Long catalogItemId);
+    Optional<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentIdAndResourceKeyAndCatalogItemId(
+            Long tenantId, Long organizationId, Long departmentId, String resourceKey, Long catalogItemId);
 
     List<ServiceResource> findByTenantIdAndOrganizationIdAndDepartmentId(
             Long tenantId, Long organizationId, Long departmentId);

@@ -3,6 +3,7 @@ import type { ApiClient } from './httpClient'
 export type ScheduleDayPart = 'MORNING' | 'AFTERNOON' | 'EVENING' | 'CUSTOM'
 export type ProfessionalSlotMode = 'POOL' | 'TIMED'
 export type ScheduleExceptionType = 'CLOSED' | 'OVERRIDE'
+export type ScheduleRegistrationScope = 'DEPARTMENT' | 'PRACTITIONER'
 
 export const SCHEDULING_SYSTEM_ENUM = {
   visitType: 'SC_VISIT_TYPE',
@@ -27,8 +28,10 @@ export interface ServiceSchedule {
   sdDayPartText: string
   startAt: string
   endAt: string
-  practitionerId: string
-  practitionerName: string
+  sdRegistrationScope: ScheduleRegistrationScope
+  sdRegistrationScopeText: string
+  practitionerId?: string
+  practitionerName?: string
   catalogItemId: string
   serviceCode: string
   serviceName: string
@@ -46,10 +49,15 @@ export interface ServiceSchedule {
   sdBookingPolicyText: string
   sdSlotMode: 'POOL' | 'TIMED'
   sdSlotModeText: string
+  registrationFee?: number
+  feeCurrencyCode: string
+  feeConfigured: boolean
+  feePriceDocumentCode?: string
 }
 
 export interface QuickScheduleInput {
-  practitionerId: string
+  registrationScope: ScheduleRegistrationScope
+  practitionerId?: string
   catalogItemId: string
   dateFrom: string
   dateTo: string
@@ -84,7 +92,8 @@ export interface ProfessionalScheduleExceptionInput {
 
 export interface ProfessionalScheduleInput {
   templateName: string
-  practitionerId: string
+  registrationScope: ScheduleRegistrationScope
+  practitionerId?: string
   catalogItemId: string
   dateFrom: string
   dateTo: string
@@ -124,7 +133,9 @@ export interface ProfessionalTemplate {
   id: string
   templateCode: string
   templateName: string
-  practitionerId: string
+  sdRegistrationScope: ScheduleRegistrationScope
+  sdRegistrationScopeText: string
+  practitionerId?: string
   practitionerName: string
   catalogItemId: string
   serviceCode: string

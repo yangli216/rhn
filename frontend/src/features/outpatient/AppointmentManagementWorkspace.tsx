@@ -214,9 +214,9 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
   </>
 }
 
-function scheduleOptions(values: Array<{ id: string; startAt: string; practitionerName: string; serviceName: string; availableCount: number }>) {
+function scheduleOptions(values: Array<{ id: string; startAt: string; practitionerName?: string; serviceName: string; availableCount: number }>) {
   return values.map((value) => ({ value: value.id,
-    label: `${dateTime(value.startAt)} · ${value.practitionerName} · ${value.serviceName}（余 ${value.availableCount}）` }))
+    label: `${dateTime(value.startAt)} · ${value.practitionerName || '普通门诊'} · ${value.serviceName}（余 ${value.availableCount}）` }))
 }
 
 function CreateAppointmentDialog({ api, schedules, sourceOptions, busy, error, onClose, onSubmit }: {

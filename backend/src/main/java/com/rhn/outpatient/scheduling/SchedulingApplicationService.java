@@ -17,6 +17,7 @@ import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplatePer
 import com.rhn.outpatient.scheduling.SchedulingContracts.ProfessionalTemplateView;
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
 import com.rhn.platform.configuration.api.ConfigurationValue;
+import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory;
 import com.rhn.platform.masterdata.api.ServiceCatalogDirectory.ServiceCatalogSnapshot;
 import com.rhn.platform.organization.api.OrganizationDirectory;
@@ -32,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -67,6 +69,7 @@ class SchedulingApplicationService {
     private final SlotEventRepository slotEventRepository;
     private final OrganizationDirectory organizationDirectory;
     private final ServiceCatalogDirectory serviceCatalogDirectory;
+    private final CatalogLifecycleDirectory catalogLifecycleDirectory;
     private final ConfigurationDirectory configurationDirectory;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
@@ -82,6 +85,7 @@ class SchedulingApplicationService {
                                  SlotEventRepository slotEventRepository,
                                  OrganizationDirectory organizationDirectory,
                                  ServiceCatalogDirectory serviceCatalogDirectory,
+                                 CatalogLifecycleDirectory catalogLifecycleDirectory,
                                  ConfigurationDirectory configurationDirectory,
                                  ExecutionContextProvider contextProvider,
                                  JsonCodec jsonCodec) {
@@ -96,6 +100,7 @@ class SchedulingApplicationService {
         this.slotEventRepository = slotEventRepository;
         this.organizationDirectory = organizationDirectory;
         this.serviceCatalogDirectory = serviceCatalogDirectory;
+        this.catalogLifecycleDirectory = catalogLifecycleDirectory;
         this.configurationDirectory = configurationDirectory;
         this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
@@ -142,8 +147,15 @@ class SchedulingApplicationService {
                     toViews(context.tenantId(), existing));
         }
 
-        StaffDetailView staff = organizationDirectory.requireStaff(context.tenantId(), request.practitionerId());
-        StaffAssignmentView assignment = assignmentFor(context, staff, request.dateFrom(), request.dateTo());
+        ScheduleRegistrationScope registrationScope = registrationScope(request.registrationScope(), request.practitionerId());
+        boolean practitionerScoped = registrationScope == ScheduleRegistrationScope.PRACTITIONER;
+        StaffDetailView staff = practitionerScoped
+                ? organizationDirectory.requireStaff(context.tenantId(), request.practitionerId()) : null;
+        StaffAssignmentView assignment = practitionerScoped
+                ? assignmentFor(context, staff, request.dateFrom(), request.dateTo()) : null;
+        String ownerName = practitionerScoped ? staff.practitioner().fullName()
+                : organizationDirectory.requireDepartment(context.tenantId(), context.organizationId(),
+                        context.departmentId()).name();
         ServiceCatalogSnapshot service = serviceCatalogDirectory.requireSchedulableOutpatientService(
                 context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateFrom());
         serviceCatalogDirectory.requireSchedulableOutpatientService(
@@ -154,17 +166,20 @@ class SchedulingApplicationService {
         String locationName = StrUtil.isBlank(request.locationName()) ? null : request.locationName().trim();
 
         ServiceResource resource = resourceRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
+                .findByTenantIdAndOrganizationIdAndDepartmentIdAndResourceKeyAndCatalogItemId(
                         context.tenantId(), context.organizationId(), context.departmentId(),
-                        request.practitionerId(), request.catalogItemId())
+                        resourceKey(registrationScope, context.departmentId(), request.practitionerId()),
+                        request.catalogItemId())
                 .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
-                        context.departmentId(), request.practitionerId(), assignment.id(), request.catalogItemId(),
-                        staff.practitioner().fullName(), service.code(), service.name(), context.subjectId()));
-        resource.refresh(assignment.id(), staff.practitioner().fullName(), service.code(), service.name(), context.subjectId());
+                        context.departmentId(), registrationScope, request.practitionerId(),
+                        assignment == null ? null : assignment.id(), request.catalogItemId(), ownerName,
+                        service.code(), service.name(), context.subjectId()));
+        resource.refresh(assignment == null ? null : assignment.id(), ownerName, service.code(), service.name(),
+                context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
         ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
-                resource.id(), staff.practitioner().fullName() + "简易门诊排班", timezoneCode,
+                resource.id(), ownerName + "简易门诊排班", timezoneCode,
                 request.dateFrom(), request.dateTo(), context.subjectId()));
         List<ScheduleTemplatePeriod> periods = buildPeriods(context.tenantId(), template.id(), request);
         periodRepository.saveAllAndFlush(periods);
@@ -184,11 +199,11 @@ class SchedulingApplicationService {
                         .findFirst().orElseThrow();
                 Instant startAt = date.atTime(toTime(period.minuteStart())).atZone(zoneId).toInstant();
                 Instant endAt = date.atTime(toTime(period.minuteEnd())).atZone(zoneId).toInstant();
-                boolean overlaps = scheduleRepository.countPractitionerOverlaps(context.tenantId(),
+                boolean overlaps = practitionerScoped && (scheduleRepository.countPractitionerOverlaps(context.tenantId(),
                         request.practitionerId(), date, 0L, startAt, endAt) > 0
                         || generated.stream().anyMatch(value -> value.serviceDate().equals(serviceDate)
                         && value.practitionerId().equals(request.practitionerId())
-                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt));
+                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt)));
                 if (overlaps || scheduleRepository.existsByTenantIdAndResourceIdAndStartAtAndEndAt(
                         context.tenantId(), resource.id(), startAt, endAt)) {
                     skipped++;
@@ -196,7 +211,8 @@ class SchedulingApplicationService {
                 }
                 generated.add(new ServiceSchedule(context.tenantId(), resource.id(), template.id(), period.id(),
                         run.id(), context.organizationId(), context.departmentId(), request.practitionerId(),
-                        assignment.id(), request.catalogItemId(), dayPart, staff.practitioner().fullName(),
+                        assignment == null ? null : assignment.id(), request.catalogItemId(), dayPart,
+                        practitionerScoped ? ownerName : null,
                         service.code(), service.name(), locationName, timezoneCode, date, startAt, endAt,
                         request.capacity(), context.subjectId()));
             }
@@ -262,8 +278,15 @@ class SchedulingApplicationService {
                     toViews(context.tenantId(), existing));
         }
 
-        StaffDetailView staff = organizationDirectory.requireStaff(context.tenantId(), request.practitionerId());
-        StaffAssignmentView assignment = assignmentFor(context, staff, request.dateFrom(), request.dateTo());
+        ScheduleRegistrationScope registrationScope = registrationScope(request.registrationScope(), request.practitionerId());
+        boolean practitionerScoped = registrationScope == ScheduleRegistrationScope.PRACTITIONER;
+        StaffDetailView staff = practitionerScoped
+                ? organizationDirectory.requireStaff(context.tenantId(), request.practitionerId()) : null;
+        StaffAssignmentView assignment = practitionerScoped
+                ? assignmentFor(context, staff, request.dateFrom(), request.dateTo()) : null;
+        String ownerName = practitionerScoped ? staff.practitioner().fullName()
+                : organizationDirectory.requireDepartment(context.tenantId(), context.organizationId(),
+                        context.departmentId()).name();
         ServiceCatalogSnapshot service = serviceCatalogDirectory.requireSchedulableOutpatientService(
                 context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateFrom());
         serviceCatalogDirectory.requireSchedulableOutpatientService(
@@ -274,13 +297,16 @@ class SchedulingApplicationService {
         String locationName = StrUtil.isBlank(request.locationName()) ? null : request.locationName().trim();
 
         ServiceResource resource = resourceRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndPractitionerIdAndCatalogItemId(
+                .findByTenantIdAndOrganizationIdAndDepartmentIdAndResourceKeyAndCatalogItemId(
                         context.tenantId(), context.organizationId(), context.departmentId(),
-                        request.practitionerId(), request.catalogItemId())
+                        resourceKey(registrationScope, context.departmentId(), request.practitionerId()),
+                        request.catalogItemId())
                 .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
-                        context.departmentId(), request.practitionerId(), assignment.id(), request.catalogItemId(),
-                        staff.practitioner().fullName(), service.code(), service.name(), context.subjectId()));
-        resource.refresh(assignment.id(), staff.practitioner().fullName(), service.code(), service.name(), context.subjectId());
+                        context.departmentId(), registrationScope, request.practitionerId(),
+                        assignment == null ? null : assignment.id(), request.catalogItemId(), ownerName,
+                        service.code(), service.name(), context.subjectId()));
+        resource.refresh(assignment == null ? null : assignment.id(), ownerName, service.code(), service.name(),
+                context.subjectId());
         resourceRepository.saveAndFlush(resource);
 
         ScheduleTemplate template = templateRepository.saveAndFlush(new ScheduleTemplate(context.tenantId(),
@@ -327,11 +353,11 @@ class SchedulingApplicationService {
             for (int[] window : windows) {
                 Instant startAt = date.atTime(toTime(window[0])).atZone(zoneId).toInstant();
                 Instant endAt = date.atTime(toTime(window[1])).atZone(zoneId).toInstant();
-                boolean overlaps = scheduleRepository.countPractitionerOverlaps(context.tenantId(),
+                boolean overlaps = practitionerScoped && (scheduleRepository.countPractitionerOverlaps(context.tenantId(),
                         request.practitionerId(), date, 0L, startAt, endAt) > 0
                         || generated.stream().anyMatch(value -> value.serviceDate().equals(serviceDate)
                         && value.practitionerId().equals(request.practitionerId())
-                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt));
+                        && value.startAt().isBefore(endAt) && value.endAt().isAfter(startAt)));
                 if (overlaps || scheduleRepository.existsByTenantIdAndResourceIdAndStartAtAndEndAt(
                         context.tenantId(), resource.id(), startAt, endAt)) {
                     skipped++;
@@ -339,8 +365,9 @@ class SchedulingApplicationService {
                 }
                 generated.add(new ServiceSchedule(context.tenantId(), resource.id(), template.id(), sourcePeriod.id(),
                         run.id(), context.organizationId(), context.departmentId(), request.practitionerId(),
-                        assignment.id(), request.catalogItemId(), dayPart(toTime(window[0]), toTime(window[1])),
-                        staff.practitioner().fullName(), service.code(), service.name(), locationName, timezoneCode,
+                        assignment == null ? null : assignment.id(), request.catalogItemId(),
+                        dayPart(toTime(window[0]), toTime(window[1])), practitionerScoped ? ownerName : null,
+                        service.code(), service.name(), locationName, timezoneCode,
                         date, startAt, endAt, capacity, ScheduleManagementMode.PROFESSIONAL, "SHARED",
                         context.subjectId()));
             }
@@ -391,7 +418,8 @@ class SchedulingApplicationService {
         ZoneId zoneId = ZoneId.of(schedule.timezoneCode());
         Instant startAt = schedule.serviceDate().atTime(request.startTime()).atZone(zoneId).toInstant();
         Instant endAt = schedule.serviceDate().atTime(request.endTime()).atZone(zoneId).toInstant();
-        if (scheduleRepository.countPractitionerOverlaps(context.tenantId(), schedule.practitionerId(),
+        if (ScheduleRegistrationScope.PRACTITIONER.name().equals(schedule.registrationScope())
+                && scheduleRepository.countPractitionerOverlaps(context.tenantId(), schedule.practitionerId(),
                 schedule.serviceDate(), schedule.id(), startAt, endAt) > 0) {
             throw conflict("SCHEDULE_PRACTITIONER_TIME_OVERLAP", "所选医生在该时间段已有其他排班");
         }
@@ -485,13 +513,16 @@ class SchedulingApplicationService {
                         value.minuteEnd() == null ? null : toTime(value.minuteEnd()), value.capacity(),
                         value.slotMinutes(), value.reason()))
                 .toList();
+        String ownerName = ScheduleRegistrationScope.PRACTITIONER.name().equals(resource.resourceType())
+                ? organizationDirectory.requireStaff(tenantId, resource.practitionerId()).practitioner().fullName()
+                : organizationDirectory.requireDepartment(tenantId, resource.organizationId(), resource.departmentId()).name();
         return new ProfessionalTemplateView(template.id(), template.templateCode(), template.templateName(),
-                resource.practitionerId(), organizationDirectory.requireStaff(tenantId, resource.practitionerId())
-                        .practitioner().fullName(), resource.catalogItemId(), resource.serviceCode(),
+                resource.resourceType(), resource.practitionerId(), ownerName, resource.catalogItemId(), resource.serviceCode(),
                 resource.serviceName(), template.validFrom(), template.validTo(), template.status(), periods, exceptions);
     }
 
     private void requireProfessionalRequest(ProfessionalScheduleRequest request) {
+        requireRegistrationScope(request.registrationScope(), request.practitionerId());
         requireDateRange(request.dateFrom(), request.dateTo(), true);
         if (!request.endTime().isAfter(request.startTime())) {
             throw badRequest("PROFESSIONAL_SCHEDULE_TIME_INVALID", "专业排班结束时间必须晚于开始时间");
@@ -594,6 +625,7 @@ class SchedulingApplicationService {
     }
 
     private void requireQuickRequest(QuickScheduleRequest request) {
+        requireRegistrationScope(request.registrationScope(), request.practitionerId());
         requireDateRange(request.dateFrom(), request.dateTo(), true);
         if (!Set.of(ScheduleDayPart.MORNING, ScheduleDayPart.AFTERNOON).containsAll(request.dayParts())) {
             throw badRequest("SIMPLE_SCHEDULE_DAY_PART_INVALID", "简易排班只需选择上午或下午");
@@ -647,16 +679,54 @@ class SchedulingApplicationService {
         List<Long> ids = schedules.stream().map(ServiceSchedule::id).toList();
         Map<Long, ScheduleSlotPool> pools = poolRepository.findByTenantIdAndScheduleIdIn(tenantId, ids).stream()
                 .collect(Collectors.toMap(ScheduleSlotPool::scheduleId, Function.identity()));
+        Map<FeeKey, FeeSnapshot> fees = new java.util.HashMap<>();
         return schedules.stream().map(schedule -> {
             ScheduleSlotPool pool = pools.get(schedule.id());
             int available = pool.totalCount() - pool.heldCount() - pool.occupiedCount() - pool.frozenCount();
+            FeeSnapshot fee = fees.computeIfAbsent(new FeeKey(schedule.organizationId(), schedule.catalogItemId(),
+                    schedule.serviceDate()), key -> feeSnapshot(tenantId, key));
             return new ScheduleView(schedule.id(), schedule.scheduleCode(), schedule.serviceDate(), schedule.dayPart(),
-                    schedule.startAt(), schedule.endAt(), schedule.practitionerId(), schedule.practitionerName(),
+                    schedule.startAt(), schedule.endAt(), schedule.registrationScope(), schedule.practitionerId(),
+                    schedule.practitionerName(),
                     schedule.catalogItemId(), schedule.serviceCode(), schedule.serviceName(), schedule.locationName(),
                     pool.totalCount(), pool.heldCount(), pool.occupiedCount(), pool.frozenCount(), available,
-                    schedule.status(), schedule.managementMode(), schedule.bookingPolicy(), pool.slotMode());
+                    schedule.status(), schedule.managementMode(), schedule.bookingPolicy(), pool.slotMode(),
+                    fee.amount(), fee.currencyCode(), fee.configured(), fee.priceDocumentCode());
         }).toList();
     }
+
+    private FeeSnapshot feeSnapshot(Long tenantId, FeeKey key) {
+        var resolved = catalogLifecycleDirectory.resolve(tenantId, key.catalogItemId(), key.organizationId(), null,
+                "SALE", key.businessDate());
+        if (!resolved.item().chargeable()) return new FeeSnapshot(BigDecimal.ZERO, "CNY", true, null);
+        if (resolved.price() == null) return new FeeSnapshot(null, "CNY", false, null);
+        return new FeeSnapshot(resolved.price().price(), resolved.price().currencyCode(), true,
+                resolved.price().priceDocumentCode());
+    }
+
+    private void requireRegistrationScope(ScheduleRegistrationScope scope, Long practitionerId) {
+        scope = registrationScope(scope, practitionerId);
+        if (scope == ScheduleRegistrationScope.PRACTITIONER && practitionerId == null) {
+            throw badRequest("SCHEDULE_PRACTITIONER_REQUIRED", "按医生挂号时必须选择出诊医生");
+        }
+        if (scope == ScheduleRegistrationScope.DEPARTMENT && practitionerId != null) {
+            throw badRequest("SCHEDULE_DEPARTMENT_SCOPE_INVALID", "按科室挂号时无需指定出诊医生");
+        }
+    }
+
+    private ScheduleRegistrationScope registrationScope(ScheduleRegistrationScope scope, Long practitionerId) {
+        return scope == null && practitionerId != null ? ScheduleRegistrationScope.PRACTITIONER
+                : scope == null ? ScheduleRegistrationScope.DEPARTMENT : scope;
+    }
+
+    private String resourceKey(ScheduleRegistrationScope scope, Long departmentId, Long practitionerId) {
+        return scope == ScheduleRegistrationScope.DEPARTMENT
+                ? "DEPARTMENT:" + departmentId : "PRACTITIONER:" + practitionerId;
+    }
+
+    private record FeeKey(Long organizationId, Long catalogItemId, LocalDate businessDate) {}
+    private record FeeSnapshot(BigDecimal amount, String currencyCode, boolean configured,
+                               String priceDocumentCode) {}
 
     private ScheduleView toView(Long tenantId, ServiceSchedule schedule) {
         return toViews(tenantId, List.of(schedule)).getFirst();

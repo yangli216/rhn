@@ -100,12 +100,9 @@ function getClinicTypeBadge(item: ServiceSchedule) {
 }
 
 function getScheduleBaseFee(item?: ServiceSchedule, visitType?: string) {
-  if (visitType === 'EMERGENCY') return 20.0
-  if (!item) return 15.0
-  const text = (item.serviceName + ' ' + (item.practitionerName ?? '') + ' ' + (item.serviceCode ?? '')).toLowerCase()
-  if (text.includes('名老中医') || text.includes('名医') || text.includes('tcm-exp')) return 30.0
-  if (text.includes('主任医师') || text.includes('im-exp') || text.includes('专家')) return 25.0
-  return 15.0
+  void visitType
+  if (!item || !item.feeConfigured) return 0
+  return item.registrationFee ?? 0
 }
 
 const PAYMENT_METHOD_NAMES: Record<string, string> = {
@@ -216,7 +213,7 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
   paymentMethodName?: string
   onClose: () => void
 }) {
-  const breakdown = feeBreakdown ?? { baseFee: 15.0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 15.0 }
+  const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
   return <Dialog title="门诊挂号热敏凭条" eyebrow="小票打印预览" size="wide" onClose={onClose}
     footer={<><Button variant="secondary" onClick={onClose}>关闭</Button>
       <Button onClick={() => window.print()}><Icon name="print" />立即打印小票</Button></>}>
@@ -432,24 +429,20 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   ], [activeMedicalCoverages])
   const selectedCoverage = activeMedicalCoverages.find((value) => `COVERAGE:${value.id}` === coverageSelection)
 
-  // Fee calculation engine
+  // 选号阶段只展示目录有效价；医保支付与减免以正式结算结果为准。
   const feeBreakdown = useMemo(() => {
     const baseFee = getScheduleBaseFee(selectedSchedule, visitType)
-    const residentAge = selected ? age(selected.birthDate) : 30
-    const isElderly = residentAge >= 65
-    const seniorDiscount = isElderly ? 5.0 : 0.0
-    const insuranceDeduction = selectedCoverage ? Math.max(0, baseFee - 5.0) : 0.0
-    const payableAmount = Math.max(0, baseFee - seniorDiscount - insuranceDeduction)
     const isExpert = isExpertSchedule(selectedSchedule)
     return {
       baseFee,
-      seniorDiscount,
-      insuranceDeduction,
-      payableAmount,
-      isElderly,
+      seniorDiscount: 0,
+      insuranceDeduction: 0,
+      payableAmount: baseFee,
+      isElderly: selected ? age(selected.birthDate) >= 65 : false,
       isExpert,
+      feeConfigured: !selectedSchedule || selectedSchedule.feeConfigured,
     }
-  }, [selected, selectedCoverage, selectedSchedule, visitType])
+  }, [selected, selectedSchedule, visitType])
 
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)
@@ -754,7 +747,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <div className="registration-fee-card" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
               <div className="registration-fee-row">
                 <span>{feeBreakdown.isExpert ? '专家门诊诊查费' : '普通门诊诊查费'}</span>
-                <strong>¥{feeBreakdown.baseFee.toFixed(2)}</strong>
+                <strong>{feeBreakdown.feeConfigured ? `¥${feeBreakdown.baseFee.toFixed(2)}` : '未配置'}</strong>
               </div>
               {feeBreakdown.insuranceDeduction > 0 && <div className="registration-fee-row">
                 <span>医保统筹基金抵扣</span>
@@ -765,10 +758,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.seniorDiscount.toFixed(2)}</strong>
               </div>}
               <div className="registration-fee-row is-total">
-                <span>自费应收</span>
-                <strong>¥{feeBreakdown.payableAmount.toFixed(2)}</strong>
+                <span>目录价（结算前）</span>
+                <strong>{feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}</strong>
               </div>
             </div>
+            {selectedSchedule && !feeBreakdown.feeConfigured && <Alert tone="warning">该挂号项目尚未配置当前有效价格，请先在“排班与号源”的挂号费维护中定价。</Alert>}
 
             <div className="registration-payment-methods" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
               <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'WECHAT' ? 'is-active' : ''}`}
@@ -791,8 +785,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             {!intentId && !currentIntent && <div>
               <Button style={{ width: '100%', height: '3.125rem', fontSize: 'var(--font-size-body)', fontWeight: 600 }}
-                busy={createIntent.isPending} busyLabel="正在核价并出单" disabled={!selected || !scheduleId}
-                onClick={() => createIntent.mutate()}><Icon name="add" />确认挂号并出单 (F8 · ¥{feeBreakdown.payableAmount.toFixed(2)})</Button>
+                busy={createIntent.isPending} busyLabel="正在核价并出单"
+                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured}
+                onClick={() => createIntent.mutate()}><Icon name="add" />确认挂号并出单 (F8 · {feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未定价'})</Button>
               <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
                 {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)' : selectedSchedule ? `已选: ${selectedSchedule.practitionerName} · ${selectedSchedule.serviceName}` : '请在右侧选择今日号源'}
               </div>
@@ -912,7 +907,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                       <Icon name="clinical" />{clock(item.startAt)}–{clock(item.endAt)}
                     </span>
                     <div className="schedule-card-compact__metrics">
-                      <strong className="schedule-card-compact__price">¥{cardBaseFee.toFixed(0)}</strong>
+                      <strong className="schedule-card-compact__price">{item.feeConfigured ? `¥${cardBaseFee.toFixed(2)}` : '未定价'}</strong>
                       <span className={`schedule-badge-slots ${item.availableCount <= 3 ? 'is-urgent' : 'is-ample'}`}>
                         余 {item.availableCount}
                       </span>
@@ -946,7 +941,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                     <Icon name="clinical" />实时
                   </span>
                   <div className="schedule-card-compact__metrics">
-                    <strong className="schedule-card-compact__price">¥{visitType === 'EMERGENCY' ? '20' : '15'}</strong>
+                    <strong className="schedule-card-compact__price">¥0.00</strong>
                     <span className="schedule-badge-slots is-ample">余 不限</span>
                   </div>
                 </div>

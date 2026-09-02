@@ -13,6 +13,42 @@ const clinicalContext = {
 } as ClinicalContext
 
 describe('SchedulingWorkspace', () => {
+  it('creates department-scoped shared inventory without selecting a practitioner', async () => {
+    const quickCreate = vi.fn().mockResolvedValue({ generationRunId: 'run-1', replayed: false, generatedCount: 20, skippedCount: 0, schedules: [] })
+    const api = {
+      scheduling: {
+        bootstrap: vi.fn().mockResolvedValue({
+          sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', defaultCapacity: 30,
+          defaultGenerateDays: 28, morning: { start: '08:00:00', end: '12:00:00' },
+          afternoon: { start: '14:00:00', end: '17:00:00' },
+          practitioners: [{ id: 'doctor-1', code: 'D001', name: '李医生', assignmentId: 'assignment-1' }],
+        }),
+        schedules: vi.fn().mockResolvedValue([]),
+        quickCreate,
+      },
+      masterData: { services: vi.fn().mockResolvedValue([{
+        id: 'service-1', code: 'GENERAL', name: '全科门诊', orderable: true, chargeable: true,
+        sdUsageType: 'OUTPATIENT', serviceSubtype: 'OUTPATIENT_VISIT', accountingCategory: 'REGISTRATION', prices: [],
+        organizationAdoption: { sdStatus: 'ACTIVE', orderable: true, executable: true },
+      }]) },
+    } as unknown as RhnApi
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
+
+    render(<QueryClientProvider client={queryClient}>
+      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+    </QueryClientProvider>)
+
+    expect(await screen.findByText('按科室挂号')).toBeInTheDocument()
+    expect(screen.queryByText('请选择医生')).not.toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '生成排班' }))
+
+    await waitFor(() => expect(quickCreate).toHaveBeenCalledWith(expect.objectContaining({
+      registrationScope: 'DEPARTMENT', practitionerId: undefined, catalogItemId: 'service-1',
+    })))
+    expect(await screen.findByText(/已生成 20 个排班/)).toBeInTheDocument()
+  })
+
   it('creates a minimal professional timed template when the department enables professional mode', async () => {
     const result = {
       generationRunId: 'run-1', replayed: false, generatedCount: 40, skippedCount: 0,
@@ -20,7 +56,8 @@ describe('SchedulingWorkspace', () => {
         id: 'template-1', templateCode: 'TPL001', templateName: '基层门诊分时排班',
         practitionerId: 'doctor-1', practitionerName: '李医生', catalogItemId: 'service-1',
         serviceCode: 'GENERAL', serviceName: '全科门诊', validFrom: '2099-01-01', validTo: '2099-01-28',
-        status: 'ACTIVE', periods: [], exceptions: [],
+        status: 'ACTIVE', sdRegistrationScope: 'PRACTITIONER', sdRegistrationScopeText: '医生号',
+        periods: [], exceptions: [],
       },
       schedules: [],
     } as ProfessionalScheduleResult

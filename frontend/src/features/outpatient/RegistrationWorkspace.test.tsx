@@ -17,31 +17,39 @@ const resident: Resident = {
   status: 'ACTIVE', version: 0, identifiers: [],
 }
 
+const businessDate = () => new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
+}).format(new Date())
+
 const schedule: ServiceSchedule = {
-  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: '2026-08-29', sdDayPart: 'MORNING',
-  sdDayPartText: '上午', startAt: '2026-08-29T00:00:00Z', endAt: '2026-08-29T04:00:00Z',
+  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: businessDate(), sdDayPart: 'MORNING',
+  sdDayPartText: '上午', startAt: `${businessDate()}T00:00:00Z`, endAt: `${businessDate()}T04:00:00Z`,
   practitionerId: 'doctor-1', practitionerName: '李医生', catalogItemId: 'service-1',
   serviceCode: 'GENERAL', serviceName: '全科门诊', totalCount: 20, heldCount: 0, occupiedCount: 2,
   frozenCount: 0, availableCount: 18, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
   sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', sdBookingPolicy: 'SHARED',
   sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
+  sdRegistrationScope: 'PRACTITIONER', sdRegistrationScopeText: '医生号',
+  feeCurrencyCode: 'CNY', feeConfigured: true,
 }
 
 const internalSchedule: ServiceSchedule = {
-  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: '2026-08-29', sdDayPart: 'AFTERNOON',
-  sdDayPartText: '下午', startAt: '2026-08-29T06:00:00Z', endAt: '2026-08-29T09:00:00Z',
+  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: businessDate(), sdDayPart: 'AFTERNOON',
+  sdDayPartText: '下午', startAt: `${businessDate()}T06:00:00Z`, endAt: `${businessDate()}T09:00:00Z`,
   practitionerId: 'doctor-2', practitionerName: '王专家', catalogItemId: 'service-2',
   serviceCode: 'INTERNAL', serviceName: '内科门诊', totalCount: 15, heldCount: 0, occupiedCount: 13,
   frozenCount: 0, availableCount: 2, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
   sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', sdBookingPolicy: 'SHARED',
   sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
+  sdRegistrationScope: 'PRACTITIONER', sdRegistrationScopeText: '医生号',
+  feeCurrencyCode: 'CNY', feeConfigured: true,
 }
 
 const encounter: Encounter = {
   id: 'encounter-1', residentId: resident.id, encounterNo: 'E20260829001', organizationId: 'org-1',
   departmentId: 'dept-1', registrationId: 'registration-1', scheduleId: schedule.id,
   registrationSource: 'WINDOW', visitType: 'GENERAL', status: 'REGISTERED', diagnoses: [],
-  registeredAt: '2026-08-29T02:00:00Z',
+  registeredAt: `${businessDate()}T02:00:00Z`,
 }
 
 const receipt: ReceptionQueueItem = {

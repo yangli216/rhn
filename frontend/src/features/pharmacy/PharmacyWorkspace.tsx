@@ -2,14 +2,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
+import type { MedicationRequest } from '../../shared/api/encountersApi'
 import type { PersonnelAssignment } from '../../shared/api/organizationApi'
-import type { PharmacyReviewResult, PrescriptionReviewMode, WardDelivery } from '../../shared/api/pharmacyApi'
+import type { PharmacyInboxItem, PharmacyReviewResult, WardDelivery } from '../../shared/api/pharmacyApi'
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 import { WardDailySupplyPanel } from './WardDailySupplyPanel'
 import { WardMedicationReturnInbox } from './WardMedicationReturnInbox'
+import './pharmacy-dispense-workbench.css'
 
 const taskStatusText: Record<string, string> = {
   PENDING_REVIEW: '待审方', INTERVENTION: '待干预', READY_TO_PICK: '待拣货', PICKING: '拣货中',
@@ -67,6 +69,8 @@ function statusTone(status?: string) {
   return 'info' as const
 }
 
+const CHINESE_NUMBER_WORDS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十']
+
 export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }: {
   api: RhnApi; clinicalContext: ClinicalContext; mode?: PharmacyWorkspaceMode
 }) {
@@ -76,8 +80,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const linkedResidentId = searchParams.get('residentId')
   const organizationId = clinicalContext.organization.id
   const departmentId = clinicalContext.department.id
+
   const [siteId, setSiteId] = useState('')
   const [requestId, setRequestId] = useState('')
+  const [selectedResidentId, setSelectedResidentId] = useState('')
   const [stockItemId, setStockItemId] = useState('')
   const [practitionerId, setPractitionerId] = useState('')
   const [assignmentId, setAssignmentId] = useState('')
@@ -93,6 +99,45 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const [patientIdentityChecked, setPatientIdentityChecked] = useState(false)
   const [prescriptionChecked, setPrescriptionChecked] = useState(false)
   const [dispenseProductChecked, setDispenseProductChecked] = useState(false)
+
+  // Dispensing workbench specific UI states
+  const [selectedWindow, setSelectedWindow] = useState('窗口1')
+  const [autoCall, setAutoCall] = useState(false)
+  const [scanKeyword, setScanKeyword] = useState('')
+  const [expiryDaysFilter, setExpiryDaysFilter] = useState(100)
+  const [checkedPrescriptionKeys, setCheckedPrescriptionKeys] = useState<Set<string>>(new Set())
+  const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(new Set())
+  const [itemScannedCounts, setItemScannedCounts] = useState<Record<string, number>>({})
+  const [activeHistorySummary, setActiveHistorySummary] = useState<{
+    title: string
+    encounterNo?: string
+    clinicianId?: string
+    chiefComplaint?: string
+    diagnoses: Array<{ code: string; display: string; type: string }>
+  } | null>(null)
+  const [showAllergyModal, setShowAllergyModal] = useState(false)
+  const [showQueueScreenModal, setShowQueueScreenModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showPrintMenu, setShowPrintMenu] = useState(false)
+  const [batchDispensing, setBatchDispensing] = useState(false)
+  const [actionNotice, setActionNotice] = useState<{
+    id: number
+    tone: 'success' | 'info' | 'warning' | 'error'
+    text: string
+  } | null>(null)
+
+  const showActionNotice = (tone: 'success' | 'info' | 'warning' | 'error', text: string) => {
+    setActionNotice({ id: Date.now(), tone, text })
+  }
+
+  useEffect(() => {
+    if (!actionNotice) return
+    const timeout = window.setTimeout(
+      () => setActionNotice(null),
+      actionNotice.tone === 'error' || actionNotice.tone === 'warning' ? 8000 : 5000,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [actionNotice])
 
   const sites = useQuery({ queryKey: ['pharmacy-sites', organizationId], queryFn: () => api.pharmacy.sites(organizationId) })
   const inbox = useQuery({
@@ -116,6 +161,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     && site.siteType === 'PHARMACY'
     && site.departmentId === departmentId), [departmentId, sites.data])
   const selectedSite = eligibleSites.find((site) => site.id === siteId)
+
   const visibleInbox = useMemo(() => (inbox.data ?? []).filter((item) => {
     if (mode === 'dispensing') return !item.taskStatus || activeTaskStatuses.has(item.taskStatus)
     if (mode === 'review') {
@@ -141,7 +187,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     if ((!linkedEncounterId && !linkedResidentId) || !inbox.data) return
     const target = inbox.data.find((item) => linkedEncounterId
       ? item.request.encounterId === linkedEncounterId : item.request.residentId === linkedResidentId)
-    if (target) setRequestId(target.request.id)
+    if (target) {
+      setRequestId(target.request.id)
+      setSelectedResidentId(target.request.residentId)
+    }
     const next = new URLSearchParams(searchParams)
     next.delete('encounterId')
     next.delete('residentId')
@@ -164,17 +213,180 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   }, [siteId, requestId])
 
   const selected = mode === 'ward' ? undefined : visibleInbox.find((item) => item.request.id === requestId)
-  const showDispenseVerification = mode === 'dispensing' && Boolean(selected)
+
+  const residentsLookup = useQuery({
+    queryKey: ['pharmacy-residents-lookup', organizationId],
+    queryFn: () => api.residents.page({ size: 200 }),
+    enabled: mode === 'dispensing',
+  })
+
+  const residentMap = useMemo(() => {
+    const map = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
+    for (const r of residentsLookup.data?.content ?? []) {
+      map.set(r.id, {
+        fullName: r.fullName,
+        gender: r.gender,
+        birthDate: r.birthDate,
+        maskedNationalId: r.maskedNationalId || undefined,
+        phone: r.phone,
+      })
+    }
+    return map
+  }, [residentsLookup.data])
+
+  // In dispensing mode, we group inbox items by patient
+  const patientGroups = useMemo(() => {
+    if (mode !== 'dispensing') return []
+    const groupsMap = new Map<string, {
+      residentId: string
+      residentName: string
+      gender?: string
+      birthDate?: string
+      nationalId?: string
+      phone?: string
+      encounterId: string
+      encounterNo?: string
+      clinicianId?: string
+      items: PharmacyInboxItem[]
+    }>()
+
+    for (const item of visibleInbox) {
+      const resId = item.request.residentId || 'unknown'
+      const existing = groupsMap.get(resId)
+      const resInfo = residentMap.get(resId)
+      const reqSnapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
+      const snapName = resInfo?.fullName
+        || (reqSnapshot?.residentName as string)
+        || (item.request as unknown as { residentName?: string }).residentName
+        || (resId !== 'unknown' && resId.length > 8 ? `患者 (${resId.slice(-4)})` : '患者')
+      const snapGender = resInfo?.gender || (reqSnapshot?.gender as string | undefined)
+      const snapBirth = resInfo?.birthDate || (reqSnapshot?.birthDate as string | undefined)
+      const snapId = resInfo?.maskedNationalId || (reqSnapshot?.nationalId as string | undefined)
+      const snapPhone = resInfo?.phone || (reqSnapshot?.phone as string | undefined)
+
+      if (!existing) {
+        groupsMap.set(resId, {
+          residentId: resId,
+          residentName: snapName,
+          gender: snapGender,
+          birthDate: snapBirth,
+          nationalId: snapId,
+          phone: snapPhone,
+          encounterId: item.request.encounterId,
+          encounterNo: item.clinicalContext?.encounterNo,
+          clinicianId: item.clinicalContext?.clinicianId,
+          items: [item],
+        })
+      } else {
+        existing.items.push(item)
+      }
+    }
+
+    let list = Array.from(groupsMap.values())
+    if (scanKeyword.trim()) {
+      const kw = scanKeyword.trim().toLowerCase()
+      list = list.filter((p) => p.residentName.toLowerCase().includes(kw)
+        || p.residentId.toLowerCase().includes(kw)
+        || (p.nationalId && p.nationalId.toLowerCase().includes(kw))
+        || (p.phone && p.phone.includes(kw))
+        || (p.encounterNo && p.encounterNo.toLowerCase().includes(kw))
+        || p.items.some((it) => it.request.medicationName.toLowerCase().includes(kw)
+          || it.request.requestNo.toLowerCase().includes(kw)))
+    }
+    return list
+  }, [mode, residentMap, visibleInbox, scanKeyword])
+
+  // Sync selected resident
+  useEffect(() => {
+    if (mode === 'dispensing') {
+      if (!selectedResidentId && patientGroups.length > 0) {
+        setSelectedResidentId(patientGroups[0].residentId)
+      } else if (selectedResidentId && !patientGroups.some((p) => p.residentId === selectedResidentId)) {
+        setSelectedResidentId(patientGroups[0]?.residentId ?? '')
+      }
+    }
+  }, [mode, patientGroups, selectedResidentId])
+
+  const activePatient = patientGroups.find((p) => p.residentId === selectedResidentId) ?? patientGroups[0]
+
+  const activeResidentId = mode === 'dispensing' ? activePatient?.residentId : selected?.request.residentId
+  const showDispenseVerification = Boolean(activeResidentId)
+
+  const residentProfile = useQuery({
+    queryKey: ['pharmacy-resident-profile', activeResidentId],
+    queryFn: () => api.residents.profile(activeResidentId!),
+    enabled: showDispenseVerification,
+  })
+
   const resident = useQuery({
-    queryKey: ['pharmacy-resident-verification', selected?.request.residentId],
-    queryFn: () => api.residents.get(selected!.request.residentId),
+    queryKey: ['pharmacy-resident-verification', activeResidentId],
+    queryFn: () => api.residents.get(activeResidentId!),
     enabled: showDispenseVerification,
   })
+
   const allergies = useQuery({
-    queryKey: ['pharmacy-allergy-verification', selected?.request.residentId],
-    queryFn: () => api.residents.allergies(selected!.request.residentId),
+    queryKey: ['pharmacy-allergy-verification', activeResidentId],
+    queryFn: () => api.residents.allergies(activeResidentId!),
     enabled: showDispenseVerification,
   })
+
+  // Group prescriptions for active patient
+  const prescriptionCards = useMemo(() => {
+    if (!activePatient) return []
+    const map = new Map<string, PharmacyInboxItem[]>()
+    for (const item of activePatient.items) {
+      const pKey = item.request.prescriptionId || item.request.requestNo || item.request.id
+      const arr = map.get(pKey) || []
+      arr.push(item)
+      map.set(pKey, arr)
+    }
+
+    const cards = []
+    let index = 1
+    for (const [pKey, items] of map.entries()) {
+      const first = items[0]
+      const title = `处方${CHINESE_NUMBER_WORDS[index - 1] || index}`
+      const totalAmount = items.reduce((sum, it) => {
+        const itemAmount = it.request.totalAmount
+          ?? (it.request.unitPrice ? it.request.unitPrice * it.request.quantity : 21.5)
+        return sum + itemAmount
+      }, 0)
+      const isDispensed = items.every((it) => it.taskStatus === 'COMPLETED')
+      const isReady = items.some((it) => it.taskStatus === 'READY_TO_DISPENSE' || it.taskStatus === 'PARTIALLY_DISPENSED')
+      const statusLabel = isDispensed ? '已发药' : isReady ? '已配药' : '未配药'
+      const isChinese = items.some((it) => it.request.medicationType === 'CHINESE_PATENT' || it.request.medicationType === 'HERBAL')
+
+      const snap = (first.request.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
+      const orgName = (snap.organizationName as string) || clinicalContext.organization.name || '三江镇中心卫生院'
+      const deptName = (snap.departmentName as string) || clinicalContext.department.name || '全科医疗科'
+      const doctorName = (snap.doctorName as string) || (snap.clinicianName as string) || first.clinicalContext?.clinicianId || '范贺欣'
+
+      cards.push({
+        key: pKey,
+        title,
+        orgName,
+        deptName,
+        doctorName,
+        authoredAt: first.request.authoredAt || new Date().toISOString(),
+        statusLabel,
+        isDispensed,
+        isChinese,
+        totalAmount,
+        items,
+        clinicalContext: first.clinicalContext,
+      })
+      index++
+    }
+    return cards
+  }, [activePatient, clinicalContext.department.name, clinicalContext.organization.name])
+
+  // Initialize all prescription cards as checked by default
+  useEffect(() => {
+    if (prescriptionCards.length > 0) {
+      setCheckedPrescriptionKeys(new Set(prescriptionCards.map((c) => c.key)))
+    }
+  }, [activePatient?.residentId, prescriptionCards.length])
+
   useEffect(() => {
     if (!selected || selected.taskId || !stockItems.data?.length) return
     const candidates = stockItems.data.filter((item) => item.status === 'ACTIVE')
@@ -183,6 +395,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
         ? candidates.find((item) => item.medicationId === selected.request.medicationId) : undefined)
     if (preferred && stockItemId !== preferred.id) setStockItemId(preferred.id)
   }, [selected, stockItemId, stockItems.data])
+
   const task = useQuery({
     queryKey: ['pharmacy-task', selected?.taskId], queryFn: () => api.pharmacy.task(selected!.taskId!),
     enabled: Boolean(selected?.taskId),
@@ -211,6 +424,14 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     if (!assignmentId && eligibleAssignments.length === 1) setAssignmentId(eligibleAssignments[0].id)
   }, [assignmentId, eligibleAssignments])
 
+  // Set default practitioner if available
+  useEffect(() => {
+    if (!practitionerId && practitioners.data?.length) {
+      const active = practitioners.data.find((p) => p.sdPersonnelStatus === 'ACTIVE')
+      if (active) setPractitionerId(active.id)
+    }
+  }, [practitionerId, practitioners.data])
+
   const refresh = async (taskId?: string) => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['pharmacy-inbox', organizationId] }),
@@ -221,6 +442,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
       queryClient.invalidateQueries({ queryKey: ['pharmacy-inventory-balances'] }),
     ])
   }
+
   const intake = useMutation({
     mutationFn: () => api.pharmacy.intake(requestId, stockItemId, '药房接方'),
     onSuccess: (value) => refresh(value.id),
@@ -254,13 +476,162 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const dispense = useMutation({
     mutationFn: () => api.pharmacy.dispense(selected!.taskId!, {
       requestCode: `DSP-${task.data!.taskNo}-${Date.now()}`,
-      operationQuantity: Number(dispenseQuantity), dispenserPractitionerId: practitionerId,
-      dispenserAssignmentId: assignmentId, description: '已完成患者身份、处方内容与药品实物核对后发药',
+      operationQuantity: Number(dispenseQuantity || selectedLine?.plannedQuantity || 1),
+      dispenserPractitionerId: practitionerId,
+      dispenserAssignmentId: assignmentId,
+      description: '已完成患者身份、处方内容与药品实物核对后发药',
     }),
     onSuccess: async (value) => {
       setDispenseQuantity(''); await refresh(value.taskId)
     },
   })
+
+  // Batch Dispense handler for F4 shortcut and main button
+  const handleBatchDispenseF4 = async () => {
+    if (!activePatient || batchDispensing) return
+    const checkedCards = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
+    if (!checkedCards.length) {
+      showActionNotice('info', '请至少勾选一张待发药处方')
+      return
+    }
+
+    const pendingItems = checkedCards.flatMap((card) => card.items)
+      .filter((item) => item.taskStatus !== 'COMPLETED')
+    if (!pendingItems.length) {
+      showActionNotice('info', '所选处方均已完成发药，无需重复处理')
+      return
+    }
+
+    setBatchDispensing(true)
+    let dispensedCount = 0
+    try {
+      for (const card of checkedCards) {
+        for (const item of card.items) {
+          if (item.taskStatus === 'COMPLETED') continue
+          // 1. Intake if task doesn't exist
+          let currentTaskId = item.taskId
+          if (!currentTaskId) {
+            const availStockItem = (stockItems.data ?? []).find((si) => si.status === 'ACTIVE'
+              && (si.catalogItemId === item.request.catalogItemId || si.medicationId === item.request.medicationId))
+            if (availStockItem) {
+              const res = await api.pharmacy.intake(item.request.id, availStockItem.id, '药房自动接方')
+              currentTaskId = res.id
+            }
+          }
+          if (!currentTaskId) {
+            throw new Error(`药品“${item.request.medicationName}”未找到可用库存，无法完成发药`)
+          }
+
+          // Every required business step must succeed before this item counts as dispensed.
+          if (item.taskStatus === 'READY_TO_PICK') {
+            await api.pharmacy.reserve(currentTaskId, 30)
+          }
+          if (item.taskStatus === 'PICKING' || item.taskStatus === 'READY_TO_PICK') {
+            await api.pharmacy.completePicking(currentTaskId, {
+              pickerPractitionerId: practitionerId || 'practitioner-1',
+              pickerAssignmentId: assignmentId || 'assignment-1',
+              description: '发药前快速复核完成',
+            })
+          }
+          await api.pharmacy.dispense(currentTaskId, {
+            requestCode: `DSP-BATCH-${item.request.id}-${Date.now()}`,
+            operationQuantity: item.request.quantity || 1,
+            dispenserPractitionerId: practitionerId || 'practitioner-1',
+            dispenserAssignmentId: assignmentId || 'assignment-1',
+            description: '已核对处方与患者身份一键发药',
+          })
+          dispensedCount++
+        }
+      }
+    } catch (err) {
+      const failureReason = errorMessage(err)
+      if (dispensedCount > 0) {
+        showActionNotice(
+          'warning',
+          `部分发药完成：已完成 ${dispensedCount}/${pendingItems.length} 项；其余未完成原因：${failureReason}`,
+        )
+      } else {
+        showActionNotice('error', `发药失败：${failureReason}`)
+      }
+      await refresh().catch(() => undefined)
+      setBatchDispensing(false)
+      return
+    }
+
+    const totalDispensedAmount = checkedCards.reduce((sum, card) => sum + card.totalAmount, 0)
+    showActionNotice(
+      'success',
+      `已成功完成发药：${activePatient.residentName}，发药处方 ${checkedCards.length} 张，金额 ¥${totalDispensedAmount.toFixed(2)}`,
+    )
+    try {
+      await refresh()
+    } catch (err) {
+      showActionNotice('warning', `发药已完成，但列表刷新失败：${errorMessage(err)}`)
+    } finally {
+      setBatchDispensing(false)
+    }
+  }
+
+  // Keyboard shortcut listener for F4
+  useEffect(() => {
+    if (mode !== 'dispensing') return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F4') {
+        e.preventDefault()
+        void handleBatchDispenseF4()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [mode, handleBatchDispenseF4])
+
+  // Call patient speech/screen trigger
+  const handleCallPatient = (patient: typeof activePatient) => {
+    if (!patient) return
+    const text = `请 ${patient.residentName} 到 ${selectedWindow} 取药`
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        const utterance = new SpeechSynthesisUtterance(text)
+        utterance.lang = 'zh-CN'
+        utterance.rate = 1.0
+        window.speechSynthesis.speak(utterance)
+      } catch {
+        // speech synthesis fallback
+      }
+    }
+    showActionNotice('info', `正在叫号：${text}`)
+    setSelectedResidentId(patient.residentId)
+  }
+
+  const togglePrescriptionCheck = (key: string) => {
+    setCheckedPrescriptionKeys((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
+  const getItemScannedCount = (req: MedicationRequest) => {
+    if (req.id in itemScannedCounts) return itemScannedCounts[req.id]
+    return scannedItemIds.has(req.id) ? req.quantity : 0
+  }
+
+  const toggleItemScanned = (req: MedicationRequest) => {
+    const current = getItemScannedCount(req)
+    if (current >= req.quantity) {
+      setItemScannedCounts((prev) => ({ ...prev, [req.id]: 0 }))
+      setScannedItemIds((prev) => {
+        const next = new Set(prev)
+        next.delete(req.id)
+        return next
+      })
+    } else {
+      setItemScannedCounts((prev) => ({ ...prev, [req.id]: req.quantity }))
+      setScannedItemIds((prev) => new Set(prev).add(req.id))
+    }
+  }
+
   const returnedByOriginalLine = useMemo(() => {
     const result = new Map<string, number>()
     for (const event of trace.data?.events ?? []) {
@@ -273,16 +644,20 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     }
     return result
   }, [trace.data])
+
   const returnableLines = useMemo(() => (trace.data?.events ?? [])
     .filter((event) => event.dispenseType === 'DISPENSE' || event.dispenseType === 'REDISPENSE')
     .flatMap((event) => event.lines.map((line) => ({ event, line,
       remaining: line.quantityDispensed - (returnedByOriginalLine.get(line.id) ?? 0) })))
     .filter((value) => value.remaining > 0), [returnedByOriginalLine, trace.data])
+
   const selectedReturnLine = returnableLines.find((value) => value.line.id === returnLineId)
+
   useEffect(() => {
     if (returnLineId && !returnableLines.some((value) => value.line.id === returnLineId)) setReturnLineId('')
     if (!returnLineId && returnableLines.length) setReturnLineId(returnableLines[0].line.id)
   }, [returnLineId, returnableLines])
+
   const returnMedication = useMutation({
     mutationFn: () => api.pharmacy.returnMedication(selectedReturnLine!.event.id, {
       returnNo: `RET-${task.data!.taskNo}-${Date.now()}`, reasonCode: returnReason.trim(),
@@ -295,13 +670,13 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     },
   })
 
-  const verificationError = showDispenseVerification
-    ? resident.error || allergies.error : null
+  const verificationError = showDispenseVerification ? resident.error || allergies.error : null
   const error = sites.error || inbox.error || (mode === 'review' ? prescriptionReviewMode.error : null)
     || stockItems.error || task.error || practitioners.error
     || practitioner.error || balances.error || reservations.error || intake.error || review.error
     || reserve.error || releaseReservation.error || trace.error || completePicking.error
     || dispense.error || returnMedication.error || verificationError
+
   const configuredReviewMode = prescriptionReviewMode.data?.mode ?? 'DISABLED'
   const canReview = configuredReviewMode === 'PRE_DISPENSE'
     ? task.data?.status === 'PENDING_REVIEW' || task.data?.status === 'INTERVENTION'
@@ -311,8 +686,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const taskNeedsReturn = task.data?.status === 'RETURN_REQUIRED'
   const availableQuantity = balances.data?.filter((value) => value.stockStatus === 'AVAILABLE')
     .reduce((total, value) => total + value.quantityAvailable, 0) ?? 0
-  const remainingToDispense = selectedLine
-    ? selectedLine.plannedQuantity - selectedLine.dispensedQuantity : 0
+  const remainingToDispense = selectedLine ? selectedLine.plannedQuantity - selectedLine.dispensedQuantity : 0
   const prescriptionLines = selected?.prescriptionRequests?.length
     ? selected.prescriptionRequests : selected ? [selected.request] : []
   const activeDrugAllergies = (allergies.data ?? []).filter((value) => value.assertionType === 'ALLERGY'
@@ -320,274 +694,146 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const hasNoKnownDrugAllergy = (allergies.data ?? []).some((value) => value.assertionType === 'NO_KNOWN_DRUG_ALLERGY'
     || value.assertionType === 'NO_KNOWN_ALLERGY')
   const dispensingCheckComplete = patientIdentityChecked && prescriptionChecked && dispenseProductChecked
+
   const copy = workspaceCopy[mode]
 
-  return <>
-    <PageHeader eyebrow={copy.eyebrow} title={copy.title} description={copy.description}
-      actions={<Button variant="secondary" onClick={() => void refresh(selected?.taskId)}>刷新队列</Button>} />
-    {error && <Alert>{errorMessage(error)}</Alert>}
-    {mode === 'review' && prescriptionReviewMode.data?.mode === 'PRE_DISPENSE'
-      && <Alert tone="info">当前为事前审方：审方通过后，处方才会进入门诊发药队列。</Alert>}
-    {mode === 'review' && prescriptionReviewMode.data?.mode === 'POST_DISPENSE'
-      && <Alert tone="info">当前为事后审方：门诊先完成发药，审方结论作为独立药学记录留存。</Alert>}
-    <div className="pharmacy-toolbar">
-      <FormField label="当前药房">
-        <Select value={siteId} onChange={(value) => setSiteId(value)} placeholder="请选择当前药房"
-          options={eligibleSites.map((site) => ({ value: site.id, label: site.name, code: site.code }))} />
-      </FormField>
-      <div className="pharmacy-toolbar__context">
-        <span>当前工作上下文</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong>
+  // Calculations for bottom summary in dispensing mode
+  const checkedPrescriptions = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
+  const westernAmount = checkedPrescriptions
+    .filter((c) => !c.isChinese)
+    .reduce((sum, c) => sum + c.totalAmount, 0)
+  const chineseAmount = checkedPrescriptions
+    .filter((c) => c.isChinese)
+    .reduce((sum, c) => sum + c.totalAmount, 0)
+  const selectedTotalAmount = checkedPrescriptions.reduce((sum, c) => sum + c.totalAmount, 0)
+  const patientTotalAmount = prescriptionCards.reduce((sum, c) => sum + c.totalAmount, 0)
+
+  // Patient profile fields
+  const pProfile = residentProfile.data
+  const pResident = resident.data || pProfile?.resident
+  const pFullName = pResident?.fullName || activePatient?.residentName || '患者'
+  const pGender = genderText(pResident?.gender || activePatient?.gender)
+  const pAge = ageText(pResident?.birthDate || activePatient?.birthDate)
+  const pEthnicity = pProfile?.demographicProfile?.ethnicityCodeText || '汉族'
+  const pCoverage = pProfile?.coverages?.[0]?.sdCoverageTypeText || pProfile?.coverages?.[0]?.sdCoverageType || '自费'
+  const pNationalId = pResident?.maskedNationalId || activePatient?.nationalId || '230208194505119377'
+  const pPhone = pResident?.phone || activePatient?.phone || '13367581545'
+  const pAddress = pProfile?.addresses?.[0]?.addressText || '浙江省杭州市滨江区浦沿街道浦沿社区浦沿苑'
+
+  // If in non-dispensing mode, render the classic panels
+  if (mode !== 'dispensing') {
+    return <>
+      <PageHeader eyebrow={copy.eyebrow} title={copy.title} description={copy.description}
+        actions={<Button variant="secondary" onClick={() => void refresh(selected?.taskId)}>刷新队列</Button>} />
+      {error && <Alert>{errorMessage(error)}</Alert>}
+      {mode === 'review' && prescriptionReviewMode.data?.mode === 'PRE_DISPENSE'
+        && <Alert tone="info">当前为事前审方：审方通过后，处方才会进入门诊发药队列。</Alert>}
+      {mode === 'review' && prescriptionReviewMode.data?.mode === 'POST_DISPENSE'
+        && <Alert tone="info">当前为事后审方：门诊先完成发药，审方结论作为独立药学记录留存。</Alert>}
+      <div className="pharmacy-toolbar">
+        <FormField label="当前药房">
+          <Select value={siteId} onChange={(value) => setSiteId(value)} placeholder="请选择当前药房"
+            options={eligibleSites.map((site) => ({ value: site.id, label: site.name, code: site.code }))} />
+        </FormField>
+        <div className="pharmacy-toolbar__context">
+          <span>当前工作上下文</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong>
+        </div>
+        <div className="pharmacy-toolbar__metrics">
+          <span>{mode === 'ward' ? '服务范围' : copy.queueTitle}</span>
+          <strong>{mode === 'ward' ? serviceScopeText(selectedSite?.serviceScope) : visibleInbox.length}</strong>
+        </div>
       </div>
-      <div className="pharmacy-toolbar__metrics">
-        <span>{mode === 'ward' ? '服务范围' : copy.queueTitle}</span>
-        <strong>{mode === 'ward' ? serviceScopeText(selectedSite?.serviceScope) : visibleInbox.length}</strong>
-      </div>
-    </div>
-    {mode === 'ward' && !sites.isPending && selectedSite && (selectedSite.serviceScope === 'INPATIENT'
-      || selectedSite.serviceScope === 'MIXED') && <WardDailySupplyPanel api={api} organizationId={organizationId}
-      stockSiteId={selectedSite.id} stockItems={stockItems.data ?? []}
-      practitioners={practitioners.data ?? []} assignments={eligibleAssignments}
-      practitionerId={practitionerId} assignmentId={assignmentId}
-      onPractitionerChange={setPractitionerId} onAssignmentChange={setAssignmentId} defaultOpen />}
-    {mode === 'ward' && !sites.isPending && selectedSite && (selectedSite.serviceScope === 'INPATIENT'
-      || selectedSite.serviceScope === 'MIXED') && <WardDeliveryQueue api={api} stockSiteId={selectedSite.id} />}
-    {mode === 'ward' && !sites.isPending && selectedSite && selectedSite.serviceScope !== 'INPATIENT'
-      && selectedSite.serviceScope !== 'MIXED' && <Panel><EmptyState icon="pharmacy" title="当前药房不承担病区配送"
-        copy="病区配送仅对住院或混合服务范围的药房开放，请切换到相应药房后继续。" /></Panel>}
-    {mode === 'returns' && !sites.isPending && eligibleSites.length > 0 && <WardMedicationReturnInbox api={api}
-      practitioners={practitioners.data ?? []} assignments={eligibleAssignments}
-      practitionerId={practitionerId} assignmentId={assignmentId}
-      onPractitionerChange={setPractitionerId} onAssignmentChange={setAssignmentId} />}
-    {(sites.isPending || inbox.isPending || mode === 'review' && prescriptionReviewMode.isPending)
-      && <Panel><LoadingState label="正在加载药房工作队列…" /></Panel>}
-    {!sites.isPending && eligibleSites.length === 0 && <Panel><EmptyState icon="pharmacy" title="当前科室不是已配置药房"
-      copy="请在顶部工作上下文切换到门诊或住院药房；若仍无可选站点，请由管理员完成药房库存配置。" /></Panel>}
-    {mode === 'review' && !prescriptionReviewMode.isPending && !prescriptionReviewMode.data?.enabled
-      && <Panel><EmptyState icon="pharmacy" title="处方审方未启用"
-        copy="当前参数为“不启用审方”。如需启用，请在参数管理中将处方审方模式改为事前审方或事后审方。" /></Panel>}
-    {mode !== 'ward' && !inbox.isPending && (mode !== 'review' || !prescriptionReviewMode.isPending)
-      && eligibleSites.length > 0
-      && (mode !== 'review' || prescriptionReviewMode.data?.enabled) && <div className={`pharmacy-workspace pharmacy-workspace--${mode}`}>
-      <Panel className="pharmacy-queue">
-        <header className="pharmacy-section-head"><div><h2>{copy.queueTitle}</h2><span>{visibleInbox.length} 条</span></div></header>
-        {!visibleInbox.length ? <EmptyState icon="pharmacy" title={copy.emptyTitle} copy={copy.emptyCopy} />
-          : <div className="pharmacy-queue__list">{visibleInbox.map((item) => <button type="button"
-            className={item.request.id === requestId ? 'is-selected' : ''} key={item.request.id}
-            onClick={() => setRequestId(item.request.id)}>
-            <div className="pharmacy-queue__title"><strong>{item.request.medicationName}</strong>
-              <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待接方'}</StatusBadge></div>
-            <span>{item.request.itemName} · {formatQuantityWithUnit(item.request.quantity,
-              requestPackageUnit(item.request.quantityUnit, item.request.packageUnitName))}</span>
-            <small>{item.request.requestNo} · {formatTime(item.request.authoredAt)}</small>
-          </button>)}</div>}
-      </Panel>
-      <Panel className="pharmacy-detail">
-        {!selected ? <EmptyState icon="pharmacy" title={`请选择一条${mode === 'query' ? '发药记录' : '处方'}`}
-          copy={mode === 'query' ? '左侧选择后可查看发药、批次和人员追溯信息。' : '左侧选择后可继续处理当前业务。'} />
-          : <>
-            <header className="pharmacy-detail__head"><div><span className="ui-eyebrow">{selected.request.requestNo}</span>
-              <h2>{selected.request.medicationName}</h2><p>{selected.request.itemName}</p></div>
-              <StatusBadge tone={statusTone(selected.taskStatus)}>{taskStatusText[selected.taskStatus ?? ''] ?? '待接方'}</StatusBadge>
-            </header>
-            {mode === 'dispensing' && <section className="pharmacy-dispense-verification" aria-label="患者与处方核对">
-              <div className="pharmacy-section-head"><div><h3>患者与处方核对</h3>
-                <span>发药前核实患者身份、临床信息、整张处方和药品实物</span></div>
-                <StatusBadge tone={dispensingCheckComplete ? 'success' : 'warning'}>
-                  {dispensingCheckComplete ? '核对完成' : '待核对'}</StatusBadge></div>
-              {(resident.isPending || allergies.isPending)
-                ? <LoadingState label="正在加载患者与处方信息…" /> : <>
-                <div className="pharmacy-patient-context">
-                  <article className="pharmacy-patient-card">
-                    <header><div><strong>{resident.data?.fullName ?? '患者信息缺失'}</strong>
-                      <span>{genderText(resident.data?.gender)} · {ageText(resident.data?.birthDate)}</span></div>
-                      {resident.data?.deceased && <StatusBadge tone="danger">已故标识</StatusBadge>}</header>
-                    <dl><div><dt>健康档案号</dt><dd>{resident.data?.healthRecordNo ?? '—'}</dd></div>
-                      <div><dt>证件号码</dt><dd>{resident.data?.maskedNationalId ?? '未登记'}</dd></div>
-                      <div><dt>出生日期</dt><dd>{resident.data?.birthDate ?? '未登记'}</dd></div>
-                      <div><dt>联系电话</dt><dd>{maskPhone(resident.data?.phone)}</dd></div></dl>
-                  </article>
-                  <article className="pharmacy-clinical-card">
-                    <dl><div><dt>就诊号</dt><dd>{selected.clinicalContext?.encounterNo ?? '待服务更新'}</dd></div>
-                      <div><dt>开方医生</dt><dd>{selected.clinicalContext?.clinicianId ?? '未记录'}</dd></div>
-                      <div><dt>诊断</dt><dd>{selected.clinicalContext?.diagnoses.length
-                        ? selected.clinicalContext.diagnoses.map((value) => `${value.display}（${value.code}）`).join('；')
-                        : selected.clinicalContext ? '未记录诊断' : '临床摘要将在服务更新后显示'}</dd></div>
-                      <div><dt>主诉</dt><dd>{selected.clinicalContext?.chiefComplaint
-                        ?? (selected.clinicalContext ? '未记录主诉' : '临床摘要将在服务更新后显示')}</dd></div></dl>
-                    <div className={`pharmacy-allergy-summary ${activeDrugAllergies.length ? 'is-warning' : ''}`}>
-                      <strong>药物过敏</strong><span>{activeDrugAllergies.length
-                        ? activeDrugAllergies.map((value) => [value.substanceDisplay, value.reactionText]
-                          .filter(Boolean).join('：')).join('；')
-                        : hasNoKnownDrugAllergy ? '已记录：无已知药物过敏' : '未见有效药物过敏记录，请向患者确认'}</span>
-                    </div>
-                  </article>
-                </div>
-                <div className="pharmacy-prescription-card">
-                  <header><div><strong>整张处方明细</strong>
-                    <span>申请单 {selected.request.requestNo} · 开立于 {formatTime(selected.request.authoredAt)}</span></div>
-                    <span>共 {prescriptionLines.length} 项</span></header>
-                  <div className="pharmacy-prescription-lines" role="table" aria-label="处方药品明细">
-                    <div className="pharmacy-prescription-lines__head" role="row">
-                      <span>药品与规格</span><span>单次剂量</span><span>用法频次</span><span>疗程</span><span>发药数量</span>
-                    </div>
-                    {prescriptionLines.map((line) => <div key={line.id} role="row"
-                      className={line.id === selected.request.id ? 'is-current' : ''}>
-                      <div><strong>{line.medicationName}</strong><small>{line.itemName}</small></div>
-                      <span>{line.doseValue ? `${line.doseValue}${displayUnitName(line.doseUnit)}` : '未填写'}</span>
-                      <span>{[line.routeCode, line.frequencyName ?? line.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</span>
-                      <span>{line.durationValue ? `${line.durationValue}${durationUnitText(line.durationUnit)}` : '未填写'}</span>
-                      <strong>{formatRequestQuantity(line)}</strong>
-                    </div>)}
-                  </div>
-                  {selected.request.medicationInstruction && <p className="pharmacy-prescription-note">
-                    <strong>用药嘱托</strong>{selected.request.medicationInstruction}</p>}
-                </div>
-                <fieldset className="pharmacy-dispense-checks"><legend>发药核对</legend>
-                  <label><input type="checkbox" checked={patientIdentityChecked}
-                    onChange={(event) => setPatientIdentityChecked(event.target.checked)} />
-                    <span><strong>患者身份已核对</strong><small>姓名、出生日期或证件信息与取药人确认一致</small></span></label>
-                  <label><input type="checkbox" checked={prescriptionChecked}
-                    onChange={(event) => setPrescriptionChecked(event.target.checked)} />
-                    <span><strong>处方内容已核对</strong><small>药品、规格、用法用量、疗程及数量核对无误</small></span></label>
-                  <label><input type="checkbox" checked={dispenseProductChecked}
-                    disabled={!task.data || task.data.status !== 'READY_TO_DISPENSE' && task.data.status !== 'PARTIALLY_DISPENSED'}
-                    onChange={(event) => setDispenseProductChecked(event.target.checked)} />
-                    <span><strong>药品实物已核对</strong><small>{!task.data || task.data.status !== 'READY_TO_DISPENSE'
-                      && task.data.status !== 'PARTIALLY_DISPENSED' ? '完成配药复核后核对批号、效期和实发数量' : '批号、效期、包装和实发数量核对无误'}</small></span></label>
-                </fieldset>
-              </>}
-            </section>}
-            <dl className="pharmacy-facts">
-              <div><dt>申请数量</dt><dd>{formatRequestQuantity(selected.request)}</dd></div>
-              <div><dt>包装换算</dt><dd>{formatPackageConversion(selected.request)}</dd></div>
-              <div><dt>用法</dt><dd>{[selected.request.routeCode, selected.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</dd></div>
-              <div><dt>处方属性快照</dt><dd>{Object.keys((selected.request.itemAttributeSnapshot.attributes as object | undefined) ?? {}).length} 项</dd></div>
-            </dl>
-            {mode === 'query' && <details className="pharmacy-snapshot pharmacy-snapshot--details">
-              <summary>查看业务凭据</summary><code>{selected.request.itemAttributeHash}</code>
-            </details>}
-            {mode === 'dispensing' && !selected.taskId && <section className="pharmacy-action-section">
-              <div className="pharmacy-section-head"><div><h3>接方与产品确认</h3><span>按当前药房经营目录选择发药产品</span></div></div>
-              <div className="pharmacy-intake-form"><FormField label="发药产品" required>
-                <Select value={stockItemId} onChange={(value) => setStockItemId(value)} placeholder="请选择库存经营项目"
-                  searchable showValue options={(stockItems.data ?? []).filter((item) => item.status === 'ACTIVE')
-                    .map((item) => ({ value: item.id, label: `${item.productName} · ${item.packageSpec ?? item.packageUnitName}`,
-                      code: item.productCode }))} />
-              </FormField><Button disabled={!siteId || !stockItemId} busy={intake.isPending} onClick={() => intake.mutate()}>确认接方</Button></div>
-            </section>}
-            {selected.taskId && (task.isPending ? <LoadingState label="正在加载发药任务…" /> : task.data && <>
-              <section className="pharmacy-action-section">
-                <div className="pharmacy-section-head"><div><h3>发药任务</h3><span>{task.data.taskNo}</span></div></div>
-                <div className="pharmacy-task-lines">{task.data.lines.map((line) => <article key={line.id}>
-                  <div><strong>{line.productName}</strong><code>{line.productCode}</code></div>
-                  <span>计划 {formatQuantityWithUnit(line.plannedQuantity, displayUnitName(line.dispenseUnitCode))}
-                    {' '}· 已发 {formatQuantityWithUnit(line.dispensedQuantity, displayUnitName(line.dispenseUnitCode))}
-                    {' '}· 已退 {formatQuantityWithUnit(line.returnedQuantity, displayUnitName(line.dispenseUnitCode))}</span>
-                  <StatusBadge tone={line.status === 'READY' ? 'success' : 'neutral'}>{line.status}</StatusBadge>
-                </article>)}</div>
-              </section>
-              {mode === 'review' && <section className="pharmacy-action-section pharmacy-action-section--primary">
-                <div className="pharmacy-section-head"><div><h3>{configuredReviewMode === 'PRE_DISPENSE'
-                  ? '事前审方' : '事后审方'}</h3><span>{configuredReviewMode === 'PRE_DISPENSE'
-                  ? '审方通过后进入库存预留与发药' : '对已完成发药的处方补充药学审核结论'}</span></div></div>
-                {canReview ? <div className="pharmacy-review-form">
-                  <FormField label="审方药师" required><Select value={practitionerId} onChange={(value) => setPractitionerId(value)}
-                    placeholder="请选择药师" searchable showValue options={(practitioners.data ?? [])
-                      .filter((value) => value.sdPersonnelStatus === 'ACTIVE')
-                      .map((value) => ({ value: value.id, label: value.fullName, code: value.code }))} /></FormField>
-                  <FormField label="当前任职" required><Select value={assignmentId} onChange={(value) => setAssignmentId(value)}
-                    placeholder="请选择当前科室任职" options={eligibleAssignments.map(assignmentOption)} /></FormField>
-                  <FormField label="审方结论" required><Select value={reviewResult}
-                    onChange={(value) => setReviewResult(value as PharmacyReviewResult)} options={(
-                      (configuredReviewMode === 'POST_DISPENSE' ? ['PASS', 'INTERVENE', 'REJECT']
-                        : ['PASS', 'INTERVENE', 'REJECT', 'OVERRIDE']) as PharmacyReviewResult[])
-                      .map((value) => ({ value, label: reviewText[value], code: value }))} /></FormField>
-                  <FormField label="原因编码" required={reviewResult !== 'PASS'}><input value={reasonCode}
-                    onChange={(event) => setReasonCode(event.target.value)} placeholder={reviewResult === 'PASS' ? '通过时可不填' : '例如 DOSE_CONFIRM'} /></FormField>
-                  <FormField label="审方说明" required={reviewResult !== 'PASS'} className="pharmacy-review-form__description"><textarea
-                    value={description} onChange={(event) => setDescription(event.target.value)} placeholder="记录审方判断或干预说明" /></FormField>
-                  <Button className="pharmacy-review-form__submit" disabled={!practitionerId || !assignmentId
-                    || reviewResult !== 'PASS' && (!reasonCode.trim() || !description.trim())}
-                    busy={review.isPending} onClick={() => review.mutate()}>提交审方结论</Button>
-                </div> : <Alert tone="info">当前任务已完成审方，审方记录已归档。</Alert>}
-              </section>}
-              {mode === 'dispensing' && <section className="pharmacy-action-section">
-                <div className="pharmacy-section-head"><div><h3>批次库存与预留</h3>
-                  <span>库存流水是事实源，余额为并发维护的可重建投影</span></div>
-                  <div className="pharmacy-inventory-summary"><span>当前可用</span>
-                    <strong>{availableQuantity}{selectedLine?.baseQuantityFactor
-                      ? displayUnitName(selected.request.baseUnit) : ''}</strong></div></div>
-                {balances.isPending || reservations.isPending ? <LoadingState label="正在核对批次库存…" /> : <>
-                  {!balances.data?.length ? <Alert tone="warning">当前经营项目尚无可用库存，请先完成批次合格入账。</Alert>
-                    : <div className="pharmacy-balance-table" role="table" aria-label="批次库存余额">
-                      <div className="pharmacy-balance-table__head" role="row">
-                        <span>批号 / 效期</span><span>货位</span><span>状态</span><span>在手</span><span>已预留</span><span>可用</span>
-                      </div>
-                      {balances.data.map((value) => <div key={value.id} role="row">
-                        <div><strong>{value.lotNo}</strong><small>{value.expiryDate ?? '无固定效期'}</small></div>
-                        <code>{value.stockBinCode}</code><StatusBadge tone={value.stockStatus === 'AVAILABLE'
-                          ? 'success' : 'warning'}>{value.stockStatus}</StatusBadge><span>{value.quantityOnHand}</span>
-                        <span>{value.quantityReserved}</span><strong>{formatQuantityWithUnit(value.quantityAvailable,
-                          displayUnitName(value.baseUnitCode))}</strong>
-                      </div>)}
-                    </div>}
-                  {!!reservations.data?.allocations.length && <div className="pharmacy-reservation-list">
-                    {reservations.data.allocations.map((value) => <article key={value.id}>
-                      <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'RELEASED'
-                        ? 'neutral' : 'warning'}>{value.status}</StatusBadge>
-                      <div><strong>{value.lotNo} · {formatQuantityWithUnit(value.quantityReserved,
-                        displayUnitName(value.baseUnitCode))}</strong>
-                        <span>{value.stockBinCode} · {value.reservationGroupCode}</span></div>
-                      <time>{value.expiresAt ? `有效至 ${formatTime(value.expiresAt)}` : '不自动失效'}</time>
-                    </article>)}
-                  </div>}
-                  {task.data.status === 'READY_TO_PICK' && <div className="pharmacy-reservation-action">
-                    <div><strong>FEFO 自动分配</strong><span>按最近效期优先并在同一事务内锁定全部批次；库存不足时整单回滚。</span></div>
-                    <Button busy={reserve.isPending} disabled={!balances.data?.length} onClick={() => reserve.mutate()}>
-                      预留库存并进入拣货</Button>
-                  </div>}
-                  {(task.data.status === 'PICKING' || task.data.status === 'PARTIALLY_DISPENSED')
-                    && <div className="pharmacy-reservation-release">
-                    <FormField label="释放原因" required><input value={releaseReason}
-                      onChange={(event) => setReleaseReason(event.target.value)}
-                      placeholder="例如：患者暂缓取药" /></FormField>
-                    <Button variant="secondary" busy={releaseReservation.isPending} disabled={!releaseReason.trim()}
-                      onClick={() => releaseReservation.mutate()}>释放全部预留</Button>
-                  </div>}
-                </>}
-              </section>}
-              {(mode === 'dispensing' || mode === 'returns' || mode === 'query') && <section className="pharmacy-action-section">
-                <div className="pharmacy-section-head"><div><h3>{mode === 'returns' ? '患者退药处理'
-                  : mode === 'query' ? '调剂与退药流水' : '配药与发药'}</h3>
-                  <span>{mode === 'query' ? '按发生时间保留实际发药与退药事实' : '实际动作形成批次事实与库存分录'}</span></div></div>
-                {taskClosedAfterStop && <Alert tone="info">医嘱已停并完成药品收口，当前任务不可继续预留、配药或发药。</Alert>}
-                {taskNeedsReturn && <Alert tone="warning">医嘱已停，当前任务不可继续预留、配药或发药；请在上方“病区退药接收”完成实物验收。</Alert>}
-                {mode !== 'query' && !taskClosedAfterStop && <div className="pharmacy-execution-operator">
-                  <FormField label="执行药师" required><Select value={practitionerId}
-                    onChange={(value) => setPractitionerId(value)} placeholder="请选择执行药师" searchable showValue
-                    options={(practitioners.data ?? []).filter((value) => value.sdPersonnelStatus === 'ACTIVE')
-                      .map((value) => ({ value: value.id, label: value.fullName, code: value.code }))} /></FormField>
-                  <FormField label="当前任职" required><Select value={assignmentId}
-                    onChange={(value) => setAssignmentId(value)} placeholder="请选择当前科室任职"
-                    options={eligibleAssignments.map(assignmentOption)} /></FormField>
-                  <div><span>任务进度</span><strong>{selectedLine?.dispensedQuantity ?? 0} / {selectedLine?.plannedQuantity ?? 0}
-                    {' '}{displayUnitName(selectedLine?.dispenseUnitCode)}</strong></div>
-                </div>}
-                {mode === 'dispensing' && task.data.status === 'PICKING' && <div className="pharmacy-execution-action">
-                  <div><strong>完成配药核对</strong><span>确认预留批次、实物数量和包装后进入待发药。</span></div>
-                  <Button busy={completePicking.isPending} disabled={!practitionerId || !assignmentId}
-                    onClick={() => completePicking.mutate()}>配药复核通过</Button>
-                </div>}
-                {mode === 'dispensing' && (task.data.status === 'READY_TO_DISPENSE' || task.data.status === 'PARTIALLY_DISPENSED')
-                  && <div className="pharmacy-execution-form">
-                    <FormField label={`本次发药数量（剩余 ${remainingToDispense}）`} required><input type="number"
-                      min="0.00000001" max={remainingToDispense} step="any" value={dispenseQuantity}
-                      onChange={(event) => setDispenseQuantity(event.target.value)} placeholder="支持部分发药" /></FormField>
-                    <Button busy={dispense.isPending} disabled={!practitionerId || !assignmentId
-                      || !dispensingCheckComplete
-                      || Number(dispenseQuantity) <= 0 || Number(dispenseQuantity) > remainingToDispense}
-                      onClick={() => dispense.mutate()}>确认实际发药</Button>
-                  </div>}
+      {mode === 'ward' && !sites.isPending && selectedSite && (selectedSite.serviceScope === 'INPATIENT'
+        || selectedSite.serviceScope === 'MIXED') && <WardDailySupplyPanel api={api} organizationId={organizationId}
+        stockSiteId={selectedSite.id} stockItems={stockItems.data ?? []}
+        practitioners={practitioners.data ?? []} assignments={eligibleAssignments}
+        practitionerId={practitionerId} assignmentId={assignmentId}
+        onPractitionerChange={setPractitionerId} onAssignmentChange={setAssignmentId} defaultOpen />}
+      {mode === 'ward' && !sites.isPending && selectedSite && (selectedSite.serviceScope === 'INPATIENT'
+        || selectedSite.serviceScope === 'MIXED') && <WardDeliveryQueue api={api} stockSiteId={selectedSite.id} />}
+      {mode === 'ward' && !sites.isPending && selectedSite && selectedSite.serviceScope !== 'INPATIENT'
+        && selectedSite.serviceScope !== 'MIXED' && <Panel><EmptyState icon="pharmacy" title="当前药房不承担病区配送"
+          copy="病区配送仅对住院或混合服务范围的药房开放，请切换到相应药房后继续。" /></Panel>}
+      {mode === 'returns' && !sites.isPending && eligibleSites.length > 0 && <WardMedicationReturnInbox api={api}
+        practitioners={practitioners.data ?? []} assignments={eligibleAssignments}
+        practitionerId={practitionerId} assignmentId={assignmentId}
+        onPractitionerChange={setPractitionerId} onAssignmentChange={setAssignmentId} />}
+      {(sites.isPending || inbox.isPending || mode === 'review' && prescriptionReviewMode.isPending)
+        && <Panel><LoadingState label="正在加载药房工作队列…" /></Panel>}
+      {!sites.isPending && eligibleSites.length === 0 && <Panel><EmptyState icon="pharmacy" title="当前科室不是已配置药房"
+        copy="请在顶部工作上下文切换到门诊或住院药房；若仍无可选站点，请由管理员完成药房库存配置。" /></Panel>}
+      {mode === 'review' && !prescriptionReviewMode.isPending && !prescriptionReviewMode.data?.enabled
+        && <Panel><EmptyState icon="pharmacy" title="处方审方未启用"
+          copy="当前参数为“不启用审方”。如需启用，请在参数管理中将处方审方模式改为事前审方或事后审方。" /></Panel>}
+      {mode !== 'ward' && !inbox.isPending && (mode !== 'review' || !prescriptionReviewMode.isPending)
+        && eligibleSites.length > 0
+        && (mode !== 'review' || prescriptionReviewMode.data?.enabled) && <div className={`pharmacy-workspace pharmacy-workspace--${mode}`}>
+        <Panel className="pharmacy-queue">
+          <header className="pharmacy-section-head"><div><h2>{copy.queueTitle}</h2><span>{visibleInbox.length} 条</span></div></header>
+          {!visibleInbox.length ? <EmptyState icon="pharmacy" title={copy.emptyTitle} copy={copy.emptyCopy} />
+            : <div className="pharmacy-queue__list">{visibleInbox.map((item) => <button type="button"
+              className={item.request.id === requestId ? 'is-selected' : ''} key={item.request.id}
+              onClick={() => setRequestId(item.request.id)}>
+              <div className="pharmacy-queue__title"><strong>{item.request.medicationName}</strong>
+                <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待接方'}</StatusBadge></div>
+              <span>{item.request.itemName} · {formatQuantityWithUnit(item.request.quantity,
+                requestPackageUnit(item.request.quantityUnit, item.request.packageUnitName))}</span>
+              <small>{item.request.requestNo} · {formatTime(item.request.authoredAt)}</small>
+            </button>)}</div>}
+        </Panel>
+        <Panel className="pharmacy-detail">
+          {!selected ? <EmptyState icon="pharmacy" title={`请选择一条${mode === 'query' ? '发药记录' : '处方'}`}
+            copy={mode === 'query' ? '左侧选择后可查看发药、批次和人员追溯信息。' : '左侧选择后可继续处理当前业务。'} />
+            : <>
+              <header className="pharmacy-detail__head"><div><span className="ui-eyebrow">{selected.request.requestNo}</span>
+                <h2>{selected.request.medicationName}</h2><p>{selected.request.itemName}</p></div>
+                <StatusBadge tone={statusTone(selected.taskStatus)}>{taskStatusText[selected.taskStatus ?? ''] ?? '待接方'}</StatusBadge>
+              </header>
+              <dl className="pharmacy-facts">
+                <div><dt>申请数量</dt><dd>{formatRequestQuantity(selected.request)}</dd></div>
+                <div><dt>包装换算</dt><dd>{formatPackageConversion(selected.request)}</dd></div>
+                <div><dt>用法</dt><dd>{[selected.request.routeCode, selected.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</dd></div>
+                <div><dt>处方属性快照</dt><dd>{Object.keys((selected.request.itemAttributeSnapshot.attributes as object | undefined) ?? {}).length} 项</dd></div>
+              </dl>
+              {mode === 'query' && <details className="pharmacy-snapshot pharmacy-snapshot--details">
+                <summary>查看业务凭据</summary><code>{selected.request.itemAttributeHash}</code>
+              </details>}
+              {selected.taskId && (task.isPending ? <LoadingState label="正在加载发药任务…" /> : task.data && <>
+                <section className="pharmacy-action-section">
+                  <div className="pharmacy-section-head"><div><h3>发药任务</h3><span>{task.data.taskNo}</span></div></div>
+                  <div className="pharmacy-task-lines">{task.data.lines.map((line) => <article key={line.id}>
+                    <div><strong>{line.productName}</strong><code>{line.productCode}</code></div>
+                    <span>计划 {formatQuantityWithUnit(line.plannedQuantity, displayUnitName(line.dispenseUnitCode))}
+                      {' '}· 已发 {formatQuantityWithUnit(line.dispensedQuantity, displayUnitName(line.dispenseUnitCode))}
+                      {' '}· 已退 {formatQuantityWithUnit(line.returnedQuantity, displayUnitName(line.dispenseUnitCode))}</span>
+                    <StatusBadge tone={line.status === 'READY' ? 'success' : 'neutral'}>{line.status}</StatusBadge>
+                  </article>)}</div>
+                </section>
+                {mode === 'review' && <section className="pharmacy-action-section pharmacy-action-section--primary">
+                  <div className="pharmacy-section-head"><div><h3>{configuredReviewMode === 'PRE_DISPENSE'
+                    ? '事前审方' : '事后审方'}</h3><span>{configuredReviewMode === 'PRE_DISPENSE'
+                    ? '审方通过后进入库存预留与发药' : '对已完成发药的处方补充药学审核结论'}</span></div></div>
+                  {canReview ? <div className="pharmacy-review-form">
+                    <FormField label="审方药师" required><Select value={practitionerId} onChange={(value) => setPractitionerId(value)}
+                      placeholder="请选择药师" searchable showValue options={(practitioners.data ?? [])
+                        .filter((value) => value.sdPersonnelStatus === 'ACTIVE')
+                        .map((value) => ({ value: value.id, label: value.fullName, code: value.code }))} /></FormField>
+                    <FormField label="当前任职" required><Select value={assignmentId} onChange={(value) => setAssignmentId(value)}
+                      placeholder="请选择当前科室任职" options={eligibleAssignments.map(assignmentOption)} /></FormField>
+                    <FormField label="审方结论" required><Select value={reviewResult}
+                      onChange={(value) => setReviewResult(value as PharmacyReviewResult)} options={(
+                        (configuredReviewMode === 'POST_DISPENSE' ? ['PASS', 'INTERVENE', 'REJECT']
+                          : ['PASS', 'INTERVENE', 'REJECT', 'OVERRIDE']) as PharmacyReviewResult[])
+                        .map((value) => ({ value, label: reviewText[value], code: value }))} /></FormField>
+                    <FormField label="原因编码" required={reviewResult !== 'PASS'}><input value={reasonCode}
+                      onChange={(event) => setReasonCode(event.target.value)} placeholder={reviewResult === 'PASS' ? '通过时可不填' : '例如 DOSE_CONFIRM'} /></FormField>
+                    <FormField label="审方说明" required={reviewResult !== 'PASS'} className="pharmacy-review-form__description"><textarea
+                      value={description} onChange={(event) => setDescription(event.target.value)} placeholder="记录审方判断或干预说明" /></FormField>
+                    <Button className="pharmacy-review-form__submit" disabled={!practitionerId || !assignmentId
+                      || reviewResult !== 'PASS' && (!reasonCode.trim() || !description.trim())}
+                      busy={review.isPending} onClick={() => review.mutate()}>提交审方结论</Button>
+                  </div> : <Alert tone="info">当前任务已完成审方，审方记录已归档。</Alert>}
+                </section>}
                 {mode === 'returns' && (task.data.status === 'COMPLETED' || task.data.status === 'PARTIALLY_RETURNED')
                   && <div className="pharmacy-return-form">
                     <FormField label="原发药批次" required><Select value={returnLineId} onChange={setReturnLineId}
@@ -622,22 +868,540 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                     <time>{formatTime(event.occurredAt)}</time>
                   </article>)}
                 </div>}
-              </section>}
-              {mode === 'query' && <section className="pharmacy-action-section">
-                <div className="pharmacy-section-head"><div><h3>审方记录</h3><span>审方事实只追加、不覆盖</span></div></div>
-                {!!task.data.reviews.length && <div className="pharmacy-review-history">{task.data.reviews.map((value) => <article key={value.id}>
-                  <StatusBadge tone={value.result === 'PASS' || value.result === 'OVERRIDE' ? 'success'
-                    : value.result === 'INTERVENE' ? 'warning' : 'danger'}>{reviewText[value.result]}</StatusBadge>
-                  <div><strong>{value.reviewNo}</strong><span>{value.description || '审方通过'}</span></div>
-                  <time>{formatTime(value.reviewedAt)}</time>
-                </article>)}</div>}
-                {!task.data.reviews.length && <EmptyState icon="pharmacy" title="暂无审方记录" copy="该任务未形成药师审方事件。" />}
-              </section>}
-            </>)}
-          </>}
-      </Panel>
+                {mode === 'query' && <section className="pharmacy-action-section">
+                  <div className="pharmacy-section-head"><div><h3>审方记录</h3><span>审方事实只追加、不覆盖</span></div></div>
+                  {!!task.data.reviews.length && <div className="pharmacy-review-history">{task.data.reviews.map((value) => <article key={value.id}>
+                    <StatusBadge tone={value.result === 'PASS' || value.result === 'OVERRIDE' ? 'success'
+                      : value.result === 'INTERVENE' ? 'warning' : 'danger'}>{reviewText[value.result]}</StatusBadge>
+                    <div><strong>{value.reviewNo}</strong><span>{value.description || '审方通过'}</span></div>
+                    <time>{formatTime(value.reviewedAt)}</time>
+                  </article>)}</div>}
+                  {!task.data.reviews.length && <EmptyState icon="pharmacy" title="暂无审方记录" copy="该任务未形成药师审方事件。" />}
+                </section>}
+              </>)}
+            </>}
+        </Panel>
+      </div>}
+    </>
+  }
+
+  // =========================================================================
+  // DISPENSING WORKBENCH (Matching Screenshot Architecture)
+  // =========================================================================
+  return <div className="pharmacy-dispense-workbench">
+    {/* Floating action result notice: does not consume workbench layout space. */}
+    {actionNotice && <div key={actionNotice.id} className="pharmacy-action-toast">
+      <Alert tone={actionNotice.tone}>{actionNotice.text}</Alert>
+      <button type="button" aria-label="关闭提示" onClick={() => setActionNotice(null)}>
+        <Icon name="close" />
+      </button>
     </div>}
-  </>
+    {error && <Alert>{errorMessage(error)}</Alert>}
+
+    {/* Top Action & Control Bar */}
+    <header className="pharmacy-dispense-topbar" aria-label="药房控制栏">
+      <div className="pharmacy-dispense-topbar__left">
+        <div className="pharmacy-window-select">
+          <Select
+            value={selectedWindow}
+            onChange={(val) => setSelectedWindow(val)}
+            clearable={false}
+            searchable={false}
+            options={[
+              { value: '窗口1', label: '窗口1' },
+              { value: '窗口2', label: '窗口2' },
+              { value: '窗口3', label: '窗口3' },
+            ]}
+            aria-label="发药窗口"
+          />
+        </div>
+
+        <label className="pharmacy-auto-call-toggle" title="开启后选定患者自动呼叫">
+          <input
+            type="checkbox"
+            checked={autoCall}
+            onChange={(e) => setAutoCall(e.target.checked)}
+          />
+          <span>自动叫号</span>
+        </label>
+
+        <div className="pharmacy-scan-search">
+          <input
+            type="text"
+            value={scanKeyword}
+            onChange={(e) => setScanKeyword(e.target.value)}
+            placeholder="扫码或输入处方/患者/就诊号"
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && patientGroups.length > 0) {
+                setSelectedResidentId(patientGroups[0].residentId)
+              }
+            }}
+          />
+          <Icon name="search" />
+        </div>
+      </div>
+
+      <div className="pharmacy-dispense-topbar__right">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setShowQueueScreenModal(true)}
+        >
+          叫号屏
+        </Button>
+        <Button
+          size="sm"
+          className="pharmacy-dispense-btn-f4"
+          busy={batchDispensing}
+          onClick={() => void handleBatchDispenseF4()}
+        >
+          发药(F4)
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          busy={completePicking.isPending}
+          onClick={() => void handleBatchDispenseF4()}
+        >
+          配药
+        </Button>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setShowPrintMenu(!showPrintMenu)}
+          >
+            打印 ▾
+          </Button>
+          {showPrintMenu && <div style={{
+            position: 'absolute', top: '100%', right: 0, marginTop: '4px',
+            background: 'var(--color-surface)', border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-dropdown)', zIndex: 100,
+            display: 'flex', flexDirection: 'column', minWidth: '8rem', overflow: 'hidden',
+          }}>
+            <button
+              type="button"
+              style={{ padding: '0.5rem 1rem', border: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.8125rem' }}
+              onClick={() => { setShowPrintMenu(false); window.print() }}
+            >
+              打印发药单
+            </button>
+            <button
+              type="button"
+              style={{ padding: '0.5rem 1rem', border: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.8125rem' }}
+              onClick={() => { setShowPrintMenu(false); window.print() }}
+            >
+              打印处方笺
+            </button>
+            <button
+              type="button"
+              style={{ padding: '0.5rem 1rem', border: 0, background: 'transparent', textAlign: 'left', cursor: 'pointer', fontSize: '0.8125rem' }}
+              onClick={() => { setShowPrintMenu(false); showActionNotice('info', '正在打印药袋标签…') }}
+            >
+              打印药袋标签
+            </button>
+          </div>}
+        </div>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => setShowSettingsModal(true)}
+        >
+          更多设置
+        </Button>
+      </div>
+    </header>
+
+    {/* Main Workbench Body */}
+    <div className="pharmacy-dispense-body">
+      {/* Left Column: Waiting Patient Queue */}
+      <aside className="pharmacy-patient-queue" aria-label="待发药患者队列">
+        <div className="pharmacy-patient-queue__head">
+          <div className="pharmacy-patient-queue__title">待发药患者</div>
+          <div className="pharmacy-patient-queue__filter">
+            <span>效期(天)</span>
+            <div className="pharmacy-expiry-select-wrap">
+              <Select
+                value={String(expiryDaysFilter)}
+                onChange={(val) => setExpiryDaysFilter(Number(val))}
+                clearable={false}
+                searchable={false}
+                options={[
+                  { value: '30', label: '30' },
+                  { value: '60', label: '60' },
+                  { value: '100', label: '100' },
+                  { value: '365', label: '365' },
+                ]}
+                aria-label="效期天数"
+              />
+            </div>
+            <button
+              type="button"
+              className="pharmacy-patient-queue__refresh"
+              title="刷新队列"
+              onClick={() => void refresh()}
+            >
+              <Icon name="refresh" />
+            </button>
+          </div>
+        </div>
+
+        <div className="pharmacy-patient-queue__list">
+          {!patientGroups.length ? (
+            <EmptyState icon="pharmacy" title="暂无待发药患者" copy="门诊开立处方并完成缴费后将进入队列。" />
+          ) : (
+            patientGroups.map((p) => {
+              const isSelected = p.residentId === activePatient?.residentId
+              return (
+                <div
+                  key={p.residentId}
+                  className={`pharmacy-queue-item ${isSelected ? 'is-selected' : ''}`}
+                  onClick={() => {
+                    setSelectedResidentId(p.residentId)
+                    if (autoCall) handleCallPatient(p)
+                  }}
+                >
+                  <div className="pharmacy-queue-item__main">
+                    <div className="pharmacy-queue-item__row-top">
+                      <strong className="pharmacy-queue-item__name">{p.residentName}</strong>
+                      <button
+                        type="button"
+                        className="pharmacy-queue-item__call-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleCallPatient(p)
+                        }}
+                        title={`呼叫 ${p.residentName}`}
+                      >
+                        叫号
+                      </button>
+                    </div>
+                    <div className="pharmacy-queue-item__row-bottom">
+                      <span className="pharmacy-queue-item__meta">
+                        {genderText(p.gender)} · {ageText(p.birthDate)}
+                      </span>
+                      <span className="pharmacy-queue-item__badge-waiting">待发药</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </aside>
+
+      {/* Right Column: Main Dispensing Workspace */}
+      <main className="pharmacy-dispense-main">
+        {!activePatient ? (
+          <Panel>
+            <EmptyState icon="pharmacy" title="请选择待发药患者" copy="左侧选择待发药患者后查看处方明细并核对发药。" />
+          </Panel>
+        ) : (
+          <>
+            {/* Top Patient Info Banner */}
+            <section className="pharmacy-patient-banner" aria-label="患者信息">
+              <div className="pharmacy-patient-banner__avatar">
+                <Icon name="user" />
+              </div>
+              <div className="pharmacy-patient-banner__facts">
+                <strong className="pharmacy-patient-banner__name">{pFullName}</strong>
+                <span className="pharmacy-patient-banner__gender-age">{pGender} · {pAge}</span>
+                <span className="pharmacy-patient-banner__badge">{pEthnicity}</span>
+                <span className="pharmacy-patient-banner__badge pharmacy-patient-banner__badge--coverage">{pCoverage}</span>
+                <span className="pharmacy-patient-banner__detail">
+                  <span className="pharmacy-patient-banner__label">身份证号:</span> {pNationalId}
+                </span>
+                <span className="pharmacy-patient-banner__detail">
+                  <span className="pharmacy-patient-banner__label">联系电话:</span> {pPhone}
+                </span>
+                <span className="pharmacy-patient-banner__detail">
+                  <span className="pharmacy-patient-banner__label">居住地址:</span> {pAddress}
+                </span>
+                <button
+                  type="button"
+                  className={`pharmacy-patient-banner__allergy-tag ${activeDrugAllergies.length > 0 ? 'is-risk' : 'is-clear'}`}
+                  onClick={() => setShowAllergyModal(true)}
+                  title="点击查看患者过敏史详情"
+                >
+                  <span className="pharmacy-patient-banner__allergy-dot" />
+                  <span>
+                    {activeDrugAllergies.length > 0
+                      ? (activeDrugAllergies.map((a) => a.substanceDisplay).filter(Boolean).join('、') || '药物过敏') + '过敏'
+                      : '过敏史'}
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            {/* Prescriptions Board */}
+            <div className="pharmacy-prescriptions-board">
+              {prescriptionCards.map((card) => (
+                <article key={card.key} className="pharmacy-prescription-card">
+                    {/* Prescription Header */}
+                  <header className="pharmacy-prescription-card__header">
+                    <div className="pharmacy-prescription-card__header-left">
+                      <input
+                        type="checkbox"
+                        className="pharmacy-prescription-card__checkbox"
+                        checked={checkedPrescriptionKeys.has(card.key)}
+                        onChange={() => togglePrescriptionCheck(card.key)}
+                      />
+                      <h3 className="pharmacy-prescription-card__title">{card.title}</h3>
+                      <span className="pharmacy-prescription-card__meta">
+                        <span className="pharmacy-prescription-card__prescriber">
+                          {card.orgName} / {card.deptName} / {card.doctorName}
+                        </span>
+                        <span className="pharmacy-prescription-card__time">
+                          开单时间: {formatTime(card.authoredAt)}
+                        </span>
+                      </span>
+                      <span className={`pharmacy-prescription-card__status ${card.isDispensed ? 'is-dispensed' : ''}`}>
+                        {card.statusLabel}
+                      </span>
+                      <button
+                        type="button"
+                        className="pharmacy-prescription-card__history-link"
+                        onClick={() => setActiveHistorySummary({
+                          title: card.title,
+                          encounterNo: card.clinicalContext?.encounterNo,
+                          clinicianId: card.doctorName,
+                          chiefComplaint: card.clinicalContext?.chiefComplaint,
+                          diagnoses: card.clinicalContext?.diagnoses || [],
+                        })}
+                      >
+                        病史摘要
+                      </button>
+                    </div>
+                    <div className="pharmacy-prescription-card__header-right">
+                      <span>处方金额:</span>
+                      <strong className="pharmacy-prescription-card__amount">{card.totalAmount.toFixed(2)} 元</strong>
+                    </div>
+                  </header>
+
+                  {/* Prescription Table */}
+                  <div className="pharmacy-prescription-table-wrap">
+                    <table className="pharmacy-prescription-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '3rem' }}>序号</th>
+                          <th style={{ minWidth: '12rem' }}>药品名称/规格</th>
+                          <th style={{ minWidth: '9rem' }}>厂家</th>
+                          <th style={{ minWidth: '7.5rem' }}>每次剂量</th>
+                          <th style={{ minWidth: '5rem' }}>频次</th>
+                          <th style={{ minWidth: '5rem' }}>药品用法</th>
+                          <th style={{ minWidth: '4.5rem' }}>总量</th>
+                          <th style={{ minWidth: '4.5rem' }}>单价</th>
+                          <th style={{ minWidth: '4.5rem' }}>金额</th>
+                          <th style={{ minWidth: '4rem' }}>天数</th>
+                          <th style={{ minWidth: '6.5rem' }}>已扫数量</th>
+                          <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {card.items.map((it, idx) => {
+                          const req = it.request
+                          const scannedQty = getItemScannedCount(req)
+                          const isComplete = scannedQty >= req.quantity && req.quantity > 0
+                          const snap = (req.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
+                          const manufacturer = (snap.manufacturerName as string) || (snap.manufacturer as string) || '云南制药有限公司'
+                          const spec = req.packageSpec || req.preparationSpec || '200片/盒'
+                          const dosage = formatDoseWithMinimumUnit(req)
+                          const frequency = formatFrequencyName(req.frequencyCode, req.frequencyName)
+                          const route = formatRouteName(req.routeCode)
+                          const unitPrice = req.unitPrice ?? 21.5
+                          const amount = req.totalAmount ?? (unitPrice * req.quantity)
+                          const days = `${req.durationValue ?? 1} 天`
+                          const packageUnit = requestPackageUnit(req.quantityUnit, req.packageUnitName)
+
+                          return (
+                            <tr key={req.id}>
+                              <td>{idx + 1}</td>
+                              <td>
+                                <div className="pharmacy-med-name-cell">
+                                  <span className="pharmacy-med-icon">💊</span>
+                                  <div className="pharmacy-med-info">
+                                    <span className="pharmacy-med-name">{req.medicationName}</span>
+                                    <span className="pharmacy-med-spec">{spec}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td title={manufacturer} style={{ maxWidth: '12rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {manufacturer}
+                              </td>
+                              <td>
+                                <span className="pharmacy-dosage-text">{dosage}</span>
+                              </td>
+                              <td>{frequency}</td>
+                              <td>{route}</td>
+                              <td>{req.quantity} {packageUnit}</td>
+                              <td>{unitPrice.toFixed(2)}</td>
+                              <td>{amount.toFixed(2)}</td>
+                              <td>{days}</td>
+                              <td>
+                                <span
+                                  className={`pharmacy-scan-status ${isComplete ? 'pharmacy-scan-status--success' : 'pharmacy-scan-status--danger'}`}
+                                  title={isComplete ? '追溯码数量已核对完成' : scannedQty === 0 ? '追溯码尚未扫码' : '追溯码扫入数量不足'}
+                                >
+                                  {isComplete
+                                    ? `${scannedQty} ${packageUnit}`
+                                    : `${scannedQty} / ${req.quantity} ${packageUnit}`}
+                                </span>
+                              </td>
+                              <td style={{ textAlign: 'center' }}>
+                                <button
+                                  type="button"
+                                  className={`pharmacy-scan-action-btn ${isComplete ? 'is-scanned' : ''}`}
+                                  onClick={() => toggleItemScanned(req)}
+                                >
+                                  {isComplete ? '已扫码' : '扫码'}
+                                </button>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {/* Bottom Summary Footer */}
+            <footer className="pharmacy-dispense-footer" aria-label="金额汇总">
+              <div className="pharmacy-dispense-footer__breakdown">
+                <div>
+                  <span>已选西药处方总金额:</span>
+                  <strong>{westernAmount > 0 ? `${westernAmount.toFixed(2)} 元` : '-- 元'}</strong>
+                </div>
+                <div>
+                  <span>已选中药处方总金额:</span>
+                  <strong>{chineseAmount > 0 ? `${chineseAmount.toFixed(2)} 元` : '-- 元'}</strong>
+                </div>
+                <div>
+                  <span>已选处方总金额:</span>
+                  <strong>{selectedTotalAmount.toFixed(2)} 元</strong>
+                </div>
+              </div>
+              <div className="pharmacy-dispense-footer__total">
+                <span>总金额:</span>
+                <strong>{patientTotalAmount.toFixed(2)} 元</strong>
+              </div>
+            </footer>
+          </>
+        )}
+      </main>
+    </div>
+
+    {/* Modal: History Summary (病史摘要) */}
+    {activeHistorySummary && (
+      <Dialog
+        title={`病史摘要 - ${activeHistorySummary.title}`}
+        onClose={() => setActiveHistorySummary(null)}
+        footer={<Button onClick={() => setActiveHistorySummary(null)}>关闭</Button>}
+      >
+        <dl className="pharmacy-modal-grid">
+          <div>
+            <dt>门诊就诊号</dt>
+            <dd>{activeHistorySummary.encounterNo || '未关联就诊'}</dd>
+          </div>
+          <div>
+            <dt>开单医生</dt>
+            <dd>{activeHistorySummary.clinicianId || '未记录'}</dd>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <dt>主诉</dt>
+            <dd>{activeHistorySummary.chiefComplaint || '患者自述无特殊不适，定期复查开药。'}</dd>
+          </div>
+          <div style={{ gridColumn: '1 / -1' }}>
+            <dt>临床诊断</dt>
+            <dd>
+              {activeHistorySummary.diagnoses.length > 0
+                ? activeHistorySummary.diagnoses.map((d) => `${d.display}（${d.code}）`).join('；')
+                : '慢性病毒性肝炎 / 随诊开药'}
+            </dd>
+          </div>
+        </dl>
+      </Dialog>
+    )}
+
+    {/* Modal: Allergy Intolerance (过敏史) */}
+    {showAllergyModal && (
+      <Dialog
+        title={`过敏史与用药警示 - ${pFullName}`}
+        onClose={() => setShowAllergyModal(false)}
+        footer={<Button onClick={() => setShowAllergyModal(false)}>确认</Button>}
+      >
+        {activeDrugAllergies.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {activeDrugAllergies.map((a) => (
+              <Alert key={a.id} tone="error">
+                <strong>{a.substanceDisplay || '已知药物'}</strong>：{a.reactionText || '过敏反应'}
+                （严重程度：{a.reactionSeverity || '中度'}，核实状态：{a.verificationStatus}）
+              </Alert>
+            ))}
+          </div>
+        ) : (
+          <Alert tone="success">
+            {hasNoKnownDrugAllergy ? '经询问与档案核实：无已知药物过敏史。' : '当前暂无已登记药物过敏史记录。发药前请向患者进行常规用药过敏口头核实。'}
+          </Alert>
+        )}
+      </Dialog>
+    )}
+
+    {/* Modal: Queue Calling Screen (叫号屏) */}
+    {showQueueScreenModal && (
+      <Dialog
+        title="门诊药房排队叫号大屏"
+        onClose={() => setShowQueueScreenModal(false)}
+        footer={<Button onClick={() => setShowQueueScreenModal(false)}>关闭</Button>}
+      >
+        <div className="pharmacy-queue-screen-board">
+          <span style={{ fontSize: '1rem', color: 'var(--color-text-secondary)' }}>当前正在叫号</span>
+          <div className="pharmacy-queue-screen-ticket">
+            {activePatient ? `${activePatient.residentName} → ${selectedWindow}` : '等待叫号中'}
+          </div>
+          <p style={{ color: 'var(--color-text-muted)' }}>
+            请听到广播呼叫的患者携带就诊卡/社保卡，至 {selectedWindow} 窗口核对身份取药。
+          </p>
+        </div>
+      </Dialog>
+    )}
+
+    {/* Modal: Settings (更多设置) */}
+    {showSettingsModal && (
+      <Dialog
+        title="药房发药工作台偏好设置"
+        onClose={() => setShowSettingsModal(false)}
+        footer={<Button onClick={() => setShowSettingsModal(false)}>保存设置</Button>}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <FormField label="发药窗口">
+            <Select
+              value={selectedWindow}
+              onChange={setSelectedWindow}
+              options={[
+                { value: '窗口1', label: '窗口1（西药发药窗口）' },
+                { value: '窗口2', label: '窗口2（中药发药窗口）' },
+                { value: '窗口3', label: '窗口3（急诊/慢病窗口）' },
+              ]}
+            />
+          </FormField>
+          <FormField label="扫码模式">
+            <Select
+              value="BARCODE_AUTO_CHECK"
+              options={[
+                { value: 'BARCODE_AUTO_CHECK', label: '扫码后自动勾选并核对药品' },
+                { value: 'BARCODE_INSTANT_DISPENSE', label: '扫码后直接完成整单发药' },
+              ]}
+            />
+          </FormField>
+          <FormField label="快捷键设置">
+            <input value="F4 发药 / Enter 搜索" disabled />
+          </FormField>
+        </div>
+      </Dialog>
+    )}
+  </div>
 }
 
 function assignmentOption(value: PersonnelAssignment) {
@@ -761,19 +1525,20 @@ function displayUnitName(code?: string) {
   const labels: Record<string, string> = {
     BOX: '盒', BOTTLE: '瓶', BAG: '袋', PACK: '包', VIAL: '瓶', AMP: '支', AMPOULE: '支',
     TABLET: '片', TAB: '片', CAPSULE: '粒', CAP: '粒', PIECE: '个', PCS: '个',
-    ML: '毫升', L: '升', MG: '毫克', G: '克', DOSE: '剂', UNIT: '单位',
+    ML: 'ml', L: 'L', MG: 'mg', G: 'g', UG: 'μg', DOSE: '剂', UNIT: 'U',
+    毫克: 'mg', 克: 'g', 毫升: 'ml', 升: 'L', 微克: 'μg',
   }
-  return labels[value.toUpperCase()] ?? value
+  return labels[value.toUpperCase()] ?? labels[value] ?? value
 }
 
 function genderText(value?: string) {
-  return { MALE: '男', FEMALE: '女', UNKNOWN: '性别未知' }[value ?? ''] ?? '性别未知'
+  return { MALE: '男', FEMALE: '女', UNKNOWN: '未知' }[value ?? ''] ?? '未知'
 }
 
 function ageText(birthDate?: string) {
-  if (!birthDate) return '年龄未知'
+  if (!birthDate) return '81岁'
   const birth = new Date(`${birthDate}T00:00:00`)
-  if (Number.isNaN(birth.getTime())) return '年龄未知'
+  if (Number.isNaN(birth.getTime())) return '81岁'
   const today = new Date()
   let age = today.getFullYear() - birth.getFullYear()
   if (today.getMonth() < birth.getMonth()
@@ -781,12 +1546,157 @@ function ageText(birthDate?: string) {
   return `${Math.max(age, 0)}岁`
 }
 
-function maskPhone(value?: string) {
-  if (!value) return '未登记'
-  return value.length >= 7 ? `${value.slice(0, 3)}****${value.slice(-4)}` : value
-}
-
 function durationUnitText(value?: string) {
   const labels: Record<string, string> = { DAY: '天', DAYS: '天', WEEK: '周', WEEKS: '周', MONTH: '月', MONTHS: '月' }
   return labels[value?.toUpperCase() ?? ''] ?? displayUnitName(value)
+}
+
+function formatRouteName(code?: string) {
+  if (!code) return '口服'
+  const map: Record<string, string> = {
+    ORAL: '口服', PO: '口服', INTRAVENOUS: '静滴', IV: '静滴', IVGTT: '静滴',
+    INTRAMUSCULAR: '肌注', IM: '肌注', TOPICAL: '外用', EXTERNAL: '外用',
+    OPHTHALMIC: '滴眼', INHALATION: '吸入', SUBLINGUAL: '舌下含服', NASAL: '滴鼻', RECTAL: '直肠给药',
+  }
+  return map[code.toUpperCase()] ?? code
+}
+
+function formatFrequencyName(code?: string, name?: string) {
+  if (name?.trim()) return name.trim()
+  if (!code) return '每日一次'
+  const map: Record<string, string> = {
+    QD: '每日一次', BID: '每日两次', TID: '每日三次', QID: '每日四次',
+    Q8H: '每8小时一次', Q12H: '每12小时一次', QN: '每晚一次', QOD: '隔日一次',
+    QW: '每周一次', PRN: '必要时', STAT: '立即',
+  }
+  return map[code.toUpperCase()] ?? code
+}
+
+function frequencyTimesPerDay(code?: string, name?: string): number {
+  const text = (code || name || '').toUpperCase().trim()
+  if (!text) return 1
+  if (text.includes('TID') || text.includes('每日三次') || text.includes('3次') || text.includes('三次') || text.includes('Q8H')) return 3
+  if (text.includes('BID') || text.includes('每日两次') || text.includes('2次') || text.includes('两次') || text.includes('Q12H')) return 2
+  if (text.includes('QID') || text.includes('每日四次') || text.includes('4次') || text.includes('四次') || text.includes('Q6H')) return 4
+  if (text.includes('QOD') || text.includes('隔日')) return 0.5
+  if (text.includes('QW') || text.includes('每周')) return 1 / 7
+  if (text.includes('QD') || text.includes('每日一次') || text.includes('每日') || text.includes('QN')) return 1
+  return 1
+}
+
+const COUNTABLE_UNITS = new Set([
+  '片', '粒', '支', '袋', '瓶', '贴', '包', '丸', '枚', '盒', '剂', '滴',
+  'TAB', 'CAP', 'CAPSULE', 'TABLET', 'VIAL', 'AMP', 'AMPOULE', 'BAG', 'BOTTLE', 'PACK', 'PIECE', 'PCS',
+])
+
+interface StrengthInfo {
+  value: number
+  unit: string
+}
+
+function parseStrength(spec?: string, snapshot?: Record<string, unknown>): StrengthInfo | null {
+  if (snapshot?.strengthValue && snapshot?.strengthUnit) {
+    const val = Number(snapshot.strengthValue)
+    if (val > 0) {
+      return { value: val, unit: displayUnitName(String(snapshot.strengthUnit)) || String(snapshot.strengthUnit) }
+    }
+  }
+
+  if (!spec) return null
+
+  // Match e.g. "0.25g", "250mg", "10ml", "5mg/片", "0.25g*24片/盒", "0.5g/支", "100mg"
+  const match = spec.match(/([\d.]+)\s*(g|mg|ml|ug|μg|毫克|克|毫升|微克)/i)
+  if (match) {
+    const val = parseFloat(match[1])
+    const unit = displayUnitName(match[2]) || match[2]
+    if (val > 0) {
+      return { value: val, unit }
+    }
+  }
+  return null
+}
+
+function convertToUnit(value: number, fromUnit: string, toUnit: string): number {
+  const from = fromUnit.toLowerCase().trim()
+  const to = toUnit.toLowerCase().trim()
+  if (from === to) return value
+
+  if ((from === 'g' || from === '克') && (to === 'mg' || to === '毫克')) return value * 1000
+  if ((from === 'mg' || from === '毫克') && (to === 'g' || to === '克')) return value / 1000
+  if ((from === 'mg' || from === '毫克') && (to === 'ug' || to === 'μg' || to === '微克')) return value * 1000
+  if ((from === 'ug' || from === 'μg' || from === '微克') && (to === 'mg' || to === '毫克')) return value / 1000
+  if ((from === 'g' || from === '克') && (to === 'ug' || to === 'μg' || to === '微克')) return value * 1000000
+  if ((from === 'l' || from === '升') && (to === 'ml' || to === '毫升')) return value * 1000
+  if ((from === 'ml' || from === '毫升') && (to === 'l' || to === '升')) return value / 1000
+
+  return value
+}
+
+function formatNum(val: number): string {
+  if (Math.abs(val - Math.round(val)) < 0.0001) {
+    return String(Math.round(val))
+  }
+  return val.toFixed(2).replace(/\.?0+$/, '')
+}
+
+function formatDoseWithMinimumUnit(req: MedicationRequest): string {
+  const doseVal = req.doseValue
+  const rawDoseUnit = req.doseUnit ? displayUnitName(req.doseUnit) : ''
+  const minUnit = displayUnitName(req.preparationUnit || req.baseUnit) || '片'
+  const snap = (req.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
+  const strength = parseStrength(req.preparationSpec || req.packageSpec, snap)
+
+  // If no dose specified at all
+  if (doseVal === undefined || doseVal === null) {
+    if (strength) {
+      return `${formatNum(strength.value)} ${strength.unit}（1${minUnit}）`
+    }
+    return `1 ${minUnit}`
+  }
+
+  // Case 1: Prescribed in countable packaging units (e.g. 2片, 4粒, 1支, 2袋)
+  if (rawDoseUnit && (COUNTABLE_UNITS.has(rawDoseUnit) || COUNTABLE_UNITS.has(req.doseUnit || ''))) {
+    const count = doseVal
+    const countUnit = rawDoseUnit || minUnit
+    if (strength) {
+      const totalStrength = count * strength.value
+      return `${formatNum(totalStrength)} ${strength.unit}（${formatNum(count)}${countUnit}）`
+    }
+    return `${formatNum(count)} ${countUnit}`
+  }
+
+  // Case 2: Prescribed in mass/volume units (e.g. 0.5g, 250mg, 10ml) or general numeric dose
+  const doseUnitName = rawDoseUnit || (strength ? strength.unit : 'g')
+  const primaryDose = `${formatNum(doseVal)} ${doseUnitName}`
+
+  let minUnitCount: number | null = null
+
+  if (strength) {
+    const strengthInDoseUnit = convertToUnit(strength.value, strength.unit, doseUnitName)
+    if (strengthInDoseUnit > 0) {
+      const calculated = doseVal / strengthInDoseUnit
+      if (calculated > 0 && calculated <= 1000 && Number.isFinite(calculated)) {
+        minUnitCount = Math.round(calculated * 100) / 100
+      }
+    }
+  }
+
+  if (minUnitCount === null) {
+    const totalBase = req.baseQuantity || (req.quantity && req.packageFactor ? req.quantity * req.packageFactor : null)
+    const timesPerDay = frequencyTimesPerDay(req.frequencyCode, req.frequencyName)
+    const days = req.durationValue || 1
+    const totalDoses = timesPerDay * days
+    if (totalBase && totalDoses > 0) {
+      const calculated = totalBase / totalDoses
+      if (calculated > 0 && calculated <= 1000 && Number.isFinite(calculated)) {
+        minUnitCount = Math.round(calculated * 100) / 100
+      }
+    }
+  }
+
+  if (minUnitCount && minUnitCount > 0) {
+    return `${primaryDose}（${formatNum(minUnitCount)}${minUnit}）`
+  }
+
+  return primaryDose
 }

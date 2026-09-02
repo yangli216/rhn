@@ -182,7 +182,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'clinical', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
-      { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '简易', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
+      { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '双模式', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
       { id: 'diagnostics', label: '检查检验', icon: 'clinical', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'clinical', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'clinical', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },

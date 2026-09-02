@@ -234,6 +234,42 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void department_schedule_completes_paid_registration_without_a_practitioner_snapshot() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        String scheduleId = createTodayDepartmentSchedule(suffix, 2);
+        JsonNode intent = createIntent(residentId, scheduleId, "DEPT-INTENT-" + suffix);
+
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
+                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "idempotencyKey":"DEPT-PAY-%s","businessScene":"REGISTRATION",
+                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":10.00,
+                                  "terminalCode":"REGISTRATION-TEST"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"));
+
+        JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
+                                intent.get("id").asText()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.encounterId").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+
+        assertEquals("DEPARTMENT", jdbc.queryForObject(
+                "select registration_scope from service_schedules where id = ?", String.class, Long.valueOf(scheduleId)));
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from appointments where schedule_id = ? and practitioner_id is null " +
+                        "and practitioner_name_snapshot is null", Integer.class, Long.valueOf(scheduleId)));
+        assertEquals(1, jdbc.queryForObject(
+                "select count(*) from patient_registrations where schedule_id = ? and encounter_id = ?",
+                Integer.class, Long.valueOf(scheduleId), completed.get("encounterId").asLong()));
+    }
+
+    @Test
     void direct_zero_fee_registration_bypasses_payment_but_still_uses_durable_intent() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);
@@ -589,6 +625,25 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 """.formatted(REGISTRATION_SERVICE, today, today,
                                 today.getDayOfWeek().getValue(), capacity, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        return generated.at("/schedules/0/id").asText();
+    }
+
+    private String createTodayDepartmentSchedule(String suffix, int capacity) throws Exception {
+        LocalDate today = LocalDate.now();
+        JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "registrationScope":"DEPARTMENT","catalogItemId":"%s",
+                                  "dateFrom":"%s","dateTo":"%s","weekdays":[%d],"dayParts":["MORNING"],
+                                  "morningStart":"00:00","morningEnd":"23:59","capacity":%d,
+                                  "locationName":"科室号挂号验收诊室","idempotencyCode":"DEPT-SCHEDULE-%s"
+                                }
+                                """.formatted(REGISTRATION_SERVICE, today, today,
+                                today.getDayOfWeek().getValue(), capacity, suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.schedules[0].sdRegistrationScope").value("DEPARTMENT"))
+                .andExpect(jsonPath("$.schedules[0].practitionerId").doesNotExist())
+                .andReturn().getResponse().getContentAsString());
         return generated.at("/schedules/0/id").asText();
     }
 

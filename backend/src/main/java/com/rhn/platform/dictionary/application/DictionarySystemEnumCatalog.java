@@ -44,6 +44,7 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String POSITION_TYPE = "POSITION_TYPE";
     public static final String ASSIGNMENT_TYPE = "ASSIGNMENT_TYPE";
     public static final String SC_SCHEDULE_MANAGEMENT_MODE = "SC_SCHEDULE_MANAGEMENT_MODE";
+    public static final String SC_REGISTRATION_SCOPE = "SC_REGISTRATION_SCOPE";
     public static final String SC_PRESCRIPTION_REVIEW_MODE = "SC_PRESCRIPTION_REVIEW_MODE";
     public static final String SC_SCHEDULE_DAY_PART = "SC_SCHEDULE_DAY_PART";
     public static final String SC_SCHEDULE_STATUS = "SC_SCHEDULE_STATUS";
@@ -204,6 +205,9 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
             definition(SC_SCHEDULE_MANAGEMENT_MODE, "排班管理模式", "基层简易排班与精细化专业排班的管理模式", List.of(
                             item("SIMPLE", "简易模式", "以医生、日期时段和号源数快速生成排班", 10),
                             item("PROFESSIONAL", "专业模式", "启用渠道配额、分时号和规则等精细化能力", 20))),
+            definition(SC_REGISTRATION_SCOPE, "挂号对象", "号源按科室或按指定医生开放", List.of(
+                            item("DEPARTMENT", "科室号", "患者先挂到科室，接诊时再分配医生", 10),
+                            item("PRACTITIONER", "医生号", "患者挂到指定出诊医生", 20))),
             definition(SC_PRESCRIPTION_REVIEW_MODE, "处方审方模式", "控制处方审方是否启用及其发生时点", List.of(
                             item("DISABLED", "不启用", "门诊发药不设置审方前置或事后任务", 10),
                             item("PRE_DISPENSE", "事前审方", "审方通过后方可预留库存并发药", 20),

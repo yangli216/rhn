@@ -24,8 +24,8 @@ export interface Appointment {
   sdDayPartText: string
   startAt: string
   endAt: string
-  practitionerId: string
-  practitionerName: string
+  practitionerId?: string
+  practitionerName?: string
   serviceCode: string
   serviceName: string
   locationName?: string
