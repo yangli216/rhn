@@ -26,7 +26,8 @@ public record ResidentProfileResponse(
     }
 
     public record DemographicProfileView(
-            String nationalityCode, String ethnicityCode,
+            @DictionaryBinding("PI_NATIONALITY") String nationalityCode,
+            @DictionaryBinding("PI_ETHNICITY") String ethnicityCode,
             @DictionaryBinding("PI_RESIDENCY_TYPE") String sdResidencyType,
             @DictionaryBinding("PI_MARITAL_STATUS") String sdMaritalStatus,
             @DictionaryBinding("PI_EDUCATION_LEVEL") String sdEducationLevel,

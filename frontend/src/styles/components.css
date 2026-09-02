@@ -122,12 +122,18 @@
 .ui-panel__head { min-height: 3.625rem; padding: var(--space-3) var(--space-5); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); flex: none; }
 .ui-panel__head h2, .ui-panel__head h3 { margin: 0; font-size: var(--font-size-h3); font-weight: var(--font-weight-semibold); }
 .ui-panel__meta { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: var(--line-height-small); }
-.ui-pagination { min-height: 3.5rem; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: center; gap: var(--space-3); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.ui-pagination button { min-width: 4.5rem; height: var(--control-height-sm); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); font: inherit; font-size: var(--font-size-small); }
+.ui-pagination { min-height: 3rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.ui-pagination__total { color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.ui-pagination__size { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.ui-pagination__size select { height: var(--control-height-sm); padding: 0 var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-primary); font-size: var(--font-size-small); cursor: pointer; outline: none; }
+.ui-pagination__size select:focus-visible { border-color: var(--color-brand-primary); box-shadow: 0 0 0 2px var(--color-focus-ring); }
+.ui-pagination__nav { display: inline-flex; align-items: center; gap: var(--space-2); }
+.ui-pagination button { min-width: 4.5rem; height: var(--control-height-sm); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); font: inherit; font-size: var(--font-size-small); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
 .ui-pagination button:hover:not(:disabled), .ui-pagination button:focus-visible { border-color: var(--color-brand-primary); outline: 0; color: var(--color-brand-primary); box-shadow: 0 0 0 2px var(--color-focus-ring); }
-.ui-pagination button:disabled { color: var(--color-text-disabled); background: var(--color-surface-muted); }
-.ui-pagination span { min-width: 4rem; color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
+.ui-pagination button:disabled { color: var(--color-text-disabled); background: var(--color-surface-muted); cursor: not-allowed; }
+.ui-pagination span { color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .ui-pagination strong { color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+
 
 .ui-split-workspace { min-width: 0; min-height: 0; display: grid; gap: var(--space-4); overflow: hidden; }
 
@@ -1176,18 +1182,19 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 .ui-dialog__description { margin: var(--space-3) 0 var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: 1.55; }
 .ui-field__required { margin-left: .2rem; color: var(--color-danger); }
 
-.ui-context-bar { margin-bottom: var(--space-5); padding: var(--space-5); display: flex; align-items: center; gap: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-panel); }
+.ui-context-bar { margin-bottom: var(--space-6); padding: var(--space-5); display: flex; align-items: center; gap: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-panel); }
 .ui-context-bar__avatar { width: 3.625rem; height: 3.625rem; flex: none; display: grid; place-items: center; border-radius: var(--radius-xl); color: var(--color-brand-strong); background: var(--color-brand-soft); font-size: 1.25rem; font-weight: var(--font-weight-bold); }
 .ui-context-bar__identity { min-width: 14rem; }
-.ui-context-bar__identity h1 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
+.ui-context-bar__identity h1 { margin: 0 0 var(--space-1); font-size: var(--font-size-h2); line-height: 1.2; }
+.ui-context-bar__identity .ui-eyebrow + h1 { margin-top: var(--space-1); }
 .ui-context-bar__identity p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ui-context-bar__facts { display: flex; align-items: stretch; }
 .ui-context-bar__fact { min-width: 9.375rem; padding-left: var(--space-5); border-left: 1px solid var(--color-border); }
 .ui-context-bar__fact dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ui-context-bar__fact dd { margin: var(--space-1) 0 0; font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
-.ui-context-bar__actions { margin-left: auto; }
+.ui-context-bar__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-3); }
 
-.ui-back-link { min-height: var(--target-size-min); margin: 0 0 var(--space-2); padding: 0; display: inline-flex; align-items: center; gap: var(--space-2); border: 0; color: var(--color-text-secondary); background: transparent; font-size: var(--font-size-small); }
+.ui-back-link { min-height: var(--target-size-min); margin: 0 0 var(--space-3); padding: 0; display: inline-flex; align-items: center; gap: var(--space-2); border: 0; color: var(--color-text-secondary); background: transparent; font-size: var(--font-size-small); cursor: pointer; }
 .ui-back-link:hover { color: var(--color-brand-primary); }
 .ui-wide { width: 100%; }
 .ui-page-feedback { margin: calc(-1 * var(--space-2)) 0 var(--space-5); }

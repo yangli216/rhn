@@ -99,7 +99,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
 
   if (selected) return <>
     <BackButton onClick={() => { setSelected(null); setShowEdit(false) }}>返回居民列表</BackButton>
-    <ObjectContextBar avatar={selected.fullName.slice(-1)} eyebrow="统一居民主索引" title={selected.fullName}
+    <ObjectContextBar avatar={selected.fullName.slice(-1)} title={selected.fullName}
       description={`${genderLabel(selected.gender)} · ${age(selected.birthDate)} 岁 · ${selected.maskedNationalId || '无身份证标识'}`}
       facts={[{ label: '健康档案号', value: selected.healthRecordNo }, { label: '联系电话', value: selected.phone || '未登记' }]}
       actions={<><Button variant="secondary" onClick={() => onNavigate(`/outpatient/registration?residentId=${selected.id}`)}>
@@ -190,24 +190,18 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
       {!residentsPageQuery.isPending && !residentsPageQuery.error && residentsList.length > 0 && (
         <TableShell
           footer={
-            <div className="resident-table-footer">
-              <div className="resident-table-page-size">
-                <span>每页显示</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    setPageSize(Number(e.target.value))
-                    setPage(0)
-                  }}
-                >
-                  <option value={10}>10 条</option>
-                  <option value={20}>20 条</option>
-                  <option value={50}>50 条</option>
-                </select>
-                <span>共 {totalElements} 条记录</span>
-              </div>
-              <Pagination page={page} totalPages={totalPages} onChange={setPage} label="居民列表分页" />
-            </div>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              total={totalElements}
+              pageSize={pageSize}
+              onPageSizeChange={(size) => {
+                setPageSize(size)
+                setPage(0)
+              }}
+              onChange={setPage}
+              label="居民列表分页"
+            />
           }
         >
           <DataTable className="resident-table">
@@ -306,13 +300,13 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
       {resident.deceased ? '已登记死亡' : '有效居民'}</StatusBadge>} />
       <dl className="resident-profile-facts">
         <div><dt>姓名</dt><dd>{resident.fullName}</dd></div><div><dt>出生日期</dt><dd>{resident.birthDate}</dd></div>
-        <div><dt>国籍代码</dt><dd>{demographicProfile.nationalityCode || '未登记'}</dd></div>
-        <div><dt>民族代码</dt><dd>{demographicProfile.ethnicityCode || '未登记'}</dd></div>
-        <div><dt>常住类型</dt><dd>{demographicProfile.sdResidencyTypeText || '未登记'}</dd></div>
-        <div><dt>婚姻状况</dt><dd>{demographicProfile.sdMaritalStatusText || '未登记'}</dd></div>
-        <div><dt>文化程度</dt><dd>{demographicProfile.sdEducationLevelText || '未登记'}</dd></div>
-        <div><dt>职业类别</dt><dd>{demographicProfile.sdOccupationTypeText || '未登记'}</dd></div>
-        <div><dt>血型</dt><dd>{[demographicProfile.sdBloodTypeText, demographicProfile.sdRhTypeText].filter(Boolean).join(' / ') || '未登记'}</dd></div>
+        <div><dt>国籍</dt><dd>{demographicProfile.nationalityCodeText || demographicProfile.nationalityCode || '未登记'}</dd></div>
+        <div><dt>民族</dt><dd>{demographicProfile.ethnicityCodeText || demographicProfile.ethnicityCode || '未登记'}</dd></div>
+        <div><dt>常住类型</dt><dd>{demographicProfile.sdResidencyTypeText || demographicProfile.sdResidencyType || '未登记'}</dd></div>
+        <div><dt>婚姻状况</dt><dd>{demographicProfile.sdMaritalStatusText || demographicProfile.sdMaritalStatus || '未登记'}</dd></div>
+        <div><dt>文化程度</dt><dd>{demographicProfile.sdEducationLevelText || demographicProfile.sdEducationLevel || '未登记'}</dd></div>
+        <div><dt>职业类别</dt><dd>{demographicProfile.sdOccupationTypeText || demographicProfile.sdOccupationType || '未登记'}</dd></div>
+        <div><dt>血型</dt><dd>{[demographicProfile.sdBloodTypeText || demographicProfile.sdBloodType, demographicProfile.sdRhTypeText || demographicProfile.sdRhType].filter(Boolean).join(' / ') || '未登记'}</dd></div>
       </dl>
       <div className="resident-profile-list"><article><strong>证件和卡</strong>
         <span>{resident.identifiers.map((item) => `${item.system} ${item.maskedValue}`).join(' · ')}</span></article></div>

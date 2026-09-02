@@ -157,7 +157,7 @@ describe('ResidentCenterWorkspace', () => {
 
     await waitFor(() => {
       expect(screen.getByText('返回居民列表')).toBeInTheDocument()
-      expect(screen.getByText('统一居民主索引')).toBeInTheDocument()
+      expect(screen.getByText('健康档案号')).toBeInTheDocument()
       expect(screen.getByText('基本与人口学资料')).toBeInTheDocument()
       expect(screen.getByText('户籍人口')).toBeInTheDocument()
     })

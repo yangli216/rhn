@@ -7,7 +7,7 @@ import type {
 } from '../../shared/api/schedulingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 
 const weekdayOptions = [
   { value: 1, label: '周一' }, { value: 2, label: '周二' }, { value: 3, label: '周三' },
@@ -165,26 +165,37 @@ export function SchedulingWorkspace({ api, clinicalContext, onNavigate }: {
       description={workspaceMode === 'PROFESSIONAL'
         ? '按模板维护精细时段与例外日期，支持整段号源和分时号源。'
         : '选择医生、日期和上午/下午即可批量生成排班，所有渠道默认共享一个号源池。'}
-      actions={<Button variant="secondary" onClick={() => void schedules.refetch()}>刷新排班</Button>} />
+      actions={<>
+        <div className="scheduling-mode-switch" role="tablist" aria-label="排班模式切换">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workspaceMode === 'SIMPLE'}
+            className={`scheduling-mode-btn ${workspaceMode === 'SIMPLE' ? 'is-active' : ''}`}
+            onClick={() => setWorkspaceMode('SIMPLE')}
+          >
+            简易排班
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={workspaceMode === 'PROFESSIONAL'}
+            className={`scheduling-mode-btn ${workspaceMode === 'PROFESSIONAL' ? 'is-active' : ''}`}
+            disabled={bootstrap.data?.sdManagementMode !== 'PROFESSIONAL'}
+            title={bootstrap.data?.sdManagementMode !== 'PROFESSIONAL' ? '科室尚未启用专业排班（可在参数管理中开启）' : undefined}
+            onClick={() => {
+              if (bootstrap.data?.sdManagementMode === 'PROFESSIONAL') {
+                setWorkspaceMode('PROFESSIONAL')
+              }
+            }}
+          >
+            专业模式{bootstrap.data?.sdManagementMode !== 'PROFESSIONAL' ? '（未启用）' : ''}
+          </button>
+        </div>
+        <Button variant="secondary" onClick={() => void schedules.refetch()}><Icon name="refresh" />刷新排班</Button>
+      </>} />
     {error && <Alert>{errorMessage(error)}</Alert>}
     {success && <Alert tone="success">{success}</Alert>}
-
-    <section className="scheduling-mode-strip" aria-label="排班管理模式">
-      <div className={workspaceMode === 'SIMPLE' ? 'is-active' : ''}>
-        <span>{workspaceMode === 'SIMPLE' ? '正在使用' : '日常方式'}</span>
-        <strong>简易排班</strong><p>按上午、下午快速生成共享号源。</p>
-        <Button size="sm" variant={workspaceMode === 'SIMPLE' ? 'secondary' : 'text'}
-          onClick={() => setWorkspaceMode('SIMPLE')}>{workspaceMode === 'SIMPLE' ? '当前界面' : '切换使用'}</Button></div>
-      <div className={workspaceMode === 'PROFESSIONAL' ? 'is-active' : ''}>
-        <span>{bootstrap.data?.sdManagementMode === 'PROFESSIONAL' ? '科室已启用' : '科室尚未启用'}</span>
-        <strong>专业模式</strong><p>维护排班模板、日期例外和分时号源。</p>
-        {bootstrap.data?.sdManagementMode === 'PROFESSIONAL'
-          ? <Button size="sm" variant={workspaceMode === 'PROFESSIONAL' ? 'secondary' : 'text'}
-            onClick={() => setWorkspaceMode('PROFESSIONAL')}>{workspaceMode === 'PROFESSIONAL' ? '当前界面' : '切换使用'}</Button>
-          : <Button size="sm" variant="text" onClick={() => onNavigate?.('/settings/parameters')}>前往参数管理启用</Button>}</div>
-      <div className="scheduling-context"><span>当前工作范围</span><strong>{clinicalContext.organization.name}</strong>
-        <p>{clinicalContext.department.name} · 参数可按机构或科室覆盖</p></div>
-    </section>
 
     {(bootstrap.isPending || services.isPending) && <Panel><LoadingState label="正在准备快速排班…" /></Panel>}
     {!bootstrap.isPending && !services.isPending && workspaceMode === 'SIMPLE' && <Panel className="quick-schedule-panel">

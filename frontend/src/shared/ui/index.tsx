@@ -115,17 +115,49 @@ export function PanelHead({ title, meta, actions }: { title: string; meta?: Reac
   </header>
 }
 
-export function Pagination({ page, totalPages, onChange, label = '列表分页' }: {
+export function Pagination({
+  page,
+  totalPages,
+  onChange,
+  total,
+  pageSize,
+  onPageSizeChange,
+  pageSizeOptions = [10, 20, 50],
+  label = '列表分页',
+}: {
   page: number
   totalPages: number
   onChange: (page: number) => void
+  total?: number
+  pageSize?: number
+  onPageSizeChange?: (size: number) => void
+  pageSizeOptions?: number[]
   label?: string
 }) {
-  if (totalPages <= 1) return null
+  if (totalPages <= 1 && total === undefined && pageSize === undefined) return null
   return <nav className="ui-pagination" aria-label={label}>
-    <button type="button" disabled={page <= 0} onClick={() => onChange(page - 1)}>上一页</button>
-    <span><strong>{page + 1}</strong> / {totalPages}</span>
-    <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>下一页</button>
+    {total !== undefined && <span className="ui-pagination__total">共 {total} 条记录</span>}
+    {pageSize !== undefined && onPageSizeChange && (
+      <label className="ui-pagination__size">
+        <span>每页显示</span>
+        <select
+          value={pageSize}
+          onChange={(e) => onPageSizeChange(Number(e.target.value))}
+          aria-label="每页显示条数"
+        >
+          {pageSizeOptions.map((opt) => (
+            <option key={opt} value={opt}>{opt} 条</option>
+          ))}
+        </select>
+      </label>
+    )}
+    {totalPages > 0 && (
+      <div className="ui-pagination__nav">
+        <button type="button" disabled={page <= 0} onClick={() => onChange(page - 1)}>上一页</button>
+        <span><strong>{page + 1}</strong> / {Math.max(1, totalPages)}</span>
+        <button type="button" disabled={page >= totalPages - 1} onClick={() => onChange(page + 1)}>下一页</button>
+      </div>
+    )}
   </nav>
 }
 
@@ -390,7 +422,7 @@ export function StatusBadge({ tone = 'neutral', children, className = '' }: Prop
 
 export function ObjectContextBar({ avatar, eyebrow, title, description, facts, actions }: {
   avatar: string
-  eyebrow: string
+  eyebrow?: string
   title: string
   description: string
   facts?: Array<{ label: string; value: ReactNode }>
@@ -399,7 +431,7 @@ export function ObjectContextBar({ avatar, eyebrow, title, description, facts, a
   return <section className="ui-context-bar" aria-label={`${title}业务上下文`}>
     <div className="ui-context-bar__avatar" aria-hidden="true">{avatar}</div>
     <div className="ui-context-bar__identity">
-      <span className="ui-eyebrow">{eyebrow}</span>
+      {eyebrow && <span className="ui-eyebrow">{eyebrow}</span>}
       <h1>{title}</h1>
       <p>{description}</p>
     </div>

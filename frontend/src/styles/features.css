@@ -1835,7 +1835,7 @@
 .disease-scope-section .disease-management-member-toolbar { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); }
 .disease-search-results { padding: var(--space-3); display: grid; gap: var(--space-2); }
 .disease-search-results > div:not(.disease-search-pagination) { grid-template-columns: minmax(14rem, 1fr) 8rem auto auto; }
-.disease-search-pagination { padding-top: var(--space-2); display: flex; align-items: center; justify-content: center; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.disease-search-pagination { padding-top: var(--space-2); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-3); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 
 @media (min-width: 70.01rem) {
   .master-data-page { height: calc(100dvh - var(--layout-topbar-height) - var(--space-4) - var(--space-4)); min-height: 0; display: flex; flex-direction: column; }
@@ -2574,16 +2574,13 @@
 .care-steps strong { font-size: var(--font-size-small); }
 .care-steps span { color: var(--color-text-secondary); font-size: .75rem; line-height: var(--line-height-small); }
 
-/* Primary-care scheduling keeps the default path compact while exposing the shared pool state. */
-.scheduling-mode-strip { margin-bottom: var(--space-4); display: grid; grid-template-columns: minmax(15rem, .8fr) minmax(15rem, .8fr) minmax(22rem, 1.3fr); gap: var(--space-3); }
-.scheduling-mode-strip > div { min-width: 0; padding: var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-panel); }
-.scheduling-mode-strip > div.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary), var(--shadow-panel); }
-.scheduling-mode-strip span, .scheduling-mode-strip strong, .scheduling-mode-strip p { display: block; grid-column: 1; }
-.scheduling-mode-strip .ui-button { grid-row: 1 / span 3; grid-column: 2; white-space: nowrap; }
-.scheduling-mode-strip span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.scheduling-mode-strip strong { margin-top: var(--space-1); }
-.scheduling-mode-strip p { margin: var(--space-1) 0 0; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
-.scheduling-mode-strip .scheduling-context strong { color: var(--color-brand-primary); }
+/* Primary-care scheduling mode switcher in header actions */
+.scheduling-mode-switch { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 2px; gap: 2px; box-shadow: var(--shadow-sm); }
+.scheduling-mode-btn { height: var(--control-height-sm); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1-5); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); white-space: nowrap; }
+.scheduling-mode-btn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface-subtle); }
+.scheduling-mode-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); }
+.scheduling-mode-btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; opacity: 0.6; }
+
 .quick-schedule-panel, .schedule-list-panel { margin-bottom: var(--space-4); overflow: hidden; }
 .quick-schedule-panel__head, .schedule-list-panel__head { min-height: 6.5rem; padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
 .quick-schedule-panel__head h2, .schedule-list-panel__head h2 { margin: var(--space-1) 0; }
@@ -3076,7 +3073,7 @@
 .resident-birth-sub { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .resident-cell-muted { color: var(--color-text-disabled); font-size: var(--font-size-small); }
 .resident-cell-actions { display: flex; align-items: center; gap: var(--space-2); }
-.resident-table-footer { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.resident-table-footer { width: 100%; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); flex-wrap: wrap; }
 .resident-table-page-size { display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .resident-table-page-size select { height: var(--control-height-sm); padding: 0 var(--space-2); border: 1px solid var(--color-border-strong); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-primary); }
 
@@ -3136,8 +3133,6 @@
   .grid-address-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
   .dictionary-catalog { position: static; }
   .dictionary-catalog__list { max-height: none; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .scheduling-mode-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .scheduling-context { grid-column: 1 / -1; }
   .quick-schedule-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .professional-schedule-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .professional-exception-list > div { grid-template-columns: repeat(3, minmax(8rem, 1fr)); }
@@ -3198,11 +3193,10 @@
   .dictionary-category-workspace .ui-tree-panel { max-height: 20rem; }
   .parameter-detail__head, .parameter-policy, .parameter-values__toolbar { align-items: stretch; flex-direction: column; }
   .parameter-detail__actions, .parameter-detail__actions .ui-button, .parameter-values__toolbar .ui-button { width: 100%; }
-  .parameter-detail__actions { flex-direction: column; }
-  .scheduling-mode-strip, .quick-schedule-form, .professional-schedule-form { grid-template-columns: 1fr; }
+  .quick-schedule-form, .professional-schedule-form { grid-template-columns: 1fr; }
   .professional-schedule-weekdays { grid-column: auto; }
   .professional-exception-list > div, .professional-template-list article { grid-template-columns: 1fr; }
-  .scheduling-context, .quick-schedule-field { grid-column: auto; }
+  .quick-schedule-field { grid-column: auto; }
   .registration-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .registration-workspace { grid-template-columns: 1fr; }
   .registration-intake-fields, .registration-order-fields, .registration-schedule-grid { grid-template-columns: 1fr; }

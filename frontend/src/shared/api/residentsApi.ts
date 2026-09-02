@@ -23,7 +23,9 @@ export interface CreateResidentInput {
 
 export interface ResidentDemographicProfile {
   nationalityCode?: string
+  nationalityCodeText?: string
   ethnicityCode?: string
+  ethnicityCodeText?: string
   sdResidencyType?: string
   sdResidencyTypeText?: string
   sdMaritalStatus?: string
