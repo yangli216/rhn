@@ -51,6 +51,7 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
   const [internalSettlementMode, setInternalSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
   const [methodCode, setMethodCode] = useState('')
   const [amount, setAmount] = useState('')
+  const [cashTendered, setCashTendered] = useState('')
   const submissionKey = useRef<string | null>(null)
   const activeSettlementMode = settlementModeCode ?? internalSettlementMode
   const monetaryMethods = useMemo(() => methods.filter((value) => value.code !== 'MEDICAL_INSURANCE'), [methods])
@@ -73,9 +74,25 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
   const latestOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId), [orders, settlementId])
   const numericAmount = Number(amount)
   const paymentRequired = !insurancePending && (settlement?.outstandingAmount ?? 0) > 0
+
+  useEffect(() => {
+    if (methodCode === 'CASH' && numericAmount > 0) {
+      setCashTendered((prev) => {
+        const num = Number(prev)
+        return (!prev || isNaN(num) || num < numericAmount) ? String(numericAmount) : prev
+      })
+    }
+  }, [methodCode, numericAmount])
+
+  const numericTendered = Number(cashTendered)
+  const cashChange = numericTendered >= numericAmount ? numericTendered - numericAmount : 0
+  const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || isNaN(numericTendered) || numericTendered < numericAmount)
+
+  const isMethodUnintegrated = ['WECHAT', 'ALIPAY'].includes(methodCode)
   const disabled = !settlement || (insurancePending && !insurancePreparationAllowed)
     || (paymentRequired && (!methodCode || numericAmount <= 0
     || numericAmount > (settlement?.outstandingAmount ?? 0))) || Boolean(activeOrder)
+    || isCashShort || (paymentRequired && isMethodUnintegrated)
 
   return <div className="settlement-payment-panel">
     <div className="settlement-payment-panel__grid">
@@ -99,11 +116,73 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         className="ui-field__control" type="number" min="0.01" step="0.01"
         value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>}
     </div>
+    {paymentRequired && methodCode === 'CASH' && numericAmount > 0 && (
+      <div className="settlement-payment-panel__cash-calc" style={{
+        margin: 'var(--space-2) 0',
+        padding: 'var(--space-3)',
+        background: 'var(--color-surface-subtle)',
+        border: '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-md)',
+        display: 'grid',
+        gap: 'var(--space-2)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>实收现金：</span>
+          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '7.5rem' }}>
+            <span style={{ position: 'absolute', left: '0.6rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 600, pointerEvents: 'none' }}>¥</span>
+            <input
+              className="ui-field__control"
+              type="number"
+              step="0.01"
+              min={0}
+              style={{ width: '100%', height: '2.25rem', paddingLeft: '1.5rem', fontWeight: 700 }}
+              value={cashTendered}
+              onChange={(e) => setCashTendered(e.target.value)}
+              placeholder={String(numericAmount)}
+            />
+          </div>
+          <div style={{ display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
+            {[numericAmount, 20, 50, 100].filter((v, idx, arr) => v >= numericAmount && arr.indexOf(v) === idx).slice(0, 4).map((preset) => (
+              <button
+                key={preset}
+                type="button"
+                className={`ui-button ui-button--secondary ui-button--sm ${numericTendered === preset ? 'is-active' : ''}`}
+                style={{ height: '1.75rem', padding: '0 0.5rem', fontSize: '0.75rem' }}
+                onClick={() => setCashTendered(String(preset))}
+              >
+                {preset === numericAmount ? `¥${preset} (刚好)` : `¥${preset}`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 'var(--space-2)',
+          padding: 'var(--space-2) var(--space-3)',
+          borderRadius: 'var(--radius-sm)',
+          fontSize: 'var(--font-size-small)',
+          background: isCashShort ? 'var(--color-danger-soft)' : 'var(--color-success-soft)',
+          border: `1px solid ${isCashShort ? 'var(--color-danger)' : 'var(--color-success)'}`,
+          color: isCashShort ? 'var(--color-danger)' : 'var(--color-success)',
+        }}>
+          <span>找零金额：</span>
+          <strong style={{ fontSize: '1.25rem' }}>¥{isCashShort ? '0.00' : cashChange.toFixed(2)}</strong>
+          {isCashShort ? (
+            <small style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}>（缴款不足，还差 ¥{(numericAmount - numericTendered).toFixed(2)}）</small>
+          ) : cashChange > 0 ? (
+            <small style={{ fontSize: '0.75rem', color: 'var(--color-success)' }}>（应找零给患者 ¥{cashChange.toFixed(2)}）</small>
+          ) : null}
+        </div>
+      </div>
+    )}
     {insurancePending && <div className="settlement-payment-panel__notice">
-      <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="warning">待医保结算</StatusBadge>
-        <span>{insurancePreparationAllowed
-          ? '结算后先进入医保预结算，医保返回个人自付金额后再选择支付方式。'
-          : '医保预结算尚未返回，当前不能按患者全额发起收款。'}</span></div>
+      <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">医保接口未对接</StatusBadge>
+        <span>当前系统未对接国家/地方医保平台，无法执行医保预结算与统筹个账扣缴。如需继续结算，请切换为「自费结算」。</span></div>
+    </div>}
+    {paymentRequired && isMethodUnintegrated && <div className="settlement-payment-panel__notice">
+      <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">接口未对接</StatusBadge>
+        <span>【{methodCode === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金收款或银行卡。</span></div>
     </div>}
     {insuranceMode && settlement?.insuranceReady && <div className="settlement-payment-panel__waived">
       <strong>医保结算已完成</strong><span>医保基金 {money(settlement.insuranceAmount ?? 0, settlement.currencyCode)}
@@ -143,7 +222,11 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
       } catch {
         // Keep the key so an operator retry cannot create a second channel instruction.
       }
-    }}>{actionLabel ?? (methodCode === 'CASH' ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`)}</Button>
+    }}>{actionLabel ?? (insurancePending
+      ? '医保接口未对接，请改选自费'
+      : isMethodUnintegrated
+        ? `${methodCode === 'WECHAT' ? '微信支付' : '支付宝'}未对接，请改选现金`
+        : (methodCode === 'CASH' ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}</Button>
   </div>
 }
 

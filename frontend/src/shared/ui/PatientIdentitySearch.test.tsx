@@ -61,4 +61,43 @@ describe('PatientIdentitySearch', () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalledWith(resident))
     expect(identify).toHaveBeenCalledOnce()
   })
+
+  it('selects the active candidate with Enter key after typing and searching without mouse', async () => {
+    const { onSelect } = renderSearch()
+    const input = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(input, '张三{enter}')
+
+    expect(await screen.findByText('1 条候选记录')).toBeInTheDocument()
+    expect(onSelect).not.toHaveBeenCalled()
+
+    // Press Enter again to confirm candidate
+    await userEvent.type(input, '{enter}')
+    expect(onSelect).toHaveBeenCalledWith(resident)
+  })
+
+  it('navigates candidates using ArrowDown and ArrowUp and selects with Enter', async () => {
+    const resident2: Resident = { ...resident, id: 'resident-2', fullName: '张三丰' }
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    const search = vi.fn().mockResolvedValue([resident, resident2])
+    const onSelect = vi.fn()
+    render(<QueryClientProvider client={client}><PatientIdentitySearch queryKey="multi-test" search={search}
+      onSelect={onSelect} /></QueryClientProvider>)
+
+    const input = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(input, '张三{enter}')
+
+    expect(await screen.findByText('2 条候选记录')).toBeInTheDocument()
+    // First candidate is active by default (张三)
+    const btn1 = screen.getByRole('button', { name: /张三(?!丰)/ })
+    const btn2 = screen.getByRole('button', { name: /张三丰/ })
+    expect(btn1).toHaveClass('is-keyboard-focused')
+
+    // Arrow down moves focus to second candidate (张三丰)
+    await userEvent.type(input, '{arrowdown}')
+    expect(btn2).toHaveClass('is-keyboard-focused')
+
+    // Enter confirms second candidate
+    await userEvent.type(input, '{enter}')
+    expect(onSelect).toHaveBeenCalledWith(resident2)
+  })
 })

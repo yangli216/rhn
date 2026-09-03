@@ -67,6 +67,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
         taskId: 'task-1',
         taskNo: 'TASK001',
         taskStatus: 'READY_TO_DISPENSE',
+        stockItemId: 'stock-1',
         clinicalContext: {
           encounterId: 'enc-1',
           encounterNo: 'ENC20260828001',
@@ -84,16 +85,21 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
         ]),
         inbox: vi.fn().mockResolvedValue(mockInboxItems),
         stockItems: vi.fn().mockResolvedValue([
-          { id: 'stock-1', productName: '护肝片', productCode: 'P001', packageSpec: '200片/盒', packageUnitName: '盒', status: 'ACTIVE', catalogItemId: 'cat-1', medicationId: 'med-1' },
+          { id: 'stock-1', productName: '护肝片', productCode: 'P001', packageSpec: '200片/盒', packageUnitName: '盒', status: 'ACTIVE', catalogItemId: 'cat-1', medicationId: 'med-1', traceRequired: true },
         ]),
         task: vi.fn().mockResolvedValue({
           id: 'task-1', taskNo: 'TASK001', status: 'READY_TO_DISPENSE', stockSiteId: 'site-1',
-          lines: [{ id: 'line-1', requestId: 'req-1', stockItemId: 'stock-1', plannedQuantity: 1, dispensedQuantity: 0, returnedQuantity: 0, dispenseUnitCode: 'BOX', status: 'READY', productCode: 'P001', productName: '护肝片' }],
+          lines: [{ id: 'line-1', requestId: 'req-1', stockItemId: 'stock-1', plannedQuantity: 1, dispensedQuantity: 0, returnedQuantity: 0, dispenseUnitCode: 'BOX', status: 'READY', productCode: 'P001', productName: '护肝片', traceRequired: true }],
           reviews: [],
         }),
         balances: vi.fn().mockResolvedValue([]),
         reservations: vi.fn().mockResolvedValue({ allocations: [] }),
         trace: vi.fn().mockResolvedValue({ events: [] }),
+        scanTraceCode: vi.fn().mockResolvedValue({
+          id: 'trace-1', revision: 0, stockSiteId: 'site-1', stockBinId: 'bin-1', stockItemId: 'stock-1',
+          stockLotId: 'lot-1', traceCode: 'TRACE-001', productCode: 'P001', productName: '护肝片', lotNo: 'LOT-1',
+          packageQuantity: 1, baseQuantity: 200, remainingBaseQuantity: 200, status: 'AVAILABLE', updatedAt: '2026-08-30T13:00:00Z',
+        }),
         dispense: vi.fn().mockResolvedValue({ taskId: 'task-1' }),
       },
       organization: {
@@ -174,15 +180,28 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.getByText('口服')).toBeInTheDocument()
 
     // 5. Verify Trace code scan status: red/insufficient before scan, green/success after scan
-    const scanStatusBadge = screen.getByTitle('追溯码尚未扫码')
+    const scanStatusBadge = await screen.findByTitle('追溯码尚未扫码')
     expect(scanStatusBadge).toHaveClass('pharmacy-scan-status--danger')
     expect(scanStatusBadge).toHaveTextContent('0 / 1 盒')
-    const scanBtn = screen.getByRole('button', { name: '扫码' })
-    await userEvent.click(scanBtn)
+    const scanInput = screen.getByRole('textbox', { name: '追溯码或处方患者检索' })
+    await userEvent.type(scanInput, 'TRACE-001{Enter}')
+    await waitFor(() => expect(api.pharmacy.scanTraceCode).toHaveBeenCalledWith('site-1', 'TRACE-001'))
     const completedBadge = screen.getByTitle('追溯码数量已核对完成')
     expect(completedBadge).toHaveClass('pharmacy-scan-status--success')
     expect(completedBadge).toHaveTextContent('1 盒')
-    expect(screen.getByRole('button', { name: '已扫码' })).toBeInTheDocument()
+    expect(await screen.findByText(/已定位 护肝片，扫入数量 \+1/)).toBeInTheDocument()
+
+    await userEvent.type(scanInput, 'TRACE-001{Enter}')
+    expect(await screen.findByText(/已扫入，请勿重复扫码/)).toBeInTheDocument()
+    expect(completedBadge).toHaveTextContent('1 盒')
+
+    await userEvent.click(screen.getByRole('button', { name: '清空' }))
+    expect(screen.getByTitle('追溯码尚未扫码')).toHaveTextContent('0 / 1 盒')
+    await userEvent.click(screen.getByRole('button', { name: '发药(F4)' }))
+    expect(await screen.findByText(/请先扫齐“护肝片”的追溯码/)).toBeInTheDocument()
+    expect(api.pharmacy.dispense).not.toHaveBeenCalled()
+    await userEvent.type(scanInput, 'TRACE-001{Enter}')
+    expect(await screen.findByTitle('追溯码数量已核对完成')).toHaveTextContent('1 盒')
 
     // 6. Verify Bottom Summary Amounts
     expect(screen.getByText('已选处方总金额:')).toBeInTheDocument()
@@ -201,6 +220,9 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     await waitFor(() => {
       expect(api.pharmacy.dispense).toHaveBeenCalled()
     })
+    expect(api.pharmacy.dispense).toHaveBeenCalledWith('task-1', expect.objectContaining({
+      traceCodeIds: ['trace-1'],
+    }))
     expect(await screen.findByText(/已成功完成发药：晓康/)).toBeInTheDocument()
 
     // 9. Backend business failures must replace the success notice with the real result.
@@ -209,6 +231,8 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
       message: '上一库存期间尚未月结，不能开启下一期间',
       correlationId: 'correlation-1',
     })
+    await userEvent.type(scanInput, 'TRACE-001{Enter}')
+    expect(await screen.findByTitle('追溯码数量已核对完成')).toHaveTextContent('1 盒')
     await userEvent.click(screen.getByRole('button', { name: '发药(F4)' }))
     const failedNotice = await screen.findByRole('alert')
     expect(failedNotice).toHaveTextContent('发药失败：上一库存期间尚未月结，不能开启下一期间')
@@ -328,5 +352,6 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(await screen.findByText('0.5 g（2粒）')).toBeInTheDocument()
     expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
+    expect(await screen.findByTitle('该药品无需追溯码核对')).toHaveTextContent('无需扫码')
   })
 })

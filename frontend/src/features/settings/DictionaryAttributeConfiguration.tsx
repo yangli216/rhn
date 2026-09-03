@@ -146,7 +146,7 @@ export function DictionaryAttributeConfiguration({ api, dictionary, items, conte
       {activeAttributes.length > 0 && !itemConfigurations.isPending && <div className="dictionary-attribute-value-table-wrap">
         <table className="dictionary-attribute-value-table">
           <thead><tr><th>字典项</th>{activeAttributes.map((attribute) => <th key={attribute.id}>
-            <span>{attribute.name}</span><code>{attribute.code}</code></th>)}<th aria-label="操作" /></tr></thead>
+            <span>{attribute.name}</span><code>{attribute.code}</code></th>)}<th aria-label="操作">操作</th></tr></thead>
           <tbody>{visibleConfigurations.map((configuration) => {
             const item = items.find((value) => value.id === configuration.dictionaryItemId)
             return <tr key={configuration.dictionaryItemId}>

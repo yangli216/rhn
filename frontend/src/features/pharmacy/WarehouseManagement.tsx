@@ -230,7 +230,7 @@ function ItemSection({ items, loading, onAdd, onInspect }: {
       ? <EmptyState icon="pharmacy" title="尚未配置经营项目" copy="从机构已启用的药品产品中批量选择包装调入当前科室。"
         action={<Button size="sm" onClick={onAdd}>批量调入</Button>} />
       : <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr>
-        <th>药品产品</th><th>包装</th><th>出库策略</th><th>管控属性</th><th>状态</th><th aria-label="操作" />
+        <th>药品产品</th><th>包装</th><th>出库策略</th><th>管控属性</th><th>状态</th><th aria-label="操作">操作</th>
       </tr></thead><tbody>{items.map((item) => <tr key={item.id}>
         <td><strong>{item.productName}</strong><code>{item.productCode}</code></td>
         <td>{item.packageSpec || item.packageUnitName}<small>1 {item.packageUnitName} = {item.packageFactor} {item.baseUnitCode}</small></td>
@@ -322,7 +322,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
         ? <EmptyState icon="pharmacy" title="没有符合条件的库存" copy="请调整搜索词或库存状态筛选。" />
         : <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-inventory-summary-table"><thead><tr>
           <th>药品</th><th>库存状态</th><th>批次 / 库位</th><th>账面库存</th><th>可用库存</th>
-          <th>预留 / 冻结</th><th>平均成本</th><th>最近变动</th><th aria-label="操作" />
+          <th>预留 / 冻结</th><th>平均成本</th><th>最近变动</th><th aria-label="操作">操作</th>
         </tr></thead><tbody>{filtered.map(summary => {
           const item = summary.item
           const canReceive = hasReceiveBin && !item.traceRequired

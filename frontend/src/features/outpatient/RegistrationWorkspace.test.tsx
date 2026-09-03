@@ -30,7 +30,7 @@ const schedule: ServiceSchedule = {
   sdManagementMode: 'SIMPLE', sdManagementModeText: '简易模式', sdBookingPolicy: 'SHARED',
   sdBookingPolicyText: '共享号源', sdSlotMode: 'POOL', sdSlotModeText: '号池模式',
   sdRegistrationScope: 'PRACTITIONER', sdRegistrationScopeText: '医生号',
-  feeCurrencyCode: 'CNY', feeConfigured: true,
+  feeCurrencyCode: 'CNY', feeConfigured: true, registrationFee: 10,
 }
 
 const internalSchedule: ServiceSchedule = {
@@ -110,7 +110,8 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
-    await userEvent.click(screen.getByRole('button', { name: /确认挂号/ }))
+    const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
+    await userEvent.click(confirmBtn)
 
     await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
       residentId: resident.id,
@@ -199,31 +200,92 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     // Both schedules visible initially
-    expect(await screen.findByText('全科门诊')).toBeInTheDocument()
-    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
     // Filter by pinyin `nk`
     const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)
     await userEvent.type(searchInput, 'nk')
 
     // Only internal schedule should match
-    expect(screen.getByText('内科门诊')).toBeInTheDocument()
-    expect(screen.queryByText('全科门诊')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /全科门诊/ })).not.toBeInTheDocument()
+    })
 
     // Clear search
     await userEvent.clear(searchInput)
-    expect(screen.getByText('全科门诊')).toBeInTheDocument()
-    expect(screen.getByText('内科门诊')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
     // Filter by '👑 专家/名医号'
     await userEvent.click(screen.getByRole('button', { name: /专家\/名医号/ }))
-    expect(screen.getByText('内科门诊')).toBeInTheDocument()
-    expect(screen.queryByText('全科门诊')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /全科门诊/ })).not.toBeInTheDocument()
 
     // Filter by '🏢 普通门诊'
     await userEvent.click(screen.getByRole('button', { name: /普通门诊/ }))
-    expect(screen.getByText('全科门诊')).toBeInTheDocument()
-    expect(screen.queryByText('内科门诊')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /王专家/ })).not.toBeInTheDocument()
+  })
+
+  it('navigates schedule cards using arrow keys while focus stays in search input and updates receiving department', async () => {
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule, internalSchedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]) },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-general', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    const cardGeneral = await screen.findByRole('button', { name: /全科门诊/ })
+    const cardInternal = screen.getByRole('button', { name: /王专家/ })
+    const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)
+
+    // Initially first schedule (全科门诊) is selected
+    expect(cardGeneral).toHaveClass('is-selected')
+    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('全科门诊')
+
+    // Focus on search input
+    searchInput.focus()
+    expect(searchInput).toHaveFocus()
+
+    // Press ArrowRight to switch to next card (王专家 / 内科门诊)
+    await userEvent.keyboard('{arrowright}')
+    expect(cardInternal).toHaveClass('is-selected')
+    expect(cardGeneral).not.toHaveClass('is-selected')
+    // Focus still stays in search input!
+    expect(searchInput).toHaveFocus()
+    // Receiving department reflects the selected schedule's department (内科门诊), not the user's clinicalContext
+    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('内科门诊')
+
+    // Press ArrowLeft to switch back to first card (全科门诊)
+    await userEvent.keyboard('{arrowleft}')
+    expect(cardGeneral).toHaveClass('is-selected')
+    expect(cardInternal).not.toHaveClass('is-selected')
+    expect(searchInput).toHaveFocus()
+    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('全科门诊')
+
+    // Test doctor pinyin initials search (w -> 王专家)
+    await userEvent.type(searchInput, 'w')
+    expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /全科门诊/ })).not.toBeInTheDocument()
+    })
   })
 
   it('renders thermal receipt modal with ticket and fee details after successful registration', async () => {
@@ -311,5 +373,113 @@ describe('OutpatientRegistrationWorkspace', () => {
       receipt.encounterId,
       expect.objectContaining({ reason: '患者主动要求退号' }),
     ))
+  })
+
+  it('supports end-to-end full keyboard workflow from patient search to checkout', async () => {
+    const createRegistrationIntent = vi.fn().mockResolvedValue({
+      id: 'intent-kb', encounterId: 'encounter-1', residentId: resident.id, status: 'COMPLETED',
+      feeAmount: 10, currencyCode: 'CNY', itemName: '普通挂号', settlementId: 'set-1',
+    })
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn().mockResolvedValue([resident]), profile: vi.fn().mockResolvedValue({ coverages: [] }) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn().mockResolvedValue({ status: 'COMPLETED' }) },
+      encounters: { byResident: vi.fn().mockResolvedValue([encounter]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // 1. Patient search via Enter (no mouse)
+    const searchInput = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(searchInput, '张三{enter}')
+
+    expect(await screen.findByText('1 条候选记录')).toBeInTheDocument()
+
+    // 2. Confirm candidate via Enter
+    await userEvent.type(searchInput, '{enter}')
+    expect(await screen.findByText('患者身份信息')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)).toHaveFocus()
+    })
+
+    // 3. Select schedule via Enter on schedule card
+    const scheduleCard = screen.getByRole('button', { name: /全科门诊/ })
+    await userEvent.click(scheduleCard)
+
+    // 4. Test payment shortcut '2' for Alipay
+    await userEvent.keyboard('2')
+    const alipayChip = screen.getByRole('button', { name: /支付宝/ })
+    expect(alipayChip).toHaveClass('is-active')
+
+    // 5. Test F8 shortcut to confirm and create registration intent
+    await userEvent.keyboard('{F8}')
+    await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        residentId: resident.id,
+        scheduleId: schedule.id,
+      }),
+    ))
+  })
+
+  it('handles cash payment calculation with tender amount presets and change calculation', async () => {
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn().mockResolvedValue([resident]), profile: vi.fn().mockResolvedValue({ coverages: [] }) },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn().mockResolvedValue({ status: 'COMPLETED' }) },
+      encounters: { byResident: vi.fn().mockResolvedValue([encounter]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    const searchInput = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(searchInput, '张三{enter}')
+    expect(await screen.findByText('1 条候选记录')).toBeInTheDocument()
+    await userEvent.type(searchInput, '{enter}')
+    expect(await screen.findByText('患者身份信息')).toBeInTheDocument()
+
+    const scheduleCard = screen.getByRole('button', { name: /全科门诊/ })
+    await userEvent.click(scheduleCard)
+
+    const cashChip = screen.getByRole('button', { name: /现金收款/ })
+    await userEvent.click(cashChip)
+    expect(cashChip).toHaveClass('is-active')
+
+    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
+
+    const preset20 = screen.getByRole('button', { name: '¥20' })
+    await userEvent.click(preset20)
+    expect(screen.getByText(/应找零给患者 ¥10.00/)).toBeInTheDocument()
+
+    const cashInput = screen.getByPlaceholderText('10')
+    await userEvent.clear(cashInput)
+    await userEvent.type(cashInput, '5')
+    expect(screen.getByRole('button', { name: /实收缴款不足，还差 ¥5.00/ })).toBeDisabled()
   })
 })

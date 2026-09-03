@@ -126,9 +126,8 @@ public class EncounterService implements EncounterDirectory {
         }
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = executionContextProvider.requireCurrent();
-        if (context.hasWorkContext() && (!context.canAccessOrganization(request.organizationId())
-                || !context.canAccessDepartment(request.departmentId()))) {
-            throw forbidden("ENCOUNTER_CONTEXT_FORBIDDEN", "不能在当前机构或科室之外发起接诊");
+        if (context.hasWorkContext() && !context.canAccessOrganization(request.organizationId())) {
+            throw forbidden("ENCOUNTER_CONTEXT_FORBIDDEN", "不能在当前机构之外发起接诊");
         }
         organizationDirectory.requireDepartment(tenantId, request.organizationId(), request.departmentId());
         encounterRepository.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
@@ -167,7 +166,9 @@ public class EncounterService implements EncounterDirectory {
         EncounterResponse value = register(new RegisterEncounterRequest(command.residentId(), command.organizationId(),
                 command.departmentId(), command.appointmentId(), command.scheduleId(), command.slotHoldId(), command.idempotencyCode(),
                 command.registrationSource(), command.visitType()));
-        return snapshot(requireEncounter(value.id()));
+        Encounter encounter = encounterRepository.findByIdAndTenantId(value.id(), TenantContext.requireTenantId())
+                .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
+        return snapshot(encounter);
     }
 
     @Transactional

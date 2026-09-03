@@ -269,7 +269,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
           <TableShell scrollClassName="parameter-table-wrap" footerClassName="parameter-table__footer"
             footer={`${selected.values.length} 条当前值 · 定义修订 ${selected.revision}`}>
             <DataTable className="parameter-table" aria-label="参数当前值">
-            <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作" /></tr></thead>
+            <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作">操作</th></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
               <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value)}</td>

@@ -123,6 +123,23 @@ public class InventoryTraceApplicationService {
                 receiptLineRepository.findByTenantIdAndGoodsReceiptIdOrderBySortOrder(context.tenantId(), receiptId));
     }
 
+    @Transactional(readOnly = true)
+    public TraceCodeView scan(Long stockSiteId, String traceCode) {
+        ExecutionContext context = requireContext(); requireSite(context, stockSiteId);
+        String normalized = normalize(traceCode);
+        InventoryTraceCode code = codeRepository.findByTenantIdAndNormalizedCode(context.tenantId(), normalized)
+                .filter(value -> stockSiteId.equals(value.stockSiteId()))
+                .orElseThrow(() -> notFound("TRACE_CODE_NOT_FOUND", "当前药房未找到该追溯码"));
+        return view(code);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Long> issuedTraceCodeIds(ExecutionContext context, Long dispenseId) {
+        return codeRepository.findByTenantIdAndCurrentDocumentTypeAndCurrentDocumentIdOrderById(
+                        context.tenantId(), "MEDICATION_DISPENSE", dispenseId)
+                .stream().map(InventoryTraceCode::id).sorted().toList();
+    }
+
     public void validateReceiptPosting(ExecutionContext context, GoodsReceipt receipt, List<GoodsReceiptLine> lines) {
         for (GoodsReceiptLine line : lines) {
             StockItem item = requireItem(context, line.stockItemId(), receipt.stockSiteId());
@@ -160,6 +177,62 @@ public class InventoryTraceApplicationService {
                 eventRepository.save(event(context, code, "ISSUED", from, code.status(), siteId, siteId, fromBin, null,
                         documentType, documentId, documentNo, null, before.negate(), code.remainingBaseQuantity()));
             }
+        }
+    }
+
+    public void issue(ExecutionContext context, Long siteId, String documentType, Long documentId, String documentNo,
+                      List<TraceMovementLine> lines, List<Long> selectedTraceCodeIds) {
+        if (selectedTraceCodeIds == null || selectedTraceCodeIds.isEmpty()) {
+            issue(context, siteId, documentType, documentId, documentNo, lines);
+            return;
+        }
+        if (selectedTraceCodeIds.size() > 1000) {
+            throw badRequest("TRACE_CODE_SELECTION_TOO_LARGE", "单次发药追溯码不能超过1000个");
+        }
+
+        Map<TraceMovementKey, BigDecimal> required = new HashMap<>();
+        for (TraceMovementLine line : lines) {
+            StockItem item = requireItem(context, line.stockItemId(), siteId);
+            if (!item.traceRequired()) continue;
+            required.merge(new TraceMovementKey(line.stockBinId(), line.stockItemId(), line.stockLotId()),
+                    line.baseQuantity(), BigDecimal::add);
+        }
+        if (required.isEmpty()) {
+            throw conflict("TRACE_CODE_NOT_REQUIRED", "本次发药明细未启用追溯，不能提交追溯码");
+        }
+
+        if (selectedTraceCodeIds.stream().anyMatch(java.util.Objects::isNull)) {
+            throw badRequest("TRACE_CODE_ID_REQUIRED", "追溯码标识不能为空");
+        }
+        List<Long> orderedIds = selectedTraceCodeIds.stream().sorted().toList();
+        if (new HashSet<>(orderedIds).size() != orderedIds.size()) {
+            throw conflict("TRACE_CODE_DUPLICATE", "本次发药存在重复追溯码");
+        }
+        List<InventoryTraceCode> selected = new ArrayList<>();
+        Map<TraceMovementKey, BigDecimal> actual = new HashMap<>();
+        for (Long traceCodeId : orderedIds) {
+            InventoryTraceCode code = lockTrace(context, traceCodeId);
+            if (!siteId.equals(code.stockSiteId())) {
+                throw conflict("TRACE_CODE_SITE_MISMATCH", "追溯码不属于当前发药药房");
+            }
+            if (!"AVAILABLE".equals(code.status())) {
+                throw conflict("TRACE_CODE_STATUS_INVALID", "追溯码当前状态不可发药：" + code.traceCode());
+            }
+            TraceMovementKey key = new TraceMovementKey(code.stockBinId(), code.stockItemId(), code.stockLotId());
+            if (!required.containsKey(key)) {
+                throw conflict("TRACE_CODE_ALLOCATION_MISMATCH", "追溯码与本次发药的药品、批次或货位不一致：" + code.traceCode());
+            }
+            actual.merge(key, code.baseQuantity(), BigDecimal::add);
+            selected.add(code);
+        }
+        if (!sameQuantities(required, actual)) {
+            throw conflict("TRACE_CODE_QUANTITY_MISMATCH", "扫入追溯码数量与本次发药数量不一致");
+        }
+        for (InventoryTraceCode code : selected) {
+            String from = code.status(); Long fromBin = code.stockBinId(); BigDecimal before = code.remainingBaseQuantity();
+            code.issue(documentType, documentId, documentNo, context.subjectId());
+            eventRepository.save(event(context, code, "ISSUED", from, code.status(), siteId, siteId, fromBin, null,
+                    documentType, documentId, documentNo, null, before.negate(), code.remainingBaseQuantity()));
         }
     }
 
@@ -290,6 +363,13 @@ public class InventoryTraceApplicationService {
         return selected;
     }
 
+    private boolean sameQuantities(Map<TraceMovementKey, BigDecimal> required,
+                                   Map<TraceMovementKey, BigDecimal> actual) {
+        if (!required.keySet().equals(actual.keySet())) return false;
+        return required.entrySet().stream().allMatch(entry ->
+                entry.getValue().compareTo(actual.get(entry.getKey())) == 0);
+    }
+
     private ReceiptTraceSummaryView receiptSummary(ExecutionContext c, GoodsReceipt receipt, List<GoodsReceiptLine> lines) {
         List<ReceiptTraceLineView> result = new ArrayList<>(); int required = 0; int registered = 0;
         for (GoodsReceiptLine line : lines) {
@@ -357,7 +437,12 @@ public class InventoryTraceApplicationService {
 
     public record RegisterReceiptLineCommand(Long goodsReceiptLineId, List<String> traceCodes) {}
     public record RegisterReceiptCodesCommand(List<RegisterReceiptLineCommand> lines) {}
-    public record TraceMovementLine(Long stockItemId, Long stockLotId, BigDecimal baseQuantity) {}
+    public record TraceMovementLine(Long stockBinId, Long stockItemId, Long stockLotId, BigDecimal baseQuantity) {
+        public TraceMovementLine(Long stockItemId, Long stockLotId, BigDecimal baseQuantity) {
+            this(null, stockItemId, stockLotId, baseQuantity);
+        }
+    }
+    private record TraceMovementKey(Long stockBinId, Long stockItemId, Long stockLotId) {}
     public record TraceTransferReceiptLine(Long destinationStockItemId, Long stockLotId, Long destinationBinId,
                                            BigDecimal receivedBaseQuantity, BigDecimal damagedBaseQuantity) {}
     public record TraceReturnLine(Long stockItemId, Long stockLotId, Long stockBinId,

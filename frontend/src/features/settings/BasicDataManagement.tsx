@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type CatalogPrice, type DiseaseConcept, type DiseaseInput,
@@ -245,7 +245,11 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onEditProduct={(product, medication) => setDialog(<ProductEditDialog product={product} medication={medication}
           manufacturers={manufacturers.data ?? []} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updateProduct(product.id, product.revision, input, organization.id)
-            .then(() => invalidate('药品产品已更新')).catch(fail)} />)}
+            .then(() => invalidate('药品产品已更新')).catch(fail)}
+          onEditPackage={(item) => setDialog(<PackageDialog product={product} medication={medication}
+            dictionaries={dictionaries.data!} editing={item} onClose={() => setDialog(undefined)}
+            onSave={(input) => api.masterData.updatePackage(item.id, input)
+              .then(() => invalidate('产品包装已更新')).catch(fail)} />)} />)}
         onPackage={(product, medication) => setDialog(<PackageDialog product={product} medication={medication} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createPackage(product.id, input)
             .then(() => invalidate('产品包装已新增')).catch(fail)} />)}
@@ -714,7 +718,7 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
   packages?: Array<{ id: string; packageSpec?: string; unitName: string }>; dictionaries: DictionaryMap;
   defaults: AdoptionDefaults; onClose: () => void; onChanged: () => Promise<unknown> }) {
   const [businessDate, setBusinessDate] = useState(today())
-  const [editor, setEditor] = useState<'ADOPTION' | 'PRICE'>('ADOPTION')
+  const editorsRef = useRef<HTMLDivElement>(null)
   const [replacementAdoption, setReplacementAdoption] = useState<OrganizationAdoption>()
   const [replacementPrice, setReplacementPrice] = useState<CatalogPrice>()
   const [pending, setPending] = useState('')
@@ -734,10 +738,17 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
     return date.toISOString().slice(0, 10) > today() ? date.toISOString().slice(0, 10) : today()
   }
   const startAdoptionReplacement = (value: OrganizationAdoption) => {
-    setEditor('ADOPTION'); setReplacementAdoption(value); setReplacementPrice(undefined)
+    setReplacementAdoption(value); setReplacementPrice(undefined)
+    editorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
   const startPriceReplacement = (value: CatalogPrice) => {
-    setEditor('PRICE'); setReplacementPrice(value); setReplacementAdoption(undefined)
+    setReplacementPrice(value); setReplacementAdoption(undefined)
+    editorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const packageLabel = (id?: string | null) => {
+    if (!id) return '最小单位拆零'
+    const item = packages.find((entry) => entry.id === id)
+    return item ? (item.packageSpec || item.unitName) : '指定包装'
   }
   const changeAdoptionStatus = (value: OrganizationAdoption, status: 'ACTIVE' | 'SUSPENDED' | 'RETIRED') =>
     execute(`a-${value.id}`, () => api.masterData.changeLifecycleAdoptionStatus(value.id, value.revision,
@@ -749,34 +760,32 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
   const adoptionSeed = replacementAdoption ?? values?.currentAdoption
   const priceSeed = replacementPrice
   return <Dialog title={`${itemName} · 机构目录与价格`} eyebrow={`${organization.name} · 生命周期工作台`}
-    size="xwide" onClose={onClose} description="按业务日期查看当前版本，通过替代版本调整机构能力与价格；旧记录保持可追溯。">
+    size="xwide" onClose={onClose} description="按业务日期查看当前版本；在下方调整机构能力或价格，新版本生效时被替代版本自动截止到前一天，旧记录保持可追溯。"
+    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
     <div className="master-data-lifecycle-dialog">
       {(operationError || maintenance.error) && <Alert>{operationError || errorMessage(maintenance.error)}</Alert>}
-      <section className="master-data-lifecycle-current">
-        <header><div><h3>业务日期快照</h3><p>当前采用关系与有效价格均按此日期解析。</p></div>
-          <FormField label="业务日期"><input type="date" value={businessDate}
-            onChange={(event) => setBusinessDate(event.target.value)} /></FormField></header>
-        {maintenance.isPending ? <LoadingState label="正在解析机构目录与价格…" /> : <div className="master-data-lifecycle-snapshot">
-          <article><span>机构目录</span>{values?.currentAdoption ? <><DataStatus
-            value={values.currentAdoption.sdStatus} text={values.currentAdoption.sdStatusText} />
-            <strong>{values.currentAdoption.localName || itemName}</strong>
-            <code>{values.currentAdoption.localCode || '沿用中心编码'}</code>
-            <small>{capabilityLabels(values.currentAdoption).join(' · ') || '未开放业务能力'}</small></>
-            : <><StatusBadge>未采用</StatusBadge><strong>当前日期无有效版本</strong></>}</article>
-          <article><span>有效价格</span>{values?.currentPrices.length ? values.currentPrices.map((value) =>
-            <div key={value.id}><strong>¥ {Number(value.price).toFixed(2)}</strong>
-              <small>{value.sdPriceTypeText} · {value.packageId ? '指定包装计价' : '最小单位拆零计价'}</small></div>)
-            : <strong>当前日期未维护价格</strong>}</article>
-        </div>}
+      <section className="master-data-lifecycle-status">
+        <FormField label="业务日期"><input type="date" value={businessDate}
+          onChange={(event) => setBusinessDate(event.target.value)} /></FormField>
+        {maintenance.isPending ? <LoadingState label="正在解析机构目录与价格…" /> : <>
+          <div className="master-data-lifecycle-status__item"><span>机构目录</span>
+            {values?.currentAdoption ? <><DataStatus value={values.currentAdoption.sdStatus}
+              text={values.currentAdoption.sdStatusText} />
+              <strong>{values.currentAdoption.localName || itemName}</strong>
+              <code>{values.currentAdoption.localCode || '沿用中心编码'}</code></>
+              : <StatusBadge>未采用</StatusBadge>}</div>
+          <div className="master-data-lifecycle-status__item"><span>有效价格</span>
+            {values?.currentPrices.length ? values.currentPrices.map((value) => <strong key={value.id}>
+              ¥ {Number(value.price).toFixed(2)}<small>{value.sdPriceTypeText} · {packageLabel(value.packageId)}</small></strong>)
+              : <span className="master-data-lifecycle-status__empty">未维护</span>}</div>
+        </>}
       </section>
 
+      <div className="master-data-lifecycle-editors" ref={editorsRef}>
       <section className="master-data-lifecycle-editor">
-        <header><div><h3>{editor === 'ADOPTION' ? (replacementAdoption ? '建立机构目录替代版本' : '新增机构目录版本')
-          : (replacementPrice ? '建立调价版本' : '新增价格版本')}</h3><p>新版本生效时自动将被替代版本截止到前一天。</p></div>
-          <div className="master-data-lifecycle-switch"><button type="button" className={editor === 'ADOPTION' ? 'is-active' : ''}
-            onClick={() => setEditor('ADOPTION')}>机构目录</button><button type="button" className={editor === 'PRICE' ? 'is-active' : ''}
-              onClick={() => setEditor('PRICE')}>价格</button></div></header>
-        {editor === 'ADOPTION' ? <form key={`adoption-${adoptionSeed?.id ?? 'new'}-${adoptionSeed?.revision ?? 0}`}
+        <header><div><h3>{replacementAdoption ? '以当前目录为基准调整' : '调整机构目录'}</h3>
+          <p>本地编码、显示名称与机构可用能力；新版本生效时被替代版本自动截止到前一天。</p></div></header>
+        <form key={`adoption-${adoptionSeed?.id ?? 'new'}-${adoptionSeed?.revision ?? 0}`}
           className="master-data-lifecycle-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget)
             const input: LifecycleAdoptionInput = { organizationId: organization.id,
               defaultDepartmentId: adoptionSeed?.defaultDepartmentId, localCode: optionalText(form, 'localCode'),
@@ -799,8 +808,13 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
               .map((key) => <Checkbox key={key} name={key} label={capabilityLabel(key)}
                 defaultChecked={adoptionSeed?.[key] ?? defaults[key]} />)}
           </Checkboxes><div className="master-data-lifecycle-editor-actions"><Button type="submit"
-            busy={pending === 'save-adoption'}>{replacementAdoption ? '保存替代版本' : '新增机构目录'}</Button></div>
-        </form> : <form key={`price-${priceSeed?.id ?? 'new'}-${priceSeed?.revision ?? 0}`}
+            busy={pending === 'save-adoption'}>{replacementAdoption ? '保存替代版本' : '保存并生效'}</Button></div>
+        </form>
+      </section>
+      <section className="master-data-lifecycle-editor">
+        <header><div><h3>{replacementPrice ? '以当前价格为基准调价' : '调整价格'}</h3>
+          <p>按包装或最小单位计价；新版本生效时被替代价格自动截止到前一天。</p></div></header>
+        <form key={`price-${priceSeed?.id ?? 'new'}-${priceSeed?.revision ?? 0}`}
           className="master-data-lifecycle-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget)
             const input: LifecyclePriceInput = { organizationId: organization.id,
               packageId: optionalText(form, 'packageId'), priceType: text(form, 'priceType'),
@@ -828,16 +842,17 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
           <FormField label="调价依据" className="span-2"><textarea name="priceReason"
             defaultValue={priceSeed?.priceReason} rows={2} /></FormField>
           <div className="master-data-lifecycle-editor-actions"><Button type="submit" busy={pending === 'save-price'}>
-            {replacementPrice ? '保存调价版本' : '新增价格'}</Button></div>
-        </form>}
+            {replacementPrice ? '保存调价版本' : '保存并生效'}</Button></div>
+        </form>
       </section>
+      </div>
 
       <section className="master-data-lifecycle-history">
         <header><h3>机构目录历史</h3><p>包含启用、暂停、停用及被替代版本。</p></header>
-        {!values?.adoptionHistory.length ? <EmptyState icon="clinical" title="暂无机构目录历史" copy="可在右上维护首个版本。" />
+        {!values?.adoptionHistory.length ? <EmptyState icon="clinical" title="暂无机构目录历史" copy="可在上方表单维护首个版本。" />
           : <Table compact headers={['本地目录', '业务能力', '有效期', '状态', '操作']}>{values.adoptionHistory.map((value) =>
             <tr key={`${value.id}-${value.revision}`}><td><strong>{value.localName || itemName}</strong><code>{value.localCode || '沿用中心编码'}</code></td>
-              <td>{capabilityLabels(value).join(' · ') || '未开放'}</td><td>{value.validFrom}<small>至 {value.validTo || '长期'}</small></td>
+              <td>{capabilityShortLabels(value).join(' · ') || '未开放'}</td><td>{value.validFrom} 起 · {value.validTo ? `至 ${value.validTo}` : '长期'}</td>
               <td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td><td><RowActions>
                 {value.sdStatus === 'ACTIVE' && <><Button size="sm" variant="text" onClick={() => startAdoptionReplacement(value)}>替代</Button>
                   <Button size="sm" variant="text" busy={pending === `a-${value.id}`} onClick={() => void changeAdoptionStatus(value, 'SUSPENDED')}>暂停</Button>
@@ -847,18 +862,17 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
       </section>
       <section className="master-data-lifecycle-history">
         <header><h3>价格历史</h3><p>包装价格与最小单位拆零价格均保留完整调价链。</p></header>
-        {!values?.priceHistory.length ? <EmptyState icon="clinical" title="暂无价格历史" copy="可在右上新增价格。" />
+        {!values?.priceHistory.length ? <EmptyState icon="clinical" title="暂无价格历史" copy="可在上方表单新增价格。" />
           : <Table compact headers={['价格 / 类型', '计价范围', '依据', '有效期', '状态', '操作']}>{values.priceHistory.map((value) =>
-            <tr key={`${value.id}-${value.revision}`}><td><strong>¥ {Number(value.price).toFixed(2)}</strong><small>{value.sdPriceTypeText}</small></td>
-              <td>{value.packageId ? '指定包装计价' : '最小单位拆零计价'}</td><td>{value.priceDocumentCode || '—'}<small>{value.priceReason || '未说明'}</small></td>
-              <td>{value.validFrom}<small>至 {value.validTo || '长期'}</small></td><td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
+            <tr key={`${value.id}-${value.revision}`}><td><strong className="master-data-price">¥ {Number(value.price).toFixed(2)}</strong><small>{value.sdPriceTypeText}</small></td>
+              <td>{packageLabel(value.packageId)}</td><td>{value.priceDocumentCode || '—'}<small>{value.priceReason || '未说明'}</small></td>
+              <td>{value.validFrom} 起 · {value.validTo ? `至 ${value.validTo}` : '长期'}</td><td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
               <td><RowActions>{value.sdStatus === 'ACTIVE' && <><Button size="sm" variant="text" onClick={() => startPriceReplacement(value)}>调价</Button>
                 <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'SUSPENDED')}>暂停</Button>
                 <Button size="sm" variant="text" busy={pending === `p-${value.id}`} onClick={() => void changePriceStatus(value, 'RETIRED')}>停用</Button></>}
                 {value.sdStatus === 'SUSPENDED' && <Button size="sm" variant="text" busy={pending === `p-${value.id}`}
                   onClick={() => void changePriceStatus(value, 'ACTIVE')}>恢复</Button>}</RowActions></td></tr>)}</Table>}
       </section>
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>关闭</Button></div>
     </div>
   </Dialog>
 }
@@ -938,9 +952,11 @@ function capabilityLabel(value: keyof AdoptionDefaults) {
   return ({ orderable: '允许开立', executable: '允许执行', chargeable: '允许收费', purchasable: '允许采购',
     stocked: '允许入库', dispensable: '允许发放', returnable: '允许退药/退库' } as const)[value]
 }
-function capabilityLabels(value: OrganizationAdoption) {
+function capabilityShortLabels(value: OrganizationAdoption) {
+  const short: Record<keyof AdoptionDefaults, string> = { orderable: '开立', executable: '执行', chargeable: '收费',
+    purchasable: '采购', stocked: '入库', dispensable: '发放', returnable: '退药/退库' }
   return (['orderable', 'executable', 'chargeable', 'purchasable', 'stocked', 'dispensable', 'returnable'] as const)
-    .filter((key) => value[key]).map(capabilityLabel)
+    .filter((key) => value[key]).map((key) => short[key])
 }
 
 function MappingSummary({ value }: { value: ItemTermMapping }) {
@@ -1701,12 +1717,13 @@ function ProductDialog({ medication, manufacturers, organization, dictionaries, 
   </DataFormDialog>
 }
 
-function ProductEditDialog({ product, medication, manufacturers, dictionaries, onClose, onSave }: {
+function ProductEditDialog({ product, medication, manufacturers, dictionaries, onClose, onSave, onEditPackage }: {
   product: MedicationProduct; medication: MedicationKnowledge; manufacturers: Manufacturer[];
-  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: ProductInput) => void
+  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: ProductInput) => void;
+  onEditPackage: (value: ItemPackage) => void
 }) {
   return <DataFormDialog title="编辑药品产品" eyebrow={`${medication.name} · ${product.code}`} onClose={onClose}
-    size="xwide" description="维护厂家、批准文号、监管标识与中心层业务能力；包装规格请在列表中点击包装标签维护，机构目录与价格在各自入口维护。"
+    size="xwide" description="维护厂家、批准文号、监管标识与中心层业务能力；当前包装如下，点击可直接维护包装规格，机构目录与价格在各自入口维护。"
     onSubmit={(form) => onSave({
       medicationId: product.medicationId, manufacturerId: text(form, 'manufacturerId'), code: product.code,
       tradeName: optionalText(form, 'tradeName'), approvalCode: optionalText(form, 'approvalCode'),
@@ -1738,6 +1755,19 @@ function ProductEditDialog({ product, medication, manufacturers, dictionaries, o
         <FormField label="追溯码" hint="通常为7位数字，用于标识厂家产品。"><input name="traceCode" defaultValue={product.traceCode}
           inputMode="numeric" maxLength={7} pattern="[0-9]{7}" placeholder="如 8690001" /></FormField>
       </FormGrid>
+    </FormSection>
+    <FormSection title="包装与规格" description="产品当前已建档的包装，在此查看；点击任意包装可打开包装维护。">
+      <div className="master-data-package-list">
+        {product.packages.length ? product.packages.map((item) => {
+          const marks = [item.defaultPurchase && '默认采购', item.defaultSale && '默认销售',
+            item.defaultDispense && '默认发药'].filter(Boolean).join(' · ')
+          return <button type="button" key={item.id} title="点击编辑此包装" onClick={() => onEditPackage(item)}>
+            <strong>{item.packageSpec || `${item.unitName} = ${item.quantityFactor}${product.unitCode || '最小单位'}`}</strong>
+            <span>{[item.sdUsageTypeText, item.barcode && `条码 ${item.barcode}`, marks,
+              `自 ${item.validFrom}${item.validTo ? ` 至 ${item.validTo}` : ''}`].filter(Boolean).join(' · ')}</span>
+          </button>
+        }) : <p className="master-data-package-list__empty">暂无包装，请通过列表“加包装”建档。</p>}
+      </div>
     </FormSection>
     <FormSection title="中心层业务能力" description="控制产品在中心目录的可开立、可收费与库存属性；机构级开关请在“机构目录与价格”维护。">
       <FormGrid>

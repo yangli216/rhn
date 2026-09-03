@@ -34,6 +34,7 @@ export interface PatientIdentitySearchProps {
   hideResultsWhenSelected?: boolean
   className?: string
   getOptionDisabledReason?: (resident: Resident) => string | undefined
+  inputRef?: React.Ref<HTMLInputElement>
 }
 
 export const unavailablePatientIdentityMethods: PatientIdentityMethod[] = [
@@ -72,6 +73,7 @@ export function PatientIdentitySearch({
   hideResultsWhenSelected = false,
   className = '',
   getOptionDisabledReason,
+  inputRef,
 }: PatientIdentitySearchProps) {
   const [query, setQuery] = useState('')
   const [submitted, setSubmitted] = useState('')
@@ -79,6 +81,7 @@ export function PatientIdentitySearch({
   const [autoResolvedQuery, setAutoResolvedQuery] = useState('')
   const [methodBusy, setMethodBusy] = useState('')
   const [methodError, setMethodError] = useState('')
+  const [activeIndex, setActiveIndex] = useState(0)
   const normalized = query.trim()
   const residents = useQuery({
     queryKey: ['patient-identity-search', queryKey, submitted],
@@ -89,6 +92,10 @@ export function PatientIdentitySearch({
   const availableMethods = methods.filter((method) => Boolean(method.identify))
   const selectableCandidates = useMemo(() => candidates.filter((resident) =>
     !getOptionDisabledReason?.(resident)), [candidates, getOptionDisabledReason])
+
+  useEffect(() => {
+    setActiveIndex(0)
+  }, [submitted, candidates.length])
 
   useEffect(() => {
     if (!lookupKind || !submitted || residents.isFetching || selectableCandidates.length !== 1) return
@@ -103,6 +110,7 @@ export function PatientIdentitySearch({
     setAutoResolvedQuery('')
     setMethodError('')
     setSubmitted(normalized)
+    setActiveIndex(0)
   }
 
   async function identify(method: PatientIdentityMethod) {
@@ -136,6 +144,47 @@ export function PatientIdentitySearch({
     && !(hideResultsWhenSelected && selected)
   const hasDuplicateUniqueMatches = Boolean(lookupKind && candidates.length > 1)
 
+  function handleInputKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (showCandidates && selectableCandidates.length > 0) {
+        setActiveIndex((prev) => (prev + 1) % selectableCandidates.length)
+      } else if (normalized.length >= minimumQueryLength) {
+        submit()
+      }
+      return
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (showCandidates && selectableCandidates.length > 0) {
+        setActiveIndex((prev) => (prev - 1 + selectableCandidates.length) % selectableCandidates.length)
+      }
+      return
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      if (showCandidates && selectableCandidates.length > 0 && query.trim() === submitted) {
+        const target = selectableCandidates[activeIndex >= 0 && activeIndex < selectableCandidates.length ? activeIndex : 0]
+        if (target) {
+          onSelect(target)
+          return
+        }
+      }
+      submit()
+      return
+    }
+
+    if (event.key === 'Escape') {
+      if (showCandidates) {
+        event.preventDefault()
+        setSubmitted('')
+        setAutoResolvedQuery('')
+      }
+    }
+  }
+
   return <div className={`ui-patient-search ${compact ? 'is-compact' : ''} ${className}`}>
     <div className="ui-patient-search__toolbar">
       {availableMethods.length > 0 && <div className="ui-patient-search__methods" aria-label="患者识别方式">
@@ -152,9 +201,9 @@ export function PatientIdentitySearch({
       <div className="ui-patient-search__form">
         <Icon name="search" />
         <label className="visually-hidden" htmlFor={`${queryKey}-patient-search`}>患者姓名、证件或卡号</label>
-        <input id={`${queryKey}-patient-search`} value={query} disabled={disabled} autoFocus={autoFocus}
+        <input ref={inputRef} id={`${queryKey}-patient-search`} value={query} disabled={disabled} autoFocus={autoFocus}
           onChange={(event) => setQuery(event.target.value)} placeholder={placeholder}
-          onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); submit() } }} />
+          onKeyDown={handleInputKeyDown} />
         <button className="ui-button ui-button--secondary ui-button--sm" type="button" onClick={submit}
           disabled={disabled || normalized.length < minimumQueryLength || residents.isFetching}>
           <span className="ui-button__label">{residents.isFetching ? '查询中…' : '查询'}</span>
@@ -185,14 +234,27 @@ export function PatientIdentitySearch({
       该唯一标识返回多条记录，请人工确认并检查主索引数据。
     </p>}
     {showCandidates && (candidates.length ? <div className="ui-patient-search__results" aria-label="患者候选列表">
-      <header><strong>请选择并确认患者</strong><span>{candidates.length} 条候选记录</span></header>
+      <header>
+        <strong>请选择并确认患者</strong>
+        <span>{candidates.length} 条候选记录</span>
+      </header>
       <div>{candidates.map((resident) => {
         const disabledReason = getOptionDisabledReason?.(resident)
+        const selectableIdx = selectableCandidates.findIndex((r) => r.id === resident.id)
+        const isFocused = selectableIdx >= 0 && selectableIdx === activeIndex
         return <button key={resident.id} type="button" disabled={disabled || Boolean(disabledReason)}
-          className={selected?.id === resident.id ? 'is-selected' : ''} onClick={() => onSelect(resident)}>
+          className={`${selected?.id === resident.id ? 'is-selected' : ''} ${isFocused ? 'is-keyboard-focused' : ''}`}
+          aria-selected={isFocused}
+          onMouseEnter={() => { if (selectableIdx >= 0) setActiveIndex(selectableIdx) }}
+          onClick={() => onSelect(resident)}>
           <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>{resident.fullName.slice(-1)}</span>
-          <span><strong>{resident.fullName}</strong><small>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</small>
-            <small>{resident.maskedNationalId || resident.healthRecordNo}</small></span>
+          <span>
+            <span className="ui-patient-search__candidate-title">
+              <strong>{resident.fullName}</strong>
+              <small>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</small>
+            </span>
+            <small>{resident.maskedNationalId || resident.healthRecordNo}</small>
+          </span>
           {disabledReason ? <small className="ui-patient-search__disabled-reason">{disabledReason}</small>
             : <Icon name={selected?.id === resident.id ? 'check' : 'chevron-right'} />}
         </button>

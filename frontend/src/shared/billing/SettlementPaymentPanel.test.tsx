@@ -98,4 +98,63 @@ describe('SettlementPaymentPanel payment recovery', () => {
       paymentMethodCode: 'CASH', amount: 6,
     }))
   })
+
+  it('calculates cash change and validates tendered amount for cash payments', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      onSubmit={onSubmit}
+    />)
+
+    expect(screen.getByText('实收现金：')).toBeInTheDocument()
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
+
+    const preset50 = screen.getByRole('button', { name: '¥50' })
+    await user.click(preset50)
+    expect(screen.getByText('¥30.00')).toBeInTheDocument()
+    expect(screen.getByText(/应找零给患者/)).toBeInTheDocument()
+
+    const tenderInput = screen.getByPlaceholderText('20')
+    await user.clear(tenderInput)
+    await user.type(tenderInput, '10')
+    expect(screen.getByText(/缴款不足，还差 ¥10.00/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认收款并记账' })).toBeDisabled()
+  })
+
+  it('shows clear error notice when medical insurance interface is unintegrated and pending', async () => {
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 15, currencyCode: 'CNY',
+        insuranceReady: false }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      showSettlementMode
+      settlementModeCode="MEDICAL_INSURANCE"
+      onSubmit={vi.fn()}
+    />)
+
+    expect(screen.getByText('医保接口未对接')).toBeInTheDocument()
+    expect(screen.getByText(/当前系统未对接国家\/地方医保平台/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '医保接口未对接，请改选自费' })).toBeDisabled()
+  })
+
+  it('shows clear error notice when unintegrated payment method like WeChat or Alipay is selected', async () => {
+    const user = userEvent.setup()
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 15, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }, { code: 'WECHAT', name: '微信支付' }]}
+      orders={[]}
+      onSubmit={vi.fn()}
+    />)
+
+    await user.click(screen.getByLabelText('支付方式'))
+    await user.click(await screen.findByRole('option', { name: /微信支付/ }))
+
+    expect(screen.getByText('接口未对接')).toBeInTheDocument()
+    expect(screen.getByText(/【微信支付接口未对接】当前系统未配置在线商户支付网关/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '微信支付未对接，请改选现金' })).toBeDisabled()
+  })
 })

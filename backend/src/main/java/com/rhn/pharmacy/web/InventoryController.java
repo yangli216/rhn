@@ -10,8 +10,10 @@ import com.rhn.pharmacy.api.PharmacyViews.ReservationResultView;
 import com.rhn.pharmacy.api.PharmacyViews.StockReturnView;
 import com.rhn.pharmacy.api.PharmacyViews.StockBinView;
 import com.rhn.pharmacy.api.PharmacyViews.StockLotView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeView;
 import com.rhn.pharmacy.application.InventoryApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService;
+import com.rhn.pharmacy.application.InventoryTraceApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService.CompletePickingCommand;
 import com.rhn.pharmacy.application.DispenseApplicationService.DispenseCommand;
 import com.rhn.pharmacy.application.DispenseApplicationService.ReturnCommand;
@@ -51,9 +53,11 @@ import java.util.List;
 public class InventoryController {
     private final InventoryApplicationService service;
     private final DispenseApplicationService dispenseService;
+    private final InventoryTraceApplicationService traceService;
 
-    public InventoryController(InventoryApplicationService service, DispenseApplicationService dispenseService) {
-        this.service = service; this.dispenseService = dispenseService;
+    public InventoryController(InventoryApplicationService service, DispenseApplicationService dispenseService,
+                               InventoryTraceApplicationService traceService) {
+        this.service = service; this.dispenseService = dispenseService; this.traceService = traceService;
     }
 
     @PostMapping("/stock-sites/{siteId}/stock-bins")
@@ -118,6 +122,13 @@ public class InventoryController {
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "50") @Min(1) @Max(200) int size) {
         return service.transactionPage(stockSiteId, periodCode, stockItemId, allPeriods, page, size);
+    }
+
+    @GetMapping("/dispense/trace-code")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
+    TraceCodeView scanTraceCode(@RequestParam Long stockSiteId,
+                                @RequestParam @NotBlank @Size(max = 256) String traceCode) {
+        return traceService.scan(stockSiteId, traceCode);
     }
 
     @PostMapping("/dispense-tasks/{taskId}/reservations")
@@ -209,9 +220,11 @@ public class InventoryController {
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 20, fraction = 8)
             BigDecimal operationQuantity,
             Instant occurredAt, @NotNull Long dispenserPractitionerId, @NotNull Long dispenserAssignmentId,
-            Long checkerPractitionerId, Long checkerAssignmentId, @Size(max = 1000) String description) {
+            Long checkerPractitionerId, Long checkerAssignmentId, @Size(max = 1000) String description,
+            @Size(max = 1000) List<@NotNull Long> traceCodeIds) {
         DispenseCommand command() { return new DispenseCommand(requestCode, operationQuantity, occurredAt,
-                dispenserPractitionerId, dispenserAssignmentId, checkerPractitionerId, checkerAssignmentId, description); }
+                dispenserPractitionerId, dispenserAssignmentId, checkerPractitionerId, checkerAssignmentId,
+                description, traceCodeIds == null ? List.of() : traceCodeIds); }
     }
 
     record ReturnLineRequest(

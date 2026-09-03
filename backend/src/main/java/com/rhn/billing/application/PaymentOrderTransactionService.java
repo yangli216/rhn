@@ -369,7 +369,7 @@ class PaymentOrderTransactionService {
     }
 
     private void requireAccess(ExecutionContext context, PatientAccount account) {
-        if (!context.canAccessOrganization(account.organizationId()) || !context.canAccessDepartment(account.departmentId())) {
+        if (!context.canAccessOrganization(account.organizationId())) {
             throw forbidden("PATIENT_ACCOUNT_FORBIDDEN", "当前工作上下文不能访问该费用账户");
         }
     }

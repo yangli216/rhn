@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { MedicationRequest } from '../../shared/api/encountersApi'
 import type { PersonnelAssignment } from '../../shared/api/organizationApi'
-import type { PharmacyInboxItem, PharmacyReviewResult, WardDelivery } from '../../shared/api/pharmacyApi'
+import type { InventoryTraceCode, PharmacyInboxItem, PharmacyReviewResult, WardDelivery } from '../../shared/api/pharmacyApi'
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
@@ -101,10 +101,12 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const [selectedWindow, setSelectedWindow] = useState('窗口1')
   const [autoCall, setAutoCall] = useState(false)
   const [scanKeyword, setScanKeyword] = useState('')
+  const [scanPending, setScanPending] = useState(false)
   const [expiryDaysFilter, setExpiryDaysFilter] = useState(100)
   const [checkedPrescriptionKeys, setCheckedPrescriptionKeys] = useState<Set<string>>(new Set())
-  const [scannedItemIds, setScannedItemIds] = useState<Set<string>>(new Set())
-  const [itemScannedCounts, setItemScannedCounts] = useState<Record<string, number>>({})
+  const [scannedTraceCodes, setScannedTraceCodes] = useState<Record<string, InventoryTraceCode[]>>({})
+  const [lastScannedRequestId, setLastScannedRequestId] = useState('')
+  const scanInputRef = useRef<HTMLInputElement>(null)
   const [activeHistorySummary, setActiveHistorySummary] = useState<{
     title: string
     encounterNo?: string
@@ -276,19 +278,20 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
       }
     }
 
-    let list = Array.from(groupsMap.values())
-    if (scanKeyword.trim()) {
-      const kw = scanKeyword.trim().toLowerCase()
-      list = list.filter((p) => p.residentName.toLowerCase().includes(kw)
-        || p.residentId.toLowerCase().includes(kw)
-        || (p.nationalId && p.nationalId.toLowerCase().includes(kw))
-        || (p.phone && p.phone.includes(kw))
-        || (p.encounterNo && p.encounterNo.toLowerCase().includes(kw))
-        || p.items.some((it) => it.request.medicationName.toLowerCase().includes(kw)
-          || it.request.requestNo.toLowerCase().includes(kw)))
-    }
-    return list
-  }, [mode, residentMap, visibleInbox, scanKeyword])
+    return Array.from(groupsMap.values())
+  }, [mode, residentMap, visibleInbox])
+
+  const filteredPatientGroups = useMemo(() => {
+    const keyword = scanKeyword.trim().toLowerCase()
+    if (!keyword) return patientGroups
+    return patientGroups.filter((patient) => patient.residentName.toLowerCase().includes(keyword)
+      || patient.residentId.toLowerCase().includes(keyword)
+      || (patient.nationalId && patient.nationalId.toLowerCase().includes(keyword))
+      || (patient.phone && patient.phone.includes(keyword))
+      || (patient.encounterNo && patient.encounterNo.toLowerCase().includes(keyword))
+      || patient.items.some((item) => item.request.medicationName.toLowerCase().includes(keyword)
+        || item.request.requestNo.toLowerCase().includes(keyword)))
+  }, [patientGroups, scanKeyword])
 
   // Sync selected resident
   useEffect(() => {
@@ -495,6 +498,14 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
       showActionNotice('info', '所选处方均已完成发药，无需重复处理')
       return
     }
+    const missingTraceScan = pendingItems.find((item) => itemRequiresTrace(item)
+      && getItemScannedCount(item.request) < item.request.quantity)
+    if (missingTraceScan) {
+      setLastScannedRequestId(missingTraceScan.request.id)
+      showActionNotice('warning', `请先扫齐“${missingTraceScan.request.medicationName}”的追溯码`)
+      scanInputRef.current?.focus()
+      return
+    }
 
     setBatchDispensing(true)
     let dispensedCount = 0
@@ -533,7 +544,9 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
             dispenserPractitionerId: practitionerId || 'practitioner-1',
             dispenserAssignmentId: assignmentId || 'assignment-1',
             description: '已核对处方与患者身份一键发药',
+            traceCodeIds: scannedTraceCodes[item.request.id]?.map((code) => code.id),
           })
+          clearItemScans(item.request.id)
           dispensedCount++
         }
       }
@@ -606,25 +619,110 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     })
   }
 
-  const getItemScannedCount = (req: MedicationRequest) => {
-    if (req.id in itemScannedCounts) return itemScannedCounts[req.id]
-    return scannedItemIds.has(req.id) ? req.quantity : 0
+  const itemRequiresTrace = (item: PharmacyInboxItem) => {
+    const configuredItem = (stockItems.data ?? []).find((value) => value.id === item.stockItemId)
+    if (configuredItem) return configuredItem.traceRequired
+    if (item.request.id === selectedLine?.requestId) return selectedLine.traceRequired
+    return Boolean(scannedTraceCodes[item.request.id]?.length)
   }
 
-  const toggleItemScanned = (req: MedicationRequest) => {
-    const current = getItemScannedCount(req)
-    if (current >= req.quantity) {
-      setItemScannedCounts((prev) => ({ ...prev, [req.id]: 0 }))
-      setScannedItemIds((prev) => {
-        const next = new Set(prev)
-        next.delete(req.id)
-        return next
-      })
-    } else {
-      setItemScannedCounts((prev) => ({ ...prev, [req.id]: req.quantity }))
-      setScannedItemIds((prev) => new Set(prev).add(req.id))
+  const getItemScannedCount = (req: MedicationRequest) => (scannedTraceCodes[req.id] ?? [])
+    .reduce((total, code) => total + code.packageQuantity, 0)
+
+  const clearItemScans = (requestId: string) => {
+    setScannedTraceCodes((previous) => {
+      const next = { ...previous }
+      delete next[requestId]
+      return next
+    })
+  }
+
+  const matchesTraceItem = (item: PharmacyInboxItem, traceCode: InventoryTraceCode) => {
+    if (item.stockItemId === traceCode.stockItemId) return true
+    const configuredItem = (stockItems.data ?? []).find((value) => value.id === traceCode.stockItemId)
+    if (!configuredItem) return false
+    return configuredItem.catalogItemId === item.request.catalogItemId
+      || (item.request.substitutionAllowed && configuredItem.medicationId === item.request.medicationId)
+  }
+
+  const handleScanOrSearch = async () => {
+    const rawCode = scanKeyword.trim()
+    if (!rawCode || scanPending) return
+    if (!siteId) {
+      showActionNotice('warning', '当前科室未配置可用发药药房')
+      return
+    }
+
+    setScanPending(true)
+    try {
+      const traceCode = await api.pharmacy.scanTraceCode(siteId, rawCode)
+      const alreadyScanned = Object.values(scannedTraceCodes).flat()
+        .some((value) => value.id === traceCode.id)
+      if (alreadyScanned) {
+        showActionNotice('warning', `追溯码 ${traceCode.traceCode} 已扫入，请勿重复扫码`)
+        return
+      }
+      if (traceCode.status !== 'AVAILABLE') {
+        showActionNotice('warning', `追溯码 ${traceCode.traceCode} 当前状态为 ${traceCode.status}，不可用于发药`)
+        return
+      }
+
+      const matchingItems = visibleInbox.filter((item) => item.taskStatus !== 'COMPLETED'
+        && matchesTraceItem(item, traceCode))
+      const activeMatches = matchingItems.filter((item) => item.request.residentId === activePatient?.residentId)
+      let target = activeMatches.find((item) => getItemScannedCount(item.request) < item.request.quantity)
+      if (!target && activeMatches.length) {
+        showActionNotice('warning', `“${activeMatches[0].request.medicationName}”已扫齐，不能超量扫码`)
+        return
+      }
+      if (!target) {
+        const incompleteMatches = matchingItems.filter((item) =>
+          getItemScannedCount(item.request) < item.request.quantity)
+        const residentIds = new Set(incompleteMatches.map((item) => item.request.residentId))
+        if (residentIds.size > 1) {
+          showActionNotice('warning', '多个待发药患者包含该药品，请先选择患者后再扫码')
+          return
+        }
+        target = incompleteMatches[0]
+      }
+      if (!target) {
+        showActionNotice('warning', `当前待发药处方中没有“${traceCode.productName}”`)
+        return
+      }
+
+      setSelectedResidentId(target.request.residentId)
+      setRequestId(target.request.id)
+      setScannedTraceCodes((previous) => ({
+        ...previous,
+        [target.request.id]: [...(previous[target.request.id] ?? []), traceCode],
+      }))
+      setLastScannedRequestId(target.request.id)
+      setScanKeyword('')
+      showActionNotice('success', `已定位 ${traceCode.productName}，扫入数量 +${traceCode.packageQuantity}`)
+    } catch (scanError) {
+      if ((scanError as { code?: string })?.code === 'TRACE_CODE_NOT_FOUND') {
+        if (filteredPatientGroups.length) {
+          setSelectedResidentId(filteredPatientGroups[0].residentId)
+          showActionNotice('info', `已定位患者：${filteredPatientGroups[0].residentName}`)
+        } else {
+          showActionNotice('warning', '未找到该追溯码，也没有匹配的患者或处方')
+        }
+      } else {
+        showActionNotice('error', `追溯码校验失败：${errorMessage(scanError)}`)
+      }
+    } finally {
+      setScanPending(false)
     }
   }
+
+  useEffect(() => {
+    if (!lastScannedRequestId) return
+    const row = Array.from(document.querySelectorAll<HTMLElement>('[data-request-id]'))
+      .find((element) => element.dataset.requestId === lastScannedRequestId)
+    if (typeof row?.scrollIntoView === 'function') {
+      row.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [lastScannedRequestId, selectedResidentId, scannedTraceCodes])
 
   const returnedByOriginalLine = useMemo(() => {
     const result = new Map<string, number>()
@@ -908,13 +1006,17 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
 
         <div className="pharmacy-scan-search">
           <input
+            ref={scanInputRef}
             type="text"
             value={scanKeyword}
             onChange={(e) => setScanKeyword(e.target.value)}
             placeholder="扫码或输入处方/患者/就诊号"
+            aria-label="追溯码或处方患者检索"
+            aria-busy={scanPending}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && patientGroups.length > 0) {
-                setSelectedResidentId(patientGroups[0].residentId)
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                void handleScanOrSearch()
               }
             }}
           />
@@ -1028,10 +1130,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
         </div>
 
         <div className="pharmacy-patient-queue__list">
-          {!patientGroups.length ? (
+          {!filteredPatientGroups.length ? (
             <EmptyState icon="pharmacy" title="暂无待发药患者" copy="门诊开立处方并完成缴费后将进入队列。" />
           ) : (
-            patientGroups.map((p) => {
+            filteredPatientGroups.map((p) => {
               const isSelected = p.residentId === activePatient?.residentId
               return (
                 <div
@@ -1181,8 +1283,9 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                       <tbody>
                         {card.items.map((it, idx) => {
                           const req = it.request
-                          const scannedQty = getItemScannedCount(req)
-                          const isComplete = scannedQty >= req.quantity && req.quantity > 0
+                          const requiresTrace = itemRequiresTrace(it)
+                          const scannedQty = requiresTrace ? getItemScannedCount(req) : req.quantity
+                          const isComplete = !requiresTrace || (scannedQty >= req.quantity && req.quantity > 0)
                           const snap = (req.medicationSnapshot as Record<string, unknown> | undefined) ?? {}
                           const manufacturer = (snap.manufacturerName as string) || (snap.manufacturer as string) || '云南制药有限公司'
                           const spec = req.packageSpec || req.preparationSpec || '200片/盒'
@@ -1195,7 +1298,8 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                           const packageUnit = requestPackageUnit(req.quantityUnit, req.packageUnitName)
 
                           return (
-                            <tr key={req.id}>
+                            <tr key={req.id} data-request-id={req.id}
+                              className={lastScannedRequestId === req.id ? 'is-scan-target' : undefined}>
                               <td>{idx + 1}</td>
                               <td>
                                 <div className="pharmacy-med-name-cell">
@@ -1220,10 +1324,12 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                               <td>{days}</td>
                               <td>
                                 <span
-                                  className={`pharmacy-scan-status ${isComplete ? 'pharmacy-scan-status--success' : 'pharmacy-scan-status--danger'}`}
-                                  title={isComplete ? '追溯码数量已核对完成' : scannedQty === 0 ? '追溯码尚未扫码' : '追溯码扫入数量不足'}
+                                  className={`pharmacy-scan-status ${!requiresTrace ? 'pharmacy-scan-status--neutral' : isComplete ? 'pharmacy-scan-status--success' : 'pharmacy-scan-status--danger'}`}
+                                  title={!requiresTrace ? '该药品无需追溯码核对' : isComplete ? '追溯码数量已核对完成' : scannedQty === 0 ? '追溯码尚未扫码' : '追溯码扫入数量不足'}
                                 >
-                                  {isComplete
+                                  {!requiresTrace
+                                    ? '无需扫码'
+                                    : isComplete
                                     ? `${scannedQty} ${packageUnit}`
                                     : `${scannedQty} / ${req.quantity} ${packageUnit}`}
                                 </span>
@@ -1232,9 +1338,17 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                                 <button
                                   type="button"
                                   className={`pharmacy-scan-action-btn ${isComplete ? 'is-scanned' : ''}`}
-                                  onClick={() => toggleItemScanned(req)}
+                                  disabled={!requiresTrace}
+                                  onClick={() => {
+                                    if (scannedQty > 0) {
+                                      clearItemScans(req.id)
+                                      showActionNotice('info', `已清空“${req.medicationName}”的扫码记录`)
+                                    } else {
+                                      scanInputRef.current?.focus()
+                                    }
+                                  }}
                                 >
-                                  {isComplete ? '已扫码' : '扫码'}
+                                  {!requiresTrace ? '--' : scannedQty > 0 ? '清空' : '扫码'}
                                 </button>
                               </td>
                             </tr>

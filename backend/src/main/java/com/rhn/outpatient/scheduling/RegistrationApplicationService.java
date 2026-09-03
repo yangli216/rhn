@@ -350,9 +350,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     private void validateRegistrationSchedule(RegisterCommand command, ExecutionContext context,
                                                 ServiceSchedule schedule) {
-        if (!schedule.organizationId().equals(command.organizationId())
-                || !schedule.departmentId().equals(command.departmentId())) {
-            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构科室");
+        if (!schedule.organizationId().equals(command.organizationId())) {
+            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构");
         }
         if (!"PUBLISHED".equals(schedule.status())) {
             throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
@@ -402,8 +401,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             throw badRequest("RECEPTION_WORK_CONTEXT_REQUIRED", "请先选择当前机构和科室");
         }
         if (organizationId != null && context.hasWorkContext()
-                && (!context.organizationId().equals(organizationId) || !context.departmentId().equals(departmentId))) {
-            throw badRequest("RECEPTION_CONTEXT_MISMATCH", "挂号机构科室必须与当前工作上下文一致");
+                && !context.organizationId().equals(organizationId)) {
+            throw badRequest("RECEPTION_CONTEXT_MISMATCH", "挂号机构必须与当前工作上下文一致");
         }
         return context;
     }

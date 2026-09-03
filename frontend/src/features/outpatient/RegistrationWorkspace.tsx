@@ -12,6 +12,7 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, Select, StatusBadge } from '../../shared/ui'
+import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -34,31 +35,29 @@ interface RegistrationSuccess {
 type ActiveMedicalCoverage = ResidentCoverageInput & { id: string }
 
 const PINYIN_LOOKUP: Record<string, string[]> = {
-  '全科医疗科': ['qk', 'qkylk', 'quanke', 'general'],
-  '全科门诊': ['qk', 'qkmz', 'quanke'],
-  '内科': ['nk', 'nkmz', 'neike', 'internal'],
-  '内科门诊': ['nk', 'nkmz', 'neike'],
-  '心血管内科': ['xxg', 'xnk', 'xinxueguan'],
-  '消化内科': ['xhnk', 'xiaohua'],
-  '呼吸内科': ['hxnk', 'huxi'],
-  '内分泌科': ['nfm', 'neifenmi'],
+  '全科': ['qk', 'qkmz', 'qkylk', 'quanke', 'general', 'gp'],
+  '内科': ['nk', 'nkmz', 'neike', 'internal', 'im'],
+  '心血管': ['xxg', 'xnk', 'xinxueguan'],
+  '消化': ['xhnk', 'xiaohua'],
+  '呼吸': ['hxnk', 'huxi'],
+  '内分泌': ['nfm', 'neifenmi'],
   '外科': ['wk', 'wkmz', 'waike', 'surgery'],
-  '外科门诊': ['wk', 'wkmz', 'waike'],
-  '普外科': ['pwk', 'puwai'],
+  '普外': ['pwk', 'puwai'],
   '骨科': ['gk', 'guke', 'orthopedics'],
-  '儿科': ['ek', 'erke', 'pediatrics', 'er'],
-  '儿科门诊': ['ek', 'erke', 'ekmz'],
-  '妇产科': ['fck', 'fuchan', 'obgyn'],
+  '儿科': ['ek', 'erke', 'ekmz', 'pediatrics', 'er'],
+  '妇产': ['fck', 'fuchan', 'obgyn'],
   '妇科': ['fk', 'fuke', 'gynecology'],
-  '中医科': ['zyk', 'zhongyi', 'tcm'],
-  '针灸推拿科': ['zjtn', 'zhenjiu'],
+  '产科': ['ck', 'chanke', 'obstetrics'],
+  '中医': ['zyk', 'zhongyi', 'tcm'],
+  '针灸': ['zjtn', 'zhenjiu'],
+  '推拿': ['tn', 'tuina'],
   '眼科': ['yk', 'yanke', 'eye'],
-  '耳鼻喉科': ['ebhk', 'erbihou', 'ent'],
-  '口腔科': ['kqk', 'kouqiang', 'dental'],
-  '皮肤科': ['pfk', 'pifu', 'derma'],
-  '急诊科': ['jzk', 'jizhen', 'er', 'emergency'],
-  '发热门诊': ['frmz', 'fare'],
-  '康复医学科': ['kfk', 'kangfu', 'rehab'],
+  '耳鼻喉': ['ebhk', 'erbihou', 'ent'],
+  '口腔': ['kqk', 'kouqiang', 'dental'],
+  '皮肤': ['pfk', 'pifu', 'derma'],
+  '急诊': ['jzk', 'jizhen', 'emergency', 'er'],
+  '发热': ['frmz', 'fare'],
+  '康复': ['kfk', 'kangfu', 'rehab'],
 }
 
 const DEPT_CATEGORIES = [
@@ -109,7 +108,7 @@ const PAYMENT_METHOD_NAMES: Record<string, string> = {
   WECHAT: '微信支付',
   ALIPAY: '支付宝',
   CASH: '现金收款',
-  PERSONAL_ACCOUNT: '医保个账',
+  BANK_CARD: '银行卡刷卡',
 }
 
 function statusTone(status: ReceptionQueueItem['status']) {
@@ -204,19 +203,48 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   </Dialog>
 }
 
-function ThermalReceiptModal({ receipt, organizationName, departmentName, locationName, feeBreakdown, paymentMethodName, onClose }: {
+function getCashPresets(amount: number): number[] {
+  if (amount <= 0) return []
+  const standardDenominations = [5, 10, 20, 50, 100]
+  const presets = new Set<number>()
+  presets.add(amount)
+  standardDenominations.forEach((d) => {
+    if (d > amount) presets.add(d)
+  })
+  return Array.from(presets).sort((a, b) => a - b).slice(0, 4)
+}
+
+function ThermalReceiptModal({ receipt, organizationName, departmentName, locationName, feeBreakdown, paymentMethodName, cashTendered, cashChange, onClose }: {
   receipt: ReceptionQueueItem
   organizationName: string
   departmentName: string
   locationName?: string
   feeBreakdown?: { baseFee: number; seniorDiscount: number; insuranceDeduction: number; payableAmount: number }
   paymentMethodName?: string
+  cashTendered?: number
+  cashChange?: number
   onClose: () => void
 }) {
   const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
+
+  useEffect(() => {
+    const handleModalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        window.print()
+        onClose()
+      } else if (e.key === 'Escape') {
+        e.preventDefault()
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleModalKeyDown)
+    return () => window.removeEventListener('keydown', handleModalKeyDown)
+  }, [onClose])
+
   return <Dialog title="门诊挂号热敏凭条" eyebrow="小票打印预览" size="wide" onClose={onClose}
-    footer={<><Button variant="secondary" onClick={onClose}>关闭</Button>
-      <Button onClick={() => window.print()}><Icon name="print" />立即打印小票</Button></>}>
+    footer={<><Button variant="secondary" onClick={onClose}>关闭 (Esc)</Button>
+      <Button onClick={() => { window.print(); onClose() }}><Icon name="print" />立即打印小票 (Enter)</Button></>}>
     <div className="thermal-receipt-container">
       <article className="thermal-receipt-paper" aria-label="热敏就诊凭条">
         <header>
@@ -244,6 +272,12 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
           {breakdown.insuranceDeduction > 0 && <><dt>医保基金抵扣</dt><dd>-¥{breakdown.insuranceDeduction.toFixed(2)}</dd></>}
           {breakdown.seniorDiscount > 0 && <><dt>优待政策减免</dt><dd>-¥{breakdown.seniorDiscount.toFixed(2)}</dd></>}
           <dt>自费实收金额</dt><dd>¥{breakdown.payableAmount.toFixed(2)} ({paymentMethodName || '现金/移动支付'})</dd>
+          {cashTendered !== undefined && cashTendered >= breakdown.payableAmount && (
+            <>
+              <dt>实收现金</dt><dd>¥{cashTendered.toFixed(2)}</dd>
+              <dt>现金找零</dt><dd style={{ color: 'var(--color-success)', fontWeight: 700 }}>¥{(cashChange ?? 0).toFixed(2)}</dd>
+            </>
+          )}
           <dt>挂号时间</dt><dd>{clock(receipt.registeredAt)}</dd>
         </dl>
 
@@ -313,13 +347,24 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
   const [selectedDayPart, setSelectedDayPart] = useState('ALL')
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('WECHAT')
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
+  const [cashTendered, setCashTendered] = useState('')
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
+  const [validationError, setValidationError] = useState<string | null>(null)
 
   const deptSearchInputRef = useRef<HTMLInputElement>(null)
+  const patientSearchInputRef = useRef<HTMLInputElement>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
+  const scheduleCardRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   const linkedResidentId = searchParams.get('residentId')
   const linkedAppointmentId = searchParams.get('appointmentId')
+
+  useEffect(() => {
+    if (!linkedResidentId) {
+      patientSearchInputRef.current?.focus()
+    }
+  }, [linkedResidentId])
 
   const linkedResident = useQuery({
     queryKey: ['registration-resident-deep-link', linkedResidentId],
@@ -381,10 +426,24 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     const q = deptSearch.trim().toLowerCase()
     if (q) {
       result = result.filter((item) => {
-        const name = (item.serviceName + (item.practitionerName ?? '') + (item.locationName ?? '')).toLowerCase()
-        if (name.includes(q)) return true
-        const initials = PINYIN_LOOKUP[item.serviceName] ?? []
-        return initials.some((p) => p.startsWith(q) || p === q)
+        const texts = [
+          item.serviceName,
+          item.practitionerName,
+          item.departmentName,
+          item.locationName,
+          item.serviceCode,
+        ].filter(Boolean) as string[]
+
+        if (texts.some((t) => t.toLowerCase().includes(q))) return true
+        if (texts.some((t) => pinyinInitials(t).includes(q))) return true
+
+        const combined = texts.join(' ')
+        for (const [dept, aliases] of Object.entries(PINYIN_LOOKUP)) {
+          if (combined.includes(dept) && aliases.some((a) => a.startsWith(q) || a === q)) {
+            return true
+          }
+        }
+        return false
       })
     }
     if (selectedCategory !== 'ALL') {
@@ -417,6 +476,34 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     ? (schedules.data ?? []).find((item) => item.id === linkedAppointment.data?.scheduleId) : undefined
   const canUseDirect = !linkedAppointmentId && (allAvailable.length === 0 || visitType === 'EMERGENCY')
   const selectedSchedule = linkedSchedule ?? allAvailable.find((item) => item.id === scheduleId)
+  const targetDepartmentName = useMemo(() => {
+    if (!selectedSchedule) return clinicalContext.department.name
+    const sName = selectedSchedule.serviceName || ''
+    const dName = selectedSchedule.departmentName || ''
+
+    if (sName.includes('内科') && !dName.includes('内科')) return '内科门诊'
+    if (sName.includes('全科') && !dName.includes('全科')) return '全科门诊'
+    if (sName.includes('儿科') && !dName.includes('儿科')) return '儿科门诊'
+    if (sName.includes('外科') && !dName.includes('外科')) return '外科门诊'
+    if (sName.includes('中医') && !dName.includes('中医')) return '中医科'
+    if (sName.includes('妇产') && !dName.includes('妇产')) return '妇产科门诊'
+    if (sName.includes('眼科') && !dName.includes('眼科')) return '眼科'
+    if (sName.includes('口腔') && !dName.includes('口腔')) return '口腔科'
+    if (sName.includes('耳鼻喉') && !dName.includes('耳鼻喉')) return '耳鼻喉科'
+    if (sName.includes('皮肤') && !dName.includes('皮肤')) return '皮肤科'
+    if (sName.includes('急诊') && !dName.includes('急诊')) return '急诊科'
+    if (sName.includes('发热') && !dName.includes('发热')) return '发热门诊'
+    if (sName.includes('康复') && !dName.includes('康复')) return '康复科'
+
+    if (dName) return dName
+    if (sName.includes('内科')) return '内科门诊'
+    if (sName.includes('全科')) return '全科门诊'
+    if (sName.includes('儿科')) return '儿科门诊'
+    if (sName.includes('外科')) return '外科门诊'
+    if (sName.includes('中医')) return '中医科'
+    if (sName.includes('妇产')) return '妇产科门诊'
+    return clinicalContext.department.name
+  }, [clinicalContext.department.name, selectedSchedule])
   const visitTypeOptions = systemEnumItems(visitTypes.data ? [visitTypes.data] : undefined,
     SCHEDULING_SYSTEM_ENUM.visitType).map((item) => ({ value: item.code, label: item.name }))
   const activeMedicalCoverages = useMemo(() => (residentProfile.data?.coverages ?? [])
@@ -444,6 +531,21 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     }
   }, [selected, selectedSchedule, visitType])
 
+  const showPaymentShortcuts = Boolean(selected) && Boolean(scheduleId) && feeBreakdown.feeConfigured && feeBreakdown.payableAmount > 0
+
+  useEffect(() => {
+    if (selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0) {
+      setCashTendered((prev) => {
+        const num = Number(prev)
+        return (!prev || isNaN(num) || num < feeBreakdown.payableAmount) ? String(feeBreakdown.payableAmount) : prev
+      })
+    }
+  }, [feeBreakdown.payableAmount, selectedPaymentMethod])
+
+  const numericTendered = Number(cashTendered)
+  const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
+  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (!cashTendered || isNaN(numericTendered) || numericTendered < feeBreakdown.payableAmount)
+
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)
   }, [linkedResident.data])
@@ -455,7 +557,12 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   useEffect(() => {
     setCoverageSelection('SELF_PAY')
     setCoverageTouched(false)
+    setValidationError(null)
   }, [selected?.id])
+
+  useEffect(() => {
+    setValidationError(null)
+  }, [coverageSelection, selectedPaymentMethod])
 
   useEffect(() => {
     if (!selected || residentProfile.isPending || coverageTouched) return
@@ -482,7 +589,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       appointmentId: linkedAppointmentId || undefined,
       scheduleId: scheduleId === 'DIRECT' ? undefined : scheduleId,
       organizationId: clinicalContext.organization.id,
-      departmentId: clinicalContext.department.id,
+      departmentId: selectedSchedule?.departmentId || clinicalContext.department.id,
       idempotencyCode: `REG-INTENT-${crypto.randomUUID()}`,
       registrationSource: scheduleId === 'DIRECT' ? (visitType === 'EMERGENCY' ? 'EMERGENCY' : 'DIRECT') : 'WINDOW',
       visitType,
@@ -492,6 +599,26 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     onSuccess: async (value) => {
       setIntentId(value.id)
       await queryClient.invalidateQueries({ queryKey: ['registration-schedules'] })
+      if (value.settlementId && value.feeAmount > 0 && ['CASH', 'BANK_CARD'].includes(selectedPaymentMethod) && value.settlementMode === 'SELF_PAY') {
+        try {
+          await api.billing.createPaymentOrder(value.settlementId, {
+            idempotencyKey: `REG-PAY-${crypto.randomUUID()}`,
+            businessScene: 'REGISTRATION',
+            paymentSceneCode: 'CASHIER',
+            paymentMethodCode: selectedPaymentMethod,
+            amount: value.feeAmount,
+            correlationId: `REGISTRATION-${value.id}`,
+            terminalCode: 'REGISTRATION-WINDOW-WEB',
+            expiresAt: value.expiresAt,
+          })
+          await Promise.all([
+            intent.refetch(),
+            queryClient.invalidateQueries({ queryKey: ['registration-schedules'] }),
+          ])
+        } catch {
+          // Fallback to manual payment step
+        }
+      }
     },
   })
 
@@ -551,6 +678,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     setVisitType('GENERAL')
     if (autoPrintTicket && receiptItem) {
       setShowReceiptModal(true)
+    } else {
+      setTimeout(() => {
+        patientSearchInputRef.current?.focus()
+      }, 100)
     }
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] }),
@@ -573,14 +704,18 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           setShowQuickCreate(false)
           setShowReceiptModal(false)
           setCancellingItem(null)
+          setTimeout(() => patientSearchInputRef.current?.focus(), 50)
         }
         return
       }
 
+      const activeTag = document.activeElement?.tagName || ''
+      const isInputFocused = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag)
+
       if (e.key === 'F1' || (e.altKey && e.key === '1')) {
         e.preventDefault()
-        const input = document.querySelector('.registration-patient-search input') as HTMLInputElement | null
-        input?.focus()
+        patientSearchInputRef.current?.focus()
+        patientSearchInputRef.current?.select()
       } else if (e.key === 'F2' || (e.altKey && e.key === '2')) {
         e.preventDefault()
         setShowQuickCreate(true)
@@ -595,12 +730,24 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       } else if (e.key === 'Escape') {
         setSelected(null)
         setSuccess(null)
+        setTimeout(() => patientSearchInputRef.current?.focus(), 50)
+      } else if (!isInputFocused && showPaymentShortcuts) {
+        if (e.key === '1') {
+          setSelectedPaymentMethod('WECHAT')
+        } else if (e.key === '2') {
+          setSelectedPaymentMethod('ALIPAY')
+        } else if (e.key === '3') {
+          setSelectedPaymentMethod('CASH')
+        } else if (e.key === '4') {
+          e.preventDefault()
+          setSelectedPaymentMethod('BANK_CARD')
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [cancellingItem, createIntent, scheduleId, selected, showQuickCreate, showReceiptModal])
+  }, [cancellingItem, createIntent, scheduleId, selected, showPaymentShortcuts, showQuickCreate, showReceiptModal])
 
   const displayedSchedules = linkedSchedule ? [linkedSchedule] : filteredSchedules
   const remainingSlots = displayedSchedules.reduce((total, item) => total + item.availableCount, 0)
@@ -649,11 +796,17 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       return <ThermalReceiptModal
         receipt={activeReceiptItem}
         organizationName={clinicalContext.organization.name}
-        departmentName={activeReceiptItem.serviceName || clinicalContext.department.name}
+        departmentName={activeReceiptItem.serviceName || targetDepartmentName}
         locationName={activeLocation}
         feeBreakdown={feeBreakdown}
         paymentMethodName={PAYMENT_METHOD_NAMES[selectedPaymentMethod] || '自费/医保'}
-        onClose={() => setShowReceiptModal(false)} />
+        cashTendered={selectedPaymentMethod === 'CASH' && cashTendered ? numericTendered : undefined}
+        cashChange={selectedPaymentMethod === 'CASH' ? cashChange : undefined}
+        onClose={() => {
+          setShowReceiptModal(false)
+          setSelected(null)
+          setTimeout(() => patientSearchInputRef.current?.focus(), 80)
+        }} />
     })()}
 
     {cancellingItem && <CancelRegistrationModal
@@ -674,9 +827,21 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           <section className="registration-intake-search">
             <header><strong>患者检索 (F1)</strong><span>姓名/身份证/档案号/拼音</span></header>
             <PatientIdentitySearch className="registration-patient-search" queryKey="outpatient-registration"
+              inputRef={patientSearchInputRef}
               search={api.residents.search} selected={selected} disabled={Boolean(intentId)} compact
               showInitialEmpty={false} showSelectedSummary={false} hideResultsWhenSelected
-              onSelect={(resident) => { setSelected(resident); setSuccess(null) }} onClear={() => setSelected(null)}
+              onSelect={(resident) => {
+                setSelected(resident)
+                setSuccess(null)
+                setTimeout(() => {
+                  deptSearchInputRef.current?.focus()
+                  deptSearchInputRef.current?.select()
+                }, 60)
+              }}
+              onClear={() => {
+                setSelected(null)
+                setTimeout(() => patientSearchInputRef.current?.focus(), 50)
+              }}
               emptyCopy="输入姓名/拼音/卡号快速检索，或按 F2 快速建档。" />
             {linkedResidentId && linkedResident.isPending && <LoadingState label="正在加载居民…" />}
           </section>
@@ -687,7 +852,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               <header className="registration-form-group-head">
                 <strong>患者身份信息</strong>
                 <span className="registration-form-group-actions">
-                  <Button size="sm" variant="text" disabled={Boolean(intentId)} onClick={() => setSelected(null)}>重新选择</Button>
+                  <Button size="sm" variant="text" disabled={Boolean(intentId)} onClick={() => {
+                    setSelected(null)
+                    setTimeout(() => patientSearchInputRef.current?.focus(), 50)
+                  }}>重新选择 (Esc)</Button>
                 </span>
               </header>
               <div className="registration-patient-identity" style={{ border: 'none', padding: 0, minHeight: 'auto' }}>
@@ -724,7 +892,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <div className="registration-intake-meta-row">
               <div className="registration-intake-meta-item">
                 <span>接诊科室</span>
-                <strong>{clinicalContext.department.name}</strong>
+                <strong>{targetDepartmentName}</strong>
               </div>
               <div className="registration-intake-meta-item">
                 <span>挂号来源</span>
@@ -766,14 +934,67 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             <div className="registration-payment-methods" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
               <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'WECHAT' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('WECHAT')}>微信支付</button>
+                onClick={() => setSelectedPaymentMethod('WECHAT')}>微信支付{showPaymentShortcuts && <kbd>1</kbd>}</button>
               <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'ALIPAY' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('ALIPAY')}>支付宝</button>
+                onClick={() => setSelectedPaymentMethod('ALIPAY')}>支付宝{showPaymentShortcuts && <kbd>2</kbd>}</button>
               <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'CASH' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('CASH')}>现金收款</button>
-              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'PERSONAL_ACCOUNT' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('PERSONAL_ACCOUNT')}>医保个账</button>
+                onClick={() => setSelectedPaymentMethod('CASH')}>现金收款{showPaymentShortcuts && <kbd>3</kbd>}</button>
+              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'BANK_CARD' ? 'is-active' : ''}`}
+                onClick={() => setSelectedPaymentMethod('BANK_CARD')}>银行卡{showPaymentShortcuts && <kbd>4</kbd>}</button>
             </div>
+
+            {selectedCoverage && (
+              <Alert tone="warning">
+                【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。如需结算出单，请在上方“费用类别”中切换为「自费」。
+              </Alert>
+            )}
+
+            {['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod) && (
+              <Alert tone="error">
+                【{selectedPaymentMethod === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请改用现金或银行卡收款。
+              </Alert>
+            )}
+
+            {selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (
+              <div className="registration-cash-calculator">
+                <div className="registration-cash-row">
+                  <span className="registration-cash-label">缴款金额：</span>
+                  <div className="registration-cash-input-wrap">
+                    <span className="registration-cash-symbol">¥</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      className="registration-cash-input"
+                      value={cashTendered}
+                      onChange={(e) => setCashTendered(e.target.value)}
+                      placeholder={String(feeBreakdown.payableAmount)}
+                    />
+                  </div>
+                  <div className="registration-cash-presets">
+                    {getCashPresets(feeBreakdown.payableAmount).map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        className={`registration-cash-preset-btn ${numericTendered === preset ? 'is-active' : ''}`}
+                        onClick={() => setCashTendered(String(preset))}
+                      >
+                        {preset === feeBreakdown.payableAmount ? `¥${preset} (刚好)` : `¥${preset}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className={`registration-cash-change-box ${isCashShort ? 'is-short' : 'is-sufficient'}`}>
+                  <span>找零金额：</span>
+                  <strong>¥{isCashShort ? '0.00' : cashChange.toFixed(2)}</strong>
+                  {isCashShort ? (
+                    <small className="registration-cash-short-tip">（缴款不足，还差 ¥{(feeBreakdown.payableAmount - numericTendered).toFixed(2)}）</small>
+                  ) : cashChange > 0 ? (
+                    <small className="registration-cash-change-tip">（应找零给患者 ¥{cashChange.toFixed(2)}）</small>
+                  ) : null}
+                </div>
+              </div>
+            )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) 0' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-small)', cursor: 'pointer' }}>
@@ -783,13 +1004,39 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               <span className="registration-shortcuts-hint"><kbd>F8</kbd> 确认出单</span>
             </div>
 
+            {validationError && (
+              <Alert tone="error">
+                {validationError}
+              </Alert>
+            )}
+
             {!intentId && !currentIntent && <div>
-              <Button style={{ width: '100%', height: '3.125rem', fontSize: 'var(--font-size-body)', fontWeight: 600 }}
+              <Button ref={confirmButtonRef}
+                style={{ width: '100%', height: '3.125rem', fontSize: 'var(--font-size-body)', fontWeight: 600 }}
                 busy={createIntent.isPending} busyLabel="正在核价并出单"
-                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured}
-                onClick={() => createIntent.mutate()}><Icon name="add" />确认挂号并出单 (F8 · {feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未定价'})</Button>
+                disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort}
+                onClick={() => {
+                  if (selectedCoverage) {
+                    setValidationError('【医保接口未对接】当前系统未对接国家/地方医保平台，暂不支持医保预结算与统筹基金抵扣。请在“费用类别”中切换为「自费」后再办理。')
+                    return
+                  }
+                  if (['WECHAT', 'ALIPAY'].includes(selectedPaymentMethod)) {
+                    setValidationError(`【${selectedPaymentMethod === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金或银行卡。`)
+                    return
+                  }
+                  setValidationError(null)
+                  createIntent.mutate()
+                }}>
+                <Icon name="add" />
+                {isCashShort
+                  ? `实收缴款不足，还差 ¥${(feeBreakdown.payableAmount - numericTendered).toFixed(2)}`
+                  : `确认挂号并出单 (F8 · ${feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未定价'})`}
+              </Button>
               <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)' : selectedSchedule ? `已选: ${selectedSchedule.practitionerName} · ${selectedSchedule.serviceName}` : '请在右侧选择今日号源'}
+                {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)'
+                  : selectedSchedule
+                    ? `已选: ${targetDepartmentName} · ${selectedSchedule.practitionerName ? `${selectedSchedule.practitionerName} · ` : ''}${selectedSchedule.serviceName}`
+                    : '请在右侧选择今日号源'}
               </div>
             </div>}
 
@@ -800,7 +1047,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </div>
               <div className="registration-receipt-ticket">候诊号 {success.receipt.ticketNo}</div>
               <div style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-primary)' }}>
-                <div>就诊科室：{clinicalContext.department.name}</div>
+                <div>就诊科室：{targetDepartmentName}</div>
                 <div>接诊医生：{success.receipt.practitionerName}</div>
                 <div>患者姓名：{success.receipt.residentName}</div>
                 <div>单号：{success.receipt.registrationNo}</div>
@@ -813,6 +1060,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
             {intentId && intent.isPending && <LoadingState label="正在加载挂号结算信息…" />}
             {currentIntent && currentIntent.status !== 'COMPLETED' && <div className="registration-payment-step" style={{ padding: 'var(--space-2) 0' }}>
+              {currentIntent.settlementMode === 'MEDICAL_INSURANCE' && (!currentSettlement || !insuranceSettlementReady(currentSettlement)) && (
+                <Alert tone="error">
+                  【医保接口未对接】已生成挂号意向，但因医保信息平台未对接，无法执行医保预结算与统筹基金抵扣。请取消本次挂号并以自费模式重新办理。
+                </Alert>
+              )}
               <Alert tone={currentIntent.status === 'COMPLETION_FAILED' ? 'error' : 'info'}>
                 {currentIntent.status === 'COMPLETION_FAILED'
                   ? `费用已处理，但挂号落地失败：${currentIntent.lastErrorMessage ?? '请重试业务完成'}`
@@ -845,7 +1097,56 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             <div className="registration-filter-search-row">
               <input ref={deptSearchInputRef} className="registration-dept-search" type="search"
                 placeholder="输入科室/医生名称或拼音 (Alt+K 如: NK、EK、李医生、王专家)"
-                value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)} />
+                value={deptSearch} onChange={(e) => setDeptSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    if (displayedSchedules.length > 0) {
+                      e.preventDefault()
+                      const currentIdx = displayedSchedules.findIndex((s) => s.id === scheduleId)
+                      const effectiveIdx = currentIdx >= 0 ? currentIdx : 0
+                      let targetIdx = effectiveIdx
+
+                      // Dynamically calculate column count of schedule grid
+                      const cards = scheduleCardRefs.current.filter((c): c is HTMLButtonElement => Boolean(c))
+                      let cols = 1
+                      if (cards.length > 1) {
+                        const firstTop = cards[0].offsetTop
+                        let count = 0
+                        for (const card of cards) {
+                          if (Math.abs(card.offsetTop - firstTop) < 6) count++
+                          else break
+                        }
+                        cols = Math.max(1, count)
+                      }
+
+                      if (e.key === 'ArrowRight') {
+                        targetIdx = (effectiveIdx + 1) % displayedSchedules.length
+                      } else if (e.key === 'ArrowLeft') {
+                        targetIdx = (effectiveIdx - 1 + displayedSchedules.length) % displayedSchedules.length
+                      } else if (e.key === 'ArrowDown') {
+                        targetIdx = Math.min(displayedSchedules.length - 1, effectiveIdx + cols)
+                      } else if (e.key === 'ArrowUp') {
+                        targetIdx = Math.max(0, effectiveIdx - cols)
+                      }
+
+                      const nextSchedule = displayedSchedules[targetIdx]
+                      if (nextSchedule) {
+                        setScheduleId(nextSchedule.id)
+                        scheduleCardRefs.current[targetIdx]?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' })
+                      }
+                    }
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault()
+                    if (displayedSchedules.length > 0) {
+                      const target = displayedSchedules.find((s) => s.id === scheduleId) ?? displayedSchedules[0]
+                      setScheduleId(target.id)
+                      setTimeout(() => confirmButtonRef.current?.focus(), 50)
+                    } else if (canUseDirect) {
+                      setScheduleId('DIRECT')
+                      setTimeout(() => confirmButtonRef.current?.focus(), 50)
+                    }
+                  }
+                }} />
               <div className="registration-type-segmented">
                 {CLINIC_TYPE_OPTIONS.map((opt) => (
                   <button key={opt.key} type="button"
@@ -869,7 +1170,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           </div>
 
           {schedules.isPending ? <LoadingState label="正在加载全院号源…" /> : <div className="registration-schedule-grid-pro">
-            {displayedSchedules.map((item) => {
+            {displayedSchedules.map((item, idx) => {
               const isExpert = isExpertSchedule(item)
               const badge = getClinicTypeBadge(item)
               const cardBaseFee = getScheduleBaseFee(item, visitType)
@@ -877,9 +1178,32 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
               return (
                 <button key={item.id} type="button"
+                  ref={(el) => { scheduleCardRefs.current[idx] = el }}
                   className={`registration-schedule-card-compact ${isExpert ? 'is-expert' : 'is-regular'} ${isSelected ? 'is-selected' : ''}`}
                   aria-pressed={isSelected} disabled={Boolean(intentId) || Boolean(linkedAppointmentId)}
-                  onClick={() => setScheduleId(item.id)}>
+                  onClick={() => {
+                    setScheduleId(item.id)
+                    setTimeout(() => confirmButtonRef.current?.focus(), 50)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                      e.preventDefault()
+                      const next = (idx + 1) % displayedSchedules.length
+                      scheduleCardRefs.current[next]?.focus()
+                    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                      e.preventDefault()
+                      if (idx === 0) {
+                        deptSearchInputRef.current?.focus()
+                      } else {
+                        const prev = (idx - 1 + displayedSchedules.length) % displayedSchedules.length
+                        scheduleCardRefs.current[prev]?.focus()
+                      }
+                    } else if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      setScheduleId(item.id)
+                      setTimeout(() => confirmButtonRef.current?.focus(), 50)
+                    }
+                  }}>
                   
                   {/* Card Header: Title (Doctor for expert, Dept for regular) & Badges */}
                   <div className="schedule-card-compact__header">

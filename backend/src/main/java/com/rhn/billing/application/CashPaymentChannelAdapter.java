@@ -13,23 +13,23 @@ class CashPaymentChannelAdapter implements PaymentChannelAdapter {
     @Override
     public InitiationResult initiate(PaymentInstruction instruction) {
         return InitiationResult.succeeded(
-                "CASH-" + instruction.orderNo(),
-                "CASH-" + instruction.orderNo(),
+                instruction.paymentMethodCode() + "-" + instruction.orderNo(),
+                instruction.paymentMethodCode() + "-" + instruction.orderNo(),
                 instruction.amount());
     }
 
     @Override
     public RefundResult refund(RefundInstruction instruction) {
         return RefundResult.succeeded(
-                "CASH-RF-" + instruction.orderNo(),
-                "CASH-RF-" + instruction.orderNo(),
+                instruction.paymentMethodCode() + "-RF-" + instruction.orderNo(),
+                instruction.paymentMethodCode() + "-RF-" + instruction.orderNo(),
                 instruction.amount());
     }
 
     @Override
     public QueryResult query(QueryInstruction instruction) {
         return QueryResult.succeeded(
-                instruction.externalOrderNo() == null ? "CASH-" + instruction.orderNo() : instruction.externalOrderNo(),
-                "CASH-" + instruction.orderNo(), instruction.expectedAmount());
+                instruction.externalOrderNo() == null ? instruction.paymentMethodCode() + "-" + instruction.orderNo() : instruction.externalOrderNo(),
+                instruction.paymentMethodCode() + "-" + instruction.orderNo(), instruction.expectedAmount());
     }
 }

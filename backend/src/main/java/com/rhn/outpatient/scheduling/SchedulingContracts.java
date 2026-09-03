@@ -58,6 +58,8 @@ final class SchedulingContracts {
             @DictionaryBinding("SC_REGISTRATION_SCOPE") String sdRegistrationScope,
             Long practitionerId,
             String practitionerName,
+            Long departmentId,
+            String departmentName,
             Long catalogItemId,
             String serviceCode,
             String serviceName,

@@ -231,8 +231,9 @@ public class DispenseApplicationService {
         }
         if (!taskLine.split()) {
             traceService.issue(context, site.id(), "MEDICATION_DISPENSE", event.id(), event.dispenseNo(),
-                    eventLines.stream().map(line -> new TraceMovementLine(line.stockItemId(), line.stockLotId(),
-                            line.quantityDispensed().multiply(line.baseQuantityFactor()))).toList());
+                    eventLines.stream().map(line -> new TraceMovementLine(line.stockBinId(), line.stockItemId(),
+                            line.stockLotId(), line.quantityDispensed().multiply(line.baseQuantityFactor()))).toList(),
+                    input.traceCodeIds());
         }
         taskLine.recordDispense(quantity); task.recordDispense(taskLine.remainingQuantity().signum() == 0);
         reservationRepository.flush();
@@ -406,7 +407,14 @@ public class DispenseApplicationService {
                 || value.operationQuantity().compareTo(input.operationQuantity()) != 0) {
             throw conflict("MEDICATION_DISPENSE_REQUEST_REUSED", "相同发药请求编码不能用于不同内容");
         }
-        ExecutionContext context = requireWorkContext(); DispenseTask task = requireTask(context, value.taskId());
+        ExecutionContext context = requireWorkContext();
+        if (input.traceCodeIds() != null && !input.traceCodeIds().isEmpty()) {
+            List<Long> actualTraceCodeIds = traceService.issuedTraceCodeIds(context, value.id());
+            if (!actualTraceCodeIds.equals(input.traceCodeIds().stream().sorted().toList())) {
+                throw conflict("MEDICATION_DISPENSE_REQUEST_REUSED", "相同发药请求编码不能用于不同追溯码");
+            }
+        }
+        DispenseTask task = requireTask(context, value.taskId());
         StockSite site = requireSite(context, task.stockSiteId()); requireOrganizationAccess(context, site.organizationId());
         return dispenseView(context, value,
                 dispenseLineRepository.findByTenantIdAndMedicationDispenseIdOrderBySortOrder(context.tenantId(), value.id()));
@@ -560,7 +568,15 @@ public class DispenseApplicationService {
     public record CompletePickingCommand(Long pickerPractitionerId, Long pickerAssignmentId, String description) {}
     public record DispenseCommand(String requestCode, BigDecimal operationQuantity, Instant occurredAt,
                                   Long dispenserPractitionerId, Long dispenserAssignmentId,
-                                  Long checkerPractitionerId, Long checkerAssignmentId, String description) {}
+                                  Long checkerPractitionerId, Long checkerAssignmentId, String description,
+                                  List<Long> traceCodeIds) {
+        public DispenseCommand(String requestCode, BigDecimal operationQuantity, Instant occurredAt,
+                               Long dispenserPractitionerId, Long dispenserAssignmentId,
+                               Long checkerPractitionerId, Long checkerAssignmentId, String description) {
+            this(requestCode, operationQuantity, occurredAt, dispenserPractitionerId, dispenserAssignmentId,
+                    checkerPractitionerId, checkerAssignmentId, description, List.of());
+        }
+    }
     public record ReturnLineCommand(Long originalDispenseLineId, BigDecimal quantity,
                                     String disposition, String exceptionDescription) {}
     public record ReturnCommand(String returnNo, String reasonCode, Instant occurredAt,

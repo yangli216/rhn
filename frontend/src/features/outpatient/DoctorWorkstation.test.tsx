@@ -4,10 +4,8 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { Encounter } from '../../shared/api/clinicalApi'
-import type { Resident } from '../../shared/api/residentApi'
-import type { ReceptionQueueItem } from '../../shared/api/schedulingApi'
-import type { RhnApi } from '../../shared/rhnApi'
+import type { Encounter, Resident } from '../../shared/model'
+import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
 import { DoctorWorkstation } from './DoctorWorkstation'
 
 const mockResident: Resident = {
@@ -24,7 +22,7 @@ const mockResident: Resident = {
   createdAt: '2026-01-01T00:00:00Z',
   updatedAt: '2026-01-01T00:00:00Z',
   version: 1,
-}
+} as unknown as Resident
 
 const mockRegisteredEncounter: Encounter = {
   id: 'encounter-101',
@@ -42,12 +40,12 @@ const mockRegisteredEncounter: Encounter = {
   createdAt: '2026-09-02T08:00:00Z',
   updatedAt: '2026-09-02T08:00:00Z',
   version: 1,
-}
+} as unknown as Encounter
 
 const mockInProgressEncounter: Encounter = {
   ...mockRegisteredEncounter,
   status: 'IN_PROGRESS',
-}
+} as unknown as Encounter
 
 const mockQueueItem: ReceptionQueueItem = {
   registrationId: 'reg-1',

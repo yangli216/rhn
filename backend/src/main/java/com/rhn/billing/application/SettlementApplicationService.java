@@ -283,8 +283,7 @@ public class SettlementApplicationService {
                 .orElseThrow(() -> notFound("SETTLEMENT_NOT_FOUND", "未找到正式结算单"));
         PatientAccount account = accounts.findByIdAndTenantId(value.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
-        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())
-                || !context.canAccessDepartment(account.departmentId())) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
             throw forbidden("SETTLEMENT_FORBIDDEN", "当前工作上下文不能访问该结算单");
         }
         return view(context, value);

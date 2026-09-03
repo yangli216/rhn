@@ -13,6 +13,7 @@ import {
   type PropsWithChildren,
   type ReactElement,
   type ReactNode,
+  type Ref,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon, type IconName } from './Icon'
@@ -53,6 +54,7 @@ export type ButtonVariant = 'primary' | 'secondary' | 'text' | 'danger'
 export type ButtonSize = 'sm' | 'md' | 'lg'
 
 export function Button({
+  ref,
   variant = 'primary',
   size = 'md',
   busy = false,
@@ -63,12 +65,14 @@ export function Button({
   type = 'button',
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
+  ref?: Ref<HTMLButtonElement>
   variant?: ButtonVariant
   size?: ButtonSize
   busy?: boolean
   busyLabel?: string
 }) {
   return <button
+    ref={ref}
     type={type}
     className={`ui-button ui-button--${variant} ui-button--${size} ${busy ? 'is-busy' : ''} ${className}`}
     disabled={disabled || busy}

@@ -32,6 +32,8 @@ export interface ServiceSchedule {
   sdRegistrationScopeText: string
   practitionerId?: string
   practitionerName?: string
+  departmentId?: string
+  departmentName?: string
   catalogItemId: string
   serviceCode: string
   serviceName: string

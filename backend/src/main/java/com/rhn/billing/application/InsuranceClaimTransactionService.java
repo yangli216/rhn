@@ -280,8 +280,7 @@ class InsuranceClaimTransactionService {
     private PatientAccount requireAccount(ExecutionContext context, Long id) {
         PatientAccount account = accounts.findByIdAndTenantId(id, context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
-        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())
-                || !context.canAccessDepartment(account.departmentId())) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
             throw forbidden("INSURANCE_CLAIM_FORBIDDEN", "当前工作上下文不能访问该医保申请");
         }
         return account;

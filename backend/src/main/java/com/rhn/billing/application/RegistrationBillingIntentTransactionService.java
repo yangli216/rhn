@@ -379,9 +379,8 @@ class RegistrationBillingIntentTransactionService {
 
     private ExecutionContext requireContext(Long organizationId, Long departmentId) {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (!context.hasWorkContext() || !context.canAccessOrganization(organizationId)
-                || !context.canAccessDepartment(departmentId)) {
-            throw badRequest("REGISTRATION_BILLING_CONTEXT_MISMATCH", "请在挂号机构科室工作上下文中办理");
+        if (!context.hasWorkContext() || !context.canAccessOrganization(organizationId)) {
+            throw badRequest("REGISTRATION_BILLING_CONTEXT_MISMATCH", "请在挂号机构工作上下文中办理");
         }
         return context;
     }

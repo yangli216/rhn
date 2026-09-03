@@ -254,6 +254,7 @@
 .ui-data-table td { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); vertical-align: middle; }
 .ui-data-table tbody tr:hover { background: var(--color-surface-subtle); }
 .ui-data-table.is-compact td { padding-block: var(--space-2); }
+.ui-data-table th.col-actions, .ui-data-table td.col-actions { text-align: right; }
 .ui-table-footer { min-height: 2.75rem; padding: 0 var(--space-5); display: flex; align-items: center; justify-content: flex-end; flex: none; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .ui-table-footer .ui-pagination { border-top: 0; background: transparent; padding: 0; min-height: 0; }
 
@@ -314,12 +315,16 @@
 .ui-patient-search__results > header { min-height: 2.5rem; padding: 0 var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .ui-patient-search__results > header span { color: var(--color-text-secondary); }
 .ui-patient-search__results > div { max-height: 17rem; padding: var(--space-1); overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
-.ui-patient-search__results button { min-width: 0; min-height: 3.75rem; padding: var(--space-2); display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-md); color: var(--color-text-primary); background: transparent; font: inherit; text-align: left; }
+.ui-patient-search__results button { min-width: 0; min-height: 3.25rem; padding: var(--space-2); display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); border: 1px solid transparent; border-radius: var(--radius-md); color: var(--color-text-primary); background: transparent; font: inherit; text-align: left; }
 .ui-patient-search__results button:hover:not(:disabled), .ui-patient-search__results button:focus-visible { border-color: var(--color-border); outline: 0; background: var(--color-surface-subtle); }
+.ui-patient-search__results button.is-keyboard-focused { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary), 0 0 0 2px var(--color-focus-ring); outline: 0; }
 .ui-patient-search__results button.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary); }
 .ui-patient-search__results button:disabled { color: var(--color-text-disabled); background: var(--color-surface-muted); }
 .ui-patient-search__results button > span:nth-child(2) { min-width: 0; display: grid; gap: .125rem; }
 .ui-patient-search__results button > span:nth-child(2) > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-patient-search__candidate-title { min-width: 0; display: flex; align-items: baseline; gap: var(--space-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-patient-search__candidate-title strong { flex-shrink: 0; }
+.ui-patient-search__candidate-title small { color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .ui-patient-search__results button small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .ui-patient-search__results button > .ui-icon { color: var(--color-brand-primary); }
 .ui-patient-search__disabled-reason { max-width: 7rem; color: var(--color-danger) !important; text-align: right; }
@@ -330,7 +335,7 @@
 .ui-patient-search__empty span { font-size: var(--font-size-small); }
 .ui-patient-search.is-compact { gap: var(--space-2); }
 .ui-patient-search.is-compact .ui-patient-search__methods > button { min-width: 6.5rem; }
-.ui-patient-search.is-compact .ui-patient-search__results > div { max-height: 11rem; }
+.ui-patient-search.is-compact .ui-patient-search__results > div { max-height: 14rem; grid-template-columns: 1fr; }
 .ui-patient-search.is-compact .ui-patient-search__empty { min-height: 3.75rem; padding: var(--space-2); }
 
 @container (max-width: 32rem) {
@@ -594,8 +599,13 @@ input[type="checkbox"]:disabled {
   border-left-color: var(--color-brand-primary);
 }
 .ui-select__option:disabled { color: var(--color-text-disabled); cursor: not-allowed; }
-.ui-select__option-label { min-width: 0; max-width: calc(100% - var(--space-8)); flex: 0 0 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select__option-content { min-width: 0; max-width: calc(100% - var(--space-8)); flex: 0 1 auto; display: grid; gap: 2px; }
+.ui-select__option-content.has-description { max-width: none; flex: 1 1 auto; }
+.ui-select__option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ui-select__option-description { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); line-height: var(--line-height-small); text-overflow: ellipsis; white-space: nowrap; }
 .ui-select__option-trailing { min-width: 0; flex: 1 1 0; display: inline-flex; align-items: center; justify-content: flex-end; gap: var(--space-2); overflow: hidden; }
+.ui-select__option-trailing.has-text { flex: 0 0 auto; overflow: visible; }
+.ui-select__option-trailing strong { flex: 0 0 auto; color: var(--color-brand-strong); font-size: var(--font-size-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ui-select__option-trailing code { min-width: 0; max-width: 100%; flex: 1 1 auto; overflow: hidden; color: var(--color-text-disabled); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); font-weight: var(--font-weight-regular); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .ui-select__option-trailing svg { flex: 0 0 auto; }
 .ui-select__empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }

@@ -99,7 +99,7 @@ export function TraceCodeManagement({ api, siteId, items, bins }: {
         copy="启用追溯的药品完成到货验收后，先登记追溯码，再批量入库形成台账。" />
       : <>
         <div className="warehouse-table-wrap"><table className="warehouse-table warehouse-trace-table"><thead><tr>
-          <th>追溯码</th><th>药品</th><th>批号 / 数量</th><th>当前位置</th><th>状态</th><th>最近业务</th><th aria-label="操作" />
+          <th>追溯码</th><th>药品</th><th>批号 / 数量</th><th>当前位置</th><th>状态</th><th>最近业务</th><th aria-label="操作">操作</th>
         </tr></thead><tbody>{paginatedList.map(value => {
           const item = items.find(item => item.id === value.stockItemId)
           const lot = lots.data?.find(lot => lot.id === value.stockLotId)

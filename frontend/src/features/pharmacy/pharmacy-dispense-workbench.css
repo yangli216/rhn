@@ -118,6 +118,10 @@
   outline: none;
 }
 
+.pharmacy-scan-search input[aria-busy='true'] {
+  background: var(--color-surface-subtle);
+}
+
 .pharmacy-scan-search .ui-icon {
   position: absolute;
   right: var(--space-3);
@@ -758,6 +762,17 @@
   border: 1px solid color-mix(in srgb, var(--color-success) 28%, transparent);
 }
 
+.pharmacy-scan-status--neutral {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.pharmacy-prescription-table tbody tr.is-scan-target {
+  background: var(--color-brand-soft);
+  box-shadow: inset 3px 0 var(--color-brand-primary);
+}
+
 .pharmacy-scan-action-btn {
   height: var(--control-height-sm);
   padding: 0 var(--space-3);
@@ -773,6 +788,13 @@
 
 .pharmacy-scan-action-btn:hover {
   background: var(--color-brand-soft);
+}
+
+.pharmacy-scan-action-btn:disabled {
+  border-color: var(--color-border);
+  color: var(--color-text-disabled);
+  background: var(--color-surface-subtle);
+  cursor: not-allowed;
 }
 
 .pharmacy-scan-action-btn.is-scanned {

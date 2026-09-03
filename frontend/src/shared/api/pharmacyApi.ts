@@ -860,6 +860,10 @@ export function createPharmacyApi(client: ApiClient) {
         + (query ? `&query=${encodeURIComponent(query)}` : ''),
     ),
     traceCode: (id: string) => client.request<InventoryTraceDetail>(`/api/pharmacy/inventory/trace-codes/${id}`),
+    scanTraceCode: (stockSiteId: string, traceCode: string) => client.request<InventoryTraceCode>(
+      `/api/pharmacy/dispense/trace-code?stockSiteId=${encodeURIComponent(stockSiteId)}`
+        + `&traceCode=${encodeURIComponent(traceCode)}`,
+    ),
     openPackages: (stockSiteId: string) => client.request<InventoryOpenPackage[]>(
       `/api/pharmacy/inventory/open-packages?stockSiteId=${encodeURIComponent(stockSiteId)}`,
     ),
@@ -997,6 +1001,7 @@ export function createPharmacyApi(client: ApiClient) {
       dispenserPractitionerId: string
       dispenserAssignmentId: string
       description?: string
+      traceCodeIds?: string[]
     }) => client.request<MedicationDispense>(`/api/pharmacy/dispense-tasks/${taskId}/dispenses`, {
       method: 'POST', body: JSON.stringify(input),
     }),

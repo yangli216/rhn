@@ -304,7 +304,7 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
           <TableShell scrollClassName="dictionary-table-wrap" footerClassName="dictionary-table__footer"
             footer={`显示 ${visibleItems.length} 个字典项 · 共 ${selectedItems.length} 个`}>
             <DataTable className="dictionary-table" aria-label="字典项">
-              <thead><tr><th>显示名称 / 编码</th><th>说明</th><th>排序</th><th>状态</th><th aria-label="操作" /></tr></thead>
+              <thead><tr><th>显示名称 / 编码</th><th>说明</th><th>排序</th><th>状态</th><th aria-label="操作">操作</th></tr></thead>
               <tbody>{visibleItems.map((item) => <tr key={item.id}>
                 <td><strong>{item.name}</strong><code>{item.code}</code></td><td>{item.description || '—'}</td>
                 <td className="numeric">{item.sortOrder}</td>

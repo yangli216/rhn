@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface InventoryTraceCodeRepository extends JpaRepository<InventoryTraceCode, Long> {
     Optional<InventoryTraceCode> findByTenantIdAndNormalizedCode(Long tenantId, String normalizedCode);
     List<InventoryTraceCode> findByTenantIdAndGoodsReceiptLineIdOrderById(Long tenantId, Long goodsReceiptLineId);
+    List<InventoryTraceCode> findByTenantIdAndCurrentDocumentTypeAndCurrentDocumentIdOrderById(
+            Long tenantId, String currentDocumentType, Long currentDocumentId);
 
     @Query("select t from InventoryTraceCode t where t.tenantId=:tenantId and t.stockSiteId=:siteId " +
             "and (:status is null or t.status=:status) and (:query is null or lower(t.traceCode) like lower(concat('%',:query,'%')) " +

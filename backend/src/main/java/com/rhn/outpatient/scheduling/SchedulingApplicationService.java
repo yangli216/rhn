@@ -153,9 +153,23 @@ class SchedulingApplicationService {
                 ? organizationDirectory.requireStaff(context.tenantId(), request.practitionerId()) : null;
         StaffAssignmentView assignment = practitionerScoped
                 ? assignmentFor(context, staff, request.dateFrom(), request.dateTo()) : null;
+        Long targetDeptId = context.departmentId();
+        if (practitionerScoped && assignment != null && assignment.departmentId() != null) {
+            targetDeptId = assignment.departmentId();
+        } else {
+            try {
+                var catalogAdoption = catalogLifecycleDirectory.resolve(context.tenantId(), request.catalogItemId(),
+                        context.organizationId(), null, "SALE", request.dateFrom());
+                if (catalogAdoption != null && catalogAdoption.adoption() != null
+                        && catalogAdoption.adoption().defaultDepartmentId() != null) {
+                    targetDeptId = catalogAdoption.adoption().defaultDepartmentId();
+                }
+            } catch (RuntimeException ignored) {}
+        }
+        final Long effectiveDepartmentId = targetDeptId;
         String ownerName = practitionerScoped ? staff.practitioner().fullName()
                 : organizationDirectory.requireDepartment(context.tenantId(), context.organizationId(),
-                        context.departmentId()).name();
+                        effectiveDepartmentId).name();
         ServiceCatalogSnapshot service = serviceCatalogDirectory.requireSchedulableOutpatientService(
                 context.tenantId(), context.organizationId(), request.catalogItemId(), request.dateFrom());
         serviceCatalogDirectory.requireSchedulableOutpatientService(
@@ -167,11 +181,11 @@ class SchedulingApplicationService {
 
         ServiceResource resource = resourceRepository
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndResourceKeyAndCatalogItemId(
-                        context.tenantId(), context.organizationId(), context.departmentId(),
-                        resourceKey(registrationScope, context.departmentId(), request.practitionerId()),
+                        context.tenantId(), context.organizationId(), effectiveDepartmentId,
+                        resourceKey(registrationScope, effectiveDepartmentId, request.practitionerId()),
                         request.catalogItemId())
                 .orElseGet(() -> new ServiceResource(context.tenantId(), context.organizationId(),
-                        context.departmentId(), registrationScope, request.practitionerId(),
+                        effectiveDepartmentId, registrationScope, request.practitionerId(),
                         assignment == null ? null : assignment.id(), request.catalogItemId(), ownerName,
                         service.code(), service.name(), context.subjectId()));
         resource.refresh(assignment == null ? null : assignment.id(), ownerName, service.code(), service.name(),
@@ -210,7 +224,7 @@ class SchedulingApplicationService {
                     continue;
                 }
                 generated.add(new ServiceSchedule(context.tenantId(), resource.id(), template.id(), period.id(),
-                        run.id(), context.organizationId(), context.departmentId(), request.practitionerId(),
+                        run.id(), context.organizationId(), effectiveDepartmentId, request.practitionerId(),
                         assignment == null ? null : assignment.id(), request.catalogItemId(), dayPart,
                         practitionerScoped ? ownerName : null,
                         service.code(), service.name(), locationName, timezoneCode, date, startAt, endAt,
@@ -680,14 +694,34 @@ class SchedulingApplicationService {
         Map<Long, ScheduleSlotPool> pools = poolRepository.findByTenantIdAndScheduleIdIn(tenantId, ids).stream()
                 .collect(Collectors.toMap(ScheduleSlotPool::scheduleId, Function.identity()));
         Map<FeeKey, FeeSnapshot> fees = new java.util.HashMap<>();
+        Map<Long, String> deptNames = new java.util.HashMap<>();
         return schedules.stream().map(schedule -> {
             ScheduleSlotPool pool = pools.get(schedule.id());
             int available = pool.totalCount() - pool.heldCount() - pool.occupiedCount() - pool.frozenCount();
             FeeSnapshot fee = fees.computeIfAbsent(new FeeKey(schedule.organizationId(), schedule.catalogItemId(),
                     schedule.serviceDate()), key -> feeSnapshot(tenantId, key));
+            Long effectiveDeptId = schedule.departmentId();
+            if (schedule.practitionerId() == null) {
+                try {
+                    var catalogAdoption = catalogLifecycleDirectory.resolve(tenantId, schedule.catalogItemId(),
+                            schedule.organizationId(), null, "SALE", schedule.serviceDate());
+                    if (catalogAdoption != null && catalogAdoption.adoption() != null
+                            && catalogAdoption.adoption().defaultDepartmentId() != null) {
+                        effectiveDeptId = catalogAdoption.adoption().defaultDepartmentId();
+                    }
+                } catch (RuntimeException ignored) {}
+            }
+            final Long finalDeptId = effectiveDeptId;
+            String deptName = deptNames.computeIfAbsent(finalDeptId, did -> {
+                try {
+                    return organizationDirectory.requireDepartment(tenantId, schedule.organizationId(), did).name();
+                } catch (RuntimeException ignored) {
+                    return schedule.serviceName();
+                }
+            });
             return new ScheduleView(schedule.id(), schedule.scheduleCode(), schedule.serviceDate(), schedule.dayPart(),
                     schedule.startAt(), schedule.endAt(), schedule.registrationScope(), schedule.practitionerId(),
-                    schedule.practitionerName(),
+                    schedule.practitionerName(), finalDeptId, deptName,
                     schedule.catalogItemId(), schedule.serviceCode(), schedule.serviceName(), schedule.locationName(),
                     pool.totalCount(), pool.heldCount(), pool.occupiedCount(), pool.frozenCount(), available,
                     schedule.status(), schedule.managementMode(), schedule.bookingPolicy(), pool.slotMode(),

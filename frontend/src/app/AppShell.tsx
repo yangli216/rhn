@@ -730,6 +730,18 @@ export function AppShell() {
   const activeAuthorities = new Set([...session.authorities, ...(activeSlot.option.authorities ?? [])])
   const visibleNavigation = filterNavigation(NAVIGATION_NODES, activeAuthorities)
   const activeContextKey = `${activeSlot.option.workContextType}:${workContextKey(activeSlot.option)}`
+  const schedulingDepartmentOptions = Array.from(new Map(
+    selectableWorkContexts(session.workContexts, 'CLINICAL')
+      .filter((context) => session.authorities.includes('OUTPATIENT_SCHEDULING.ACCESS')
+        || (context.authorities ?? []).includes('OUTPATIENT_SCHEDULING.ACCESS'))
+      .filter((context) => context.departmentId && context.departmentName)
+      .map((context) => [`${context.organizationId}:${context.departmentId}`, {
+        organizationId: context.organizationId,
+        organizationName: context.organizationName,
+        departmentId: context.departmentId!,
+        departmentName: context.departmentName!,
+      }]),
+  ).values())
 
   return (
     <div className={`app-shell ${sidebarCollapsed && !mobileLayout ? 'is-sidebar-collapsed' : ''}`}>
@@ -844,7 +856,12 @@ export function AppShell() {
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext} departmentOptions={schedulingDepartmentOptions}
+                    onDepartmentChange={(organizationId, departmentId) => {
+                      const selected = session.workContexts.find((context) => context.workContextType === 'CLINICAL'
+                        && context.organizationId === organizationId && context.departmentId === departmentId)
+                      if (selected) void switchWorkContext('CLINICAL', workContextKey(selected))
+                    }} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}

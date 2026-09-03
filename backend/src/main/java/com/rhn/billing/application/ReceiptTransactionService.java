@@ -327,8 +327,7 @@ class ReceiptTransactionService {
     private PatientAccount requireAccess(ExecutionContext context, Long accountId) {
         PatientAccount account = accounts.findByIdAndTenantId(accountId, context.tenantId())
                 .orElseThrow(() -> notFound("PATIENT_ACCOUNT_NOT_FOUND", "未找到患者费用账户"));
-        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())
-                || !context.canAccessDepartment(account.departmentId())) {
+        if (!context.hasWorkContext() || !context.canAccessOrganization(account.organizationId())) {
             throw forbidden("RECEIPT_FORBIDDEN", "当前工作上下文不能访问该票据");
         }
         return account;

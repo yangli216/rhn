@@ -17,6 +17,8 @@ export interface SelectOption {
   disabled?: boolean
   searchKeywords?: string[]
   secondaryText?: string
+  description?: string
+  trailingText?: string
 }
 
 interface SelectBaseProps {
@@ -131,7 +133,7 @@ export function Select(props: SelectProps) {
       const availableAbove = rect.top - gap - margin
       const placement = availableBelow < 240 && availableAbove > availableBelow ? 'top' : 'bottom'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const defaultMin = (options.some((o) => o.secondaryText) || props.searchable) ? 460 : 288
+      const defaultMin = (options.some((o) => o.secondaryText || o.description || o.trailingText) || props.searchable) ? 460 : 288
       const effectiveMinWidth = props.popoverMinWidth ?? defaultMin
       const width = Math.min(Math.max(rect.width, effectiveMinWidth), Math.max(0, viewportWidth - margin * 2))
       const left = Math.min(Math.max(margin, rect.left), Math.max(margin, viewportWidth - width - margin))
@@ -317,8 +319,12 @@ export function Select(props: SelectProps) {
             }}
             onKeyDown={(event) => moveFocus(event, index)}
           >
-            <span className="ui-select__option-label">{option.label}</span>
-            <span className="ui-select__option-trailing">
+            <span className={`ui-select__option-content ${option.description ? 'has-description' : ''}`}>
+              <span className="ui-select__option-label">{option.label}</span>
+              {option.description && <small className="ui-select__option-description">{option.description}</small>}
+            </span>
+            <span className={`ui-select__option-trailing ${option.trailingText ? 'has-text' : ''}`}>
+              {option.trailingText && <strong>{option.trailingText}</strong>}
               {showValue && <code>{option.secondaryText ?? option.value}</code>}
               {selected && <Icon name="check" />}
             </span>
@@ -344,7 +350,8 @@ export function filterSelectOptions(options: SelectOption[], query: string, incl
   const normalizedQuery = normalizeSearchText(query)
   if (!normalizedQuery) return options
   return options.filter((option) => {
-    const searchableValues = [option.label, option.value, option.secondaryText ?? '', ...(option.searchKeywords ?? [])]
+    const searchableValues = [option.label, option.value, option.secondaryText ?? '', option.description ?? '',
+      option.trailingText ?? '', ...(option.searchKeywords ?? [])]
     if (includePinyin) searchableValues.push(pinyinInitials(option.label))
     return searchableValues.some((value) => normalizeSearchText(value).includes(normalizedQuery))
   })

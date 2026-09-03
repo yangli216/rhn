@@ -36,9 +36,8 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         String code = requiredCode(command.idempotencyCode());
         ScheduleSlotHold replay = holds.findByTenantIdAndIdempotencyCode(context.tenantId(), code).orElse(null);
         if (replay != null) return verifyReplay(command, replay, context.tenantId());
-        if (!context.canAccessOrganization(command.organizationId())
-                || !context.canAccessDepartment(command.departmentId())) {
-            throw badRequest("SLOT_HOLD_CONTEXT_MISMATCH", "号源暂占必须在当前机构科室办理");
+        if (!context.canAccessOrganization(command.organizationId())) {
+            throw badRequest("SLOT_HOLD_CONTEXT_MISMATCH", "号源暂占必须在当前机构办理");
         }
         ServiceSchedule schedule = schedule(command.scheduleId(), context.tenantId());
         validateSchedule(schedule, command.organizationId(), command.departmentId());
@@ -147,8 +146,8 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
     }
 
     private void validateSchedule(ServiceSchedule value, Long organizationId, Long departmentId) {
-        if (!value.organizationId().equals(organizationId) || !value.departmentId().equals(departmentId)) {
-            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构科室");
+        if (!value.organizationId().equals(organizationId)) {
+            throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构");
         }
         if (!"PUBLISHED".equals(value.status())) throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
     }
