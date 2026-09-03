@@ -8,6 +8,8 @@ import java.util.Optional;
 /** Stable terminology lookup contract for business modules. */
 public interface TerminologyDirectory {
     ConceptView requireValueSetMember(Long tenantId, String valueSetCode, String conceptCode, LocalDate atDate);
+    Optional<ConceptView> findValueSetMember(Long tenantId, String valueSetCode, String codeDisplayOrAlias,
+                                             LocalDate atDate);
     List<ConceptView> expandValueSet(Long tenantId, String valueSetCode, LocalDate atDate);
     TerminologyConceptSnapshot requireConcept(Long tenantId, String codeSystemCode, String conceptCode,
                                               LocalDate atDate);

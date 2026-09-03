@@ -84,6 +84,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                          "defaultFrequency":"BID","chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
                         """.formatted(suffix)))
                 .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.defaultRoute").value("ORAL"))
                 .andExpect(jsonPath("$.defaultFrequency").value("BID"))
                 .andExpect(jsonPath("$.defaultFrequencyId").isNotEmpty());
 
@@ -97,5 +98,37 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                         """.formatted(suffix)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ORDER_FREQUENCY_INVALID"));
+    }
+
+    @Test
+    void medication_routes_are_controlled_and_aliases_are_normalized() throws Exception {
+        mockMvc.perform(get("/api/platform/master-data/medication-routes/active")
+                        .param("scene", "OUTPATIENT").with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.code == 'ORAL')].name").value("口服"))
+                .andExpect(jsonPath("$[?(@.code == 'IVGTT')].executionType").value("INFUSION"));
+
+        String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"code":"MED-ROUTE-%s","name":"途径引用测试药品","sdMedicationType":"WESTERN",
+                         "sdDoseForm":"INJECTION","preparationSpec":"1ml","preparationUnit":"支",
+                         "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                         "skinTestRequired":false,"defaultDose":1,"defaultDoseUnit":"ml","defaultRoute":"静滴",
+                         "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
+                        """.formatted(suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.defaultRoute").value("IVGTT"));
+
+        mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
+                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"code":"MED-BADROUTE-%s","name":"非法途径测试药品","sdMedicationType":"WESTERN",
+                         "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
+                         "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
+                         "skinTestRequired":false,"defaultRoute":"随便写",
+                         "chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
+                        """.formatted(suffix)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MEDICATION_ROUTE_INVALID"));
     }
 }

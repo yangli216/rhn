@@ -12,6 +12,8 @@ export interface OutpatientPlanTemplateMedication extends Omit<CreateMedicationR
   medicationName: string
   preparationSpec?: string
   productName?: string
+  routeName?: string
+  routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
 }
 
 export interface OutpatientPlanTemplateService extends CreateServiceRequestInput {

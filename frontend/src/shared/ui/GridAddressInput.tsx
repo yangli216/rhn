@@ -64,12 +64,7 @@ export function GridAddressInput({ api, value = {}, onChange, levels = 5, disabl
   const visibleLevels = LEVELS.slice(0, levels)
   const selectedPath = pathFromValue(value, visibleLevels, nodeByCode)
   const draftPath = pathFromValue(draft, visibleLevels, nodeByCode)
-  const firstUnselectedLevel = visibleLevels.findIndex(({ key }) => !draft[key])
-  const selectedDepth = firstUnselectedLevel < 0 ? visibleLevels.length : firstUnselectedLevel
-  const expandedLevelCount = Math.min(visibleLevels.length, Math.max(1, selectedDepth + 1))
-  const expandedLevels = visibleLevels.slice(0, expandedLevelCount)
   const targetLevel = visibleLevels.at(-1)!.level
-  const searching = Boolean(query.trim())
   const searchResults = useMemo(() => {
     const keyword = normalize(query)
     if (!keyword) return []

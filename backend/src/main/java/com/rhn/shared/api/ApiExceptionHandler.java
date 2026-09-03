@@ -64,6 +64,7 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException exception,
                                                   HttpServletRequest request) {
+        log.warn("Data integrity violation at {}: {}", request.getRequestURI(), exception.getMessage(), exception);
         return ResponseEntity.status(HttpStatus.CONFLICT).body(error(
                 "DATA_INTEGRITY_CONFLICT", "数据约束冲突，请刷新后重试", request, List.of()));
     }

@@ -8,6 +8,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
@@ -41,6 +42,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final ItemAttributeSnapshotDirectory attributeDirectory;
     private final ItemStandardMappingDirectory mappingDirectory;
     private final OrderFrequencyDirectory frequencyDirectory;
+    private final MedicationRouteDirectory routeDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final AllergyDirectory allergyDirectory;
     private final DomainEventPublisher eventPublisher;
@@ -54,6 +56,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              ItemAttributeSnapshotDirectory attributeDirectory,
                              ItemStandardMappingDirectory mappingDirectory,
                              OrderFrequencyDirectory frequencyDirectory,
+                             MedicationRouteDirectory routeDirectory,
                              OrganizationDirectory organizationDirectory,
                              AllergyDirectory allergyDirectory,
                              DomainEventPublisher eventPublisher,
@@ -62,6 +65,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         this.encounterDirectory = encounterDirectory; this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory; this.mappingDirectory = mappingDirectory;
         this.frequencyDirectory = frequencyDirectory;
+        this.routeDirectory = routeDirectory;
         this.organizationDirectory = organizationDirectory; this.allergyDirectory = allergyDirectory;
         this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
@@ -167,6 +171,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
         requirePair(input.durationValue(), clean(input.durationUnit()), "MEDICATION_REQUEST_DURATION_INVALID",
                 "疗程时长与时长单位必须同时填写");
         String route = clean(input.routeCode()) == null ? medication.defaultRoute() : clean(input.routeCode());
+        var routeSnapshot = route == null ? null
+                : routeDirectory.requireActive(tenantId, route, "OUTPATIENT", businessDate);
+        if (routeSnapshot != null) route = routeSnapshot.code();
         String frequency = clean(input.frequencyCode()) == null ? medication.defaultFrequency() : clean(input.frequencyCode());
         var frequencySnapshot = frequency == null ? null : frequencyDirectory.requireActive(tenantId, frequency,
                 performerOrganizationId, performerDepartmentId, "OUTPATIENT", "MEDICATION", businessDate);
@@ -176,7 +183,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
             requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
         }
         MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
-                encounterId, prescription, route, frequency, input.durationValue());
+                encounterId, prescription, routeSnapshot, frequency, input.durationValue());
         var activeAllergies = allergyDirectory.activeForResident(encounter.residentId());
         var drugAllergies = activeAllergies.stream()
                 .filter(com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
@@ -220,7 +227,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 resolvedPrice == null ? null : resolvedPrice.price(), totalAmount,
                 resolvedPrice == null ? null : resolvedPrice.currencyCode(),
                 jsonCodec.write(attributes.jsonItemAttrSnapshot()), attributes.hashItemAttrSnapshot(),
-                attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit, route, frequency,
+                attributes.resolvedAt(), jsonCodec.write(mappings), medication.id(), doseValue, doseUnit,
+                routeSnapshot == null ? null : routeSnapshot.id(), route,
+                routeSnapshot == null ? null : routeSnapshot.name(),
+                routeSnapshot == null ? null : routeSnapshot.executionType(), frequency,
                 frequencySnapshot == null ? null : frequencySnapshot.id(),
                 frequencySnapshot == null ? null : frequencySnapshot.name(),
                 frequencySnapshot == null ? null : jsonCodec.write(frequencySnapshot),
@@ -346,7 +356,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.localNameSnapshot(), value.medicationCodeSnapshot(), value.medicationNameSnapshot(),
                 value.medicationTypeSnapshot(), value.quantity(), value.quantityUnit(), value.baseQuantity(),
                 value.baseUnit(), value.packageFactorSnapshot(), value.substitutionAllowed(), value.selfProvided(),
-                value.parentRequestId(), value.doseValue(), value.doseUnit(), value.routeCode(),
+                value.parentRequestId(), value.doseValue(), value.doseUnit(), value.routeId(), value.routeCode(),
+                value.routeNameSnapshot(), value.routeExecutionTypeSnapshot(),
                 value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
                 value.frequencyRuleSnapshot() == null ? null : jsonCodec.readTree(value.frequencyRuleSnapshot()),
                 value.durationValue(), value.durationUnit(), value.skinTestRequiredSnapshot(),
@@ -374,7 +385,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.totalAmount(), value.currencyCode(), value.medicationCodeSnapshot(), value.medicationNameSnapshot(),
                 value.medicationTypeSnapshot(), value.doseFormSnapshot(), value.preparationSpecSnapshot(),
                 value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(), value.antimicrobialSnapshot(),
-                value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeCode(),
+                value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeId(),
+                value.routeCode(), value.routeNameSnapshot(), value.routeExecutionTypeSnapshot(),
                 value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
                 value.frequencyRuleSnapshot() == null ? null : jsonCodec.readTree(value.frequencyRuleSnapshot()),
                 value.durationValue(), value.durationUnit(),
@@ -412,18 +424,13 @@ class MedicationRequestService implements MedicationRequestDirectory {
         }
     }
 
-    private boolean isInfusionRoute(String route) {
-        if (route == null) return false;
-        String normalized = route.trim().toUpperCase();
-        return normalized.equals("IV") || normalized.equals("IVGTT") || normalized.equals("IV_DRIP")
-                || normalized.equals("INTRAVENOUS") || normalized.contains("输液") || normalized.contains("静滴");
-    }
-
     private MedicationRequest requireAdministrationParent(Long parentRequestId, Long tenantId, Long encounterId,
-                                                          Prescription prescription, String route, String frequency,
+                                                          Prescription prescription,
+                                                          MedicationRouteDirectory.RouteSnapshot route,
+                                                          String frequency,
                                                           BigDecimal durationValue) {
         if (parentRequestId == null) return null;
-        if (prescription == null || !isInfusionRoute(route)) {
+        if (prescription == null || route == null || !route.infusion()) {
             throw badRequest("MEDICATION_PARENT_REQUEST_INVALID", "只有处方内输液医嘱可以引用组内父医嘱");
         }
         MedicationRequest parent = repository.findByIdAndTenantId(parentRequestId, tenantId)
@@ -431,7 +438,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                         && prescription.id().equals(value.requestGroupId())
                         && !"CANCELLED".equals(value.status()))
                 .orElseThrow(() -> badRequest("MEDICATION_PARENT_REQUEST_INVALID", "输液父医嘱不属于当前处方"));
-        if (!isInfusionRoute(parent.routeCode()) || !clean(parent.routeCode()).equalsIgnoreCase(clean(route))
+        if (!"INFUSION".equals(parent.routeExecutionTypeSnapshot())
+                || !clean(parent.routeCode()).equalsIgnoreCase(route.code())
                 || !java.util.Objects.equals(clean(parent.frequencyCode()), clean(frequency))
                 || !sameNumber(parent.durationValue(), durationValue)) {
             throw badRequest("MEDICATION_PARENT_REQUEST_USAGE_MISMATCH", "同组输液医嘱的途径、频次和疗程必须一致");
@@ -477,6 +485,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (value.doseValue() != null) details.put("doseValue", value.doseValue());
         if (value.doseUnit() != null) details.put("doseUnit", value.doseUnit());
         if (value.routeCode() != null) details.put("routeCode", value.routeCode());
+        if (value.routeId() != null) details.put("routeId", value.routeId());
+        if (value.routeNameSnapshot() != null) details.put("routeName", value.routeNameSnapshot());
+        if (value.routeExecutionTypeSnapshot() != null) {
+            details.put("routeExecutionType", value.routeExecutionTypeSnapshot());
+        }
         if (value.frequencyCode() != null) details.put("frequencyCode", value.frequencyCode());
         if (value.frequencyId() != null) details.put("frequencyId", value.frequencyId());
         if (value.frequencyNameSnapshot() != null) details.put("frequencyName", value.frequencyNameSnapshot());

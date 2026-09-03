@@ -291,6 +291,44 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void direct_zero_fee_registration_with_medical_insurance() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        long coverageId = GlobalIds.next();
+        jdbc.update("insert into resident_coverages (id, revision, tenant_id, resident_id, coverage_type_code, " +
+                        "payer_name, member_no, primary_flag, valid_from, status, created_at, created_by, updated_at, updated_by) " +
+                        "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
+                coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"DIRECT-INS-%s","registrationSource":"DIRECT","visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE","coverageId":"%s"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix, coverageId)))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void register_demo_zhang_jianguo() throws Exception {
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"362387869900101",
+                                  "organizationId":"362387869790211",
+                                  "departmentId":"362387869790212",
+                                  "idempotencyCode":"REG-INTENT-DEMO-TEST-1",
+                                  "registrationSource":"DIRECT",
+                                  "visitType":"GENERAL",
+                                  "settlementMode":"MEDICAL_INSURANCE",
+                                  "coverageId":"362387869900301"
+                                }
+                                """))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void unserved_paid_registration_is_atomically_refunded_cancelled_and_returns_the_slot() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);

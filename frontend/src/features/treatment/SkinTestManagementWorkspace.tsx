@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
 import type {
-  CompleteSkinTestInput, SkinTestResult, SkinTestStatus, SkinTestWorkItem, StartSkinTestInput,
+  SkinTestResult, SkinTestStatus, SkinTestWorkItem, StartSkinTestInput,
 } from '../../shared/api/treatmentApi'
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'

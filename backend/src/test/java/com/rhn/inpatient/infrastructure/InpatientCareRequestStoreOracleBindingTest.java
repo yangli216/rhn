@@ -8,6 +8,7 @@ import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory.ItemAttributeSnapshot;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -45,7 +46,8 @@ class InpatientCareRequestStoreOracleBindingTest {
         RecordingJdbc recording = recordingJdbc();
         InpatientCareRequestStore store = new InpatientCareRequestStore(
                 mock(CatalogLifecycleDirectory.class), mock(ItemAttributeSnapshotDirectory.class),
-                mock(ItemStandardMappingDirectory.class), mock(JsonCodec.class), recording.jdbc());
+                mock(ItemStandardMappingDirectory.class), mock(MedicationRouteDirectory.class),
+                mock(JsonCodec.class), recording.jdbc());
 
         store.create(new InpatientCareRequestStore.CreateFact(
                 1L, 2L, 3L, 4L, 5L, 6L, "NURSING", null,
@@ -65,6 +67,7 @@ class InpatientCareRequestStoreOracleBindingTest {
         CatalogLifecycleDirectory catalog = mock(CatalogLifecycleDirectory.class);
         ItemAttributeSnapshotDirectory attributes = mock(ItemAttributeSnapshotDirectory.class);
         ItemStandardMappingDirectory mappings = mock(ItemStandardMappingDirectory.class);
+        MedicationRouteDirectory routes = mock(MedicationRouteDirectory.class);
         JsonCodec json = mock(JsonCodec.class);
         LocalDate today = LocalDate.now();
         MedicationSnapshot medication = new MedicationSnapshot(
@@ -89,8 +92,11 @@ class InpatientCareRequestStoreOracleBindingTest {
         when(mappings.resolve(eq(1L), eq("MEDICATION"), eq(medication.id()), eq(null), any(LocalDate.class)))
                 .thenReturn(List.of());
         when(json.write(any())).thenReturn("{}");
+        when(routes.requireActive(eq(1L), eq("ORAL"), eq("INPATIENT"), any(LocalDate.class)))
+                .thenReturn(new MedicationRouteDirectory.RouteSnapshot(
+                        50L, "ORAL", "口服", "RHN.EX.CS.MEDICATION_ROUTE", "1.0", "NONE"));
         InpatientCareRequestStore store = new InpatientCareRequestStore(
-                catalog, attributes, mappings, json, recording.jdbc());
+                catalog, attributes, mappings, routes, json, recording.jdbc());
 
         store.create(new InpatientCareRequestStore.CreateFact(
                 1L, 2L, 3L, 4L, 5L, 6L, "MEDICATION", item.id(),
@@ -100,8 +106,8 @@ class InpatientCareRequestStoreOracleBindingTest {
         String medicationSql = recording.sql().get(1).toLowerCase();
         assertFalse(medicationSql.matches("(?s).*\\b(?:true|false)\\b.*"));
         PreparedStatement medicationStatement = recording.statements().get(1);
-        verify(medicationStatement).setBoolean(10, false);
-        verify(medicationStatement).setBoolean(11, false);
+        verify(medicationStatement).setBoolean(13, false);
+        verify(medicationStatement).setBoolean(14, false);
     }
 
     private static RecordingJdbc recordingJdbc() throws Exception {

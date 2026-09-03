@@ -35,6 +35,7 @@ public class Medication {
     @Column(name = "skin_test_required", nullable = false) private boolean skinTestRequired;
     @Column(name = "default_dose") private BigDecimal defaultDose;
     @Column(name = "default_dose_unit") private String defaultDoseUnit;
+    @Column(name = "default_route_id") private Long defaultRouteId;
     @Column(name = "default_route") private String defaultRoute;
     @Column(name = "default_frequency_id") private Long defaultFrequencyId;
     @Column(name = "default_frequency") private String defaultFrequency;
@@ -82,6 +83,11 @@ public class Medication {
         requireRevision(expectedRevision); this.status = status; this.updatedAt = Instant.now(); this.updatedBy = actorId;
     }
 
+    public void assignDefaultRoute(Long routeId, String routeCode) {
+        this.defaultRouteId = routeId;
+        this.defaultRoute = routeCode;
+    }
+
     private void updateValues(Long actorId, String name, String aliasName, String medicationType, String doseForm,
                               String preparationSpec, String preparationUnit, BigDecimal strengthValue,
                               String strengthUnit, String storageType, boolean prescriptionDrug,
@@ -119,7 +125,8 @@ public class Medication {
     public boolean antimicrobial() { return antimicrobial; } public String antimicrobialLevel() { return antimicrobialLevel; }
     public boolean skinTestRequired() { return skinTestRequired; } public BigDecimal defaultDose() { return defaultDose; }
     public String defaultDoseUnit() { return defaultDoseUnit; }
-    public String defaultRoute() { return defaultRoute; } public Long defaultFrequencyId() { return defaultFrequencyId; }
+    public Long defaultRouteId() { return defaultRouteId; } public String defaultRoute() { return defaultRoute; }
+    public Long defaultFrequencyId() { return defaultFrequencyId; }
     public String defaultFrequency() { return defaultFrequency; }
     public boolean chronicDiseaseDrug() { return chronicDiseaseDrug; } public boolean singleOrder() { return singleOrder; }
     public String status() { return status; }

@@ -196,11 +196,11 @@ function ObservationMarks({ value, weekStart }: { value: InpatientVitalObservati
   return <g><title>{formatDateTime(value.observedAt)}　{title}</title>
     {value.temperatureCelsius !== undefined && (isWithinRange(value.temperatureCelsius, TEMP_MIN, TEMP_MAX)
       ? <TemperatureMark x={x} y={temperatureY(value.temperatureCelsius)} site={value.temperatureSite} />
-      : <OutOfRangeMark x={x} value={value.temperatureCelsius} min={TEMP_MIN} max={TEMP_MAX}
+      : <OutOfRangeMark x={x} value={value.temperatureCelsius} max={TEMP_MAX}
         kind="temperature" unit="℃" />)}
     {value.pulseRate !== undefined && (isWithinRange(value.pulseRate, PULSE_MIN, PULSE_MAX)
       ? <circle className="temperature-chart-mark is-pulse" cx={x} cy={pulseY(value.pulseRate)} r="3.6" />
-      : <OutOfRangeMark x={x} value={value.pulseRate} min={PULSE_MIN} max={PULSE_MAX}
+      : <OutOfRangeMark x={x} value={value.pulseRate} max={PULSE_MAX}
         kind="pulse" unit="次/分" />)}
     {value.coolingTemperatureCelsius !== undefined && <g>
       <line className="temperature-chart-cooling-link" x1={x} y1={temperatureY(value.temperatureCelsius ?? value.coolingTemperatureCelsius)}
@@ -210,15 +210,14 @@ function ObservationMarks({ value, weekStart }: { value: InpatientVitalObservati
         ? <circle className="temperature-chart-mark is-cooling" cx={value.coolingObservedAt ? factX(value.coolingObservedAt, weekStart) : x + 6}
           cy={temperatureY(value.coolingTemperatureCelsius)} r="4" />
         : <OutOfRangeMark x={value.coolingObservedAt ? factX(value.coolingObservedAt, weekStart) : x + 6}
-          value={value.coolingTemperatureCelsius} min={TEMP_MIN} max={TEMP_MAX} kind="cooling" unit="℃" />}
+          value={value.coolingTemperatureCelsius} max={TEMP_MAX} kind="cooling" unit="℃" />}
     </g>}
   </g>
 }
 
-function OutOfRangeMark({ x, value, min, max, kind, unit }: {
+function OutOfRangeMark({ x, value, max, kind, unit }: {
   x: number
   value: number
-  min: number
   max: number
   kind: 'temperature' | 'pulse' | 'cooling'
   unit: string

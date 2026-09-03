@@ -60,6 +60,7 @@ function renderWorkspace(api: RhnApi, value: InpatientEpisode = episode, fixedWo
 
 function mockApi(orders: InpatientOrder[], tasks: InpatientOrderTask[] = [], deliveries: WardDelivery[] = []) {
   return {
+    masterData: { activeMedicationRoutes: vi.fn().mockResolvedValue([]) },
     inpatient: {
       doctorOrderWorklist: vi.fn().mockResolvedValue({ orders }),
       nurseOrderWorklist: vi.fn().mockResolvedValue({ tasks }),
@@ -85,7 +86,11 @@ describe('OrderComposer', () => {
   it('switches among medication, service and nursing entry and creates a nursing draft', async () => {
     const onCreate = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
-    render(<OrderComposer api={{} as RhnApi} episode={episode} onCreate={onCreate} />)
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(<QueryClientProvider client={queryClient}>
+      <OrderComposer api={{ masterData: { activeMedicationRoutes: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi}
+        episode={episode} onCreate={onCreate} />
+    </QueryClientProvider>)
 
     expect(screen.getByRole('combobox', { name: '搜索住院药品' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('combobox', { name: '医嘱类别' }))

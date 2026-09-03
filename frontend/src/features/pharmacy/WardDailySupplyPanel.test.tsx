@@ -163,7 +163,7 @@ describe('WardDailySupplyPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: '进入滚动供药' }))
     const detail = await screen.findByRole('region', { name: '供药批次 SUP-20260831-01' })
     expect(within(detail).getByRole('button', { name: '批量接方（1）' })).toBeDisabled()
-    expect(within(detail).getByText(/当前有 1 条待接方医嘱没有匹配的库存项目/)).toBeInTheDocument()
+    expect(screen.getByText(/当前有 1 条待接方医嘱没有匹配的库存项目/)).toHaveClass('ui-alert__content')
     expect(within(detail).getByRole('button', { name: '接方 王阿姨 阿莫西林胶囊' })).toBeDisabled()
   })
 
@@ -231,7 +231,7 @@ describe('WardDailySupplyPanel', () => {
       dispenserPractitionerId: 'practitioner-1', dispenserAssignmentId: 'assignment-1',
       description: '住院滚动供药整批发药并建立配送交接',
     }))
-    expect(await within(detail).findByText(/已建立 2 张待送出的病区配送单/)).toHaveTextContent(
+    expect(await screen.findByText(/已建立 2 张待送出的病区配送单/)).toHaveTextContent(
       'IPMS-WD-batch-1-1、IPMS-WD-batch-1-2',
     )
     expect(within(detail).getByRole('button', { name: '恢复配送结果（1）' })).toBeDisabled()
@@ -270,7 +270,7 @@ describe('WardDailySupplyPanel', () => {
     await waitFor(() => expect(dispenseDeliver).toHaveBeenCalledTimes(2))
     expect(dispenseDeliver).toHaveBeenNthCalledWith(1, 'batch-1', stableInput)
     expect(dispenseDeliver).toHaveBeenNthCalledWith(2, 'batch-1', stableInput)
-    expect(await within(detail).findByText(/IPMS-WD-batch-1-1/)).toBeInTheDocument()
+    expect(await screen.findByText(/IPMS-WD-batch-1-1/)).toHaveClass('ui-alert__content')
   })
 
   it('excludes controlled and high-alert products from routine batch dispensing', async () => {
@@ -289,7 +289,7 @@ describe('WardDailySupplyPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: '进入滚动供药' }))
     const detail = await screen.findByRole('region', { name: '供药批次 SUP-20260831-01' })
     expect(within(detail).getByRole('button', { name: '整批发药并建配送单（1）' })).toBeDisabled()
-    expect(within(detail).getByText(/受控或高警示药品/)).toBeInTheDocument()
+    expect(screen.getByText(/受控或高警示药品/)).toHaveClass('ui-alert__content')
     expect(api.pharmacy.dispenseDeliverWardSupplyBatch).not.toHaveBeenCalled()
   })
 
@@ -312,7 +312,7 @@ describe('WardDailySupplyPanel', () => {
     const detail = await screen.findByRole('region', { name: '供药批次 SUP-20260831-01' })
     expect(within(detail).getByText(/待配药 1 · 待发药 0/)).toBeInTheDocument()
     expect(within(detail).getByRole('button', { name: '确认整批配药（1）' })).toBeDisabled()
-    expect(within(detail).getByText(/存在 1 条重复任务关联/)).toBeInTheDocument()
+    expect(screen.getByText(/存在 1 条重复任务关联/)).toHaveClass('ui-alert__content')
     expect(api.pharmacy.completePickingWardSupplyBatch).not.toHaveBeenCalled()
   })
 })

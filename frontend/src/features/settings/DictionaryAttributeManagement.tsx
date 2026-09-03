@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
@@ -34,8 +34,6 @@ export function DictionaryAttributeManagement({ api, context, onNavigate }: {
     setSearchParams({ dictionaryId: values[0].id }, { replace: true })
   }, [dictionaries.data, selectedId, setSearchParams])
 
-  const selectedSummary = useMemo(() => dictionaries.data?.find((value) => value.id === selectedId),
-    [dictionaries.data, selectedId])
   const current = detail.data
   const queryError = dictionaries.error || detail.error
 

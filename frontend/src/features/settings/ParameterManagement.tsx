@@ -5,7 +5,7 @@ import {
   type ParameterCategory, type ParameterConfigType, type ParameterControlType,
   type ParameterDefinition, type ParameterDefinitionInput, type ParameterDefinitionSummary,
   type ParameterDisplayPolicy, type ParameterScope, type ParameterSensitivity,
-  type ParameterStatus, type ParameterValue, type ParameterValueInput, type ParameterValueMode,
+  type ParameterValue, type ParameterValueInput, type ParameterValueMode,
   type ParameterValueType, type RhnApi, type SystemEnumDefinition, type SystemEnumItem,
 } from '../../shared/rhnApi'
 import {
@@ -272,7 +272,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
             <thead><tr><th>作用域</th><th>值模式</th><th>当前内容</th><th>状态</th><th>更新时间</th><th aria-label="操作" /></tr></thead>
             <tbody>{selected.values.map((value) => <tr key={value.id}>
               <td><strong>{value.sdParamScopeTypeText}</strong><code>{scopeDisplay(value)}</code></td>
-              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(selected, value)}</td>
+              <td>{value.sdParamValueModeText}</td><td className="parameter-value-cell">{displayValue(value)}</td>
               <td><StatusBadge tone={value.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                 {value.sdParamStatusText}</StatusBadge></td><td>{formatDate(value.updatedAt)}</td>
               <td><div className="parameter-row-actions"><Button size="sm" variant="text"
@@ -1144,7 +1144,7 @@ function scopeTargetLabel(scope: ParameterScope, context: ParameterContext, valu
 
 function scopeDisplay(value: ParameterValue) { return value.scopeReference ?? value.scopeId ?? value.scopeCode }
 
-function displayValue(definition: ParameterDefinition, value: ParameterValue) {
+function displayValue(value: ParameterValue) {
   if (value.sdParamValueMode !== 'OVERRIDE') return '—'
   if (value.secretReference) return '密钥引用（已隐藏）'
   if (!value.hasValue) return '已隐藏'

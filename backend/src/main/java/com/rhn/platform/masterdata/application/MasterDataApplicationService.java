@@ -25,6 +25,7 @@ import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ServiceView;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.platform.masterdata.domain.CatalogPrice;
 import com.rhn.platform.masterdata.domain.ItemPackage;
 import com.rhn.platform.masterdata.domain.ItemType;
@@ -93,6 +94,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final OrganizationDirectory organizationDirectory;
     private final ExecutionContextProvider contextProvider;
     private final OrderFrequencyDirectory orderFrequencyDirectory;
+    private final MedicationRouteDirectory medicationRouteDirectory;
 
     public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
@@ -112,7 +114,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         DictionaryDirectory dictionaryDirectory,
                                         OrganizationDirectory organizationDirectory,
                                         ExecutionContextProvider contextProvider,
-                                        OrderFrequencyDirectory orderFrequencyDirectory) {
+                                        OrderFrequencyDirectory orderFrequencyDirectory,
+                                        MedicationRouteDirectory medicationRouteDirectory) {
         this.serviceRepository = serviceRepository;
         this.supplyRepository = supplyRepository;
         this.medicationRepository = medicationRepository;
@@ -132,6 +135,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         this.organizationDirectory = organizationDirectory;
         this.contextProvider = contextProvider;
         this.orderFrequencyDirectory = orderFrequencyDirectory;
+        this.medicationRouteDirectory = medicationRouteDirectory;
     }
 
     @Transactional(readOnly = true)
@@ -282,18 +286,21 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ExecutionContext context = current();
         validateMedication(command);
         var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
+        var route = resolveMedicationRoute(context, command.defaultRoute());
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
         }
-        Medication item = medicationRepository.save(new Medication(context.tenantId(), context.subjectId(),
+        Medication item = new Medication(context.tenantId(), context.subjectId(),
                 MasterDataItemTypes.forMedication(command.medicationType()), command.code(), command.name(),
                 command.aliasName(), command.medicationType(), command.doseForm(),
                 command.preparationSpec(), command.preparationUnit(), command.strengthValue(), command.strengthUnit(),
                 command.storageType(), command.prescriptionDrug(), command.essentialDrug(), command.antimicrobial(),
                 command.antimicrobialLevel(), command.skinTestRequired(), command.defaultDose(),
-                command.defaultDoseUnit(), command.defaultRoute(), frequency == null ? null : frequency.id(),
+                command.defaultDoseUnit(), route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(),
-                command.chronicDiseaseDrug(), command.singleOrder(), command.status()));
+                command.chronicDiseaseDrug(), command.singleOrder(), command.status());
+        item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
+        item = medicationRepository.save(item);
         attributeSubjectRepository.save(ItemAttributeSubject.medication(
                 context.tenantId(), item.id(), context.subjectId()));
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
@@ -303,6 +310,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public void validateMedicationForImport(MedicationCommand command) {
         ExecutionContext context = current();
         validateMedication(command);
+        resolveMedicationRoute(context, command.defaultRoute());
         resolveMedicationFrequency(context, command.defaultFrequency(), null);
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
@@ -320,15 +328,17 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         }
         validateMedication(command);
         var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
+        var route = resolveMedicationRoute(context, command.defaultRoute());
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
                 command.name(), command.aliasName(),
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
                 command.strengthValue(), command.strengthUnit(), command.storageType(), command.prescriptionDrug(),
                 command.essentialDrug(), command.antimicrobial(), command.antimicrobialLevel(),
                 command.skinTestRequired(), command.defaultDose(), command.defaultDoseUnit(),
-                command.defaultRoute(), frequency == null ? null : frequency.id(),
+                route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(), command.chronicDiseaseDrug(),
                 command.singleOrder(), command.status());
+        item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -455,6 +465,40 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     @Transactional
+    public MedicationProductView updateProduct(Long id, long expectedRevision, ProductCommand command,
+                                               Long organizationId) {
+        ExecutionContext context = current();
+        MedicationProduct product = requireProduct(context.tenantId(), id);
+        requireRevision(product.revision(), expectedRevision, "MEDICATION_PRODUCT_REVISION_STALE",
+                "药品产品已被其他用户修改，请刷新后重试");
+        Medication medication = requireMedication(context.tenantId(), product.medicationId());
+        Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
+                .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        if (!blank(command.marketStatus())) {
+            requireCode(MasterDataDictionaryCodes.PRODUCT_MARKET_STATUS, command.marketStatus());
+        }
+        if (!blank(command.productionPlace())) {
+            requireCode(MasterDataDictionaryCodes.PRODUCTION_PLACE, command.productionPlace());
+        }
+        if (!blank(command.shelfLifeUnit())) {
+            requireCode(MasterDataDictionaryCodes.SHELF_LIFE_UNIT, command.shelfLifeUnit());
+        }
+        requirePair(command.shelfLifeValue(), command.shelfLifeUnit(), "MEDICATION_PRODUCT_SHELF_LIFE_REQUIRED",
+                "产品有效期数值和单位必须同时填写");
+        product.update(expectedRevision, context.subjectId(), manufacturer.id(), medication.name(),
+                medication.preparationUnit(), command.tradeName(), command.approvalCode(), command.traceCode(),
+                command.approvalFrom(), command.approvalTo(), command.registrationCode(), command.registrationFrom(),
+                command.registrationTo(), command.purchaseCode(), command.marketStatus(), command.productionPlace(),
+                command.otc(), command.centralPurchase(), command.importAllowed(), command.traceSplitRequired(),
+                command.orderable(), command.chargeable(), command.stocked(), command.shelfLifeValue(),
+                command.shelfLifeUnit(), command.status(), command.validFrom(), command.validTo(),
+                command.indication(), command.instruction());
+        return productViews(context.tenantId(), List.of(productRepository.saveAndFlush(product)),
+                Map.of(manufacturer.id(), manufacturer), organizationId).getFirst();
+    }
+
+    @Transactional
     public PackageView createPackage(Long catalogItemId, PackageCommand command) {
         ExecutionContext context = current();
         requireProduct(context.tenantId(), catalogItemId);
@@ -465,6 +509,20 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
                 command.defaultSale(), command.defaultDispense(), command.status(), command.validFrom(), command.validTo()));
         return packageView(value);
+    }
+
+    @Transactional
+    public PackageView updatePackage(Long id, PackageCommand command) {
+        ExecutionContext context = current();
+        ItemPackage value = packageRepository.findByIdAndTenantId(id, context.tenantId())
+                .orElseThrow(() -> notFound("PACKAGE_NOT_FOUND", "未找到产品包装"));
+        requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
+        requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        value.update(command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
+                command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
+                command.defaultSale(), command.defaultDispense(), command.status(), command.validFrom(),
+                command.validTo());
+        return packageView(packageRepository.save(value));
     }
 
     @Transactional
@@ -725,6 +783,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         Long org = organizationId == null ? context.organizationId() : organizationId;
         return orderFrequencyDirectory.requireActive(context.tenantId(), code, org, context.departmentId(),
                 "OUTPATIENT", "MEDICATION", LocalDate.now());
+    }
+
+    private MedicationRouteDirectory.RouteSnapshot resolveMedicationRoute(ExecutionContext context, String code) {
+        if (blank(code)) return null;
+        return medicationRouteDirectory.requireActive(context.tenantId(), code, "MASTER_DATA", LocalDate.now());
     }
 
     private void requireCode(String dictionary, String code) {

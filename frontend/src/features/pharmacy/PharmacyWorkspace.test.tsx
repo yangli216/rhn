@@ -213,7 +213,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     const failedNotice = await screen.findByRole('alert')
     expect(failedNotice).toHaveTextContent('发药失败：上一库存期间尚未月结，不能开启下一期间')
     expect(screen.queryByText(/已成功完成发药：晓康/)).not.toBeInTheDocument()
-    expect(failedNotice.closest('.pharmacy-action-toast')).toBeInTheDocument()
+    expect(failedNotice).toHaveClass('ui-toast')
 
     await userEvent.click(screen.getByRole('button', { name: '关闭提示' }))
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()

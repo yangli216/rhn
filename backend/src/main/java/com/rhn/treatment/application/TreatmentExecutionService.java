@@ -47,10 +47,6 @@ public class TreatmentExecutionService {
             "BILLING_SETTLEMENT_FINALIZED", "BILLING_SETTLEMENT_REVERSED",
             "MEDICATION_DISPENSE_POSTED", "MEDICATION_RETURN_POSTED",
             "SKIN_TEST_STARTED", "SKIN_TEST_COMPLETED", "SKIN_TEST_CANCELLED");
-    private static final Set<String> ADMINISTRATION_ROUTES = Set.of(
-            "IV", "IVGTT", "IV_DRIP", "INTRAVENOUS", "IM", "INTRAMUSCULAR",
-            "SC", "SQ", "SUBCUTANEOUS", "ID", "INTRADERMAL", "NEB", "NEBULIZATION");
-
     private final TreatmentExecutionTaskRepository tasks;
     private final TreatmentExecutionItemRepository items;
     private final ServiceRequestDirectory serviceRequests;
@@ -165,7 +161,8 @@ public class TreatmentExecutionService {
 
     private void createMedicationFromEvent(DomainEventEnvelope event) {
         String route = text(event.payload().get("routeCode"));
-        if (!administrationRoute(route)) return;
+        String routeExecutionType = text(event.payload().get("routeExecutionType"));
+        if (routeExecutionType == null || "NONE".equals(routeExecutionType)) return;
         Long departmentId = longValue(event.payload().get("performerDepartmentId"));
         Long encounterId = longValue(event.payload().get("encounterId"));
         if (departmentId == null || encounterId == null) return;
@@ -262,7 +259,7 @@ public class TreatmentExecutionService {
         }
         for (MedicationRequestSnapshot value : medicationRequests.activeForExecution(
                 context.organizationId(), context.departmentId())) {
-            if (!administrationRoute(value.routeCode())) continue;
+            if (value.routeExecutionType() == null || "NONE".equals(value.routeExecutionType())) continue;
             Long groupId = value.parentRequestId() == null ? value.id() : value.parentRequestId();
             createItem(value.tenantId(), value.performerOrganizationId(), value.performerDepartmentId(),
                     value.residentId(), value.encounterId(), "MEDICATION", groupId, "MEDICATION_REQUEST", value.id(),
@@ -369,11 +366,6 @@ public class TreatmentExecutionService {
         return context;
     }
 
-    private boolean administrationRoute(String route) {
-        String value = upper(route); if (value == null) return false;
-        return ADMINISTRATION_ROUTES.contains(value) || value.contains("输液") || value.contains("静滴")
-                || value.contains("注射") || value.contains("雾化");
-    }
     private String searchable(TreatmentExecutionTaskView value) {
         StringBuilder result = new StringBuilder(value.taskNo()).append(' ').append(value.residentName())
                 .append(' ').append(value.healthRecordNo()).append(' ').append(value.encounterId());

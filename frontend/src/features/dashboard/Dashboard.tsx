@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Icon, type IconName, LoadingState, Panel, PanelHead, StatusBadge, type StatusTone } from '../../shared/ui'
+import { Alert, Button, Icon, type IconName, LoadingState, Panel, PanelHead, StatusBadge } from '../../shared/ui'
 
 function greetingTime(): string {
   const hour = new Date().getHours()

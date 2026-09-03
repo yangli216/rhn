@@ -7,7 +7,8 @@ import {
   type DiseaseManagementExceptionInput, type CodeSystemSummary,
   type Department, type DictionaryValue, type Manufacturer, type MasterDataStatus,
   type MedicationInput, type MedicationKnowledge, type MedicationProduct, type PackageInput,
-  type MedicationProductSetupInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
+  type ItemPackage,
+  type MedicationProductSetupInput, type ProductInput, type RhnApi, type ServiceCatalogItem, type ServiceInput,
   type ItemAttributeJson, type ItemAttributeOverride, type ItemAttributeSchema,
   type ItemAttributeSubjectType, type ItemAttributeValue, type MasterDataImportBatch,
   type MasterDataImportRow, type MasterDataImportType, type ItemTermMapping,
@@ -15,6 +16,7 @@ import {
   type CatalogLifecycle, type CatalogChangeBatch, type LifecycleAdoptionInput, type LifecyclePriceInput,
   type OrganizationAdoption,
   type ActiveOrderFrequency,
+  type MedicationRoute,
 } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
@@ -84,6 +86,11 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     queryFn: () => api.masterData.activeOrderFrequencies(organization.id, undefined, 'OUTPATIENT', 'MEDICATION'),
     enabled: tab === 'medication', staleTime: 5 * 60 * 1000,
   })
+  const routes = useQuery({
+    queryKey: ['master-data-active-medication-routes'],
+    queryFn: () => api.masterData.activeMedicationRoutes('MASTER_DATA'),
+    enabled: tab === 'medication', staleTime: 5 * 60 * 1000,
+  })
   const manufacturers = useQuery({
     queryKey: ['master-data-manufacturers'], queryFn: () => api.masterData.manufacturers(),
     enabled: tab === 'medication' || tab === 'operations',
@@ -97,7 +104,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   }
   const fail = (error: unknown) => setOperationError(errorMessage(error))
   const busy = diseases.isFetching || diseasePrograms.isFetching || services.isFetching || medications.isFetching
-  const currentError = diseases.error || diseasePrograms.error || services.error || medications.error || dictionaries.error || codeSystems.error
+  const currentError = diseases.error || diseasePrograms.error || services.error || medications.error
+    || routes.error || dictionaries.error || codeSystems.error
   const typeOptions = tab === 'disease' && diseaseMode === 'management'
     ? options(dictionaries.data, 'BD_DISEASE_MANAGEMENT_TYPE')
     : tab === 'disease' ? options(dictionaries.data, 'BD_CONCEPT_TYPE')
@@ -137,6 +145,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
           .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
       if (tab === 'medication') setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
+        routes={routes.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createMedication(input, organization.id)
           .then(() => invalidate('通用药品知识已创建')).catch(fail)} />)
     }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : `新增${tabLabel(tab)}`}</Button>
@@ -219,7 +228,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             purchasable: false, stocked: false, dispensable: false, returnable: false }}
           onClose={() => setDialog(undefined)} onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
       {tab === 'medication' && <MedicationTable values={medications.data} loading={medications.isPending}
-        onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []} value={value}
+        onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
+          routes={routes.data ?? []} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateMedication(
             value.id, value.revision, input, organization.id).then(() => invalidate('药品知识已更新')).catch(fail)} />)}
         onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
@@ -232,9 +242,17 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           organization={organization} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.createProductSetup(input)
             .then(() => invalidate('药品产品、包装和机构价格已创建')).catch(fail)} />)}
+        onEditProduct={(product, medication) => setDialog(<ProductEditDialog product={product} medication={medication}
+          manufacturers={manufacturers.data ?? []} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
+          onSave={(input) => api.masterData.updateProduct(product.id, product.revision, input, organization.id)
+            .then(() => invalidate('药品产品已更新')).catch(fail)} />)}
         onPackage={(product, medication) => setDialog(<PackageDialog product={product} medication={medication} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createPackage(product.id, input)
             .then(() => invalidate('产品包装已新增')).catch(fail)} />)}
+        onEditPackage={(item, product, medication) => setDialog(<PackageDialog product={product} medication={medication}
+          dictionaries={dictionaries.data!} editing={item} onClose={() => setDialog(undefined)}
+          onSave={(input) => api.masterData.updatePackage(item.id, input)
+            .then(() => invalidate('产品包装已更新')).catch(fail)} />)}
         onLifecycle={(product) => setDialog(<CatalogLifecycleDialog api={api} catalogItemId={product.id}
           itemName={product.name} organization={organization} packages={product.packages}
           dictionaries={dictionaries.data!} defaults={{ orderable: product.orderable, executable: false,
@@ -328,48 +346,89 @@ function ServiceTable({ values, loading, onConfigure, onEdit, onAttributes, onMa
   </Table>
 }
 
-function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, onProduct, onPackage, onLifecycle }: {
+function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
   values?: MedicationKnowledge[]; loading: boolean; onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
+  onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
+  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void;
   onLifecycle: (value: MedicationProduct) => void }) {
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
   return <div className="medication-list">{values.map((value) => <article className="medication-card" key={value.id}>
-    <header><div><strong>{value.name}</strong><code>{value.code}</code></div><div className="medication-card__meta">
-      <StatusBadge>{value.sdMedicationTypeText}</StatusBadge><StatusBadge>{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
-      <DataStatus value={value.sdStatus} text={value.sdStatusText} /></div><RowActions>
+    <header><div className="medication-card__title"><strong>{value.name}</strong><code>{value.code}</code></div>
+      <div className="medication-card__meta">
+        <StatusBadge>{value.sdMedicationTypeText}</StatusBadge><StatusBadge>{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
+        <DataStatus value={value.sdStatus} text={value.sdStatusText} /></div>
+      <div className="medication-card__summary">{medicationSummary(value).map((item) =>
+        <span key={item.label}>{item.label}<strong>{item.value}</strong></span>)}</div>
+      <RowActions>
         <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
         <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
         <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
         <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>新增厂家产品</Button></RowActions></header>
-    <div className="medication-knowledge"><span>{value.sdMedicationType === 'HERBAL' ? '炮制规格 / 储藏'
-      : value.sdMedicationType === 'VACCINE' ? '剂量规格 / 冷链' : '制剂规格 / 储藏'} <strong>{[
-        value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—'}</strong></span>
-      <span>{value.sdMedicationType === 'HERBAL' ? '调剂单位' : value.sdMedicationType === 'VACCINE' ? '每剂含量' : '结构化含量'} <strong>{
-        value.sdMedicationType === 'HERBAL' ? (value.preparationUnit || '—')
-          : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}` : '—'}</strong></span>
-      <span>{value.sdMedicationType === 'VACCINE' ? '默认剂量 / 接种途径' : '默认剂量 / 用法'} <strong>{[
-        value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, value.defaultRoute,
-        value.sdMedicationType === 'VACCINE' ? undefined : value.defaultFrequency,
-      ].filter(Boolean).join(' · ') || '—'}</strong></span>
-      <span>安全属性 <strong>{[value.prescriptionDrug && '处方药', value.essentialDrug && '基本药物',
-        value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
-        value.chronicDiseaseDrug && '慢病用药', !value.singleOrder && '仅组合使用'].filter(Boolean).join(' · ') || '普通'}</strong></span></div>
-    {!value.products.length ? <EmptyState icon="pharmacy" title="暂无厂家产品" copy="通用药品知识已经建立，可继续新增批准产品。" />
-      : <Table compact headers={['产品 / 厂家', '批准信息', '包装规格', '机构状态', '价格', '操作']}>
-        {value.products.map((product) => <tr key={product.id}><td><strong>{product.name}</strong><small>{product.manufacturerName}</small><code>{product.code}</code></td>
-          <td>{product.approvalCode || '—'}<small>{[product.tradeName || '无商品名', product.sdMarketStatusText,
-            product.sdProductionPlaceText, product.traceCode && `追溯码 ${product.traceCode}`].filter(Boolean).join(' · ')}</small></td>
-          <td>{product.packages.length ? product.packages.map((item) => `${item.packageSpec || item.unitName} = ${item.quantityFactor}${product.unitCode || '最小单位'}`).join('；') : '未维护'}</td>
+    {!value.products.length ? <div className="medication-empty">暂无厂家产品，通用药品知识已建立，可通过右上角“新增厂家产品”建档。</div>
+      : <Table compact headers={['产品 / 厂家', '批准文号', '包装规格', '机构状态', '价格', '操作']}>
+        {value.products.map((product) => <tr key={product.id}><td className="medication-product"><strong>{product.name}</strong>
+          {product.manufacturerName && <small>{product.manufacturerName}</small>}</td>
+          <td>{product.approvalCode || '—'}</td>
+          <td><PackageChips product={product} onEdit={(item) => onEditPackage(item, product, value)} /></td>
           <td>{product.organizationAdoption ? <DataStatus value={product.organizationAdoption.sdStatus} text={product.organizationAdoption.sdStatusText} /> : <StatusBadge>未采用</StatusBadge>}</td>
-          <td>{activePrice(product.prices)}</td><td><RowActions>
+          <td>{productPrices(product.prices)}</td><td><RowActions>
+            <Button size="sm" variant="text" onClick={() => onEditProduct(product, value)}>编辑产品</Button>
             <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
             <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>机构目录与价格</Button>
           </RowActions></td></tr>)}</Table>}
   </article>)}</div>
+}
+
+function medicationSummary(value: MedicationKnowledge) {
+  const herbal = value.sdMedicationType === 'HERBAL'
+  const vaccine = value.sdMedicationType === 'VACCINE'
+  return [
+    { label: herbal ? '炮制规格' : vaccine ? '剂量规格' : '规格',
+      value: [value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—' },
+    { label: herbal ? '调剂单位' : vaccine ? '每剂含量' : '含量',
+      value: herbal ? (value.preparationUnit || '—')
+        : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}`.trim() : '—' },
+    { label: vaccine ? '剂量 / 途径' : '用法',
+      value: [value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, value.defaultRoute,
+        vaccine ? undefined : value.defaultFrequency].filter(Boolean).join(' · ') || '—' },
+    { label: '安全',
+      value: [value.prescriptionDrug && '处方药', value.essentialDrug && '基本药物',
+        value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
+        value.chronicDiseaseDrug && '慢病用药', !value.singleOrder && '仅组合使用'].filter(Boolean).join(' · ') || '普通' },
+  ]
+}
+
+function PackageChips({ product, onEdit }: { product: MedicationProduct; onEdit?: (value: ItemPackage) => void }) {
+  if (!product.packages.length) return <span className="medication-packages__empty">未维护</span>
+  return <div className="medication-packages">{product.packages.map((item) => {
+    const marks = [item.defaultPurchase && '采', item.defaultSale && '销', item.defaultDispense && '发']
+      .filter(Boolean).join('')
+    const label = item.packageSpec || `${item.unitName} = ${item.quantityFactor}${product.unitCode || '最小单位'}`
+    const hint = `${item.sdUsageTypeText}${item.barcode ? ` · 条码 ${item.barcode}` : ''}${onEdit ? ' · 点击编辑包装' : ''}`
+    return onEdit ? <button type="button" className="medication-package" key={item.id} title={hint}
+      onClick={() => onEdit(item)}>{label}{marks && <small>{marks}</small>}</button>
+      : <span className="medication-package" key={item.id} title={hint}>{label}{marks && <small>{marks}</small>}</span>
+  })}</div>
+}
+
+function activePriceOf(values: CatalogPrice[], type: string) {
+  const at = today()
+  return values.find((item) => item.sdPriceType === type && item.sdStatus === 'ACTIVE'
+    && item.validFrom <= at && (!item.validTo || item.validTo >= at))
+}
+
+function productPrices(values: CatalogPrice[]) {
+  const sale = activePriceOf(values, 'SALE')
+  const purchase = activePriceOf(values, 'PURCHASE')
+  if (!sale && !purchase) return '未维护'
+  return <>{sale && <strong>¥ {Number(sale.price).toFixed(2)}</strong>}
+    <small>{[purchase && `进货 ¥${Number(purchase.price).toFixed(2)}`,
+      (sale || purchase) && `自 ${(sale || purchase)!.validFrom}`].filter(Boolean).join(' · ')}</small></>
 }
 
 function MasterDataImportDialog({ api, importType, onClose, onCompleted }: {
@@ -1409,11 +1468,13 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
   </DataFormDialog>
 }
 
-function MedicationDialog({ dictionaries, frequencies, value, onClose, onSave }: { dictionaries: DictionaryMap;
-  frequencies: ActiveOrderFrequency[]; value?: MedicationKnowledge; onClose: () => void; onSave: (input: MedicationInput) => void }) {
+function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, onSave }: { dictionaries: DictionaryMap;
+  frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge;
+  onClose: () => void; onSave: (input: MedicationInput) => void }) {
   const [medicationType, setMedicationType] = useState(value?.sdMedicationType ?? 'WESTERN')
   const [antimicrobial, setAntimicrobial] = useState(value?.antimicrobial ?? false)
   const [defaultFrequency, setDefaultFrequency] = useState(value?.defaultFrequency ?? '')
+  const [defaultRoute, setDefaultRoute] = useState(value?.defaultRoute ?? '')
   const western = medicationType === 'WESTERN'
   const chinesePatent = medicationType === 'CHINESE_PATENT'
   const herbal = medicationType === 'HERBAL'
@@ -1444,7 +1505,7 @@ function MedicationDialog({ dictionaries, frequencies, value, onClose, onSave }:
       antimicrobial: western && antimicrobial,
       sdAntimicrobialLevel: western && antimicrobial ? optionalText(form, 'sdAntimicrobialLevel') : undefined,
       skinTestRequired: western && checked(form, 'skinTestRequired'), defaultDose: optionalNumber(form, 'defaultDose'),
-      defaultDoseUnit: optionalText(form, 'defaultDoseUnit'), defaultRoute: optionalText(form, 'defaultRoute'),
+      defaultDoseUnit: optionalText(form, 'defaultDoseUnit'), defaultRoute: defaultRoute || undefined,
       defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
       chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
@@ -1477,8 +1538,10 @@ function MedicationDialog({ dictionaries, frequencies, value, onClose, onSave }:
           defaultValue={value?.strengthValue} placeholder={vaccine ? '如 0.5' : '如 500'} /></FormField>
         <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" defaultValue={value?.strengthUnit}
           placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
-        <FormField label="默认给药途径"><input name="defaultRoute" defaultValue={value?.defaultRoute}
-          placeholder={herbal ? '如 煎服、冲服' : vaccine ? '如 肌内注射' : '如 口服'} /></FormField>
+        <FormField label="默认给药途径"><Select name="defaultRoute" value={defaultRoute}
+          onChange={setDefaultRoute} showValue placeholder="请选择给药途径"
+          options={routes.map((route) => ({ value: route.code, label: route.name,
+            secondaryText: route.code, searchKeywords: [route.code, route.name] }))} /></FormField>
         {!vaccine && <FormField label={herbal ? '默认服用频次' : '默认频次'}><Select name="defaultFrequency"
           value={defaultFrequency} onChange={setDefaultFrequency} showValue placeholder="请选择医嘱频次"
           options={frequencies.map((frequency) => ({ value: frequency.code, label: frequency.name,
@@ -1544,7 +1607,7 @@ function ProductDialog({ medication, manufacturers, organization, dictionaries, 
         registrationCode: optionalText(form, 'registrationCode'), purchaseCode: undefined,
         sdMarketStatus: optionalText(form, 'sdMarketStatus'), sdProductionPlace: optionalText(form, 'sdProductionPlace'),
         otc: checked(form, 'otc'), centralPurchase: checked(form, 'centralPurchase'),
-        importAllowed: checked(form, 'purchasable'), traceSplitRequired: checked(form, 'traceSplitRequired'),
+        importAllowed: checked(form, 'importAllowed'), traceSplitRequired: checked(form, 'traceSplitRequired'),
         orderable: productOrderable, chargeable: productChargeable, stocked: productStocked, sdStatus: 'ACTIVE',
         shelfLifeValue: optionalNumber(form, 'shelfLifeValue'), sdShelfLifeUnit: optionalText(form, 'sdShelfLifeUnit'),
         validFrom: activeFrom },
@@ -1631,48 +1694,134 @@ function ProductDialog({ medication, manufacturers, organization, dictionaries, 
         <Checkboxes title="监管标识">
           <Checkbox name="otc" label="OTC" />
           <Checkbox name="centralPurchase" label="国家/省级集采" />
+          <Checkbox name="importAllowed" label="允许进口" />
         </Checkboxes>
       </FormGrid>
     </details>
   </DataFormDialog>
 }
 
-function PackageDialog({ product, medication, dictionaries, onClose, onSave }: { product: MedicationProduct;
-  medication: MedicationKnowledge;
+function ProductEditDialog({ product, medication, manufacturers, dictionaries, onClose, onSave }: {
+  product: MedicationProduct; medication: MedicationKnowledge; manufacturers: Manufacturer[];
+  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: ProductInput) => void
+}) {
+  return <DataFormDialog title="编辑药品产品" eyebrow={`${medication.name} · ${product.code}`} onClose={onClose}
+    size="xwide" description="维护厂家、批准文号、监管标识与中心层业务能力；包装规格请在列表中点击包装标签维护，机构目录与价格在各自入口维护。"
+    onSubmit={(form) => onSave({
+      medicationId: product.medicationId, manufacturerId: text(form, 'manufacturerId'), code: product.code,
+      tradeName: optionalText(form, 'tradeName'), approvalCode: optionalText(form, 'approvalCode'),
+      traceCode: optionalText(form, 'traceCode'),
+      approvalFrom: optionalText(form, 'approvalFrom'), approvalTo: optionalText(form, 'approvalTo'),
+      registrationCode: optionalText(form, 'registrationCode'),
+      registrationFrom: optionalText(form, 'registrationFrom'), registrationTo: optionalText(form, 'registrationTo'),
+      purchaseCode: optionalText(form, 'purchaseCode'),
+      sdMarketStatus: optionalText(form, 'sdMarketStatus'), sdProductionPlace: optionalText(form, 'sdProductionPlace'),
+      otc: checked(form, 'otc'), centralPurchase: checked(form, 'centralPurchase'),
+      importAllowed: checked(form, 'importAllowed'), traceSplitRequired: checked(form, 'traceSplitRequired'),
+      orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), stocked: checked(form, 'stocked'),
+      shelfLifeValue: optionalNumber(form, 'shelfLifeValue'), sdShelfLifeUnit: optionalText(form, 'sdShelfLifeUnit'),
+      sdStatus: product.sdStatus, validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'),
+      indication: optionalText(form, 'indication'), instruction: optionalText(form, 'instruction'),
+    })}>
+    <FormSection title="产品身份" description="产品编码、名称与最小单位来自通用药品知识，创建后不可在产品层修改。">
+      <FormGrid columns={3}>
+        <StaticSelectField name="manufacturerId" label="生产厂家"
+          options={manufacturers.map((item) => ({ value: item.id, label: item.name }))}
+          defaultValue={product.manufacturerId} />
+        <FormField label="产品编码" hint="创建后不可修改。"><input value={product.code} readOnly aria-readonly="true" /></FormField>
+        <FormField label="商品名"><input name="tradeName" defaultValue={product.tradeName} placeholder="无商品名可留空" autoFocus /></FormField>
+        <FormField label="产品名称" className="span-2" hint="来自药品通用信息；如需调整，请返回通用信息维护。">
+          <input value={product.name} readOnly aria-readonly="true" /></FormField>
+        <FormField label="最小单位" hint="来自药品通用信息；厂家产品不可单独修改。"><input
+          value={medication.preparationUnit || product.unitCode || ''} placeholder="请先维护药品通用信息" readOnly aria-readonly="true" /></FormField>
+        <FormField label="批准文号"><input name="approvalCode" defaultValue={product.approvalCode} placeholder="国药准字或注册证编号" /></FormField>
+        <FormField label="追溯码" hint="通常为7位数字，用于标识厂家产品。"><input name="traceCode" defaultValue={product.traceCode}
+          inputMode="numeric" maxLength={7} pattern="[0-9]{7}" placeholder="如 8690001" /></FormField>
+      </FormGrid>
+    </FormSection>
+    <FormSection title="中心层业务能力" description="控制产品在中心目录的可开立、可收费与库存属性；机构级开关请在“机构目录与价格”维护。">
+      <FormGrid>
+        <Checkboxes title="中心层能力">
+          <Checkbox name="orderable" label="允许开立" defaultChecked={product.orderable} />
+          <Checkbox name="chargeable" label="允许收费" defaultChecked={product.chargeable} />
+          <Checkbox name="stocked" label="库存商品" defaultChecked={product.stocked} />
+          <Checkbox name="traceSplitRequired" label="拆零需处理追溯码" defaultChecked={product.traceSplitRequired} />
+        </Checkboxes>
+        <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期"
+          fromDefault={product.validFrom} toDefault={product.validTo} />
+      </FormGrid>
+    </FormSection>
+    <FormSection title="监管与产品补充信息" description="上市状态、生产地与有效期等监管字段。">
+      <FormGrid columns={3}>
+        <SelectField name="sdMarketStatus" label="上市状态" values={dictionaries.BD_PRODUCT_MARKET_STATUS}
+          defaultValue={product.sdMarketStatus} required={false} />
+        <SelectField name="sdProductionPlace" label="产品生产地" values={dictionaries.BD_PRODUCTION_PLACE}
+          defaultValue={product.sdProductionPlace} required={false} />
+        <FormField label="产品有效期数值"><input name="shelfLifeValue" type="number" min="0" step="any"
+          defaultValue={product.shelfLifeValue} placeholder="如 24" /></FormField>
+        <SelectField name="sdShelfLifeUnit" label="产品有效期单位" values={dictionaries.BD_SHELF_LIFE_UNIT}
+          defaultValue={product.sdShelfLifeUnit} required={false} />
+        <Checkboxes title="监管标识">
+          <Checkbox name="otc" label="OTC" defaultChecked={product.otc} />
+          <Checkbox name="centralPurchase" label="国家/省级集采" defaultChecked={product.centralPurchase} />
+          <Checkbox name="importAllowed" label="允许进口" defaultChecked={product.importAllowed} />
+        </Checkboxes>
+      </FormGrid>
+    </FormSection>
+    <details className="master-data-advanced-fields">
+      <summary>批准 / 注册 / 说明书信息（非日常维护）</summary>
+      <FormGrid columns={3}>
+        <DateRangeFields fromName="approvalFrom" toName="approvalTo" fromLabel="批准生效日期" toLabel="批准失效日期"
+          fromDefault={product.approvalFrom} toDefault={product.approvalTo} required={false} />
+        <FormField label="注册证号"><input name="registrationCode" defaultValue={product.registrationCode} placeholder="进口药品或器械适用" /></FormField>
+        <DateRangeFields fromName="registrationFrom" toName="registrationTo" fromLabel="注册生效日期" toLabel="注册失效日期"
+          fromDefault={product.registrationFrom} toDefault={product.registrationTo} required={false} />
+        <FormField label="采购编码"><input name="purchaseCode" defaultValue={product.purchaseCode} placeholder="供应链或集采平台编码" /></FormField>
+        <FormField label="适应症" className="span-2"><input name="indication" defaultValue={product.indication} placeholder="批准适应症摘要" /></FormField>
+        <FormField label="说明书要点" className="span-2"><input name="instruction" defaultValue={product.instruction} placeholder="用法用量或说明书摘要" /></FormField>
+      </FormGrid>
+    </details>
+  </DataFormDialog>
+}
+
+function PackageDialog({ product, medication, dictionaries, editing, onClose, onSave }: { product: MedicationProduct;
+  medication: MedicationKnowledge; editing?: ItemPackage;
   dictionaries: DictionaryMap; onClose: () => void; onSave: (input: PackageInput) => void }) {
-  const [unitName, setUnitName] = useState('盒')
-  const [quantityFactor, setQuantityFactor] = useState('')
-  const [packageSpec, setPackageSpec] = useState('')
+  const [unitName, setUnitName] = useState(editing?.unitName ?? '盒')
+  const [quantityFactor, setQuantityFactor] = useState(editing ? String(Number(editing.quantityFactor)) : '')
+  const [packageSpec, setPackageSpec] = useState(editing?.packageSpec ?? '')
   const generatedPackageSpec = (factor: string, packageUnit: string) => medicationPackageSpec(
     medication.preparationSpec, factor, product.unitCode, packageUnit)
-  return <DataFormDialog title="新增产品包装" eyebrow={product.name} onClose={onClose}
-    size="xwide" description={`根据包装系数维护包装规格，并声明采购、销售和发放用途。`}
+  return <DataFormDialog title={editing ? '编辑产品包装' : '新增产品包装'} eyebrow={product.name} onClose={onClose}
+    size="xwide" description={editing ? '修正包装系数、包装规格与业务用途；已有库存批次不受影响。'
+      : `根据包装系数维护包装规格，并声明采购、销售和发放用途。`}
     onSubmit={(form) => onSave({ unitCode: text(form, 'unitName'), unitName: text(form, 'unitName'),
       packageSpec: optionalText(form, 'packageSpec'), quantityFactor: Number(text(form, 'quantityFactor')),
       sdUsageType: text(form, 'sdUsageType'), barcode: optionalText(form, 'barcode'),
       defaultPurchase: checked(form, 'defaultPurchase'), defaultSale: checked(form, 'defaultSale'),
-      defaultDispense: checked(form, 'defaultDispense'), sdStatus: 'ACTIVE', validFrom: text(form, 'validFrom'),
+      defaultDispense: checked(form, 'defaultDispense'), sdStatus: editing?.sdStatus ?? 'ACTIVE', validFrom: text(form, 'validFrom'),
       validTo: optionalText(form, 'validTo') })}>
     <FormSection title="包装与规格" description={`最小单位为${product.unitCode || '未维护'}，包装规格可在自动生成后手动修正。`}>
       <FormGrid columns={3}>
         <FormField label="包装单位" required><input name="unitName" placeholder="盒" autoFocus required value={unitName}
           onChange={(event) => { const next = event.target.value; setUnitName(next); setPackageSpec(generatedPackageSpec(quantityFactor, next)) }} /></FormField>
-        <SelectField name="sdUsageType" label="包装用途" values={dictionaries.BD_PACKAGE_USE} defaultValue="SALE" />
+        <SelectField name="sdUsageType" label="包装用途" values={dictionaries.BD_PACKAGE_USE} defaultValue={editing?.sdUsageType ?? 'SALE'} />
         <FormField label={`包装系数（${product.unitCode || '最小单位'}）`} required><input name="quantityFactor"
           type="number" min="0.000001" step="any" placeholder="如 24" required value={quantityFactor}
           onChange={(event) => { const next = event.target.value; setQuantityFactor(next); setPackageSpec(generatedPackageSpec(next, unitName)) }} /></FormField>
         <FormField label="包装规格" className="span-2" hint="系统自动组合制剂规格与包装数量，允许按厂家包装文字手动修改。"><input
           name="packageSpec" placeholder="如 5mg*24片/盒" value={packageSpec} onChange={(event) => setPackageSpec(event.target.value)} /></FormField>
-        <FormField label="条码"><input name="barcode" placeholder="扫描或录入商品条码" /></FormField>
+        <FormField label="条码"><input name="barcode" defaultValue={editing?.barcode} placeholder="扫描或录入商品条码" /></FormField>
       </FormGrid>
     </FormSection>
     <FormSection title="业务用途与生命周期" description="有效期结束后不再用于新的采购、销售或发放。">
       <FormGrid>
-        <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期" />
+        <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期"
+          fromDefault={editing?.validFrom} toDefault={editing?.validTo} />
         <Checkboxes title="默认业务包装">
-          <Checkbox name="defaultPurchase" label="默认采购包装" defaultChecked />
-          <Checkbox name="defaultSale" label="默认销售包装" defaultChecked />
-          <Checkbox name="defaultDispense" label="默认发药包装" />
+          <Checkbox name="defaultPurchase" label="默认采购包装" defaultChecked={editing?.defaultPurchase ?? true} />
+          <Checkbox name="defaultSale" label="默认销售包装" defaultChecked={editing?.defaultSale ?? true} />
+          <Checkbox name="defaultDispense" label="默认发药包装" defaultChecked={editing?.defaultDispense ?? false} />
         </Checkboxes>
       </FormGrid>
     </FormSection>

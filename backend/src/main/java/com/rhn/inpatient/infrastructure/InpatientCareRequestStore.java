@@ -5,6 +5,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperatio
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.MedicationSnapshot;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -33,17 +34,20 @@ public class InpatientCareRequestStore {
     private final CatalogLifecycleDirectory catalogDirectory;
     private final ItemAttributeSnapshotDirectory attributeDirectory;
     private final ItemStandardMappingDirectory mappingDirectory;
+    private final MedicationRouteDirectory routeDirectory;
     private final JsonCodec jsonCodec;
     private final NamedParameterJdbcTemplate jdbc;
 
     public InpatientCareRequestStore(CatalogLifecycleDirectory catalogDirectory,
                                      ItemAttributeSnapshotDirectory attributeDirectory,
                                      ItemStandardMappingDirectory mappingDirectory,
+                                     MedicationRouteDirectory routeDirectory,
                                      JsonCodec jsonCodec,
                                      JdbcTemplate jdbcTemplate) {
         this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory;
         this.mappingDirectory = mappingDirectory;
+        this.routeDirectory = routeDirectory;
         this.jsonCodec = jsonCodec;
         this.jdbc = new NamedParameterJdbcTemplate(jdbcTemplate);
     }
@@ -99,7 +103,7 @@ public class InpatientCareRequestStore {
                     :attributeSnapshot, :attributeHash, :attributeResolvedAt, :mappingSnapshot
                 )
                 """, values);
-        if ("MEDICATION".equals(input.orderCategory())) insertMedication(requestId, input, resolved);
+        if ("MEDICATION".equals(input.orderCategory())) insertMedication(requestId, input, resolved, businessDate);
         if ("SERVICE".equals(input.orderCategory())) insertService(requestId, input, resolved);
         return requestId;
     }
@@ -187,7 +191,7 @@ public class InpatientCareRequestStore {
                 item.serviceType(), item.specimenType(), item.examinationType());
     }
 
-    private void insertMedication(Long requestId, CreateFact input, ResolvedItem resolved) {
+    private void insertMedication(Long requestId, CreateFact input, ResolvedItem resolved, LocalDate businessDate) {
         MedicationSnapshot medication = resolved.medication();
         BigDecimal dose = input.dosageAmount() == null ? medication.defaultDose() : input.dosageAmount();
         String doseUnit = trim(input.dosageUnit()) == null ? medication.defaultDoseUnit() : trim(input.dosageUnit());
@@ -195,11 +199,15 @@ public class InpatientCareRequestStore {
             throw badRequest("INPATIENT_MEDICATION_DOSE_INVALID", "单次剂量与剂量单位必须同时填写");
         }
         String route = normalize(input.routeCode() == null ? medication.defaultRoute() : input.routeCode());
+        var routeSnapshot = routeDirectory.requireActive(input.tenantId(), route, "INPATIENT", businessDate);
+        route = routeSnapshot.code();
         String frequency = normalize(input.frequencyCode() == null ? medication.defaultFrequency() : input.frequencyCode());
         MapSqlParameterSource values = new MapSqlParameterSource()
                 .addValue("requestId", requestId).addValue("tenantId", input.tenantId())
                 .addValue("medicationId", medication.id()).addValue("dose", dose).addValue("doseUnit", doseUnit)
-                .addValue("route", route).addValue("frequency", frequency).addValue("unit", resolved.unitCode())
+                .addValue("routeId", routeSnapshot.id()).addValue("route", route)
+                .addValue("routeName", routeSnapshot.name()).addValue("routeExecutionType", routeSnapshot.executionType())
+                .addValue("frequency", frequency).addValue("unit", resolved.unitCode())
                 .addValue("substitutionAllowed", Boolean.FALSE, Types.BOOLEAN)
                 .addValue("selfProvided", Boolean.FALSE, Types.BOOLEAN)
                 .addValue("instruction", trim(input.instructions())).addValue("medicationCode", medication.code())
@@ -211,7 +219,9 @@ public class InpatientCareRequestStore {
                 .addValue("snapshot", jsonCodec.write(medication));
         jdbc.update("""
                 insert into medication_requests (
-                    request_id, tenant_id, medication_id, dose_value, dose_unit, route_code, frequency_code,
+                    request_id, tenant_id, medication_id, dose_value, dose_unit,
+                    route_id, route_code, route_name_snapshot, route_execution_type_snapshot, route_resolution_status,
+                    frequency_code,
                     quantity, quantity_unit, base_quantity, base_unit, package_factor_snapshot,
                     substitution_allowed, self_provided, medication_instruction,
                     medication_code_snapshot, medication_name_snapshot, medication_type_snapshot,
@@ -219,7 +229,8 @@ public class InpatientCareRequestStore {
                     skin_test_required_snapshot, antimicrobial_snapshot, antimicrobial_level_snapshot,
                     medication_snapshot
                 ) values (
-                    :requestId, :tenantId, :medicationId, :dose, :doseUnit, :route, :frequency,
+                    :requestId, :tenantId, :medicationId, :dose, :doseUnit,
+                    :routeId, :route, :routeName, :routeExecutionType, 'RESOLVED', :frequency,
                     1, :unit, 1, :unit, 1, :substitutionAllowed, :selfProvided, :instruction,
                     :medicationCode, :medicationName, :medicationType,
                     :doseForm, :spec, :preparationUnit, :skinTest, :antimicrobial,

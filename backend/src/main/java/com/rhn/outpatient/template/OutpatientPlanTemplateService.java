@@ -1,6 +1,7 @@
 package com.rhn.outpatient.template;
 
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
+import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
 import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.api.BusinessException;
@@ -32,6 +33,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private final OutpatientPlanMedicationRepository medications;
     private final OutpatientPlanServiceRepository services;
     private final CatalogLifecycleDirectory catalogDirectory;
+    private final MedicationRouteDirectory medicationRouteDirectory;
     private final TerminologyDirectory terminologyDirectory;
     private final ExecutionContextProvider contextProvider;
 
@@ -40,10 +42,12 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                                   OutpatientPlanMedicationRepository medications,
                                   OutpatientPlanServiceRepository services,
                                   CatalogLifecycleDirectory catalogDirectory,
+                                  MedicationRouteDirectory medicationRouteDirectory,
                                   TerminologyDirectory terminologyDirectory,
                                   ExecutionContextProvider contextProvider) {
         this.templates = templates; this.diagnoses = diagnoses; this.medications = medications;
         this.services = services; this.catalogDirectory = catalogDirectory;
+        this.medicationRouteDirectory = medicationRouteDirectory;
         this.terminologyDirectory = terminologyDirectory; this.contextProvider = contextProvider;
     }
 
@@ -164,12 +168,15 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
                 }
             }
             if (!"ACTIVE".equals(medication.status())) throw conflict("PLAN_TEMPLATE_MEDICATION_INACTIVE", "方案中存在已停用药品");
+            MedicationRouteDirectory.RouteSnapshot route = clean(input.routeCode()) == null ? null
+                    : medicationRouteDirectory.requireActive(context.tenantId(), input.routeCode(),
+                    "OUTPATIENT", date);
             String quantityUnit = clean(input.quantityUnit());
             if (quantityUnit == null) quantityUnit = itemPackage == null ? medication.preparationUnit() : itemPackage.unitCode();
             values.add(new OutpatientPlanMedication(template.tenantId(), template.id(), index + 1,
                     medication.id(), input.catalogItemId(), input.packageId(), medication.medicationType(),
                     medication.code(), medication.name(), medication.preparationSpec(), item == null ? null : item.name(),
-                    input.doseValue(), clean(input.doseUnit()), clean(input.routeCode()), clean(input.frequencyCode()),
+                    input.doseValue(), clean(input.doseUnit()), route == null ? null : route.code(), clean(input.frequencyCode()),
                     input.durationValue(), clean(input.durationUnit()), input.quantity(), quantityUnit,
                     input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
                     normalizedPriceType(input.priceType()), input.pricingRequired() == null || input.pricingRequired(),
@@ -266,17 +273,24 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         return new View(value.id(), value.revision(), value.scopeType(), value.name(), value.description(),
                 value.status(), value.sortOrder(), value.useCount(), value.lastUsedAt(),
                 diagnosisValues.stream().map(line -> new DiagnosisView(line.code(), line.name(), line.type())).toList(),
-                medicationValues.stream().map(line -> new MedicationView(line.medicationId(), line.catalogItemId(),
-                        line.packageId(), "HERBAL".equals(line.categoryCode()) ? "herbal" : "regular",
-                        line.categoryCode(), line.medicationCode(), line.medicationName(), line.preparationSpec(),
-                        line.productName(), line.doseValue(), line.doseUnit(), line.routeCode(), line.frequencyCode(),
-                        line.durationValue(), line.durationUnit(), line.quantity(), line.quantityUnit(),
-                        line.substitutionAllowed(), line.selfProvided(), line.medicationInstruction(), line.priceType(),
-                        line.pricingRequired(), line.reason())).toList(),
+                medicationValues.stream().map(line -> medicationView(value.tenantId(), line)).toList(),
                 serviceValues.stream().map(line -> new ServiceView(line.catalogItemId(), line.itemCode(),
                         line.itemName(), line.serviceType(), line.quantity(), line.unitCode(), line.priceType(),
                         line.pricingRequired(), line.reason(), line.clinicalDescription())).toList(),
                 value.createdAt(), value.updatedAt());
+    }
+
+    private MedicationView medicationView(Long tenantId, OutpatientPlanMedication line) {
+        MedicationRouteDirectory.RouteSnapshot route = medicationRouteDirectory.resolveActive(
+                tenantId, line.routeCode(), "OUTPATIENT", LocalDate.now()).orElse(null);
+        return new MedicationView(line.medicationId(), line.catalogItemId(), line.packageId(),
+                "HERBAL".equals(line.categoryCode()) ? "herbal" : "regular", line.categoryCode(),
+                line.medicationCode(), line.medicationName(), line.preparationSpec(), line.productName(),
+                line.doseValue(), line.doseUnit(), route == null ? line.routeCode() : route.code(),
+                route == null ? null : route.name(), route == null ? null : route.executionType(),
+                line.frequencyCode(), line.durationValue(), line.durationUnit(), line.quantity(), line.quantityUnit(),
+                line.substitutionAllowed(), line.selfProvided(), line.medicationInstruction(), line.priceType(),
+                line.pricingRequired(), line.reason());
     }
 
     private Map<Long, List<OutpatientPlanDiagnosis>> groupDiagnoses(List<OutpatientPlanDiagnosis> values) {

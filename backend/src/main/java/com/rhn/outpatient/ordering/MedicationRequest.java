@@ -65,7 +65,11 @@ class MedicationRequest {
     @Column(table = "medication_requests", name = "medication_id", nullable = false) private Long medicationId;
     @Column(table = "medication_requests", name = "dose_value", precision = 28, scale = 8) private BigDecimal doseValue;
     @Column(table = "medication_requests", name = "dose_unit") private String doseUnit;
+    @Column(table = "medication_requests", name = "route_id") private Long routeId;
     @Column(table = "medication_requests", name = "route_code") private String routeCode;
+    @Column(table = "medication_requests", name = "route_name_snapshot") private String routeNameSnapshot;
+    @Column(table = "medication_requests", name = "route_execution_type_snapshot") private String routeExecutionTypeSnapshot;
+    @Column(table = "medication_requests", name = "route_resolution_status", nullable = false) private String routeResolutionStatus;
     @Column(table = "medication_requests", name = "frequency_code") private String frequencyCode;
     @Column(table = "medication_requests", name = "frequency_id") private Long frequencyId;
     @Column(table = "medication_requests", name = "frequency_name_snapshot") private String frequencyNameSnapshot;
@@ -105,7 +109,8 @@ class MedicationRequest {
                       BigDecimal unitPrice, BigDecimal totalAmount, String currencyCode,
                       String itemAttributeSnapshot, String itemAttributeHash, Instant itemAttributeResolvedAt,
                       String standardMappingSnapshot, Long medicationId, BigDecimal doseValue, String doseUnit,
-                      String routeCode, String frequencyCode, Long frequencyId, String frequencyName,
+                      Long routeId, String routeCode, String routeName, String routeExecutionType,
+                      String frequencyCode, Long frequencyId, String frequencyName,
                       String frequencyRuleSnapshot, BigDecimal durationValue, String durationUnit,
                       BigDecimal quantity, BigDecimal baseQuantity, String baseUnit, BigDecimal packageFactor,
                       String packageUnitName, String packageSpec, BigDecimal priceQuantity,
@@ -129,7 +134,10 @@ class MedicationRequest {
         this.itemAttributeSnapshot = itemAttributeSnapshot; this.itemAttributeHash = itemAttributeHash;
         this.itemAttributeResolvedAt = itemAttributeResolvedAt; this.standardMappingSnapshot = standardMappingSnapshot;
         this.medicationId = medicationId; this.doseValue = doseValue; this.doseUnit = doseUnit;
-        this.routeCode = routeCode; this.frequencyCode = frequencyCode; this.frequencyId = frequencyId;
+        this.routeId = routeId; this.routeCode = routeCode; this.routeNameSnapshot = routeName;
+        this.routeExecutionTypeSnapshot = routeExecutionType;
+        this.routeResolutionStatus = routeId == null ? "UNMAPPED" : "RESOLVED";
+        this.frequencyCode = frequencyCode; this.frequencyId = frequencyId;
         this.frequencyNameSnapshot = frequencyName; this.frequencyRuleSnapshot = frequencyRuleSnapshot;
         this.durationValue = durationValue;
         this.durationUnit = durationUnit; this.quantity = quantity; this.quantityUnit = quantityUnit;
@@ -179,7 +187,10 @@ class MedicationRequest {
     BigDecimal unitPrice() { return unitPrice; } BigDecimal totalAmount() { return totalAmount; } String currencyCode() { return currencyCode; }
     String itemAttributeSnapshot() { return itemAttributeSnapshot; } String itemAttributeHash() { return itemAttributeHash; }
     Instant itemAttributeResolvedAt() { return itemAttributeResolvedAt; } String standardMappingSnapshot() { return standardMappingSnapshot; }
-    BigDecimal doseValue() { return doseValue; } String doseUnit() { return doseUnit; } String routeCode() { return routeCode; }
+    BigDecimal doseValue() { return doseValue; } String doseUnit() { return doseUnit; }
+    Long routeId() { return routeId; } String routeCode() { return routeCode; }
+    String routeNameSnapshot() { return routeNameSnapshot; }
+    String routeExecutionTypeSnapshot() { return routeExecutionTypeSnapshot; }
     String frequencyCode() { return frequencyCode; } Long frequencyId() { return frequencyId; }
     String frequencyNameSnapshot() { return frequencyNameSnapshot; } String frequencyRuleSnapshot() { return frequencyRuleSnapshot; }
     BigDecimal durationValue() { return durationValue; }

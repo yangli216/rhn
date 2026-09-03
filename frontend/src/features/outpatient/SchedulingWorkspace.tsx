@@ -45,10 +45,9 @@ function scheduleTone(status: string) {
   return 'neutral' as const
 }
 
-export function SchedulingWorkspace({ api, clinicalContext, onNavigate }: {
+export function SchedulingWorkspace({ api, clinicalContext }: {
   api: RhnApi
   clinicalContext: ClinicalContext
-  onNavigate?: (path: string) => void
 }) {
   const queryClient = useQueryClient()
   const initialized = useRef(false)

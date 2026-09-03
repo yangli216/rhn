@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type ButtonHTMLAttributes,
+  type CSSProperties,
   type HTMLAttributes,
   type PropsWithChildren,
   type ReactElement,
@@ -191,19 +192,97 @@ const alertIcons: Record<AlertTone, IconName> = {
   info: 'info',
 }
 
-export function Alert({ tone = 'error', children, className = '' }: PropsWithChildren<{
+const defaultAlertDuration: Record<AlertTone, number> = {
+  error: 8_000,
+  warning: 8_000,
+  success: 4_500,
+  info: 5_000,
+}
+
+function alertText(node: ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(alertText).join('')
+  if (isValidElement<{ children?: ReactNode }>(node)) return alertText(node.props.children)
+  return ''
+}
+
+function notificationViewport(host: Element) {
+  const existing = Array.from(host.children).find((element) =>
+    element instanceof HTMLElement && element.dataset.uiNotificationViewport === 'true')
+  if (existing instanceof HTMLElement) return existing
+
+  const viewport = document.createElement('div')
+  viewport.className = 'ui-notification-viewport'
+  viewport.dataset.uiNotificationViewport = 'true'
+  viewport.setAttribute('aria-label', '系统提示')
+  host.appendChild(viewport)
+  return viewport
+}
+
+export function Alert({
+  tone = 'error',
+  children,
+  className = '',
+  duration,
+  dismissible = true,
+  onDismiss,
+}: PropsWithChildren<{
   tone?: AlertTone
   className?: string
+  /** 自动关闭毫秒数；传 null 时持续显示，直到用户关闭或业务状态解除。 */
+  duration?: number | null
+  dismissible?: boolean
+  onDismiss?: () => void
 }>) {
   const assertive = tone === 'error' || tone === 'warning'
-  return <div
-    className={`ui-alert ui-alert--${tone} ${className}`}
-    role={assertive ? 'alert' : 'status'}
-    aria-live={assertive ? 'assertive' : 'polite'}
-  >
-    <Icon className="ui-alert__icon" name={alertIcons[tone]} />
-    <div>{children}</div>
-  </div>
+  const anchorRef = useRef<HTMLSpanElement>(null)
+  const onDismissRef = useRef(onDismiss)
+  const [target, setTarget] = useState<HTMLElement | null>(null)
+  const [visible, setVisible] = useState(true)
+  const messageKey = `${tone}:${alertText(children)}`
+  const resolvedDuration = duration === undefined ? defaultAlertDuration[tone] : duration
+
+  useLayoutEffect(() => {
+    onDismissRef.current = onDismiss
+  }, [onDismiss])
+
+  useLayoutEffect(() => {
+    if (!anchorRef.current) return
+    const workspace = anchorRef.current.closest('.workspace-panel')
+    setTarget(notificationViewport(workspace ?? document.body))
+  }, [])
+
+  useEffect(() => {
+    setVisible(true)
+    if (resolvedDuration === null || resolvedDuration <= 0) return
+    const timeout = window.setTimeout(() => {
+      setVisible(false)
+      onDismissRef.current?.()
+    }, resolvedDuration)
+    return () => window.clearTimeout(timeout)
+  }, [messageKey, resolvedDuration])
+
+  const dismiss = () => {
+    setVisible(false)
+    onDismissRef.current?.()
+  }
+
+  return <>
+    <span ref={anchorRef} className="ui-alert-anchor" aria-hidden="true" />
+    {visible && target && createPortal(<div
+      className={`ui-alert ui-alert--${tone} ui-toast ${className}`}
+      role={assertive ? 'alert' : 'status'}
+      aria-live={assertive ? 'assertive' : 'polite'}
+    >
+      <Icon className="ui-alert__icon" name={alertIcons[tone]} />
+      <div className="ui-alert__content">{children}</div>
+      {dismissible && <button className="ui-toast__close" type="button" aria-label="关闭提示" onClick={dismiss}>
+        <Icon name="close" />
+      </button>}
+      {resolvedDuration !== null && resolvedDuration > 0 && <span className="ui-toast__timer" aria-hidden="true"
+        style={{ '--ui-toast-duration': `${resolvedDuration}ms` } as CSSProperties} />}
+    </div>, target)}
+  </>
 }
 
 function focusableElements(root: HTMLElement) {

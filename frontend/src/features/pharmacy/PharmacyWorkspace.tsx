@@ -96,9 +96,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const [returnQuantity, setReturnQuantity] = useState('')
   const [returnDisposition, setReturnDisposition] = useState('RESTOCK')
   const [returnReason, setReturnReason] = useState('PATIENT_NOT_USE')
-  const [patientIdentityChecked, setPatientIdentityChecked] = useState(false)
-  const [prescriptionChecked, setPrescriptionChecked] = useState(false)
-  const [dispenseProductChecked, setDispenseProductChecked] = useState(false)
 
   // Dispensing workbench specific UI states
   const [selectedWindow, setSelectedWindow] = useState('窗口1')
@@ -207,9 +204,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
 
   useEffect(() => {
     setStockItemId('')
-    setPatientIdentityChecked(false)
-    setPrescriptionChecked(false)
-    setDispenseProductChecked(false)
   }, [siteId, requestId])
 
   const selected = mode === 'ward' ? undefined : visibleInbox.find((item) => item.request.id === requestId)
@@ -682,19 +676,10 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     ? task.data?.status === 'PENDING_REVIEW' || task.data?.status === 'INTERVENTION'
     : configuredReviewMode === 'POST_DISPENSE' && Boolean(task.data && postReviewTaskStatuses.has(task.data.status)
       && !task.data.reviews.length)
-  const taskClosedAfterStop = task.data?.status === 'CANCELLED' || task.data?.status === 'STOPPED'
-  const taskNeedsReturn = task.data?.status === 'RETURN_REQUIRED'
-  const availableQuantity = balances.data?.filter((value) => value.stockStatus === 'AVAILABLE')
-    .reduce((total, value) => total + value.quantityAvailable, 0) ?? 0
-  const remainingToDispense = selectedLine ? selectedLine.plannedQuantity - selectedLine.dispensedQuantity : 0
-  const prescriptionLines = selected?.prescriptionRequests?.length
-    ? selected.prescriptionRequests : selected ? [selected.request] : []
   const activeDrugAllergies = (allergies.data ?? []).filter((value) => value.assertionType === 'ALLERGY'
     && (!value.categoryCode || value.categoryCode === 'DRUG'))
   const hasNoKnownDrugAllergy = (allergies.data ?? []).some((value) => value.assertionType === 'NO_KNOWN_DRUG_ALLERGY'
     || value.assertionType === 'NO_KNOWN_ALLERGY')
-  const dispensingCheckComplete = patientIdentityChecked && prescriptionChecked && dispenseProductChecked
-
   const copy = workspaceCopy[mode]
 
   // Calculations for bottom summary in dispensing mode
@@ -792,7 +777,8 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
               <dl className="pharmacy-facts">
                 <div><dt>申请数量</dt><dd>{formatRequestQuantity(selected.request)}</dd></div>
                 <div><dt>包装换算</dt><dd>{formatPackageConversion(selected.request)}</dd></div>
-                <div><dt>用法</dt><dd>{[selected.request.routeCode, selected.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</dd></div>
+                <div><dt>用法</dt><dd>{[selected.request.routeName ?? selected.request.routeCode,
+                  selected.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</dd></div>
                 <div><dt>处方属性快照</dt><dd>{Object.keys((selected.request.itemAttributeSnapshot.attributes as object | undefined) ?? {}).length} 项</dd></div>
               </dl>
               {mode === 'query' && <details className="pharmacy-snapshot pharmacy-snapshot--details">
@@ -889,13 +875,8 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   // DISPENSING WORKBENCH (Matching Screenshot Architecture)
   // =========================================================================
   return <div className="pharmacy-dispense-workbench">
-    {/* Floating action result notice: does not consume workbench layout space. */}
-    {actionNotice && <div key={actionNotice.id} className="pharmacy-action-toast">
-      <Alert tone={actionNotice.tone}>{actionNotice.text}</Alert>
-      <button type="button" aria-label="关闭提示" onClick={() => setActionNotice(null)}>
-        <Icon name="close" />
-      </button>
-    </div>}
+    {actionNotice && <Alert key={actionNotice.id} tone={actionNotice.tone}
+      onDismiss={() => setActionNotice(null)}>{actionNotice.text}</Alert>}
     {error && <Alert>{errorMessage(error)}</Alert>}
 
     {/* Top Action & Control Bar */}
@@ -1207,7 +1188,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                           const spec = req.packageSpec || req.preparationSpec || '200片/盒'
                           const dosage = formatDoseWithMinimumUnit(req)
                           const frequency = formatFrequencyName(req.frequencyCode, req.frequencyName)
-                          const route = formatRouteName(req.routeCode)
+                          const route = req.routeName ?? req.routeCode ?? '未填写'
                           const unitPrice = req.unitPrice ?? 21.5
                           const amount = req.totalAmount ?? (unitPrice * req.quantity)
                           const days = `${req.durationValue ?? 1} 天`
@@ -1544,21 +1525,6 @@ function ageText(birthDate?: string) {
   if (today.getMonth() < birth.getMonth()
     || today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate()) age -= 1
   return `${Math.max(age, 0)}岁`
-}
-
-function durationUnitText(value?: string) {
-  const labels: Record<string, string> = { DAY: '天', DAYS: '天', WEEK: '周', WEEKS: '周', MONTH: '月', MONTHS: '月' }
-  return labels[value?.toUpperCase() ?? ''] ?? displayUnitName(value)
-}
-
-function formatRouteName(code?: string) {
-  if (!code) return '口服'
-  const map: Record<string, string> = {
-    ORAL: '口服', PO: '口服', INTRAVENOUS: '静滴', IV: '静滴', IVGTT: '静滴',
-    INTRAMUSCULAR: '肌注', IM: '肌注', TOPICAL: '外用', EXTERNAL: '外用',
-    OPHTHALMIC: '滴眼', INHALATION: '吸入', SUBLINGUAL: '舌下含服', NASAL: '滴鼻', RECTAL: '直肠给药',
-  }
-  return map[code.toUpperCase()] ?? code
 }
 
 function formatFrequencyName(code?: string, name?: string) {

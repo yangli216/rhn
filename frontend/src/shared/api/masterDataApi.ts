@@ -413,6 +413,15 @@ export interface MedicationKnowledge {
   products: MedicationProduct[]
 }
 
+export interface MedicationRoute {
+  id: string
+  code: string
+  name: string
+  systemCode: string
+  systemVersion: string
+  executionType: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+}
+
 export interface Manufacturer {
   id: string
   revision: number
@@ -1335,9 +1344,20 @@ export function createMasterDataApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify(input),
       },
     ),
+    updateProduct: (id: string, revision: number, input: ProductInput, organizationId = '') =>
+      client.request<MedicationProduct>(
+        `/api/platform/master-data/medication-products/${id}${queryString({ organizationId })}`, {
+          method: 'PUT', body: JSON.stringify({ ...input, expectedRevision: revision }),
+        },
+      ),
     createPackage: (catalogItemId: string, input: PackageInput) => client.request<ItemPackage>(
       `/api/platform/master-data/catalog-items/${catalogItemId}/packages`, {
         method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    updatePackage: (id: string, input: PackageInput) => client.request<ItemPackage>(
+      `/api/platform/master-data/packages/${id}`, {
+        method: 'PUT', body: JSON.stringify(input),
       },
     ),
     adopt: (catalogItemId: string, input: AdoptionInput) => client.request<OrganizationAdoption>(
@@ -1500,6 +1520,9 @@ export function createMasterDataApi(client: ApiClient) {
       scene = 'OUTPATIENT', orderType = 'MEDICATION', businessDate = '') => client.request<ActiveOrderFrequency[]>(
       `/api/platform/master-data/order-frequencies/active${queryString({ organizationId, departmentId,
         scene, orderType, businessDate })}`,
+    ),
+    activeMedicationRoutes: (scene = 'OUTPATIENT', businessDate = '') => client.request<MedicationRoute[]>(
+      `/api/platform/master-data/medication-routes/active${queryString({ scene, businessDate })}`,
     ),
     createOrderFrequency: (input: OrderFrequencyInput) => client.request<OrderFrequency>(
       '/api/platform/master-data/order-frequencies', { method: 'POST', body: JSON.stringify(input) },

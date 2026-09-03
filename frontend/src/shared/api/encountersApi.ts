@@ -163,7 +163,10 @@ export interface MedicationRequest {
   antimicrobialLevel?: string
   doseValue?: number
   doseUnit?: string
+  routeId?: string
   routeCode?: string
+  routeName?: string
+  routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
   frequencyCode?: string
   frequencyId?: string
   frequencyName?: string

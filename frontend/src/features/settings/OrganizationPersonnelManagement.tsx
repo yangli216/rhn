@@ -6,9 +6,9 @@ import { z } from 'zod'
 import {
   ORGANIZATION_DICTIONARY, ORGANIZATION_SYSTEM_ENUM, errorMessage, systemEnumItems,
   type AssignmentInput, type AssignmentType, type EmploymentInput, type EmploymentType,
-  type DictionaryValue, type OrganizationKind, type OrganizationProfile,
+  type DictionaryValue, type OrganizationProfile,
   type OrganizationProfileInput, type OrganizationProfileResult, type OrganizationProfileSection,
-  type OrganizationType, type OrganizationUnit, type OrganizationUnitInput, type PersonnelStatus,
+  type OrganizationType, type OrganizationUnit, type OrganizationUnitInput,
   type PositionType, type Practitioner, type PractitionerGender, type RhnApi, type SystemEnumDefinition,
 } from '../../shared/rhnApi'
 import {

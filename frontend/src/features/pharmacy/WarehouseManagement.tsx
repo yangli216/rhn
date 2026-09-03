@@ -14,12 +14,6 @@ import { InventoryAccuracyManagement } from './InventoryAccuracyManagement'
 import { InventoryPeriodManagement } from './InventoryPeriodManagement'
 import { InventoryPriceAdjustmentManagement } from './InventoryPriceAdjustmentManagement'
 
-const siteTypeText: Record<string, string> = {
-  WAREHOUSE: '药库', PHARMACY: '药房', DEPARTMENT_STORE: '科室库', VIRTUAL: '虚拟库',
-}
-const serviceScopeText: Record<string, string> = {
-  OUTPATIENT: '门诊', INPATIENT: '住院', EMERGENCY: '急诊', COMMUNITY: '基层', MIXED: '综合',
-}
 const binTypeText: Record<string, string> = {
   ZONE: '库区', RACK: '货架', BIN: '货位', COUNTER: '柜台', TRANSIT: '在途位',
 }

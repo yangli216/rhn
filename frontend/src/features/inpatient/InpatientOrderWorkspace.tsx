@@ -206,6 +206,15 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
   const [frequency, setFrequency] = useState('')
   const [instructions, setInstructions] = useState('')
   const [validation, setValidation] = useState('')
+  const routes = useQuery({
+    queryKey: ['inpatient-medication-routes'],
+    queryFn: () => api.masterData.activeMedicationRoutes('INPATIENT'),
+    staleTime: 5 * 60 * 1000,
+  })
+  const routeOptions = (routes.data ?? []).map((value) => ({
+    value: value.code, label: value.name, secondaryText: value.code,
+    searchKeywords: [value.code, value.name],
+  }))
   const changeCategory = (value: InpatientOrderCategory) => {
     setCategory(value); setMedication(undefined); setService(undefined); setNursingName(''); setValidation('')
   }
@@ -219,6 +228,7 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
       const product = knowledge && resolveDispensableProduct(knowledge, episode.organizationId)
       if (!knowledge || !product) { setValidation('请选择已启用且可开立的药品产品。'); return }
       if (!dosage || Number(dosage) <= 0 || !dosageUnit.trim()) { setValidation('药品医嘱需要填写有效剂量和剂量单位。'); return }
+      if (!route) { setValidation('请选择给药途径。'); return }
       catalogItemId = product.product.id; itemCode = knowledge.code; itemName = knowledge.name
     } else if (category === 'SERVICE') {
       if (!service?.raw) { setValidation('请选择诊疗项目。'); return }
@@ -239,7 +249,7 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
     } catch { /* Mutation state renders the server error in the workspace alert. */ }
   }
   return <form className="inpatient-order-composer" onSubmit={submit}>
-    {validation && <Alert>{validation}</Alert>}
+    {(validation || routes.error) && <Alert>{validation || '给药途径数据加载失败'}</Alert>}
     <div className="inpatient-order-composer__core">
       <FormField label="医嘱类别" required><Select aria-label="医嘱类别" value={category} clearable={false} searchable={false}
         options={[
@@ -270,8 +280,9 @@ export function OrderComposer({ api, episode, busy, onCreate }: {
         onChange={(event) => setDosage(event.target.value)} /></FormField>
       <FormField label="单位" required><input aria-label="住院医嘱剂量单位" value={dosageUnit} maxLength={64}
         onChange={(event) => setDosageUnit(event.target.value)} /></FormField>
-      <FormField label="给药途径"><input aria-label="住院医嘱给药途径" value={route} maxLength={64} placeholder="如 PO、IVGTT"
-        onChange={(event) => setRoute(event.target.value)} /></FormField>
+      <FormField label="给药途径" required><Select aria-label="住院医嘱给药途径" value={route}
+        onChange={setRoute} showValue loading={routes.isPending} placeholder="请选择给药途径"
+        options={routeOptions} /></FormField>
       <FormField label="频次"><input aria-label="住院医嘱频次" value={frequency} maxLength={64} placeholder="如 QD、BID"
         onChange={(event) => setFrequency(event.target.value)} /></FormField>
     </div>}

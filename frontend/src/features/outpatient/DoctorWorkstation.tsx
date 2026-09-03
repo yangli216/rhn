@@ -33,7 +33,8 @@ import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
   Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
-  ObjectContextBar, PageHeader, Panel, PanelHead, StatusBadge, type ClinicalResourceOption,
+  ObjectContextBar, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  type ClinicalResourceOption, type SelectOption,
 } from '../../shared/ui'
 import {
   isInfusionRoute, type MedicationPlanDraft,
@@ -420,6 +421,19 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
       onQueueRefresh(),
     ])
   }
+  const start = useMutation({
+    mutationFn: (targetEncounter: Encounter) => api.encounters.start(targetEncounter.id, {
+      commandCode: commandCode('START', targetEncounter.id),
+      factorResults: { NAME: true, DEMOGRAPHIC_OR_IDENTIFIER: true },
+      terminalCode: 'WEB-DOCTOR-WORKSTATION',
+    }),
+    onSuccess: refresh,
+  })
+  useEffect(() => {
+    if (encounter && encounter.status === 'REGISTERED' && !start.isPending && !start.isSuccess && !start.error) {
+      start.mutate(encounter)
+    }
+  }, [encounter?.id, encounter?.status, start.isPending, start.isSuccess, start.error])
   const complete = useMutation({
     mutationFn: (input: CompleteEncounterInput) => api.encounters.complete(encounter!.id, input),
     onSuccess: async () => { setCompletionOpen(false); await refresh(); onBack() },
@@ -452,7 +466,7 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
   }
 
   return <section className="doctor-patient-workspace">
-    <ObjectContextBar avatar={resident.fullName.slice(-1)} eyebrow="当前患者" title={resident.fullName}
+    <ObjectContextBar avatar={resident.fullName.slice(-1)} title={resident.fullName}
       description={`${genderLabel(resident.gender)} · ${age(resident.birthDate)} 岁 · ${resident.maskedNationalId || '无证件标识'}`}
       facts={[{ label: '健康档案号', value: resident.healthRecordNo },
         { label: '联系电话', value: resident.phone || '未登记' },
@@ -461,34 +475,43 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
           onClick={() => setAllergyOpen(true)} /> }]}
       actions={encounter && <div className="doctor-context-actions">
-        <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
-          title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
         <StatusBadge tone={encounterStatusPresentation(encounter.status).tone}>
           {encounterStatusPresentation(encounter.status).label}</StatusBadge>
-        {encounter.status === 'IN_PROGRESS' && <>
-          <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
-            title="暂时释放当前接诊工作会话，患者返回后可继续"
-            onClick={() => requestAction('suspend')}>暂挂</Button>
-          <Button size="sm" busy={complete.isPending} disabled={aiAdoptionBusy}
-            title="进入诊毕汇总，核对费用和转归信息"
-            onClick={() => requestAction('complete')}>诊毕</Button>
-          <Button size="sm" variant="text" disabled={aiAdoptionBusy}
-            title="患者离开或明确要求停止本次诊疗"
-            onClick={() => requestAction('terminate')}>终止诊疗</Button>
-        </>}
-        {encounter.status === 'SUSPENDED' && <>
-          <Button size="sm" busy={resume.isPending}
-            title="恢复本次接诊并重新建立医生工作会话" onClick={() => resume.mutate()}>恢复接诊</Button>
-          <Button size="sm" variant="text" title="确认患者不再返回并终止本次诊疗"
-            onClick={() => requestAction('terminate')}>终止诊疗</Button>
-        </>}
+        <div className="doctor-context-actions__buttons">
+          <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
+            title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
+          {encounter.status === 'IN_PROGRESS' && <>
+            <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
+              title="暂时释放当前接诊工作会话，患者返回后可继续"
+              onClick={() => requestAction('suspend')}>暂挂</Button>
+            <Button size="sm" busy={complete.isPending} disabled={aiAdoptionBusy}
+              title="进入诊毕汇总，核对费用和转归信息"
+              onClick={() => requestAction('complete')}>诊毕</Button>
+            <Button size="sm" variant="text" disabled={aiAdoptionBusy} className="doctor-btn--terminate"
+              title="患者离开或明确要求停止本次诊疗"
+              onClick={() => requestAction('terminate')}>终止诊疗</Button>
+          </>}
+          {encounter.status === 'SUSPENDED' && <>
+            <Button size="sm" busy={resume.isPending}
+              title="恢复本次接诊并重新建立医生工作会话" onClick={() => resume.mutate()}>恢复接诊</Button>
+            <Button size="sm" variant="text" className="doctor-btn--terminate" title="确认患者不再返回并终止本次诊疗"
+              onClick={() => requestAction('terminate')}>终止诊疗</Button>
+          </>}
+        </div>
       </div>} />
-    {encounters.isPending ? <LoadingState label="正在建立就诊上下文…" /> : !encounter
+    {encounters.isPending || (encounter?.status === 'REGISTERED' && !start.error) ? <LoadingState label="正在开启接诊并建立诊疗界面…" /> : !encounter
       ? <EmptyState icon="clinical" title="没有可处理的门诊就诊" copy="请先在门诊挂号工作台完成挂号。" />
       : <div className="doctor-workspace-body">
           <main className={`doctor-workspace-main${aiAdoptionBusy ? ' is-ai-adoption-busy' : ''}`}
             aria-busy={aiAdoptionBusy || undefined}>
-            {encounter.status === 'REGISTERED' ? <IdentityStartPanel encounter={encounter} api={api} onSuccess={refresh} />
+            {encounter.status === 'REGISTERED' ? <Panel className="doctor-identity-panel">
+                <PanelHead title="接诊初始化" meta="未能自动开启接诊会话" />
+                {start.error && <Alert>{errorMessage(start.error)}</Alert>}
+                <div className="ui-form-actions">
+                  <Button busy={start.isPending} onClick={() => start.mutate(encounter)}>重试接诊</Button>
+                  <Button variant="secondary" onClick={onBack}>返回候诊队列</Button>
+                </div>
+              </Panel>
               : encounter.status === 'IN_PROGRESS' ? <ClinicalRecordPanel key={encounter.id} encounter={encounter}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
@@ -526,9 +549,9 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
               onClick={() => !aiAdoptionBusy && setActiveTool(toggleTool(activeTool, 'assistant'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
             <ToolButton icon="clinical" label="检验结果" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
-            <ToolButton icon="clinical" label="皮试管理" active={false}
+            <ToolButton icon="tasks" label="皮试管理" active={false}
               onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />
-            <ToolButton icon="tasks" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />
+            <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />
           </nav>
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
@@ -663,7 +686,7 @@ function toolLabel(value: WorkTool) {
 }
 
 function ToolButton({ icon, label, active, onClick }: {
-  icon: 'sparkles' | 'roadmap' | 'clinical' | 'tasks'; label: string; active: boolean; onClick: () => void
+  icon: 'sparkles' | 'roadmap' | 'clinical' | 'tasks' | 'organization'; label: string; active: boolean; onClick: () => void
 }) {
   const labelLines = Array.from({ length: Math.ceil(label.length / 2) }, (_, index) => label.slice(index * 2, index * 2 + 2))
   return <button type="button" className={active ? 'is-active' : ''} aria-label={label}
@@ -861,31 +884,6 @@ function allergySeverityLabel(value?: AllergyIntolerance['reactionSeverity']) {
   return value ? ({ MILD: '轻度', MODERATE: '中度', SEVERE: '重度' } as const)[value] : ''
 }
 
-function IdentityStartPanel({ encounter, api, onSuccess }: { encounter: Encounter; api: RhnApi; onSuccess: () => Promise<unknown> }) {
-  const [nameChecked, setNameChecked] = useState(false)
-  const [secondFactorChecked, setSecondFactorChecked] = useState(false)
-  const [requestCommand] = useState(() => commandCode('START', encounter.id))
-  const start = useMutation({
-    mutationFn: () => api.encounters.start(encounter.id, {
-      commandCode: requestCommand,
-      factorResults: { NAME: nameChecked, DEMOGRAPHIC_OR_IDENTIFIER: secondFactorChecked },
-      terminalCode: 'WEB-DOCTOR-WORKSTATION',
-    }),
-    onSuccess,
-  })
-  return <Panel className="doctor-identity-panel">
-    <PanelHead title="开始接诊前核验患者身份" meta="核验结果将作为不可覆盖业务事实保存" />
-    <div className="doctor-identity-checks">
-      <label><input type="checkbox" checked={nameChecked} onChange={(event) => setNameChecked(event.target.checked)} />
-        <span><strong>已向患者确认姓名</strong><small>不得仅依据候诊号判断患者身份</small></span></label>
-      <label><input type="checkbox" checked={secondFactorChecked} onChange={(event) => setSecondFactorChecked(event.target.checked)} />
-        <span><strong>已核对第二身份因子</strong><small>健康档案号、出生日期或脱敏证件信息之一</small></span></label>
-    </div>
-    {start.error && <Alert>{errorMessage(start.error)}</Alert>}
-    <div className="ui-form-actions"><Button busy={start.isPending} disabled={!nameChecked || !secondFactorChecked}
-      onClick={() => start.mutate()}>核验通过，开始接诊</Button></div>
-  </Panel>
-}
 
 const recordSchema = z.object({
   chiefComplaint: z.string().trim().min(1, '请输入主诉').max(1000),
@@ -1060,7 +1058,6 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
   onApply: (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => void
 }) {
   const queryClient = useQueryClient()
-  const [managerOpen, setManagerOpen] = useState(false)
   const [selectedId, setSelectedId] = useState('')
   const [saveOpen, setSaveOpen] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
@@ -1111,15 +1108,29 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
   })
   const error = templates.error || save.error || apply.error
 
+  const templateOptions: SelectOption[] = useMemo(() => (
+    templates.data?.length
+      ? templates.data.map((value) => ({
+          value: value.id,
+          label: `${value.scopeType === 'PERSONAL' ? '个人' : '科室'} · ${value.name}`,
+        }))
+      : [{ value: '', label: '暂无模板' }]
+  ), [templates.data])
+
   return <div className="doctor-note-template-bar">
     <div>
       <strong>病历模板</strong>
-      <select aria-label="选择病历模板" value={selectedId}
-        onChange={(event) => { setSelectedId(event.target.value); setNotice('') }}>
-        {templates.data?.length ? templates.data.map((value) => <option key={value.id} value={value.id}>
-          {value.scopeType === 'PERSONAL' ? '个人' : '科室'} · {value.name}
-        </option>) : <option value="">暂无模板</option>}
-      </select>
+      <Select
+        className="doctor-note-template-select"
+        aria-label="选择病历模板"
+        value={selectedId}
+        options={templateOptions}
+        clearable={false}
+        searchable={templateOptions.length > 5}
+        disabled={disabled || !templates.data?.length}
+        placeholder="请选择模板"
+        onChange={(val) => { setSelectedId(val); setNotice('') }}
+      />
       <Button size="sm" type="button" variant="secondary" disabled={disabled || !selected}
         onClick={openApply}>带入</Button>
       <Button size="sm" type="button" variant="text" disabled={disabled}
@@ -1387,6 +1398,15 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     setDiagnosisType('SECONDARY')
     setDiagnosisError('')
   }
+  const height = watch('heightCm')
+  const weight = watch('weightKg')
+  const bmi = height && weight && Number(height) > 0 ? (Number(weight) / ((Number(height) / 100) ** 2)).toFixed(1) : undefined
+
+  useEffect(() => {
+    const hasPrimary = diagnoses.some((d) => d.type === 'PRIMARY')
+    setDiagnosisType(hasPrimary ? 'SECONDARY' : 'PRIMARY')
+  }, [diagnoses])
+
   const makePrimary = (key: string) => setDiagnoses((current) => current.map((item) => ({
     ...item, type: (item.conceptId || `${item.diagnosisDomain}|${item.code}`) === key ? 'PRIMARY' : 'SECONDARY',
   })))
@@ -1405,28 +1425,36 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   }
   const error = save.error || sign.error || documents.error || noteForms.error
 
+  const noteFormOptions: SelectOption[] = useMemo(() => {
+    const options: SelectOption[] = [
+      { value: '', label: '基础门诊病历（简易）' },
+    ]
+    noteForms.data?.forEach((value) => {
+      options.push({ value: value.id, label: `${value.name} · V${value.version}` })
+    })
+    if (snapshotForm && !noteForms.data?.some((value) => value.id === snapshotForm.id)) {
+      options.push({ value: snapshotForm.id, label: `${snapshotForm.name} · V${snapshotForm.version}（文书快照）` })
+    }
+    return options
+  }, [noteForms.data, snapshotForm])
+
   return <section className="doctor-clinical-cockpit">
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
       <PanelHead title="门诊病历" meta={signed ? '已签署' : '病历草稿 · 保存后签署'} />
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
-      <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
-        onApply={applyNoteTemplate} />
-      <div className="doctor-note-form-mode">
-        <label><span>书写模式</span><select aria-label="病历书写模式" value={selectedNoteFormId} disabled={signed}
-          onChange={(event) => {
-            setSelectedNoteFormId(event.target.value); setStructuredValues({}); setStructuredErrors({})
-          }}>
-          <option value="">基础门诊病历（简易）</option>
-          {noteForms.data?.map((value) => <option key={value.id} value={value.id}>
-            {value.name} · V{value.version}
-          </option>)}
-          {snapshotForm && !noteForms.data?.some((value) => value.id === snapshotForm.id)
-            && <option value={snapshotForm.id}>{snapshotForm.name} · V{snapshotForm.version}（文书快照）</option>}
-        </select></label>
-        <small>{selectedNoteForm
-          ? `${selectedNoteForm.description || '按科室定义补充结构化字段'}；保存时会固化 V${selectedNoteForm.version} 定义快照。`
-          : '保留基层常用的简易书写方式；需要精细记录时再选择科室结构。'}</small>
+      <div className="doctor-record-toolbar">
+        <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
+          onApply={applyNoteTemplate} />
+        <div className="doctor-note-mode-inline">
+          <label><span>书写模式</span>
+            <Select className="doctor-note-form-select" aria-label="病历书写模式" value={selectedNoteFormId}
+              options={noteFormOptions} clearable={false} searchable={false} disabled={signed}
+              onChange={(val) => {
+                setSelectedNoteFormId(val); setStructuredValues({}); setStructuredErrors({})
+              }} />
+          </label>
+        </div>
       </div>
       <form className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
         <FormField className="doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
@@ -1441,23 +1469,70 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         <div className="doctor-physical-exam" role="group" aria-labelledby="doctor-physical-exam-label">
           <span id="doctor-physical-exam-label" className="doctor-physical-exam__label">体格检查</span>
           <div className="doctor-vital-grid">
-            <label><span>体温</span><span><input type="number" step="0.1" disabled={signed}
-              {...register('temperature', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>℃</small></span></label>
-            <label><span>脉搏</span><span><input type="number" disabled={signed}
-              {...register('pulseRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>次/分</small></span></label>
-            <label><span>呼吸</span><span><input type="number" disabled={signed}
-              {...register('respiratoryRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>次/分</small></span></label>
-            <label><span>血氧</span><span><input type="number" disabled={signed}
-              {...register('oxygenSaturation', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>%</small></span></label>
-            <label className="doctor-vital-blood-pressure"><span>血压</span><span>
-              <input aria-label="收缩压" type="number" {...register('systolic', { valueAsNumber: true })} disabled={signed} />
-              <b aria-hidden="true">/</b>
-              <input aria-label="舒张压" type="number" {...register('diastolic', { valueAsNumber: true })} disabled={signed} />
-              <small>mmHg</small></span></label>
-            <label><span>身高</span><span><input type="number" step="0.1" disabled={signed}
-              {...register('heightCm', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>cm</small></span></label>
-            <label><span>体重</span><span><input type="number" step="0.1" disabled={signed}
-              {...register('weightKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} /><small>kg</small></span></label>
+            <div className="doctor-vital-cell">
+              <span>体温</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" step="0.1" disabled={signed} placeholder="36.5"
+                  {...register('temperature', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>℃</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell">
+              <span>脉搏</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" disabled={signed} placeholder="75"
+                  {...register('pulseRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>次/分</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell">
+              <span>呼吸</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" disabled={signed} placeholder="18"
+                  {...register('respiratoryRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>次/分</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell">
+              <span>血氧</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" disabled={signed} placeholder="98"
+                  {...register('oxygenSaturation', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>%</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell doctor-vital-cell--bp">
+              <span>血压</span>
+              <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
+                <input aria-label="收缩压" type="number" placeholder="120" {...register('systolic', { valueAsNumber: true })} disabled={signed} />
+                <b>/</b>
+                <input aria-label="舒张压" type="number" placeholder="80" {...register('diastolic', { valueAsNumber: true })} disabled={signed} />
+                <small>mmHg</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell">
+              <span>身高</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" step="0.1" disabled={signed} placeholder="170"
+                  {...register('heightCm', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>cm</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell">
+              <span>体重</span>
+              <div className="doctor-vital-input-wrap">
+                <input type="number" step="0.1" disabled={signed} placeholder="65"
+                  {...register('weightKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                <small>kg</small>
+              </div>
+            </div>
+            <div className="doctor-vital-cell doctor-vital-cell--bmi">
+              <span>BMI</span>
+              <div className="doctor-vital-input-wrap">
+                <span className="doctor-vital-bmi-value">{bmi ?? '—'}</span>
+                <small>kg/m²</small>
+              </div>
+            </div>
           </div>
           {Object.values({ systolic: formState.errors.systolic, diastolic: formState.errors.diastolic,
             temperature: formState.errors.temperature, pulseRate: formState.errors.pulseRate,
@@ -1497,24 +1572,37 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             allergies={allergies} api={api} disabled={signed} />} />
         <div className="doctor-diagnosis-content">
           <div className="doctor-diagnosis-editor">
-            <FormField label="诊断体系"><select value={diagnosisDomainFilter} disabled={signed}
-              onChange={(event) => { setDiagnosisDomainFilter(event.target.value); setDiagnosisSearch(undefined) }}>
-              <option value="">全部体系</option><option value="WESTERN_MEDICINE">西医诊断</option>
-              <option value="TCM_DISEASE">中医病名</option><option value="TCM_SYNDROME">中医证候</option>
-            </select></FormField>
-            <FormField label="诊断检索" required error={diagnosisError || undefined}>
+            <div className="doctor-diagnosis-domain-wrap">
+              <Select aria-label="诊断体系" value={diagnosisDomainFilter} clearable={false} searchable={false}
+                disabled={signed}
+                options={[
+                  { value: '', label: '全部体系' },
+                  { value: 'WESTERN_MEDICINE', label: '西医诊断' },
+                  { value: 'TCM_DISEASE', label: '中医病名' },
+                  { value: 'TCM_SYNDROME', label: '中医证候' },
+                ]}
+                onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
+            </div>
+            <div className="doctor-diagnosis-search-wrap">
               <ClinicalResourceSearch<DiseaseConcept> api={api} resource="diagnosis" value={diagnosisSearch}
                 filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
-                disabled={signed} onChange={(option) => { setDiagnosisSearch(option); setDiagnosisError('') }} />
-            </FormField>
-            <FormField label="诊断类型"><select value={diagnosisType} disabled={signed}
-              onChange={(event) => setDiagnosisType(event.target.value as DiagnosisInput['type'])}>
-              <option value="SECONDARY">次要诊断</option><option value="PRIMARY">主要诊断</option>
-            </select></FormField>
+                disabled={signed} placeholder="检索并选择诊断 (支持名称/拼音/ICD编码)"
+                onChange={(option) => { setDiagnosisSearch(option); setDiagnosisError('') }} />
+            </div>
+            <div className="doctor-diagnosis-type-wrap">
+              <Select aria-label="诊断类型" value={diagnosisType} clearable={false} searchable={false}
+                disabled={signed}
+                options={[
+                  { value: 'PRIMARY', label: '主要诊断' },
+                  { value: 'SECONDARY', label: '次要诊断' },
+                ]}
+                onChange={(val) => setDiagnosisType(val as DiagnosisInput['type'])} />
+            </div>
             <Button type="button" variant="secondary" disabled={signed || !diagnosisSearch} onClick={addDiagnosis}>加入诊断</Button>
           </div>
+          {diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
           <div className="doctor-diagnosis-list" aria-label="本次诊断">
-            {diagnoses.length === 0 ? <p>尚未录入诊断</p> : diagnoses.map((item) => {
+            {diagnoses.length === 0 ? <p className="doctor-diagnosis-empty">尚未录入诊断（接诊需至少录入一项主要诊断）</p> : diagnoses.map((item) => {
               const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
               return <div key={key}>
               <StatusBadge tone={item.type === 'PRIMARY' ? 'success' : 'neutral'}>{item.type === 'PRIMARY' ? '主要' : '次要'}</StatusBadge>
@@ -1725,6 +1813,7 @@ function stageTemplate(value: OutpatientPlanTemplate, currentDiagnoses: Diagnosi
     id: globalThis.crypto.randomUUID(), sequence: Date.now() + index, editorMode: item.editorMode, categoryCode: item.categoryCode,
     medicationName: item.medicationName, medicationCode: item.medicationCode,
     preparationSpec: item.preparationSpec, productName: item.productName || item.medicationName,
+    routeName: item.routeName, routeExecutionType: item.routeExecutionType,
     request: {
       medicationId: item.medicationId, catalogItemId: item.catalogItemId, packageId: item.packageId,
       doseValue: item.doseValue, doseUnit: item.doseUnit, routeCode: item.routeCode,
@@ -1997,19 +2086,10 @@ function HistoricalReprintDialog({ api, record, onReprinted, onClose }: {
   </Dialog>
 }
 
-function medicationUsage(item: MedicationRequest) {
-  return [
-    `${item.quantity} ${item.quantityUnit}`,
-    item.doseValue && `${item.doseValue} ${item.doseUnit || ''}`,
-    item.routeCode,
-    item.frequencyCode,
-  ].filter(Boolean).join(' · ')
-}
-
 function resolveMedicationPlanParent(values: MedicationRequest[], draft: MedicationPlanDraft) {
-  if (!isInfusionRoute(draft.request.routeCode)) return undefined
+  if (!isInfusionRoute(draft.request.routeCode, draft.routeExecutionType)) return undefined
   const previous = values.filter((item) => item.status !== 'CANCELLED').at(-1)
-  if (previous && isInfusionRoute(previous.routeCode)
+  if (previous && isInfusionRoute(previous.routeCode, previous.routeExecutionType)
     && previous.routeCode?.trim().toUpperCase() === draft.request.routeCode?.trim().toUpperCase()
     && previous.frequencyCode === draft.request.frequencyCode
     && String(previous.durationValue ?? '') === String(draft.request.durationValue ?? '')) {
@@ -2042,10 +2122,6 @@ function EncounterFeeSummary({ statement, showCharges = false }: {
 function money(value: number, currencyCode = 'CNY') {
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: currencyCode,
     minimumFractionDigits: 2 }).format(value)
-}
-
-function orderStatusLabel(status: string) {
-  return ({ DRAFT: '草稿', ACTIVE: '已开立', SUBMITTED: '已提交', CANCELLED: '已撤销' } as Record<string, string>)[status] ?? status
 }
 
 function ResultsPanel({ encounter, api }: { encounter: Encounter; api: RhnApi }) {

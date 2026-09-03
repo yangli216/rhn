@@ -148,10 +148,21 @@ public class MasterDataController {
                 optional(request.priceDocumentCode()));
     }
 
+    @PutMapping("/medication-products/{id}")
+    MedicationProductView updateProduct(@PathVariable Long id, @Valid @RequestBody UpdateProductRequest request,
+                                        @RequestParam(required = false) Long organizationId) {
+        return service.updateProduct(id, revision(request.expectedRevision()), request.command(), organizationId);
+    }
+
     @PostMapping("/catalog-items/{id}/packages")
     @ResponseStatus(HttpStatus.CREATED)
     PackageView createPackage(@PathVariable Long id, @Valid @RequestBody PackageRequest request) {
         return service.createPackage(id, request.command());
+    }
+
+    @PutMapping("/packages/{id}")
+    PackageView updatePackage(@PathVariable Long id, @Valid @RequestBody PackageRequest request) {
+        return service.updatePackage(id, request.command());
     }
 
     @PostMapping("/catalog-items/{id}/organization-adoptions")
@@ -336,6 +347,34 @@ public class MasterDataController {
             @Size(max = 4000) String indication,
             String instruction) {
         ProductCommand command() { return new ProductCommand(medicationId, manufacturerId, clean(code),
+                optional(tradeName), optional(approvalCode), optional(traceCode), approvalFrom, approvalTo,
+                optional(registrationCode), registrationFrom, registrationTo, optional(purchaseCode),
+                optional(sdMarketStatus), optional(sdProductionPlace), otc, centralPurchase, importAllowed,
+                traceSplitRequired, orderable, chargeable, stocked, shelfLifeValue, optional(sdShelfLifeUnit),
+                sdStatus, validFrom, validTo, optional(indication), optional(instruction)); }
+    }
+
+    record UpdateProductRequest(
+            @NotNull @Min(0) BigInteger expectedRevision,
+            @NotNull Long manufacturerId,
+            @Size(max = 300) String tradeName,
+            @Size(max = 128) String approvalCode,
+            @Pattern(regexp = "^[0-9]{7}$", message = "追溯码应为7位数字") String traceCode,
+            LocalDate approvalFrom, LocalDate approvalTo,
+            @Size(max = 128) String registrationCode,
+            LocalDate registrationFrom, LocalDate registrationTo,
+            @Size(max = 128) String purchaseCode,
+            @Size(max = 32) String sdMarketStatus,
+            @Size(max = 32) String sdProductionPlace,
+            boolean otc, boolean centralPurchase, boolean importAllowed, boolean traceSplitRequired,
+            boolean orderable, boolean chargeable, boolean stocked,
+            @DecimalMin(value = "0", inclusive = false) BigDecimal shelfLifeValue,
+            @Size(max = 32) String sdShelfLifeUnit,
+            @NotBlank @Size(max = 32) String sdStatus,
+            @NotNull LocalDate validFrom, LocalDate validTo,
+            @Size(max = 4000) String indication,
+            String instruction) {
+        ProductCommand command() { return new ProductCommand(null, manufacturerId, null,
                 optional(tradeName), optional(approvalCode), optional(traceCode), approvalFrom, approvalTo,
                 optional(registrationCode), registrationFrom, registrationTo, optional(purchaseCode),
                 optional(sdMarketStatus), optional(sdProductionPlace), otc, centralPurchase, importAllowed,

@@ -94,6 +94,35 @@ public class MedicationProduct {
         this.createdAt = Instant.now(); this.createdBy = actorId; this.updatedAt = this.createdAt; this.updatedBy = actorId;
     }
 
+    public void update(long expectedRevision, Long actorId, Long manufacturerId, String name, String unitCode,
+                       String tradeName, String approvalCode, String traceCode, LocalDate approvalFrom,
+                       LocalDate approvalTo, String registrationCode, LocalDate registrationFrom,
+                       LocalDate registrationTo, String purchaseCode, String marketStatus, String productionPlace,
+                       boolean otc, boolean centralPurchase, boolean importAllowed, boolean traceSplitRequired,
+                       boolean orderable, boolean chargeable, boolean stocked, BigDecimal shelfLifeValue,
+                       String shelfLifeUnit, String status, LocalDate validFrom, LocalDate validTo,
+                       String indication, String instruction) {
+        if (revision != expectedRevision) throw new IllegalStateException("药品产品已被其他用户修改，请刷新后重试");
+        ServiceCatalogItem.requirePeriod(validFrom, validTo);
+        ServiceCatalogItem.requirePeriod(approvalFrom == null ? LocalDate.MIN : approvalFrom, approvalTo);
+        ServiceCatalogItem.requirePeriod(registrationFrom == null ? LocalDate.MIN : registrationFrom, registrationTo);
+        if (shelfLifeValue != null && shelfLifeValue.signum() <= 0) {
+            throw new IllegalArgumentException("产品有效期必须大于0");
+        }
+        this.manufacturerId = manufacturerId; this.name = name; this.unitCode = unitCode;
+        this.tradeName = tradeName; this.approvalCode = approvalCode; this.traceCode = traceCode;
+        this.approvalFrom = approvalFrom; this.approvalTo = approvalTo;
+        this.registrationCode = registrationCode; this.registrationFrom = registrationFrom;
+        this.registrationTo = registrationTo; this.purchaseCode = purchaseCode;
+        this.marketStatus = marketStatus; this.productionPlace = productionPlace; this.otc = otc;
+        this.centralPurchase = centralPurchase; this.importAllowed = importAllowed;
+        this.traceSplitRequired = traceSplitRequired; this.orderable = orderable; this.chargeable = chargeable;
+        this.stocked = stocked; this.shelfLifeValue = shelfLifeValue; this.shelfLifeUnit = shelfLifeUnit;
+        this.status = status; this.validFrom = validFrom; this.validTo = validTo;
+        this.indication = indication; this.instruction = instruction;
+        this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
     public void changeStatus(long expectedRevision, Long actorId, String status) {
         if (revision != expectedRevision) throw new IllegalStateException("药品产品已被其他用户修改，请刷新后重试");
         this.status = status; this.updatedAt = Instant.now(); this.updatedBy = actorId;

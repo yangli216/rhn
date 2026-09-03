@@ -21,6 +21,7 @@ interface PrescriptionLineDraft {
   doseValue: number | ''
   doseUnit: string
   routeCode: string
+  routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
   frequencyCode: string
   durationValue: number | ''
   quantity: number | ''
@@ -39,6 +40,8 @@ export interface MedicationPlanDraft {
   medicationCode: string
   preparationSpec?: string
   productName: string
+  routeName?: string
+  routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
   request: Omit<CreateMedicationRequestInput, 'prescriptionId' | 'parentRequestId'>
 }
 
@@ -69,6 +72,15 @@ export function PrescriptionListEditor({
     secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}`,
     searchKeywords: [frequency.code, frequency.shortName ?? ''],
   }))
+  const routes = useQuery({
+    queryKey: ['outpatient-medication-routes'],
+    queryFn: () => api.masterData.activeMedicationRoutes('OUTPATIENT'),
+    staleTime: 5 * 60 * 1000,
+  })
+  const routeOptions = (routes.data ?? []).map((route) => ({
+    value: route.code, label: route.name, secondaryText: route.code,
+    searchKeywords: [route.code, route.name],
+  }))
   const cancelLine = useMutation({
     mutationFn: (value: MedicationRequest) => api.encounters.cancelMedicationRequest(
       encounter.id, value.id, value.revision, '医生站撤销'),
@@ -76,22 +88,24 @@ export function PrescriptionListEditor({
   })
 
   return <div className="doctor-prescription-list-editor">
-    {(frequencies.error || cancelLine.error) && <Alert className="doctor-order-error">
-      {errorMessage(frequencies.error || cancelLine.error)}</Alert>}
+    {(frequencies.error || routes.error || cancelLine.error) && <Alert className="doctor-order-error">
+      {errorMessage(frequencies.error || routes.error || cancelLine.error)}</Alert>}
     <PrescriptionEditorSection mode="regular" encounter={encounter} allergies={allergies}
       prescriptions={prescriptions} drafts={drafts} onDraftsChange={onDraftsChange} api={api}
       frequencyOptions={frequencyOptions} frequencyLoading={frequencies.isPending}
+      routes={routes.data ?? []} routeOptions={routeOptions} routeLoading={routes.isPending}
       cancelBusy={cancelLine.isPending} onCancel={(value) => cancelLine.mutate(value)} onPrint={onPrint} />
     <PrescriptionEditorSection mode="herbal" encounter={encounter} allergies={allergies}
       prescriptions={prescriptions} drafts={drafts} onDraftsChange={onDraftsChange} api={api}
       frequencyOptions={frequencyOptions} frequencyLoading={frequencies.isPending}
+      routes={routes.data ?? []} routeOptions={routeOptions} routeLoading={routes.isPending}
       cancelBusy={cancelLine.isPending} onCancel={(value) => cancelLine.mutate(value)} onPrint={onPrint} />
   </div>
 }
 
 function PrescriptionEditorSection({
   mode, encounter, allergies, prescriptions, drafts, onDraftsChange, api,
-  frequencyOptions, frequencyLoading, cancelBusy, onCancel, onPrint,
+  frequencyOptions, frequencyLoading, routes, routeOptions, routeLoading, cancelBusy, onCancel, onPrint,
 }: {
   mode: EditorMode
   encounter: Encounter
@@ -102,6 +116,9 @@ function PrescriptionEditorSection({
   api: RhnApi
   frequencyOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
   frequencyLoading: boolean
+  routes: import('../../shared/api/masterDataApi').MedicationRoute[]
+  routeOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
+  routeLoading: boolean
   cancelBusy: boolean
   onCancel: (value: MedicationRequest) => void
   onPrint: (value: Prescription) => void
@@ -143,7 +160,8 @@ function PrescriptionEditorSection({
       medication: option,
       doseValue: medication?.defaultDose ?? '',
       doseUnit: medication?.defaultDoseUnit ?? medication?.preparationUnit ?? '',
-      routeCode: medication?.defaultRoute ?? (mode === 'herbal' ? 'PO' : ''),
+      routeCode: medication?.defaultRoute ?? (mode === 'herbal' ? 'ORAL' : ''),
+      routeExecutionType: routes.find((value) => value.code === medication?.defaultRoute)?.executionType,
       frequencyCode: medication?.defaultFrequency ?? (mode === 'herbal' ? herbalFrequency : ''),
       quantity: mode === 'herbal' ? 1 : current.quantity,
       dispenseOptionKey: defaultDispenseOption?.key ?? '',
@@ -187,13 +205,15 @@ function PrescriptionEditorSection({
       medicationCode: medication.code,
       preparationSpec: medication.preparationSpec,
       productName: product.product.name,
+      routeName: mode === 'herbal' ? '口服' : routes.find((value) => value.code === line.routeCode)?.name,
+      routeExecutionType: mode === 'herbal' ? 'NONE' : line.routeExecutionType,
       request: {
         medicationId: medication.id,
         catalogItemId: product.product.id,
         packageId: product.itemPackage?.id,
         doseValue,
         doseUnit: line.doseUnit.trim(),
-        routeCode: mode === 'herbal' ? 'PO' : line.routeCode.trim(),
+        routeCode: mode === 'herbal' ? 'ORAL' : line.routeCode.trim(),
         frequencyCode: mode === 'herbal' ? herbalFrequency.trim() : line.frequencyCode.trim(),
         durationValue: mode === 'herbal' ? herbalDoseCount
           : line.durationValue === '' ? undefined : Number(line.durationValue),
@@ -268,7 +288,7 @@ function PrescriptionEditorSection({
         : <HerbalPlanRow key={draft.id} value={draft} index={visibleLines.length + index + 1}
           onRemove={() => onDraftsChange((current) => current.filter((item) => item.id !== draft.id))} />)}
       <div className="doctor-prescription-grid__entry" role="row" key={line.key}>
-        <span className="doctor-prescription-group-cell">{mode === 'regular' ? (isInfusionRoute(line.routeCode) ? 'IV' : '—')
+        <span className="doctor-prescription-group-cell">{mode === 'regular' ? (isInfusionRoute(line.routeCode, line.routeExecutionType) ? 'IV' : '—')
           : visibleLines.length + visibleDrafts.length + 1}</span>
         <ClinicalResourceSearch<MedicationKnowledge> id={`doctor-${mode}-medication-search`} api={api}
           resource="medication" organizationId={encounter.organizationId} value={line.medication}
@@ -282,9 +302,13 @@ function PrescriptionEditorSection({
         <input data-rx-mode={mode} data-rx-field="doseUnit" aria-label="剂量单位" value={line.doseUnit}
           onChange={(event) => update('doseUnit', event.target.value)} onKeyDown={(event) => nextOnEnter(event, 'doseUnit')} />
         {mode === 'regular' ? <>
-          <input data-rx-mode={mode} data-rx-field="routeCode" aria-label="给药途径" value={line.routeCode}
-            placeholder="PO/IVGTT" onChange={(event) => update('routeCode', event.target.value)}
-            onKeyDown={(event) => nextOnEnter(event, 'routeCode')} />
+          <Select aria-label="给药途径" value={line.routeCode} showValue loading={routeLoading}
+            placeholder="给药途径" options={routeOptions} onChange={(value) => {
+              setValidationError('')
+              setLine((current) => ({ ...current, routeCode: value,
+                routeExecutionType: routes.find((route) => route.code === value)?.executionType }))
+              focusField(mode, 'frequencyCode')
+            }} />
           <Select id={`doctor-${mode}-frequency`} aria-label="频次" value={line.frequencyCode} onChange={(value) => {
             update('frequencyCode', value)
             focusField(mode, 'durationValue')
@@ -342,7 +366,8 @@ function RegularSavedRow({ value, groupLabel, busy, onCancel }: {
   return <div className={`doctor-prescription-grid__saved ${groupLabel ? 'is-grouped' : ''}`} role="row">
     <span className="doctor-prescription-group-cell">{groupLabel || '—'}</span>
     <span className="doctor-prescription-drug"><strong>{value.medicationName}</strong><small>{value.preparationSpec || value.medicationCode}</small></span>
-    <span>{value.doseValue ?? '—'}</span><span>{value.doseUnit || '—'}</span><span>{value.routeCode || '—'}</span>
+    <span>{value.doseValue ?? '—'}</span><span>{value.doseUnit || '—'}</span>
+    <span>{value.routeName || value.routeCode || '—'}</span>
     <span>{value.frequencyCode || '—'}</span><span>{value.durationValue ? `${value.durationValue}${value.durationUnit || '天'}` : '—'}</span>
     <span>{value.quantity} {value.quantityUnit}</span><span title={value.medicationInstruction}>{value.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone={value.status === 'DRAFT' ? 'warning'
@@ -374,7 +399,8 @@ function RegularPlanRow({ value, groupLabel, onRemove }: {
     <span className="doctor-prescription-group-cell">{groupLabel || '—'}</span>
     <span className="doctor-prescription-drug"><strong>{value.medicationName}</strong>
       <small>{value.preparationSpec || value.medicationCode}</small></span>
-    <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span><span>{request.routeCode || '—'}</span>
+    <span>{request.doseValue ?? '—'}</span><span>{request.doseUnit || '—'}</span>
+    <span>{value.routeName || request.routeCode || '—'}</span>
     <span>{request.frequencyCode || '—'}</span><span>{request.durationValue ? `${request.durationValue}${request.durationUnit || '天'}` : '—'}</span>
     <span>{request.quantity} {request.quantityUnit}</span><span title={request.medicationInstruction}>{request.medicationInstruction || '—'}</span>
     <span className="doctor-prescription-row-action"><StatusBadge tone="warning">待确认</StatusBadge>
@@ -430,17 +456,16 @@ function focusMedication(mode: EditorMode) {
   window.requestAnimationFrame(() => document.getElementById(`doctor-${mode}-medication-search`)?.focus())
 }
 
-export function isInfusionRoute(route: string | undefined) {
-  const normalized = route?.trim().toUpperCase() ?? ''
-  return ['IV', 'IVGTT', 'IV_DRIP', 'INTRAVENOUS'].includes(normalized)
-    || normalized.includes('输液') || normalized.includes('静滴')
+export function isInfusionRoute(_route: string | undefined, executionType?: string) {
+  return executionType === 'INFUSION'
 }
 
 function administrationGroupLabels(values: MedicationRequest[]) {
   const labels = new Map<string, string>()
   const rootLabels = new Map<string, string>()
   let sequence = 0
-  values.filter((value) => value.status !== 'CANCELLED' && isInfusionRoute(value.routeCode)).forEach((value) => {
+  values.filter((value) => value.status !== 'CANCELLED'
+    && isInfusionRoute(value.routeCode, value.routeExecutionType)).forEach((value) => {
     const rootId = value.parentRequestId || value.id
     let label = rootLabels.get(rootId)
     if (!label) {
@@ -458,7 +483,7 @@ function draftAdministrationGroupLabels(values: MedicationPlanDraft[]) {
   let previousKey = ''
   let currentLabel = ''
   values.forEach((value) => {
-    if (!isInfusionRoute(value.request.routeCode)) { previousKey = ''; currentLabel = ''; return }
+    if (!isInfusionRoute(value.request.routeCode, value.routeExecutionType)) { previousKey = ''; currentLabel = ''; return }
     const key = [value.request.routeCode?.trim().toUpperCase(), value.request.frequencyCode,
       value.request.durationValue ?? ''].join('|')
     if (key !== previousKey) currentLabel = `IV-${String(++sequence).padStart(2, '0')}`

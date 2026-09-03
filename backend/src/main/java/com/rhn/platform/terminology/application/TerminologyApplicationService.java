@@ -45,6 +45,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -193,6 +194,26 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("VALUE_SET_MEMBER_INVALID",
                         "代码 " + conceptCode + " 不属于值域 " + valueSetCode, HttpStatus.BAD_REQUEST));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ConceptView> findValueSetMember(Long tenantId, String valueSetCode, String codeDisplayOrAlias,
+                                                    LocalDate atDate) {
+        String candidate = clean(codeDisplayOrAlias);
+        if (candidate == null) return Optional.empty();
+        List<ConceptView> concepts = expandValueSet(tenantId, valueSetCode, atDate);
+        Optional<ConceptView> direct = concepts.stream()
+                .filter(value -> value.code().equalsIgnoreCase(candidate) || value.display().equalsIgnoreCase(candidate))
+                .findFirst();
+        if (direct.isPresent()) return direct;
+        Map<Long, ConceptView> byId = concepts.stream().collect(Collectors.toMap(ConceptView::id, Function.identity()));
+        return aliasRepository.findByConceptIdIn(byId.keySet()).stream()
+                .filter(alias -> alias.status() == TerminologyStatus.ACTIVE)
+                .filter(alias -> alias.aliasName().equalsIgnoreCase(candidate))
+                .map(alias -> byId.get(alias.conceptId()))
+                .filter(Objects::nonNull)
+                .findFirst();
     }
 
     @Override

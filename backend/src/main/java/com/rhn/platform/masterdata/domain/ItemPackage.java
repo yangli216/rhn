@@ -44,6 +44,18 @@ public class ItemPackage {
         this.defaultDispense = defaultDispense; this.status = status; this.validFrom = validFrom; this.validTo = validTo;
     }
 
+    public void update(Long basePackageId, String unitCode, String unitName, String packageSpec,
+                       BigDecimal quantityFactor, String usageType, String barcode,
+                       boolean defaultPurchase, boolean defaultSale, boolean defaultDispense, String status,
+                       LocalDate validFrom, LocalDate validTo) {
+        if (quantityFactor == null || quantityFactor.signum() <= 0) throw new IllegalArgumentException("包装换算数量必须大于0");
+        ServiceCatalogItem.requirePeriod(validFrom, validTo);
+        this.basePackageId = basePackageId; this.unitCode = unitCode; this.unitName = unitName;
+        this.packageSpec = packageSpec; this.quantityFactor = quantityFactor; this.usageType = usageType;
+        this.barcode = barcode; this.defaultPurchase = defaultPurchase; this.defaultSale = defaultSale;
+        this.defaultDispense = defaultDispense; this.status = status; this.validFrom = validFrom; this.validTo = validTo;
+    }
+
     public Long id() { return id; } public Long tenantId() { return tenantId; } public Long catalogItemId() { return catalogItemId; }
     public Long basePackageId() { return basePackageId; } public String unitCode() { return unitCode; }
     public String unitName() { return unitName; } public String packageSpec() { return packageSpec; }

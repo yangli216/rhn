@@ -36,7 +36,7 @@ describe('SchedulingWorkspace', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
 
     render(<QueryClientProvider client={queryClient}>
-      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} />
     </QueryClientProvider>)
 
     expect(await screen.findByText('按科室挂号')).toBeInTheDocument()
@@ -86,7 +86,7 @@ describe('SchedulingWorkspace', () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'request-1' })
 
     render(<QueryClientProvider client={queryClient}>
-      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      <SchedulingWorkspace api={api} clinicalContext={clinicalContext} />
     </QueryClientProvider>)
 
     expect(await screen.findByText('建立规则模板并生成班次')).toBeInTheDocument()

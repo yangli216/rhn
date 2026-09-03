@@ -720,7 +720,7 @@ export function AppShell() {
 
   if (restoringSession) return <LoadingState label="正在恢复登录状态…" />
   if (!authenticated) return <LoginScreen onLogin={login} error={loginError} />
-  const { api, session, activeContexts } = authenticated
+  const { session, activeContexts } = authenticated
   const fallbackSlot = Object.values(activeContexts)[0]
   if (!fallbackSlot) return <LoginScreen onLogin={login} error="当前账号没有可用工作上下文" />
   const activeContextType = workContextTypeForPath(location.pathname)
@@ -844,7 +844,7 @@ export function AppShell() {
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                    clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}

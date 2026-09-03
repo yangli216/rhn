@@ -23,7 +23,7 @@
 | `ClinicalResourceSearch` | 临床业务主数据检索 | 通过 `resource` 配置诊断、通用药品或诊疗项目，统一适配接口和结果文案 |
 | `FormSelect` | 表单下拉适配 | 与 React Hook Form 的 `control`、字段值和校验状态集成 |
 | `TreePanel` | 分类、目录和层级对象维护 | 检索、展开/收起、选中、增改删操作插槽、拖拽与键盘排序、层级调整 |
-| `Alert` | 页面或表单反馈 | error/warning/success/info 语义与读屏播报 |
+| `Alert` | 全局提示反馈 | 顶部向下浮现、自动关闭、手动关闭、消息堆叠、error/warning/success/info 语义与读屏播报 |
 | `StatusBadge` | 业务状态 | success/info/warning/danger/neutral 语义色 |
 | `LoadingState` / `EmptyState` | 异步区域状态 | 状态播报、统一空状态结构和可选操作 |
 | `Dialog` | 单任务弹窗 | 焦点约束、Escape、焦点恢复、滚动锁定 |
@@ -58,6 +58,14 @@ return <>
 PC 端配置、基础数据和平台管理页面默认使用 `compact`。工作区 Tab 已承担当前页面识别，紧凑标题中的眉题、标题和说明只保留语义结构、不重复显示；存在主操作时仅显示操作区，并优先与页面内分类 Tab 合并。所有模块的 `PageHeader` 均吸附在主内容滚动区顶部，标题与主操作在长页面滚动时保持可见，但不固定到浏览器页面，也不与分类 Tab 叠加形成双层吸顶。带模块标题的页面顶部不保留可滚动空白，标题初始位置和吸顶位置必须一致。长列表页面应固定分类、筛选和操作区，仅让数据列表容器内部滚动；列表表头在滚动容器内保持可见。移动端或强调叙事与引导的页面可继续使用默认标题模式。
 
 平台管理页面不得自行用 `role="tablist"`、搜索输入框外壳或裸表格复制上述交互。业务差异通过 `Tabs` 的变体、组件 `className` 的布局修饰和表格单元格内容表达，不重复定义边框、圆角、焦点环、键盘行为或滚动规则。
+
+所有跨区域的成功、失败、警告和一般提示统一使用 `Alert`。组件默认挂载到当前工作页的顶部浮层，从上向下依次出现，不参与内容区布局；成功提示默认显示 4.5 秒，普通提示 5 秒，警告和错误 8 秒。需要延长、持续显示或在关闭后同步业务状态时，分别使用 `duration`、`duration={null}` 和 `onDismiss`，不要在业务模块内另建 Toast。
+
+```tsx
+<Alert tone="success">保存成功</Alert>
+<Alert tone="warning" duration={10_000}>库存即将不足，请及时补货。</Alert>
+<Alert duration={null} onDismiss={() => setError('')}>{error}</Alert>
+```
 
 ## 字典下拉框
 

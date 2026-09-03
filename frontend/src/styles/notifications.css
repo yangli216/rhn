@@ -1,0 +1,94 @@
+.ui-alert-anchor { display: none; }
+
+.ui-notification-viewport {
+  position: fixed;
+  z-index: var(--z-toast);
+  top: calc(var(--layout-topbar-height) + var(--space-3));
+  right: var(--space-4);
+  left: calc(var(--active-sidebar-width, 0rem) + var(--space-4));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.ui-toast.ui-alert {
+  position: relative;
+  width: min(42rem, 100%);
+  min-height: var(--control-height-lg);
+  margin: 0;
+  padding: var(--space-3) var(--space-12) var(--space-3) var(--space-4);
+  align-items: center;
+  overflow: hidden;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-modal);
+  pointer-events: auto;
+  animation: ui-toast-enter var(--motion-slow) var(--ease-standard) both;
+}
+
+.ui-toast.ui-alert--error { background: var(--color-danger-soft); }
+.ui-toast.ui-alert--warning { background: var(--color-warning-soft); }
+.ui-toast.ui-alert--success { background: var(--color-success-soft); }
+.ui-toast.ui-alert--info { background: var(--color-info-soft); }
+
+.ui-alert__content { min-width: 0; flex: 1; }
+
+.ui-toast__close {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: currentColor;
+  background: transparent;
+  transform: translateY(-50%);
+}
+
+.ui-toast__close:hover,
+.ui-toast__close:focus-visible {
+  outline: 0;
+  background: color-mix(in srgb, currentColor 9%, transparent);
+}
+
+.ui-toast__close .ui-icon { width: 1rem; height: 1rem; }
+
+.ui-toast__timer {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.35;
+  transform-origin: left;
+  animation: ui-toast-timer var(--ui-toast-duration) linear both;
+}
+
+@keyframes ui-toast-enter {
+  from { opacity: 0; transform: translateY(calc(-100% - var(--space-3))); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ui-toast-timer {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+@media (max-width: 47.5rem) {
+  .ui-notification-viewport {
+    top: calc(var(--layout-topbar-height) + var(--space-2));
+    right: var(--space-3);
+    left: var(--space-3);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-toast.ui-alert { animation: none; }
+  .ui-toast__timer { animation-timing-function: step-end; }
+}
