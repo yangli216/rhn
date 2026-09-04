@@ -151,6 +151,16 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
         return transactions.view(order.id(), false);
     }
 
+    public PaymentOrderView cancel(Long orderId) {
+        PaymentOrder order = transactions.require(orderId);
+        if (terminal(order.status())) return transactions.view(order.id(), false);
+        transactions.transition(order.id(), new PaymentOrderTransactionService.TransitionCommand(
+                "CANCEL", "CANCELLED", "CANCEL-" + order.orderNo(), null,
+                order.externalOrderNo(), null, null, order.capturedAmount(),
+                "OPERATOR_CANCELLED", "收银员主动取消支付订单"));
+        return transactions.view(order.id(), false);
+    }
+
     public List<RecoveryResult> recoverPending(String batchCode, int limit) {
         String batch = batchCode == null || batchCode.isBlank() ? "PAYMENT-RECOVERY" : batchCode.trim();
         return transactions.recoveryWorklist(limit).stream().map(item -> {

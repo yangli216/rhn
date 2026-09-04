@@ -91,7 +91,7 @@ describe('RegistrationQueryWorkspace', () => {
 
     await userEvent.clear(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'))
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
-    await userEvent.click(screen.getByRole('button', { name: '去接诊' }))
+    await userEvent.click(screen.getByRole('button', { name: '查看就诊' }))
     expect(onNavigate).toHaveBeenCalledWith(
       '/outpatient/reception?residentId=resident-1&encounterId=encounter-1',
     )

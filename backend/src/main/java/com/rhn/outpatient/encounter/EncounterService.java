@@ -117,24 +117,11 @@ public class EncounterService implements EncounterDirectory {
                 ? "REG-" + com.rhn.shared.id.GlobalIds.next() : request.idempotencyCode().trim();
         var replay = registrationDirectory.findByIdempotency(idempotencyCode);
         if (replay.isPresent()) return get(replay.get().encounterId());
-        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshotForUpdate(request.residentId());
-        Long residentId = resident.id();
+        Long residentId = requireRegistrationEligible(request.residentId(), request.organizationId(), request.departmentId());
         replay = registrationDirectory.findByIdempotency(idempotencyCode);
         if (replay.isPresent()) return get(replay.get().encounterId());
-        if (resident.deceased()) {
-            throw conflict("RESIDENT_DECEASED", "已登记死亡的居民不能发起普通门诊挂号");
-        }
         Long tenantId = TenantContext.requireTenantId();
         ExecutionContext context = executionContextProvider.requireCurrent();
-        if (context.hasWorkContext() && !context.canAccessOrganization(request.organizationId())) {
-            throw forbidden("ENCOUNTER_CONTEXT_FORBIDDEN", "不能在当前机构之外发起接诊");
-        }
-        organizationDirectory.requireDepartment(tenantId, request.organizationId(), request.departmentId());
-        encounterRepository.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
-                        tenantId, residentId, request.organizationId(), request.departmentId(),
-                        java.util.List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS,
-                                EncounterStatus.SUSPENDED))
-                .ifPresent(value -> { throw conflict("ENCOUNTER_ACTIVE_DUPLICATE", "该居民在当前科室已有进行中的就诊"); });
         Encounter encounter = encounterRepository.saveAndFlush(new Encounter(tenantId, residentId,
                 nextEncounterNo(), request.organizationId(), request.departmentId()));
         OutpatientRegistrationDirectory.RegistrationSnapshot registration = registrationDirectory.register(
@@ -158,6 +145,31 @@ public class EncounterService implements EncounterDirectory {
                 "organizationId", encounter.organizationId(),
                 "departmentId", encounter.departmentId()));
         return toResponse(encounter);
+    }
+
+    @Override
+    @Transactional
+    public void validateRegistration(RegistrationEligibilityCommand command) {
+        requireRegistrationEligible(command.residentId(), command.organizationId(), command.departmentId());
+    }
+
+    private Long requireRegistrationEligible(Long residentId, Long organizationId, Long departmentId) {
+        ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshotForUpdate(residentId);
+        if (resident.deceased()) {
+            throw conflict("RESIDENT_DECEASED", "已登记死亡的居民不能发起普通门诊挂号");
+        }
+        Long tenantId = TenantContext.requireTenantId();
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (context.hasWorkContext() && !context.canAccessOrganization(organizationId)) {
+            throw forbidden("ENCOUNTER_CONTEXT_FORBIDDEN", "不能在当前机构之外发起接诊");
+        }
+        organizationDirectory.requireDepartment(tenantId, organizationId, departmentId);
+        encounterRepository.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
+                        tenantId, resident.id(), organizationId, departmentId,
+                        java.util.List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS,
+                                EncounterStatus.SUSPENDED))
+                .ifPresent(value -> { throw conflict("ENCOUNTER_ACTIVE_DUPLICATE", "该居民在当前科室已有进行中的就诊"); });
+        return resident.id();
     }
 
     @Override

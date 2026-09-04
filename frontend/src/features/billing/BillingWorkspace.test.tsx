@@ -128,9 +128,252 @@ describe('BillingWorkspace deep link', () => {
     await waitFor(() => expect(settleButton).toBeEnabled())
     await user.click(settleButton)
 
-    await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith('account-1', expect.stringMatching(/^INV-/)))
+    await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith(
+      'account-1',
+      expect.stringMatching(/^INV-/),
+      undefined,
+      ['charge-1'],
+    ))
     await waitFor(() => expect(createPaymentOrder).toHaveBeenCalledWith('settlement-1', expect.objectContaining({
       paymentMethodCode: 'CASH', amount: 28.6,
     })))
+  })
+
+  it('does not stay stuck in loading state when queue is empty, displays empty prompt', async () => {
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([]),
+        dailyReconciliation: vi.fn().mockResolvedValue({}),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    expect(await screen.findByText('暂无待收费患者')).toBeInTheDocument()
+    expect(screen.queryByText('正在加载费用明细…')).not.toBeInTheDocument()
+    expect(screen.getByText('请选择待收费患者')).toBeInTheDocument()
+    expect(screen.getByText('请先选择患者')).toBeInTheDocument()
+  })
+
+  it('displays unsynchronized account prompt without stuck loading when patient has no accountId', async () => {
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([{
+          encounterId: 'encounter-new', residentId: 'resident-new', status: 'PENDING_CHARGE',
+          residentName: '赵新生', healthRecordNo: 'JMD-0003', gender: 'MALE', birthDate: '1995-05-05',
+          encounterNo: 'MZ20260830003', sourceEventCount: 1, chargedEventCount: 0, accountBalance: 0,
+          currencyCode: 'CNY', latestOccurredAt: '2026-08-30T03:00:00Z',
+        }]),
+        dailyReconciliation: vi.fn().mockResolvedValue({}),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    expect(await screen.findByText('尚未形成费用账户')).toBeInTheDocument()
+    expect(screen.queryByText('正在加载费用明细…')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '生成收费事项' })).toBeInTheDocument()
+    expect(screen.getByText('等待生成收费事项')).toBeInTheDocument()
+  })
+
+  it('selects patient and displays notice when barcode scanner reads encounter barcode', async () => {
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([
+          { encounterId: 'enc-1', residentId: 'res-1', status: 'PENDING_PAYMENT',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', birthDate: '1988-08-08',
+            encounterNo: 'MZ20260830001', accountId: 'acc-1',
+            sourceEventCount: 1, chargedEventCount: 1, accountBalance: 15, currencyCode: 'CNY',
+            latestOccurredAt: '2026-08-30T01:00:00Z' },
+          { encounterId: 'enc-2', residentId: 'res-2', status: 'PENDING_PAYMENT',
+            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: 'MALE', birthDate: '1976-03-12',
+            encounterNo: 'MZ20260830002', accountId: 'acc-2',
+            sourceEventCount: 2, chargedEventCount: 2, accountBalance: 28.6, currencyCode: 'CNY',
+            latestOccurredAt: '2026-08-30T02:00:00Z' },
+        ]),
+        statement: vi.fn().mockResolvedValue({
+          accountId: 'acc-2', encounterId: 'enc-2', residentId: 'res-2', residentName: '王建国',
+          status: 'OPEN', currencyCode: 'CNY', chargeAmount: 28.6, invoicedAmount: 0,
+          paymentAmount: 0, refundAmount: 0, accountBalance: 28.6, uninvoicedAmount: 28.6,
+          charges: [], invoices: [], settlements: [], payments: [],
+        }),
+        dailyReconciliation: vi.fn().mockResolvedValue({}),
+        paymentOrders: vi.fn().mockResolvedValue([]),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { container } = render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    // Initially enc-1 is selected (李晓梅)
+    await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
+      .toHaveTextContent('李晓梅'))
+
+    // Simulate rapid barcode scanner typing MZ20260830002 + Enter
+    const code = 'MZ20260830002'
+    for (const char of code) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }))
+    }
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+
+    // Now enc-2 (王建国) should be selected and notice displayed
+    await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
+      .toHaveTextContent('王建国'))
+    expect(await screen.findByText(/已扫码定位患者：王建国/)).toBeInTheDocument()
+  })
+
+  it('navigates patient queue with ArrowDown and toggles mode with F2', async () => {
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([
+          { encounterId: 'enc-1', residentId: 'res-1', status: 'PENDING_PAYMENT',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', birthDate: '1988-08-08',
+            encounterNo: 'MZ20260830001', accountId: 'acc-1',
+            sourceEventCount: 1, chargedEventCount: 1, accountBalance: 15, currencyCode: 'CNY',
+            latestOccurredAt: '2026-08-30T01:00:00Z' },
+          { encounterId: 'enc-2', residentId: 'res-2', status: 'PENDING_PAYMENT',
+            residentName: '王建国', healthRecordNo: 'JMD-0002', gender: 'MALE', birthDate: '1976-03-12',
+            encounterNo: 'MZ20260830002', accountId: 'acc-2',
+            sourceEventCount: 2, chargedEventCount: 2, accountBalance: 28.6, currencyCode: 'CNY',
+            latestOccurredAt: '2026-08-30T02:00:00Z' },
+        ]),
+        statement: vi.fn().mockResolvedValue({
+          accountId: 'acc-1', encounterId: 'enc-1', residentId: 'res-1', residentName: '李晓梅',
+          status: 'OPEN', currencyCode: 'CNY', chargeAmount: 15, invoicedAmount: 0,
+          paymentAmount: 0, refundAmount: 0, accountBalance: 15, uninvoicedAmount: 15,
+          charges: [], invoices: [], settlements: [], payments: [],
+        }),
+        dailyReconciliation: vi.fn().mockResolvedValue({}),
+        paymentOrders: vi.fn().mockResolvedValue([]),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { container } = render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
+      .toHaveTextContent('李晓梅'))
+
+    // Press ArrowDown to switch patient
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
+      .toHaveTextContent('王建国'))
+
+    // Press F2 to toggle settlement mode
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true }))
+    expect(await screen.findAllByText('医保结算')).not.toHaveLength(0)
+  })
+
+  it('groups charges by document, supports checkbox partial selection, and warns for expired prescriptions', async () => {
+    const user = userEvent.setup()
+    const issueInvoice = vi.fn().mockResolvedValue({ id: 'invoice-part-1', invoiceNo: 'INV-PART-1' })
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([{
+          encounterId: 'encounter-group', residentId: 'resident-group', status: 'PENDING_PAYMENT',
+          residentName: '钱多宝', healthRecordNo: 'JMD-0009', gender: 'MALE', birthDate: '1985-05-05',
+          encounterNo: 'MZ20260830009', accountId: 'acc-group',
+          sourceEventCount: 2, chargedEventCount: 2, accountBalance: 58.6, currencyCode: 'CNY',
+          latestOccurredAt: '2026-08-30T01:00:00Z',
+        }]),
+        statement: vi.fn().mockResolvedValue({
+          accountId: 'acc-group', encounterId: 'encounter-group', residentId: 'resident-group', residentName: '钱多宝',
+          status: 'OPEN', currencyCode: 'CNY', chargeAmount: 58.6, invoicedAmount: 0,
+          paymentAmount: 0, refundAmount: 0, accountBalance: 58.6, uninvoicedAmount: 58.6,
+          charges: [
+            {
+              id: 'charge-rx-1', patientAccountId: 'acc-group', residentId: 'resident-group', encounterId: 'encounter-group',
+              sourceType: 'MEDICATION_REQUEST', sourceId: '101', requestCode: 'CF-20260830001', status: 'ACTIVE',
+              quantity: 1, unitCode: '盒', unitPrice: 28.6, totalAmount: 28.6, currencyCode: 'CNY',
+              priceType: 'RETAIL', itemCode: 'MED001', itemName: '阿莫西林胶囊',
+              // 5 days ago (> 72h)
+              occurredAt: new Date(Date.now() - 5 * 24 * 3600 * 1000).toISOString(),
+            },
+            {
+              id: 'charge-service-1', patientAccountId: 'acc-group', residentId: 'resident-group', encounterId: 'encounter-group',
+              sourceType: 'SERVICE_REQUEST', sourceId: '201', requestCode: 'EX-20260830002', status: 'ACTIVE',
+              quantity: 1, unitCode: '次', unitPrice: 30, totalAmount: 30, currencyCode: 'CNY',
+              priceType: 'STANDARD', itemCode: 'SRV001', itemName: '常规心电图检查',
+              occurredAt: new Date().toISOString(),
+            },
+          ],
+          invoices: [], settlements: [], payments: [],
+        }),
+        issueInvoice,
+        settlement: vi.fn().mockResolvedValue({ id: 'settlement-part-1' }),
+        createPaymentOrder: vi.fn().mockResolvedValue({ id: 'order-part-1', status: 'SUCCEEDED', events: [] }),
+        dailyReconciliation: vi.fn().mockResolvedValue({}),
+        paymentOrders: vi.fn().mockResolvedValue([]),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([{ code: 'CASH', name: '现金' }]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' }, department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
+    </QueryClientProvider>)
+
+    // 1. Verify document groups rendered
+    expect(await screen.findByText('药品处方单')).toBeInTheDocument()
+    expect(screen.getByText('CF-20260830001')).toBeInTheDocument()
+    expect(screen.getByText('检查/检验处置单')).toBeInTheDocument()
+    expect(screen.getByText('EX-20260830002')).toBeInTheDocument()
+
+    // 2. Verify 72-hour prescription expiration warning badge
+    expect(screen.getByText('处方已超72小时')).toBeInTheDocument()
+
+    // 3. Verify selection summary initially has 2 items selected (¥58.60)
+    expect(screen.getByText(/已选/)).toHaveTextContent('已选 2 / 2 项')
+    expect(screen.getByText(/已选/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥58.60')
+
+    // 4. Uncheck the service request item (30.00)
+    const serviceCheckbox = screen.getByLabelText('勾选项目 常规心电图检查')
+    await user.click(serviceCheckbox)
+
+    // Selection should now be 1 item (¥28.60)
+    expect(screen.getByText(/已选/)).toHaveTextContent('已选 1 / 2 项')
+    expect(screen.getByText(/已选/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥28.60')
+
+    // 5. Settle only the selected medication item
+    const settleButton = screen.getByRole('button', { name: '结算' })
+    await waitFor(() => expect(settleButton).toBeEnabled())
+    await user.click(settleButton)
+
+    // Verify issueInvoice was called with ONLY ['charge-rx-1']
+    await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith(
+      'acc-group',
+      expect.stringMatching(/^INV-/),
+      undefined,
+      ['charge-rx-1'],
+    ))
   })
 })

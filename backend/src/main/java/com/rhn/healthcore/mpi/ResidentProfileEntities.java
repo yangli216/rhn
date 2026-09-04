@@ -217,6 +217,16 @@ class ResidentCoverage {
         this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
     }
 
+    ResidentCoverage(Long tenantId, Long residentId, String coverageTypeCode, String payerName,
+                     String memberNo, boolean primary, LocalDate validFrom, LocalDate validTo, String actor) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
+        this.coverageTypeCode = coverageTypeCode.trim(); this.payerName = payerName.trim();
+        this.memberNo = text(memberNo); this.primary = primary;
+        this.validFrom = validFrom != null ? validFrom : LocalDate.of(2020, 1, 1);
+        this.validTo = validTo; this.status = "ACTIVE";
+        this.createdAt = Instant.now(); this.createdBy = actor; this.updatedAt = createdAt; this.updatedBy = actor;
+    }
+
     Long id() { return id; } Long residentId() { return residentId; } String coverageTypeCode() { return coverageTypeCode; }
     String payerName() { return payerName; } String status() { return status; }
     String memberNo() { return memberNo; } boolean primary() { return primary; }

@@ -180,10 +180,10 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
             <span className="registration-row-actions">
               {item.status === 'WAITING' && item.registrationStatus === 'REGISTERED' && <Button size="sm"
                 variant="text" onClick={() => { setCancellationResult(null); setCancelling(item) }}>退号</Button>}
-              {['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status) && <Button size="sm" variant="text"
+              <Button size="sm" variant="text"
                 onClick={() => onNavigate(`/outpatient/reception?${new URLSearchParams({
                   residentId: item.residentId, encounterId: item.encounterId,
-                }).toString()}`)}>去接诊</Button>}
+                }).toString()}`)}>{['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
             </span>
           </article>)}
         </div></div>}

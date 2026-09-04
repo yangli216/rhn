@@ -68,6 +68,8 @@ public class Practitioner {
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public String code() { return code; }
+    public String fullName() { return fullName; }
+    public PractitionerGender gender() { return gender; }
     public PersonnelStatus status() { return status; }
     public long revision() { return revision; }
 

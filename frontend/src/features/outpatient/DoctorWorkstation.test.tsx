@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { StrictMode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
@@ -47,6 +48,11 @@ const mockInProgressEncounter: Encounter = {
   status: 'IN_PROGRESS',
 } as unknown as Encounter
 
+const mockSuspendedEncounter: Encounter = {
+  ...mockRegisteredEncounter,
+  status: 'SUSPENDED',
+} as unknown as Encounter
+
 const mockQueueItem: ReceptionQueueItem = {
   registrationId: 'reg-1',
   scheduleId: 'sch-1',
@@ -75,17 +81,28 @@ const clinicalContext: ClinicalContext = {
   department: { id: 'dept-1', name: '全科医疗科' },
 } as ClinicalContext
 
-function createMockApi(startFn = vi.fn()) {
-  let encounterStatus: 'REGISTERED' | 'IN_PROGRESS' = 'REGISTERED'
+function createMockApi({
+  initialEncounterStatus = 'REGISTERED', queueStatus = 'WAITING', startFn = vi.fn(), resumeFn = vi.fn(),
+}: {
+  initialEncounterStatus?: 'REGISTERED' | 'IN_PROGRESS' | 'SUSPENDED'
+  queueStatus?: ReceptionQueueItem['status']
+  startFn?: ReturnType<typeof vi.fn>
+  resumeFn?: ReturnType<typeof vi.fn>
+} = {}) {
+  let encounterStatus = initialEncounterStatus
 
   const startMock = startFn.mockImplementation(() => {
+    encounterStatus = 'IN_PROGRESS'
+    return Promise.resolve(mockInProgressEncounter)
+  })
+  const resumeMock = resumeFn.mockImplementation(() => {
     encounterStatus = 'IN_PROGRESS'
     return Promise.resolve(mockInProgressEncounter)
   })
 
   return {
     scheduling: {
-      receptionQueue: vi.fn().mockResolvedValue([mockQueueItem]),
+      receptionQueue: vi.fn().mockResolvedValue([{ ...mockQueueItem, status: queueStatus }]),
     },
     outpatientReferrals: {
       inbox: vi.fn().mockResolvedValue([]),
@@ -100,16 +117,20 @@ function createMockApi(startFn = vi.fn()) {
     },
     encounters: {
       byResident: vi.fn().mockImplementation(() =>
-        Promise.resolve([encounterStatus === 'REGISTERED' ? mockRegisteredEncounter : mockInProgressEncounter])
+        Promise.resolve([encounterStatus === 'REGISTERED' ? mockRegisteredEncounter
+          : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter : mockInProgressEncounter])
       ),
       start: startMock,
       complete: vi.fn(),
       suspend: vi.fn(),
-      resume: vi.fn(),
+      resume: resumeMock,
     },
     clinicalDocuments: {
       byEncounter: vi.fn().mockResolvedValue([]),
       activeTemplates: vi.fn().mockResolvedValue([]),
+    },
+    outpatientNoteForms: {
+      list: vi.fn().mockResolvedValue([]),
     },
     unifiedOrders: {
       list: vi.fn().mockResolvedValue([]),
@@ -134,10 +155,10 @@ function createMockApi(startFn = vi.fn()) {
 }
 
 describe('DoctorWorkstation reception flow', () => {
-  it('automatically starts reception and opens clinical interface directly without secondary confirmation checkboxes', async () => {
+  it('opens a waiting patient in reading mode from the explicit view action', async () => {
     const user = userEvent.setup()
     const startEncounterSpy = vi.fn()
-    const api = createMockApi(startEncounterSpy)
+    const api = createMockApi({ startFn: startEncounterSpy })
 
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -146,7 +167,7 @@ describe('DoctorWorkstation reception flow', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/outpatient/reception']}>
-          <DoctorWorkstation api={api} clinicalContext={clinicalContext} />
+          <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
         </MemoryRouter>
       </QueryClientProvider>
     )
@@ -154,27 +175,119 @@ describe('DoctorWorkstation reception flow', () => {
     // Patient appears in the today reception queue
     expect(await screen.findByText('张建国')).toBeInTheDocument()
 
-    // Click on the patient to receive
-    await user.click(screen.getByText('张建国'))
+    await user.click(screen.getByRole('button', { name: '查看 张建国' }))
 
-    // The encounter start API should be automatically called
-    await waitFor(() => {
-      expect(api.encounters.start).toHaveBeenCalledWith(
+    expect(await screen.findByText('阅读状态')).toBeInTheDocument()
+    expect(screen.getByLabelText('门诊病历阅读内容')).toBeInTheDocument()
+    expect(api.encounters.start).not.toHaveBeenCalled()
+    expect(screen.queryByPlaceholderText('症状、持续时间及本次就诊原因')).not.toBeInTheDocument()
+
+  })
+
+  it('starts a waiting encounter and opens editing from the reception action', async () => {
+    const user = userEvent.setup()
+    const startEncounterSpy = vi.fn()
+    const api = createMockApi({ startFn: startEncounterSpy })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/outpatient/reception']}>
+          <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </StrictMode>)
+
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await waitFor(() => expect(api.encounters.start).toHaveBeenCalledWith(
         'encounter-101',
         expect.objectContaining({
           terminalCode: 'WEB-DOCTOR-WORKSTATION',
           factorResults: { NAME: true, DEMOGRAPHIC_OR_IDENTIFIER: true },
         })
-      )
-    })
+      ))
 
-    // Confirmation panel with checkboxes like "已向患者确认姓名" should NOT appear
-    expect(screen.queryByText('开始接诊前核验患者身份')).not.toBeInTheDocument()
-    expect(screen.queryByText('核验通过，开始接诊')).not.toBeInTheDocument()
-
-    // Clinical record panel (主诉、现病史等) should be directly visible
     expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
     expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toBeInTheDocument()
+
+    const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.type(complaint, '咳嗽三天')
+    expect(screen.getByRole('button', { name: '返回阅读' })).toBeDisabled()
+  })
+
+  it('continues an in-progress encounter directly in editing without starting it again', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'IN_SERVICE' })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/outpatient/reception']}>
+          <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </StrictMode>)
+
+    await user.click(await screen.findByRole('button', { name: '查看 张建国' }))
+    expect(await screen.findByText('阅读状态')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '切换患者' }))
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(await screen.findByText('编辑状态')).toBeInTheDocument()
+    expect(api.encounters.start).not.toHaveBeenCalled()
+    expect(api.encounters.resume).not.toHaveBeenCalled()
+  })
+
+  it('keeps a suspended encounter readable and resumes only from the recovery action', async () => {
+    const user = userEvent.setup()
+    const resumeSpy = vi.fn()
+    const api = createMockApi({
+      initialEncounterStatus: 'SUSPENDED', queueStatus: 'SUSPENDED', resumeFn: resumeSpy,
+    })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    const view = render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await user.click(await screen.findByRole('button', { name: '查看 张建国' }))
+    expect(await screen.findByText('阅读状态')).toBeInTheDocument()
+    expect(api.encounters.resume).not.toHaveBeenCalled()
+
+    view.unmount()
+    const recoveryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={recoveryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await user.click(await screen.findByRole('button', { name: '恢复接诊 张建国' }))
+    await waitFor(() => expect(resumeSpy).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      terminalCode: 'WEB-DOCTOR-WORKSTATION',
+    })))
+    expect(await screen.findByText('编辑状态')).toBeInTheDocument()
+  })
+
+  it('keeps the record read-only when the current account has no edit permission', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit={false} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    expect(await screen.findByRole('button', { name: '接诊 张建国' })).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: '查看 张建国' }))
+    expect(await screen.findByText('阅读状态')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '开始接诊' })).toBeDisabled()
+    expect(screen.getByText('当前账号没有病历编辑权限')).toBeInTheDocument()
+    expect(api.encounters.start).not.toHaveBeenCalled()
   })
 })

@@ -228,6 +228,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             purchasable: false, stocked: false, dispensable: false, returnable: false }}
           onClose={() => setDialog(undefined)} onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
       {tab === 'medication' && <MedicationTable values={medications.data} loading={medications.isPending}
+        routes={routes.data ?? []} frequencies={frequencies.data ?? []}
         onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
           routes={routes.data ?? []} value={value}
           onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.updateMedication(
@@ -350,8 +351,9 @@ function ServiceTable({ values, loading, onConfigure, onEdit, onAttributes, onMa
   </Table>
 }
 
-function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
-  values?: MedicationKnowledge[]; loading: boolean; onEdit: (value: MedicationKnowledge) => void;
+function MedicationTable({ values, loading, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
+  values?: MedicationKnowledge[]; loading: boolean; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
+  onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
@@ -366,7 +368,7 @@ function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, on
       <div className="medication-card__meta">
         <StatusBadge>{value.sdMedicationTypeText}</StatusBadge><StatusBadge>{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
         <DataStatus value={value.sdStatus} text={value.sdStatusText} /></div>
-      <div className="medication-card__summary">{medicationSummary(value).map((item) =>
+      <div className="medication-card__summary">{medicationSummary(value, routes, frequencies).map((item) =>
         <span key={item.label}>{item.label}<strong>{item.value}</strong></span>)}</div>
       <RowActions>
         <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
@@ -381,16 +383,20 @@ function MedicationTable({ values, loading, onEdit, onAttributes, onMappings, on
           <td><PackageChips product={product} onEdit={(item) => onEditPackage(item, product, value)} /></td>
           <td>{product.organizationAdoption ? <DataStatus value={product.organizationAdoption.sdStatus} text={product.organizationAdoption.sdStatusText} /> : <StatusBadge>未采用</StatusBadge>}</td>
           <td>{productPrices(product.prices)}</td><td><RowActions>
-            <Button size="sm" variant="text" onClick={() => onEditProduct(product, value)}>编辑产品</Button>
+            <Button size="sm" variant="text" onClick={() => onEditProduct(product, value)}>编辑</Button>
             <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
-            <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>机构目录与价格</Button>
+            <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>目录价格</Button>
           </RowActions></td></tr>)}</Table>}
   </article>)}</div>
 }
 
-function medicationSummary(value: MedicationKnowledge) {
+function medicationSummary(value: MedicationKnowledge, routes: MedicationRoute[], frequencies: ActiveOrderFrequency[]) {
   const herbal = value.sdMedicationType === 'HERBAL'
   const vaccine = value.sdMedicationType === 'VACCINE'
+  const routeName = value.defaultRoute
+    ? routes.find((route) => route.code === value.defaultRoute)?.name ?? value.defaultRoute : undefined
+  const frequencyName = value.defaultFrequency
+    ? frequencies.find((frequency) => frequency.code === value.defaultFrequency)?.name ?? value.defaultFrequency : undefined
   return [
     { label: herbal ? '炮制规格' : vaccine ? '剂量规格' : '规格',
       value: [value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—' },
@@ -398,8 +404,8 @@ function medicationSummary(value: MedicationKnowledge) {
       value: herbal ? (value.preparationUnit || '—')
         : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}`.trim() : '—' },
     { label: vaccine ? '剂量 / 途径' : '用法',
-      value: [value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, value.defaultRoute,
-        vaccine ? undefined : value.defaultFrequency].filter(Boolean).join(' · ') || '—' },
+      value: [value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`, routeName,
+        vaccine ? undefined : frequencyName].filter(Boolean).join(' · ') || '—' },
     { label: '安全',
       value: [value.prescriptionDrug && '处方药', value.essentialDrug && '基本药物',
         value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',

@@ -9,6 +9,8 @@
 ## Services for manual verification
 
 - Treat the backend on port `8080` and the frontend on port `5173` as persistent manual-verification services. Do not stop them when automated checks or browser QA finish.
+- The persistent backend on port `8080` must use the `oracle-local` profile. Never start the persistent manual-verification service with the ephemeral `local` or `test` profile.
+- Backend tests must keep using the isolated `test` profile and its random H2 database. Tests must not connect to the manual Oracle schema or bind to port `8080`.
 - Before handing work back for manual verification, confirm both `http://localhost:8080/actuator/health` and `http://localhost:5173` are reachable. If either project service is unavailable, start or restore it and report the URLs and status.
 - Temporary test instances must use dedicated non-project ports and may be cleaned up after their check. Never terminate a pre-existing service on `8080` or `5173` as part of temporary cleanup.
 - Never use broad process termination such as `pkill` or `killall` for project verification. Track and stop only the exact temporary process that the current task started.
@@ -18,4 +20,3 @@
 
 - Do not automatically commit or push local changes to the Git repository.
 - Only run `git commit` or `git push` when the user explicitly requests it.
-

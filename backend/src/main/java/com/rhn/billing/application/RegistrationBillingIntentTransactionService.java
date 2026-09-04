@@ -22,7 +22,7 @@ import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.billing.infrastructure.RegistrationBillingIntentRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.healthcore.api.CoverageDirectory;
-import com.rhn.healthcore.api.ResidentDirectory;
+import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientScheduleDirectory;
 import com.rhn.outpatient.api.OutpatientAppointmentDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
@@ -62,7 +62,7 @@ class RegistrationBillingIntentTransactionService {
     private final OutpatientScheduleDirectory schedules;
     private final OutpatientAppointmentDirectory appointments;
     private final CatalogLifecycleDirectory catalog;
-    private final ResidentDirectory residents;
+    private final EncounterDirectory encounters;
     private final CoverageDirectory coverages;
     private final OrganizationDirectory organizations;
     private final ExecutionContextProvider contextProvider;
@@ -75,7 +75,7 @@ class RegistrationBillingIntentTransactionService {
             SettlementRepository settlementRepository,
             OutpatientScheduleDirectory schedules, OutpatientAppointmentDirectory appointments,
             CatalogLifecycleDirectory catalog,
-            ResidentDirectory residents, CoverageDirectory coverages, OrganizationDirectory organizations,
+            EncounterDirectory encounters, CoverageDirectory coverages, OrganizationDirectory organizations,
             ExecutionContextProvider contextProvider) {
         this.intents = intents; this.accounts = accounts; this.payments = payments;
         this.charges = charges; this.components = components;
@@ -83,7 +83,7 @@ class RegistrationBillingIntentTransactionService {
         this.invoiceCategories = invoiceCategories; this.settlements = settlements;
         this.settlementRepository = settlementRepository; this.schedules = schedules;
         this.appointments = appointments;
-        this.catalog = catalog; this.residents = residents; this.coverages = coverages;
+        this.catalog = catalog; this.encounters = encounters; this.coverages = coverages;
         this.organizations = organizations;
         this.contextProvider = contextProvider;
     }
@@ -98,7 +98,8 @@ class RegistrationBillingIntentTransactionService {
         Long coverageId = normalizeCoverageId(settlementMode, input.coverageId());
         RegistrationBillingIntent replay = intents.findByTenantIdAndIdempotencyCode(context.tenantId(), code).orElse(null);
         if (replay != null) return replay(input, source, visitType, settlementMode, coverageId, replay);
-        residents.requireSnapshotForUpdate(input.residentId());
+        encounters.validateRegistration(new EncounterDirectory.RegistrationEligibilityCommand(
+                input.residentId(), input.organizationId(), input.departmentId()));
         replay = intents.findByTenantIdAndIdempotencyCode(context.tenantId(), code).orElse(null);
         if (replay != null) return replay(input, source, visitType, settlementMode, coverageId, replay);
         organizations.requireDepartment(context.tenantId(), input.organizationId(), input.departmentId());

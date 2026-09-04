@@ -114,4 +114,12 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
     expect(screen.getByText('搜索药品名称/拼音/编码')).toBeInTheDocument()
   })
+
+  it('keeps reading mode focused on persisted order content', () => {
+    renderComponent({ readOnly: true })
+
+    expect(screen.getByText('暂无已开立医嘱')).toBeInTheDocument()
+    expect(screen.queryByText('操作')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('加入医嘱')).not.toBeInTheDocument()
+  })
 })

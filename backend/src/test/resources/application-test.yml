@@ -36,6 +36,13 @@ rhn:
       mode-override: PRE_DISPENSE
   presence:
     store: memory
+  billing:
+    payment:
+      aggregated-adapter:
+        enabled: false
+    insurance:
+      chs-adapter:
+        enabled: false
 springdoc:
   api-docs:
     enabled: true

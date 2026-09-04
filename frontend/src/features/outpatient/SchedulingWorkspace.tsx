@@ -737,7 +737,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                 onClick={() => toggleDayPart('MORNING')}
               >
                 <div className="batch-session-card__head">
-                  <strong>☀️ 上午门诊</strong>
+                  <strong><Icon name="sun" /> 上午门诊</strong>
                   <span className="batch-session-checkbox">{dayParts.includes('MORNING') ? '✓' : ''}</span>
                 </div>
                 <div className="batch-session-card__time">{morningStart} – {morningEnd}</div>
@@ -750,7 +750,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                 onClick={() => toggleDayPart('AFTERNOON')}
               >
                 <div className="batch-session-card__head">
-                  <strong>☕ 下午门诊</strong>
+                  <strong><Icon name="moon" /> 下午门诊</strong>
                   <span className="batch-session-checkbox">{dayParts.includes('AFTERNOON') ? '✓' : ''}</span>
                 </div>
                 <div className="batch-session-card__time">{afternoonStart} – {afternoonEnd}</div>

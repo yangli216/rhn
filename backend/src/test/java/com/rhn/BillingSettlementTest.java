@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -187,6 +188,104 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].relatedResourceId").value(order.get("id").asLong()));
     }
 
+    @Test
+    void partialSettlementWithSpecificChargeItemIdsLeavesRemainingUninvoiced() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "BIL-" + suffix);
+        receive("BIL-RCV-" + suffix, pharmacy, lot.get("id").asText(), "2");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 2);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        dispense(task.taskId(), "BIL-DSP-" + suffix, "2", pharmacist);
+
+        JsonNode synchronizedCharges = synchronize(task.encounterId(), "BIL-SYNC-PARTIAL-" + suffix);
+        String accountId = synchronizedCharges.at("/statement/accountId").asText();
+        JsonNode statement = synchronizedCharges.get("statement");
+        JsonNode charges = statement.get("charges");
+        assertTrue(charges.size() >= 1);
+        Long firstChargeId = charges.get(0).get("id").asLong();
+        BigDecimal firstChargeAmount = charges.get(0).get("totalAmount").decimalValue();
+
+        // Issue partial invoice for only the first charge item
+        JsonNode partialInvoice = issueInvoice(accountId, "PART-INV-" + suffix, List.of(firstChargeId));
+        assertEquals(firstChargeAmount, partialInvoice.get("netAmount").decimalValue());
+        assertEquals(1, partialInvoice.get("lines").size());
+        assertEquals(firstChargeId, partialInvoice.get("lines").get(0).get("chargeItemId").asLong());
+
+        // Check statement again: invoiced amount should match the partial invoice
+        JsonNode statementAfter = json(mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", task.encounterId())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(firstChargeAmount, statementAfter.get("invoicedAmount").decimalValue());
+    }
+
+    @Test
+    void pendingPaymentOrderSupportsCancellation() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "AGG2-" + suffix);
+        receive("AGG2-RCV-" + suffix, pharmacy, lot.get("id").asText(), "5");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 1);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        dispense(task.taskId(), "AGG2-DSP-" + suffix, "1", pharmacist);
+
+        JsonNode synchronizedCharges = synchronize(task.encounterId(), "AGG2-SYNC-" + suffix);
+        String accountId = synchronizedCharges.at("/statement/accountId").asText();
+        BigDecimal fullAmount = synchronizedCharges.at("/statement/chargeAmount").decimalValue();
+
+        JsonNode invoice = issueInvoice(accountId, "INV-QR-" + suffix);
+        String settlementId = invoice.get("id").asText();
+
+        // 1. Create a payment order without embedded adapter (status PENDING)
+        String orderBody = """
+                {
+                  "idempotencyKey": "PAY-PENDING-%s",
+                  "businessScene": "OUTPATIENT",
+                  "paymentSceneCode": "CASHIER",
+                  "paymentMethodCode": "BANK_CARD",
+                  "amount": %s,
+                  "terminalCode": "CASHIER-WEB"
+                }
+                """.formatted(suffix, fullAmount);
+
+        JsonNode pendingOrder = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", settlementId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(orderBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.paymentMethodCode").value("BANK_CARD"))
+                .andReturn().getResponse().getContentAsString());
+
+        String paymentOrderId = pendingOrder.get("id").asText();
+
+        // 2. Cashier cancels the pending order
+        mockMvc.perform(post("/api/billing/payment-orders/{paymentOrderId}/cancel", paymentOrderId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELLED"));
+
+        // 3. Settlement can now be paid with cash instead without conflict
+        String cashBody = """
+                {
+                  "idempotencyKey": "PAY-CASH-RETRY-%s",
+                  "businessScene": "OUTPATIENT",
+                  "paymentSceneCode": "CASHIER",
+                  "paymentMethodCode": "CASH",
+                  "amount": %s,
+                  "terminalCode": "CASHIER-WEB"
+                }
+                """.formatted(suffix, fullAmount);
+
+        mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", settlementId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(cashBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"));
+    }
+
     private JsonNode synchronize(String encounterId, String requestCode) throws Exception {
         return json(mockMvc.perform(post("/api/billing/encounters/{encounterId}/charges/synchronize", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -195,10 +294,17 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
     }
 
     private JsonNode issueInvoice(String accountId, String invoiceNo) throws Exception {
+        return issueInvoice(accountId, invoiceNo, null);
+    }
+
+    private JsonNode issueInvoice(String accountId, String invoiceNo, List<Long> chargeItemIds) throws Exception {
+        String body = chargeItemIds == null ? """
+                {"invoiceNo":"%s","issuedAt":"%sT10:30:00Z"}
+                """.formatted(invoiceNo, BUSINESS_DAY) : """
+                {"invoiceNo":"%s","issuedAt":"%sT10:30:00Z","chargeItemIds":%s}
+                """.formatted(invoiceNo, BUSINESS_DAY, chargeItemIds.toString());
         return json(mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices", accountId)
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
-                                {"invoiceNo":"%s","issuedAt":"%sT10:30:00Z"}
-                                """.formatted(invoiceNo, BUSINESS_DAY)))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 

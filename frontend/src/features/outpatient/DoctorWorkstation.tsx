@@ -57,6 +57,7 @@ function commandCode(action: string, encounterId: string) {
 interface PatientSelection {
   resident: Resident
   encounterId: string | null
+  entryIntent: 'READ' | 'EDIT'
 }
 
 export interface EncounterDraftState {
@@ -80,7 +81,9 @@ export function draftStateLabels(value: EncounterDraftState) {
   return labels
 }
 
-export function DoctorWorkstation({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
+export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
+  api: RhnApi; clinicalContext: ClinicalContext; canEdit: boolean
+}) {
   const [params] = useSearchParams()
   const linkedResidentId = params.get('residentId')
   const linkedEncounterId = params.get('encounterId')
@@ -100,17 +103,20 @@ export function DoctorWorkstation({ api, clinicalContext }: { api: RhnApi; clini
     enabled: Boolean(linkedResidentId),
   })
   useEffect(() => {
-    if (linkedResident.data) setSelected({ resident: linkedResident.data, encounterId: linkedEncounterId })
+    if (linkedResident.data) setSelected({ resident: linkedResident.data, encounterId: linkedEncounterId, entryIntent: 'READ' })
   }, [linkedEncounterId, linkedResident.data])
   const openPatient = useMutation({
-    mutationFn: (item: ReceptionQueueItem) => api.residents.get(item.residentId),
-    onSuccess: (resident, item) => setSelected({ resident, encounterId: item.encounterId }),
+    mutationFn: async ({ item, entryIntent }: { item: ReceptionQueueItem; entryIntent: 'READ' | 'EDIT' }) => ({
+      resident: await api.residents.get(item.residentId), item, entryIntent,
+    }),
+    onSuccess: ({ resident, item, entryIntent }) => setSelected({ resident, encounterId: item.encounterId, entryIntent }),
   })
 
   const refreshQueue = () => queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] })
   const refreshInbox = () => queryClient.invalidateQueries({ queryKey: ['outpatient-referral-inbox'] })
-  if (selected) return <PatientWorkspace resident={selected.resident} encounterId={selected.encounterId} api={api}
-    clinicalContext={clinicalContext} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue} />
+  if (selected) return <PatientWorkspace resident={selected.resident} encounterId={selected.encounterId}
+    entryIntent={selected.entryIntent} api={api}
+    clinicalContext={clinicalContext} canEdit={canEdit} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue} />
 
   const waiting = (queue.data ?? []).filter((item) => ['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status))
   return <>
@@ -132,7 +138,9 @@ export function DoctorWorkstation({ api, clinicalContext }: { api: RhnApi; clini
       {queue.isPending || (Boolean(linkedResidentId) && linkedResident.isPending) ? <LoadingState label="正在加载候诊队列…" /> : waiting.length === 0
         ? <EmptyState icon="clinical" title="当前没有候诊患者" copy="新挂号患者会自动进入本科室候诊队列。" />
         : <div className="doctor-queue-list">{waiting.map((item) => <QueueRow key={item.registrationId}
-          item={item} busy={openPatient.isPending} onOpen={() => openPatient.mutate(item)} />)}</div>}
+          item={item} busy={openPatient.isPending} canEdit={canEdit}
+          onEnter={() => openPatient.mutate({ item, entryIntent: 'EDIT' })}
+          onView={() => openPatient.mutate({ item, entryIntent: 'READ' })} />)}</div>}
     </Panel>
   </>
 }
@@ -339,16 +347,29 @@ function ReferralCoordinationPanel({ encounter, clinicalContext, api, hasUnsaved
   </div>
 }
 
-function QueueRow({ item, busy, onOpen }: { item: ReceptionQueueItem; busy: boolean; onOpen: () => void }) {
-  return <button type="button" onClick={onOpen} disabled={busy}>
+function queueEntryLabel(status: ReceptionQueueItem['status']) {
+  if (status === 'IN_SERVICE') return '继续接诊'
+  if (status === 'SUSPENDED') return '恢复接诊'
+  return '接诊'
+}
+
+function QueueRow({ item, busy, canEdit, onEnter, onView }: {
+  item: ReceptionQueueItem; busy: boolean; canEdit: boolean; onEnter: () => void; onView: () => void
+}) {
+  const entryLabel = queueEntryLabel(item.status)
+  return <article className="doctor-queue-row">
     <span className="doctor-queue-ticket">{item.ticketNo}</span>
-    <span><strong>{item.residentName}</strong><small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></span>
-    <span><strong>{item.serviceName || '普通门诊'}</strong><small>{item.practitionerName || '现场接诊'}{item.locationName ? ` · ${item.locationName}` : ''}</small></span>
-    <span><strong>{formatTime(item.registeredAt)}</strong><small>挂号时间</small></span>
+    <span className="doctor-queue-patient"><strong>{item.residentName}</strong><small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></span>
+    <span className="doctor-queue-service"><strong>{item.serviceName || '普通门诊'}</strong><small>{item.practitionerName || '现场接诊'}{item.locationName ? ` · ${item.locationName}` : ''}</small></span>
+    <span className="doctor-queue-time"><strong>{formatTime(item.registeredAt)}</strong><small>挂号时间</small></span>
     <StatusBadge tone={item.status === 'IN_SERVICE' ? 'success' : 'warning'}>
       {item.status === 'IN_SERVICE' ? '接诊中' : item.status === 'SUSPENDED' ? '已暂挂' : '候诊'}</StatusBadge>
-    <Icon name="chevron-right" />
-  </button>
+    <span className="doctor-queue-actions">
+      <Button size="sm" variant="text" disabled={busy} aria-label={`查看 ${item.residentName}`} onClick={onView}>查看</Button>
+      <Button size="sm" busy={busy} disabled={!canEdit} title={canEdit ? `${entryLabel}${item.residentName}` : '当前账号没有病历编辑权限'}
+        aria-label={`${entryLabel} ${item.residentName}`} onClick={onEnter}>{entryLabel}</Button>
+    </span>
+  </article>
 }
 
 type WorkTool = 'assistant' | 'history' | 'results' | 'coordination'
@@ -366,9 +387,9 @@ interface HistoryCopyDraft {
   diagnoses?: DiagnosisInput[]
 }
 
-function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack, onQueueRefresh }: {
+function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalContext, canEdit, onBack, onQueueRefresh }: {
   resident: Resident; encounterId: string | null; api: RhnApi; clinicalContext: ClinicalContext
-  onBack: () => void; onQueueRefresh: () => Promise<unknown>
+  entryIntent: 'READ' | 'EDIT'; canEdit: boolean; onBack: () => void; onQueueRefresh: () => Promise<unknown>
 }) {
   const navigate = useNavigate()
   const [activeTool, setActiveTool] = useState<WorkTool | null>(null)
@@ -382,6 +403,8 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
   const [aiAdoptionBusy, setAiAdoptionBusy] = useState(false)
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
+  const [editing, setEditing] = useState(false)
+  const automaticEntry = useRef<string | null>(null)
   const [resumeCommandCode] = useState(() => commandCode('RESUME', encounterId ?? resident.id))
   const queryClient = useQueryClient()
   const encounters = useQuery({ queryKey: ['doctor-encounters', resident.id], queryFn: () => api.encounters.byResident(resident.id) })
@@ -402,6 +425,7 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
   const draftLabels = draftStateLabels(draftState)
   const hasUnsavedDraft = draftLabels.length > 0
   useEffect(() => {
+    setEditing(false)
     setAiContext(null)
     setAiDraft(null)
     setAiAdoptionBusy(false)
@@ -427,13 +451,8 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
       factorResults: { NAME: true, DEMOGRAPHIC_OR_IDENTIFIER: true },
       terminalCode: 'WEB-DOCTOR-WORKSTATION',
     }),
-    onSuccess: refresh,
+    onSuccess: async () => { await refresh(); setEditing(true) },
   })
-  useEffect(() => {
-    if (encounter && encounter.status === 'REGISTERED' && !start.isPending && !start.isSuccess && !start.error) {
-      start.mutate(encounter)
-    }
-  }, [encounter?.id, encounter?.status, start.isPending, start.isSuccess, start.error])
   const complete = useMutation({
     mutationFn: (input: CompleteEncounterInput) => api.encounters.complete(encounter!.id, input),
     onSuccess: async () => { setCompletionOpen(false); await refresh(); onBack() },
@@ -446,7 +465,7 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
     mutationFn: () => api.encounters.resume(encounter!.id, {
       commandCode: resumeCommandCode, terminalCode: 'WEB-DOCTOR-WORKSTATION',
     }),
-    onSuccess: refresh,
+    onSuccess: async () => { await refresh(); setEditing(true) },
   })
   const terminate = useMutation({
     mutationFn: (input: TerminateEncounterInput) => api.outpatientFlow.terminate(encounter!.id, input),
@@ -464,7 +483,26 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
     if (action === 'complete') setCompletionOpen(true)
     if (action === 'terminate') setTerminationOpen(true)
   }
-
+  const enterEditing = () => {
+    if (!encounter || !canEdit) return
+    if (encounter.status === 'REGISTERED') { start.mutate(encounter); return }
+    if (encounter.status === 'SUSPENDED') { resume.mutate(); return }
+    if (encounter.status === 'IN_PROGRESS') setEditing(true)
+  }
+  useEffect(() => {
+    if (!encounter || entryIntent !== 'EDIT' || !canEdit) return
+    // StrictMode replays effects in development. Re-apply the local edit state on
+    // every replay, while keeping API-backed start/resume commands idempotent.
+    if (encounter.status === 'IN_PROGRESS') { setEditing(true); return }
+    if (automaticEntry.current === encounter.id) return
+    automaticEntry.current = encounter.id
+    if (encounter.status === 'REGISTERED') start.mutate(encounter)
+    else if (encounter.status === 'SUSPENDED') resume.mutate()
+  }, [canEdit, encounter, entryIntent, resume, start])
+  const enterReading = () => {
+    setEditing(false)
+    setActiveTool((current) => current === 'assistant' || current === 'coordination' ? null : current)
+  }
   return <section className="doctor-patient-workspace">
     <ObjectContextBar avatar={resident.fullName.slice(-1)} title={resident.fullName}
       description={`${genderLabel(resident.gender)} · ${age(resident.birthDate)} 岁 · ${resident.maskedNationalId || '无证件标识'}`}
@@ -480,7 +518,7 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
         <div className="doctor-context-actions__buttons">
           <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
             title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
-          {encounter.status === 'IN_PROGRESS' && <>
+          {editing && encounter.status === 'IN_PROGRESS' && <>
             <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
               title="暂时释放当前接诊工作会话，患者返回后可继续"
               onClick={() => requestAction('suspend')}>暂挂</Button>
@@ -491,38 +529,20 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
               title="患者离开或明确要求停止本次诊疗"
               onClick={() => requestAction('terminate')}>终止诊疗</Button>
           </>}
-          {encounter.status === 'SUSPENDED' && <>
-            <Button size="sm" busy={resume.isPending}
-              title="恢复本次接诊并重新建立医生工作会话" onClick={() => resume.mutate()}>恢复接诊</Button>
-            <Button size="sm" variant="text" className="doctor-btn--terminate" title="确认患者不再返回并终止本次诊疗"
-              onClick={() => requestAction('terminate')}>终止诊疗</Button>
-          </>}
         </div>
       </div>} />
-    {encounters.isPending || (encounter?.status === 'REGISTERED' && !start.error) ? <LoadingState label="正在开启接诊并建立诊疗界面…" /> : !encounter
+    {encounters.isPending ? <LoadingState label="正在加载就诊记录…" /> : !encounter
       ? <EmptyState icon="clinical" title="没有可处理的门诊就诊" copy="请先在门诊挂号工作台完成挂号。" />
       : <div className="doctor-workspace-body">
           <main className={`doctor-workspace-main${aiAdoptionBusy ? ' is-ai-adoption-busy' : ''}`}
             aria-busy={aiAdoptionBusy || undefined}>
-            {encounter.status === 'REGISTERED' ? <Panel className="doctor-identity-panel">
-                <PanelHead title="接诊初始化" meta="未能自动开启接诊会话" />
-                {start.error && <Alert>{errorMessage(start.error)}</Alert>}
-                <div className="ui-form-actions">
-                  <Button busy={start.isPending} onClick={() => start.mutate(encounter)}>重试接诊</Button>
-                  <Button variant="secondary" onClick={onBack}>返回候诊队列</Button>
-                </div>
-              </Panel>
-              : encounter.status === 'IN_PROGRESS' ? <ClinicalRecordPanel key={encounter.id} encounter={encounter}
+            {(start.error || resume.error) && <Alert className="ui-page-feedback">{errorMessage(start.error || resume.error)}</Alert>}
+            <ClinicalRecordPanel key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
+                enteringEdit={start.isPending || resume.isPending}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
                 aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
-                onRefresh={refresh} />
-                : encounter.status === 'SUSPENDED' ? <Panel className="doctor-identity-panel">
-                  <PanelHead title="本次接诊已暂挂" meta="病历和医嘱保持原状，恢复后可继续处理" />
-                  <p>患者返回诊室后点击上方“恢复接诊”，系统会重新建立本次医生工作会话。</p>
-                  {resume.error && <Alert>{errorMessage(resume.error)}</Alert>}
-                </Panel>
-                : <HistoryPanel encounters={encounters.data ?? []} currentEncounterId={encounter.id} api={api} />}
+                onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh} />
           </main>
           {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}`}
             aria-label={toolLabel(activeTool)}>
@@ -532,26 +552,26 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
             <div className="doctor-workspace-drawer__content">
               {activeTool === 'assistant' && aiContext && <ClinicalAiAssistantPanel key={encounter.id} encounter={encounter}
                 currentContext={aiContext} allergies={allergies.data ?? []} allergyState={allergyState} api={api}
-                disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
+                disabled={!editing || outpatientNote?.status === 'SIGNED' || draftState.busy}
                 onAdoptionBusyChange={setAiAdoptionBusy}
                 onApply={(request) => { setAiDraft(request); setActiveTool(null) }} />}
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
-                currentEncounterId={encounter.id} api={api} copyDisabled={encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
+                currentEncounterId={encounter.id} api={api} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy(draft); setActiveTool(null) }} />}
               {activeTool === 'results' && <ResultsPanel encounter={encounter} api={api} />}
-              {activeTool === 'coordination' && <ReferralCoordinationPanel encounter={encounter}
+              {activeTool === 'coordination' && editing && <ReferralCoordinationPanel encounter={encounter}
                 clinicalContext={clinicalContext} api={api} hasUnsavedDraft={hasUnsavedDraft} onRefresh={refresh} />}
             </div>
           </aside>}
           <nav className="doctor-workspace-tools" aria-label="医生站扩展工具">
-            {encounter.status === 'IN_PROGRESS' && <ToolButton icon="sparkles" label="智医助理"
+            {editing && encounter.status === 'IN_PROGRESS' && <ToolButton icon="sparkles" label="智医助理"
               active={activeTool === 'assistant'}
               onClick={() => !aiAdoptionBusy && setActiveTool(toggleTool(activeTool, 'assistant'))} />}
             <ToolButton icon="roadmap" label="就诊历史" active={activeTool === 'history'} onClick={() => setActiveTool(toggleTool(activeTool, 'history'))} />
             <ToolButton icon="clinical" label="检验结果" active={activeTool === 'results'} onClick={() => setActiveTool(toggleTool(activeTool, 'results'))} />
-            <ToolButton icon="tasks" label="皮试管理" active={false}
-              onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />
-            <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />
+            {editing && <ToolButton icon="tasks" label="皮试管理" active={false}
+              onClick={() => navigate(`/skin-tests?encounterId=${encounter.id}`)} />}
+            {editing && <ToolButton icon="organization" label="协同业务" active={activeTool === 'coordination'} onClick={() => setActiveTool(toggleTool(activeTool, 'coordination'))} />}
           </nav>
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
@@ -564,10 +584,11 @@ function PatientWorkspace({ resident, encounterId, api, clinicalContext, onBack,
       busy={terminate.isPending} error={terminate.error} onClose={() => setTerminationOpen(false)}
       onConfirm={(input) => terminate.mutate(input)} />}
     {allergyOpen && encounter && <Dialog title="过敏信息" eyebrow={`${resident.fullName} · 患者安全`}
-      description="核对并维护患者过敏事实，变更将关联当前就诊留痕。" size="wide" onClose={() => setAllergyOpen(false)}
+      description={editing ? '核对并维护患者过敏事实，变更将关联当前就诊留痕。' : '当前为阅读状态，仅展示已记录的过敏事实。'}
+      size="wide" onClose={() => setAllergyOpen(false)}
       footer={<Button variant="secondary" onClick={() => setAllergyOpen(false)}>关闭</Button>}>
       <AllergySafetyPanel resident={resident} encounter={encounter} allergies={allergies.data ?? []}
-        loading={allergies.isPending} error={allergies.error} api={api} dialog />
+        loading={allergies.isPending} error={allergies.error} api={api} readOnly={!editing} dialog />
     </Dialog>}
     {guardedAction && <UnsavedPatientWorkDialog residentName={resident.fullName} action={guardedAction}
       labels={draftLabels} onClose={() => setGuardedAction(null)} onDiscard={() => runAction(guardedAction)} />}
@@ -798,9 +819,9 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
   </Dialog>
 }
 
-function AllergySafetyPanel({ resident, encounter, allergies, loading, error, api, dialog = false }: {
+function AllergySafetyPanel({ resident, encounter, allergies, loading, error, api, readOnly = false, dialog = false }: {
   resident: Resident; encounter: Encounter; allergies: AllergyIntolerance[]; loading: boolean; error: unknown; api: RhnApi
-  dialog?: boolean
+  readOnly?: boolean; dialog?: boolean
 }) {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState(false)
@@ -842,10 +863,11 @@ function AllergySafetyPanel({ resident, encounter, allergies, loading, error, ap
       <strong>{item.substanceDisplay}</strong>
       <small>{[allergyCategoryLabel(item.categoryCode), allergySeverityLabel(item.reactionSeverity), item.reactionText]
         .filter(Boolean).join(' · ')}</small>
-      <Button size="sm" variant="text" busy={inactivate.isPending}
+      {!readOnly && <Button size="sm" variant="text" busy={inactivate.isPending}
         onClick={() => { if (window.confirm(`确认停用“${item.substanceDisplay}”过敏记录？`)) inactivate.mutate(item) }}>停用</Button>
+      }
     </span>)}</div>}
-    {!loading && <div className="doctor-allergy-actions">
+    {!loading && !readOnly && <div className="doctor-allergy-actions">
       <Button size="sm" variant="secondary" onClick={() => setEditing((value) => !value)}>{editing ? '取消录入' : '记录过敏'}</Button>
       {allergies.length === 0 && <Button size="sm" variant="text" busy={noKnown.isPending}
         onClick={() => noKnown.mutate()}>确认无已知药物过敏</Button>}
@@ -1011,6 +1033,74 @@ function StructuredNoteForm({ form, values, errors, disabled, onChange }: {
       </div>
     </fieldset>)}
   </div>
+}
+
+function structuredNoteReadValue(field: OutpatientNoteFormField, value: unknown) {
+  if (value === undefined || value === null || value === '') return '未记录'
+  if (field.type === 'BOOLEAN') return value ? '是' : '否'
+  if (field.type === 'SELECT') return field.options.find((option) => option.value === value)?.label ?? String(value)
+  return `${String(value)}${field.unit ? ` ${field.unit}` : ''}`
+}
+
+function StructuredNoteReadView({ form, values }: {
+  form: OutpatientNoteForm
+  values: Record<string, unknown>
+}) {
+  return <section className="doctor-structured-note-read" aria-label={`${form.name}阅读内容`}>
+    <header><strong>{form.name}</strong><small>{form.formCode} · V{form.version}</small></header>
+    {form.sections.map((section) => <section key={section.code}>
+      <h4>{section.title}</h4>
+      <dl>{section.fields.map((field) => <div key={field.code}>
+        <dt>{field.label}</dt><dd>{structuredNoteReadValue(field, values[field.code])}</dd>
+      </div>)}</dl>
+    </section>)}
+  </section>
+}
+
+function ClinicalRecordReadView({ value, bmi, structuredForm, structuredValues }: {
+  value: RecordForm
+  bmi?: string
+  structuredForm?: OutpatientNoteForm
+  structuredValues: Record<string, unknown>
+}) {
+  const sections = [
+    { label: '主诉', value: value.chiefComplaint },
+    { label: '现病史', value: value.presentIllness },
+    { label: '既往史', value: value.medicalHistory },
+    { label: '查体所见', value: value.physicalExam },
+    { label: '诊疗计划', value: value.treatmentPlan },
+  ]
+  const vitals = [
+    { label: '体温', value: value.temperature, unit: '℃' },
+    { label: '脉搏', value: value.pulseRate, unit: '次/分' },
+    { label: '呼吸', value: value.respiratoryRate, unit: '次/分' },
+    { label: '血氧', value: value.oxygenSaturation, unit: '%' },
+    { label: '血压', value: value.systolic && value.diastolic ? `${value.systolic}/${value.diastolic}` : undefined, unit: 'mmHg' },
+    { label: '身高', value: value.heightCm, unit: 'cm' },
+    { label: '体重', value: value.weightKg, unit: 'kg' },
+    { label: 'BMI', value: bmi, unit: 'kg/m²' },
+  ]
+  return <article className="doctor-record-read" aria-label="门诊病历阅读内容">
+    <div className="doctor-record-read__body">
+      {sections.slice(0, 3).map((section) => <section key={section.label}>
+        <h3>{section.label}</h3>
+        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
+      </section>)}
+      <section className="doctor-record-read__vitals">
+        <h3>生命体征</h3>
+        <dl>{vitals.map((item) => <div key={item.label}>
+          <dt>{item.label}</dt><dd className={item.value == null || item.value === '' ? 'is-empty' : ''}>
+            {item.value == null || item.value === '' ? '—' : item.value}<small>{item.value == null || item.value === '' ? '' : item.unit}</small>
+          </dd>
+        </div>)}</dl>
+      </section>
+      {sections.slice(3).map((section) => <section key={section.label}>
+        <h3>{section.label}</h3>
+        <p className={section.value?.trim() ? '' : 'is-empty'}>{section.value?.trim() || '未记录'}</p>
+      </section>)}
+    </div>
+    {structuredForm && <StructuredNoteReadView form={structuredForm} values={structuredValues} />}
+  </article>
 }
 
 function StructuredNoteField({ field, value, error, disabled, onChange }: {
@@ -1190,12 +1280,14 @@ export function diagnosisDraftSignature(values: DiagnosisInput[]) {
 }
 
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
-  aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRefresh }: {
+  aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, editing, canEdit, enteringEdit, onRequestEditing,
+  onRequestReading, onRefresh }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
   onAiContextChange: (value: ClinicalAiDraftContext | null) => void
   onHistoryCopyConsumed: () => void; onDraftStateChange: (value: EncounterDraftState) => void
+  editing: boolean; canEdit: boolean; enteringEdit: boolean; onRequestEditing: () => void; onRequestReading: () => void
   onRefresh: () => Promise<unknown>
 }) {
   const queryClient = useQueryClient()
@@ -1310,11 +1402,12 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       })
     },
     onSuccess: async () => { pendingRecordCommand.current = null; acceptNextServerState.current = true; setCopyNotice('')
-      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh() },
+      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh()
+      if (!medicationDrafts.length && !serviceDrafts.length) onRequestReading() },
   })
   const sign = useMutation({
     mutationFn: () => api.clinicalDocuments.sign(document!.id, document!.currentVersion),
-    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh() },
+    onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh(); onRequestReading() },
   })
   const businessBusy = save.isPending || sign.isPending || orderBusy
   const aiContextBusy = businessBusy || documents.isPending || Boolean(documents.error)
@@ -1398,8 +1491,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     setDiagnosisType('SECONDARY')
     setDiagnosisError('')
   }
-  const height = watch('heightCm')
-  const weight = watch('weightKg')
+  const recordValues = watch()
+  const height = recordValues.heightCm
+  const weight = recordValues.weightKg
   const bmi = height && weight && Number(height) > 0 ? (Number(weight) / ((Number(height) / 100) ** 2)).toFixed(1) : undefined
 
   useEffect(() => {
@@ -1424,6 +1518,14 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     setCopyNotice(`已从病历模板“${template.name}”带入所选段落，请结合本次患者情况核对后保存。`)
   }
   const error = save.error || sign.error || documents.error || noteForms.error
+  const hasUnsavedChanges = formState.isDirty || structuredChanged || diagnosesChanged
+    || medicationDrafts.length > 0 || serviceDrafts.length > 0
+  const encounterEditable = ['REGISTERED', 'IN_PROGRESS', 'SUSPENDED'].includes(encounter.status)
+  const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
+    : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'
+  const readOnlyReason = !canEdit ? '当前账号没有病历编辑权限'
+    : !encounterEditable ? '本次就诊已结束；如需更正，应发起病历修订并保留原始版本'
+      : signed ? '病历已签署；如需更正，应发起病历修订' : ''
 
   const noteFormOptions: SelectOption[] = useMemo(() => {
     const options: SelectOption[] = [
@@ -1438,12 +1540,27 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     return options
   }, [noteForms.data, snapshotForm])
 
-  return <section className="doctor-clinical-cockpit">
+  return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
+    <div className="doctor-clinical-modebar">
+      <span><strong>{editing ? '编辑状态' : '阅读状态'}</strong>
+        <small>{editing ? (hasUnsavedChanges ? '有未保存内容' : '本次接诊可修改')
+          : signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small></span>
+      {editing ? <Button size="sm" variant="secondary" disabled={hasUnsavedChanges}
+          title={hasUnsavedChanges ? '请先保存或处理当前草稿' : '退出编辑并返回只读查看'}
+          onClick={onRequestReading}>返回阅读</Button>
+        : <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
+          title={readOnlyReason || `${editActionLabel}后可修改病历`}
+          onClick={onRequestEditing}>{editActionLabel}</Button>}
+    </div>
+    {!editing && readOnlyReason && <div className="doctor-clinical-readonly-note"><Icon name="lock" />
+      <span>{readOnlyReason}</span></div>}
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
-      <PanelHead title="门诊病历" meta={signed ? '已签署' : '病历草稿 · 保存后签署'} />
+      <PanelHead title="门诊病历" meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
+        actions={document && signed ? <Button size="sm" variant="secondary"
+          onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button> : undefined} />
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
-      <div className="doctor-record-toolbar">
+      {editing && <div className="doctor-record-toolbar">
         <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} />
         <div className="doctor-note-mode-inline">
@@ -1455,8 +1572,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
               }} />
           </label>
         </div>
-      </div>
-      <form className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
+      </div>}
+      {editing ? <form className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
         <FormField className="doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
           <textarea {...register('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" />
         </FormField>
@@ -1552,26 +1669,25 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             setStructuredErrors((current) => ({ ...current, [code]: '' }))
           }} />}
         <div className="ui-form-actions doctor-record-actions">
-          {document && signed && <Button type="button" variant="secondary"
-            onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}
           {document && !signed && <Button type="button" variant="secondary" busy={sign.isPending}
             disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending}
             title={formState.isDirty || structuredChanged || diagnosesChanged ? '请先保存当前病历和诊断修改' : '签署当前已保存版本'}
             onClick={() => sign.mutate()}>签署当前版本</Button>}
           <Button type="submit" busy={save.isPending} disabled={signed}>保存病历草稿</Button>
         </div>
-      </form>
+      </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
+        structuredValues={structuredValues} />}
     </Panel>
     </div>
     <aside className="doctor-clinical-aside" aria-label="诊断与医嘱工作区">
       <Panel className="doctor-diagnosis-panel">
         <PanelHead title="诊断" meta={`${diagnoses.length} 项`} actions={
-          <PlanTemplatePanel diagnoses={diagnoses} setDiagnoses={setDiagnoses}
+          editing ? <PlanTemplatePanel diagnoses={diagnoses} setDiagnoses={setDiagnoses}
             medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
             serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
-            allergies={allergies} api={api} disabled={signed} />} />
+            allergies={allergies} api={api} disabled={signed} /> : undefined} />
         <div className="doctor-diagnosis-content">
-          <div className="doctor-diagnosis-editor">
+          {editing && <div className="doctor-diagnosis-editor">
             <div className="doctor-diagnosis-domain-wrap">
               <Select aria-label="诊断体系" value={diagnosisDomainFilter} clearable={false} searchable={false}
                 disabled={signed}
@@ -1599,10 +1715,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                 onChange={(val) => setDiagnosisType(val as DiagnosisInput['type'])} />
             </div>
             <Button type="button" variant="secondary" disabled={signed || !diagnosisSearch} onClick={addDiagnosis}>加入诊断</Button>
-          </div>
-          {diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
+          </div>}
+          {editing && diagnosisError && <small className="ui-field__message ui-field__error">{diagnosisError}</small>}
           <div className="doctor-diagnosis-list" aria-label="本次诊断">
-            {diagnoses.length === 0 ? <p className="doctor-diagnosis-empty">尚未录入诊断（接诊需至少录入一项主要诊断）</p> : diagnoses.map((item) => {
+            {diagnoses.length === 0 ? <p className="doctor-diagnosis-empty">{editing
+              ? '尚未录入诊断（接诊需至少录入一项主要诊断）' : '尚未录入诊断'}</p> : diagnoses.map((item) => {
               const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
               return <div key={key}>
               <StatusBadge tone={item.type === 'PRIMARY' ? 'success' : 'neutral'}>{item.type === 'PRIMARY' ? '主要' : '次要'}</StatusBadge>
@@ -1611,10 +1728,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                   : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'
               }</small>{item.managementPrograms?.length ? <small className="doctor-diagnosis-management-tags">
                 {item.managementPrograms.map((program) => program.name).join(' · ')}</small> : null}</span>
-              {item.type !== 'PRIMARY' && <Button type="button" size="sm" variant="text" disabled={signed}
+              {editing && item.type !== 'PRIMARY' && <Button type="button" size="sm" variant="text" disabled={signed}
                 onClick={() => makePrimary(key)}>设为主要</Button>}
-              <Button type="button" size="sm" variant="text" disabled={signed}
+              {editing && <Button type="button" size="sm" variant="text" disabled={signed}
                 onClick={() => removeDiagnosis(key)}>移除</Button>
+              }
             </div>})}
           </div>
           {diagnoses.some((item) => item.managementPrograms?.length) && <Alert tone="warning"
@@ -1625,7 +1743,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
           </Alert>}
         </div>
       </Panel>
-      <OrdersPanel encounter={encounter} allergies={allergies} api={api}
+      <OrdersPanel encounter={encounter} allergies={allergies} api={api} editing={editing}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy} />
     </aside>
@@ -1838,12 +1956,13 @@ function medicationDraftKey(item: MedicationPlanDraft) {
 }
 
 function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicationDrafts,
-  serviceDrafts, setServiceDrafts, onBusyChange }: {
+  serviceDrafts, setServiceDrafts, editing, onBusyChange }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; api: RhnApi
   medicationDrafts: MedicationPlanDraft[]
   setMedicationDrafts: Dispatch<SetStateAction<MedicationPlanDraft[]>>
   serviceDrafts: ServicePlanDraft[]
   setServiceDrafts: Dispatch<SetStateAction<ServicePlanDraft[]>>
+  editing: boolean
   onBusyChange: (busy: boolean) => void
 }) {
   const queryClient = useQueryClient()
@@ -1927,10 +2046,10 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   return <Panel className="doctor-orders-panel">
     <PanelHead title="医嘱和费用信息" meta={<>{orderCount} 项已开立
       {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
-      actions={<div className="doctor-order-head-actions">
+      actions={editing ? <div className="doctor-order-head-actions">
         <StatusBadge tone={planCount ? 'warning' : 'neutral'}>{planCount} 项待确认</StatusBadge>
         <Button size="sm" disabled={planCount === 0} onClick={() => setReviewOpen(true)}>审核保存</Button>
-      </div>} />
+      </div> : undefined} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
@@ -1938,6 +2057,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           prescriptions={prescriptions.data ?? []} medications={medications.data ?? []} services={services.data ?? []}
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
           serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} api={api}
+          readOnly={!editing}
           busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending}
           onCancelMedication={(item) => { if (window.confirm(`确认撤销“${item.medicationName}”？`)) cancelMedication.mutate(item) }}
           onCancelService={(item) => { if (window.confirm(`确认撤销“${item.itemName}”？`)) cancelService.mutate(item) }}

@@ -10,7 +10,11 @@ public interface EncounterDirectory {
     List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds);
     PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId);
 
+    void validateRegistration(RegistrationEligibilityCommand command);
+
     EncounterSnapshot completeRegistration(RegistrationCompletionCommand command);
+
+    record RegistrationEligibilityCommand(Long residentId, Long organizationId, Long departmentId) {}
 
     record RegistrationCompletionCommand(
             Long residentId, Long organizationId, Long departmentId, Long appointmentId, Long scheduleId, Long slotHoldId,

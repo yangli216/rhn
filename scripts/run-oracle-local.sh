@@ -4,10 +4,18 @@ set -euo pipefail
 rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_backend_dir="$rhn_project_root/backend"
 rhn_server_port="${RHN_SERVER_PORT:-8080}"
+rhn_oracle_env_file="${RHN_ORACLE_ENV_FILE:-$rhn_project_root/.env.oracle.local}"
+
+if [[ -f "$rhn_oracle_env_file" ]]; then
+  set -a
+  # This file is local-only and gitignored; it must contain simple KEY=value assignments.
+  source "$rhn_oracle_env_file"
+  set +a
+fi
 
 for rhn_required_variable in RHN_ORACLE_URL RHN_ORACLE_USER RHN_ORACLE_PASSWORD; do
   if [[ -z "${!rhn_required_variable:-}" ]]; then
-    echo "缺少环境变量：$rhn_required_variable" >&2
+    echo "缺少环境变量：$rhn_required_variable（可配置在 $rhn_oracle_env_file）" >&2
     exit 1
   fi
 done

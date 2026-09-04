@@ -53,6 +53,7 @@ export function UnifiedOrderListEditor({
   encounter, allergies = [], prescriptions = [], medications = [], services = [],
   medicationDrafts = [], setMedicationDrafts,
   serviceDrafts = [], setServiceDrafts, api, busy = false,
+  readOnly = false,
   onCancelMedication = () => {}, onCancelService = () => {}, onPrint = () => {},
 }: {
   encounter: Encounter
@@ -66,6 +67,7 @@ export function UnifiedOrderListEditor({
   setServiceDrafts: Dispatch<SetStateAction<ServicePlanDraft[]>>
   api: RhnApi
   busy?: boolean
+  readOnly?: boolean
   onCancelMedication?: (value: MedicationRequest) => void
   onCancelService?: (value: ServiceRequest) => void
   onPrint?: (value: Prescription) => void
@@ -243,7 +245,7 @@ export function UnifiedOrderListEditor({
     }
   }
 
-  return <div className="doctor-unified-orders" onKeyDown={handleEntryBoxKeyDown}>
+  return <div className={`doctor-unified-orders${readOnly ? ' is-readonly' : ''}`} onKeyDown={handleEntryBoxKeyDown}>
     <div className="doctor-unified-order-list" role="table" aria-label="本次医嘱连续录入列表">
       <div className="doctor-unified-order-head" role="row">
         <span>类型</span>
@@ -251,31 +253,32 @@ export function UnifiedOrderListEditor({
         <span>用法用量 / 说明</span>
         <span>包装数量</span>
         <span>状态</span>
-        <span>操作</span>
+        {!readOnly && <span>操作</span>}
       </div>
       {savedEntries.length === 0 && draftEntries.length === 0 && (
         <div className="doctor-unified-order-empty">
-          <span>暂无已开立或待确认医嘱，请在下方录入</span>
+          <span>{readOnly ? '暂无已开立医嘱' : '暂无已开立或待确认医嘱，请在下方录入'}</span>
         </div>
       )}
       {savedEntries.map((entry) => {
         if (entry.kind === 'service') return <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
-          busy={busy} onCancel={() => onCancelService(entry.value)} />
+          busy={busy} readOnly={readOnly} onCancel={() => onCancelService(entry.value)} />
         const prescription = prescriptions.find((value) => value.id === entry.value.prescriptionId)
         const firstLine = prescription?.medicationRequests.find((value) => value.status === 'ACTIVE')?.id === entry.value.id
         return <MedicationReadRow key={`medication-${entry.value.id}`} value={entry.value} busy={busy}
+          readOnly={readOnly}
           skinTest={skinTestByRequest.get(entry.value.id)}
           onCancel={() => onCancelMedication(entry.value)}
           onPrint={prescription && firstLine && canPrintPrescription(prescription) ? () => onPrint(prescription) : undefined} />
       })}
-      {draftEntries.map((entry) => entry.kind === 'service'
+      {!readOnly && draftEntries.map((entry) => entry.kind === 'service'
         ? <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
             onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
         : <MedicationDraftRow key={`draft-medication-${entry.value.id}`} value={entry.value}
             onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />)}
     </div>
 
-    <div className={`doctor-unified-order-entry-box is-${entryType.toLowerCase()}`}>
+    {!readOnly && <div className={`doctor-unified-order-entry-box is-${entryType.toLowerCase()}`}>
       <div className="doctor-unified-entry-row doctor-unified-entry-row--primary">
         <div className="doctor-entry-type-wrap">
           <Select aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
@@ -464,12 +467,13 @@ export function UnifiedOrderListEditor({
           )}
         </div>
       )}
-    </div>
+    </div>}
   </div>
 }
 
-function MedicationReadRow({ value, skinTest, busy, onCancel, onPrint }: {
-  value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; onCancel: () => void; onPrint?: () => void
+function MedicationReadRow({ value, skinTest, busy, readOnly, onCancel, onPrint }: {
+  value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; readOnly: boolean
+  onCancel: () => void; onPrint?: () => void
 }) {
   return <div className="doctor-unified-order-row" role="row">
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.medicationType === 'HERBAL' ? 'HERBAL'
@@ -491,10 +495,10 @@ function MedicationReadRow({ value, skinTest, busy, onCancel, onPrint }: {
       {value.skinTestRequired && <StatusBadge tone={skinTest?.status === 'NEGATIVE' ? 'success'
         : skinTest?.status === 'POSITIVE' ? 'danger' : 'warning'}>{doctorSkinTestLabel(skinTest?.status)}</StatusBadge>}
     </span>
-    <span className="doctor-unified-order-actions">
+    {!readOnly && <span className="doctor-unified-order-actions">
       {onPrint && <Button size="sm" variant="text" onClick={onPrint}>打印</Button>}
       {value.status !== 'CANCELLED' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}
-    </span>
+    </span>}
   </div>
 }
 
@@ -509,7 +513,9 @@ function doctorSkinTestLabel(value?: SkinTestWorkItem['status']) {
   return '待皮试'
 }
 
-function ServiceReadRow({ value, busy, onCancel }: { value: ServiceRequest; busy: boolean; onCancel: () => void }) {
+function ServiceReadRow({ value, busy, readOnly, onCancel }: {
+  value: ServiceRequest; busy: boolean; readOnly: boolean; onCancel: () => void
+}) {
   return <div className="doctor-unified-order-row" role="row">
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.serviceType} /></span>
     <span className="doctor-unified-order-name">
@@ -525,9 +531,9 @@ function ServiceReadRow({ value, busy, onCancel }: { value: ServiceRequest; busy
     <span className="doctor-order-status-stack">
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : 'neutral'}>{orderStatusLabel(value.status)}</StatusBadge>
     </span>
-    <span className="doctor-unified-order-actions">
+    {!readOnly && <span className="doctor-unified-order-actions">
       {value.status === 'ACTIVE' && <Button size="sm" variant="text" busy={busy} onClick={onCancel}>撤销</Button>}
-    </span>
+    </span>}
   </div>
 }
 

@@ -43,6 +43,10 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -417,13 +421,16 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 && periodsOverlap(validFrom, validTo, value.validFrom(), value.validTo()))) {
             throw conflict("PRIMARY_ASSIGNMENT_OVERLAP", "同一聘用关系在同一组织的重叠有效期内只能有一个主任职任职");
         }
+        Practitioner practitioner = requirePractitioner(context.tenantId(), employment.practitionerId());
         try {
             PersonnelAssignment assignment = assignmentRepository.saveAndFlush(new PersonnelAssignment(
                     context.tenantId(), employmentId, organizationId, departmentId, positionId, normalizedCode, type,
                     trimToNull(specialtyCode), primaryAssignment, workloadPercent,
                     validFrom, validTo, context.subjectId()));
             return assignmentView(assignment, organization.name(), department.name(),
-                    position.name(), position.positionType());
+                    position.name(), position.positionType(),
+                    practitioner.id(), practitioner.code(), practitioner.fullName(),
+                    practitioner.gender() != null ? practitioner.gender().name() : null);
         } catch (IllegalArgumentException exception) {
             throw badRequest("VALIDITY_PERIOD_INVALID", "任职结束日期不能早于开始日期");
         }
@@ -454,7 +461,9 @@ public class OrganizationApplicationService implements OrganizationDirectory {
             Position position = requirePosition(tenantId, value.positionId());
             return assignmentView(value, requireEntity(tenantId, value.organizationId()).name(),
                     requireDepartmentEntity(tenantId, value.organizationId(), value.departmentId()).name(),
-                    position.name(), position.positionType());
+                    position.name(), position.positionType(),
+                    practitioner.id(), practitioner.code(), practitioner.fullName(),
+                    practitioner.gender() != null ? practitioner.gender().name() : null);
         }).toList();
         return new StaffDetailView(practitioner.toView(), employmentViews, assignmentViews);
     }
@@ -599,11 +608,55 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 value.dutyDescription(), value.status().name());
     }
 
+    @Transactional(readOnly = true)
+    public List<StaffAssignmentView> listAssignments(Long tenantId, Long organizationId, Long departmentId) {
+        requireTenant(tenantId);
+        List<PersonnelAssignment> assignments;
+        if (departmentId != null) {
+            assignments = assignmentRepository.findByTenantIdAndDepartmentIdOrderByValidFromDesc(tenantId, departmentId);
+        } else if (organizationId != null) {
+            assignments = assignmentRepository.findByTenantIdAndOrganizationIdOrderByValidFromDesc(tenantId, organizationId);
+        } else {
+            assignments = assignmentRepository.findByTenantIdOrderByValidFromDesc(tenantId);
+        }
+        Map<Long, Employment> employments = employmentRepository.findByTenantId(tenantId).stream()
+                .collect(Collectors.toMap(Employment::id, Function.identity(), (a, b) -> a));
+        Map<Long, Practitioner> practitioners = practitionerRepository.findByTenantIdOrderByCode(tenantId).stream()
+                .collect(Collectors.toMap(Practitioner::id, Function.identity(), (a, b) -> a));
+        Map<Long, Position> positions = positionRepository.findByTenantIdOrderByCode(tenantId).stream()
+                .collect(Collectors.toMap(Position::id, Function.identity(), (a, b) -> a));
+        Map<Long, String> orgNames = new java.util.HashMap<>();
+        Map<Long, String> deptNames = new java.util.HashMap<>();
+
+        return assignments.stream().map(value -> {
+            Employment employment = employments.get(value.employmentId());
+            Practitioner practitioner = employment != null ? practitioners.get(employment.practitionerId()) : null;
+            Position position = positions.get(value.positionId());
+            String orgName = orgNames.computeIfAbsent(value.organizationId(), id -> {
+                try { return requireEntity(tenantId, id).name(); } catch (Exception e) { return ""; }
+            });
+            String deptName = deptNames.computeIfAbsent(value.departmentId(), id -> {
+                try { return requireDepartmentEntity(tenantId, value.organizationId(), id).name(); } catch (Exception e) { return ""; }
+            });
+            return assignmentView(value, orgName, deptName,
+                    position != null ? position.name() : "",
+                    position != null ? position.positionType() : PositionType.ADMINISTRATIVE,
+                    practitioner != null ? practitioner.id() : null,
+                    practitioner != null ? practitioner.code() : "",
+                    practitioner != null ? practitioner.fullName() : "",
+                    practitioner != null && practitioner.gender() != null ? practitioner.gender().name() : null);
+        }).toList();
+    }
+
     private StaffAssignmentView assignmentView(PersonnelAssignment value, String organizationName,
                                                String departmentName, String positionName,
-                                               PositionType positionType) {
-        return new StaffAssignmentView(value.id(), value.revision(), value.employmentId(), value.organizationId(),
-                organizationName, value.departmentId(), departmentName, value.positionId(), positionName,
+                                               PositionType positionType,
+                                               Long practitionerId, String practitionerCode,
+                                               String practitionerName, String sdPractGender) {
+        return new StaffAssignmentView(value.id(), value.revision(), value.employmentId(),
+                practitionerId, practitionerCode, practitionerName, sdPractGender,
+                value.organizationId(), organizationName,
+                value.departmentId(), departmentName, value.positionId(), positionName,
                 positionType.name(), value.code(), value.assignmentType().name(),
                 value.specialtyCode(), value.primaryAssignment(), value.workloadPercent(), value.status().name(),
                 value.validFrom(), value.validTo());

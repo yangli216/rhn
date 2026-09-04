@@ -871,7 +871,8 @@ export function AppShell() {
                   <Route path="/outpatient/flow" element={<OutpatientFlowWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/reception" element={<DoctorWorkstation api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} />} />
+                    clinicalContext={tabSlot.clinicalContext}
+                    canEdit={tabAuthorities.has('OUTPATIENT_RECEPTION.ACCESS') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/inpatient" element={<Navigate to="/inpatient/admissions" replace />} />
                   <Route path="/inpatient/admissions" element={<InpatientAdmissionWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />

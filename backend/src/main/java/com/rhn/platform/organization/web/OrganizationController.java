@@ -301,6 +301,12 @@ public class OrganizationController {
                 request.workloadPercent(), request.validFrom(), request.validTo());
     }
 
+    @GetMapping("/assignments")
+    List<StaffAssignmentView> listAssignments(@RequestParam(required = false) Long organizationId,
+                                              @RequestParam(required = false) Long departmentId) {
+        return service.listAssignments(tenantId(), organizationId, departmentId);
+    }
+
     private Long tenantId() {
         return TenantContext.requireTenantId();
     }

@@ -9,7 +9,7 @@ import type { ReceptionQueueItem, ServiceSchedule } from '../../shared/api/sched
 import type { Encounter, Resident } from '../../shared/model'
 import type { RegistrationBillingIntent } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
-import { OutpatientRegistrationWorkspace } from './RegistrationWorkspace'
+import { OutpatientRegistrationWorkspace, registrationDayPart } from './RegistrationWorkspace'
 
 const resident: Resident = {
   id: 'resident-1', healthRecordNo: 'HR0001', fullName: '张三', maskedNationalId: '3301********1234',
@@ -21,9 +21,12 @@ const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
+const defaultDayPart = registrationDayPart()
+const otherDayPart = defaultDayPart === 'MORNING' ? 'AFTERNOON' : 'MORNING'
+
 const schedule: ServiceSchedule = {
-  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: businessDate(), sdDayPart: 'MORNING',
-  sdDayPartText: '上午', startAt: `${businessDate()}T00:00:00Z`, endAt: `${businessDate()}T04:00:00Z`,
+  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: businessDate(), sdDayPart: defaultDayPart,
+  sdDayPartText: defaultDayPart === 'MORNING' ? '上午' : '下午', startAt: `${businessDate()}T00:00:00Z`, endAt: `${businessDate()}T04:00:00Z`,
   practitionerId: 'doctor-1', practitionerName: '李医生', catalogItemId: 'service-1',
   serviceCode: 'GENERAL', serviceName: '全科门诊', totalCount: 20, heldCount: 0, occupiedCount: 2,
   frozenCount: 0, availableCount: 18, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
@@ -34,8 +37,8 @@ const schedule: ServiceSchedule = {
 }
 
 const internalSchedule: ServiceSchedule = {
-  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: businessDate(), sdDayPart: 'AFTERNOON',
-  sdDayPartText: '下午', startAt: `${businessDate()}T06:00:00Z`, endAt: `${businessDate()}T09:00:00Z`,
+  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: businessDate(), sdDayPart: otherDayPart,
+  sdDayPartText: otherDayPart === 'MORNING' ? '上午' : '下午', startAt: `${businessDate()}T06:00:00Z`, endAt: `${businessDate()}T09:00:00Z`,
   practitionerId: 'doctor-2', practitionerName: '王专家', catalogItemId: 'service-2',
   serviceCode: 'INTERNAL', serviceName: '内科门诊', totalCount: 15, heldCount: 0, occupiedCount: 13,
   frozenCount: 0, availableCount: 2, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
@@ -69,6 +72,11 @@ const visitTypes = {
 } as SystemEnumDefinition
 
 describe('OutpatientRegistrationWorkspace', () => {
+  it('defaults to morning before noon and afternoon from noon in the business timezone', () => {
+    expect(registrationDayPart(new Date('2026-09-03T03:59:59Z'))).toBe('MORNING')
+    expect(registrationDayPart(new Date('2026-09-03T04:00:00Z'))).toBe('AFTERNOON')
+  })
+
   it('registers the deep-linked resident against an available schedule and shows the queue receipt', async () => {
     const registrationIntent = {
       id: 'intent-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
@@ -167,7 +175,19 @@ describe('OutpatientRegistrationWorkspace', () => {
     await userEvent.click(quickCreateButtons[0])
 
     expect(screen.getByRole('heading', { name: '30秒极速建档' })).toBeInTheDocument()
-    await userEvent.type(screen.getByPlaceholderText('如 张三'), '李小龙')
+    const nameInput = screen.getByPlaceholderText('如 张三')
+    const nationalIdInput = screen.getByPlaceholderText(/18位身份证号/)
+    expect(nameInput).toHaveFocus()
+
+    await userEvent.keyboard('{Enter}')
+    expect(nameInput).toHaveFocus()
+
+    await userEvent.type(nameInput, '李小龙{Enter}')
+    expect(nationalIdInput).toHaveFocus()
+
+    await userEvent.type(nationalIdInput, '123{Enter}')
+    expect(nationalIdInput).toHaveFocus()
+    await userEvent.clear(nationalIdInput)
     await userEvent.click(screen.getByRole('button', { name: '确认建档并挂号' }))
 
     await waitFor(() => expect(createResident).toHaveBeenCalledWith(expect.objectContaining({
@@ -199,7 +219,10 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    // Both schedules visible initially
+    expect(screen.getByRole('button', { name: defaultDayPart === 'MORNING' ? '上午' : '下午' })).toHaveClass('is-active')
+    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+
+    // Both schedules are available after clearing the default day-part filter
     expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
@@ -252,13 +275,15 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    const cardGeneral = await screen.findByRole('button', { name: /全科门诊/ })
-    const cardInternal = screen.getByRole('button', { name: /王专家/ })
+    await screen.findByRole('button', { name: /全科门诊/ })
+    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    const cardGeneral = screen.getByRole('button', { name: /全科门诊/ })
+    const cardInternal = await screen.findByRole('button', { name: /王专家/ })
     const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)
 
     // Initially first schedule (全科门诊) is selected
     expect(cardGeneral).toHaveClass('is-selected')
-    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('全科门诊')
+    expect(screen.getByText('科室').parentElement).toHaveTextContent('全科门诊')
 
     // Focus on search input
     searchInput.focus()
@@ -271,14 +296,14 @@ describe('OutpatientRegistrationWorkspace', () => {
     // Focus still stays in search input!
     expect(searchInput).toHaveFocus()
     // Receiving department reflects the selected schedule's department (内科门诊), not the user's clinicalContext
-    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('内科门诊')
+    expect(screen.getByText('科室').parentElement).toHaveTextContent('内科门诊')
 
     // Press ArrowLeft to switch back to first card (全科门诊)
     await userEvent.keyboard('{arrowleft}')
     expect(cardGeneral).toHaveClass('is-selected')
     expect(cardInternal).not.toHaveClass('is-selected')
     expect(searchInput).toHaveFocus()
-    expect(screen.getByText('接诊科室').parentElement).toHaveTextContent('全科门诊')
+    expect(screen.getByText('科室').parentElement).toHaveTextContent('全科门诊')
 
     // Test doctor pinyin initials search (w -> 王专家)
     await userEvent.type(searchInput, 'w')
@@ -325,7 +350,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByText(/健康档案号/)
-    await userEvent.click(screen.getByRole('button', { name: /确认挂号/ }))
+    await userEvent.click(await screen.findByRole('button', { name: /确认挂号/ }))
 
     // Thermal receipt modal should open automatically
     expect(await screen.findByRole('heading', { name: '门诊挂号热敏凭条' })).toBeInTheDocument()
@@ -410,7 +435,7 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // 2. Confirm candidate via Enter
     await userEvent.type(searchInput, '{enter}')
-    expect(await screen.findByText('患者身份信息')).toBeInTheDocument()
+    expect(await screen.findByText(/健康档案号/)).toBeInTheDocument()
     await waitFor(() => {
       expect(screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)).toHaveFocus()
     })
@@ -461,7 +486,7 @@ describe('OutpatientRegistrationWorkspace', () => {
     await userEvent.type(searchInput, '张三{enter}')
     expect(await screen.findByText('1 条候选记录')).toBeInTheDocument()
     await userEvent.type(searchInput, '{enter}')
-    expect(await screen.findByText('患者身份信息')).toBeInTheDocument()
+    expect(await screen.findByText(/健康档案号/)).toBeInTheDocument()
 
     const scheduleCard = screen.getByRole('button', { name: /全科门诊/ })
     await userEvent.click(scheduleCard)
@@ -478,8 +503,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     expect(screen.getByText(/应找零给患者 ¥10.00/)).toBeInTheDocument()
 
     const cashInput = screen.getByPlaceholderText('10')
+    await userEvent.click(cashInput)
     await userEvent.clear(cashInput)
     await userEvent.type(cashInput, '5')
-    expect(screen.getByRole('button', { name: /实收缴款不足，还差 ¥5.00/ })).toBeDisabled()
+    expect(await screen.findByRole('button', { name: /实收缴款不足，还差 ¥5.00/ })).toBeDisabled()
   })
 })

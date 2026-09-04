@@ -10,10 +10,12 @@ import {
   type ButtonHTMLAttributes,
   type CSSProperties,
   type HTMLAttributes,
+  type KeyboardEvent as ReactKeyboardEvent,
   type PropsWithChildren,
   type ReactElement,
   type ReactNode,
   type Ref,
+  type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon, type IconName } from './Icon'
@@ -295,6 +297,59 @@ function focusableElements(root: HTMLElement) {
   )).filter((element) => !element.hasAttribute('hidden'))
 }
 
+const enterNavigableSelector = [
+  'input:not([type="hidden"]):not([type="button"]):not([type="submit"]):not([type="reset"])',
+  'select',
+  'textarea',
+  'button[role="combobox"]',
+].join(', ')
+
+function enterNavigableElements(form: HTMLFormElement) {
+  return Array.from(form.querySelectorAll<HTMLElement>(enterNavigableSelector)).filter((element) => (
+    !element.hasAttribute('disabled')
+    && !element.hasAttribute('readonly')
+    && !element.closest('[hidden]')
+    && element.getAttribute('tabindex') !== '-1'
+    && element.dataset.enterNavigation !== 'ignore'
+  ))
+}
+
+function blocksEnterNavigation(control: HTMLElement) {
+  const nativeControl = control as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  if (typeof nativeControl.checkValidity === 'function' && !nativeControl.checkValidity()) {
+    nativeControl.reportValidity()
+    return true
+  }
+  if (control.getAttribute('aria-invalid') === 'true' || control.closest('.ui-field')?.classList.contains('is-invalid')) {
+    return true
+  }
+  return control.getAttribute('aria-required') === 'true' && control.classList.contains('is-placeholder')
+}
+
+function advanceDialogFormOnEnter(event: ReactKeyboardEvent<HTMLDivElement>) {
+  if (event.key !== 'Enter' || event.defaultPrevented || event.nativeEvent.isComposing
+    || event.shiftKey || event.ctrlKey || event.altKey || event.metaKey) return
+
+  const target = event.target
+  if (!(target instanceof HTMLElement) || target.matches('textarea, [contenteditable="true"]')
+    || target.dataset.enterNavigation === 'ignore') return
+  const control = target.closest<HTMLElement>(enterNavigableSelector)
+  const form = control?.closest('form')
+  if (!control || !form || !event.currentTarget.contains(form)) return
+
+  if (blocksEnterNavigation(control)) {
+    event.preventDefault()
+    control.focus()
+    return
+  }
+
+  const controls = enterNavigableElements(form)
+  const next = controls[controls.indexOf(control) + 1]
+  if (!next) return
+  event.preventDefault()
+  next.focus()
+}
+
 export function Dialog({
   title,
   eyebrow,
@@ -305,6 +360,8 @@ export function Dialog({
   closeOnBackdrop = true,
   size = 'default',
   className = '',
+  initialFocusRef,
+  enterNavigation = true,
 }: PropsWithChildren<{
   title: string
   eyebrow?: string
@@ -314,11 +371,19 @@ export function Dialog({
   closeOnBackdrop?: boolean
   size?: 'default' | 'wide' | 'xwide'
   className?: string
+  initialFocusRef?: RefObject<HTMLElement | null>
+  enterNavigation?: boolean
 }>) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+  const initialFocusTargetRef = useRef(initialFocusRef)
+  const onCloseRef = useRef(onClose)
   const titleId = useId()
   const descriptionId = useId()
+
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   useEffect(() => {
     const previouslyFocused = triggerRef.current
@@ -333,12 +398,12 @@ export function Dialog({
     const autoFocusTarget = dialog?.querySelector<HTMLElement>('[autofocus]')
     const focusedInsideDialog = document.activeElement instanceof HTMLElement && dialog?.contains(document.activeElement)
       ? document.activeElement : null
-    ;(focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus()
+    ;(initialFocusTargetRef.current?.current ?? focusedInsideDialog ?? autoFocusTarget ?? focusable[0] ?? dialog)?.focus()
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         event.preventDefault()
-        onClose()
+        onCloseRef.current()
         return
       }
       if (event.key !== 'Tab' || !dialog) return
@@ -366,7 +431,7 @@ export function Dialog({
       if (!applicationWasInert) applicationRoot?.removeAttribute('inert')
       previouslyFocused?.focus()
     }
-  }, [onClose])
+  }, [])
 
   return createPortal(<div className="ui-dialog-backdrop" onMouseDown={closeOnBackdrop ? onClose : undefined}>
     <div
@@ -378,6 +443,7 @@ export function Dialog({
       aria-describedby={description ? descriptionId : undefined}
       tabIndex={-1}
       onMouseDown={(event) => event.stopPropagation()}
+      onKeyDown={enterNavigation ? advanceDialogFormOnEnter : undefined}
     >
       <div className="ui-dialog__head">
         <div className="ui-dialog__heading">

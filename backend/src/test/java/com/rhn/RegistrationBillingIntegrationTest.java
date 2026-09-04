@@ -329,6 +329,44 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void active_encounter_is_rejected_before_slot_hold_and_financial_facts_are_created() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        String scheduleId = createTodaySchedule(suffix, 1);
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"ACTIVE-DIRECT-%s","registrationSource":"DIRECT","visitType":"GENERAL"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("COMPLETED"));
+
+        int accountCount = jdbc.queryForObject("select count(*) from patient_accounts", Integer.class);
+        int chargeCount = jdbc.queryForObject("select count(*) from charge_items", Integer.class);
+        int settlementCount = jdbc.queryForObject("select count(*) from settlements", Integer.class);
+        int intentCount = jdbc.queryForObject("select count(*) from registration_billing_intents", Integer.class);
+
+        mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "scheduleId":"%s","idempotencyCode":"ACTIVE-PRICED-%s",
+                                  "registrationSource":"WINDOW","visitType":"GENERAL"
+                                }
+                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, suffix)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ENCOUNTER_ACTIVE_DUPLICATE"));
+
+        assertEquals(accountCount, jdbc.queryForObject("select count(*) from patient_accounts", Integer.class));
+        assertEquals(chargeCount, jdbc.queryForObject("select count(*) from charge_items", Integer.class));
+        assertEquals(settlementCount, jdbc.queryForObject("select count(*) from settlements", Integer.class));
+        assertEquals(intentCount, jdbc.queryForObject("select count(*) from registration_billing_intents", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+                Integer.class, Long.valueOf(scheduleId)));
+    }
+
+    @Test
     void unserved_paid_registration_is_atomically_refunded_cancelled_and_returns_the_slot() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);

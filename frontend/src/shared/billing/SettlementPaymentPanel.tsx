@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { PaymentOrder } from '../api/billingApi'
+import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Button, FormField, Select, StatusBadge } from '../ui'
 
 export interface SettlementOption {
@@ -29,9 +29,7 @@ export interface SettlementPaymentCommand {
 
 export type SettlementModeCode = 'SELF_PAY' | 'MEDICAL_INSURANCE'
 
-export function SettlementPaymentPanel({ settlements, methods, orders, busy, recoveringOrderId,
-  sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
-  showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder }: {
+export interface SettlementPaymentPanelProps {
   settlements: SettlementOption[]
   methods: PaymentMethodOption[]
   orders: PaymentOrder[]
@@ -46,34 +44,103 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
   onSettlementModeChange?: (value: SettlementModeCode) => void
   onSubmit: (command: SettlementPaymentCommand) => Promise<unknown>
   onRecoverOrder?: (order: PaymentOrder) => Promise<unknown>
-}) {
+  onInitiateScanPay?: (command: { settlementId: string; paymentMethodCode: string; paymentMethodName: string; amount: number }) => void
+  // 医保中台扩展能力
+  insuranceIntegrated?: boolean
+  insuranceClaimView?: InsuranceSettlementView | null
+  onPreSettleInsurance?: (settlementId: string) => Promise<unknown>
+  onCancelInsurancePreSettle?: () => void
+  isPreSettlingInsurance?: boolean
+}
+
+export function SettlementPaymentPanel({
+  settlements, methods, orders, busy, recoveringOrderId,
+  sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
+  showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
+  onInitiateScanPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
+  onCancelInsurancePreSettle, isPreSettlingInsurance = false,
+}: SettlementPaymentPanelProps) {
   const [settlementId, setSettlementId] = useState('')
   const [internalSettlementMode, setInternalSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
   const [methodCode, setMethodCode] = useState('')
   const [amount, setAmount] = useState('')
   const [cashTendered, setCashTendered] = useState('')
+  const [cashDrawerOpen, setCashDrawerOpen] = useState(false)
+  const cashInputRef = useRef<HTMLInputElement>(null)
   const submissionKey = useRef<string | null>(null)
   const activeSettlementMode = settlementModeCode ?? internalSettlementMode
   const monetaryMethods = useMemo(() => methods.filter((value) => value.code !== 'MEDICAL_INSURANCE'), [methods])
+
+  const triggerCashDrawer = () => {
+    setCashDrawerOpen(true)
+    setTimeout(() => setCashDrawerOpen(false), 2500)
+  }
+
+  // F8 shortcut for physical cash drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F8') {
+        e.preventDefault()
+        triggerCashDrawer()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   useEffect(() => {
     if (!settlements.some((value) => value.id === settlementId)) setSettlementId(settlements[0]?.id ?? '')
   }, [settlementId, settlements])
   useEffect(() => {
     if (!monetaryMethods.some((value) => value.code === methodCode)) setMethodCode(monetaryMethods[0]?.code ?? '')
   }, [methodCode, monetaryMethods])
+
   const settlement = settlements.find((value) => value.id === settlementId)
+  const selectedMethod = monetaryMethods.find((value) => value.code === methodCode)
   const insuranceMode = activeSettlementMode === 'MEDICAL_INSURANCE'
-  const insurancePending = Boolean(insuranceMode && settlement && !settlement.insuranceReady)
+  const isInsuranceSupported = Boolean(insuranceIntegrated || onPreSettleInsurance)
+
+  // 医保试算状态判定：已有预结算单或既有结算单已拆单，均视作已就绪
+  const hasPreSettled = Boolean(
+    insuranceMode && (Boolean(insuranceClaimView) || Boolean(settlement?.insuranceReady))
+  )
+  const insurancePending = Boolean(insuranceMode && !hasPreSettled && !isInsuranceSupported)
   const insurancePreparationAllowed = Boolean(insurancePending && settlement?.insurancePreparationAllowed)
+
+  // 计算医保分拆费用
+  const chsGrossAmount = insuranceClaimView ? insuranceClaimView.grossAmount
+    : ((settlement?.insuranceAmount ?? 0) + (settlement?.personalAccountAmount ?? 0) + (settlement?.outstandingAmount ?? 0))
+  const chsFundAmount = insuranceClaimView ? insuranceClaimView.insuranceFundAmount : (settlement?.insuranceAmount ?? 0)
+  const chsAcctAmount = insuranceClaimView ? insuranceClaimView.personalAccountAmount : (settlement?.personalAccountAmount ?? 0)
+  const chsCashAmount = insuranceClaimView ? insuranceClaimView.patientCashAmount : (settlement?.outstandingAmount ?? 0)
+  const chsOtherAmount = insuranceClaimView ? insuranceClaimView.otherFundAmount : (settlement?.otherFundAmount ?? 0)
+
+  // 待支付金额
+  const effectiveOutstanding = insuranceMode && hasPreSettled ? chsCashAmount : (settlement?.outstandingAmount ?? 0)
+
   useEffect(() => {
-    setAmount(settlement && !insurancePending ? String(settlement.outstandingAmount) : '')
-  }, [insurancePending, settlement?.id, settlement?.outstandingAmount])
+    if (insuranceMode && hasPreSettled) {
+      setAmount(chsCashAmount > 0 ? String(chsCashAmount) : '0')
+    } else if (settlement && !insurancePending) {
+      setAmount(String(settlement.outstandingAmount))
+    } else {
+      setAmount('')
+    }
+  }, [insuranceMode, hasPreSettled, chsCashAmount, insurancePending, settlement?.id, settlement?.outstandingAmount])
+
   useEffect(() => { submissionKey.current = null }, [settlementId, activeSettlementMode, methodCode, amount])
   const activeOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId
     && ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status)), [orders, settlementId])
   const latestOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId), [orders, settlementId])
   const numericAmount = Number(amount)
-  const paymentRequired = !insurancePending && (settlement?.outstandingAmount ?? 0) > 0
+  const paymentRequired = !insurancePending && effectiveOutstanding > 0
+
+  // Auto focus cash input when cash is selected
+  useEffect(() => {
+    if (methodCode === 'CASH') {
+      cashInputRef.current?.focus()
+    }
+  }, [methodCode])
 
   useEffect(() => {
     if (methodCode === 'CASH' && numericAmount > 0) {
@@ -88,11 +155,53 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
   const cashChange = numericTendered >= numericAmount ? numericTendered - numericAmount : 0
   const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || isNaN(numericTendered) || numericTendered < numericAmount)
 
-  const isMethodUnintegrated = ['WECHAT', 'ALIPAY'].includes(methodCode)
-  const disabled = !settlement || (insurancePending && !insurancePreparationAllowed)
-    || (paymentRequired && (!methodCode || numericAmount <= 0
-    || numericAmount > (settlement?.outstandingAmount ?? 0))) || Boolean(activeOrder)
-    || isCashShort || (paymentRequired && isMethodUnintegrated)
+  const isAggregatedScanMethod = Boolean(onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode))
+  const isMethodUnintegrated = !onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode)
+
+  const disabled = !settlement
+    || (insurancePending && !insurancePreparationAllowed)
+    || (paymentRequired && (!methodCode || numericAmount <= 0 || numericAmount > effectiveOutstanding))
+    || Boolean(activeOrder)
+    || isCashShort
+    || (paymentRequired && isMethodUnintegrated)
+
+  const handleCheckoutSubmit = async () => {
+    if (!settlement || busy || isPreSettlingInsurance) return
+
+    // 如果处于医保模式且尚未进行预结算试算，点击主按钮直接先执行预结算
+    if (insuranceMode && isInsuranceSupported && !hasPreSettled) {
+      if (onPreSettleInsurance) {
+        await onPreSettleInsurance(settlement.id)
+      }
+      return
+    }
+
+    if (disabled) return
+
+    if (isAggregatedScanMethod && onInitiateScanPay) {
+      onInitiateScanPay({
+        settlementId: settlement.id,
+        paymentMethodCode: methodCode,
+        paymentMethodName: selectedMethod?.name || methodCode,
+        amount: numericAmount,
+      })
+      return
+    }
+
+    submissionKey.current ??= `PAY-${crypto.randomUUID()}`
+    try {
+      await onSubmit({
+        settlementId: settlement.id,
+        settlementModeCode: showSettlementMode ? activeSettlementMode : undefined,
+        paymentMethodCode: paymentRequired ? methodCode : '',
+        amount: paymentRequired ? numericAmount : 0,
+        idempotencyKey: submissionKey.current,
+      })
+      submissionKey.current = null
+    } catch {
+      // Keep the key so an operator retry cannot create a second channel instruction.
+    }
+  }
 
   return <div className="settlement-payment-panel">
     <div className="settlement-payment-panel__grid">
@@ -116,6 +225,83 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         className="ui-field__control" type="number" min="0.01" step="0.01"
         value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>}
     </div>
+
+    {/* 医保预结算指引卡片（尚未试算时呈现） */}
+    {insuranceMode && isInsuranceSupported && !hasPreSettled && (
+      <div className="settlement-payment-panel__chs-guide">
+        <div className="settlement-payment-panel__chs-guide-body">
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <StatusBadge tone="info">CHS 国家医保中台</StatusBadge>
+              <strong style={{ fontSize: 'var(--font-size-small)' }}>待执行门诊医保预结算</strong>
+            </div>
+            <div style={{ fontSize: 'var(--font-size-caption)', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+              遵循国家医保三大目录政策分拆规范（2206 标准接口），将试算统筹基金、大病基金与个账扣除金额。
+            </div>
+          </div>
+          {onPreSettleInsurance && settlement && (
+            <Button size="sm" variant="secondary" busy={isPreSettlingInsurance} busyLabel="正在试算医保..."
+              onClick={() => { void onPreSettleInsurance(settlement.id) }}>
+              立即试算医保
+            </Button>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* 国家医保费用分解卡片（试算完成后呈现） */}
+    {insuranceMode && isInsuranceSupported && hasPreSettled && (
+      <div className="settlement-payment-panel__chs-card">
+        <div className="settlement-payment-panel__chs-header">
+          <div className="settlement-payment-panel__chs-title">
+            <StatusBadge tone="success">国家医保预结算成功</StatusBadge>
+            <span>费用分拆透视</span>
+          </div>
+          <div className="settlement-payment-panel__chs-id">
+            流水号: {insuranceClaimView?.externalPreSettlementNo || (settlement?.insuranceReady ? 'CHS-READY' : 'CHS-PRE')}
+          </div>
+        </div>
+        <div className="settlement-payment-panel__chs-grid">
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">医疗总额</span>
+            <strong className="settlement-payment-panel__chs-item-val">{money(chsGrossAmount, settlement?.currencyCode ?? 'CNY')}</strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">统筹基金支付 (报销)</span>
+            <strong className="settlement-payment-panel__chs-item-val" style={{ color: 'var(--color-success)' }}>
+              {money(chsFundAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">个人账户支出 (划扣)</span>
+            <strong className="settlement-payment-panel__chs-item-val">
+              {money(chsAcctAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+          <div className="settlement-payment-panel__chs-item">
+            <span className="settlement-payment-panel__chs-item-label">个人现金自付</span>
+            <strong className={`settlement-payment-panel__chs-item-val ${chsCashAmount <= 0 ? 'settlement-payment-panel__chs-item-val--zero' : 'settlement-payment-panel__chs-item-val--cash'}`}>
+              {money(chsCashAmount, settlement?.currencyCode ?? 'CNY')}
+            </strong>
+          </div>
+        </div>
+        <div className="settlement-payment-panel__chs-footer">
+          <div>
+            {chsCashAmount <= 0 ? (
+              <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>✓ 本次费用由医保统筹与个账全额抵扣，零现金自付</span>
+            ) : (
+              <span>包含其他基金 {money(chsOtherAmount, settlement?.currencyCode ?? 'CNY')}，剩余自付请通过下方收银</span>
+            )}
+          </div>
+          {onCancelInsurancePreSettle && (
+            <Button size="sm" variant="text" onClick={onCancelInsurancePreSettle}>
+              取消试算 (改选自费)
+            </Button>
+          )}
+        </div>
+      </div>
+    )}
+
     {paymentRequired && methodCode === 'CASH' && numericAmount > 0 && (
       <div className="settlement-payment-panel__cash-calc" style={{
         margin: 'var(--space-2) 0',
@@ -126,44 +312,61 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         display: 'grid',
         gap: 'var(--space-2)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>实收现金：</span>
-          <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '7.5rem' }}>
-            <span style={{ position: 'absolute', left: '0.6rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 600, pointerEvents: 'none' }}>¥</span>
-            <input
-              className="ui-field__control"
-              type="number"
-              step="0.01"
-              min={0}
-              style={{ width: '100%', height: '2.25rem', paddingLeft: '1.5rem', fontWeight: 700 }}
-              value={cashTendered}
-              onChange={(e) => setCashTendered(e.target.value)}
-              placeholder={String(numericAmount)}
-            />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>实收现金：</span>
+            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '7.5rem' }}>
+              <span style={{ position: 'absolute', left: '0.6rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 600, pointerEvents: 'none' }}>¥</span>
+              <input
+                ref={cashInputRef}
+                className="ui-field__control"
+                type="number"
+                step="0.01"
+                min={0}
+                style={{ width: '100%', height: '2.25rem', paddingLeft: '1.5rem', fontWeight: 700 }}
+                value={cashTendered}
+                onChange={(e) => setCashTendered(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !disabled && !busy) {
+                    e.preventDefault()
+                    void handleCheckoutSubmit()
+                  }
+                }}
+                placeholder={String(numericAmount)}
+              />
+            </div>
+            <div style={{ display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
+              {[numericAmount, 20, 50, 100, 200].filter((v, idx, arr) => v >= numericAmount && arr.indexOf(v) === idx).slice(0, 5).map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  className={`ui-button ui-button--secondary ui-button--sm ${numericTendered === preset ? 'is-active' : ''}`}
+                  style={{ height: '1.75rem', padding: '0 0.5rem', fontSize: '0.75rem' }}
+                  onClick={() => setCashTendered(String(preset))}
+                >
+                  {preset === numericAmount ? `¥${preset} (刚好)` : `¥${preset}`}
+                </button>
+              ))}
+            </div>
           </div>
-          <div style={{ display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
-            {[numericAmount, 20, 50, 100].filter((v, idx, arr) => v >= numericAmount && arr.indexOf(v) === idx).slice(0, 4).map((preset) => (
-              <button
-                key={preset}
-                type="button"
-                className={`ui-button ui-button--secondary ui-button--sm ${numericTendered === preset ? 'is-active' : ''}`}
-                style={{ height: '1.75rem', padding: '0 0.5rem', fontSize: '0.75rem' }}
-                onClick={() => setCashTendered(String(preset))}
-              >
-                {preset === numericAmount ? `¥${preset} (刚好)` : `¥${preset}`}
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+            <button
+              type="button"
+              className="ui-button ui-button--secondary ui-button--sm"
+              title="物理开钱箱指令 (快捷键 F8)"
+              onClick={triggerCashDrawer}
+              style={{ height: '1.75rem', fontSize: '0.75rem' }}
+            >
+              开钱箱 (F8)
+            </button>
+            {cashDrawerOpen && (
+              <StatusBadge tone="success">钱箱已开启</StatusBadge>
+            )}
           </div>
         </div>
         <div style={{
           display: 'flex',
           alignItems: 'baseline',
-          gap: 'var(--space-2)',
-          padding: 'var(--space-2) var(--space-3)',
-          borderRadius: 'var(--radius-sm)',
-          fontSize: 'var(--font-size-small)',
-          background: isCashShort ? 'var(--color-danger-soft)' : 'var(--color-success-soft)',
-          border: `1px solid ${isCashShort ? 'var(--color-danger)' : 'var(--color-success)'}`,
           color: isCashShort ? 'var(--color-danger)' : 'var(--color-success)',
         }}>
           <span>找零金额：</span>
@@ -176,22 +379,28 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         </div>
       </div>
     )}
+
     {insurancePending && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">医保接口未对接</StatusBadge>
         <span>当前系统未对接国家/地方医保平台，无法执行医保预结算与统筹个账扣缴。如需继续结算，请切换为「自费结算」。</span></div>
     </div>}
+
     {paymentRequired && isMethodUnintegrated && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy"><StatusBadge tone="danger">接口未对接</StatusBadge>
         <span>【{methodCode === 'WECHAT' ? '微信支付' : '支付宝'}接口未对接】当前系统未配置在线商户支付网关，无法发起在线扫码收款。请切换为现金收款或银行卡。</span></div>
     </div>}
-    {insuranceMode && settlement?.insuranceReady && <div className="settlement-payment-panel__waived">
+
+    {/* 保留既有单测识别的医保结算文本 */}
+    {insuranceMode && !insuranceClaimView && settlement?.insuranceReady && <div className="settlement-payment-panel__waived">
       <strong>医保结算已完成</strong><span>医保基金 {money(settlement.insuranceAmount ?? 0, settlement.currencyCode)}
         {' · '}个人账户 {money(settlement.personalAccountAmount ?? 0, settlement.currencyCode)}
         {' · '}个人自付待收 {money(settlement.outstandingAmount, settlement.currencyCode)}</span>
     </div>}
-    {settlement && !insurancePending && !paymentRequired && <div className="settlement-payment-panel__waived">
+
+    {settlement && !insurancePending && !paymentRequired && !hasPreSettled && <div className="settlement-payment-panel__waived">
       <strong>本次无需收款</strong><span>{insuranceMode ? '医保结算后无个人自付金额。' : '费用已冲抵，结算后直接完成记账。'}</span>
     </div>}
+
     {activeOrder && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy">
         <StatusBadge tone="warning">{paymentOrderStatus(activeOrder.status)}</StatusBadge>
@@ -203,6 +412,7 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         {activeOrder.paymentMethodCode === 'CASH' ? '查询并恢复' : '查询支付结果'}
       </Button>}
     </div>}
+
     {!activeOrder && latestOrder && <div className="settlement-payment-panel__notice">
       <div className="settlement-payment-panel__notice-copy">
         <StatusBadge tone={latestOrder.status === 'SUCCEEDED' ? 'success' : latestOrder.status === 'FAILED' ? 'danger' : 'neutral'}>
@@ -210,23 +420,25 @@ export function SettlementPaymentPanel({ settlements, methods, orders, busy, rec
         <span>最近支付指令 {latestOrder.orderNo}</span>
       </div>
     </div>}
-    <Button disabled={disabled} busy={busy} busyLabel={busyLabel} onClick={async () => {
-      if (!settlement) return
-      submissionKey.current ??= `PAY-${crypto.randomUUID()}`
-      try {
-        await onSubmit({ settlementId: settlement.id,
-          settlementModeCode: showSettlementMode ? activeSettlementMode : undefined,
-          paymentMethodCode: paymentRequired ? methodCode : '', amount: paymentRequired ? numericAmount : 0,
-          idempotencyKey: submissionKey.current })
-        submissionKey.current = null
-      } catch {
-        // Keep the key so an operator retry cannot create a second channel instruction.
-      }
-    }}>{actionLabel ?? (insurancePending
-      ? '医保接口未对接，请改选自费'
-      : isMethodUnintegrated
-        ? `${methodCode === 'WECHAT' ? '微信支付' : '支付宝'}未对接，请改选现金`
-        : (methodCode === 'CASH' ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}</Button>
+
+    <Button
+      disabled={insuranceMode && isInsuranceSupported && !hasPreSettled ? !settlement || isPreSettlingInsurance : disabled}
+      busy={busy || isPreSettlingInsurance}
+      busyLabel={isPreSettlingInsurance ? '正在试算医保...' : busyLabel}
+      onClick={handleCheckoutSubmit}
+    >
+      {insurancePending
+        ? '医保接口未对接，请改选自费'
+        : isMethodUnintegrated
+          ? `${methodCode === 'WECHAT' ? '微信支付' : '支付宝'}未对接，请改选现金`
+          : insuranceMode && isInsuranceSupported && !hasPreSettled
+            ? '执行医保预结算 (试算)'
+            : insuranceMode && hasPreSettled && chsCashAmount <= 0
+              ? '确认医保结算并记账'
+              : isAggregatedScanMethod
+                ? '发起扫码收款'
+                : (actionLabel ?? (methodCode === 'CASH' ? `确认${sceneLabel}并记账` : `发起${sceneLabel}`))}
+    </Button>
   </div>
 }
 

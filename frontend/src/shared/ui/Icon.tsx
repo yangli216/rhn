@@ -3,6 +3,7 @@ import type { SVGAttributes } from 'react'
 export type IconName =
   | 'add'
   | 'arrow-left'
+  | 'award'
   | 'billing'
   | 'calendar'
   | 'card'
@@ -18,13 +19,17 @@ export type IconName =
   | 'face'
   | 'fullscreen'
   | 'home'
+  | 'hospital'
   | 'info'
+  | 'lock'
   | 'menu'
   | 'minimize'
+  | 'moon'
   | 'notification'
   | 'organization'
   | 'logout'
   | 'pharmacy'
+  | 'pill'
   | 'print'
   | 'refresh'
   | 'residents'
@@ -34,6 +39,7 @@ export type IconName =
   | 'emergency'
   | 'sparkles'
   | 'success'
+  | 'sun'
   | 'tasks'
   | 'user'
   | 'warning'
@@ -48,6 +54,7 @@ function iconPath(name: IconName) {
   switch (name) {
     case 'add': return <><path d="M12 5v14" /><path d="M5 12h14" /></>
     case 'arrow-left': return <><path d="m15 18-6-6 6-6" /><path d="M9 12h10" /></>
+    case 'award': return <><circle cx="12" cy="8" r="6" /><path d="m15.48 12.89 1.52 8.53a.5.5 0 0 1-.81.47L12.6 19.2a1 1 0 0 0-1.2 0l-3.58 2.69a.5.5 0 0 1-.81-.47l1.51-8.53" /></>
     case 'billing': return <><path d="M6 2h12v20l-3-2-3 2-3-2-3 2Z" /><path d="M9 7h6M9 11h6M9 15h3" /></>
     case 'calendar': return <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
     case 'card': return <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M7 14h4" /></>
@@ -63,13 +70,17 @@ function iconPath(name: IconName) {
     case 'face': return <><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="9" cy="10" r=".5" /><circle cx="15" cy="10" r=".5" /><path d="M8.5 14a5 5 0 0 0 7 0" /></>
     case 'fullscreen': return <><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></>
     case 'home': return <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>
+    case 'hospital': return <><path d="M3 21h18M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16M9 9h6M9 13h6M9 17h6M12 5v4" /></>
     case 'info': return <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>
+    case 'lock': return <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>
     case 'menu': return <><path d="M4 7h16M4 12h16M4 17h16" /></>
     case 'minimize': return <><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></>
+    case 'moon': return <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     case 'notification': return <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>
     case 'organization': return <><path d="M4 21V5h10v16M14 10h6v11M8 9h2M8 13h2M8 17h2M17 14h1M17 17h1M2 21h20" /></>
     case 'logout': return <><path d="M10 17l5-5-5-5M15 12H3" /><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5" /></>
     case 'pharmacy': return <><path d="M5 4h14M8 4v5l-3 5a4 4 0 0 0 3.5 6h7a4 4 0 0 0 3.5-6l-3-5V4" /><path d="M7 13h10" /></>
+    case 'pill': return <><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" /><path d="m8.5 8.5 7 7" /></>
     case 'print': return <><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M7 14h10v7H7zM17 11h.01" /></>
     case 'refresh': return <><path d="M20 6v5h-5" /><path d="M4 18v-5h5" /><path d="M18.5 9A7 7 0 0 0 6 6.5L4 9M5.5 15A7 7 0 0 0 18 17.5l2-2.5" /></>
     case 'residents': return <><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0 1 12 0" /><circle cx="17" cy="9" r="2" /><path d="M15 15a5 5 0 0 1 6 5" /></>
@@ -79,6 +90,7 @@ function iconPath(name: IconName) {
     case 'emergency': return <><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6Z" /></>
     case 'sparkles': return <><path d="m12 3 1.25 3.75L17 8l-3.75 1.25L12 13l-1.25-3.75L7 8l3.75-1.25Z" /><path d="m18 13 .85 2.15L21 16l-2.15.85L18 19l-.85-2.15L15 16l2.15-.85ZM5 14l.65 1.35L7 16l-1.35.65L5 18l-.65-1.35L3 16l1.35-.65Z" /></>
     case 'success': return <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16.5 9" /></>
+    case 'sun': return <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>
     case 'tasks': return <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="m8 9 2 2 4-4M8 16h8" /></>
     case 'user': return <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>
     case 'warning': return <><path d="M12 3 2.5 20h19Z" /><path d="M12 9v5M12 17h.01" /></>

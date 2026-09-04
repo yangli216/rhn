@@ -157,4 +157,191 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.getByText(/【微信支付接口未对接】当前系统未配置在线商户支付网关/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '微信支付未对接，请改选现金' })).toBeDisabled()
   })
+
+  it('supports F8 key and button to trigger cash drawer', async () => {
+    const user = userEvent.setup()
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      onSubmit={vi.fn()}
+    />)
+
+    const drawerBtn = screen.getByRole('button', { name: /开钱箱 \(F8\)/ })
+    expect(drawerBtn).toBeInTheDocument()
+    await user.click(drawerBtn)
+    expect(screen.getByText('钱箱已开启')).toBeInTheDocument()
+
+    // Test F8 keypress
+    await user.keyboard('{F8}')
+    expect(screen.getByText('钱箱已开启')).toBeInTheDocument()
+  })
+
+  it('delegates to onInitiateScanPay when WeChat or Alipay is selected and onInitiateScanPay is provided', async () => {
+    const user = userEvent.setup()
+    const onInitiateScanPay = vi.fn()
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 38.5, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }, { code: 'WECHAT', name: '微信支付' }]}
+      orders={[]}
+      onInitiateScanPay={onInitiateScanPay}
+      onSubmit={vi.fn()}
+    />)
+
+    await user.click(screen.getByLabelText('支付方式'))
+    await user.click(await screen.findByRole('option', { name: /微信支付/ }))
+
+    // Notice should NOT be displayed when onInitiateScanPay is provided
+    expect(screen.queryByText('接口未对接')).not.toBeInTheDocument()
+    const scanPayBtn = screen.getByRole('button', { name: '发起扫码收款' })
+    expect(scanPayBtn).toBeEnabled()
+
+    await user.click(scanPayBtn)
+    expect(onInitiateScanPay).toHaveBeenCalledWith({
+      settlementId: 'settlement-1',
+      paymentMethodCode: 'WECHAT',
+      paymentMethodName: '微信支付',
+      amount: 38.5,
+    })
+  })
+
+  it('renders CHS pre-settlement guide and invokes onPreSettleInsurance when integrated', async () => {
+    const user = userEvent.setup()
+    const onPreSettleInsurance = vi.fn().mockResolvedValue({})
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 50, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      showSettlementMode
+      settlementModeCode="MEDICAL_INSURANCE"
+      insuranceIntegrated
+      onPreSettleInsurance={onPreSettleInsurance}
+      onSubmit={vi.fn()}
+    />)
+
+    expect(screen.getByText('CHS 国家医保中台')).toBeInTheDocument()
+    expect(screen.getByText('待执行门诊医保预结算')).toBeInTheDocument()
+    const preSettleBtn = screen.getByRole('button', { name: '立即试算医保' })
+    expect(preSettleBtn).toBeEnabled()
+
+    await user.click(preSettleBtn)
+    expect(onPreSettleInsurance).toHaveBeenCalledWith('settlement-1')
+  })
+
+  it('renders CHS breakdown card and allows direct settlement when cash amount is zero', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+    const onCancelInsurancePreSettle = vi.fn()
+
+    const insuranceClaimView = {
+      claimId: 'claim-101',
+      revision: 1,
+      settlementId: 'settlement-1',
+      patientAccountId: 'acc-1',
+      claimNo: 'CLM-101',
+      settlementNo: 'SETL-101',
+      status: 'PRE_SETTLED' as const,
+      regionCode: '360100',
+      insuranceTypeCode: '310',
+      externalPreSettlementNo: 'CHS-PRE-20260904001',
+      grossAmount: 120,
+      insuranceFundAmount: 96,
+      personalAccountAmount: 24,
+      patientCashAmount: 0,
+      otherFundAmount: 0,
+      currencyCode: 'CNY',
+    }
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 120, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      showSettlementMode
+      settlementModeCode="MEDICAL_INSURANCE"
+      insuranceIntegrated
+      insuranceClaimView={insuranceClaimView}
+      onCancelInsurancePreSettle={onCancelInsurancePreSettle}
+      onSubmit={onSubmit}
+    />)
+
+    expect(screen.getByText('国家医保预结算成功')).toBeInTheDocument()
+    expect(screen.getByText(/流水号: CHS-PRE-20260904001/)).toBeInTheDocument()
+    expect(screen.getByText('¥96.00')).toBeInTheDocument() // 统筹
+    expect(screen.getByText('¥24.00')).toBeInTheDocument() // 个账
+    expect(screen.getByText(/本次费用由医保统筹与个账全额抵扣，零现金自付/)).toBeInTheDocument()
+
+    // 零自付无需支付方式，主按钮为确认医保结算并记账
+    const confirmBtn = screen.getByRole('button', { name: '确认医保结算并记账' })
+    expect(confirmBtn).toBeEnabled()
+    await user.click(confirmBtn)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      settlementId: 'settlement-1',
+      settlementModeCode: 'MEDICAL_INSURANCE',
+      amount: 0,
+    }))
+
+    // 取消试算测试
+    const cancelBtn = screen.getByRole('button', { name: '取消试算 (改选自费)' })
+    await user.click(cancelBtn)
+    expect(onCancelInsurancePreSettle).toHaveBeenCalled()
+  })
+
+  it('renders CHS breakdown card and supports cash checkout when cash amount > 0', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    const insuranceClaimView = {
+      claimId: 'claim-102',
+      revision: 1,
+      settlementId: 'settlement-1',
+      patientAccountId: 'acc-1',
+      claimNo: 'CLM-102',
+      settlementNo: 'SETL-102',
+      status: 'PRE_SETTLED' as const,
+      regionCode: '360100',
+      insuranceTypeCode: '310',
+      externalPreSettlementNo: 'CHS-PRE-20260904002',
+      grossAmount: 150,
+      insuranceFundAmount: 80,
+      personalAccountAmount: 20,
+      patientCashAmount: 50,
+      otherFundAmount: 0,
+      currencyCode: 'CNY',
+    }
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 150, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      showSettlementMode
+      settlementModeCode="MEDICAL_INSURANCE"
+      insuranceIntegrated
+      insuranceClaimView={insuranceClaimView}
+      onSubmit={onSubmit}
+    />)
+
+    expect(screen.getByText('国家医保预结算成功')).toBeInTheDocument()
+    expect(screen.getByText('¥80.00')).toBeInTheDocument() // 统筹
+    expect(screen.getByText('¥50.00')).toBeInTheDocument() // 自付现金
+
+    // 自付部分支持现金收银与速算找零
+    expect(screen.getByLabelText('个人自付金额')).toHaveValue(50)
+    expect(screen.getByText('实收现金：')).toBeInTheDocument()
+
+    const preset100 = screen.getByRole('button', { name: '¥100' })
+    await user.click(preset100)
+    expect(screen.getByText(/应找零给患者 ¥50.00/)).toBeInTheDocument() // 找零 50
+
+    const submitBtn = screen.getByRole('button', { name: '确认收款并记账' })
+    await user.click(submitBtn)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      settlementId: 'settlement-1',
+      settlementModeCode: 'MEDICAL_INSURANCE',
+      paymentMethodCode: 'CASH',
+      amount: 50,
+    }))
+  })
 })
+

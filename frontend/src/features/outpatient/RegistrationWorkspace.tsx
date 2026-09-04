@@ -10,13 +10,20 @@ import { age, genderLabel } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
-import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
+import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
+
+export function registrationDayPart(at = new Date()): 'MORNING' | 'AFTERNOON' {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23',
+  }).format(at))
+  return hour < 12 ? 'MORNING' : 'AFTERNOON'
+}
 
 function clock(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -71,10 +78,10 @@ const DEPT_CATEGORIES = [
   { key: 'EMERGENCY', label: '急诊' },
 ]
 
-const CLINIC_TYPE_OPTIONS = [
+const CLINIC_TYPE_OPTIONS: Array<{ key: string; label: string; icon?: IconName }> = [
   { key: 'ALL', label: '全部号源' },
-  { key: 'REGULAR', label: '🏢 普通门诊' },
-  { key: 'EXPERT', label: '👑 专家/名医号' },
+  { key: 'REGULAR', label: '普通门诊', icon: 'clinical' },
+  { key: 'EXPERT', label: '专家/名医号', icon: 'sparkles' },
 ]
 
 const DAYPART_OPTIONS = [
@@ -142,6 +149,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   const [phone, setPhone] = useState('')
   const [coverageType, setCoverageType] = useState('SELF_PAY')
   const [error, setError] = useState<unknown>(null)
+  const fullNameRef = useRef<HTMLInputElement>(null)
 
   const handleIdChange = (val: string) => {
     setNationalId(val)
@@ -178,14 +186,17 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   })
 
   return <Dialog title="30秒极速建档" eyebrow="窗口临时/快速办卡" size="wide" onClose={onClose}
+    initialFocusRef={fullNameRef}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
       <Button busy={createMutation.isPending} disabled={!fullName || !birthDate}
         onClick={() => createMutation.mutate()}>确认建档并挂号</Button></>}>
     {Boolean(error) && <Alert tone="error">{errorMessage(error)}</Alert>}
     <form className="quick-resident-form" onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }}>
       <div className="ui-form-row">
-        <FormField label="患者姓名" required><input value={fullName} onChange={(e) => setFullName(e.target.value)} autoFocus required placeholder="如 张三" /></FormField>
-        <FormField label="身份证号"><input value={nationalId} onChange={(e) => handleIdChange(e.target.value)} placeholder="18位身份证号（自动识别生日性别）" maxLength={18} /></FormField>
+        <FormField label="患者姓名" required><input ref={fullNameRef} value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="如 张三" /></FormField>
+        <FormField label="身份证号"><input value={nationalId} onChange={(e) => handleIdChange(e.target.value)}
+          placeholder="18位身份证号（自动识别生日性别）" maxLength={18} pattern="[0-9]{17}[0-9Xx]"
+          title="请输入18位有效身份证号" /></FormField>
       </div>
       <div className="ui-form-row">
         <FormField label="性别" required><Select value={gender} onChange={(v) => setGender(v as typeof gender)} options={[{ value: 'MALE', label: '男' }, { value: 'FEMALE', label: '女' }, { value: 'UNKNOWN', label: '未知' }]} /></FormField>
@@ -289,7 +300,7 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
         </div>
 
         <footer className="thermal-receipt-guidance">
-          <p>★ 请凭本凭条前往候诊区，关注大屏幕叫号 ★</p>
+          <p>请凭本凭条前往候诊区，关注大屏幕叫号</p>
           <p>当日当班有效 · 祝您早日康复</p>
         </footer>
       </article>
@@ -346,7 +357,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [deptSearch, setDeptSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
-  const [selectedDayPart, setSelectedDayPart] = useState('ALL')
+  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>(registrationDayPart)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
   const [cashTendered, setCashTendered] = useState('')
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
@@ -825,7 +836,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         <div className="registration-intake-form-v2">
           {/* Patient Search Section */}
           <section className="registration-intake-search">
-            <header><strong>患者检索 (F1)</strong><span>姓名/身份证/档案号/拼音</span></header>
             <PatientIdentitySearch className="registration-patient-search" queryKey="outpatient-registration"
               inputRef={patientSearchInputRef}
               search={api.residents.search} selected={selected} disabled={Boolean(intentId)} compact
@@ -848,23 +858,18 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
           {/* Patient Identity Profile Card */}
           {selected ? (
-            <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-              <header className="registration-form-group-head">
-                <strong>患者身份信息</strong>
-                <span className="registration-form-group-actions">
-                  <Button size="sm" variant="text" disabled={Boolean(intentId)} onClick={() => {
-                    setSelected(null)
-                    setTimeout(() => patientSearchInputRef.current?.focus(), 50)
-                  }}>重新选择 (Esc)</Button>
-                </span>
-              </header>
-              <div className="registration-patient-identity" style={{ border: 'none', padding: 0, minHeight: 'auto' }}>
+            <div className="registration-identity-section">
+              <div className="registration-patient-identity registration-patient-identity--compact">
                 <span className={`resident-avatar ${selected.gender.toLowerCase()}`}>{selected.fullName.slice(-1)}</span>
                 <div>
                   <strong>{selected.fullName}</strong>
                   <span>{genderLabel(selected.gender)} · {age(selected.birthDate)} 岁 · 身份证: {selected.maskedNationalId || '未登记'}</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>健康档案号: {selected.healthRecordNo} · 电话: {selected.phone || '未登记'}</span>
                 </div>
+                <Button className="registration-patient-reset" size="sm" variant="text" disabled={Boolean(intentId)} onClick={() => {
+                  setSelected(null)
+                  setTimeout(() => patientSearchInputRef.current?.focus(), 50)
+                }}>重新选择</Button>
               </div>
             </div>
           ) : (
@@ -874,11 +879,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           )}
 
           {/* Registration Parameters: 2-Column Grid (No Overlap) */}
-          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
-            <header className="registration-form-group-head">
-              <strong>挂号参数</strong>
-              <span>{today}</span>
-            </header>
+          <div className="registration-params-section">
             <div className="registration-intake-params-grid">
               <FormField label="就诊类型" required>
                 <Select value={visitType} options={visitTypeOptions} disabled={Boolean(intentId)}
@@ -891,32 +892,30 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             </div>
             <div className="registration-intake-meta-row">
               <div className="registration-intake-meta-item">
-                <span>接诊科室</span>
+                <span>科室</span>
                 <strong>{targetDepartmentName}</strong>
               </div>
               <div className="registration-intake-meta-item">
-                <span>挂号来源</span>
+                <span>来源</span>
                 <strong>{linkedAppointment.data ? '预约到院' : '窗口挂号'}</strong>
               </div>
               <div className="registration-intake-meta-item">
-                <span>挂号日期</span>
+                <span>日期</span>
                 <strong>{today}</strong>
               </div>
             </div>
           </div>
 
           {/* Real-time Fee Card & Cashier */}
-          <div style={{ display: 'grid', gap: 'var(--space-2)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)' }}>
+          <div className="registration-settlement-section">
             <header className="registration-form-group-head">
-              <strong>费用明细与结算</strong>
-              <span style={{ color: 'var(--color-brand-primary)', fontWeight: 600 }}>实时算费</span>
+              <strong>{feeBreakdown.isExpert ? '专家门诊诊查费' : '普通门诊诊查费'}</strong>
+              <span className="registration-settlement-total">应收 <b>{feeBreakdown.feeConfigured
+                ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}</b></span>
             </header>
             
+            {(feeBreakdown.insuranceDeduction > 0 || feeBreakdown.seniorDiscount > 0) &&
             <div className="registration-fee-card" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
-              <div className="registration-fee-row">
-                <span>{feeBreakdown.isExpert ? '专家门诊诊查费' : '普通门诊诊查费'}</span>
-                <strong>{feeBreakdown.feeConfigured ? `¥${feeBreakdown.baseFee.toFixed(2)}` : '未配置'}</strong>
-              </div>
               {feeBreakdown.insuranceDeduction > 0 && <div className="registration-fee-row">
                 <span>医保统筹基金抵扣</span>
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.insuranceDeduction.toFixed(2)}</strong>
@@ -925,11 +924,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <span>老年人就医优待减免 (≥65岁)</span>
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.seniorDiscount.toFixed(2)}</strong>
               </div>}
-              <div className="registration-fee-row is-total">
-                <span>目录价（结算前）</span>
-                <strong>{feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}</strong>
-              </div>
-            </div>
+            </div>}
             {selectedSchedule && !feeBreakdown.feeConfigured && <Alert tone="warning">该挂号项目尚未配置当前有效价格，请先在“排班与号源”的挂号费维护中定价。</Alert>}
 
             <div className="registration-payment-methods" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
@@ -996,8 +991,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </div>
             )}
 
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'var(--space-2) 0' }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--font-size-small)', cursor: 'pointer' }}>
+            <div className="registration-settlement-options">
+              <label>
                 <input type="checkbox" checked={autoPrintTicket} onChange={(e) => setAutoPrintTicket(e.target.checked)} />
                 <span>自动弹出打印凭条</span>
               </label>
@@ -1011,8 +1006,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             )}
 
             {!intentId && !currentIntent && <div>
-              <Button ref={confirmButtonRef}
-                style={{ width: '100%', height: '3.125rem', fontSize: 'var(--font-size-body)', fontWeight: 600 }}
+              <Button ref={confirmButtonRef} className="registration-confirm-button"
                 busy={createIntent.isPending} busyLabel="正在核价并出单"
                 disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort}
                 onClick={() => {
@@ -1032,7 +1026,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   ? `实收缴款不足，还差 ¥${(feeBreakdown.payableAmount - numericTendered).toFixed(2)}`
                   : `确认挂号并出单 (F8 · ${feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未定价'})`}
               </Button>
-              <div style={{ marginTop: 'var(--space-2)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+              <div className="registration-selection-hint">
                 {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)'
                   : selectedSchedule
                     ? `已选: ${targetDepartmentName} · ${selectedSchedule.practitionerName ? `${selectedSchedule.practitionerName} · ` : ''}${selectedSchedule.serviceName}`
@@ -1151,7 +1145,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 {CLINIC_TYPE_OPTIONS.map((opt) => (
                   <button key={opt.key} type="button"
                     className={`registration-type-btn ${selectedClinicType === opt.key ? 'is-active' : ''}`}
-                    onClick={() => setSelectedClinicType(opt.key)}>{opt.label}</button>
+                    onClick={() => setSelectedClinicType(opt.key)}>
+                    {opt.icon && <Icon name={opt.icon} />}
+                    {opt.label}
+                  </button>
                 ))}
               </div>
             </div>
@@ -1163,7 +1160,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 {DAYPART_OPTIONS.map((dp) => (
                   <button key={dp.key} type="button"
                     className={`registration-daypart-pill ${selectedDayPart === dp.key ? 'is-active' : ''}`}
-                    onClick={() => setSelectedDayPart(dp.key)}>{dp.label}</button>
+                    onClick={() => setSelectedDayPart(dp.key as 'ALL' | 'MORNING' | 'AFTERNOON')}>{dp.label}</button>
                 ))}
               </div>
             </div>

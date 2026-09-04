@@ -11,4 +11,7 @@ public interface PersonnelAssignmentRepository extends JpaRepository<PersonnelAs
     Optional<PersonnelAssignment> findByIdAndTenantId(Long id, Long tenantId);
     List<PersonnelAssignment> findByTenantIdAndEmploymentIdInOrderByValidFromDesc(
             Long tenantId, List<Long> employmentIds);
+    List<PersonnelAssignment> findByTenantIdAndDepartmentIdOrderByValidFromDesc(Long tenantId, Long departmentId);
+    List<PersonnelAssignment> findByTenantIdAndOrganizationIdOrderByValidFromDesc(Long tenantId, Long organizationId);
+    List<PersonnelAssignment> findByTenantIdOrderByValidFromDesc(Long tenantId);
 }

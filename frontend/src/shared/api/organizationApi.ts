@@ -128,6 +128,11 @@ export interface PersonnelAssignment {
   id: string
   revision: number
   employmentId: string
+  practitionerId?: string | null
+  practitionerCode?: string | null
+  practitionerName?: string | null
+  sdPractGender?: PractitionerGender | null
+  sdPractGenderText?: string | null
   organizationId: string
   organizationName: string
   departmentId: string
@@ -334,5 +339,12 @@ export function createOrganizationApi(client: ApiClient) {
     createAssignment: (input: AssignmentInput) => client.request<PersonnelAssignment>(
       '/api/platform/assignments', { method: 'POST', body: JSON.stringify(input) },
     ),
+    assignments: (params?: { organizationId?: string; departmentId?: string }) => {
+      const search = new URLSearchParams()
+      if (params?.organizationId) search.set('organizationId', params.organizationId)
+      if (params?.departmentId) search.set('departmentId', params.departmentId)
+      const qs = search.toString()
+      return client.request<PersonnelAssignment[]>(`/api/platform/assignments${qs ? `?${qs}` : ''}`)
+    },
   }
 }

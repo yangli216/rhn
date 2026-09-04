@@ -79,45 +79,56 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
       <Panel className="billing-refund-detail">
         <header className="billing-section-head"><div><h2>原收费记录</h2>
           <span>{selected ? `就诊 ${selected.encounterId}` : '请选择待退费患者'}</span></div></header>
-        {statement.isPending && <LoadingState label="正在加载原支付记录…" />}
-        {selected && !statement.isPending && !statement.data && <EmptyState icon="billing" title="暂无费用账户"
-          copy="当前就诊未形成可退费用。" />}
-        {statement.data && <>
-          <div className="billing-metrics">
-            <div><span>原收费</span><strong>{money(statement.data.chargeAmount, currency)}</strong></div>
-            <div><span>原实收</span><strong>{money(statement.data.paymentAmount, currency)}</strong></div>
-            <div><span>已退款</span><strong>{money(statement.data.refundAmount, currency)}</strong></div>
-            <div className="is-open"><span>本次待退</span><strong>{money(maximumRefund, currency)}</strong></div>
-          </div>
-          <section className="billing-table-section"><header><div><h3>可关联支付</h3>
-            <span>{refundablePayments.length} 笔</span></div></header>
-            <div className="billing-table-wrap"><table className="billing-table billing-table--payments"><thead><tr>
-              <th>支付单号</th><th>支付方式</th><th>金额</th><th>支付时间</th><th>状态</th>
-            </tr></thead><tbody>{refundablePayments.map((item) => <tr key={item.id}
-              className={item.id === paymentId ? 'is-selected' : ''} onClick={() => setPaymentId(item.id)}>
-              <td><strong>{item.paymentNo}</strong><code>{item.externalTransactionNo || item.id}</code></td>
-              <td>{item.paymentMethodCode}</td><td>{money(item.amount, item.currencyCode)}</td>
-              <td>{new Date(item.paidAt).toLocaleString('zh-CN')}</td><td><StatusBadge tone="success">已支付</StatusBadge></td>
-            </tr>)}</tbody></table></div>
-          </section>
-          <BillingTimeline invoices={statement.data.invoices} payments={statement.data.payments} currency={currency} />
-        </>}
+        {!selected ? (
+          <EmptyState icon="billing" title="请选择待退费患者" copy="在左侧待退费队列中选择患者以查看原收费记录。" />
+        ) : !selected.accountId ? (
+          <EmptyState icon="billing" title="暂无费用账户" copy="当前就诊未形成可退费用。" />
+        ) : statement.isLoading ? (
+          <LoadingState label="正在加载原支付记录…" />
+        ) : statement.error ? (
+          <Alert>{errorMessage(statement.error)}</Alert>
+        ) : statement.data ? (
+          <>
+            <div className="billing-metrics">
+              <div><span>原收费</span><strong>{money(statement.data.chargeAmount, currency)}</strong></div>
+              <div><span>原实收</span><strong>{money(statement.data.paymentAmount, currency)}</strong></div>
+              <div><span>已退款</span><strong>{money(statement.data.refundAmount, currency)}</strong></div>
+              <div className="is-open"><span>本次待退</span><strong>{money(maximumRefund, currency)}</strong></div>
+            </div>
+            <section className="billing-table-section"><header><div><h3>可关联支付</h3>
+              <span>{refundablePayments.length} 笔</span></div></header>
+              <div className="billing-table-wrap"><table className="billing-table billing-table--payments"><thead><tr>
+                <th>支付单号</th><th>支付方式</th><th>金额</th><th>支付时间</th><th>状态</th>
+              </tr></thead><tbody>{refundablePayments.map((item) => <tr key={item.id}
+                className={item.id === paymentId ? 'is-selected' : ''} onClick={() => setPaymentId(item.id)}>
+                <td><strong>{item.paymentNo}</strong><code>{item.externalTransactionNo || item.id}</code></td>
+                <td>{item.paymentMethodCode}</td><td>{money(item.amount, item.currencyCode)}</td>
+                <td>{new Date(item.paidAt).toLocaleString('zh-CN')}</td><td><StatusBadge tone="success">已支付</StatusBadge></td>
+              </tr>)}</tbody></table></div>
+            </section>
+            <BillingTimeline invoices={statement.data.invoices} payments={statement.data.payments} currency={currency} />
+          </>
+        ) : null}
       </Panel>
       <Panel className="billing-refund-action">
         <header className="billing-section-head"><div><h2>退款办理</h2><span>原路退款</span></div></header>
-        <div className="billing-action-form billing-action-form--refund">
-          <FormField label="原支付记录"><Select value={paymentId} onChange={setPaymentId} showValue
-            placeholder="暂无可选原支付" options={refundablePayments.map((item) => ({ value: item.id,
-              label: item.paymentNo, secondaryText: money(item.amount, item.currencyCode) }))} /></FormField>
-          {selectedPayment && <div className="billing-refund-origin"><span>原支付金额</span>
-            <strong>{money(selectedPayment.amount, selectedPayment.currencyCode)}</strong></div>}
-          <FormField label="退款金额"><input className="ui-field__control" type="number" min="0.01"
-            max={maximumRefund} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>
-          <FormField label="退款原因"><textarea className="ui-field__control" value={reason}
-            onChange={(event) => setReason(event.target.value)} /></FormField>
-          <Button variant="danger" disabled={!paymentId || !validAmount || !reason.trim()} busy={refund.isPending}
-            onClick={() => refund.mutate()}>确认退款</Button>
-        </div>
+        {!selected ? (
+          <EmptyState icon="billing" title="请先选择患者" copy="核对原收费记录后在此发起原路退款。" />
+        ) : (
+          <div className="billing-action-form billing-action-form--refund">
+            <FormField label="原支付记录"><Select value={paymentId} onChange={setPaymentId} showValue
+              placeholder="暂无可选原支付" options={refundablePayments.map((item) => ({ value: item.id,
+                label: item.paymentNo, secondaryText: money(item.amount, item.currencyCode) }))} /></FormField>
+            {selectedPayment && <div className="billing-refund-origin"><span>原支付金额</span>
+              <strong>{money(selectedPayment.amount, selectedPayment.currencyCode)}</strong></div>}
+            <FormField label="退款金额"><input className="ui-field__control" type="number" min="0.01"
+              max={maximumRefund} step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>
+            <FormField label="退款原因"><textarea className="ui-field__control" value={reason}
+              onChange={(event) => setReason(event.target.value)} /></FormField>
+            <Button variant="danger" disabled={!paymentId || !validAmount || !reason.trim()} busy={refund.isPending}
+              onClick={() => refund.mutate()}>确认退款</Button>
+          </div>
+        )}
       </Panel>
     </div>}
   </>

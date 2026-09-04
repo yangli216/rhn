@@ -9,11 +9,11 @@ import {
   type DictionaryValue, type OrganizationProfile,
   type OrganizationProfileInput, type OrganizationProfileResult, type OrganizationProfileSection,
   type OrganizationType, type OrganizationUnit, type OrganizationUnitInput,
-  type PositionType, type Practitioner, type PractitionerGender, type RhnApi, type SystemEnumDefinition,
+  type PersonnelAssignment, type PositionType, type Practitioner, type PractitionerGender, type RhnApi, type SystemEnumDefinition,
 } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead,
-  FormSelect, SearchField, SplitWorkspace, StatusBadge, Tabs,
+  Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
+  FormSelect, SearchField, Select, type SelectOption, SplitWorkspace, StatusBadge, Tabs,
 } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 
@@ -34,6 +34,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const [profileDialog, setProfileDialog] = useState<OrganizationProfileSection>()
   const [query, setQuery] = useState('')
   const [practitionerQuery, setPractitionerQuery] = useState('')
+  const [filterUnitId, setFilterUnitId] = useState('')
   const [statusConfirmation, setStatusConfirmation] = useState<StatusConfirmation>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
@@ -43,6 +44,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
   const units = useQuery({ queryKey: ['organization-units'], queryFn: api.organization.tree })
   const selectedTreeUnit = units.data?.find((item) => item.id === selectedUnitId)
   const practitioners = useQuery({ queryKey: ['practitioners'], queryFn: api.organization.practitioners })
+  const assignments = useQuery({ queryKey: ['assignments'], queryFn: () => api.organization.assignments() })
   const positions = useQuery({ queryKey: ['positions'], queryFn: api.organization.positions })
   const systemEnums = useQuery({
     queryKey: ['dictionary-system-enums'], queryFn: api.dictionaries.systemEnums, staleTime: Infinity,
@@ -86,6 +88,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       queryClient.invalidateQueries({ queryKey: ['practitioners'] }),
       queryClient.invalidateQueries({ queryKey: ['practitioner'] }),
       queryClient.invalidateQueries({ queryKey: ['positions'] }),
+      queryClient.invalidateQueries({ queryKey: ['assignments'] }),
     ])
   }
 
@@ -143,16 +146,50 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
 
   const selectedUnit = selectedTreeUnit
   const selectedPractitioner = practitionerDetail.data?.practitioner
+  const currentUnitStaff = useMemo(() => {
+    if (!selectedTreeUnit) return []
+    return (assignments.data ?? []).filter((a) => {
+      if (selectedTreeUnit.sdOrgKind === 'ORG_UNIT') {
+        return a.departmentId === selectedTreeUnit.id
+      }
+      return a.organizationId === selectedTreeUnit.id
+    })
+  }, [selectedTreeUnit, assignments.data])
+  const unitFilterOptions: SelectOption[] = useMemo(() => [
+    { value: '', label: '全部机构与科室' },
+    ...(units.data ?? []).map((u) => ({
+      value: u.id,
+      label: u.name,
+      icon: (u.sdOrgKind === 'LEGAL_ORGANIZATION' ? 'organization' : 'clinical') as IconName,
+      secondaryText: u.code,
+    })),
+  ], [units.data])
+  const primaryAssignmentMap = useMemo(() => {
+    const map = new Map<string, PersonnelAssignment>()
+    for (const a of assignments.data ?? []) {
+      if (!a.practitionerId) continue
+      if (a.primaryAssignment || !map.has(a.practitionerId)) {
+        map.set(a.practitionerId, a)
+      }
+    }
+    return map
+  }, [assignments.data])
   const treeRows = useMemo(() => flattenTree(units.data ?? []).filter((row) => {
     const search = normalizeSearch(query)
     const searchable = normalizeSearch(`${row.unit.name}${row.unit.code}${pinyinInitials(row.unit.name)}`)
     return !search || searchable.includes(search)
   }), [query, units.data])
   const filteredPractitioners = useMemo(() => (practitioners.data ?? []).filter((value) => {
+    if (filterUnitId) {
+      const matches = (assignments.data ?? []).some(
+        (a) => a.practitionerId === value.id && (a.departmentId === filterUnitId || a.organizationId === filterUnitId),
+      )
+      if (!matches) return false
+    }
     const search = normalizeSearch(practitionerQuery)
     const searchable = normalizeSearch(`${value.fullName}${value.code}${pinyinInitials(value.fullName)}`)
     return !search || searchable.includes(search)
-  }), [practitionerQuery, practitioners.data])
+  }), [filterUnitId, practitionerQuery, practitioners.data, assignments.data])
   const treeRovingId = treeRows.some(({ unit }) => unit.id === selectedUnitId)
     ? selectedUnitId : treeRows[0]?.unit.id
   const practitionerRovingId = filteredPractitioners.some((value) => value.id === selectedPractitionerId)
@@ -176,10 +213,7 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
 
   return <>
     <PageHeader compact eyebrow="平台管理 · 主数据" title="组织与人员"
-      description="分别维护机构与科室主数据，通过组合树统一浏览，以聘用、岗位和任职形成工作上下文。"
-      actions={<Button onClick={() => tab === 'organization'
-        ? setUnitDialog({ mode: 'create' }) : setPractitionerDialog(null)}>
-        <Icon name="add" />{tab === 'organization' ? '新建组织' : '新增人员'}</Button>} />
+      description="分别维护机构与科室主数据，通过组合树统一浏览，以聘用、岗位和任职形成工作上下文。" />
 
     <Tabs value={tab} onChange={setTab} label="组织与人员管理范围" className="organization-tabs"
       items={[
@@ -193,7 +227,9 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
     {tab === 'organization' ? <SplitWorkspace id="organization-panel" role="tabpanel" aria-labelledby="organization-tab"
       className="master-workspace">
       <Panel className="master-catalog">
-        <PanelHead title="组织树" meta={`${units.data?.length ?? 0} 个节点`} />
+        <PanelHead title="组织树" meta={`${units.data?.length ?? 0} 个节点`}
+          actions={<Button size="sm" onClick={() => setUnitDialog({ mode: 'create' })}>
+            <Icon name="add" />新建组织</Button>} />
         <SearchField className="master-catalog__search" label="搜索组织" value={query}
           onChange={setQuery} placeholder="搜索名称或代码" />
         <div className="master-tree" role="tree">
@@ -237,6 +273,28 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             <div><dt>时区</dt><dd>{selectedUnit.timezoneCode || '继承系统时区'}</dd></div>
           </dl>
           {selectedUnit.description && <section className="master-note"><strong>组织说明</strong><p>{selectedUnit.description}</p></section>}
+          <div className="master-section-head"><div><h3>{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室在任人员' : '机构在任人员'}</h3>
+            <span>{currentUnitStaff.length > 0 ? `共 ${currentUnitStaff.length} 名人员` : '当前组织下暂无人员任职'}</span></div>
+            <div><Button size="sm" variant="secondary" onClick={() => {
+              setFilterUnitId(selectedUnit.id)
+              setTab('personnel')
+            }}><Icon name="search" />在人员库中查看</Button></div></div>
+          {currentUnitStaff.length > 0 ? <div className="master-table-wrap"><table className="master-table">
+            <thead><tr><th>人员姓名</th><th>标准岗位</th><th>任职类型</th><th>工作量</th><th>有效期</th><th>状态</th><th aria-label="操作">操作</th></tr></thead>
+            <tbody>{currentUnitStaff.map((member) => <tr key={member.id}>
+              <td><strong>{member.practitionerName || '—'}</strong><code>{member.practitionerCode || '—'}</code></td>
+              <td>{member.positionName}</td><td>{member.sdAssignmentTypeText}</td>
+              <td>{member.workloadPercent != null ? `${member.workloadPercent}%` : '—'}</td>
+              <td>{member.validFrom} 至 {member.validTo || '长期'}</td>
+              <td><StatusBadge tone={member.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
+                {member.sdPersonnelStatusText}</StatusBadge></td>
+              <td><Button size="sm" variant="text" onClick={() => {
+                if (member.practitionerId) {
+                  setSelectedPractitionerId(member.practitionerId)
+                  setTab('personnel')
+                }
+              }}>查看任职档案</Button></td></tr>)}</tbody></table></div>
+            : <p className="master-table-empty">当前组织节点暂无任职人员</p>}
           <div className="master-section-head"><div><h3>{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '科室档案与治理' : '机构档案与治理'}</h3>
             <span>{selectedUnit.sdOrgKind === 'ORG_UNIT' ? '联系方式、科室关系、服务能力和负责人分项维护'
               : '多标识、联系方式、地址、机构关系、服务能力和负责人分项维护'}</span></div></div>
@@ -251,11 +309,17 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
       </Panel>
       : <SplitWorkspace id="personnel-panel" role="tabpanel" aria-labelledby="personnel-tab" className="master-workspace">
       <Panel className="master-catalog">
-        <PanelHead title="人员目录" meta={practitionerQuery
-          ? `${filteredPractitioners.length} / ${practitioners.data?.length ?? 0} 人`
-          : `${practitioners.data?.length ?? 0} 人`} />
-        <SearchField className="master-catalog__search" label="搜索人员" value={practitionerQuery}
-          onChange={setPractitionerQuery} placeholder="搜索姓名、代码或拼音首字母" />
+        <PanelHead title="人员目录" meta={filteredPractitioners.length === (practitioners.data?.length ?? 0)
+          ? `${practitioners.data?.length ?? 0} 人`
+          : `${filteredPractitioners.length} / ${practitioners.data?.length ?? 0} 人`}
+          actions={<Button size="sm" onClick={() => setPractitionerDialog(null)}>
+            <Icon name="add" />新增人员</Button>} />
+        <div className="master-catalog__filters">
+          <Select aria-label="按科室或机构筛选人员" value={filterUnitId} onChange={setFilterUnitId}
+            placeholder="全部机构与科室" showValue options={unitFilterOptions} />
+          <SearchField className="master-catalog__search-field" label="搜索人员" value={practitionerQuery}
+            onChange={setPractitionerQuery} placeholder="搜索姓名、代码或拼音首字母" />
+        </div>
         <div className="master-person-list" role="listbox">
           {practitioners.isPending && <LoadingState label="正在加载人员…" />}
           {filteredPractitioners.map((value, index) => <button role="option" aria-selected={value.id === selectedPractitionerId}
@@ -265,7 +329,9 @@ export function OrganizationPersonnelManagement({ api }: { api: RhnApi }) {
             onKeyDown={(event) => handleCollectionKeyDown(event, index, filteredPractitioners.length,
               (nextIndex) => setSelectedPractitionerId(filteredPractitioners[nextIndex].id), practitionerItemRefs.current)}
             onClick={() => setSelectedPractitionerId(value.id)}><span className="master-person-avatar">{value.fullName.slice(0, 1)}</span>
-            <span><strong>{value.fullName}</strong><code>{value.code} · {value.sdPractGenderText}</code></span>
+            <span><strong>{value.fullName}</strong><code>{primaryAssignmentMap.get(value.id)
+              ? `${primaryAssignmentMap.get(value.id)!.departmentName} · ${primaryAssignmentMap.get(value.id)!.positionName}`
+              : `${value.code} · ${value.sdPractGenderText}`}</code></span>
             <StatusBadge tone={value.sdPersonnelStatus === 'ACTIVE' ? 'success' : 'neutral'}>
               {value.sdPersonnelStatusText}</StatusBadge></button>)}
           {!practitioners.isPending && practitioners.data?.length && !filteredPractitioners.length

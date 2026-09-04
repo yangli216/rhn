@@ -359,9 +359,9 @@ export function createBillingApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify({ requestCode }),
       },
     ),
-    issueInvoice: (accountId: string, invoiceNo: string) => client.request<Invoice>(
+    issueInvoice: (accountId: string, invoiceNo: string, settlementScene?: string, chargeItemIds?: string[]) => client.request<Invoice>(
       `/api/billing/accounts/${accountId}/invoices`, {
-        method: 'POST', body: JSON.stringify({ invoiceNo }),
+        method: 'POST', body: JSON.stringify({ invoiceNo, settlementScene, chargeItemIds }),
       },
     ),
     collect: (invoiceId: string, input: {
@@ -415,6 +415,9 @@ export function createBillingApi(client: ApiClient) {
     queryPaymentOrder: (paymentOrderId: string) => client.request<PaymentOrder>(
       `/api/billing/payment-orders/${paymentOrderId}/query`, { method: 'POST' },
     ),
+    cancelPaymentOrder: (paymentOrderId: string) => client.request<PaymentOrder>(
+      `/api/billing/payment-orders/${paymentOrderId}/cancel`, { method: 'POST' },
+    ),
     settlement: (settlementId: string) => client.request<Settlement>(
       `/api/billing/settlements/${settlementId}`,
     ),
@@ -456,5 +459,116 @@ export function createBillingApi(client: ApiClient) {
       client.request<CashierClose>(`/api/billing/cashier-closes/${closeId}/reverse`, {
         method: 'POST', body: JSON.stringify(input),
       }),
+    queryInsurancePerson: (input: ChsPersonInfoRequest) => client.request<ChsPersonInfoResponse>(
+      '/api/billing/insurance/person-info', {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
+    quickPreSettleInsurance: (settlementId: string, input?: {
+      insuranceTypeCode?: string
+      regionCode?: string
+      coverageId?: string
+      idempotencyKey?: string
+    }) => client.request<InsuranceSettlementView>(
+      `/api/billing/settlements/${settlementId}/insurance/quick-pre-settle`, {
+        method: 'POST', body: JSON.stringify(input ?? {}),
+      },
+    ),
+    settleInsurance: (claimId: string, commandCode: string) => client.request<InsuranceSettlementView>(
+      `/api/billing/insurance-claims/${claimId}/settle`, {
+        method: 'POST', body: JSON.stringify({ commandCode }),
+      },
+    ),
+    reverseInsurance: (claimId: string, input: { commandCode: string; reason: string }) =>
+      client.request<InsuranceSettlementView>(`/api/billing/insurance-claims/${claimId}/reverse`, {
+        method: 'POST', body: JSON.stringify(input),
+      }),
+    insuranceClaim: (claimId: string) => client.request<InsuranceSettlementView>(
+      `/api/billing/insurance-claims/${claimId}`,
+    ),
   }
 }
+
+export interface ChsPersonInfoRequest {
+  psnCertType?: string
+  certno: string
+  psnName?: string
+}
+
+export interface ChsPersonInfoResponse {
+  psnNo: string
+  psnCertType: string
+  certno: string
+  psnName: string
+  gender?: string
+  birthday?: string
+  insutype: string
+  insutypeName: string
+  balc: number
+  insuOptins: string
+  insuOptinsName?: string
+  psnType?: string
+  status?: string
+}
+
+export interface InsuranceSettlementView {
+  claimId: string
+  revision: number
+  settlementId: string
+  patientAccountId: string
+  coverageId?: string
+  claimNo: string
+  settlementNo: string
+  status: 'PRE_SETTLED' | 'SETTLED' | 'REVERSED' | 'FAILED'
+  currentOperation?: string
+  regionCode: string
+  insuranceTypeCode: string
+  externalPreSettlementNo?: string
+  externalSettlementNo?: string
+  grossAmount: number
+  insuranceFundAmount: number
+  personalAccountAmount: number
+  patientCashAmount: number
+  otherFundAmount: number
+  currencyCode: string
+  reversalReason?: string
+  reversedAt?: string
+  errorCode?: string
+  errorMessage?: string
+  duplicate?: boolean
+  lines?: InsuranceClaimLineView[]
+  responses?: InsuranceClaimResponseView[]
+}
+
+export interface InsuranceClaimLineView {
+  id: string
+  settlementLineId: string
+  lineNo: number
+  itemCode: string
+  insuranceItemCode?: string
+  itemName: string
+  categoryCode?: string
+  quantity: number
+  unitPrice: number
+  claimedAmount: number
+  approvedAmount: number
+  rejectionCode?: string
+}
+
+export interface InsuranceClaimResponseView {
+  id: string
+  externalMessageId?: string
+  responseNo: string
+  commandCode: string
+  operation: string
+  status: string
+  externalSettlementNo?: string
+  insuranceFundAmount: number
+  personalAccountAmount: number
+  patientCashAmount: number
+  otherFundAmount: number
+  errorCode?: string
+  errorMessage?: string
+  respondedAt?: string
+}
+

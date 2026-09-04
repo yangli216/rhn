@@ -287,6 +287,13 @@ public class BillingApplicationService {
         if (existing != null) return verifyInvoice(context, existing, accountId);
         List<ChargeItem> charges = chargeRepository.findUninvoiced(context.tenantId(), account.id());
         if (charges.isEmpty()) throw conflict("INVOICE_NO_UNINVOICED_CHARGES", "当前费用账户没有待结算收费事项");
+        if (input.chargeItemIds() != null && !input.chargeItemIds().isEmpty()) {
+            Set<Long> selectedIds = new HashSet<>(input.chargeItemIds());
+            charges = charges.stream().filter(value -> selectedIds.contains(value.id())).toList();
+            if (charges.isEmpty()) {
+                throw conflict("INVOICE_NO_SELECTED_CHARGES", "所选收费事项已结算或不存在");
+            }
+        }
         if (charges.stream().anyMatch(value -> !account.currencyCode().equals(value.currencyCode()))) {
             throw conflict("INVOICE_CURRENCY_MISMATCH", "结算凭证内收费事项币种不一致");
         }
@@ -724,7 +731,12 @@ public class BillingApplicationService {
 
     public record SynchronizeCommand(String requestCode) {}
     public record IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
-                                      String terminalScene, String terminalCode) {}
+                                      String terminalScene, String terminalCode, List<Long> chargeItemIds) {
+        public IssueInvoiceCommand(String invoiceNo, Instant issuedAt, String settlementScene,
+                                   String terminalScene, String terminalCode) {
+            this(invoiceNo, issuedAt, settlementScene, terminalScene, terminalCode, null);
+        }
+    }
     public record PaymentCommand(String paymentNo, String paymentMethodCode, String paymentSceneCode, BigDecimal amount,
                                  Instant paidAt, String externalTransactionNo, String description,
                                  Long paymentOrderId) {}

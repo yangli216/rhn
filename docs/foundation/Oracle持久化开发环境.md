@@ -23,7 +23,11 @@ mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
 ./scripts/run-oracle-local.sh
 ```
 
-脚本要求同样的三个 Oracle 环境变量，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
+脚本优先读取进程环境变量；也会自动加载项目根目录下 Git 忽略的 `.env.oracle.local`。可从
+`.env.oracle.local.example` 查看字段格式。该文件只能包含简单的 `KEY=value` 配置，不得提交真实连接信息。
+也可通过 `RHN_ORACLE_ENV_FILE` 指向其他本机安全路径。
+
+脚本要求三个 Oracle 连接项齐全，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
 
 可选使用 `RHN_DEV_USERNAME`、`RHN_DEV_PASSWORD` 覆盖本地体验账号。该账号和 `development-jca` 只用于开发验证，不得承载真实医疗数据或作为生产安全方案。
 
@@ -55,6 +59,7 @@ PostgreSQL 迁移位于 `db/migration`，Oracle 迁移位于 `db/oracle`，H2 �
 ## 6. 使用边界
 
 - 当前 Schema 可用于长期开发迭代，不应使用自动清库作为日常启动流程。
-- 测试仍默认使用隔离的 H2，避免自动化测试污染持久化数据。
+- `8080` 是人工验证服务，必须使用 `oracle-local`，不得使用易失的 `local` 或测试配置。
+- 测试固定使用 `test` 配置和随机命名的 H2 内存库，不连接 Oracle，也不得占用 `8080`。
 - 数据库管理员权限只用于首次环境准备；应用长期运行建议收敛到自身 Schema 的最小必要权限。
 - 备份、脱敏、访问审计、容灾和生产密码服务仍需在接入真实数据前单独完成。

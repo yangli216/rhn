@@ -91,6 +91,7 @@ docs/audits/
 .env
 .env.local
 .env.*.local
+.env.oracle.local
 *.pem
 *.key
 *.crt

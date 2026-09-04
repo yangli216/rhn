@@ -70,7 +70,7 @@ public class BillingController {
     @ResponseStatus(HttpStatus.CREATED)
     InvoiceView issueInvoice(@PathVariable Long accountId, @Valid @RequestBody IssueInvoiceRequest input) {
         return service.issueInvoice(accountId, new IssueInvoiceCommand(input.invoiceNo(), input.issuedAt(),
-                input.settlementScene(), input.terminalScene(), input.terminalCode()));
+                input.settlementScene(), input.terminalScene(), input.terminalCode(), input.chargeItemIds()));
     }
 
     @PostMapping("/invoices/{invoiceId}/payments")
@@ -97,6 +97,11 @@ public class BillingController {
     @PostMapping("/payment-orders/{paymentOrderId}/query")
     PaymentOrderView queryPaymentOrder(@PathVariable Long paymentOrderId) {
         return payments.query(paymentOrderId);
+    }
+
+    @PostMapping("/payment-orders/{paymentOrderId}/cancel")
+    PaymentOrderView cancelPaymentOrder(@PathVariable Long paymentOrderId) {
+        return payments.cancel(paymentOrderId);
     }
 
     @GetMapping("/payment-orders/recovery-worklist")
@@ -150,7 +155,8 @@ public class BillingController {
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,
             @Pattern(regexp = "REGISTRATION|OUTPATIENT|INPATIENT|HOME_BED|PHARMACY") String settlementScene,
             @Pattern(regexp = "CASHIER|DOCTOR_STATION|SELF_SERVICE|MOBILE|ONLINE") String terminalScene,
-            @Size(max = 128) String terminalCode) {}
+            @Size(max = 128) String terminalCode,
+            List<Long> chargeItemIds) {}
     record PaymentRequest(
             @NotBlank @Size(max = 64) String paymentNo,
             @NotBlank @Size(max = 128) String paymentMethodCode,

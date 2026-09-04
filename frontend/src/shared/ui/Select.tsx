@@ -8,12 +8,13 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { Icon } from './Icon'
+import { Icon, type IconName } from './Icon'
 import { pinyinInitials } from './pinyinInitials'
 
 export interface SelectOption {
   value: string
   label: string
+  icon?: IconName
   disabled?: boolean
   searchKeywords?: string[]
   secondaryText?: string
@@ -251,6 +252,9 @@ export function Select(props: SelectProps) {
         }
       }}
     >
+      {!multiple && selectedOptions[0]?.icon && (
+        <Icon name={selectedOptions[0].icon} className="ui-select__trigger-icon" />
+      )}
       <span className="ui-select__value">{selectionLabel()}</span>
       {multiple && selectedOptions.length > 0 && <span className="ui-select__count">{selectedOptions.length}</span>}
       {loading ? <span className="ui-spinner" aria-hidden="true" /> : <Icon name="chevron-down" />}
@@ -319,6 +323,7 @@ export function Select(props: SelectProps) {
             }}
             onKeyDown={(event) => moveFocus(event, index)}
           >
+            {option.icon && <Icon name={option.icon} className="ui-select__option-icon" />}
             <span className={`ui-select__option-content ${option.description ? 'has-description' : ''}`}>
               <span className="ui-select__option-label">{option.label}</span>
               {option.description && <small className="ui-select__option-description">{option.description}</small>}

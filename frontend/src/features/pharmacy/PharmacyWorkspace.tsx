@@ -1303,7 +1303,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                               <td>{idx + 1}</td>
                               <td>
                                 <div className="pharmacy-med-name-cell">
-                                  <span className="pharmacy-med-icon">💊</span>
+                                  <span className="pharmacy-med-icon"><Icon name="pill" /></span>
                                   <div className="pharmacy-med-info">
                                     <span className="pharmacy-med-name">{req.medicationName}</span>
                                     <span className="pharmacy-med-spec">{spec}</span>
