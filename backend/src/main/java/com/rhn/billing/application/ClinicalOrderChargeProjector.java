@@ -10,6 +10,7 @@ import com.rhn.billing.infrastructure.LedgerEntryRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
+import com.rhn.shared.event.EventPayload;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,16 +63,17 @@ public class ClinicalOrderChargeProjector {
         String sourceType = sourceType(event.eventType());
         if (charges.findByTenantIdAndSourceTypeAndSourceId(
                 event.tenantId(), sourceType, event.aggregateId()).isPresent()) return;
-        Long encounterId = longValue(event.payload().get("encounterId"));
-        Long residentId = longValue(event.payload().get("residentId"));
-        Long organizationId = longValue(event.payload().get("encounterOrganizationId"));
-        Long departmentId = longValue(event.payload().get("encounterDepartmentId"));
-        Long catalogItemId = longValue(event.payload().get("catalogItemId"));
-        Long authoredBy = longValue(event.payload().get("authoredBy"));
-        BigDecimal quantity = decimal(event.payload().get("chargeQuantity"));
-        BigDecimal unitPrice = decimal(event.payload().get("unitPrice"));
-        BigDecimal totalAmount = decimal(event.payload().get("totalAmount"));
-        String currency = text(event.payload().get("currencyCode"));
+        EventPayload payload = EventPayload.of(event.payload());
+        Long encounterId = payload.longValue("encounterId");
+        Long residentId = payload.longValue("residentId");
+        Long organizationId = payload.longValue("encounterOrganizationId");
+        Long departmentId = payload.longValue("encounterDepartmentId");
+        Long catalogItemId = payload.longValue("catalogItemId");
+        Long authoredBy = payload.longValue("authoredBy");
+        BigDecimal quantity = payload.decimal("chargeQuantity");
+        BigDecimal unitPrice = payload.decimal("unitPrice");
+        BigDecimal totalAmount = payload.decimal("totalAmount");
+        String currency = payload.text("currencyCode");
         if (encounterId == null || residentId == null || organizationId == null || departmentId == null
                 || catalogItemId == null || authoredBy == null || quantity == null || quantity.signum() <= 0
                 || unitPrice == null || totalAmount == null || totalAmount.signum() <= 0 || currency == null) return;
@@ -80,18 +82,18 @@ public class ClinicalOrderChargeProjector {
                         event.tenantId(), encounterId, currency)
                 .orElseGet(() -> accounts.save(new PatientAccount(event.tenantId(), residentId, encounterId,
                         organizationId, departmentId, currency)));
-        Long priceId = longValue(event.payload().get("priceId"));
-        Long priceRevision = longValue(event.payload().get("priceRevision"));
-        String unitCode = requiredText(event.payload().get("chargeUnit"), "次");
-        String itemCode = requiredText(event.payload().get("itemCode"), event.aggregateType());
-        String itemName = requiredText(event.payload().get("itemName"), "门诊医嘱");
-        String requestNo = requiredText(event.payload().get("requestNo"), event.aggregateType() + event.aggregateId());
+        Long priceId = payload.longValue("priceId");
+        Long priceRevision = payload.longValue("priceRevision");
+        String unitCode = textOr(payload.text("chargeUnit"), "次");
+        String itemCode = textOr(payload.text("itemCode"), event.aggregateType());
+        String itemName = textOr(payload.text("itemName"), "门诊医嘱");
+        String requestNo = textOr(payload.text("requestNo"), event.aggregateType() + event.aggregateId());
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
         Long clinicalRequestId = event.aggregateId();
         ChargeItem charge = charges.save(new ChargeItem(event.tenantId(), account.id(), residentId, encounterId,
                 clinicalRequestId, catalogItemId, sourceType, event.aggregateId(), requestNo,
                 quantity, unitCode, money(unitPrice), money(totalAmount), currency, priceId, priceRevision,
-                text(event.payload().get("priceType")), itemCode, itemName, occurredAt, authoredBy, null));
+                payload.text("priceType"), itemCode, itemName, occurredAt, authoredBy, null));
         components.save(new ChargeItemComponent(event.tenantId(), charge.id(), catalogItemId, itemCode, itemName,
                 quantity, unitCode, BigDecimal.ONE, money(unitPrice), money(totalAmount)));
         ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", money(totalAmount), currency,
@@ -106,7 +108,7 @@ public class ClinicalOrderChargeProjector {
         ChargeItem original = charges.findByTenantIdAndSourceTypeAndSourceId(
                 event.tenantId(), originalType, event.aggregateId()).orElse(null);
         if (original == null) return;
-        Long actorId = longValue(event.payload().get("cancelledBy"));
+        Long actorId = EventPayload.of(event.payload()).longValue("cancelledBy");
         if (actorId == null) actorId = original.enteredBy();
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
         ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(), original.patientAccountId(),
@@ -129,23 +131,8 @@ public class ClinicalOrderChargeProjector {
         return eventType.startsWith("SERVICE_REQUEST") ? "SERVICE_REQUEST" : "MEDICATION_REQUEST";
     }
 
-    private Long longValue(Object value) {
-        if (value instanceof Number number) return number.longValue();
-        if (value instanceof String text && !text.isBlank()) return Long.valueOf(text);
-        return null;
-    }
-
-    private BigDecimal decimal(Object value) {
-        if (value instanceof BigDecimal decimal) return decimal;
-        if (value instanceof Number number) return new BigDecimal(number.toString());
-        if (value instanceof String text && !text.isBlank()) return new BigDecimal(text);
-        return null;
-    }
-
-    private String text(Object value) { return value == null ? null : value.toString(); }
-    private String requiredText(Object value, String fallback) {
-        String result = text(value);
-        return result == null || result.isBlank() ? fallback : result;
+    private String textOr(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
     }
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
 }

@@ -54,6 +54,18 @@ public class ApiExceptionHandler {
                 "INVALID_ARGUMENT", exception.getMessage(), request, List.of()));
     }
 
+    @ExceptionHandler(IllegalStateException.class)
+    ResponseEntity<ApiError> handleIllegalState(IllegalStateException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error(
+                "STATE_CONFLICT", exception.getMessage(), request, List.of()));
+    }
+
+    @ExceptionHandler(StaleRevisionException.class)
+    ResponseEntity<ApiError> handleStaleRevision(StaleRevisionException exception, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(error(
+                "REVISION_CONFLICT", exception.getMessage(), request, List.of()));
+    }
+
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ResponseEntity<ApiError> handleOptimisticLock(OptimisticLockingFailureException exception,
                                                    HttpServletRequest request) {

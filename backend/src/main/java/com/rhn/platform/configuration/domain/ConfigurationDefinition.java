@@ -1,6 +1,8 @@
 package com.rhn.platform.configuration.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -69,7 +71,7 @@ public class ConfigurationDefinition {
         this.configKey = ConfigurationCodePolicy.requireParameterKey(configKey);
         this.status = ConfigurationStatus.ACTIVE;
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -98,7 +100,9 @@ public class ConfigurationDefinition {
     }
 
     public void assertRevision(long expectedRevision) {
-        if (revision == null || revision != expectedRevision) throw new StaleConfigurationRevisionException(revision);
+        if (revision == null || revision != expectedRevision) {
+            throw new StaleRevisionException(revision, "参数已被其他操作更新，请刷新后重试");
+        }
     }
 
     private void apply(Long categoryId, String name, String description,
@@ -109,28 +113,28 @@ public class ConfigurationDefinition {
                        boolean cacheEnabled, boolean nullableValue,
                        ConfigurationSensitivity sensitivity,
                        ConfigurationDisplayPolicy displayPolicy) {
-        this.categoryId = requireId(categoryId, "参数分类");
-        this.name = requireText(name, "参数名称", 200);
-        this.description = optionalText(description, 1000);
-        this.valueType = require(valueType, "参数值类型");
-        this.controlType = require(controlType, "界面控件类型");
-        this.jsonSchema = optionalText(jsonSchema, 10000);
-        this.defaultValueJson = optionalText(defaultValueJson, 10000);
-        this.exampleValueJson = optionalText(exampleValueJson, 10000);
-        this.unit = optionalText(unit, 32);
-        this.dictionaryCode = optionalText(dictionaryCode, 64);
+        this.categoryId = Strings.requireId(categoryId, "参数分类");
+        this.name = Strings.requireText(name, "参数名称", 200);
+        this.description = Strings.optionalText(description, 1000);
+        this.valueType = Strings.require(valueType, "参数值类型");
+        this.controlType = Strings.require(controlType, "界面控件类型");
+        this.jsonSchema = Strings.optionalText(jsonSchema, 10000);
+        this.defaultValueJson = Strings.optionalText(defaultValueJson, 10000);
+        this.exampleValueJson = Strings.optionalText(exampleValueJson, 10000);
+        this.unit = Strings.optionalText(unit, 32);
+        this.dictionaryCode = Strings.optionalText(dictionaryCode, 64);
         this.scopeJson = scopesJson(allowedScopes);
-        this.category = require(category, "参数配置属性");
+        this.category = Strings.require(category, "参数配置属性");
         this.inheritanceEnabled = inheritanceEnabled;
         this.cacheEnabled = cacheEnabled;
         this.nullableValue = nullableValue;
-        this.sensitivity = require(sensitivity, "敏感级别");
-        this.displayPolicy = require(displayPolicy, "展示策略");
+        this.sensitivity = Strings.require(sensitivity, "敏感级别");
+        this.displayPolicy = Strings.require(displayPolicy, "展示策略");
     }
 
     private void touch(Long actorId) {
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId, "操作用户");
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     private static String scopesJson(Set<ConfigurationScope> scopes) {
@@ -148,30 +152,6 @@ public class ConfigurationDefinition {
     }
 
     public boolean allows(ConfigurationScope scope) { return allowedScopes().contains(scope); }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static <T> T require(T value, String label) {
-        if (value == null) throw new IllegalArgumentException(label + "不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
-    }
 
     public Long id() { return id; }
     public Long revision() { return revision; }

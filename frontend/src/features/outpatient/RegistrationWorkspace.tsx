@@ -10,9 +10,13 @@ import { age, genderLabel } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
+import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
+
+export { getCashPresets }
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -214,16 +218,6 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   </Dialog>
 }
 
-function getCashPresets(amount: number): number[] {
-  if (amount <= 0) return []
-  const standardDenominations = [5, 10, 20, 50, 100]
-  const presets = new Set<number>()
-  presets.add(amount)
-  standardDenominations.forEach((d) => {
-    if (d > amount) presets.add(d)
-  })
-  return Array.from(presets).sort((a, b) => a - b).slice(0, 4)
-}
 
 function ThermalReceiptModal({ receipt, organizationName, departmentName, locationName, feeBreakdown, paymentMethodName, cashTendered, cashChange, onClose }: {
   receipt: ReceptionQueueItem
@@ -743,15 +737,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         setSuccess(null)
         setTimeout(() => patientSearchInputRef.current?.focus(), 50)
       } else if (!isInputFocused && showPaymentShortcuts) {
-        if (e.key === '1') {
-          setSelectedPaymentMethod('WECHAT')
-        } else if (e.key === '2') {
-          setSelectedPaymentMethod('ALIPAY')
-        } else if (e.key === '3') {
-          setSelectedPaymentMethod('CASH')
-        } else if (e.key === '4') {
+        const rawList = (paymentMethods.data && paymentMethods.data.length > 0)
+          ? paymentMethods.data
+          : DEFAULT_FALLBACK_PAYMENT_METHODS
+        const sorted = [...rawList]
+          .filter((m) => m.code !== 'MEDICAL_INSURANCE')
+          .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        const keyIdx = ['1', '2', '3', '4'].indexOf(e.key)
+        if (keyIdx >= 0 && sorted[keyIdx]) {
           e.preventDefault()
-          setSelectedPaymentMethod('BANK_CARD')
+          setSelectedPaymentMethod(sorted[keyIdx].code)
         }
       }
     }
@@ -927,16 +922,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             </div>}
             {selectedSchedule && !feeBreakdown.feeConfigured && <Alert tone="warning">该挂号项目尚未配置当前有效价格，请先在“排班与号源”的挂号费维护中定价。</Alert>}
 
-            <div className="registration-payment-methods" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
-              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'WECHAT' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('WECHAT')}>微信支付{showPaymentShortcuts && <kbd>1</kbd>}</button>
-              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'ALIPAY' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('ALIPAY')}>支付宝{showPaymentShortcuts && <kbd>2</kbd>}</button>
-              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'CASH' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('CASH')}>现金收款{showPaymentShortcuts && <kbd>3</kbd>}</button>
-              <button type="button" className={`registration-payment-chip ${selectedPaymentMethod === 'BANK_CARD' ? 'is-active' : ''}`}
-                onClick={() => setSelectedPaymentMethod('BANK_CARD')}>银行卡{showPaymentShortcuts && <kbd>4</kbd>}</button>
-            </div>
+            <PaymentMethodSelector
+              value={selectedPaymentMethod}
+              onChange={setSelectedPaymentMethod}
+              methods={(paymentMethods.data ?? []).map((item) => ({
+                code: item.code,
+                name: item.name,
+                sortOrder: item.sortOrder,
+              }))}
+              showShortcuts={showPaymentShortcuts}
+            />
 
             {selectedCoverage && (
               <Alert tone="warning">
@@ -951,44 +946,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
             )}
 
             {selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (
-              <div className="registration-cash-calculator">
-                <div className="registration-cash-row">
-                  <span className="registration-cash-label">缴款金额：</span>
-                  <div className="registration-cash-input-wrap">
-                    <span className="registration-cash-symbol">¥</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min={0}
-                      className="registration-cash-input"
-                      value={cashTendered}
-                      onChange={(e) => setCashTendered(e.target.value)}
-                      placeholder={String(feeBreakdown.payableAmount)}
-                    />
-                  </div>
-                  <div className="registration-cash-presets">
-                    {getCashPresets(feeBreakdown.payableAmount).map((preset) => (
-                      <button
-                        key={preset}
-                        type="button"
-                        className={`registration-cash-preset-btn ${numericTendered === preset ? 'is-active' : ''}`}
-                        onClick={() => setCashTendered(String(preset))}
-                      >
-                        {preset === feeBreakdown.payableAmount ? `¥${preset} (刚好)` : `¥${preset}`}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div className={`registration-cash-change-box ${isCashShort ? 'is-short' : 'is-sufficient'}`}>
-                  <span>找零金额：</span>
-                  <strong>¥{isCashShort ? '0.00' : cashChange.toFixed(2)}</strong>
-                  {isCashShort ? (
-                    <small className="registration-cash-short-tip">（缴款不足，还差 ¥{(feeBreakdown.payableAmount - numericTendered).toFixed(2)}）</small>
-                  ) : cashChange > 0 ? (
-                    <small className="registration-cash-change-tip">（应找零给患者 ¥{cashChange.toFixed(2)}）</small>
-                  ) : null}
-                </div>
-              </div>
+              <CashPaymentCalculator
+                payableAmount={feeBreakdown.payableAmount}
+                tendered={cashTendered}
+                onTenderedChange={setCashTendered}
+              />
             )}
 
             <div className="registration-settlement-options">

@@ -1,6 +1,7 @@
 package com.rhn.platform.organization.domain;
 
 import com.rhn.platform.organization.api.OrganizationView;
+import com.rhn.shared.api.StaleRevisionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -107,7 +108,9 @@ public class Organization {
     }
 
     private void requireRevision(long expectedRevision) {
-        if (revision != expectedRevision) throw new StaleOrganizationRevisionException();
+        if (revision != expectedRevision) {
+            throw new StaleRevisionException(revision, "组织已被其他用户修改，请刷新后重试");
+        }
     }
 
     public Long id() { return id; }

@@ -17,13 +17,13 @@ import com.rhn.platform.dictionary.domain.DictionaryDefinition;
 import com.rhn.platform.dictionary.domain.DictionaryItem;
 import com.rhn.platform.dictionary.domain.DictionaryScopeType;
 import com.rhn.platform.dictionary.domain.DictionaryStatus;
-import com.rhn.platform.dictionary.domain.StaleDictionaryRevisionException;
 import com.rhn.platform.dictionary.infrastructure.DictionaryChangeRepository;
 import com.rhn.platform.dictionary.infrastructure.DictionaryCategoryRepository;
 import com.rhn.platform.dictionary.infrastructure.DictionaryDefinitionRepository;
 import com.rhn.platform.dictionary.infrastructure.DictionaryItemRepository;
 import com.rhn.platform.dictionary.translation.DictionaryTextCache;
 import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
+import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
@@ -518,12 +518,8 @@ public class DictionaryApplicationService implements DictionaryDirectory {
     }
 
     private void runRevisionGuard(Runnable mutation) {
-        try {
-            mutation.run();
-        } catch (StaleDictionaryRevisionException exception) {
-            throw conflict("DICTIONARY_REVISION_CONFLICT",
-                    "字典已被其他操作更新，当前修订号为 " + exception.currentRevision());
-        }
+        RevisionGuard.run("DICTIONARY_REVISION_CONFLICT",
+                "字典已被其他操作更新，请刷新后重试", mutation);
     }
 
     private DictionarySummaryResponse summary(DictionaryDefinition definition) {

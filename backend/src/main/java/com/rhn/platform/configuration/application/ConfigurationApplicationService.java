@@ -21,7 +21,6 @@ import com.rhn.platform.configuration.domain.ConfigurationValueType;
 import com.rhn.platform.configuration.domain.ParameterCategory;
 import com.rhn.platform.configuration.domain.ParameterChange;
 import com.rhn.platform.configuration.domain.ParameterValue;
-import com.rhn.platform.configuration.domain.StaleConfigurationRevisionException;
 import com.rhn.platform.configuration.infrastructure.ConfigurationDefinitionRepository;
 import com.rhn.platform.configuration.infrastructure.ConfigurationValueCache;
 import com.rhn.platform.configuration.infrastructure.ParameterCategoryRepository;
@@ -34,10 +33,10 @@ import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
 import com.rhn.platform.organization.api.DepartmentView;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.organization.api.OrganizationView;
+import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
-import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -981,11 +980,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
     }
 
     private void runRevisionGuard(Runnable action) {
-        try {
-            action.run();
-        } catch (StaleConfigurationRevisionException | OptimisticLockingFailureException exception) {
-            throw conflict("PARAMETER_REVISION_CONFLICT", "参数已被其他操作更新，请刷新后重试");
-        }
+        RevisionGuard.run("PARAMETER_REVISION_CONFLICT", "参数已被其他操作更新，请刷新后重试", action);
     }
 
     private void invalidateCacheAfterCommit() {

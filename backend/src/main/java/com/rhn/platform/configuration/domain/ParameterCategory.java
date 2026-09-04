@@ -1,6 +1,8 @@
 package com.rhn.platform.configuration.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -36,7 +38,7 @@ public class ParameterCategory {
         apply(parentId, name, description, sortOrder);
         active = true;
         createdAt = Instant.now();
-        createdBy = requireId(actorId);
+        createdBy = Strings.requireId(actorId, "操作用户");
         updatedAt = createdAt;
         updatedBy = actorId;
     }
@@ -47,18 +49,20 @@ public class ParameterCategory {
         apply(parentId, name, description, sortOrder);
         this.active = active;
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId);
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public void reorder(long expectedRevision, Long parentId, int sortOrder, Long actorId) {
         assertRevision(expectedRevision);
         apply(parentId, name, description, sortOrder);
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId);
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public void assertRevision(long expectedRevision) {
-        if (revision == null || revision != expectedRevision) throw new StaleConfigurationRevisionException(revision);
+        if (revision == null || revision != expectedRevision) {
+            throw new StaleRevisionException(revision, "参数已被其他操作更新，请刷新后重试");
+        }
     }
 
     private void apply(Long parentId, String name, String description, int sortOrder) {
@@ -72,11 +76,6 @@ public class ParameterCategory {
         this.name = name.trim();
         this.description = description == null || description.isBlank() ? null : description.trim();
         this.sortOrder = sortOrder;
-    }
-
-    private static Long requireId(Long value) {
-        if (value == null || value <= 0) throw new IllegalArgumentException("操作用户标识不能为空");
-        return value;
     }
 
     public Long id() { return id; }

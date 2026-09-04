@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Button, FormField, Select, StatusBadge } from '../ui'
+import { CashPaymentCalculator } from './CashPaymentCalculator'
+import { PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
 
 export interface SettlementOption {
   id: string
@@ -14,10 +16,7 @@ export interface SettlementOption {
   otherFundAmount?: number
 }
 
-export interface PaymentMethodOption {
-  code: string
-  name: string
-}
+export type { PaymentMethodOption }
 
 export interface SettlementPaymentCommand {
   settlementId: string
@@ -65,28 +64,10 @@ export function SettlementPaymentPanel({
   const [methodCode, setMethodCode] = useState('')
   const [amount, setAmount] = useState('')
   const [cashTendered, setCashTendered] = useState('')
-  const [cashDrawerOpen, setCashDrawerOpen] = useState(false)
   const cashInputRef = useRef<HTMLInputElement>(null)
   const submissionKey = useRef<string | null>(null)
   const activeSettlementMode = settlementModeCode ?? internalSettlementMode
   const monetaryMethods = useMemo(() => methods.filter((value) => value.code !== 'MEDICAL_INSURANCE'), [methods])
-
-  const triggerCashDrawer = () => {
-    setCashDrawerOpen(true)
-    setTimeout(() => setCashDrawerOpen(false), 2500)
-  }
-
-  // F8 shortcut for physical cash drawer
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F8') {
-        e.preventDefault()
-        triggerCashDrawer()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   useEffect(() => {
     if (!settlements.some((value) => value.id === settlementId)) setSettlementId(settlements[0]?.id ?? '')
@@ -152,7 +133,6 @@ export function SettlementPaymentPanel({
   }, [methodCode, numericAmount])
 
   const numericTendered = Number(cashTendered)
-  const cashChange = numericTendered >= numericAmount ? numericTendered - numericAmount : 0
   const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || isNaN(numericTendered) || numericTendered < numericAmount)
 
   const isAggregatedScanMethod = Boolean(onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode))
@@ -217,10 +197,8 @@ export function SettlementPaymentPanel({
       <FormField label={targetLabel}><Select value={settlementId} onChange={setSettlementId} showValue
         placeholder="暂无待支付结算单" options={settlements.map((value) => ({ value: value.id,
           label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>
-      {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><Select
-        value={methodCode} onChange={setMethodCode} showValue placeholder="当前场景无可用方式"
-        options={monetaryMethods.map((value) => ({ value: value.code,
-          label: value.name, secondaryText: value.code }))} /></FormField>}
+      {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><PaymentMethodSelector
+        value={methodCode} onChange={setMethodCode} methods={monetaryMethods} /></FormField>}
       {paymentRequired && <FormField label={insuranceMode ? '个人自付金额' : '本次支付金额'}><input
         className="ui-field__control" type="number" min="0.01" step="0.01"
         value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>}
@@ -303,81 +281,16 @@ export function SettlementPaymentPanel({
     )}
 
     {paymentRequired && methodCode === 'CASH' && numericAmount > 0 && (
-      <div className="settlement-payment-panel__cash-calc" style={{
-        margin: 'var(--space-2) 0',
-        padding: 'var(--space-3)',
-        background: 'var(--color-surface-subtle)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-md)',
-        display: 'grid',
-        gap: 'var(--space-2)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>实收现金：</span>
-            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', width: '7.5rem' }}>
-              <span style={{ position: 'absolute', left: '0.6rem', fontSize: '0.875rem', color: 'var(--color-text-secondary)', fontWeight: 600, pointerEvents: 'none' }}>¥</span>
-              <input
-                ref={cashInputRef}
-                className="ui-field__control"
-                type="number"
-                step="0.01"
-                min={0}
-                style={{ width: '100%', height: '2.25rem', paddingLeft: '1.5rem', fontWeight: 700 }}
-                value={cashTendered}
-                onChange={(e) => setCashTendered(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !disabled && !busy) {
-                    e.preventDefault()
-                    void handleCheckoutSubmit()
-                  }
-                }}
-                placeholder={String(numericAmount)}
-              />
-            </div>
-            <div style={{ display: 'inline-flex', gap: '4px', flexWrap: 'wrap' }}>
-              {[numericAmount, 20, 50, 100, 200].filter((v, idx, arr) => v >= numericAmount && arr.indexOf(v) === idx).slice(0, 5).map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  className={`ui-button ui-button--secondary ui-button--sm ${numericTendered === preset ? 'is-active' : ''}`}
-                  style={{ height: '1.75rem', padding: '0 0.5rem', fontSize: '0.75rem' }}
-                  onClick={() => setCashTendered(String(preset))}
-                >
-                  {preset === numericAmount ? `¥${preset} (刚好)` : `¥${preset}`}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <button
-              type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
-              title="物理开钱箱指令 (快捷键 F8)"
-              onClick={triggerCashDrawer}
-              style={{ height: '1.75rem', fontSize: '0.75rem' }}
-            >
-              开钱箱 (F8)
-            </button>
-            {cashDrawerOpen && (
-              <StatusBadge tone="success">钱箱已开启</StatusBadge>
-            )}
-          </div>
-        </div>
-        <div style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          color: isCashShort ? 'var(--color-danger)' : 'var(--color-success)',
-        }}>
-          <span>找零金额：</span>
-          <strong style={{ fontSize: '1.25rem' }}>¥{isCashShort ? '0.00' : cashChange.toFixed(2)}</strong>
-          {isCashShort ? (
-            <small style={{ fontSize: '0.75rem', color: 'var(--color-danger)' }}>（缴款不足，还差 ¥{(numericAmount - numericTendered).toFixed(2)}）</small>
-          ) : cashChange > 0 ? (
-            <small style={{ fontSize: '0.75rem', color: 'var(--color-success)' }}>（应找零给患者 ¥{cashChange.toFixed(2)}）</small>
-          ) : null}
-        </div>
-      </div>
+      <CashPaymentCalculator
+        payableAmount={numericAmount}
+        tendered={cashTendered}
+        onTenderedChange={setCashTendered}
+        inputRef={cashInputRef}
+        onEnter={() => {
+          if (!disabled && !busy) void handleCheckoutSubmit()
+        }}
+        disabled={busy}
+      />
     )}
 
     {insurancePending && <div className="settlement-payment-panel__notice">

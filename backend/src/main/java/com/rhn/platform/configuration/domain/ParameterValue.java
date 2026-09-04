@@ -1,6 +1,8 @@
 package com.rhn.platform.configuration.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -44,16 +46,16 @@ public class ParameterValue {
                           Long actorId) {
         this.id = GlobalIds.next();
         this.revision = null;
-        this.definitionId = requireId(definitionId, "参数定义");
+        this.definitionId = Strings.requireId(definitionId, "参数定义");
         this.tenantId = tenantId;
-        this.scopeType = require(scopeType, "参数作用域");
+        this.scopeType = Strings.require(scopeType, "参数作用域");
         this.scopeId = scopeId;
-        this.scopeReference = optionalText(scopeReference, 128);
-        this.scopeCode = requireText(scopeCode, "作用域编码", 200);
+        this.scopeReference = Strings.optionalText(scopeReference, 128);
+        this.scopeCode = Strings.requireText(scopeCode, "作用域编码", 200);
         applyContent(valueMode, valueJson, secretRef);
         this.active = true;
         this.createdAt = Instant.now();
-        this.createdBy = requireId(actorId, "操作用户");
+        this.createdBy = Strings.requireId(actorId, "操作用户");
         this.updatedAt = createdAt;
         this.updatedBy = actorId;
     }
@@ -81,13 +83,15 @@ public class ParameterValue {
     }
 
     public void assertRevision(long expectedRevision) {
-        if (revision == null || revision != expectedRevision) throw new StaleConfigurationRevisionException(revision);
+        if (revision == null || revision != expectedRevision) {
+            throw new StaleRevisionException(revision, "参数已被其他操作更新，请刷新后重试");
+        }
     }
 
     private void applyContent(ConfigurationValueMode valueMode, String valueJson, String secretRef) {
-        this.valueMode = require(valueMode, "参数值模式");
-        String normalizedValue = optionalText(valueJson, 20000);
-        String normalizedSecret = optionalText(secretRef, 500);
+        this.valueMode = Strings.require(valueMode, "参数值模式");
+        String normalizedValue = Strings.optionalText(valueJson, 20000);
+        String normalizedSecret = Strings.optionalText(secretRef, 500);
         if (valueMode == ConfigurationValueMode.OVERRIDE) {
             if ((normalizedValue == null) == (normalizedSecret == null)) {
                 throw new IllegalArgumentException("覆盖模式必须且只能提供参数值或密钥引用之一");
@@ -101,31 +105,7 @@ public class ParameterValue {
 
     private void touch(Long actorId) {
         updatedAt = Instant.now();
-        updatedBy = requireId(actorId, "操作用户");
-    }
-
-    private static <T> T require(T value, String label) {
-        if (value == null) throw new IllegalArgumentException(label + "不能为空");
-        return value;
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
+        updatedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }

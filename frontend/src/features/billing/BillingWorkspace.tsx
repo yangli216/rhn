@@ -2,13 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { AccountStatement, PaymentOrder, InsuranceSettlementView } from '../../shared/api/billingApi'
+import type { AccountStatement, PaymentOrder, InsuranceSettlementView, ReceiptView } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner'
 import { SettlementPaymentPanel, type SettlementModeCode,
   type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentModal'
+import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
@@ -56,6 +57,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     paymentMethodName: '微信支付',
     amount: 0,
   })
+  const [fiscalModalOpen, setFiscalModalOpen] = useState(false)
+  const [activeReceipt, setActiveReceipt] = useState<ReceiptView | null>(null)
+  const [settlementReceiptsMap, setSettlementReceiptsMap] = useState<Record<string, ReceiptView[]>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
   const completedPaymentMarker = useRef('')
   const worklist = useQuery({ queryKey: ['billing-worklist'], queryFn: api.billing.worklist })
@@ -118,6 +122,69 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       queryClient.invalidateQueries({ queryKey: ['billing-payment-orders'] }),
     ])
   }
+
+  const settlements = useMemo(() => statement.data?.settlements ?? [], [statement.data?.settlements])
+  useEffect(() => {
+    if (!settlements.length) return
+    let isMounted = true
+    Promise.all(
+      settlements.map((s) =>
+        (typeof api.billing.settlementReceipts === 'function'
+          ? api.billing.settlementReceipts(s.id)
+          : Promise.resolve([] as ReceiptView[])
+        )
+          .then((receipts) => ({ settlementId: s.id, receipts: receipts || [] }))
+          .catch(() => ({ settlementId: s.id, receipts: [] as ReceiptView[] }))
+      )
+    ).then((results) => {
+      if (!isMounted) return
+      const map: Record<string, ReceiptView[]> = {}
+      for (const res of results) {
+        map[res.settlementId] = res.receipts
+      }
+      setSettlementReceiptsMap(map)
+    })
+    return () => { isMounted = false }
+  }, [settlements, api])
+
+  const allCurrentReceipts = useMemo(() => {
+    return Object.values(settlementReceiptsMap).flat()
+  }, [settlementReceiptsMap])
+
+  const handleOpenOrIssueReceipt = async (settlementId: string) => {
+    const existing = settlementReceiptsMap[settlementId]
+    if (existing && existing.length > 0) {
+      setActiveReceipt(existing[0])
+      setFiscalModalOpen(true)
+      return
+    }
+    try {
+      setScanNotice({ tone: 'info', text: '正在向省财政电子票据平台申请开具电子票据...' })
+      const issued = await api.billing.issueSettlementReceipt(settlementId, {
+        idempotencyKey: `RCPT-${crypto.randomUUID()}`,
+        receiptType: 'MEDICAL_E_INVOICE',
+        issueChannel: 'CASHIER',
+        fiscalAuthorityCode: '360100',
+        payerName: selected?.residentName || '门诊患者',
+      })
+      setSettlementReceiptsMap((prev) => ({
+        ...prev,
+        [settlementId]: [issued, ...(prev[settlementId] || [])],
+      }))
+      setActiveReceipt(issued)
+      setFiscalModalOpen(true)
+      setScanNotice({
+        tone: 'success',
+        text: `财政电子票据开具成功！票据代码：${issued.fiscalCode || '3601060126'}，号码：${issued.fiscalNumber || issued.receiptNo}`,
+      })
+    } catch (err: unknown) {
+      setScanNotice({
+        tone: 'warning',
+        text: err instanceof Error ? err.message : '开具财政电子票据失败，请重试',
+      })
+    }
+  }
+
   const synchronize = useMutation({
     mutationFn: () => api.billing.synchronize(encounterId, `BIL-SYNC-${encounterId}-${Date.now()}`), onSuccess: refresh,
   })
@@ -747,7 +814,16 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 })}
               </div>
             </section>
-            <BillingTimeline invoices={statement.data.invoices} payments={statement.data.payments} currency={currency} />
+            <BillingTimeline
+              invoices={statement.data.invoices}
+              payments={statement.data.payments}
+              receipts={allCurrentReceipts}
+              currency={currency}
+              onViewReceipt={(receipt) => {
+                setActiveReceipt(receipt)
+                setFiscalModalOpen(true)
+              }}
+            />
           </>
         ) : null}
       </Panel>
@@ -780,6 +856,44 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 isPreSettlingInsurance={isPreSettlingInsurance}
                 onSubmit={(command) => checkout.mutateAsync(command)} />
             </div>
+            {statement.data && statement.data.settlements.length > 0 && (
+              <div className="fiscal-receipt-entry-banner">
+                <div className="fiscal-receipt-entry-banner__left">
+                  <Icon name="billing" className="fiscal-receipt-entry-icon" />
+                  <div>
+                    <strong>财政医疗收费电子票据</strong>
+                    <p>支持开具、扫码查验、防伪校验码核对与打印</p>
+                  </div>
+                </div>
+                <div className="fiscal-receipt-entry-banner__right">
+                  {allCurrentReceipts.length > 0 ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setActiveReceipt(allCurrentReceipts[0])
+                        setFiscalModalOpen(true)
+                      }}
+                    >
+                      <Icon name="check" />
+                      查看电子票据
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        const normalSettlement = statement.data?.settlements.find((s) => s.settlementType === 'NORMAL')
+                        if (normalSettlement) {
+                          handleOpenOrIssueReceipt(normalSettlement.id)
+                        }
+                      }}
+                    >
+                      <Icon name="add" />
+                      开具电子票据
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </>
         )}
       </Panel>
@@ -803,6 +917,19 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         await refresh()
       }}
       api={api}
+    />
+    <FiscalReceiptModal
+      open={fiscalModalOpen}
+      onClose={() => setFiscalModalOpen(false)}
+      receipt={activeReceipt}
+      settlement={statement.data?.settlements.find((s) => s.id === activeReceipt?.settlementId)}
+      onPrint={async (receiptId) => {
+        try {
+          await api.billing.printReceipt(receiptId, `PRINT-${Date.now()}`)
+        } catch {
+          // ignore error for print logging
+        }
+      }}
     />
   </div>
 }

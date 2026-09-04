@@ -486,6 +486,52 @@ export function createBillingApi(client: ApiClient) {
     insuranceClaim: (claimId: string) => client.request<InsuranceSettlementView>(
       `/api/billing/insurance-claims/${claimId}`,
     ),
+
+    // 财政医疗收费电子票据服务接口
+    issueSettlementReceipt: (settlementId: string, input: {
+      idempotencyKey: string
+      receiptType: 'MEDICAL_E_INVOICE' | 'PAPER_INVOICE' | 'RECEIPT' | 'VIRTUAL'
+      issueChannel: 'CASHIER' | 'SELF_SERVICE' | 'MOBILE' | 'ONLINE'
+      fiscalAuthorityCode?: string
+      payerName?: string
+      payerIdentityDigest?: string
+      correlationId?: string
+    }) => client.request<ReceiptView>(`/api/billing/settlements/${settlementId}/receipts`, {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    settlementReceipts: (settlementId: string) => client.request<ReceiptView[]>(
+      `/api/billing/settlements/${settlementId}/receipts`,
+    ),
+    receiptDetail: (receiptId: string) => client.request<ReceiptView>(
+      `/api/billing/receipts/${receiptId}`,
+    ),
+    retryReceiptIssue: (receiptId: string, commandCode: string, reason?: string) => client.request<ReceiptView>(
+      `/api/billing/receipts/${receiptId}/issue/retry`, {
+        method: 'POST', body: JSON.stringify({ commandCode, reason }),
+      },
+    ),
+    queryReceiptIssue: (receiptId: string, commandCode: string) => client.request<ReceiptView>(
+      `/api/billing/receipts/${receiptId}/issue/query`, {
+        method: 'POST', body: JSON.stringify({ commandCode }),
+      },
+    ),
+    voidReceipt: (receiptId: string, commandCode: string, reason: string) => client.request<ReceiptView>(
+      `/api/billing/receipts/${receiptId}/void`, {
+        method: 'POST', body: JSON.stringify({ commandCode, reason }),
+      },
+    ),
+    redFlushReceipt: (receiptId: string, input: {
+      commandCode: string
+      reason: string
+      correlationId?: string
+    }) => client.request<ReceiptView>(`/api/billing/receipts/${receiptId}/red-flush`, {
+      method: 'POST', body: JSON.stringify(input),
+    }),
+    printReceipt: (receiptId: string, commandCode: string) => client.request<ReceiptView>(
+      `/api/billing/receipts/${receiptId}/prints`, {
+        method: 'POST', body: JSON.stringify({ commandCode }),
+      },
+    ),
   }
 }
 
@@ -571,4 +617,49 @@ export interface InsuranceClaimResponseView {
   errorMessage?: string
   respondedAt?: string
 }
+
+export interface ReceiptView {
+  id: string
+  revision: number
+  settlementId: string
+  reversesReceiptId?: string
+  receiptNo: string
+  commandCode: string
+  receiptType: string
+  status: 'REQUESTED' | 'ISSUED' | 'FAILED' | 'VOIDED' | 'RED_FLUSHED'
+  fiscalAuthorityCode?: string
+  externalReceiptNo?: string
+  fiscalCode?: string
+  fiscalNumber?: string
+  verificationCode?: string
+  controlledObjectReference?: string
+  amount: number
+  currencyCode: string
+  issueChannel: string
+  payerName?: string
+  correlationId?: string
+  createdBy?: string
+  createdAt: string
+  issuedAt?: string
+  updatedAt: string
+  errorCode?: string
+  errorMessage?: string
+  duplicate: boolean
+  events?: ReceiptEventView[]
+}
+
+export interface ReceiptEventView {
+  id: string
+  externalMessageId?: string
+  eventType: string
+  statusFrom?: string
+  statusTo?: string
+  commandCode: string
+  actorId?: string
+  errorCode?: string
+  actionReason?: string
+  errorMessage?: string
+  occurredAt: string
+}
+
 

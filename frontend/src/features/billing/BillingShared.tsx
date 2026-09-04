@@ -1,5 +1,5 @@
 import { useMemo, useState, type RefObject } from 'react'
-import type { BillingWorkItem, Invoice, Payment } from '../../shared/api/billingApi'
+import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
 import { EmptyState, Icon, Panel, StatusBadge } from '../../shared/ui'
 
@@ -127,21 +127,78 @@ export function BillingQueue({ title, items, selectedId, onSelect, emptyTitle, e
   </Panel>
 }
 
-export function BillingTimeline({ invoices, payments, currency }: {
-  invoices: Invoice[]; payments: Payment[]; currency: string
+export function BillingTimeline({ invoices, payments, receipts = [], currency, onViewReceipt }: {
+  invoices: Invoice[]
+  payments: Payment[]
+  receipts?: ReceiptView[]
+  currency: string
+  onViewReceipt?: (receipt: ReceiptView) => void
 }) {
-  const items = [...invoices.map((invoice) => ({ id: `I-${invoice.id}`, at: invoice.issuedAt,
-    type: invoice.invoiceType === 'CREDIT' ? '贷项凭证' : '结算凭证', code: invoice.invoiceNo,
-    amount: invoice.netAmount, tone: invoice.invoiceType === 'CREDIT' ? 'warning' as const : 'info' as const })),
-  ...payments.map((payment) => ({ id: `P-${payment.id}`, at: payment.paidAt,
-    type: payment.paymentType === 'REFUND' ? '退款冲正' : '支付完成', code: payment.paymentNo,
-    amount: payment.paymentType === 'REFUND' ? -payment.amount : payment.amount,
-    tone: payment.paymentType === 'REFUND' ? 'danger' as const : 'success' as const }))]
-    .sort((a, b) => a.at.localeCompare(b.at))
-  return <section className="billing-timeline"><header><h3>结算与支付记录</h3><span>{items.length} 条</span></header>
-    {!items.length ? <p>当前账户暂无结算和支付记录。</p> : <ol>{items.map((item) => <li key={item.id}>
-      <span className={`billing-timeline__dot is-${item.tone}`} /><div><strong>{item.type}</strong><code>{item.code}</code>
-        <small>{formatTime(item.at)}</small></div><b>{money(item.amount, currency)}</b>
-    </li>)}</ol>}
-  </section>
+  const items = [
+    ...invoices.map((invoice) => ({
+      id: `I-${invoice.id}`,
+      at: invoice.issuedAt,
+      type: invoice.invoiceType === 'CREDIT' ? '贷项凭证' : '结算凭证',
+      code: invoice.invoiceNo,
+      amount: invoice.netAmount,
+      tone: invoice.invoiceType === 'CREDIT' ? 'warning' as const : 'info' as const,
+      receipt: undefined as ReceiptView | undefined,
+    })),
+    ...payments.map((payment) => ({
+      id: `P-${payment.id}`,
+      at: payment.paidAt,
+      type: payment.paymentType === 'REFUND' ? '退款冲正' : '支付完成',
+      code: payment.paymentNo,
+      amount: payment.paymentType === 'REFUND' ? -payment.amount : payment.amount,
+      tone: payment.paymentType === 'REFUND' ? 'danger' as const : 'success' as const,
+      receipt: undefined as ReceiptView | undefined,
+    })),
+    ...receipts.map((receipt) => ({
+      id: `R-${receipt.id}`,
+      at: receipt.issuedAt || receipt.createdAt,
+      type: receipt.status === 'RED_FLUSHED' ? '电子票据冲红' : receipt.status === 'VOIDED' ? '电子票据作废' : '财政电子票据',
+      code: receipt.fiscalNumber || receipt.receiptNo,
+      amount: receipt.amount,
+      tone: receipt.status === 'RED_FLUSHED' ? 'danger' as const : receipt.status === 'VOIDED' ? 'neutral' as const : 'success' as const,
+      receipt,
+    })),
+  ].sort((a, b) => a.at.localeCompare(b.at))
+
+  return (
+    <section className="billing-timeline">
+      <header>
+        <h3>结算与支付记录</h3>
+        <span>{items.length} 条</span>
+      </header>
+      {!items.length ? (
+        <p>当前账户暂无结算和支付记录。</p>
+      ) : (
+        <ol>
+          {items.map((item) => (
+            <li key={item.id} className={item.receipt ? 'is-receipt-item' : ''}>
+              <span className={`billing-timeline__dot is-${item.tone}`} />
+              <div>
+                <strong>{item.type}</strong>
+                <code>{item.code}</code>
+                <small>{formatTime(item.at)}</small>
+              </div>
+              <div className="billing-timeline__right">
+                <b>{money(item.amount, currency)}</b>
+                {item.receipt && onViewReceipt && (
+                  <button
+                    type="button"
+                    className="billing-timeline__view-btn"
+                    onClick={() => onViewReceipt(item.receipt!)}
+                    aria-label={`查看发票 ${item.code}`}
+                  >
+                    查看发票
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  )
 }

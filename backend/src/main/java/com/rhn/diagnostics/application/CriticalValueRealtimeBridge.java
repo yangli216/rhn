@@ -7,6 +7,7 @@ import com.rhn.healthcore.api.EncounterCareSettingDirectory;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.realtime.api.RealtimeEvent;
 import com.rhn.platform.realtime.application.RealtimeConnectionRegistry;
+import com.rhn.shared.event.EventPayload;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
@@ -33,10 +34,11 @@ public class CriticalValueRealtimeBridge {
     public void on(DomainEventEnvelope event) {
         if (!event.eventType().startsWith("DIAGNOSTIC_CRITICAL_VALUE_")
                 || deliveredDomainEvents.asMap().putIfAbsent(event.eventId(), Boolean.TRUE) != null) return;
-        Long departmentId = longValue(event.payload().get("departmentId"));
-        Long recipientUserId = longValue(event.payload().get("recipientUserId"));
-        Long alertId = longValue(event.payload().get("alertId"));
-        Long encounterId = longValue(event.payload().get("encounterId"));
+        EventPayload payload = EventPayload.of(event.payload());
+        Long departmentId = payload.longValue("departmentId");
+        Long recipientUserId = payload.longValue("recipientUserId");
+        Long alertId = payload.longValue("alertId");
+        Long encounterId = payload.longValue("encounterId");
         connections.publish(event.tenantId(), new RealtimeEvent("critical:" + event.eventId(), event.eventType(),
                 event.occurredAt(), "CRITICAL", event.organizationId(), departmentId, recipientUserId,
                 "CriticalValueAlert", alertId, route(event.tenantId(), encounterId),
@@ -55,11 +57,5 @@ public class CriticalValueRealtimeBridge {
         if (encounterId == null) return "/outpatient/reception";
         return "INPATIENT".equals(encounters.require(tenantId, encounterId).encounterClass())
                 ? "/inpatient" : "/outpatient/reception";
-    }
-
-    private Long longValue(Object value) {
-        if (value instanceof Number number) return number.longValue();
-        if (value instanceof String text && !text.isBlank()) return Long.valueOf(text);
-        return null;
     }
 }

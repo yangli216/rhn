@@ -3138,15 +3138,153 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .registration-fee-row { display: flex; align-items: center; justify-content: space-between; font-size: var(--font-size-small); color: var(--color-text-secondary); }
 .registration-fee-row.is-total { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); font-size: var(--font-size-body); color: var(--color-text-primary); font-weight: var(--font-weight-bold); }
 .registration-fee-row.is-total strong { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
-.registration-payment-methods { padding: var(--space-4); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-1); border-bottom: 1px solid var(--color-border); }
-.registration-payment-chip { height: 2.125rem; padding: 0 var(--space-1); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); font-size: .75rem; cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
-.registration-payment-chip:hover, .registration-payment-chip:focus-visible { border-color: var(--color-brand-primary); outline: 0; }
-.registration-payment-chip:focus-visible { box-shadow: 0 0 0 2px var(--color-focus-ring); }
-.registration-payment-chip.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-semibold); }
-.registration-payment-chip kbd { display: inline-flex; align-items: center; justify-content: center; min-width: 1.125rem; height: 1.125rem; padding: 0 0.25rem; border-radius: var(--radius-sm); background: var(--color-surface-subtle); border: 1px solid var(--color-border); font-size: 0.6875rem; font-family: var(--font-mono, monospace); color: var(--color-text-secondary); }
-.registration-payment-chip.is-active kbd { background: var(--color-surface); border-color: var(--color-brand-primary); color: var(--color-brand-primary); font-weight: 700; }
+.registration-payment-methods,
+.payment-method-selector {
+  padding: 2px 0;
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+.registration-payment-chip,
+.payment-method-chip {
+  flex: 1 1 0;
+  min-width: 4.5rem;
+  height: 2.125rem;
+  padding: 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.registration-payment-chip:hover,
+.registration-payment-chip:focus-visible,
+.payment-method-chip:hover,
+.payment-method-chip:focus-visible {
+  border-color: var(--color-brand-primary);
+  outline: 0;
+}
+.registration-payment-chip:focus-visible,
+.payment-method-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+.registration-payment-chip.is-active,
+.payment-method-chip.is-active {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+}
+.registration-payment-chip kbd,
+.payment-method-chip kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  font-size: 0.6875rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-secondary);
+}
+.registration-payment-chip.is-active kbd,
+.payment-method-chip.is-active kbd {
+  background: var(--color-surface);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
 
-.registration-cash-calculator {
+.payment-method-other-container {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 4.75rem;
+}
+.payment-method-other-trigger {
+  width: 100%;
+  height: 2.125rem;
+  justify-content: center;
+  user-select: none;
+}
+.payment-method-other-arrow {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  transition: transform var(--motion-fast) var(--ease-standard);
+  margin-left: 2px;
+  pointer-events: none;
+}
+.payment-method-other-arrow.is-open {
+  transform: rotate(180deg);
+}
+.payment-method-chip.is-active .payment-method-other-arrow {
+  color: var(--color-brand-strong);
+}
+.payment-method-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.payment-method-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 1.875rem;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.payment-method-dropdown-item:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-brand-primary);
+}
+.payment-method-dropdown-item.is-selected {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+}
+.payment-method-dropdown-check {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  margin-left: 0.5rem;
+}
+
+.registration-cash-calculator,
+.cash-payment-calc {
   margin: 0;
   padding: var(--space-2);
   background: var(--color-surface-subtle);
@@ -3155,78 +3293,136 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   display: grid;
   gap: var(--space-2);
 }
-.registration-cash-row {
+.registration-cash-row,
+.cash-payment-row {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  width: 100%;
 }
-.registration-cash-label {
+.registration-cash-label,
+.cash-payment-label {
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
+  flex-shrink: 0;
 }
-.registration-cash-input-wrap {
-  position: relative;
+.registration-cash-input-wrap,
+.cash-payment-input-wrap {
   display: inline-flex;
   align-items: center;
-  width: 7.5rem;
-}
-.registration-cash-symbol {
-  position: absolute;
-  left: 0.6rem;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  pointer-events: none;
-  font-weight: 600;
-}
-.registration-cash-input {
-  width: 100%;
-  height: 2.25rem;
-  padding: 0 var(--space-2) 0 1.5rem;
+  width: 5.25rem;
+  height: 2rem;
+  padding: 0 0.375rem;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
   background: var(--color-surface);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-body);
-  font-weight: 700;
-  outline: none;
-  font-family: inherit;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
 }
-.registration-cash-input:focus {
+.registration-cash-input-wrap:focus-within,
+.cash-payment-input-wrap:focus-within {
   border-color: var(--color-brand-primary);
   box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
-.registration-cash-presets {
+.registration-cash-symbol,
+.cash-payment-symbol {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  margin-right: 0.25rem;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
 }
-.registration-cash-preset-btn {
+.registration-cash-input,
+.cash-payment-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+.registration-cash-input::-webkit-outer-spin-button,
+.registration-cash-input::-webkit-inner-spin-button,
+.cash-payment-input::-webkit-outer-spin-button,
+.cash-payment-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.registration-cash-input[type=number],
+.cash-payment-input[type=number] {
+  -moz-appearance: textfield;
+}
+.registration-cash-presets,
+.cash-payment-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-left: 2px;
+}
+.registration-cash-preset-btn,
+.cash-payment-preset-btn,
+.cash-payment-preset-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 1.75rem;
-  padding: 0 0.5rem;
+  padding: 0 4px;
   font-size: 0.75rem;
-  border: 1px solid var(--color-border);
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  border: none;
   border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: all var(--motion-fast) var(--ease-standard);
-  white-space: nowrap;
-}
-.registration-cash-preset-btn:hover {
-  border-color: var(--color-brand-primary);
+  background: transparent;
   color: var(--color-brand-primary);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-standard), text-decoration var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+  text-decoration: none;
+  user-select: none;
 }
-.registration-cash-preset-btn.is-active {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
+.registration-cash-preset-btn:hover,
+.cash-payment-preset-btn:hover,
+.cash-payment-preset-link:hover {
   color: var(--color-brand-strong);
-  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
-.registration-cash-change-box {
+.registration-cash-preset-btn:focus-visible,
+.cash-payment-preset-btn:focus-visible,
+.cash-payment-preset-link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.registration-cash-preset-btn.is-active,
+.cash-payment-preset-btn.is-active,
+.cash-payment-preset-link.is-active {
+  color: var(--color-brand-strong);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: var(--color-brand-soft);
+}
+.registration-cash-change-box,
+.cash-payment-change {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -3235,29 +3431,35 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   border-radius: var(--radius-sm);
   font-size: var(--font-size-small);
 }
-.registration-cash-change-box.is-sufficient {
+.registration-cash-change-box.is-sufficient,
+.cash-payment-change.is-sufficient {
   background: var(--color-success-soft);
   border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
   color: var(--color-success);
 }
-.registration-cash-change-box.is-sufficient strong {
+.registration-cash-change-box.is-sufficient strong,
+.cash-payment-change.is-sufficient strong {
   font-size: 1.125rem;
   color: var(--color-success);
 }
-.registration-cash-change-box.is-short {
+.registration-cash-change-box.is-short,
+.cash-payment-change.is-short {
   background: var(--color-danger-soft);
   border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
   color: var(--color-danger);
 }
-.registration-cash-change-box.is-short strong {
+.registration-cash-change-box.is-short strong,
+.cash-payment-change.is-short strong {
   font-size: 1.125rem;
   color: var(--color-danger);
 }
-.registration-cash-short-tip {
+.registration-cash-short-tip,
+.cash-payment-short-tip {
   color: var(--color-danger);
   font-size: 0.75rem;
 }
-.registration-cash-change-tip {
+.registration-cash-change-tip,
+.cash-payment-change-tip {
   color: var(--color-success);
   font-size: 0.75rem;
 }
@@ -5262,3 +5464,483 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .batch-estimate-text {
   flex: 1;
 }
+
+/* 财政医疗收费电子票据 (Fiscal Receipt Modal & Paper Styles) */
+.fiscal-receipt-dialog .ui-dialog {
+  max-width: 58rem;
+}
+
+.fiscal-invoice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) 0;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.fiscal-invoice-paper {
+  position: relative;
+  width: 100%;
+  max-width: 54rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+}
+
+.fiscal-invoice-paper--red {
+  border-color: var(--color-danger);
+}
+
+.fiscal-invoice-paper--void {
+  border-color: var(--color-border-strong);
+  opacity: 0.85;
+}
+
+/* 发票防伪倾斜水印印章 */
+.fiscal-watermark-stamp {
+  position: absolute;
+  top: 35%;
+  left: 30%;
+  transform: rotate(-24deg);
+  font-size: 2.25rem;
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-2) var(--space-6);
+  border: 4px dashed;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  z-index: 1;
+  letter-spacing: 0.2em;
+  opacity: 0.18;
+}
+
+.fiscal-watermark-stamp--valid {
+  color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+}
+
+.fiscal-watermark-stamp--red {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  opacity: 0.35;
+}
+
+.fiscal-watermark-stamp--void {
+  color: var(--color-text-secondary);
+  border-color: var(--color-text-secondary);
+  opacity: 0.3;
+}
+
+/* 票据版头 */
+.fiscal-header {
+  position: relative;
+  text-align: center;
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-border-strong);
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-header__emblem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-1);
+}
+
+.fiscal-emblem-icon {
+  font-size: 1rem;
+}
+
+.fiscal-title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-primary);
+}
+
+.fiscal-subtitle {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* 右上角四要素 */
+.fiscal-four-elements {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: var(--color-surface-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+.fiscal-element-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.fiscal-element-label {
+  color: var(--color-text-secondary);
+}
+
+.fiscal-element-value {
+  font-family: var(--font-mono, monospace);
+  font-weight: var(--font-weight-medium);
+}
+
+.fiscal-element-value--highlight {
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.fiscal-element-value--code {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+}
+
+/* 业务与患者信息栅格 */
+.fiscal-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.fiscal-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.fiscal-meta-label {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.fiscal-meta-text {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* 费用明细表格 */
+.fiscal-details-section {
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  border: 1px solid var(--color-border);
+}
+
+.fiscal-table th,
+.fiscal-table td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+}
+
+.fiscal-table th {
+  background: var(--color-surface-subtle);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+/* 费用合计 */
+.fiscal-totals-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-body);
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-label-bold {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-words-value {
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+  color: var(--color-text-primary);
+}
+
+.fiscal-figure-amount {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--space-2);
+}
+
+/* 医保分解 3 格卡片 */
+.fiscal-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.fiscal-breakdown-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--color-surface);
+}
+
+.fiscal-breakdown-card--primary {
+  border-color: var(--color-brand-border);
+  background: var(--color-brand-soft);
+}
+
+.fiscal-breakdown-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-breakdown-num {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.fiscal-breakdown-card--primary .fiscal-breakdown-num {
+  color: var(--color-brand-primary);
+}
+
+/* 底部防伪查验与印章 */
+.fiscal-footer-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.fiscal-qr-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.fiscal-qr-svg {
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.fiscal-qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 22rem;
+}
+
+.fiscal-qr-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.fiscal-qr-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.fiscal-verify-link {
+  font-size: 0.7rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-brand-primary);
+  word-break: break-all;
+  max-height: 2.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 印章区域 */
+.fiscal-stamps-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.fiscal-official-seal {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-danger);
+  transform: rotate(-12deg);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-danger-soft);
+}
+
+.fiscal-seal-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.fiscal-seal-star {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.fiscal-seal-text {
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+}
+
+.fiscal-seal-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.02em;
+}
+
+.fiscal-cashier-sign {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* 操作栏 */
+.fiscal-receipt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-4);
+}
+
+.fiscal-receipt-actions__info {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-receipt-actions__buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 打印支持 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #fiscal-printable-area,
+  #fiscal-printable-area * {
+    visibility: visible;
+  }
+  #fiscal-printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: var(--space-4);
+    box-shadow: none;
+    border: none;
+  }
+}
+
+/* 电子发票快捷入口横幅与时间线操作按钮 */
+.fiscal-receipt-entry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-md);
+}
+
+.fiscal-receipt-entry-banner__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fiscal-receipt-entry-icon {
+  font-size: 1.5rem;
+  color: var(--color-brand-primary);
+}
+
+.fiscal-receipt-entry-banner__left strong {
+  display: block;
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
+.fiscal-receipt-entry-banner__left p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.fiscal-receipt-entry-banner__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.billing-timeline__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.billing-timeline__view-btn {
+  font-size: 0.75rem;
+  color: var(--color-brand-primary);
+  background: transparent;
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.billing-timeline__view-btn:hover {
+  background: var(--color-brand-soft);
+}
+

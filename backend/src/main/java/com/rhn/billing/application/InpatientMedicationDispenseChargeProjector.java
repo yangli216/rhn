@@ -14,6 +14,7 @@ import com.rhn.pharmacy.api.DispenseBillingDirectory;
 import com.rhn.pharmacy.api.DispenseBillingDirectory.DispenseBillingFact;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
+import com.rhn.shared.event.EventPayload;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,12 +57,13 @@ public class InpatientMedicationDispenseChargeProjector {
     @Transactional
     public void project(DomainEventEnvelope event) {
         if (!"MEDICATION_DISPENSE_POSTED".equals(event.eventType())
-                || !"INPATIENT".equals(text(event.payload().get("taskType")))) return;
+                || !"INPATIENT".equals(EventPayload.of(event.payload()).text("taskType"))) return;
         eventConsumer.consume(CONSUMER, event, () -> apply(event));
     }
 
     private void apply(DomainEventEnvelope event) {
-        Long dispenseId = longValue(event.payload().get("dispenseId"));
+        EventPayload payload = EventPayload.of(event.payload());
+        Long dispenseId = payload.longValue("dispenseId");
         if (dispenseId == null || charges.findByTenantIdAndSourceTypeAndSourceId(
                 event.tenantId(), SOURCE_TYPE, dispenseId).isPresent()) return;
         DispenseBillingFact dispense = dispenses.requireById(event.tenantId(), dispenseId);
@@ -91,7 +93,7 @@ public class InpatientMedicationDispenseChargeProjector {
         if (!"INPATIENT".equals(account.accountType())) {
             throw conflict("INPATIENT_ACCOUNT_TYPE_INVALID", "当前就诊费用账户不是住院账户");
         }
-        Long actorId = longValue(event.payload().get("dispensedBy"));
+        Long actorId = payload.longValue("dispensedBy");
         if (actorId == null) actorId = request.authoredBy();
         Instant occurredAt = dispense.occurredAt() == null ? Instant.now() : dispense.occurredAt();
         ChargeItem charge = charges.save(new ChargeItem(
@@ -106,16 +108,6 @@ public class InpatientMedicationDispenseChargeProjector {
                 charge.unitPrice(), charge.totalAmount()));
         ledger.save(new LedgerEntry(event.tenantId(), account.id(), "CHARGE", "DEBIT", amount,
                 request.currencyCode(), charge.id(), null, null, null, occurredAt, actorId));
-    }
-
-    private Long longValue(Object value) {
-        if (value instanceof Number number) return number.longValue();
-        if (value instanceof String string && !string.isBlank()) return Long.valueOf(string);
-        return null;
-    }
-
-    private String text(Object value) {
-        return value == null ? null : value.toString();
     }
 
     private BigDecimal money(BigDecimal value) {

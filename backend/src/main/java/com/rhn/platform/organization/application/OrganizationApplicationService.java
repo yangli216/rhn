@@ -27,7 +27,6 @@ import com.rhn.platform.organization.domain.Position;
 import com.rhn.platform.organization.domain.PositionType;
 import com.rhn.platform.organization.domain.Practitioner;
 import com.rhn.platform.organization.domain.PractitionerGender;
-import com.rhn.platform.organization.domain.StaleOrganizationRevisionException;
 import com.rhn.platform.organization.domain.Tenant;
 import com.rhn.platform.organization.infrastructure.EmploymentRepository;
 import com.rhn.platform.organization.infrastructure.DepartmentRepository;
@@ -38,6 +37,7 @@ import com.rhn.platform.organization.infrastructure.PositionRepository;
 import com.rhn.platform.organization.infrastructure.PractitionerRepository;
 import com.rhn.platform.organization.infrastructure.TenantRepository;
 import com.rhn.shared.api.BusinessException;
+import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -153,12 +153,13 @@ public class OrganizationApplicationService implements OrganizationDirectory {
                 organization.organizationKind(), type, departmentTypeCode);
         String normalizedTimezone = timezone(timezoneCode);
         try {
-            organization.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description), type,
-                    normalizedProperty, virtual, sortOrder, normalizedTimezone, normalizedDepartmentType,
-                    validFrom, validTo, expectedRevision, actorId());
-            return organizationRepository.saveAndFlush(organization).toView();
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("ORGANIZATION_REVISION_CONFLICT", "组织已被其他用户修改，请刷新后重试");
+            return RevisionGuard.supply("ORGANIZATION_REVISION_CONFLICT",
+                    "组织已被其他用户修改，请刷新后重试", () -> {
+                        organization.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description), type,
+                                normalizedProperty, virtual, sortOrder, normalizedTimezone, normalizedDepartmentType,
+                                validFrom, validTo, expectedRevision, actorId());
+                        return organizationRepository.saveAndFlush(organization).toView();
+                    });
         } catch (IllegalArgumentException exception) {
             throw badRequest("VALIDITY_PERIOD_INVALID", "有效期结束日期不能早于开始日期");
         }
@@ -170,12 +171,11 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         if (status == OrganizationStatus.MERGED) {
             throw badRequest("ORGANIZATION_MERGE_TARGET_REQUIRED", "机构合并需要指定目标机构，本轮不通过普通状态操作完成");
         }
-        try {
+        return RevisionGuard.supply("ORGANIZATION_REVISION_CONFLICT",
+                "组织已被其他用户修改，请刷新后重试", () -> {
             organization.changeStatus(status, expectedRevision, actorId());
             return organizationRepository.saveAndFlush(organization).toView();
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("ORGANIZATION_REVISION_CONFLICT", "组织已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     @Transactional(readOnly = true)
@@ -314,23 +314,21 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     @Transactional
     public StaffView updateStaff(Long id, long expectedRevision, String fullName, PractitionerGender gender) {
         Practitioner practitioner = requirePractitioner(current().tenantId(), id);
-        try {
+        return RevisionGuard.supply("PRACTITIONER_REVISION_CONFLICT",
+                "人员已被其他用户修改，请刷新后重试", () -> {
             practitioner.update(fullName.trim(), gender, expectedRevision, actorId());
             return practitionerRepository.saveAndFlush(practitioner).toView();
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("PRACTITIONER_REVISION_CONFLICT", "人员已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     @Transactional
     public StaffView changeStaffStatus(Long id, long expectedRevision, PersonnelStatus status) {
         Practitioner practitioner = requirePractitioner(current().tenantId(), id);
-        try {
+        return RevisionGuard.supply("PRACTITIONER_REVISION_CONFLICT",
+                "人员已被其他用户修改，请刷新后重试", () -> {
             practitioner.changeStatus(status, expectedRevision, actorId());
             return practitionerRepository.saveAndFlush(practitioner).toView();
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("PRACTITIONER_REVISION_CONFLICT", "人员已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     @Transactional

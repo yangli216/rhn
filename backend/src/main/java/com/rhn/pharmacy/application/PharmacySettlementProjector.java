@@ -8,6 +8,7 @@ import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.PharmacyFulfillmentAuthorizationRepository;
 import com.rhn.platform.eventing.api.DomainEventEnvelope;
 import com.rhn.platform.eventing.api.IdempotentDomainEventConsumer;
+import com.rhn.shared.event.EventPayload;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class PharmacySettlementProjector {
     }
 
     private void apply(DomainEventEnvelope event) {
-        Long settlementId = longValue(event.payload().get("settlementId"));
+        Long settlementId = EventPayload.of(event.payload()).longValue("settlementId");
         if (settlementId == null) return;
         if ("BILLING_SETTLEMENT_REVERSED".equals(event.eventType())) {
             for (PharmacyFulfillmentAuthorization value
@@ -67,9 +68,10 @@ public class PharmacySettlementProjector {
         if (!(raw instanceof List<?> requestValues)) return;
         for (Object item : requestValues) {
             if (!(item instanceof Map<?, ?> request)) continue;
-            Long requestId = longValue(request.get("requestId"));
-            Long organizationId = longValue(request.get("organizationId"));
-            Long departmentId = longValue(request.get("departmentId"));
+            EventPayload requestPayload = EventPayload.of(request);
+            Long requestId = requestPayload.longValue("requestId");
+            Long organizationId = requestPayload.longValue("organizationId");
+            Long departmentId = requestPayload.longValue("departmentId");
             if (requestId == null || organizationId == null) continue;
             PharmacyFulfillmentAuthorization existing = authorizations
                     .findByTenantIdAndMedicationRequestIdAndSettlementId(event.tenantId(), requestId, settlementId)
@@ -96,11 +98,5 @@ public class PharmacySettlementProjector {
                          Long requestId, String changeType) {
         events.publishEvent(new PharmacyQueueChanged(source.eventId(), source.tenantId(), organizationId,
                 departmentId, requestId, changeType, Instant.now()));
-    }
-
-    private Long longValue(Object value) {
-        if (value instanceof Number number) return number.longValue();
-        if (value instanceof String text && !text.isBlank()) return Long.valueOf(text);
-        return null;
     }
 }

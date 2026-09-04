@@ -1,6 +1,7 @@
 package com.rhn.platform.organization.domain;
 
 import com.rhn.platform.organization.api.StaffView;
+import com.rhn.shared.api.StaleRevisionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,7 +58,9 @@ public class Practitioner {
     }
 
     private void requireRevision(long expectedRevision) {
-        if (revision != expectedRevision) throw new StaleOrganizationRevisionException();
+        if (revision != expectedRevision) {
+            throw new StaleRevisionException(revision, "人员已被其他用户修改，请刷新后重试");
+        }
     }
 
     private void touch(Long actorId) {

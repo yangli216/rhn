@@ -110,7 +110,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={onSubmit}
     />)
 
-    expect(screen.getByText('实收现金：')).toBeInTheDocument()
+    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
     expect(screen.getByText('¥0.00')).toBeInTheDocument()
 
     const preset50 = screen.getByRole('button', { name: '¥50' })
@@ -150,16 +150,14 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={vi.fn()}
     />)
 
-    await user.click(screen.getByLabelText('支付方式'))
-    await user.click(await screen.findByRole('option', { name: /微信支付/ }))
+    await user.click(screen.getByRole('button', { name: /微信支付/ }))
 
     expect(screen.getByText('接口未对接')).toBeInTheDocument()
     expect(screen.getByText(/【微信支付接口未对接】当前系统未配置在线商户支付网关/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '微信支付未对接，请改选现金' })).toBeDisabled()
   })
 
-  it('supports F8 key and button to trigger cash drawer', async () => {
-    const user = userEvent.setup()
+  it('verifies that physical cash drawer button is removed per requirements', async () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 20, currencyCode: 'CNY' }]}
       methods={[{ code: 'CASH', name: '现金' }]}
@@ -167,14 +165,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={vi.fn()}
     />)
 
-    const drawerBtn = screen.getByRole('button', { name: /开钱箱 \(F8\)/ })
-    expect(drawerBtn).toBeInTheDocument()
-    await user.click(drawerBtn)
-    expect(screen.getByText('钱箱已开启')).toBeInTheDocument()
-
-    // Test F8 keypress
-    await user.keyboard('{F8}')
-    expect(screen.getByText('钱箱已开启')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /开钱箱/ })).not.toBeInTheDocument()
   })
 
   it('delegates to onInitiateScanPay when WeChat or Alipay is selected and onInitiateScanPay is provided', async () => {
@@ -189,8 +180,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
       onSubmit={vi.fn()}
     />)
 
-    await user.click(screen.getByLabelText('支付方式'))
-    await user.click(await screen.findByRole('option', { name: /微信支付/ }))
+    await user.click(screen.getByRole('button', { name: /微信支付/ }))
 
     // Notice should NOT be displayed when onInitiateScanPay is provided
     expect(screen.queryByText('接口未对接')).not.toBeInTheDocument()
@@ -328,7 +318,7 @@ describe('SettlementPaymentPanel payment recovery', () => {
 
     // 自付部分支持现金收银与速算找零
     expect(screen.getByLabelText('个人自付金额')).toHaveValue(50)
-    expect(screen.getByText('实收现金：')).toBeInTheDocument()
+    expect(screen.getByText('缴款金额：')).toBeInTheDocument()
 
     const preset100 = screen.getByRole('button', { name: '¥100' })
     await user.click(preset100)

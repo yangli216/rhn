@@ -4,8 +4,8 @@ import com.rhn.platform.geography.api.GridAddressNodeView;
 import com.rhn.platform.geography.domain.GridAddressLevel;
 import com.rhn.platform.geography.domain.GridAddressNode;
 import com.rhn.platform.geography.domain.GridAddressStatus;
-import com.rhn.platform.geography.domain.StaleGridAddressRevisionException;
 import com.rhn.platform.geography.infrastructure.GridAddressNodeRepository;
+import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,15 +64,14 @@ public class GridAddressApplicationService {
         GridAddressNode node = require(id);
         GridAddressNode parent = validateParent(id, parentId, node.level());
         String normalizedName = requireText(name, "网格名称不能为空");
-        try {
+        return RevisionGuard.supply("GRID_ADDRESS_REVISION_CONFLICT",
+                "网格地址已被其他用户修改，请刷新后重试", () -> {
             node.update(parentId, normalizedName, trim(shortName), normalizePinyin(pinyinCode),
                     path(parent, normalizedName), sortOrder, expectedRevision, actorId());
             GridAddressNode saved = repository.saveAndFlush(node);
             refreshDescendantPaths(saved);
             return view(saved);
-        } catch (StaleGridAddressRevisionException exception) {
-            throw conflict("GRID_ADDRESS_REVISION_CONFLICT", "网格地址已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     @Transactional
@@ -82,12 +81,11 @@ public class GridAddressApplicationService {
                 && repository.existsByParentIdAndStatus(id, GridAddressStatus.ACTIVE)) {
             throw conflict("GRID_ADDRESS_CHILD_ACTIVE", "请先停用当前节点下的有效子级");
         }
-        try {
+        return RevisionGuard.supply("GRID_ADDRESS_REVISION_CONFLICT",
+                "网格地址已被其他用户修改，请刷新后重试", () -> {
             node.changeStatus(status, expectedRevision, actorId());
             return view(repository.saveAndFlush(node));
-        } catch (StaleGridAddressRevisionException exception) {
-            throw conflict("GRID_ADDRESS_REVISION_CONFLICT", "网格地址已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     private GridAddressNode validateParent(Long nodeId, Long parentId, GridAddressLevel level) {

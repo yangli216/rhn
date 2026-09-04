@@ -11,12 +11,12 @@ import com.rhn.platform.organization.domain.Department;
 import com.rhn.platform.organization.domain.OrganizationKind;
 import com.rhn.platform.organization.domain.OrganizationStatus;
 import com.rhn.platform.organization.domain.PersonnelAssignment;
-import com.rhn.platform.organization.domain.StaleOrganizationRevisionException;
 import com.rhn.platform.organization.infrastructure.DepartmentProfileStore;
 import com.rhn.platform.organization.infrastructure.DepartmentRepository;
 import com.rhn.platform.organization.infrastructure.OrganizationRepository;
 import com.rhn.platform.organization.infrastructure.PersonnelAssignmentRepository;
 import com.rhn.shared.api.BusinessException;
+import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -86,14 +86,15 @@ public class DepartmentApplicationService {
         String normalizedProperty = optionalDictionaryItem(department.tenantId(),
                 OrganizationDictionaryCodes.DEPARTMENT_PROPERTY, property, "科室属性");
         try {
-            department.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description),
-                    normalizedType, normalizedProperty, virtual, sortOrder, validFrom, validTo,
-                    expectedRevision, actorId());
-            DepartmentView value = repository.saveAndFlush(department).toView();
-            synchronizeExtensions(department.tenantId(), value);
-            return value;
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("DEPARTMENT_REVISION_CONFLICT", "科室已被其他用户修改，请刷新后重试");
+            return RevisionGuard.supply("DEPARTMENT_REVISION_CONFLICT",
+                    "科室已被其他用户修改，请刷新后重试", () -> {
+                        department.update(parentId, name.trim(), trimToNull(shortName), trimToNull(description),
+                                normalizedType, normalizedProperty, virtual, sortOrder, validFrom, validTo,
+                                expectedRevision, actorId());
+                        DepartmentView value = repository.saveAndFlush(department).toView();
+                        synchronizeExtensions(department.tenantId(), value);
+                        return value;
+                    });
         } catch (IllegalArgumentException exception) {
             throw badRequest("VALIDITY_PERIOD_INVALID", "有效期结束日期不能早于开始日期");
         }
@@ -105,14 +106,13 @@ public class DepartmentApplicationService {
         if (status == OrganizationStatus.MERGED) {
             throw badRequest("DEPARTMENT_MERGE_TARGET_REQUIRED", "科室合并需要指定目标科室");
         }
-        try {
+        return RevisionGuard.supply("DEPARTMENT_REVISION_CONFLICT",
+                "科室已被其他用户修改，请刷新后重试", () -> {
             department.changeStatus(status, expectedRevision, actorId());
             DepartmentView value = repository.saveAndFlush(department).toView();
             synchronizeExtensions(department.tenantId(), value);
             return value;
-        } catch (StaleOrganizationRevisionException exception) {
-            throw conflict("DEPARTMENT_REVISION_CONFLICT", "科室已被其他用户修改，请刷新后重试");
-        }
+        });
     }
 
     private void synchronizeExtensions(Long tenantId, DepartmentView department) {

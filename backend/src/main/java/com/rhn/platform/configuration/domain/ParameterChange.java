@@ -1,6 +1,7 @@
 package com.rhn.platform.configuration.domain;
 
 import com.rhn.shared.id.GlobalIds;
+import com.rhn.shared.text.Strings;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,41 +40,17 @@ public class ParameterChange {
         if (beforeJson == null && afterJson == null) throw new IllegalArgumentException("参数变更快照不能为空");
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
-        this.definitionId = requireId(definitionId, "参数定义");
+        this.definitionId = Strings.requireId(definitionId, "参数定义");
         this.valueId = valueId;
         this.targetType = valueId == null
                 ? ConfigurationChangeTargetType.DEFINITION : ConfigurationChangeTargetType.VALUE;
-        this.changeType = require(changeType, "参数变更类型");
+        this.changeType = Strings.require(changeType, "参数变更类型");
         this.beforeJson = beforeJson;
         this.afterJson = afterJson;
-        this.changeReason = optionalText(changeReason, 1000);
-        this.requestCode = requireText(requestCode, "请求编码", 128);
+        this.changeReason = Strings.optionalText(changeReason, 1000);
+        this.requestCode = Strings.requireText(requestCode, "请求编码", 128);
         this.changedAt = Instant.now();
-        this.changedBy = requireId(actorId, "操作用户");
-    }
-
-    private static <T> T require(T value, String label) {
-        if (value == null) throw new IllegalArgumentException(label + "不能为空");
-        return value;
-    }
-
-    private static Long requireId(Long value, String label) {
-        if (value == null || value <= 0) throw new IllegalArgumentException(label + "标识不能为空");
-        return value;
-    }
-
-    private static String requireText(String value, String label, int max) {
-        if (value == null || value.isBlank()) throw new IllegalArgumentException(label + "不能为空");
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException(label + "长度不能超过" + max);
-        return result;
-    }
-
-    private static String optionalText(String value, int max) {
-        if (value == null || value.isBlank()) return null;
-        String result = value.trim();
-        if (result.length() > max) throw new IllegalArgumentException("文本长度不能超过" + max);
-        return result;
+        this.changedBy = Strings.requireId(actorId, "操作用户");
     }
 
     public Long id() { return id; }

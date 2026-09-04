@@ -1,5 +1,6 @@
 package com.rhn.platform.dictionary.domain;
 
+import com.rhn.shared.api.StaleRevisionException;
 import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -108,7 +109,7 @@ public class DictionaryDefinition {
 
     public void assertRevision(long expectedRevision) {
         if (revision == null || revision != expectedRevision) {
-            throw new StaleDictionaryRevisionException(revision);
+            throw new StaleRevisionException(revision, "字典已被其他操作更新，当前修订号为 " + revision);
         }
     }
 

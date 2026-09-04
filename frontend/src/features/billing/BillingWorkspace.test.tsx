@@ -376,4 +376,85 @@ describe('BillingWorkspace deep link', () => {
       ['charge-rx-1'],
     ))
   })
+
+  it('supports viewing fiscal electronic receipt from banner', async () => {
+    const user = userEvent.setup()
+    const mockReceipt = {
+      id: 'rcpt-999',
+      revision: 1,
+      settlementId: 'settle-done',
+      receiptNo: 'RCPT-2026-999',
+      commandCode: 'ISSUE-999',
+      receiptType: 'MEDICAL_E_INVOICE',
+      status: 'ISSUED',
+      fiscalAuthorityCode: '360100',
+      fiscalCode: '3601060126',
+      fiscalNumber: '0001859231',
+      verificationCode: '251132',
+      controlledObjectReference: 'https://pjcy.jx-fiscal.gov.cn/bill/verify',
+      amount: 120.0,
+      currencyCode: 'CNY',
+      issueChannel: 'CASHIER',
+      payerName: '李晓梅',
+      duplicate: false,
+      createdAt: '2026-09-04T10:00:00Z',
+      issuedAt: '2026-09-04T10:00:05Z',
+      updatedAt: '2026-09-04T10:00:05Z',
+    }
+
+    const api = {
+      billing: {
+        worklist: vi.fn().mockResolvedValue([
+          { encounterId: 'encounter-done', residentId: 'resident-1', accountId: 'acc-done', status: 'SETTLED',
+            residentName: '李晓梅', healthRecordNo: 'JMD-0001', gender: 'FEMALE', birthDate: '1988-08-08',
+            encounterNo: 'MZ20260904001', sourceEventCount: 1, chargedEventCount: 1, accountBalance: 0,
+            currencyCode: 'CNY', latestOccurredAt: '2026-09-04T01:00:00Z' },
+        ]),
+        statement: vi.fn().mockResolvedValue({
+          accountId: 'acc-done',
+          charges: [],
+          invoices: [],
+          settlements: [
+            { id: 'settle-done', settlementNo: 'SETL-01', settlementType: 'NORMAL', status: 'SETTLED',
+              grossAmount: 120.0, insuranceAmount: 80.0, patientAmount: 40.0, otherAmount: 0,
+              outstandingAmount: 0, currencyCode: 'CNY', payerName: '李晓梅', createdAt: '2026-09-04T09:00:00Z',
+              lines: [{ id: 'line-1', settlementId: 'settle-done', lineNo: 1, itemName: '门诊诊查费', netAmount: 120.0, settledQuantity: 1 }],
+              tenders: [], events: [] },
+          ],
+          payments: [],
+          currencyCode: 'CNY',
+          accountBalance: 0,
+        }),
+        paymentOrders: vi.fn().mockResolvedValue([]),
+        settlementReceipts: vi.fn().mockResolvedValue([mockReceipt]),
+        dailyReconciliation: vi.fn().mockResolvedValue({ businessDate: '2026-09-04', lines: [] }),
+      },
+      dictionaries: { applicable: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/billing?encounterId=encounter-done']}>
+          <BillingWorkspace api={api} clinicalContext={clinicalContext} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    // 等待并点击“查看电子票据”
+    const viewReceiptBtn = await screen.findByRole('button', { name: /查看电子票据/ })
+    expect(viewReceiptBtn).toBeInTheDocument()
+    await user.click(viewReceiptBtn)
+
+    // 验证弹出发票预览并展示四要素
+    expect(await screen.findByText('江西省医疗门诊收费电子票据')).toBeInTheDocument()
+    expect(screen.getByText('3601060126')).toBeInTheDocument()
+    expect(screen.getAllByText('0001859231').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('251132')).toBeInTheDocument()
+  })
 })
