@@ -10,20 +10,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_split_events")
+@Table(name = "RHN_SUP_INV_SPLIT_EVT")
 public class InventorySplitEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "open_package_id", nullable = false) private Long openPackageId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_id") private Long sourceId;
-    @Column(name = "source_no", nullable = false) private String sourceNo;
-    @Column(name = "quantity_delta", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
-    @Column(name = "balance_after", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
-    private String description;
+    @Id @Column(name = "ID_INV_SPLIT_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INV_OPEN_PKG", nullable = false) private Long openPackageId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "ID_SRC") private Long sourceId;
+    @Column(name = "CD_SRC_NO", nullable = false) private String sourceNo;
+    @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
+    @Column(name = "BALANCE_AFTER", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DES_INV_SPLIT_EVT") private String description;
 
     protected InventorySplitEvent() {}
 

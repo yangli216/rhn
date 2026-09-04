@@ -11,34 +11,34 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "treatment_execution_items")
+@Table(name = "RHN_EX_TREAT_EXEC_ITEM")
 public class TreatmentExecutionItem {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "task_id", nullable = false) private Long taskId;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_id", nullable = false) private Long sourceId;
-    @Column(name = "parent_source_id") private Long parentSourceId;
-    @Column(name = "request_no", nullable = false) private String requestNo;
-    @Column(name = "item_code_snapshot", nullable = false) private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "dose_value", precision = 28, scale = 8) private BigDecimal doseValue;
-    @Column(name = "dose_unit") private String doseUnit;
-    @Column(name = "route_code") private String routeCode;
-    @Column(name = "frequency_code") private String frequencyCode;
-    @Column(name = "frequency_id") private Long frequencyId;
-    @Column(name = "frequency_name_snapshot") private String frequencyNameSnapshot;
-    @Lob @Column(name = "frequency_rule_snapshot") private String frequencyRuleSnapshot;
-    @Column(name = "duration_value", precision = 12, scale = 3) private BigDecimal durationValue;
-    @Column(name = "duration_unit") private String durationUnit;
-    @Column(name = "skin_test_required", nullable = false) private boolean skinTestRequired;
-    @Column(name = "settlement_required", nullable = false) private boolean settlementRequired;
-    @Column(name = "settlement_id") private Long settlementId;
-    @Column(name = "fulfillment_required", nullable = false) private boolean fulfillmentRequired;
-    @Column(name = "fulfillment_id") private Long fulfillmentId;
-    @Column(name = "fulfillment_status") private String fulfillmentStatus;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Id @Column(name = "ID_TREAT_EXEC_ITEM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_TREAT_EXEC_TASK", nullable = false) private Long taskId;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "ID_CARE_REQ_SRC", nullable = false) private Long sourceId;
+    @Column(name = "ID_CARE_REQ_PARENT_SRC") private Long parentSourceId;
+    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "QTY_DOSE_VAL", precision = 28, scale = 8) private BigDecimal doseValue;
+    @Column(name = "DOSE_UNIT") private String doseUnit;
+    @Column(name = "CD_ROUTE") private String routeCode;
+    @Column(name = "CD_FREQ") private String frequencyCode;
+    @Column(name = "ID_ORDER_FREQ") private Long frequencyId;
+    @Column(name = "NA_FREQ_SNAP") private String frequencyNameSnapshot;
+    @Lob @Column(name = "FREQUENCY_RULE_SNAPSHOT") private String frequencyRuleSnapshot;
+    @Column(name = "QTY_DURATION_VAL", precision = 12, scale = 3) private BigDecimal durationValue;
+    @Column(name = "DURATION_UNIT") private String durationUnit;
+    @Column(name = "FG_SKIN_TEST_REQUIRED", nullable = false) private boolean skinTestRequired;
+    @Column(name = "FG_STL_REQUIRED", nullable = false) private boolean settlementRequired;
+    @Column(name = "ID_STL") private Long settlementId;
+    @Column(name = "FG_FULFILL_REQUIRED", nullable = false) private boolean fulfillmentRequired;
+    @Column(name = "ID_FULFILL") private Long fulfillmentId;
+    @Column(name = "SD_FULFILL_STATUS") private String fulfillmentStatus;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected TreatmentExecutionItem() {}
 

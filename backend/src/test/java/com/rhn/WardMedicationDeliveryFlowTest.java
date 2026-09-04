@@ -121,7 +121,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INPATIENT_MEDICATION_WARD_RECEIPT_REQUIRED"));
-        assertEquals(0, jdbc.queryForObject("select count(*) from inpatient_med_consumptions", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_SUP_INP_MED_CONSUME", Integer.class));
         JsonNode received = postJson("/api/pharmacy/ward-deliveries/" + firstDeliveryId + "/receive", """
                 {"expectedRevision":1,"commandCode":"IP-WD-RECEIVE-1","note":"数量无误",
                  "lines":[{"lineId":"%s","receivedQuantity":1},
@@ -139,7 +139,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
         postJson("/api/inpatient/order-tasks/" + secondOrderTaskId + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-WD-EXECUTE-SECOND-RECEIPT"}
                 """, rhnWorkContext(), 200);
-        assertEquals(2, jdbc.queryForObject("select count(*) from inpatient_med_consumptions", Integer.class));
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_INP_MED_CONSUME", Integer.class));
 
         JsonNode thirdDispense = dispense(taskId, "IP-WD-DISPENSE-3");
         JsonNode secondDelivery = postJson("/api/pharmacy/ward-deliveries", """
@@ -180,13 +180,13 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INPATIENT_MEDICATION_WARD_RECEIPT_REQUIRED"));
-        assertEquals(2, jdbc.queryForObject("select count(*) from inpatient_med_consumptions", Integer.class));
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_INP_MED_CONSUME", Integer.class));
 
         mockMvc.perform(get("/api/pharmacy/ward-deliveries").with(rhnWorkContext())
                         .queryParam("status", "ALL").queryParam("encounterId", admission.get("encounterId").asText()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
-        assertEquals(7, jdbc.queryForObject("select count(*) from ward_delivery_events", Integer.class));
+        assertEquals(7, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_EVT", Integer.class));
     }
 
     private JsonNode dispense(String taskId, String requestCode) throws Exception {

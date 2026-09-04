@@ -10,23 +10,23 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "encounters")
+@Table(name = "RHN_VIS_ENC")
 public class InpatientEncounter {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_no", nullable = false) private String encounterNo;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "episode_id") private Long episodeId;
-    @Column(name = "service_location_id") private Long serviceLocationId;
-    @Column(name = "encounter_class", nullable = false) private String encounterClass;
-    @Column(name = "clinician_id") private String clinicianId;
-    @Column(nullable = false) private String status;
-    @Column(name = "registered_at", nullable = false) private Instant registeredAt;
-    @Column(name = "started_at") private Instant startedAt;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Version @Column(nullable = false) private long version;
+    @Id @Column(name = "ID_ENC") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_ENC_NO", nullable = false) private String encounterNo;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_CARE_EPISODE") private Long episodeId;
+    @Column(name = "ID_SVC_LOC") private Long serviceLocationId;
+    @Column(name = "SD_ENC_CLASS", nullable = false) private String encounterClass;
+    @Column(name = "ID_CLINICIAN") private String clinicianId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_REGISTERED", nullable = false) private Instant registeredAt;
+    @Column(name = "DT_STARTED") private Instant startedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Version @Column(name = "REVISION", nullable = false) private long version;
 
     protected InpatientEncounter() {
     }

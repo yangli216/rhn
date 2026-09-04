@@ -13,28 +13,28 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "staff_assignments")
+@Table(name = "RHN_SYS_STAFF_ASSIGN")
 public class PersonnelAssignment {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "employment_id", nullable = false) private Long employmentId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "position_id", nullable = false) private Long positionId;
-    @Column(nullable = false) private String code;
+    @Id @Column(name = "ID_STAFF_ASSIGN") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_EMPL", nullable = false) private Long employmentId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_POS", nullable = false) private Long positionId;
+    @Column(name = "CD_STAFF_ASSIGN", nullable = false) private String code;
     @Enumerated(EnumType.STRING)
-    @Column(name = "assignment_type", nullable = false) private AssignmentType assignmentType;
-    @Column(name = "specialty_code") private String specialtyCode;
-    @Column(name = "primary_assignment", nullable = false) private boolean primaryAssignment;
-    @Column(name = "workload_percent") private BigDecimal workloadPercent;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private PersonnelStatus status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Column(name = "SD_ASSIGN_TYPE", nullable = false) private AssignmentType assignmentType;
+    @Column(name = "CD_SPECIALTY") private String specialtyCode;
+    @Column(name = "FG_PRIMARY_ASSIGN", nullable = false) private boolean primaryAssignment;
+    @Column(name = "WORKLOAD_PERCENT") private BigDecimal workloadPercent;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected PersonnelAssignment() {
     }

@@ -10,38 +10,38 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "critical_value_alerts")
+@Table(name = "RHN_VIS_CRIT_VAL_ALERT")
 public class CriticalValueAlert {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "report_id", nullable = false) private Long reportId;
-    @Column(name = "observation_id", nullable = false) private Long observationId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "recipient_user_id", nullable = false) private Long recipientUserId;
-    @Column(nullable = false) private String severity;
-    @Column(name = "rule_code", nullable = false) private String ruleCode;
-    @Column(name = "rule_version", nullable = false) private int ruleVersion;
-    @Column(name = "observation_code", nullable = false) private String observationCode;
-    @Column(name = "observation_name", nullable = false) private String observationName;
-    @Column(name = "trigger_evidence", nullable = false) private String triggerEvidence;
-    @Column(nullable = false) private String status;
-    @Column(name = "detected_at", nullable = false) private Instant detectedAt;
-    @Column(name = "acknowledge_deadline_at", nullable = false) private Instant acknowledgeDeadlineAt;
-    @Column(name = "acknowledged_by") private Long acknowledgedBy;
-    @Column(name = "acknowledged_at") private Instant acknowledgedAt;
-    @Column(name = "acknowledge_note") private String acknowledgeNote;
-    @Column(name = "closed_by") private Long closedBy;
-    @Column(name = "closed_at") private Instant closedAt;
-    @Column(name = "disposition_code") private String dispositionCode;
-    @Column(name = "close_note") private String closeNote;
-    @Column(name = "superseded_by_report_id") private Long supersededByReportId;
-    @Column(name = "escalation_level", nullable = false) private int escalationLevel;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Id @Column(name = "ID_CRIT_VAL_ALERT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_DIAG_REPORT", nullable = false) private Long reportId;
+    @Column(name = "ID_OBS", nullable = false) private Long observationId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_USER_RECIPIENT", nullable = false) private Long recipientUserId;
+    @Column(name = "SD_SEVERITY", nullable = false) private String severity;
+    @Column(name = "CD_RULE", nullable = false) private String ruleCode;
+    @Column(name = "SN_RULE_VER", nullable = false) private int ruleVersion;
+    @Column(name = "CD_OBS", nullable = false) private String observationCode;
+    @Column(name = "NA_OBS", nullable = false) private String observationName;
+    @Column(name = "DES_TRIGGER_EVID", nullable = false) private String triggerEvidence;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_DETECTED", nullable = false) private Instant detectedAt;
+    @Column(name = "DT_ACKNOWLEDGE_DEADLINE", nullable = false) private Instant acknowledgeDeadlineAt;
+    @Column(name = "ID_USER_ACKNOWLEDGED") private Long acknowledgedBy;
+    @Column(name = "DT_ACKNOWLEDGED") private Instant acknowledgedAt;
+    @Column(name = "DES_ACKNOWLEDGE_NOTE") private String acknowledgeNote;
+    @Column(name = "ID_USER_CLOSED") private Long closedBy;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
+    @Column(name = "CD_DISPOSITION") private String dispositionCode;
+    @Column(name = "DES_CLOSE_NOTE") private String closeNote;
+    @Column(name = "ID_DIAG_REPORT_SUPERSEDED") private Long supersededByReportId;
+    @Column(name = "SD_ESCALATION_LEVEL", nullable = false) private int escalationLevel;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected CriticalValueAlert() {}
 

@@ -105,7 +105,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
 
         JsonNode winner = json(results.stream().filter(value -> value.getResponse().getStatus() == 200)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
-        jdbcTemplate.update("update inventory_reservations set expires_at = ? "
+        jdbcTemplate.update("update RHN_SUP_INV_RESV set DT_EXPIRES = ? "
                         + "where tenant_id = ? and request_id = ? and status = 'ACTIVE'",
                 Instant.now().minusSeconds(60), Long.valueOf(TENANT), winner.at("/allocations/0/requestId").asLong());
         inventoryService.expireDueReservations();
@@ -196,14 +196,14 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("READY_TO_DISPENSE"));
 
-        jdbcTemplate.update("update stock_items set controlled = true, control_level = 'LEVEL_1' "
+        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = true, SD_CONTROL_LEVEL = 'LEVEL_1' "
                 + "where tenant_id = ? and id = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
         mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(dispenseBody("DSP-SPECIAL-" + suffix, "1", pharmacist)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SPECIAL_MEDICATION_DUAL_CONFIRMATION_REQUIRED"));
-        jdbcTemplate.update("update stock_items set controlled = false, control_level = null "
+        jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = false, SD_CONTROL_LEVEL = null "
                 + "where tenant_id = ? and id = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
 
         String firstCode = "DSP-1-" + suffix;

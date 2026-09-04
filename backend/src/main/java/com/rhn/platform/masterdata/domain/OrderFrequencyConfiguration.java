@@ -8,27 +8,27 @@ import java.time.LocalDate;
 import java.util.Set;
 
 @Entity
-@Table(name = "order_frequency_configs")
+@Table(name = "RHN_BD_ORDER_FREQ_CFG")
 public class OrderFrequencyConfiguration {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "scope_key", nullable = false) private String scopeKey;
-    @Column(name = "frequency_id", nullable = false) private Long frequencyId;
-    @Column(name = "local_code") private String localCode;
-    @Column(name = "local_name") private String localName;
-    @Column(name = "execution_times") private String executionTimes;
-    @Column(name = "first_day_policy", nullable = false) private String firstDayPolicy;
-    @Column(nullable = false) private boolean enabled;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ORDER_FREQ_CFG") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "CD_SCOPE_KEY", nullable = false) private String scopeKey;
+    @Column(name = "ID_ORDER_FREQ", nullable = false) private Long frequencyId;
+    @Column(name = "CD_LOCAL") private String localCode;
+    @Column(name = "NA_LOCAL") private String localName;
+    @Column(name = "EXECUTION_TIMES") private String executionTimes;
+    @Column(name = "SD_FIRST_DAY_POLICY", nullable = false) private String firstDayPolicy;
+    @Column(name = "FG_ENABLED", nullable = false) private boolean enabled;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected OrderFrequencyConfiguration() {}
     public OrderFrequencyConfiguration(Long tenantId, Long actorId, Long organizationId, Long departmentId,

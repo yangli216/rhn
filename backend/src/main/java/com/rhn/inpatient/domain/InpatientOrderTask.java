@@ -12,25 +12,25 @@ import java.time.Instant;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Entity
-@Table(name = "inpatient_order_tasks")
+@Table(name = "RHN_EX_INP_ORDER_TASK")
 public class InpatientOrderTask {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "occurrence_no", nullable = false) private int occurrenceNo;
-    @Column(name = "scheduled_at", nullable = false) private Instant scheduledAt;
-    @Column(nullable = false) private String status;
-    @Column(name = "outcome_code") private String outcomeCode;
-    @Column(name = "execution_note") private String executionNote;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "completed_by") private Long completedBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancel_reason") private String cancelReason;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_INP_ORDER_TASK") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "CD_OCCURRENCE_NO", nullable = false) private int occurrenceNo;
+    @Column(name = "DT_SCHEDULED", nullable = false) private Instant scheduledAt;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_OUTCOME") private String outcomeCode;
+    @Column(name = "DES_EXEC_NOTE") private String executionNote;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected InpatientOrderTask() {
     }

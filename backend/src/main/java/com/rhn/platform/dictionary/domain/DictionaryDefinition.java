@@ -13,40 +13,40 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dictionary_definitions")
+@Table(name = "RHN_BD_DICT_DEF")
 public class DictionaryDefinition {
     @Id
-    private Long id;
+    @Column(name = "ID_DICT_DEF") private Long id;
     @Version
-    @Column(nullable = false)
+    @Column(name = "REVISION", nullable = false)
     private Long revision;
     @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", nullable = false, length = 16)
+    @Column(name = "SD_SCOPE_TYPE", nullable = false, length = 16)
     private DictionaryScopeType scopeType;
-    @Column(name = "scope_code", nullable = false, length = 80)
+    @Column(name = "CD_SCOPE", nullable = false, length = 80)
     private String scopeCode;
-    @Column(name = "tenant_id")
+    @Column(name = "ID_TNT")
     private Long tenantId;
-    @Column(name = "category_id", nullable = false)
+    @Column(name = "ID_DICT_CAT", nullable = false)
     private Long categoryId;
-    @Column(nullable = false, length = 64)
+    @Column(name = "CD_DICT_DEF", nullable = false, length = 64)
     private String code;
-    @Column(nullable = false, length = 200)
+    @Column(name = "NA_DICT_DEF", nullable = false, length = 200)
     private String name;
-    @Column(length = 1000)
+    @Column(name = "DES_DICT_DEF", length = 1000)
     private String description;
-    @Column(name = "system_managed", nullable = false)
+    @Column(name = "FG_SYS_MANAGED", nullable = false)
     private boolean systemManaged;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @Column(name = "SD_STATUS", nullable = false, length = 32)
     private DictionaryStatus status;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private Long createdBy;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false)
+    @Column(name = "ID_USER_UPDATED", nullable = false)
     private Long updatedBy;
 
     protected DictionaryDefinition() {

@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "outpatient_referral_events")
+@Table(name = "RHN_EX_OP_REFER_EVT")
 class OutpatientReferralEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "referral_request_id", nullable = false) private Long referralRequestId;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "action_code", nullable = false) private String actionCode;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "actor_id", nullable = false) private Long actorId;
-    private String reason;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_OP_REFER_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_OP_REFER_REQ", nullable = false) private Long referralRequestId;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "CD_ACTION", nullable = false) private String actionCode;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "ID_ACTOR", nullable = false) private Long actorId;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected OutpatientReferralEvent() {}
 

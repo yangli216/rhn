@@ -17,8 +17,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(Long tenantId, Long accountId);
 
     @Query("""
-            select coalesce(sum(case when p.paymentType = 'PAYMENT' then p.amount else -p.amount end), 0)
-              from Payment p where p.tenantId = :tenantId and p.invoiceId = :invoiceId
+            select coalesce(sum(case when p.paymentType = 'PAYMENT' then p.amount else -p.amount end), 0) from Payment p where p.tenantId = :tenantId and p.invoiceId = :invoiceId
             """)
     BigDecimal netPaidForInvoice(@Param("tenantId") Long tenantId, @Param("invoiceId") Long invoiceId);
 

@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_transactions")
+@Table(name = "RHN_SUP_INV_TXN")
 public class InventoryTransaction {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "inventory_period_id", nullable = false) private Long inventoryPeriodId;
-    @Column(name = "reverses_transaction_id") private Long reversesTransactionId;
-    @Column(name = "transaction_no", nullable = false) private String transactionNo;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(name = "transaction_type", nullable = false) private String transactionType;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_code", nullable = false) private String sourceCode;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "posted_at", nullable = false) private Instant postedAt;
-    @Column(name = "posted_by", nullable = false) private Long postedBy;
-    @Column private String description;
+    @Id @Column(name = "ID_INV_TXN") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INV_PERIOD", nullable = false) private Long inventoryPeriodId;
+    @Column(name = "ID_INV_TXN_REVERSES") private Long reversesTransactionId;
+    @Column(name = "CD_TXN_NO", nullable = false) private String transactionNo;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "SD_TXN_TYPE", nullable = false) private String transactionType;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "CD_SRC", nullable = false) private String sourceCode;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_POSTED", nullable = false) private Instant postedAt;
+    @Column(name = "ID_USER_POSTED", nullable = false) private Long postedBy;
+    @Column(name = "DES_INV_TXN") private String description;
 
     protected InventoryTransaction() {}
 

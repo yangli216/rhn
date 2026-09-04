@@ -151,20 +151,20 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.displayStatus").value("AVAILABLE"));
 
         assertEquals(0, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_bed_occupancies where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from RHN_VIS_INP_BED_OCCUP where ID_TNT = ?", Integer.class, Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_location_histories where tenant_id = ? and status = 'COMPLETED'",
+                "select count(*) from RHN_VIS_ENC_LOC_HIST where ID_TNT = ? and SD_STATUS = 'COMPLETED'",
                 Integer.class, Long.valueOf(TENANT)));
         assertEquals(4, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_events where tenant_id = ?", Integer.class, Long.valueOf(TENANT)));
+                "select count(*) from RHN_VIS_INP_EVT where ID_TNT = ?", Integer.class, Long.valueOf(TENANT)));
         assertEquals("WHEELCHAIR", jdbcTemplate.queryForObject(
-                "select admission_method_code from inpatient_episode_details where episode_id = ?",
+                "select CD_ADMISSION_METHOD as admission_method_code from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
         assertEquals("13800000000", jdbcTemplate.queryForObject(
-                "select emergency_contact_phone from inpatient_episode_details where episode_id = ?",
+                "select EMERGENCY_CONTACT_PHONE from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
         assertEquals("CHILD", jdbcTemplate.queryForObject(
-                "select emergency_contact_relationship from inpatient_episode_details where episode_id = ?",
+                "select EMERGENCY_CONTACT_RELATIONSHIP from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
     }
 

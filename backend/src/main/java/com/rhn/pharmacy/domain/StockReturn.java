@@ -10,24 +10,24 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_returns")
+@Table(name = "RHN_SUP_STOCK_RETURN")
 public class StockReturn {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "original_dispense_id", nullable = false) private Long originalDispenseId;
-    @Column(name = "return_dispense_id", nullable = false) private Long returnDispenseId;
-    @Column(name = "return_no", nullable = false) private String returnNo;
-    @Column(name = "return_type", nullable = false) private String returnType;
-    @Column(nullable = false) private String status;
-    @Column(name = "reason_code", nullable = false) private String reasonCode;
-    @Column(name = "requested_at", nullable = false) private Instant requestedAt;
-    @Column(name = "requested_by", nullable = false) private Long requestedBy;
-    @Column(name = "confirmed_at", nullable = false) private Instant confirmedAt;
-    @Column(name = "confirmed_by", nullable = false) private Long confirmedBy;
-    @Column private String description;
+    @Id @Column(name = "ID_STOCK_RETURN") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_MED_DISP_ORIGINAL", nullable = false) private Long originalDispenseId;
+    @Column(name = "ID_MED_DISP_RETURN", nullable = false) private Long returnDispenseId;
+    @Column(name = "CD_RETURN_NO", nullable = false) private String returnNo;
+    @Column(name = "SD_RETURN_TYPE", nullable = false) private String returnType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_REASON", nullable = false) private String reasonCode;
+    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "DT_CONFIRMED", nullable = false) private Instant confirmedAt;
+    @Column(name = "ID_USER_CONFIRMED", nullable = false) private Long confirmedBy;
+    @Column(name = "DES_STOCK_RETURN") private String description;
 
     protected StockReturn() {}
 

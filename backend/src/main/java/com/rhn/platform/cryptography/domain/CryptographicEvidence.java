@@ -13,75 +13,75 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "cryptographic_evidence")
+@Table(name = "RHN_AUD_CRYPTO_EVID")
 public class CryptographicEvidence {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_CRYPTO_EVID") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "target_type", nullable = false)
+    @Column(name = "SD_TARGET_TYPE", nullable = false)
     private String targetType;
-    @Column(name = "target_id", nullable = false)
+    @Column(name = "ID_TARGET", nullable = false)
     private Long targetId;
-    @Column(name = "target_version_no")
+    @Column(name = "CD_TARGET_VER_NO")
     private Long targetVersionNo;
-    @Column(name = "operation_code", nullable = false)
+    @Column(name = "CD_OPERATION", nullable = false)
     private String operationCode;
-    @Column(name = "protection_profile", nullable = false)
+    @Column(name = "SD_PROTECTION_PROF", nullable = false)
     private String protectionProfile;
-    @Column(name = "protection_purpose", nullable = false)
+    @Column(name = "SD_PROTECTION_PURPOSE", nullable = false)
     private String protectionPurpose;
-    @Column(name = "content_schema", nullable = false)
+    @Column(name = "JSON_CONTENT_SCHEMA", nullable = false)
     private String contentSchema;
-    @Column(name = "content_digest_algorithm", nullable = false)
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false)
     private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false)
+    @Column(name = "HASH_CONTENT", nullable = false)
     private String contentDigest;
-    @Column(name = "statement_version", nullable = false)
+    @Column(name = "SN_STATEMENT_VER", nullable = false)
     private int statementVersion;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "statement_json", nullable = false)
+    @Column(name = "JSON_STATEMENT", nullable = false)
     private String statementJson;
-    @Column(name = "statement_digest_algorithm", nullable = false)
+    @Column(name = "STATEMENT_DIGEST_ALGORITHM", nullable = false)
     private String statementDigestAlgorithm;
-    @Column(name = "statement_digest", nullable = false)
+    @Column(name = "HASH_STATEMENT", nullable = false)
     private String statementDigest;
-    @Column(name = "previous_evidence_id")
+    @Column(name = "ID_CRYPTO_EVID_PREVIOUS")
     private Long previousEvidenceId;
-    @Column(name = "provider_code", nullable = false)
+    @Column(name = "CD_PROVIDER", nullable = false)
     private String providerCode;
-    @Column(name = "provider_assurance", nullable = false)
+    @Column(name = "PROVIDER_ASSURANCE", nullable = false)
     private String providerAssurance;
-    @Column(name = "signature_algorithm", nullable = false)
+    @Column(name = "SD_SIGN_ALGORITHM", nullable = false)
     private String signatureAlgorithm;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "signature_value", nullable = false)
+    @Column(name = "SIGNATURE_VALUE", nullable = false)
     private String signatureValue;
-    @Column(name = "key_id", nullable = false)
+    @Column(name = "ID_KEY", nullable = false)
     private String keyId;
-    @Column(name = "signer_type", nullable = false)
+    @Column(name = "SD_SIGNER_TYPE", nullable = false)
     private String signerType;
-    @Column(name = "signer_subject_id")
+    @Column(name = "ID_SIGNER_SUBJECT")
     private Long signerSubjectId;
-    @Column(name = "signer_name", nullable = false)
+    @Column(name = "NA_SIGNER", nullable = false)
     private String signerName;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "verification_material")
+    @Column(name = "DES_VERIFICATION_MATERIAL")
     private String verificationMaterial;
-    @Column(name = "certificate_serial")
+    @Column(name = "CD_CERTIFICATE_SERIAL")
     private String certificateSerial;
-    @Column(name = "certificate_issuer")
+    @Column(name = "CERTIFICATE_ISSUER")
     private String certificateIssuer;
-    @Column(name = "signed_at", nullable = false)
+    @Column(name = "DT_SIGNED", nullable = false)
     private Instant signedAt;
-    @Column(name = "timestamp_authority")
+    @Column(name = "TIMESTAMP_AUTHORITY")
     private String timestampAuthority;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "timestamp_token")
+    @Column(name = "TIMESTAMP_TOKEN")
     private String timestampToken;
-    @Column(name = "correlation_id", nullable = false)
+    @Column(name = "ID_CORRELATION", nullable = false)
     private String correlationId;
-    @Column(name = "recorded_at", nullable = false)
+    @Column(name = "DT_RECORDED", nullable = false)
     private Instant recordedAt;
 
     protected CryptographicEvidence() {

@@ -10,23 +10,23 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "ledger_entries")
+@Table(name = "RHN_BIL_LEDGER_ENTRY")
 public class LedgerEntry {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "entry_type", nullable = false) private String entryType;
-    @Column(nullable = false) private String direction;
-    @Column(nullable = false, precision = 24, scale = 6) private BigDecimal amount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "charge_item_id") private Long chargeItemId;
-    @Column(name = "invoice_id") private Long invoiceId;
-    @Column(name = "payment_id") private Long paymentId;
-    @Column(name = "claim_response_id") private Long claimResponseId;
-    @Column(name = "reverses_ledger_entry_id") private Long reversesLedgerEntryId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
-    @Column(name = "recorded_by", nullable = false) private Long recordedBy;
+    @Id @Column(name = "ID_LEDGER_ENTRY") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "SD_ENTRY_TYPE", nullable = false) private String entryType;
+    @Column(name = "SD_DIRECTION", nullable = false) private String direction;
+    @Column(name = "AMT_ENTRY", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "ID_CHARGE_ITEM") private Long chargeItemId;
+    @Column(name = "ID_INVOICE") private Long invoiceId;
+    @Column(name = "ID_PAY") private Long paymentId;
+    @Column(name = "ID_CLAIM_RESP") private Long claimResponseId;
+    @Column(name = "ID_LEDGER_ENTRY_REVERSES") private Long reversesLedgerEntryId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
+    @Column(name = "ID_USER_RECORDED", nullable = false) private Long recordedBy;
 
     protected LedgerEntry() {}
 

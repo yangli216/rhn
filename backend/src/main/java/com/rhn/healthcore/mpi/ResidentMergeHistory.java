@@ -14,29 +14,29 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "resident_merge_history")
+@Table(name = "RHN_PI_PAT_MERGE_HIST")
 class ResidentMergeHistory {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT_MERGE_HIST") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "surviving_resident_id", nullable = false)
+    @Column(name = "ID_PAT_SURVIVING", nullable = false)
     private Long survivingResidentId;
-    @Column(name = "merged_resident_id", nullable = false)
+    @Column(name = "ID_PAT_MERGED", nullable = false)
     private Long mergedResidentId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "moved_identifier_ids", nullable = false)
+    @Column(name = "MOVED_IDENTIFIER_IDS", nullable = false)
     private String movedIdentifierIds;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "moved_source_record_ids", nullable = false)
+    @Column(name = "MOVED_SOURCE_RECORD_IDS", nullable = false)
     private String movedSourceRecordIds;
-    @Column(nullable = false)
+    @Column(name = "DES_REASON", nullable = false)
     private String reason;
-    @Column(name = "merged_by", nullable = false)
+    @Column(name = "ID_USER_MERGED", nullable = false)
     private String mergedBy;
-    @Column(name = "merged_at", nullable = false)
+    @Column(name = "DT_MERGED", nullable = false)
     private Instant mergedAt;
-    @Column(name = "split_at")
+    @Column(name = "DT_SPLIT")
     private Instant splitAt;
 
     protected ResidentMergeHistory() {

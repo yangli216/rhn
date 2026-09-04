@@ -10,20 +10,20 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "patient_accounts")
+@Table(name = "RHN_BIL_PAT_ACCT")
 public class PatientAccount {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "account_type", nullable = false) private String accountType;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "opened_at", nullable = false) private Instant openedAt;
-    @Column(name = "closed_at") private Instant closedAt;
+    @Id @Column(name = "ID_PAT_ACCT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "SD_ACCT_TYPE", nullable = false) private String accountType;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
 
     protected PatientAccount() {}
 

@@ -9,39 +9,39 @@ import java.time.LocalDate;
 import java.util.Set;
 
 @Entity
-@Table(name = "order_frequencies")
+@Table(name = "RHN_BD_ORDER_FREQ")
 public class OrderFrequency {
     private static final Set<String> RULE_TYPES = Set.of("ONCE", "TIMES_PER_PERIOD", "FIXED_INTERVAL", "CALENDAR", "PRN", "CONTINUOUS");
     private static final Set<String> ANCHOR_TYPES = Set.of("ORDER_START", "STANDARD_TIME", "CALENDAR", "EVENT");
     private static final Set<String> PERIOD_UNITS = Set.of("MIN", "H", "D", "WK", "MO");
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "short_name") private String shortName;
-    private String description;
-    @Column(name = "rule_type", nullable = false) private String ruleType;
-    @Column(name = "frequency_count") private Integer frequencyCount;
-    @Column(name = "period_value", precision = 12, scale = 3) private BigDecimal periodValue;
-    @Column(name = "period_unit") private String periodUnit;
-    @Column(name = "anchor_type", nullable = false) private String anchorType;
-    @Column(name = "default_execution_times") private String defaultExecutionTimes;
-    @Column(name = "outpatient_applicable", nullable = false) private boolean outpatientApplicable;
-    @Column(name = "inpatient_applicable", nullable = false) private boolean inpatientApplicable;
-    @Column(name = "emergency_applicable", nullable = false) private boolean emergencyApplicable;
-    @Column(name = "medication_applicable", nullable = false) private boolean medicationApplicable;
-    @Column(name = "treatment_applicable", nullable = false) private boolean treatmentApplicable;
-    @Column(name = "nursing_applicable", nullable = false) private boolean nursingApplicable;
-    @Column(name = "automatic_task_generation", nullable = false) private boolean automaticTaskGeneration;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ORDER_FREQ") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_ORDER_FREQ", nullable = false) private String code;
+    @Column(name = "NA_ORDER_FREQ", nullable = false) private String name;
+    @Column(name = "NA_SHORT") private String shortName;
+    @Column(name = "DES_ORDER_FREQ") private String description;
+    @Column(name = "SD_RULE_TYPE", nullable = false) private String ruleType;
+    @Column(name = "QTY_FREQ") private Integer frequencyCount;
+    @Column(name = "QTY_PERIOD_VAL", precision = 12, scale = 3) private BigDecimal periodValue;
+    @Column(name = "PERIOD_UNIT") private String periodUnit;
+    @Column(name = "SD_ANCHOR_TYPE", nullable = false) private String anchorType;
+    @Column(name = "DEFAULT_EXECUTION_TIMES") private String defaultExecutionTimes;
+    @Column(name = "FG_OP_APPLICABLE", nullable = false) private boolean outpatientApplicable;
+    @Column(name = "FG_INP_APPLICABLE", nullable = false) private boolean inpatientApplicable;
+    @Column(name = "FG_EMERGENCY_APPLICABLE", nullable = false) private boolean emergencyApplicable;
+    @Column(name = "FG_MED_APPLICABLE", nullable = false) private boolean medicationApplicable;
+    @Column(name = "FG_TREAT_APPLICABLE", nullable = false) private boolean treatmentApplicable;
+    @Column(name = "FG_NURS_APPLICABLE", nullable = false) private boolean nursingApplicable;
+    @Column(name = "FG_AUTOMATIC_TASK_GEN", nullable = false) private boolean automaticTaskGeneration;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected OrderFrequency() {}
 

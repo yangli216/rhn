@@ -11,25 +11,25 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "service_locations")
+@Table(name = "RHN_VIS_SVC_LOC")
 public class ServiceLocation {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "parent_id") private Long parentId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "location_type", nullable = false) private String locationType;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SVC_LOC") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "ID_SVC_LOC_PARENT") private Long parentId;
+    @Column(name = "CD_SVC_LOC", nullable = false) private String code;
+    @Column(name = "NA_SVC_LOC", nullable = false) private String name;
+    @Column(name = "SD_LOC_TYPE", nullable = false) private String locationType;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ServiceLocation() {
     }

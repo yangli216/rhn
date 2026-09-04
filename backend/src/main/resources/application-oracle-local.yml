@@ -9,6 +9,13 @@ spring:
       # Oracle reports compatible CLOB/text mappings differently from Hibernate.
       # Flyway remains the authoritative schema contract for this development profile.
       ddl-auto: none
+    properties:
+      hibernate:
+        query:
+          # Secondary-table entities otherwise make Hibernate create HT_/HTE_ global
+          # temporary tables at startup. Existing code has no multi-table HQL insert.
+          mutation_strategy: org.hibernate.query.sqm.mutation.internal.inline.InlineMutationStrategy
+          mutation_strategy.global_temporary.create_tables: false
   flyway:
     locations: classpath:db/oracle,classpath:db/oracle-local
     # Local demo datasets may be added behind the current schema version during parallel iteration.

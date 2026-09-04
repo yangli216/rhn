@@ -281,28 +281,28 @@ class FoundationDeveloperPlatformTest extends RhnIntegrationTestSupport {
         Long permissionId = com.rhn.shared.id.GlobalIds.next();
         Instant now = Instant.now();
         jdbcTemplate.update("""
-                insert into user_accounts
-                    (id, tenant_id, username, password_hash, status, created_at, updated_at, version)
+                insert into RHN_SYS_USER_ACCT
+                    (ID_USER, ID_TNT, CD_USERNAME, HASH_PASSWORD, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, cast(? as bigint), 'iam-doctor', '{noop}secret', 'ACTIVE', ?, ?, 0)
                 """, userId, TENANT, now, now);
         jdbcTemplate.update("""
-                insert into access_roles
-                    (id, tenant_id, code, name, role_type, status, created_at, updated_at, version)
+                insert into RHN_SYS_ACC_ROLE
+                    (ID_ACC_ROLE, ID_TNT, CD_ACC_ROLE, NA_ACC_ROLE, SD_ROLE_TYPE, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, cast(? as bigint), 'CLINICIAN', '临床医生', 'SYSTEM', 'ACTIVE', ?, ?, 0)
                 """, roleId, TENANT, now, now);
         jdbcTemplate.update("""
-                insert into access_permissions
-                    (id, tenant_id, code, name, action_code, resource_code, status)
+                insert into RHN_SYS_ACC_PERM
+                    (ID_ACC_PERM, ID_TNT, CD_ACC_PERM, NA_ACC_PERM, CD_ACTION, CD_RSRC, SD_STATUS)
                 values (?, cast(? as bigint), 'resident:read', '读取居民', 'READ', 'RESIDENT', 'ACTIVE')
                 """, permissionId, TENANT);
         jdbcTemplate.update("""
-                insert into user_role_assignments
-                    (id, tenant_id, user_id, role_id, data_scope_type, valid_from, created_at)
+                insert into RHN_SYS_USER_ROLE_ASSIGN
+                    (ID_USER_ROLE_ASSIGN, ID_TNT, ID_USER, ID_ACC_ROLE, SD_DATA_SCOPE_TYPE, DT_VALID_FROM, DT_CREATED)
                 values (?, cast(? as bigint), ?, ?, 'TENANT', ?, ?)
                 """, com.rhn.shared.id.GlobalIds.next(), TENANT, userId, roleId, now.minusSeconds(60), now);
         jdbcTemplate.update("""
-                insert into role_permission_assignments
-                    (id, tenant_id, role_id, permission_id, valid_from, created_at)
+                insert into RHN_SYS_ROLE_PERM_ASSIGN
+                    (ID_ROLE_PERM_ASSIGN, ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, DT_VALID_FROM, DT_CREATED)
                 values (?, cast(? as bigint), ?, ?, ?, ?)
                 """, com.rhn.shared.id.GlobalIds.next(), TENANT, roleId, permissionId, now.minusSeconds(60), now);
 

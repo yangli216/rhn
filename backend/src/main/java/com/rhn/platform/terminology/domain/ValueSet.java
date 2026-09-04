@@ -11,29 +11,29 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "value_sets")
+@Table(name = "RHN_BD_VAL_SET")
 public class ValueSet {
     @Id
-    private Long id;
+    @Column(name = "ID_VAL_SET") private Long id;
     @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", nullable = false)
+    @Column(name = "SD_SCOPE_TYPE", nullable = false)
     private TerminologyScope scopeType;
-    @Column(name = "scope_id", nullable = false)
+    @Column(name = "ID_SCOPE", nullable = false)
     private Long scopeId;
-    @Column(nullable = false)
+    @Column(name = "CD_VAL_SET", nullable = false)
     private String code;
-    @Column(nullable = false)
+    @Column(name = "NA_VAL_SET", nullable = false)
     private String name;
-    @Column(name = "version_code", nullable = false)
+    @Column(name = "CD_VER", nullable = false)
     private String versionCode;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private TerminologyStatus status;
-    @Column(name = "effective_from", nullable = false)
+    @Column(name = "DA_EFFECTIVE_FROM", nullable = false)
     private LocalDate effectiveFrom;
-    @Column(name = "effective_to")
+    @Column(name = "DA_EFFECTIVE_TO")
     private LocalDate effectiveTo;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
 
     protected ValueSet() {

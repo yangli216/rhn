@@ -9,13 +9,13 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "announcement_read_receipts")
+@Table(name = "RHN_SYS_ANN_READ_RCPT")
 class AnnouncementReadReceipt {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "announcement_id", nullable = false) private Long announcementId;
-    @Column(name = "user_id", nullable = false) private Long userId;
-    @Column(name = "read_at", nullable = false) private Instant readAt;
+    @Id @Column(name = "ID_ANN_READ_RCPT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SYS_ANN", nullable = false) private Long announcementId;
+    @Column(name = "ID_USER", nullable = false) private Long userId;
+    @Column(name = "DT_READ", nullable = false) private Instant readAt;
 
     protected AnnouncementReadReceipt() {}
 

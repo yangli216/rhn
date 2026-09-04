@@ -22,11 +22,10 @@ public class DepartmentProfileStore {
         Long departmentId = department.id();
         return new DepartmentProfileView(department.toView(),
                 jdbc.sql("""
-                        select id, contact_type, contact_value, contact_use, primary_contact,
-                               sort_order, valid_from, valid_to, status
-                        from department_contacts
-                        where tenant_id = :tenantId and department_id = :departmentId
-                        order by primary_contact desc, sort_order, id
+                        select ID_DEPT_CONTACT as id, SD_CONTACT_TYPE as contact_type, CONTACT_VALUE, CONTACT_USE, FG_PRIMARY_CONTACT as primary_contact,
+                               SN_SORT as sort_order, DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_STATUS as status from RHN_SYS_DEPT_CONTACT
+                        where ID_TNT = :tenantId and ID_DEPT = :departmentId
+                        order by FG_PRIMARY_CONTACT desc, SN_SORT, ID_DEPT_CONTACT
                         """).param("tenantId", tenantId).param("departmentId", departmentId)
                         .query((rs, row) -> new DepartmentProfileView.DepartmentContact(
                                 rs.getLong("id"), rs.getString("contact_type"), rs.getString("contact_value"),
@@ -34,12 +33,11 @@ public class DepartmentProfileStore {
                                 rs.getInt("sort_order"), rs.getObject("valid_from", LocalDate.class),
                                 rs.getObject("valid_to", LocalDate.class), rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select r.id, r.target_department_id, d.name target_name, r.relation_type,
-                               r.primary_relation, r.description, r.valid_from, r.valid_to, r.status
-                        from department_relations r
-                        join departments d on d.tenant_id = r.tenant_id and d.id = r.target_department_id
-                        where r.tenant_id = :tenantId and r.source_department_id = :departmentId
-                        order by r.primary_relation desc, r.relation_type, d.name
+                        select r.ID_DEPT_REL as id, r.ID_TARGET_DEPT as target_department_id, d.NA_DEPT target_name, r.SD_REL_TYPE as relation_type,
+                               r.FG_PRIMARY_REL as primary_relation, r.DES_DEPT_REL as description, r.DA_VALID_FROM as valid_from, r.DA_VALID_TO as valid_to, r.SD_STATUS as status from RHN_SYS_DEPT_REL r
+                        join RHN_SYS_DEPT d on d.ID_TNT = r.ID_TNT and d.ID_DEPT = r.ID_TARGET_DEPT
+                        where r.ID_TNT = :tenantId and r.ID_SRC_DEPT = :departmentId
+                        order by r.FG_PRIMARY_REL desc, r.SD_REL_TYPE, d.NA_DEPT
                         """).param("tenantId", tenantId).param("departmentId", departmentId)
                         .query((rs, row) -> new DepartmentProfileView.DepartmentRelation(
                                 rs.getLong("id"), rs.getLong("target_department_id"),
@@ -48,11 +46,10 @@ public class DepartmentProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select id, capability_type, qualification_basis_code, capability_scope,
-                               valid_from, valid_to, verify_status, status
-                        from department_capabilities
-                        where tenant_id = :tenantId and department_id = :departmentId
-                        order by capability_type, valid_from desc
+                        select ID_DEPT_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIFICATION_BASIS as qualification_basis_code, SD_CAP_SCOPE,
+                               DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_VERIFY_STATUS as verify_status, SD_STATUS as status from RHN_SYS_DEPT_CAP
+                        where ID_TNT = :tenantId and ID_DEPT = :departmentId
+                        order by SD_CAP_TYPE, DA_VALID_FROM desc
                         """).param("tenantId", tenantId).param("departmentId", departmentId)
                         .query((rs, row) -> new DepartmentProfileView.DepartmentCapability(
                                 rs.getLong("id"), rs.getString("capability_type"),
@@ -60,15 +57,14 @@ public class DepartmentProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("verify_status"), rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select r.id, r.assignment_id,
-                               case when r.assignment_id is null then r.external_responsible_name else p.full_name end responsible_name,
-                               r.responsibility_type, r.primary_responsibility, r.valid_from, r.valid_to, r.status
-                        from department_responsibilities r
-                        left join staff_assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
-                        left join employments e on e.tenant_id = a.tenant_id and e.id = a.employment_id
-                        left join practitioners p on p.tenant_id = e.tenant_id and p.id = e.practitioner_id
-                        where r.tenant_id = :tenantId and r.department_id = :departmentId
-                        order by r.primary_responsibility desc, r.responsibility_type, responsible_name
+                        select r.ID_DEPT_RESP as id, r.ID_ASSIGN as assignment_id,
+                               case when r.ID_ASSIGN is null then r.NA_EXT_RESPONSIBLE else p.NA_FULL end responsible_name,
+                               r.SD_RESP_TYPE as responsibility_type, r.FG_PRIMARY_RESP as primary_responsibility, r.DA_VALID_FROM as valid_from, r.DA_VALID_TO as valid_to, r.SD_STATUS as status from RHN_SYS_DEPT_RESP r
+                        left join RHN_SYS_STAFF_ASSIGN a on a.ID_TNT = r.ID_TNT and a.ID_STAFF_ASSIGN = r.ID_ASSIGN
+                        left join RHN_SYS_EMPL e on e.ID_TNT = a.ID_TNT and e.ID_EMPL = a.ID_EMPL
+                        left join RHN_SYS_PRACT p on p.ID_TNT = e.ID_TNT and p.ID_PRACT = e.ID_PRACT
+                        where r.ID_TNT = :tenantId and r.ID_DEPT = :departmentId
+                        order by r.FG_PRIMARY_RESP desc, r.SD_RESP_TYPE, responsible_name
                         """).param("tenantId", tenantId).param("departmentId", departmentId)
                         .query((rs, row) -> new DepartmentProfileView.DepartmentResponsibility(
                                 rs.getLong("id"), nullableLong(rs, "assignment_id"),
@@ -80,9 +76,9 @@ public class DepartmentProfileStore {
     public void addContact(Long tenantId, Long departmentId, String type, String value, String use,
                            boolean primary, int sortOrder, LocalDate from, LocalDate to) {
         jdbc.sql("""
-                insert into department_contacts
-                    (id, tenant_id, department_id, contact_type, contact_value, contact_use,
-                     primary_contact, sort_order, valid_from, valid_to, status)
+                insert into RHN_SYS_DEPT_CONTACT
+                    (ID_DEPT_CONTACT, ID_TNT, ID_DEPT, SD_CONTACT_TYPE, CONTACT_VALUE, CONTACT_USE,
+                     FG_PRIMARY_CONTACT, SN_SORT, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :departmentId, :type, :value, :use,
                         :primary, :sortOrder, :validFrom, :validTo, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)
@@ -94,9 +90,9 @@ public class DepartmentProfileStore {
     public void addRelation(Long tenantId, Long sourceId, Long targetId, String type, boolean primary,
                             String description, LocalDate from, LocalDate to) {
         jdbc.sql("""
-                insert into department_relations
-                    (id, tenant_id, source_department_id, target_department_id, relation_type,
-                     primary_relation, description, valid_from, valid_to, status)
+                insert into RHN_SYS_DEPT_REL
+                    (ID_DEPT_REL, ID_TNT, ID_SRC_DEPT, ID_TARGET_DEPT, SD_REL_TYPE,
+                     FG_PRIMARY_REL, DES_DEPT_REL, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :sourceId, :targetId, :type,
                         :primary, :description, :validFrom, :validTo, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId).param("sourceId", sourceId)
@@ -108,9 +104,9 @@ public class DepartmentProfileStore {
     public void addCapability(Long tenantId, Long departmentId, String type, String qualification,
                               String scope, LocalDate from, LocalDate to, String verifyStatus) {
         jdbc.sql("""
-                insert into department_capabilities
-                    (id, tenant_id, department_id, capability_type, qualification_basis_code,
-                     capability_scope, valid_from, valid_to, verify_status, status)
+                insert into RHN_SYS_DEPT_CAP
+                    (ID_DEPT_CAP, ID_TNT, ID_DEPT, SD_CAP_TYPE, CD_QUALIFICATION_BASIS,
+                     SD_CAP_SCOPE, DA_VALID_FROM, DA_VALID_TO, SD_VERIFY_STATUS, SD_STATUS)
                 values (:id, :tenantId, :departmentId, :type, :qualification,
                         :scope, :validFrom, :validTo, :verifyStatus, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)
@@ -122,9 +118,9 @@ public class DepartmentProfileStore {
     public void addResponsibility(Long tenantId, Long departmentId, Long assignmentId, String externalName,
                                   String type, boolean primary, LocalDate from, LocalDate to) {
         jdbc.sql("""
-                insert into department_responsibilities
-                    (id, tenant_id, department_id, assignment_id, external_responsible_name,
-                     responsibility_type, primary_responsibility, valid_from, valid_to, status)
+                insert into RHN_SYS_DEPT_RESP
+                    (ID_DEPT_RESP, ID_TNT, ID_DEPT, ID_ASSIGN, NA_EXT_RESPONSIBLE,
+                     SD_RESP_TYPE, FG_PRIMARY_RESP, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :departmentId, :assignmentId, :externalName,
                         :type, :primary, :validFrom, :validTo, :status)
                 """).param("id", GlobalIds.next()).param("tenantId", tenantId)

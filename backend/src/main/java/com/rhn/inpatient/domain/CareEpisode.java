@@ -10,23 +10,23 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "care_episodes")
+@Table(name = "RHN_VIS_CARE_EPISODE")
 public class CareEpisode {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "episode_no", nullable = false) private String episodeNo;
-    @Column(name = "episode_type", nullable = false) private String episodeType;
-    @Column(nullable = false) private String status;
-    @Column(name = "start_at", nullable = false) private Instant startAt;
-    @Column(name = "end_at") private Instant endAt;
-    @Column(name = "primary_practitioner_id") private Long primaryPractitionerId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_CARE_EPISODE") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "CD_EPISODE_NO", nullable = false) private String episodeNo;
+    @Column(name = "SD_EPISODE_TYPE", nullable = false) private String episodeType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_START", nullable = false) private Instant startAt;
+    @Column(name = "DT_END") private Instant endAt;
+    @Column(name = "ID_PRIMARY_PRACT") private Long primaryPractitionerId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected CareEpisode() {
     }

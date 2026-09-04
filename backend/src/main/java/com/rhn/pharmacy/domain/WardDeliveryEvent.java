@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "ward_delivery_events")
+@Table(name = "RHN_SUP_WARD_DELIV_EVT")
 public class WardDeliveryEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "delivery_id", nullable = false) private Long deliveryId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "from_status") private String fromStatus;
-    @Column(name = "to_status", nullable = false) private String toStatus;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
-    @Column private String note;
+    @Id @Column(name = "ID_WARD_DELIV_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_WARD_DELIV", nullable = false) private Long deliveryId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_FROM_STATUS") private String fromStatus;
+    @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DES_NOTE") private String note;
 
     protected WardDeliveryEvent() {}
 

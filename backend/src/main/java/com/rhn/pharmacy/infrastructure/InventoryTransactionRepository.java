@@ -42,8 +42,7 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
                                                       @Param("stockItemId") Long stockItemId);
 
     @Query("""
-            select distinct t
-            from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
+            select distinct t from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
             where t.tenantId = :tenantId
               and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
@@ -54,15 +53,13 @@ public interface InventoryTransactionRepository extends JpaRepository<InventoryT
                                                @Param("stockItemId") Long stockItemId);
 
     @Query(value = """
-            select distinct t
-            from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
+            select distinct t from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
             where t.tenantId = :tenantId
               and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId
             order by t.postedAt desc
             """, countQuery = """
-            select count(distinct t.id)
-            from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
+            select count(distinct t.id) from InventoryTransaction t, InventoryPeriod p, InventoryTransactionLine l
             where t.tenantId = :tenantId
               and p.id = t.inventoryPeriodId and p.tenantId = :tenantId and p.stockSiteId = :siteId
               and l.inventoryTransactionId = t.id and l.tenantId = :tenantId and l.stockItemId = :stockItemId

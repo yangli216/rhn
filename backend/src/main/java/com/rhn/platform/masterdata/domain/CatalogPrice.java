@@ -12,27 +12,27 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "catalog_prices")
+@Table(name = "RHN_BD_CATALOG_PRICE")
 public class CatalogPrice {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "package_id") private Long packageId;
-    @Column(name = "price_type", nullable = false) private String priceType;
-    @Column(nullable = false) private BigDecimal price;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "price_document_code") private String priceDocumentCode;
-    @Column(name = "price_reason") private String priceReason;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "replaces_price_id") private Long replacesPriceId;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_PRICE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_ITEM_PKG") private Long packageId;
+    @Column(name = "SD_PRICE_TYPE", nullable = false) private String priceType;
+    @Column(name = "PRICE_UNIT", nullable = false) private BigDecimal price;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_PRICE_DOC") private String priceDocumentCode;
+    @Column(name = "DES_PRICE_REASON") private String priceReason;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "ID_CATALOG_PRICE_REPLACES") private Long replacesPriceId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected CatalogPrice() {}
 

@@ -138,19 +138,19 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
         Long morningId = Long.valueOf(morningScheduleId);
         Long afternoonId = Long.valueOf(afternoonScheduleId);
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?)",
+                "select count(*) from RHN_SC_SCHED_SLOT_POOL where ID_TNT = ? and ID_SVC_SCHED in (?, ?)",
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(6, jdbcTemplate.queryForObject(
-                "select count(*) from service_schedule_events where tenant_id = ? and schedule_id in (?, ?)",
+                "select count(*) from RHN_SC_SVC_SCHED_EVT where ID_TNT = ? and ID_SVC_SCHED in (?, ?)",
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(6, jdbcTemplate.queryForObject(
-                "select count(*) from slot_events where tenant_id = ? and schedule_id in (?, ?)",
+                "select count(*) from RHN_SC_SLOT_EVT where ID_TNT = ? and ID_SVC_SCHED in (?, ?)",
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?) and status = 'ACTIVE'",
+                "select count(*) from RHN_SC_SCHED_SLOT_POOL where ID_TNT = ? and ID_SVC_SCHED in (?, ?) and SD_STATUS = 'ACTIVE'",
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from schedule_slot_pools where tenant_id = ? and schedule_id in (?, ?) and status = 'CLOSED'",
+                "select count(*) from RHN_SC_SCHED_SLOT_POOL where ID_TNT = ? and ID_SVC_SCHED in (?, ?) and SD_STATUS = 'CLOSED'",
                 Integer.class, Long.valueOf(TENANT), morningId, afternoonId));
     }
 
@@ -189,10 +189,10 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
 
         Long scheduleId = Long.valueOf(json(response).at("/schedules/0/id").asText());
         assertEquals("DEPARTMENT", jdbcTemplate.queryForObject(
-                "select registration_scope from service_schedules where tenant_id = ? and id = ?",
+                "select SD_REG_SCOPE from RHN_SC_SVC_SCHED where ID_TNT = ? and ID_SVC_SCHED = ?",
                 String.class, Long.valueOf(TENANT), scheduleId));
         assertEquals(0, jdbcTemplate.queryForObject(
-                "select count(*) from service_schedules where id = ? and practitioner_id is not null",
+                "select count(*) from RHN_SC_SVC_SCHED where ID_SVC_SCHED = ? and ID_PRACT is not null",
                 Integer.class, scheduleId));
     }
 

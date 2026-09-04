@@ -60,9 +60,43 @@ function renderWorkspace(api: RhnApi, onNavigate = vi.fn()) {
   return { onNavigate, queryClient }
 }
 
-function apiWithQueue(queue: ReceptionQueueItem[], cancel = vi.fn()) {
+function apiWithPage(queue: ReceptionQueueItem[], cancel = vi.fn()) {
+  const receptionPage = vi.fn((params: {
+    dateFrom?: string
+    dateTo?: string
+    status?: string
+    query?: string
+    page?: number
+    size?: number
+  } = {}) => {
+    const page = params.page ?? 0
+    const size = params.size ?? 20
+    const queryStr = params.query?.toLowerCase()
+    const status = params.status
+    const filtered = queue.filter((item) => {
+      if (status && item.status !== status) return false
+      if (queryStr) {
+        return [item.residentName, item.healthRecordNo, item.registrationNo, item.ticketNo]
+          .some((val) => val?.toLowerCase().includes(queryStr))
+      }
+      return true
+    })
+    const totalElements = filtered.length
+    const totalPages = Math.ceil(totalElements / size)
+    const content = filtered.slice(page * size, (page + 1) * size)
+    return Promise.resolve({
+      content,
+      page,
+      size,
+      totalElements,
+      totalPages,
+      first: page === 0,
+      last: page >= totalPages - 1,
+    })
+  })
+
   return {
-    scheduling: { receptionQueue: vi.fn().mockResolvedValue(queue) },
+    scheduling: { receptionPage },
     dictionaries: { systemEnum: vi.fn((code: string) => Promise.resolve(
       code === 'SC_VISIT_TYPE' ? visitTypes : receptionStatuses,
     )) },
@@ -72,26 +106,31 @@ function apiWithQueue(queue: ReceptionQueueItem[], cancel = vi.fn()) {
 
 describe('RegistrationQueryWorkspace', () => {
   it('queries a selected day, filters records and opens the exact encounter', async () => {
-    const api = apiWithQueue([waitingRegistration, completedRegistration])
+    const api = apiWithPage([waitingRegistration, completedRegistration])
     const onNavigate = vi.fn()
     renderWorkspace(api, onNavigate)
 
     expect(await screen.findByText('REG001')).toBeInTheDocument()
     expect(screen.getByText('REG002')).toBeInTheDocument()
-    expect(screen.getAllByText('候诊中')).toHaveLength(2)
+    expect(screen.getByText('共 2 条记录')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-08-28' } })
     fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-08-28' } })
-    await waitFor(() => expect(api.scheduling.receptionQueue).toHaveBeenCalledWith('2026-08-28', '2026-08-28'))
+    await waitFor(() => expect(api.scheduling.receptionPage).toHaveBeenCalledWith(expect.objectContaining({
+      dateFrom: '2026-08-28', dateTo: '2026-08-28', page: 0,
+    })))
 
     await userEvent.type(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'), 'REG002')
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
+    await waitFor(() => expect(api.scheduling.receptionPage).toHaveBeenCalledWith(expect.objectContaining({
+      query: 'REG002', page: 0,
+    })))
     expect(screen.queryByText('REG001')).not.toBeInTheDocument()
     expect(screen.getByText('REG002')).toBeInTheDocument()
 
     await userEvent.clear(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'))
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
-    await userEvent.click(screen.getByRole('button', { name: '查看就诊' }))
+    await userEvent.click(await screen.findByRole('button', { name: '查看就诊' }))
     expect(onNavigate).toHaveBeenCalledWith(
       '/outpatient/reception?residentId=resident-1&encounterId=encounter-1',
     )
@@ -104,7 +143,7 @@ describe('RegistrationQueryWorkspace', () => {
       refundOrderId: 'refund-1', refundStatus: 'REFUNDED', completed: true,
       message: '退号完成，候诊资格已关闭，相关号源已返还',
     })
-    const api = apiWithQueue([waitingRegistration], cancel)
+    const api = apiWithPage([waitingRegistration], cancel)
     const { queryClient } = renderWorkspace(api)
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
 

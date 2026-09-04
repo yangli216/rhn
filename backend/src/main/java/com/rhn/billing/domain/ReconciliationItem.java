@@ -5,18 +5,18 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-@Entity @Table(name="reconciliation_items")
+@Entity @Table(name="RHN_BIL_RECON_ITEM")
 public class ReconciliationItem {
-    @Id private Long id; @Version private long revision; @Column(name="tenant_id") private Long tenantId;
-    @Column(name="reconciliation_batch_id") private Long reconciliationBatchId; @Column(name="payment_id") private Long paymentId;
-    @Column(name="cashier_close_id") private Long cashierCloseId; @Column(name="receipt_id") private Long receiptId;
-    @Column(name="external_transaction_no") private String externalTransactionNo; @Column(name="match_type") private String matchType;
-    private String status; @Column(name="local_amount",precision=24,scale=6) private BigDecimal localAmount;
-    @Column(name="external_amount",precision=24,scale=6) private BigDecimal externalAmount;
-    @Column(name="difference_amount",precision=24,scale=6) private BigDecimal differenceAmount;
-    @Column(name="currency_code") private String currencyCode; @Column(name="owner_id") private Long ownerId;
-    @Column(name="resolved_by") private Long resolvedBy; @Column(name="resolved_at") private Instant resolvedAt;
-    private String resolution;
+    @Id @Column(name = "ID_RECON_ITEM") private Long id; @Version @Column(name = "REVISION") private long revision; @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "ID_RECON_BATCH") private Long reconciliationBatchId; @Column(name = "ID_PAY") private Long paymentId;
+    @Column(name = "ID_CASHIER_CLOSE") private Long cashierCloseId; @Column(name = "ID_RCPT") private Long receiptId;
+    @Column(name = "CD_EXT_TXN_NO") private String externalTransactionNo; @Column(name = "SD_MATCH_TYPE") private String matchType;
+    @Column(name = "SD_STATUS") private String status; @Column(name = "AMT_LOCAL", precision=24, scale=6) private BigDecimal localAmount;
+    @Column(name = "AMT_EXT", precision=24, scale=6) private BigDecimal externalAmount;
+    @Column(name = "AMT_DIFFERENCE", precision=24, scale=6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CURRENCY") private String currencyCode; @Column(name = "ID_OWNER") private Long ownerId;
+    @Column(name = "ID_USER_RESOLVED") private Long resolvedBy; @Column(name = "DT_RESOLVED") private Instant resolvedAt;
+    @Column(name = "DES_RESOLUTION") private String resolution;
     protected ReconciliationItem(){}
     public ReconciliationItem(Long tenant,Long batch,Long payment,String externalNo,String match,BigDecimal local,
                               BigDecimal external,String currency){id=GlobalIds.next();tenantId=tenant;reconciliationBatchId=batch;

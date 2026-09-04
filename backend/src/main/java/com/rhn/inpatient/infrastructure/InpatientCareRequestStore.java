@@ -82,16 +82,16 @@ public class InpatientCareRequestStore {
                         Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("mappingSnapshot", resolved.mappingSnapshot());
         jdbc.update("""
-                insert into care_requests (
-                    id, revision, tenant_id, resident_id, encounter_id, request_no, request_kind,
-                    status, intent_code, priority_code, catalog_item_id, package_id,
-                    performer_organization_id, performer_department_id, business_date, authored_at,
-                    authored_by, reason_text, cancelled_at, cancelled_by, cancel_reason,
-                    item_code_snapshot, item_name_snapshot, unit_code_snapshot,
-                    local_code_snapshot, local_name_snapshot, adoption_id, adoption_revision,
-                    price_id, price_revision, price_type, unit_price, total_amount, currency_code,
-                    item_attribute_snapshot, item_attribute_hash, item_attribute_resolved_at,
-                    standard_mapping_snapshot
+                insert into RHN_EX_CARE_REQ (
+                    ID_CARE_REQ, REVISION, ID_TNT, ID_PAT, ID_ENC, CD_REQ_NO, SD_REQ_KIND,
+                    SD_STATUS, CD_INTENT, CD_PRIORITY, ID_CATALOG_ITEM, ID_ITEM_PKG,
+                    ID_ORG_PERFORMER, ID_DEPT_PERFORMER, DA_BUSINESS, DT_AUTHORED,
+                    ID_USER_AUTHORED, DES_REASON, DT_CANCELLED, ID_USER_CANCELLED, DES_CANCEL_REASON,
+                    CD_ITEM_SNAP, NA_ITEM_SNAP, CD_UNIT_SNAP,
+                    CD_LOCAL_SNAP, NA_LOCAL_SNAP, ID_ORG_CATALOG_ITEM_ADOPTION, SN_ADOPTION_VER,
+                    ID_CATALOG_PRICE, SN_PRICE_VER, SD_PRICE_TYPE, PRICE_UNIT, AMT_TOTAL, CD_CURRENCY,
+                    JSON_ITEM_ATTR_SNAP, HASH_ITEM_ATTR, DT_ITEM_ATTR_RESOLVED,
+                    JSON_STD_MAP_SNAP
                 ) values (
                     :id, 0, :tenantId, :residentId, :encounterId, :requestNo, :requestKind,
                     'DRAFT', 'ORDER', 'ROUTINE', :catalogItemId, null,
@@ -111,10 +111,9 @@ public class InpatientCareRequestStore {
     public RequestDetails details(Long tenantId, Long requestId, String orderCategory) {
         if (!"MEDICATION".equals(orderCategory)) return RequestDetails.EMPTY;
         List<RequestDetails> values = jdbc.query("""
-                select medication_id, medication_code_snapshot, medication_name_snapshot,
-                       dose_value, dose_unit, route_code, frequency_code, self_provided,
-                       quantity, quantity_unit, base_quantity, base_unit
-                  from medication_requests where tenant_id = :tenantId and request_id = :requestId
+                select ID_MED as medication_id, CD_MED_SNAP as medication_code_snapshot, NA_MED_SNAP as medication_name_snapshot,
+                       QTY_DOSE_VAL, DOSE_UNIT, CD_ROUTE as route_code, CD_FREQ as frequency_code, FG_SELF_PROVIDED as self_provided,
+                       QTY_ORDERED as quantity, QTY_UNIT as quantity_unit, QTY_BASE as base_quantity, BASE_UNIT from RHN_EX_MED_REQ where ID_TNT = :tenantId and ID_CARE_REQ = :requestId
                 """, new MapSqlParameterSource().addValue("tenantId", tenantId).addValue("requestId", requestId),
                 (result, row) -> new RequestDetails(result.getLong(1), result.getString(2), result.getString(3),
                         result.getBigDecimal(4), result.getString(5), result.getString(6), result.getString(7),
@@ -125,8 +124,7 @@ public class InpatientCareRequestStore {
 
     public ServiceDetails serviceDetails(Long tenantId, Long requestId) {
         List<ServiceDetails> values = jdbc.query("""
-                select service_type_snapshot, specimen_type_snapshot, examination_type_snapshot, quantity
-                  from service_requests where tenant_id = :tenantId and request_id = :requestId
+                select SD_SVC_TYPE_SNAP as service_type_snapshot, SD_SPEC_TYPE_SNAP as specimen_type_snapshot, SD_EXAM_TYPE_SNAP as examination_type_snapshot, QTY_ORDERED as quantity from RHN_EX_SVC_REQ where ID_TNT = :tenantId and ID_CARE_REQ = :requestId
                 """, new MapSqlParameterSource().addValue("tenantId", tenantId).addValue("requestId", requestId),
                 (result, row) -> new ServiceDetails(result.getString(1), result.getString(2),
                         result.getString(3), result.getBigDecimal(4)));
@@ -218,16 +216,16 @@ public class InpatientCareRequestStore {
                 .addValue("antimicrobialLevel", medication.antimicrobialLevel())
                 .addValue("snapshot", jsonCodec.write(medication));
         jdbc.update("""
-                insert into medication_requests (
-                    request_id, tenant_id, medication_id, dose_value, dose_unit,
-                    route_id, route_code, route_name_snapshot, route_execution_type_snapshot, route_resolution_status,
-                    frequency_code,
-                    quantity, quantity_unit, base_quantity, base_unit, package_factor_snapshot,
-                    substitution_allowed, self_provided, medication_instruction,
-                    medication_code_snapshot, medication_name_snapshot, medication_type_snapshot,
-                    dose_form_snapshot, preparation_spec_snapshot, preparation_unit_snapshot,
-                    skin_test_required_snapshot, antimicrobial_snapshot, antimicrobial_level_snapshot,
-                    medication_snapshot
+                insert into RHN_EX_MED_REQ (
+                    ID_CARE_REQ, ID_TNT, ID_MED, QTY_DOSE_VAL, DOSE_UNIT,
+                    ID_CONCEPT_ROUTE, CD_ROUTE, NA_ROUTE_SNAP, SD_ROUTE_EXEC_TYPE_SNAP, SD_ROUTE_RESOLUTION_STATUS,
+                    CD_FREQ,
+                    QTY_ORDERED, QTY_UNIT, QTY_BASE, BASE_UNIT, PACKAGE_FACTOR_SNAPSHOT,
+                    FG_SUBSTITUTION, FG_SELF_PROVIDED, DES_MED_INSTRUCTION,
+                    CD_MED_SNAP, NA_MED_SNAP, SD_MED_TYPE_SNAP,
+                    DOSE_FORM_SNAPSHOT, PREPARATION_SPEC_SNAPSHOT, PREPARATION_UNIT_SNAPSHOT,
+                    FG_SKIN_TEST_REQUIRED_SNAP, FG_ANTIMICROBIAL_SNAP, SD_ANTIMICROBIAL_LEVEL_SNAP,
+                    MEDICATION_SNAPSHOT
                 ) values (
                     :requestId, :tenantId, :medicationId, :dose, :doseUnit,
                     :routeId, :route, :routeName, :routeExecutionType, 'RESOLVED', :frequency,
@@ -241,9 +239,9 @@ public class InpatientCareRequestStore {
 
     private void insertService(Long requestId, CreateFact input, ResolvedItem resolved) {
         jdbc.update("""
-                insert into service_requests (
-                    request_id, tenant_id, service_type_snapshot, specimen_type_snapshot,
-                    examination_type_snapshot, quantity, clinical_description
+                insert into RHN_EX_SVC_REQ (
+                    ID_CARE_REQ, ID_TNT, SD_SVC_TYPE_SNAP, SD_SPEC_TYPE_SNAP,
+                    SD_EXAM_TYPE_SNAP, QTY_ORDERED, DES_CLIN_DESCRIPTION
                 ) values (
                     :requestId, :tenantId, :serviceType, :specimenType, :examinationType, 1, :description
                 )

@@ -39,8 +39,7 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long
     Optional<PaymentOrder> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
 
     @Query("""
-            select coalesce(sum(value.requestedAmount - value.capturedAmount), 0)
-              from PaymentOrder value
+            select coalesce(sum(value.requestedAmount - value.capturedAmount), 0) from PaymentOrder value
              where value.tenantId = :tenantId and value.invoiceId = :invoiceId
                and value.status in ('CREATED', 'PENDING', 'PROCESSING', 'PARTIAL')
             """)
@@ -48,8 +47,7 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long
                                          @Param("invoiceId") Long invoiceId);
 
     @Query("""
-            select coalesce(sum(value.requestedAmount - value.refundedAmount), 0)
-              from PaymentOrder value
+            select coalesce(sum(value.requestedAmount - value.refundedAmount), 0) from PaymentOrder value
              where value.tenantId = :tenantId and value.originalPaymentId = :paymentId
                and value.orderType = 'REFUND'
                and value.status in ('CREATED', 'PENDING', 'PROCESSING', 'REFUNDING', 'PARTIAL')

@@ -351,8 +351,8 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
         Long userId = com.rhn.shared.id.GlobalIds.next();
         Instant now = Instant.now();
         jdbcTemplate.update("""
-                insert into user_accounts
-                    (id, tenant_id, username, password_hash, status, created_at, updated_at, version)
+                insert into RHN_SYS_USER_ACCT
+                    (ID_USER, ID_TNT, CD_USERNAME, HASH_PASSWORD, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, cast(? as bigint), ?, '{noop}unused', 'ACTIVE', ?, ?, 0)
                 """, userId, TENANT, username, now, now);
         return userId;

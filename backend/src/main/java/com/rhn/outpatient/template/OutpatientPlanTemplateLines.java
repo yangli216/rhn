@@ -9,15 +9,15 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "outpatient_plan_diagnoses")
+@Table(name = "RHN_META_OP_PLAN_DIAG")
 class OutpatientPlanDiagnosis {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "diagnosis_code", nullable = false) private String code;
-    @Column(name = "diagnosis_name", nullable = false) private String name;
-    @Column(name = "diagnosis_type", nullable = false) private String type;
+    @Id @Column(name = "ID_OP_PLAN_DIAG") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_OP_PLAN_TMPL", nullable = false) private Long templateId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "CD_DIAG", nullable = false) private String code;
+    @Column(name = "NA_DIAG", nullable = false) private String name;
+    @Column(name = "SD_DIAG_TYPE", nullable = false) private String type;
 
     protected OutpatientPlanDiagnosis() {}
     OutpatientPlanDiagnosis(Long tenantId, Long templateId, int lineNo, String code, String name, String type) {
@@ -29,34 +29,34 @@ class OutpatientPlanDiagnosis {
 }
 
 @Entity
-@Table(name = "outpatient_plan_medications")
+@Table(name = "RHN_META_OP_PLAN_MED")
 class OutpatientPlanMedication {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "medication_id", nullable = false) private Long medicationId;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "package_id") private Long packageId;
-    @Column(name = "category_code", nullable = false) private String categoryCode;
-    @Column(name = "medication_code", nullable = false) private String medicationCode;
-    @Column(name = "medication_name", nullable = false) private String medicationName;
-    @Column(name = "preparation_spec") private String preparationSpec;
-    @Column(name = "product_name") private String productName;
-    @Column(name = "dose_value") private BigDecimal doseValue;
-    @Column(name = "dose_unit") private String doseUnit;
-    @Column(name = "route_code") private String routeCode;
-    @Column(name = "frequency_code") private String frequencyCode;
-    @Column(name = "duration_value") private BigDecimal durationValue;
-    @Column(name = "duration_unit") private String durationUnit;
-    @Column(nullable = false) private BigDecimal quantity;
-    @Column(name = "quantity_unit") private String quantityUnit;
-    @Column(name = "substitution_allowed", nullable = false) private boolean substitutionAllowed;
-    @Column(name = "self_provided", nullable = false) private boolean selfProvided;
-    @Column(name = "medication_instruction") private String medicationInstruction;
-    @Column(name = "price_type") private String priceType;
-    @Column(name = "pricing_required", nullable = false) private boolean pricingRequired;
-    @Column(name = "reason_text") private String reason;
+    @Id @Column(name = "ID_OP_PLAN_MED") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_OP_PLAN_TMPL", nullable = false) private Long templateId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "ID_MED", nullable = false) private Long medicationId;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "ID_PKG") private Long packageId;
+    @Column(name = "CD_CAT", nullable = false) private String categoryCode;
+    @Column(name = "CD_MED", nullable = false) private String medicationCode;
+    @Column(name = "NA_MED", nullable = false) private String medicationName;
+    @Column(name = "PREPARATION_SPEC") private String preparationSpec;
+    @Column(name = "NA_PRODUCT") private String productName;
+    @Column(name = "QTY_DOSE_VAL") private BigDecimal doseValue;
+    @Column(name = "DOSE_UNIT") private String doseUnit;
+    @Column(name = "CD_ROUTE") private String routeCode;
+    @Column(name = "CD_FREQ") private String frequencyCode;
+    @Column(name = "QTY_DURATION_VAL") private BigDecimal durationValue;
+    @Column(name = "DURATION_UNIT") private String durationUnit;
+    @Column(name = "QTY_ORDERED", nullable = false) private BigDecimal quantity;
+    @Column(name = "QTY_UNIT") private String quantityUnit;
+    @Column(name = "FG_SUBSTITUTION", nullable = false) private boolean substitutionAllowed;
+    @Column(name = "FG_SELF_PROVIDED", nullable = false) private boolean selfProvided;
+    @Column(name = "DES_MED_INSTRUCTION") private String medicationInstruction;
+    @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "FG_PRICING_REQUIRED", nullable = false) private boolean pricingRequired;
+    @Column(name = "DES_REASON") private String reason;
 
     protected OutpatientPlanMedication() {}
     OutpatientPlanMedication(Long tenantId, Long templateId, int lineNo, Long medicationId, Long catalogItemId,
@@ -90,22 +90,22 @@ class OutpatientPlanMedication {
 }
 
 @Entity
-@Table(name = "outpatient_plan_services")
+@Table(name = "RHN_META_OP_PLAN_SVC")
 class OutpatientPlanServiceLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "item_code", nullable = false) private String itemCode;
-    @Column(name = "item_name", nullable = false) private String itemName;
-    @Column(name = "service_type", nullable = false) private String serviceType;
-    @Column(nullable = false) private BigDecimal quantity;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(name = "price_type") private String priceType;
-    @Column(name = "pricing_required", nullable = false) private boolean pricingRequired;
-    @Column(name = "reason_text") private String reason;
-    @Column(name = "clinical_description") private String clinicalDescription;
+    @Id @Column(name = "ID_OP_PLAN_SVC") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_OP_PLAN_TMPL", nullable = false) private Long templateId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "CD_ITEM", nullable = false) private String itemCode;
+    @Column(name = "NA_ITEM", nullable = false) private String itemName;
+    @Column(name = "SD_SVC_TYPE", nullable = false) private String serviceType;
+    @Column(name = "QTY_ORDERED", nullable = false) private BigDecimal quantity;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "FG_PRICING_REQUIRED", nullable = false) private boolean pricingRequired;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "DES_CLIN_DESCRIPTION") private String clinicalDescription;
 
     protected OutpatientPlanServiceLine() {}
     OutpatientPlanServiceLine(Long tenantId, Long templateId, int lineNo, Long catalogItemId,

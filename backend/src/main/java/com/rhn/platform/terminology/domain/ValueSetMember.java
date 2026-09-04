@@ -8,17 +8,17 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "value_set_members")
+@Table(name = "RHN_BD_VAL_SET_MEMBER")
 public class ValueSetMember {
     @Id
-    private Long id;
-    @Column(name = "value_set_id", nullable = false)
+    @Column(name = "ID_VAL_SET_MEMBER") private Long id;
+    @Column(name = "ID_VAL_SET", nullable = false)
     private Long valueSetId;
-    @Column(name = "concept_id", nullable = false)
+    @Column(name = "ID_CONCEPT", nullable = false)
     private Long conceptId;
-    @Column(name = "sort_order", nullable = false)
+    @Column(name = "SN_SORT", nullable = false)
     private int sortOrder;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
 
     protected ValueSetMember() {

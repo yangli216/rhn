@@ -11,35 +11,35 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "payment_orders")
+@Table(name = "RHN_BIL_PAY_ORDER")
 public class PaymentOrder {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "invoice_id", nullable = false) private Long invoiceId;
-    @Column(name = "original_payment_id") private Long originalPaymentId;
-    @Column(name = "order_no", nullable = false) private String orderNo;
-    @Column(name = "idempotency_key", nullable = false) private String idempotencyKey;
-    @Column(name = "business_scene", nullable = false) private String businessScene;
-    @Column(name = "payment_scene_code", nullable = false) private String paymentSceneCode;
-    @Column(name = "payment_method_code", nullable = false) private String paymentMethodCode;
-    @Column(name = "payment_method_name_snapshot", nullable = false) private String paymentMethodNameSnapshot;
-    @Column(name = "order_type", nullable = false) private String orderType;
-    @Column(nullable = false) private String status;
-    @Column(name = "requested_amount", nullable = false, precision = 24, scale = 6) private BigDecimal requestedAmount;
-    @Column(name = "captured_amount", nullable = false, precision = 24, scale = 6) private BigDecimal capturedAmount;
-    @Column(name = "refunded_amount", nullable = false, precision = 24, scale = 6) private BigDecimal refundedAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "external_order_no") private String externalOrderNo;
-    @Column(name = "correlation_id") private String correlationId;
-    @Column(name = "terminal_code") private String terminalCode;
-    @Column(name = "expires_at") private Instant expiresAt;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
+    @Id @Column(name = "ID_PAY_ORDER") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "ID_INVOICE", nullable = false) private Long invoiceId;
+    @Column(name = "ID_PAY_ORIGINAL") private Long originalPaymentId;
+    @Column(name = "CD_ORDER_NO", nullable = false) private String orderNo;
+    @Column(name = "CD_IDEMP_KEY", nullable = false) private String idempotencyKey;
+    @Column(name = "SD_BUSINESS_SCENE", nullable = false) private String businessScene;
+    @Column(name = "CD_PAY_SCENE", nullable = false) private String paymentSceneCode;
+    @Column(name = "CD_PAY_METHOD", nullable = false) private String paymentMethodCode;
+    @Column(name = "NA_PAY_METHOD_SNAP", nullable = false) private String paymentMethodNameSnapshot;
+    @Column(name = "SD_ORDER_TYPE", nullable = false) private String orderType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "AMT_REQUESTED", nullable = false, precision = 24, scale = 6) private BigDecimal requestedAmount;
+    @Column(name = "AMT_CAPTURED", nullable = false, precision = 24, scale = 6) private BigDecimal capturedAmount;
+    @Column(name = "AMT_REFUNDED", nullable = false, precision = 24, scale = 6) private BigDecimal refundedAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_EXT_ORDER_NO") private String externalOrderNo;
+    @Column(name = "ID_CORRELATION") private String correlationId;
+    @Column(name = "CD_TERMINAL") private String terminalCode;
+    @Column(name = "DT_EXPIRES") private Instant expiresAt;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
 
     protected PaymentOrder() {}
 

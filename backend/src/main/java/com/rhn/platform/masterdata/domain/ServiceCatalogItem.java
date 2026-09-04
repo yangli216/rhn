@@ -14,47 +14,47 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "catalog_items")
-@SecondaryTable(name = "service_items", pkJoinColumns = @PrimaryKeyJoinColumn(name = "catalog_item_id"))
+@Table(name = "RHN_BD_CATALOG_ITEM")
+@SecondaryTable(name = "RHN_BD_SVC_ITEM", pkJoinColumns = @PrimaryKeyJoinColumn(name = "ID_CATALOG_ITEM"))
 public class ServiceCatalogItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "item_type_id", nullable = false) private Long itemTypeId;
-    @Column(name = "item_master_id") private Long itemMasterId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "item_type", nullable = false) private String itemType;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(nullable = false) private boolean orderable;
-    @Column(nullable = false) private boolean chargeable;
-    @Column(nullable = false) private boolean stocked;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
+    @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
+    @Column(name = "CD_CATALOG_ITEM", nullable = false) private String code;
+    @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
+    @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
-    @Column(table = "service_items", name = "tenant_id", nullable = false) private Long serviceTenantId;
-    @Column(table = "service_items", name = "service_type", nullable = false) private String serviceType;
-    @Column(table = "service_items", name = "service_subtype") private String serviceSubtype;
-    @Column(table = "service_items", name = "usage_type", nullable = false) private String usageType;
-    @Column(table = "service_items", name = "medical_technology", nullable = false) private boolean medicalTechnology;
-    @Column(table = "service_items", name = "combination_item", nullable = false) private boolean combinationItem;
-    @Column(table = "service_items", name = "single_order", nullable = false) private boolean singleOrder;
-    @Column(table = "service_items", name = "specimen_type") private String specimenType;
-    @Column(table = "service_items", name = "examination_type") private String examinationType;
-    @Column(table = "service_items", name = "accounting_category") private String accountingCategory;
-    @Column(table = "service_items", name = "duplicate_rule") private String duplicateRule;
-    @Column(table = "service_items", name = "multi_site_price") private BigDecimal multiSitePrice;
-    @Column(table = "service_items", name = "free_site_count") private Integer freeSiteCount;
-    @Column(table = "service_items", name = "max_body_site_count") private Integer maxBodySiteCount;
-    @Column(table = "service_items", name = "mutual_recognition_code") private String mutualRecognitionCode;
-    @Column(table = "service_items", name = "pregnancy_alert", nullable = false) private boolean pregnancyAlert;
-    @Column(table = "service_items") private String attention;
-    @Column(table = "service_items", name = "examination_notes") private String examinationNotes;
+    @Column(name = "ID_TNT", table = "RHN_BD_SVC_ITEM", nullable = false) private Long serviceTenantId;
+    @Column(name = "SD_SVC_TYPE", table = "RHN_BD_SVC_ITEM", nullable = false) private String serviceType;
+    @Column(name = "SD_SVC_SUBTYPE", table = "RHN_BD_SVC_ITEM") private String serviceSubtype;
+    @Column(name = "SD_USAGE_TYPE", table = "RHN_BD_SVC_ITEM", nullable = false) private String usageType;
+    @Column(name = "FG_MEDICAL_TECHNOLOGY", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean medicalTechnology;
+    @Column(name = "FG_COMBINATION_ITEM", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean combinationItem;
+    @Column(name = "FG_SINGLE_ORDER", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean singleOrder;
+    @Column(name = "SD_SPEC_TYPE", table = "RHN_BD_SVC_ITEM") private String specimenType;
+    @Column(name = "SD_EXAM_TYPE", table = "RHN_BD_SVC_ITEM") private String examinationType;
+    @Column(name = "SD_ACCOUNTING_CAT", table = "RHN_BD_SVC_ITEM") private String accountingCategory;
+    @Column(name = "SD_DUPLICATE_RULE", table = "RHN_BD_SVC_ITEM") private String duplicateRule;
+    @Column(name = "PRICE_MULTI_SITE", table = "RHN_BD_SVC_ITEM") private BigDecimal multiSitePrice;
+    @Column(name = "QTY_FREE_SITE", table = "RHN_BD_SVC_ITEM") private Integer freeSiteCount;
+    @Column(name = "QTY_MAX_BODY_SITE", table = "RHN_BD_SVC_ITEM") private Integer maxBodySiteCount;
+    @Column(name = "CD_MUTUAL_RECOGNITION", table = "RHN_BD_SVC_ITEM") private String mutualRecognitionCode;
+    @Column(name = "FG_PREGNANCY_ALERT", table = "RHN_BD_SVC_ITEM", nullable = false) private boolean pregnancyAlert;
+    @Column(name = "DES_ATTENTION", table = "RHN_BD_SVC_ITEM") private String attention;
+    @Column(name = "DES_EXAM_NOTE", table = "RHN_BD_SVC_ITEM") private String examinationNotes;
 
     protected ServiceCatalogItem() {}
 

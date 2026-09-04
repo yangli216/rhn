@@ -9,17 +9,17 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "print_template_versions")
+@Table(name = "RHN_META_PRINT_TMPL_VER")
 public class PrintTemplateVersion {
-    @Id private Long id;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "version_no", nullable = false) private int versionNo;
-    @Column(name = "layout_schema", nullable = false) private String layoutSchema;
-    @Lob @Column(name = "config_json", nullable = false) private String configJson;
-    @Column(name = "content_digest_algorithm", nullable = false) private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false) private String contentDigest;
-    @Column(name = "published_at", nullable = false) private Instant publishedAt;
-    @Column(name = "published_by") private Long publishedBy;
+    @Id @Column(name = "ID_PRINT_TMPL_VER") private Long id;
+    @Column(name = "ID_PRINT_TMPL", nullable = false) private Long templateId;
+    @Column(name = "CD_VER_NO", nullable = false) private int versionNo;
+    @Column(name = "JSON_LAYOUT_SCHEMA", nullable = false) private String layoutSchema;
+    @Lob @Column(name = "JSON_CONFIG", nullable = false) private String configJson;
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
+    @Column(name = "DT_PUBLISD", nullable = false) private Instant publishedAt;
+    @Column(name = "ID_USER_PUBLISD") private Long publishedBy;
 
     protected PrintTemplateVersion() {}
 

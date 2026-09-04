@@ -14,35 +14,35 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 @Entity
-@Table(name = "treatment_execution_tasks")
+@Table(name = "RHN_EX_TREAT_EXEC_TASK")
 public class TreatmentExecutionTask {
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneOffset.UTC);
 
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "source_group_id", nullable = false) private Long sourceGroupId;
-    @Column(name = "task_no", nullable = false) private String taskNo;
-    @Column(name = "task_type", nullable = false) private String taskType;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "started_at") private Instant startedAt;
-    @Column(name = "started_by") private Long startedBy;
-    @Column(name = "verification_method") private String verificationMethod;
-    @Column(name = "execution_site") private String executionSite;
-    @Column(name = "start_note") private String startNote;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "completed_by") private Long completedBy;
-    @Column(name = "result_code") private String resultCode;
-    @Column(name = "completion_note") private String completionNote;
-    @Column(name = "adverse_reaction", nullable = false) private boolean adverseReaction;
-    @Column(name = "adverse_reaction_detail") private String adverseReactionDetail;
-    @Column(name = "exception_note") private String exceptionNote;
+    @Id @Column(name = "ID_TREAT_EXEC_TASK") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_CARE_REQ_SRC_GRP", nullable = false) private Long sourceGroupId;
+    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_STARTED") private Instant startedAt;
+    @Column(name = "ID_USER_STARTED") private Long startedBy;
+    @Column(name = "SD_VERIFICATION_METHOD") private String verificationMethod;
+    @Column(name = "SD_EXEC_SITE") private String executionSite;
+    @Column(name = "DES_START_NOTE") private String startNote;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "CD_RESULT") private String resultCode;
+    @Column(name = "DES_COMP_NOTE") private String completionNote;
+    @Column(name = "FG_ADVERSE_REACTION", nullable = false) private boolean adverseReaction;
+    @Column(name = "DES_ADVERSE_REACTION_DETAIL") private String adverseReactionDetail;
+    @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
     protected TreatmentExecutionTask() {}
 

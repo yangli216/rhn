@@ -91,17 +91,17 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.chiefComplaint").value("复诊头晕"));
 
         assertEquals(1, jdbc.queryForObject("""
-                select count(*) from encounter_work_sessions
-                where encounter_id = ? and status = 'CLOSED' and close_reason = 'SUSPENDED'
+                select count(*) from RHN_VIS_ENC_WORK_SESSION
+                where ID_ENC = ? and SD_STATUS = 'CLOSED' and DES_CLOSE_REASON = 'SUSPENDED'
                 """, Integer.class, Long.valueOf(encounterId)));
         assertEquals(1, jdbc.queryForObject("""
-                select count(*) from encounter_work_sessions
-                where encounter_id = ? and status = 'ACTIVE'
+                select count(*) from RHN_VIS_ENC_WORK_SESSION
+                where ID_ENC = ? and SD_STATUS = 'ACTIVE'
                 """, Integer.class, Long.valueOf(encounterId)));
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from encounter_status_events
-                where encounter_id = ? and status_to in ('SUSPENDED', 'IN_PROGRESS')
-                  and command_code in (?, ?)
+                select count(*) from RHN_VIS_ENC_STATUS_EVT
+                where ID_ENC = ? and SD_STATUS_TO in ('SUSPENDED', 'IN_PROGRESS')
+                  and CD_COMMAND in (?, ?)
                 """, Integer.class, Long.valueOf(encounterId), "SUSPEND-" + suffix, "RESUME-" + suffix));
     }
 

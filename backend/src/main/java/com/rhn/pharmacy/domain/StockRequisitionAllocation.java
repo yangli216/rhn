@@ -10,19 +10,19 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_requisition_allocations")
+@Table(name = "RHN_SUP_STOCK_REQ_ALLOC")
 public class StockRequisitionAllocation {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_requisition_line_id", nullable = false) private Long stockRequisitionLineId;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "stock_status", nullable = false) private String stockStatus;
-    @Column(name = "allocated_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal allocatedQuantity;
-    @Column(name = "issued_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_STOCK_REQ_ALLOC") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_REQ_LINE", nullable = false) private Long stockRequisitionLineId;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
+    @Column(name = "QTY_ALLOCATED", nullable = false, precision = 28, scale = 8) private BigDecimal allocatedQuantity;
+    @Column(name = "QTY_ISSUED", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected StockRequisitionAllocation() {}
     public StockRequisitionAllocation(Long tenantId, Long lineId, Long binId, Long lotId, String stockStatus,

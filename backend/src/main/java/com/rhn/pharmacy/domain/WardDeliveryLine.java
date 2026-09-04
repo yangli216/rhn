@@ -11,22 +11,22 @@ import java.math.BigDecimal;
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @Entity
-@Table(name = "ward_delivery_lines")
+@Table(name = "RHN_SUP_WARD_DELIV_LINE")
 public class WardDeliveryLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "delivery_id", nullable = false) private Long deliveryId;
-    @Column(name = "dispense_id", nullable = false) private Long dispenseId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_name_snapshot", nullable = false) private String residentNameSnapshot;
-    @Column(name = "medication_name_snapshot", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "expected_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal expectedQuantity;
-    @Column(name = "received_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
-    @Column(name = "unit_code", nullable = false) private String unitCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "discrepancy_code") private String discrepancyCode;
-    @Column(name = "discrepancy_note") private String discrepancyNote;
+    @Id @Column(name = "ID_WARD_DELIV_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_WARD_DELIV", nullable = false) private Long deliveryId;
+    @Column(name = "ID_MED_DISP", nullable = false) private Long dispenseId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
+    @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
+    @Column(name = "QTY_EXPECTED", nullable = false, precision = 28, scale = 8) private BigDecimal expectedQuantity;
+    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "CD_UNIT", nullable = false) private String unitCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_DISCREPANCY") private String discrepancyCode;
+    @Column(name = "DES_DISCREPANCY_NOTE") private String discrepancyNote;
 
     protected WardDeliveryLine() {}
 

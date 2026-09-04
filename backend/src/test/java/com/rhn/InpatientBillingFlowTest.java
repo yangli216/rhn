@@ -37,10 +37,10 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         String encounterId = admission.get("encounterId").asText();
         Instant admittedAt = LocalDate.now().minusDays(2).atTime(8, 0)
                 .atZone(ZoneId.of("Asia/Shanghai")).toInstant();
-        jdbcTemplate.update("update care_episodes set start_at = ? where id = ?", admittedAt, Long.valueOf(episodeId));
-        jdbcTemplate.update("update encounters set registered_at = ?, started_at = ? where id = ?",
+        jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set DT_START = ? where ID_CARE_EPISODE = ?", admittedAt, Long.valueOf(episodeId));
+        jdbcTemplate.update("update RHN_VIS_ENC set DT_REGISTERED = ?, DT_STARTED = ? where ID_ENC = ?",
                 admittedAt, admittedAt, Long.valueOf(encounterId));
-        jdbcTemplate.update("update encounter_location_histories set start_at = ? where encounter_id = ?",
+        jdbcTemplate.update("update RHN_VIS_ENC_LOC_HIST set DT_START = ? where ID_ENC = ?",
                 admittedAt, Long.valueOf(encounterId));
 
         postJson("/api/inpatient/episodes/" + episodeId + "/transfer", """
@@ -56,10 +56,10 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(0, posting.get("existingCount").asInt());
         assertEquals(0, new BigDecimal("60").compareTo(posting.get("postedAmount").decimalValue()));
         assertEquals(0, new BigDecimal("60").compareTo(posting.at("/account/postedChargeAmount").decimalValue()));
-        assertEquals(3, count("select count(*) from inpatient_bed_day_facts where episode_id = ?", episodeId));
-        assertEquals(1, count("select count(*) from inpatient_bed_day_facts where episode_id = ? "
+        assertEquals(3, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
+        assertEquals(1, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ? "
                 + "and business_date = current_date and bed_location_id = 362387869898513", episodeId));
-        assertEquals(3, count("select count(*) from charge_items where encounter_id = ? "
+        assertEquals(3, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
                 + "and source_type = 'INPATIENT_BED_DAY' and unit_price = 20 "
                 + "and price_id = 362387869898522 and price_revision = 0", encounterId));
 
@@ -67,7 +67,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 postingBody, 200);
         assertEquals(0, replay.get("createdCount").asInt());
         assertEquals(3, replay.get("existingCount").asInt());
-        assertEquals(3, count("select count(*) from charge_items where encounter_id = ? "
+        assertEquals(3, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
                 + "and source_type = 'INPATIENT_BED_DAY'", encounterId));
     }
 
@@ -80,7 +80,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 """.formatted(RESIDENT, BED), 201);
         String episodeId = admission.get("id").asText();
         String encounterId = admission.get("encounterId").asText();
-        jdbcTemplate.update("update catalog_prices set status = 'INACTIVE' where id = 362387869898522");
+        jdbcTemplate.update("update RHN_BD_CATALOG_PRICE set SD_STATUS = 'INACTIVE' where ID_CATALOG_PRICE = 362387869898522");
         try {
             mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/bed-days/post", episodeId)
                             .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -89,11 +89,11 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                                     """.formatted(LocalDate.now())))
                     .andExpect(status().isConflict())
                     .andExpect(jsonPath("$.code").value("INPATIENT_BED_DAY_PRICE_MISSING"));
-            assertEquals(0, count("select count(*) from inpatient_bed_day_facts where episode_id = ?", episodeId));
-            assertEquals(0, count("select count(*) from charge_items where encounter_id = ? "
+            assertEquals(0, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
+            assertEquals(0, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
                     + "and source_type = 'INPATIENT_BED_DAY'", encounterId));
         } finally {
-            jdbcTemplate.update("update catalog_prices set status = 'ACTIVE' where id = 362387869898522");
+            jdbcTemplate.update("update RHN_BD_CATALOG_PRICE set SD_STATUS = 'ACTIVE' where ID_CATALOG_PRICE = 362387869898522");
         }
     }
 
@@ -182,7 +182,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 {"paymentNo":"IP-DEP-0001","amount":10,"currencyCode":"CNY",
                  "paymentMethodCode":"CASH","description":"入院预交金"}
                 """;
-        jdbcTemplate.update("update role_permission_assignments set valid_to = current_timestamp - interval '1' day "
+        jdbcTemplate.update("update RHN_SYS_ROLE_PERM_ASSIGN set DT_VALID_TO = current_timestamp - interval '1' day "
                 + "where tenant_id = ? and permission_id = 362387869896104", Long.valueOf(TENANT));
         try {
             mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing", episodeId).with(rhnWorkContext()))
@@ -191,7 +191,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                             .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(depositBody))
                     .andExpect(status().isForbidden());
         } finally {
-            jdbcTemplate.update("update role_permission_assignments set valid_to = null "
+            jdbcTemplate.update("update RHN_SYS_ROLE_PERM_ASSIGN set DT_VALID_TO = null "
                     + "where tenant_id = ? and permission_id = 362387869896104", Long.valueOf(TENANT));
         }
         JsonNode deposit = postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits",
@@ -213,14 +213,14 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 depositBody, 201);
         assertEquals(true, replay.get("duplicate").asBoolean());
         assertEquals(deposit.get("paymentId").asText(), replay.get("paymentId").asText());
-        assertEquals(1, count("select count(*) from patient_accounts where id = ? and account_type = 'INPATIENT'",
+        assertEquals(1, count("select count(*) from RHN_BIL_PAT_ACCT where ID_PAT_ACCT = ? and SD_ACCT_TYPE = 'INPATIENT'",
                 accountId));
-        assertEquals(1, count("select count(*) from payments where patient_account_id = ? and invoice_id is null "
+        assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? and ID_INVOICE is null "
                 + "and payment_scene_code = 'INPATIENT_PREPAYMENT'", accountId));
-        assertEquals(1, count("select count(*) from charge_items where patient_account_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? "
                 + "and source_type = 'INPATIENT_ORDER_TASK'", accountId));
-        assertEquals(2, count("select count(*) from ledger_entries where patient_account_id = ?", accountId));
-        assertEquals(0, count("select count(*) from settlements where patient_account_id = ?", accountId));
+        assertEquals(2, count("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", accountId));
+        assertEquals(0, count("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", accountId));
 
         prepareSignedDischargeRecord(RESIDENT, encounterId, "IP-BILLING");
         recordPrimaryDischargeDiagnosis(episodeId, 0, "J18.900", "肺炎", "IP-BILLING-DIAGNOSIS");
@@ -271,11 +271,11 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                          "commandCode":"IP-BILLING-FINAL"}
                         """, 201);
         assertEquals(true, replaySettlement.get("duplicate").asBoolean());
-        assertEquals(1, count("select count(*) from inpatient_bed_day_facts where episode_id = ?", episodeId));
-        assertEquals(1, count("select count(*) from charge_items where patient_account_id = ? "
+        assertEquals(1, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
+        assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? "
                 + "and source_type = 'INPATIENT_BED_DAY'", accountId));
-        assertEquals(1, count("select count(*) from settlements where patient_account_id = ?", accountId));
-        assertEquals(1, count("select count(*) from settlement_tenders where settlement_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", accountId));
+        assertEquals(1, count("select count(*) from RHN_BIL_STL_TENDER where ID_STL = ? "
                 + "and tender_type = 'PREPAYMENT'", settlement.get("settlementId").asText()));
 
         long settlementRevision = settlement.at("/account/financialSettlement/revision").asLong();
@@ -300,7 +300,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode replayPayment = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/payments", paymentBody, 201);
         assertEquals(true, replayPayment.get("duplicate").asBoolean());
-        assertEquals(1, count("select count(*) from payments where patient_account_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                 + "and invoice_id is not null and payment_no = 'IP-PAY-0001'", accountId));
     }
 
@@ -347,9 +347,9 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals("CLOSED", refund.at("/account/accountStatus").asText());
         assertEquals(0, refund.at("/account/depositAmount").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(0, refund.at("/account/ledgerBalance").decimalValue().compareTo(BigDecimal.ZERO));
-        assertEquals(1, count("select count(*) from payments where patient_account_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                 + "and payment_type = 'REFUND' and payment_no = 'IP-REFUND-SURPLUS'", accountId));
-        assertEquals(1, count("select count(*) from payments where patient_account_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                 + "and payment_type = 'REFUND' and reverses_payment_id is not null", accountId));
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/refunds", refundBody, 201);
@@ -386,12 +386,12 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals("SETTLED", settlement.get("status").asText());
         assertEquals("SETTLED", settlement.get("financialStatus").asText());
         assertEquals("CLOSED", settlement.at("/account/accountStatus").asText());
-        assertEquals(1, count("select count(*) from payments where patient_account_id = ?",
+        assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ?",
                 settlement.at("/account/patientAccountId").asText()));
-        assertEquals(0, count("select count(*) from payments where patient_account_id = ? "
+        assertEquals(0, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                         + "and payment_scene_code = 'CASHIER'",
                 settlement.at("/account/patientAccountId").asText()));
-        assertEquals(1, count("select count(*) from settlement_events where settlement_id = ? "
+        assertEquals(1, count("select count(*) from RHN_BIL_STL_EVT where ID_STL = ? "
                 + "and event_type = 'FINALIZE'", settlement.get("settlementId").asText()));
     }
 

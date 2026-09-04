@@ -13,20 +13,20 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "practitioners")
+@Table(name = "RHN_SYS_PRACT")
 public class Practitioner {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(name = "full_name", nullable = false) private String fullName;
-    @Enumerated(EnumType.STRING) @Column private PractitionerGender gender;
-    @Column(name = "identity_hash") private String identityHash;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private PersonnelStatus status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Id @Column(name = "ID_PRACT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_PRACT", nullable = false) private String code;
+    @Column(name = "NA_FULL", nullable = false) private String fullName;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_GENDER") private PractitionerGender gender;
+    @Column(name = "HASH_IDENT") private String identityHash;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected Practitioner() {
     }

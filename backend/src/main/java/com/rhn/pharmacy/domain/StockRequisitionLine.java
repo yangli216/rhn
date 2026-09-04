@@ -10,20 +10,20 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "stock_requisition_lines")
+@Table(name = "RHN_SUP_STOCK_REQ_LINE")
 public class StockRequisitionLine {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_requisition_id", nullable = false) private Long stockRequisitionId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "requested_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
-    @Column(name = "approved_quantity", precision = 28, scale = 8) private BigDecimal approvedQuantity;
-    @Column(name = "issued_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "line_status", nullable = false) private String lineStatus;
-    @Column private String description;
+    @Id @Column(name = "ID_STOCK_REQ_LINE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_REQ", nullable = false) private Long stockRequisitionId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_APPROVED", precision = 28, scale = 8) private BigDecimal approvedQuantity;
+    @Column(name = "QTY_ISSUED", nullable = false, precision = 28, scale = 8) private BigDecimal issuedQuantity;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;
+    @Column(name = "DES_STOCK_REQ_LINE") private String description;
 
     protected StockRequisitionLine() {}
 

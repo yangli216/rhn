@@ -10,20 +10,20 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_shift_handoff_signatures")
+@Table(name = "RHN_VIS_INP_SHIFT_HANDOFF_SIGN")
 public class InpatientShiftHandoffSignature {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "handoff_id", nullable = false) private Long handoffId;
-    @Column(nullable = false) private String stage;
-    @Column(name = "signature_meaning", nullable = false) private String signatureMeaning;
-    @Column(name = "signer_subject_id", nullable = false) private Long signerSubjectId;
-    @Column(name = "signer_practitioner_id") private Long signerPractitionerId;
-    @Column(name = "signer_name", nullable = false) private String signerName;
-    @Column(name = "signed_at", nullable = false) private Instant signedAt;
-    @Column(name = "signature_evidence_id", nullable = false) private Long signatureEvidenceId;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "request_hash", nullable = false) private String requestHash;
+    @Id @Column(name = "ID_INP_SHIFT_HANDOFF_SIGN") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INP_SHIFT_HANDOFF", nullable = false) private Long handoffId;
+    @Column(name = "SD_STAGE", nullable = false) private String stage;
+    @Column(name = "SD_SIGN_MEANING", nullable = false) private String signatureMeaning;
+    @Column(name = "ID_SIGNER_SUBJECT", nullable = false) private Long signerSubjectId;
+    @Column(name = "ID_SIGNER_PRACT") private Long signerPractitionerId;
+    @Column(name = "NA_SIGNER", nullable = false) private String signerName;
+    @Column(name = "DT_SIGNED", nullable = false) private Instant signedAt;
+    @Column(name = "ID_CRYPTO_EVID_SIGN", nullable = false) private Long signatureEvidenceId;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "HASH_REQ", nullable = false) private String requestHash;
 
     protected InpatientShiftHandoffSignature() {
     }

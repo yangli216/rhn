@@ -12,25 +12,25 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "tenants")
+@Table(name = "RHN_SYS_TNT")
 public class Tenant {
     @Id
-    private Long id;
-    @Column(nullable = false)
+    @Column(name = "ID_TNT") private Long id;
+    @Column(name = "CD_TNT", nullable = false)
     private String code;
-    @Column(nullable = false)
+    @Column(name = "NA_TNT", nullable = false)
     private String name;
-    @Column(name = "timezone_code", nullable = false)
+    @Column(name = "CD_TIMEZONE", nullable = false)
     private String timezoneCode;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private FoundationStatus status;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
     @Version
-    @Column(name = "revision", nullable = false)
+    @Column(name = "REVISION", nullable = false)
     private long revision;
 
     protected Tenant() {

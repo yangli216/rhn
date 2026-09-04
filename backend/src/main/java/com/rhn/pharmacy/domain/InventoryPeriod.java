@@ -11,23 +11,23 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "inventory_periods")
+@Table(name = "RHN_SUP_INV_PERIOD")
 public class InventoryPeriod {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "previous_period_id") private Long previousPeriodId;
-    @Column(name = "closing_run_id") private Long closingRunId;
-    @Column(name = "period_code", nullable = false) private String periodCode;
-    @Column(name = "period_from", nullable = false) private LocalDate periodFrom;
-    @Column(name = "period_to", nullable = false) private LocalDate periodTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "closed_at") private Instant closedAt;
-    @Column(name = "closed_by") private Long closedBy;
-    @Column private String description;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_INV_PERIOD") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_INV_PERIOD_PREVIOUS") private Long previousPeriodId;
+    @Column(name = "ID_INV_PERIOD_CLOSE_RUN_CLOSE") private Long closingRunId;
+    @Column(name = "CD_PERIOD", nullable = false) private String periodCode;
+    @Column(name = "DA_PERIOD_FROM", nullable = false) private LocalDate periodFrom;
+    @Column(name = "DA_PERIOD_TO", nullable = false) private LocalDate periodTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
+    @Column(name = "ID_USER_CLOSED") private Long closedBy;
+    @Column(name = "DES_INV_PERIOD") private String description;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected InventoryPeriod() {}
 

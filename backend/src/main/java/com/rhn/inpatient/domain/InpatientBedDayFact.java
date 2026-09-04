@@ -10,18 +10,18 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "inpatient_bed_day_facts")
+@Table(name = "RHN_VIS_INP_BED_DAY_FACT")
 public class InpatientBedDayFact {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "location_history_id", nullable = false) private Long locationHistoryId;
-    @Column(name = "bed_location_id", nullable = false) private Long bedLocationId;
-    @Column(name = "business_date", nullable = false) private LocalDate businessDate;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_INP_BED_DAY_FACT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_ENC_LOC_HIST", nullable = false) private Long locationHistoryId;
+    @Column(name = "ID_BED_LOC", nullable = false) private Long bedLocationId;
+    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected InpatientBedDayFact() {
     }

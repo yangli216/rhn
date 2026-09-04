@@ -90,12 +90,12 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[1].eventType").value("INSPECTED"))
                 .andExpect(jsonPath("$[2].eventType").value("POSTED"));
 
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from inventory_transactions " +
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
                 "where source_type = 'GOODS_RECEIPT' and source_code = ?", Integer.class,
                 receipt.get("receiptNo").asText()));
-        assertEquals(24, jdbcTemplate.queryForObject("select sum(quantity_on_hand) from inventory_balances " +
+        assertEquals(24, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
                 "where stock_item_id = ?", Integer.class, Long.valueOf(fixture.item1Id())));
-        assertEquals(40, jdbcTemplate.queryForObject("select sum(quantity_on_hand) from inventory_balances " +
+        assertEquals(40, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
                 "where stock_item_id = ?", Integer.class, Long.valueOf(fixture.item2Id())));
         mockMvc.perform(get("/api/pharmacy/inventory/trace-codes").with(rhnWorkContext())
                         .param("stockSiteId", fixture.siteId()).param("query", "TRACE-B"))
@@ -157,14 +157,14 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 List.of("TRACE-R1-" + fixture.suffix(), "TRACE-R2-" + fixture.suffix()),
                 receipt.at("/lines/1/id").asText(), List.of("TRACE-R3-" + fixture.suffix(),
                         "TRACE-R4-" + fixture.suffix(), "TRACE-R5-" + fixture.suffix()));
-        jdbcTemplate.update("update stock_bins set receive_allowed = false where id = ?", Long.valueOf(fixture.bin2Id()));
+        jdbcTemplate.update("update RHN_SUP_STOCK_BIN set FG_RECEIVE = false where ID_STOCK_BIN = ?", Long.valueOf(fixture.bin2Id()));
 
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId).with(rhnWorkContext()))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STOCK_BIN_NOT_RECEIVABLE"));
-        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from inventory_transactions " +
+        assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
                 "where source_type = 'GOODS_RECEIPT' and source_code = ?", Integer.class,
                 receipt.get("receiptNo").asText()));
-        assertEquals("ACCEPTED", jdbcTemplate.queryForObject("select status from goods_receipts where id = ?",
+        assertEquals("ACCEPTED", jdbcTemplate.queryForObject("select SD_STATUS as status from RHN_SUP_GOOD_RCPT where ID_GOOD_RCPT = ?",
                 String.class, Long.valueOf(receiptId)));
     }
 

@@ -209,25 +209,25 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.diagnoses.length()").value(1))
                 .andExpect(jsonPath("$.diagnoses[0].display").value("社区获得性肺炎"));
         org.junit.jupiter.api.Assertions.assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_diagnoses where encounter_id = (select id from encounters where episode_id=?) and diagnosis_stage='DISCHARGE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_diagnoses where encounter_id = (select id from encounters where episode_id=?) and diagnosis_stage='DISCHARGE' and diagnosis_status='ACTIVE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE' and SD_DIAG_STATUS='ACTIVE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(4, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_diagnosis_revisions where encounter_id = "
-                        + "(select id from encounters where episode_id=?) and diagnosis_stage='DISCHARGE'",
+                "select count(*) from RHN_VIS_ENC_DIAG_REV where ID_ENC = "
+                        + "(select ID_ENC as id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and diagnosis_stage='DISCHARGE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_diagnoses where encounter_id = (select id from encounters where episode_id=?) and diagnosis_stage='ADMISSION' and diagnosis_status='ACTIVE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='ADMISSION' and SD_DIAG_STATUS='ACTIVE'",
                 Integer.class, Long.valueOf(episodeId)));
     }
 
     private void recordAdmissionDiagnosis(String encounterId) {
         jdbcTemplate.update("""
-                insert into encounter_diagnoses (
-                    id, tenant_id, encounter_id, diagnosis_stage, code, display, diagnosis_type, recorded_at,
-                    revision, business_version_no, verification_status, diagnosis_status, updated_at
+                insert into RHN_VIS_ENC_DIAG (
+                    ID_ENC_DIAG, ID_TNT, ID_ENC, SD_DIAG_STAGE, CD_ENC_DIAG, NA_DISPLAY, SD_DIAG_TYPE, DT_RECORDED,
+                    REVISION, CD_BUSINESS_VER_NO, SD_VERIFICATION_STATUS, SD_DIAG_STATUS, DT_UPDATED
                 ) values (?, ?, ?, 'ADMISSION', 'R05.900', '咳嗽', 'PRIMARY', current_timestamp,
                     0, 1, 'CONFIRMED', 'ACTIVE', current_timestamp)
                 """, com.rhn.shared.id.GlobalIds.next(), Long.valueOf(TENANT), Long.valueOf(encounterId));

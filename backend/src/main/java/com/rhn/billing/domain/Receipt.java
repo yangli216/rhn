@@ -12,35 +12,35 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "receipts")
+@Table(name = "RHN_BIL_RCPT")
 public class Receipt {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(name = "reverses_receipt_id") private Long reversesReceiptId;
-    @Column(name = "receipt_no", nullable = false) private String receiptNo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "receipt_type", nullable = false) private String receiptType;
-    @Column(nullable = false) private String status;
-    @Column(name = "fiscal_authority_code") private String fiscalAuthorityCode;
-    @Column(name = "external_receipt_no") private String externalReceiptNo;
-    @Column(name = "fiscal_code") private String fiscalCode;
-    @Column(name = "fiscal_number") private String fiscalNumber;
-    @Column(name = "verification_code") private String verificationCode;
-    @Column(name = "controlled_object_reference") private String controlledObjectReference;
-    @Column(name = "receipt_amount", nullable = false, precision = 24, scale = 6) private BigDecimal receiptAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "issue_channel", nullable = false) private String issueChannel;
-    @Column(name = "payer_name_snapshot") private String payerNameSnapshot;
-    @Column(name = "payer_identity_digest") private String payerIdentityDigest;
-    @Column(name = "correlation_id") private String correlationId;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "issued_at") private Instant issuedAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
+    @Id @Column(name = "ID_RCPT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "ID_RCPT_REVERSES") private Long reversesReceiptId;
+    @Column(name = "CD_RCPT_NO", nullable = false) private String receiptNo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "SD_RCPT_TYPE", nullable = false) private String receiptType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_FISCAL_AUTHORITY") private String fiscalAuthorityCode;
+    @Column(name = "CD_EXT_RCPT_NO") private String externalReceiptNo;
+    @Column(name = "CD_FISCAL") private String fiscalCode;
+    @Column(name = "CD_FISCAL_NUMBER") private String fiscalNumber;
+    @Column(name = "CD_VERIFICATION") private String verificationCode;
+    @Column(name = "CONTROLLED_OBJECT_REFERENCE") private String controlledObjectReference;
+    @Column(name = "AMT_RCPT", nullable = false, precision = 24, scale = 6) private BigDecimal receiptAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "SD_ISSUE_CHANNEL", nullable = false) private String issueChannel;
+    @Column(name = "NA_PAYER_SNAP") private String payerNameSnapshot;
+    @Column(name = "HASH_PAYER_IDENTITY") private String payerIdentityDigest;
+    @Column(name = "ID_CORRELATION") private String correlationId;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_ISSUED") private Instant issuedAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
 
     protected Receipt() {}
 

@@ -9,17 +9,17 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "item_group_members")
+@Table(name = "RHN_BD_ITEM_GRP_MEMBER")
 public class ItemGroupMember {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "item_group_id", nullable = false) private Long itemGroupId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private BigDecimal quantity;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(name = "required_member", nullable = false) private boolean requiredMember;
-    @Column(name = "member_description") private String memberDescription;
+    @Id @Column(name = "ID_ITEM_GRP_MEMBER") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_GRP", nullable = false) private Long itemGroupId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "QTY_MEMBER", nullable = false) private BigDecimal quantity;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "FG_REQUIRED_MEMBER", nullable = false) private boolean requiredMember;
+    @Column(name = "DES_MEMBER_DESCRIPTION") private String memberDescription;
 
     protected ItemGroupMember() {}
 

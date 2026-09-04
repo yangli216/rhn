@@ -10,21 +10,21 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "unit_definitions")
+@Table(name = "RHN_BD_UNIT_DEF")
 public class UnitDefinition {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    private String symbol;
-    @Column(nullable = false) private String dimension;
-    @Column(name = "decimal_scale", nullable = false) private int decimalScale;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_UNIT_DEF") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_UNIT_DEF", nullable = false) private String code;
+    @Column(name = "NA_UNIT_DEF", nullable = false) private String name;
+    @Column(name = "SYMBOL") private String symbol;
+    @Column(name = "DIMENSION", nullable = false) private String dimension;
+    @Column(name = "DECIMAL_SCALE", nullable = false) private int decimalScale;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected UnitDefinition() {}
 

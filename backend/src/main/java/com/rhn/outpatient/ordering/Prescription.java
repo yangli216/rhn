@@ -12,27 +12,27 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "request_groups")
+@Table(name = "RHN_EX_REQ_GRP")
 class Prescription {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "group_no", nullable = false) private String groupNo;
-    @Column(name = "group_type", nullable = false) private String groupType;
-    @Column(name = "category_code") private String categoryCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "performer_organization_id", nullable = false) private Long performerOrganizationId;
-    @Column(name = "performer_department_id", nullable = false) private Long performerDepartmentId;
-    @Column(name = "authored_at", nullable = false) private Instant authoredAt;
-    @Column(name = "authored_by", nullable = false) private Long authoredBy;
-    @Column(name = "submitted_at") private Instant submittedAt;
-    @Column(name = "submitted_by") private Long submittedBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
-    private String note;
+    @Id @Column(name = "ID_REQ_GRP") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "CD_GRP_NO", nullable = false) private String groupNo;
+    @Column(name = "SD_GRP_TYPE", nullable = false) private String groupType;
+    @Column(name = "CD_CAT") private String categoryCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
+    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
+    @Column(name = "DES_NOTE") private String note;
 
     protected Prescription() {}
 

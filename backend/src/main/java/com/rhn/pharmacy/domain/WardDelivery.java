@@ -12,31 +12,31 @@ import java.time.Instant;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Entity
-@Table(name = "ward_deliveries")
+@Table(name = "RHN_SUP_WARD_DELIV")
 public class WardDelivery {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "nursing_unit_department_id", nullable = false) private Long nursingUnitDepartmentId;
-    @Column(name = "delivery_no", nullable = false) private String deliveryNo;
-    @Column(nullable = false) private String status;
-    @Column(name = "stock_site_name_snapshot", nullable = false) private String stockSiteNameSnapshot;
-    @Column(name = "nursing_unit_name_snapshot", nullable = false) private String nursingUnitNameSnapshot;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "dispatched_at") private Instant dispatchedAt;
-    @Column(name = "dispatched_by") private Long dispatchedBy;
-    @Column(name = "dispatch_note") private String dispatchNote;
-    @Column(name = "received_at") private Instant receivedAt;
-    @Column(name = "received_by") private Long receivedBy;
-    @Column(name = "receipt_note") private String receiptNote;
-    @Column(name = "discrepancy_note") private String discrepancyNote;
-    @Column(name = "resolved_at") private Instant resolvedAt;
-    @Column(name = "resolved_by") private Long resolvedBy;
-    @Column(name = "resolution_code") private String resolutionCode;
-    @Column(name = "resolution_note") private String resolutionNote;
+    @Id @Column(name = "ID_WARD_DELIV") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
+    @Column(name = "CD_DELIV_NO", nullable = false) private String deliveryNo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "NA_STOCK_SITE_SNAP", nullable = false) private String stockSiteNameSnapshot;
+    @Column(name = "NA_NURS_UNIT_SNAP", nullable = false) private String nursingUnitNameSnapshot;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_DISPATCHED") private Instant dispatchedAt;
+    @Column(name = "ID_USER_DISPATCHED") private Long dispatchedBy;
+    @Column(name = "DES_DISPATCH_NOTE") private String dispatchNote;
+    @Column(name = "DT_RECEIVED") private Instant receivedAt;
+    @Column(name = "ID_USER_RECEIVED") private Long receivedBy;
+    @Column(name = "DES_RCPT_NOTE") private String receiptNote;
+    @Column(name = "DES_DISCREPANCY_NOTE") private String discrepancyNote;
+    @Column(name = "DT_RESOLVED") private Instant resolvedAt;
+    @Column(name = "ID_USER_RESOLVED") private Long resolvedBy;
+    @Column(name = "CD_RESOLUTION") private String resolutionCode;
+    @Column(name = "DES_RESOLUTION_NOTE") private String resolutionNote;
 
     protected WardDelivery() {}
 

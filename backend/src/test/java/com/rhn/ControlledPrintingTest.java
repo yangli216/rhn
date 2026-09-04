@@ -134,9 +134,9 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[0].scope").value("PLATFORM"));
-        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from print_jobs where tenant_id = ?", Integer.class,
+        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_JOB where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
-        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from print_outputs where tenant_id = ?", Integer.class,
+        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
     }
 

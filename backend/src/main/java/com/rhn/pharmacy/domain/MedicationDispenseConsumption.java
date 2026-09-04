@@ -11,25 +11,25 @@ import java.time.Instant;
 
 /** Immutable allocation of one pharmacy issue line to a downstream medication administration fact. */
 @Entity
-@Table(name = "inpatient_med_consumptions")
+@Table(name = "RHN_SUP_INP_MED_CONSUME")
 public class MedicationDispenseConsumption {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "consumer_type", nullable = false) private String consumerType;
-    @Column(name = "order_task_id", nullable = false) private Long consumerId;
-    @Column(name = "dispense_task_line_id", nullable = false) private Long dispenseTaskLineId;
-    @Column(name = "dispense_id", nullable = false) private Long dispenseId;
-    @Column(name = "dispense_line_id", nullable = false) private Long dispenseLineId;
-    @Column(name = "consumed_quantity", nullable = false, precision = 28, scale = 8)
+    @Id @Column(name = "ID_INP_MED_CONSUME") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "SD_CONSUMER_TYPE", nullable = false) private String consumerType;
+    @Column(name = "ID_INP_ORDER_TASK", nullable = false) private Long consumerId;
+    @Column(name = "ID_DISP_TASK_LINE_DISP", nullable = false) private Long dispenseTaskLineId;
+    @Column(name = "ID_MED_DISP", nullable = false) private Long dispenseId;
+    @Column(name = "ID_MED_DISP_LINE", nullable = false) private Long dispenseLineId;
+    @Column(name = "QTY_CONSUMED", nullable = false, precision = 28, scale = 8)
     private BigDecimal consumedQuantity;
-    @Column(name = "dispense_unit_code", nullable = false) private String dispenseUnitCode;
-    @Column(name = "consumed_base_quantity", nullable = false, precision = 28, scale = 8)
+    @Column(name = "CD_DISP_UNIT", nullable = false) private String dispenseUnitCode;
+    @Column(name = "QTY_CONSUMED_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal consumedBaseQuantity;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "consumed_at", nullable = false) private Instant consumedAt;
-    @Column(name = "consumed_by", nullable = false) private Long consumedBy;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_CONSUMED", nullable = false) private Instant consumedAt;
+    @Column(name = "ID_USER_CONSUMED", nullable = false) private Long consumedBy;
 
     protected MedicationDispenseConsumption() {
     }

@@ -12,22 +12,22 @@ import java.time.Duration;
 import java.time.Instant;
 
 @Entity
-@Table(name = "idempotency_records")
+@Table(name = "RHN_INT_IDEMP_RECORD")
 class IdempotencyRecord {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "operation_code", nullable = false) private String operationCode;
-    @Column(name = "idempotency_key", nullable = false) private String idempotencyKey;
-    @Column(name = "request_hash", nullable = false) private String requestHash;
-    @Column(name = "resource_type") private String resourceType;
-    @Column(name = "resource_id") private Long resourceId;
-    @Column(nullable = false) private String status;
-    @Column(name = "response_status") private Integer responseStatus;
+    @Id @Column(name = "ID_IDEMP_RECORD") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_OPERATION", nullable = false) private String operationCode;
+    @Column(name = "CD_IDEMP_KEY", nullable = false) private String idempotencyKey;
+    @Column(name = "HASH_REQ", nullable = false) private String requestHash;
+    @Column(name = "SD_RSRC_TYPE") private String resourceType;
+    @Column(name = "ID_RSRC") private Long resourceId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_RESP_STATUS") private Integer responseStatus;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "response_json") private String responseJson;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "expires_at", nullable = false) private Instant expiresAt;
+    @Column(name = "JSON_RESP") private String responseJson;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
 
     protected IdempotencyRecord() {
     }

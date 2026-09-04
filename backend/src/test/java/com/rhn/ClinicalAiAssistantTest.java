@@ -60,14 +60,14 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         String contextHash = suggestion.get("contextHash").asText();
 
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from ai_suggestions where tenant_id=? and id=? and encounter_id=? and status='GENERATED'",
+                "select count(*) from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=? and ID_ENC=? and SD_STATUS='GENERATED'",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(suggestionId), Long.valueOf(encounterId)));
         assertEquals(1, eventCount(suggestionId));
         assertEquals(1, eventCount(suggestionId, "GENERATED"));
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "生成建议不得写入诊断");
         assertEquals(clinicalBaseline, clinicalCounts(encounterId), "生成建议不得写入主要临床表");
         String evidence = jdbcTemplate.queryForObject(
-                "select evidence_json from ai_suggestions where tenant_id=? and id=?",
+                "select JSON_EVID as evidence_json from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=?",
                 String.class, Long.valueOf(TENANT), Long.valueOf(suggestionId));
         assertTrue(evidence.contains("presentInputFields"));
         assertTrue(evidence.contains("serverContextHash"));
@@ -95,7 +95,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "查看建议不得写入诊断");
 
         Long residentId = jdbcTemplate.queryForObject(
-                "select resident_id from encounters where tenant_id=? and id=?",
+                "select ID_PAT as resident_id from RHN_VIS_ENC where ID_TNT=? and ID_ENC=?",
                 Long.class, Long.valueOf(TENANT), Long.valueOf(encounterId));
         mockMvc.perform(post("/api/clinical-documents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -129,7 +129,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
             Thread.onSpinWait();
         }
         assertEquals(1, jdbcTemplate.update(
-                "update ai_suggestions set expires_at=? where tenant_id=? and id=?",
+                "update RHN_AI_SUGGEST set DT_EXPIRES=? where ID_TNT=? and ID_AI_SUGGEST=?",
                 expiredAt, Long.valueOf(TENANT), Long.valueOf(suggestionId)));
 
         mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", suggestionId)
@@ -142,12 +142,12 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("AI_SUGGESTION_EXPIRED"));
         assertEquals("EXPIRED", jdbcTemplate.queryForObject(
-                "select status from ai_suggestions where tenant_id=? and id=?",
+                "select SD_STATUS as status from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=?",
                 String.class, Long.valueOf(TENANT), Long.valueOf(suggestionId)));
         assertEquals(1, eventCount(suggestionId, "EXPIRED"));
         assertEquals(0, eventCount(suggestionId, "ADOPTED"));
         assertEquals("GENERATED->EXPIRED", jdbcTemplate.queryForObject(
-                "select status_from || '->' || status_to from ai_suggestion_events "
+                "select SD_STATUS_FROM || '->' || SD_STATUS_TO from RHN_AI_SUGGEST_EVT "
                         + "where tenant_id=? and suggestion_id=? and event_type='EXPIRED'",
                 String.class, Long.valueOf(TENANT), Long.valueOf(suggestionId)));
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "过期建议不得被采纳为诊断");
@@ -168,7 +168,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("AI_SUGGESTION_CONTEXT_CHANGED"));
         assertEquals(freshEventBaseline, eventCount(freshSuggestionId), "错误上下文不得新增审计事件");
         assertEquals("GENERATED", jdbcTemplate.queryForObject(
-                "select status from ai_suggestions where tenant_id=? and id=?",
+                "select SD_STATUS as status from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=?",
                 String.class, Long.valueOf(TENANT), Long.valueOf(freshSuggestionId)));
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "错误事件不得写入诊断");
 
@@ -195,7 +195,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "采纳 AI 建议事件不得直接写入诊断");
 
         assertEquals(1, jdbcTemplate.update(
-                "update ai_suggestions set expires_at=? where tenant_id=? and id=?",
+                "update RHN_AI_SUGGEST set DT_EXPIRES=? where ID_TNT=? and ID_AI_SUGGEST=?",
                 Instant.parse(freshSuggestion.get("generatedAt").asText()).plusMillis(10),
                 Long.valueOf(TENANT), Long.valueOf(freshSuggestionId)));
         mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", freshSuggestionId)
@@ -311,25 +311,25 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
 
     private int diagnosisCount(String encounterId) {
         return jdbcTemplate.queryForObject(
-                "select count(*) from encounter_diagnoses where tenant_id=? and encounter_id=?",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_TNT=? and ID_ENC=?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(encounterId));
     }
 
     private int eventCount(String suggestionId) {
         return jdbcTemplate.queryForObject(
-                "select count(*) from ai_suggestion_events where tenant_id=? and suggestion_id=?",
+                "select count(*) from RHN_AI_SUGGEST_EVT where ID_TNT=? and ID_AI_SUGGEST=?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(suggestionId));
     }
 
     private int eventCount(String suggestionId, String eventType) {
         return jdbcTemplate.queryForObject(
-                "select count(*) from ai_suggestion_events where tenant_id=? and suggestion_id=? and event_type=?",
+                "select count(*) from RHN_AI_SUGGEST_EVT where ID_TNT=? and ID_AI_SUGGEST=? and SD_EVT_TYPE=?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(suggestionId), eventType);
     }
 
     private String suggestionStatus(String suggestionId) {
         return jdbcTemplate.queryForObject(
-                "select status from ai_suggestions where tenant_id=? and id=?",
+                "select SD_STATUS as status from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=?",
                 String.class, Long.valueOf(TENANT), Long.valueOf(suggestionId));
     }
 
@@ -337,20 +337,20 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         Long tenantId = Long.valueOf(TENANT);
         Long id = Long.valueOf(encounterId);
         return new ClinicalCounts(
-                jdbcTemplate.queryForObject("select count(*) from encounter_diagnoses where tenant_id=? and encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_DIAG where ID_TNT=? and ID_ENC=?",
                         Integer.class, tenantId, id),
-                jdbcTemplate.queryForObject("select count(*) from clinical_documents where tenant_id=? and encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_VIS_CLIN_DOC where ID_TNT=? and ID_ENC=?",
                         Integer.class, tenantId, id),
-                jdbcTemplate.queryForObject("select count(*) from clinical_document_versions v join clinical_documents d "
-                                + "on d.tenant_id=v.tenant_id and d.id=v.document_id where d.tenant_id=? and d.encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_VIS_CLIN_DOC_VER v join RHN_VIS_CLIN_DOC d "
+                                + "on d.ID_TNT=v.ID_TNT and d.ID_CLIN_DOC=v.ID_CLIN_DOC where d.ID_TNT=? and d.ID_ENC=?",
                         Integer.class, tenantId, id),
-                jdbcTemplate.queryForObject("select count(*) from request_groups where tenant_id=? and encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_EX_REQ_GRP where ID_TNT=? and ID_ENC=?",
                         Integer.class, tenantId, id),
-                jdbcTemplate.queryForObject("select count(*) from medication_requests m join care_requests c "
-                                + "on c.tenant_id=m.tenant_id and c.id=m.request_id where c.tenant_id=? and c.encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_EX_MED_REQ m join RHN_EX_CARE_REQ c "
+                                + "on c.ID_TNT=m.ID_TNT and c.ID_CARE_REQ=m.ID_CARE_REQ where c.ID_TNT=? and c.ID_ENC=?",
                         Integer.class, tenantId, id),
-                jdbcTemplate.queryForObject("select count(*) from service_requests s join care_requests c "
-                                + "on c.tenant_id=s.tenant_id and c.id=s.request_id where c.tenant_id=? and c.encounter_id=?",
+                jdbcTemplate.queryForObject("select count(*) from RHN_EX_SVC_REQ s join RHN_EX_CARE_REQ c "
+                                + "on c.ID_TNT=s.ID_TNT and c.ID_CARE_REQ=s.ID_CARE_REQ where c.ID_TNT=? and c.ID_ENC=?",
                         Integer.class, tenantId, id));
     }
 

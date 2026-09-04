@@ -9,15 +9,15 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "cashier_close_items")
+@Table(name = "RHN_BIL_CASHIER_CLOSE_ITEM")
 public class CashierCloseItem {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "cashier_close_id", nullable = false) private Long cashierCloseId;
-    @Column(name = "payment_id", nullable = false) private Long paymentId;
-    @Column(name = "item_no", nullable = false) private int itemNo;
-    @Column(name = "item_amount", nullable = false, precision = 24, scale = 6) private BigDecimal itemAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
+    @Id @Column(name = "ID_CASHIER_CLOSE_ITEM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CASHIER_CLOSE", nullable = false) private Long cashierCloseId;
+    @Column(name = "ID_PAY", nullable = false) private Long paymentId;
+    @Column(name = "CD_ITEM_NO", nullable = false) private int itemNo;
+    @Column(name = "AMT_ITEM", nullable = false, precision = 24, scale = 6) private BigDecimal itemAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
 
     protected CashierCloseItem() {}
     public CashierCloseItem(Long tenantId, Long cashierCloseId, Long paymentId, int itemNo,

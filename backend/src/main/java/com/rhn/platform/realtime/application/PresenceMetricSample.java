@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "presence_metric_samples")
+@Table(name = "RHN_ANL_PRES_METRIC_SAMPLE")
 class PresenceMetricSample {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "scope_key", nullable = false) private String scopeKey;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "bucket_at", nullable = false) private Instant bucketAt;
-    @Column(name = "online_users", nullable = false) private long onlineUsers;
-    @Column(name = "active_users", nullable = false) private long activeUsers;
-    @Column(name = "online_contexts", nullable = false) private long onlineContexts;
-    @Column(nullable = false) private long connections;
-    @Column(nullable = false) private long instances;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Id @Column(name = "ID_PRES_METRIC_SAMPLE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "CD_SCOPE_KEY", nullable = false) private String scopeKey;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "DT_BUCKET", nullable = false) private Instant bucketAt;
+    @Column(name = "QTY_ONLINE_USER", nullable = false) private long onlineUsers;
+    @Column(name = "QTY_ACTIVE_USER", nullable = false) private long activeUsers;
+    @Column(name = "QTY_ONLINE_CONTEXTS", nullable = false) private long onlineContexts;
+    @Column(name = "QTY_CONNECTIONS", nullable = false) private long connections;
+    @Column(name = "QTY_INSTANCES", nullable = false) private long instances;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected PresenceMetricSample() {}
 

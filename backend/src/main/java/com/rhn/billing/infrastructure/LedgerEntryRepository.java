@@ -20,15 +20,13 @@ public interface LedgerEntryRepository extends JpaRepository<LedgerEntry, Long> 
     List<LedgerEntry> findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(Long tenantId, Long accountId);
 
     @Query("""
-            select coalesce(sum(case when e.direction = 'DEBIT' then e.amount else -e.amount end), 0)
-              from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId = :accountId
+            select coalesce(sum(case when e.direction = 'DEBIT' then e.amount else -e.amount end), 0) from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId = :accountId
             """)
     BigDecimal balance(@Param("tenantId") Long tenantId, @Param("accountId") Long accountId);
 
     @Query("""
             select e.patientAccountId as accountId,
-                   coalesce(sum(case when e.direction = 'DEBIT' then e.amount else -e.amount end), 0) as balance
-              from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId in :accountIds
+                   coalesce(sum(case when e.direction = 'DEBIT' then e.amount else -e.amount end), 0) as balance from LedgerEntry e where e.tenantId = :tenantId and e.patientAccountId in :accountIds
              group by e.patientAccountId
             """)
     List<AccountBalance> balances(@Param("tenantId") Long tenantId,

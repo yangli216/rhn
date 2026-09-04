@@ -9,19 +9,19 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "settlement_tenders")
+@Table(name = "RHN_BIL_STL_TENDER")
 public class SettlementTender {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(name = "payment_id") private Long paymentId;
-    @Column(name = "claim_response_id") private Long claimResponseId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "tender_type", nullable = false) private String tenderType;
-    @Column(name = "payer_code") private String payerCode;
-    @Column(name = "payer_name_snapshot") private String payerNameSnapshot;
-    @Column(name = "tender_amount", nullable = false, precision = 24, scale = 6) private BigDecimal tenderAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
+    @Id @Column(name = "ID_STL_TENDER") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "ID_PAY") private Long paymentId;
+    @Column(name = "ID_CLAIM_RESP") private Long claimResponseId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "SD_TENDER_TYPE", nullable = false) private String tenderType;
+    @Column(name = "CD_PAYER") private String payerCode;
+    @Column(name = "NA_PAYER_SNAP") private String payerNameSnapshot;
+    @Column(name = "AMT_TENDER", nullable = false, precision = 24, scale = 6) private BigDecimal tenderAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
 
     protected SettlementTender() {}
     public SettlementTender(Long tenantId, Long settlementId, Long paymentId, int lineNo,

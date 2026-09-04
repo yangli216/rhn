@@ -12,26 +12,26 @@ import java.time.LocalDate;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_attribute_overrides")
+@Table(name = "RHN_BD_ITEM_ATTR_OVRD")
 public class ItemAttributeOverride {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "attribute_subject_id", nullable = false) private Long attributeSubjectId;
-    @Column(name = "attribute_definition_id", nullable = false) private Long attributeDefinitionId;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "scope_key", nullable = false) private String scopeKey;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "value_mode", nullable = false) private String valueMode;
-    @Lob @Column(name = "value_json") private String valueJson;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ITEM_ATTR_OVRD") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_ATTR_SUBJECT", nullable = false) private Long attributeSubjectId;
+    @Column(name = "ID_ITEM_ATTR_DEF", nullable = false) private Long attributeDefinitionId;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "CD_SCOPE_KEY", nullable = false) private String scopeKey;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "SD_VAL_MODE", nullable = false) private String valueMode;
+    @Lob @Column(name = "JSON_VAL") private String valueJson;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ItemAttributeOverride() {}
 

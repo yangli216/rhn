@@ -10,16 +10,16 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_observations")
+@Table(name = "RHN_VIS_INP_OBS")
 public class InpatientObservation {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "observation_group_id", nullable = false) private Long observationGroupId;
-    @Column(name = "observation_code", nullable = false) private String observationCode;
-    @Column(name = "observed_at", nullable = false) private Instant observedAt;
-    @Column(name = "value_number", nullable = false) private BigDecimal valueNumber;
-    @Column(name = "unit_code", nullable = false) private String unitCode;
-    @Column(name = "body_site_code") private String bodySiteCode;
+    @Id @Column(name = "ID_INP_OBS") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INP_OBS_GRP", nullable = false) private Long observationGroupId;
+    @Column(name = "CD_OBS", nullable = false) private String observationCode;
+    @Column(name = "DT_OBSERVED", nullable = false) private Instant observedAt;
+    @Column(name = "CD_VAL_NUMBER", nullable = false) private BigDecimal valueNumber;
+    @Column(name = "CD_UNIT", nullable = false) private String unitCode;
+    @Column(name = "CD_BODY_SITE") private String bodySiteCode;
 
     protected InpatientObservation() {
     }

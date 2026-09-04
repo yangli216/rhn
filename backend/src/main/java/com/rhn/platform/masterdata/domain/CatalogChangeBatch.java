@@ -11,25 +11,25 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "catalog_change_batches")
+@Table(name = "RHN_BD_CATALOG_CHG_BATCH")
 public class CatalogChangeBatch {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "batch_type", nullable = false) private String batchType;
-    @Column(name = "operation_type", nullable = false) private String operationType;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(name = "request_hash", nullable = false) private String requestHash;
-    @Column(name = "business_date", nullable = false) private LocalDate businessDate;
-    @Column(nullable = false) private String status;
-    @Column(name = "total_rows", nullable = false) private int totalRows;
-    @Column(name = "succeeded_rows", nullable = false) private int succeededRows;
-    @Column(name = "failed_rows", nullable = false) private int failedRows;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_CHG_BATCH") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_BATCH_TYPE", nullable = false) private String batchType;
+    @Column(name = "SD_OPERATION_TYPE", nullable = false) private String operationType;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "HASH_REQ", nullable = false) private String requestHash;
+    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
+    @Column(name = "QTY_SUCCEEDED_ROW", nullable = false) private int succeededRows;
+    @Column(name = "QTY_FAILED_ROW", nullable = false) private int failedRows;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected CatalogChangeBatch() {}
 

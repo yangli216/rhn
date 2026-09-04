@@ -11,25 +11,25 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "item_groups")
+@Table(name = "RHN_BD_ITEM_GRP")
 public class ItemGroup {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "execution_department_id") private Long executionDepartmentId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "group_type", nullable = false) private String groupType;
-    @Column(name = "usage_type") private String usageType;
-    @Column(name = "point_of_care", nullable = false) private boolean pointOfCare;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ITEM_GRP") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT_EXEC") private Long executionDepartmentId;
+    @Column(name = "CD_ITEM_GRP", nullable = false) private String code;
+    @Column(name = "NA_ITEM_GRP", nullable = false) private String name;
+    @Column(name = "SD_GRP_TYPE", nullable = false) private String groupType;
+    @Column(name = "SD_USAGE_TYPE") private String usageType;
+    @Column(name = "FG_POINT_OF_CARE", nullable = false) private boolean pointOfCare;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ItemGroup() {}
 

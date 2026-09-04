@@ -10,21 +10,21 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "schedule_slot_holds")
+@Table(name = "RHN_SC_SCHED_SLOT_HOLD")
 class ScheduleSlotHold {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "slot_pool_id", nullable = false) private Long slotPoolId;
-    @Column(name = "schedule_id", nullable = false) private Long scheduleId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(nullable = false) private int quantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "expires_at", nullable = false) private Instant expiresAt;
-    @Column(name = "closed_at") private Instant closedAt;
-    @Column(name = "consumed_registration_id") private Long consumedRegistrationId;
+    @Id @Column(name = "ID_SCHED_SLOT_HOLD") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SCHED_SLOT_POOL", nullable = false) private Long slotPoolId;
+    @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "QTY_HELD", nullable = false) private int quantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
+    @Column(name = "ID_PAT_REG_CONSUMED") private Long consumedRegistrationId;
 
     protected ScheduleSlotHold() {}
 

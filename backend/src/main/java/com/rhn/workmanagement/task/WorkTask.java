@@ -13,34 +13,34 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "work_tasks")
+@Table(name = "RHN_SYS_WORK_TASK")
 public class WorkTask {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "task_type", nullable = false) private String taskType;
-    @Column(nullable = false) private String title;
-    private String summary;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private TaskPriority priority;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private TaskStatus status;
-    @Enumerated(EnumType.STRING) @Column(name = "assignee_type", nullable = false) private AssigneeType assigneeType;
-    @Column(name = "assignee_id") private Long assigneeId;
-    @Column(name = "resident_id") private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_id", nullable = false) private Long sourceId;
-    @Column(name = "route_path") private String routePath;
-    @Column(name = "dedup_key", nullable = false) private String dedupKey;
-    @Column(name = "due_at") private Instant dueAt;
-    @Column(name = "claimed_by") private Long claimedBy;
-    @Column(name = "claimed_at") private Instant claimedAt;
-    @Column(name = "completed_by") private Long completedBy;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Version @Column(nullable = false) private long revision;
+    @Id @Column(name = "ID_WORK_TASK") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
+    @Column(name = "NA_TITLE", nullable = false) private String title;
+    @Column(name = "DES_SUM") private String summary;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_PRIORITY", nullable = false) private TaskPriority priority;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private TaskStatus status;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_ASSIGNEE_TYPE", nullable = false) private AssigneeType assigneeType;
+    @Column(name = "ID_USER_ASSIGNEE") private Long assigneeId;
+    @Column(name = "ID_PAT") private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "ID_SRC", nullable = false) private Long sourceId;
+    @Column(name = "ROUTE_PATH") private String routePath;
+    @Column(name = "CD_DEDUP_KEY", nullable = false) private String dedupKey;
+    @Column(name = "DT_DUE") private Instant dueAt;
+    @Column(name = "ID_USER_CLAIMED") private Long claimedBy;
+    @Column(name = "DT_CLAIMED") private Instant claimedAt;
+    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected WorkTask() {
     }

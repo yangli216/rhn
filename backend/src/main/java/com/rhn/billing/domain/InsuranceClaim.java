@@ -12,44 +12,44 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "insurance_claims")
+@Table(name = "RHN_INS_CLAIM")
 public class InsuranceClaim {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "coverage_id", nullable = false) private Long coverageId;
-    @Column(name = "claim_no", nullable = false) private String claimNo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "claim_type", nullable = false) private String claimType;
-    @Column(nullable = false) private String status;
-    @Column(name = "current_operation", nullable = false) private String currentOperation;
-    @Column(name = "region_code", nullable = false) private String regionCode;
-    @Column(name = "insurance_type_code", nullable = false) private String insuranceTypeCode;
-    @Column(name = "payer_name_snapshot", nullable = false) private String payerNameSnapshot;
-    @Column(name = "organization_code", nullable = false) private String organizationCode;
-    @Column(name = "department_code", nullable = false) private String departmentCode;
-    @Column(name = "practitioner_code", nullable = false) private String practitionerCode;
-    @Column(name = "diagnosis_payload_digest", nullable = false) private String diagnosisPayloadDigest;
-    @Column(name = "service_started_at", nullable = false) private Instant serviceStartedAt;
-    @Column(name = "service_ended_at") private Instant serviceEndedAt;
-    @Column(name = "external_pre_settlement_no") private String externalPreSettlementNo;
-    @Column(name = "external_settlement_no") private String externalSettlementNo;
-    @Column(name = "gross_amount", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "insurance_fund_amount", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
-    @Column(name = "personal_account_amount", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
-    @Column(name = "patient_cash_amount", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
-    @Column(name = "other_fund_amount", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "correlation_id") private String correlationId;
-    @Column(name = "reversal_reason") private String reversalReason;
-    @Column(name = "reversed_at") private Instant reversedAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
+    @Id @Column(name = "ID_INS_CLAIM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "ID_PAT_COVER", nullable = false) private Long coverageId;
+    @Column(name = "CD_CLAIM_NO", nullable = false) private String claimNo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "SD_CLAIM_TYPE", nullable = false) private String claimType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_CURRENT_OPERATION", nullable = false) private String currentOperation;
+    @Column(name = "CD_REGION", nullable = false) private String regionCode;
+    @Column(name = "CD_INS_TYPE", nullable = false) private String insuranceTypeCode;
+    @Column(name = "NA_PAYER_SNAP", nullable = false) private String payerNameSnapshot;
+    @Column(name = "CD_ORG", nullable = false) private String organizationCode;
+    @Column(name = "CD_DEPT", nullable = false) private String departmentCode;
+    @Column(name = "CD_PRACT", nullable = false) private String practitionerCode;
+    @Column(name = "HASH_DIAG_PAYLOAD", nullable = false) private String diagnosisPayloadDigest;
+    @Column(name = "DT_SVC_STARTED", nullable = false) private Instant serviceStartedAt;
+    @Column(name = "DT_SVC_ENDED") private Instant serviceEndedAt;
+    @Column(name = "CD_EXT_PRE_STL_NO") private String externalPreSettlementNo;
+    @Column(name = "CD_EXT_STL_NO") private String externalSettlementNo;
+    @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
+    @Column(name = "AMT_INS_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
+    @Column(name = "AMT_PERSONAL_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
+    @Column(name = "AMT_PAT_CASH", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
+    @Column(name = "AMT_OTHER_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "ID_CORRELATION") private String correlationId;
+    @Column(name = "DES_REVERSAL_REASON") private String reversalReason;
+    @Column(name = "DT_REVERSED") private Instant reversedAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
 
     protected InsuranceClaim() {}
 

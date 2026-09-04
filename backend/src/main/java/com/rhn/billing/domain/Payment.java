@@ -10,25 +10,25 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "payments")
+@Table(name = "RHN_BIL_PAY")
 public class Payment {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "invoice_id") private Long invoiceId;
-    @Column(name = "payment_order_id") private Long paymentOrderId;
-    @Column(name = "payment_no", nullable = false) private String paymentNo;
-    @Column(name = "payment_type", nullable = false) private String paymentType;
-    @Column(name = "payment_method_code", nullable = false) private String paymentMethodCode;
-    @Column(name = "payment_scene_code") private String paymentSceneCode;
-    @Column(nullable = false) private String status;
-    @Column(nullable = false, precision = 24, scale = 6) private BigDecimal amount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "paid_at", nullable = false) private Instant paidAt;
-    @Column(name = "external_transaction_no") private String externalTransactionNo;
-    @Column(name = "reverses_payment_id") private Long reversesPaymentId;
-    @Column(name = "entered_by", nullable = false) private Long enteredBy;
-    @Column private String description;
+    @Id @Column(name = "ID_PAY") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "ID_INVOICE") private Long invoiceId;
+    @Column(name = "ID_PAY_ORDER") private Long paymentOrderId;
+    @Column(name = "CD_PAY_NO", nullable = false) private String paymentNo;
+    @Column(name = "SD_PAY_TYPE", nullable = false) private String paymentType;
+    @Column(name = "CD_PAY_METHOD", nullable = false) private String paymentMethodCode;
+    @Column(name = "CD_PAY_SCENE") private String paymentSceneCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "AMT_PAYMENT", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "DT_PAID", nullable = false) private Instant paidAt;
+    @Column(name = "CD_EXT_TXN_NO") private String externalTransactionNo;
+    @Column(name = "ID_PAY_REVERSES") private Long reversesPaymentId;
+    @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
+    @Column(name = "DES_PAY") private String description;
 
     protected Payment() {}
 

@@ -57,8 +57,8 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
                 """);
 
         jdbc.update("""
-                update parameter_definitions set default_value_json = 'true'
-                 where parameter_key = 'pharmacy.inpatient-supply.auto-generation.enabled'
+                update RHN_SYS_PARAM_DEF set JSON_DEFAULT_VAL = 'true'
+                 where CD_PARAM_KEY = 'pharmacy.inpatient-supply.auto-generation.enabled'
                 """);
         configurationCache.invalidateAll();
 
@@ -66,55 +66,55 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
         scheduler.pollAt(discoveryTime);
 
         assertEquals("SUCCEEDED", jdbc.queryForObject("""
-                select status from inpatient_med_supply_gen_runs
-                 where job_key = ?
+                select SD_STATUS as status from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where CD_JOB_KEY = ?
                 """, String.class, DAY_JOB));
         assertEquals(discoveryTime, jdbc.queryForObject("""
-                select completed_at from inpatient_med_supply_gen_runs
-                 where job_key = ?
+                select DT_COMPLETED as completed_at from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where CD_JOB_KEY = ?
                 """, OffsetDateTime.class, DAY_JOB).toInstant());
         Long batchId = jdbc.queryForObject("""
-                select batch_id from inpatient_med_supply_gen_runs
-                 where job_key = ?
+                select ID_INP_MED_SUPPLY_BATCH as batch_id from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where CD_JOB_KEY = ?
                 """, Long.class, DAY_JOB);
         assertNotNull(batchId);
         assertEquals("AUTO", jdbc.queryForObject(
-                "select generation_trigger from inpatient_med_supply_batches where id = ?",
+                "select SD_GEN_TRIGGER from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?",
                 String.class, batchId));
         assertNull(jdbc.queryForObject(
-                "select created_by from inpatient_med_supply_batches where id = ?",
+                "select ID_USER_CREATED as created_by from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?",
                 Long.class, batchId));
         assertEquals("WESTERN", jdbc.queryForObject(
-                "select medication_type_snapshot from inpatient_med_supply_batches where id = ?",
+                "select SD_MED_TYPE_SNAP as medication_type_snapshot from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?",
                 String.class, batchId));
         assertNotNull(jdbc.queryForObject(
-                "select dispense_route_id from inpatient_med_supply_batches where id = ?",
+                "select ID_DISP_ROUTE as dispense_route_id from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?",
                 Long.class, batchId));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from inpatient_med_supply_lines where supply_batch_id = ?",
+                "select count(*) from RHN_SUP_INP_MED_SUPPLY_LINE where ID_INP_MED_SUPPLY_BATCH = ?",
                 Integer.class, batchId));
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from inpatient_med_supply_tasks t
-                 join inpatient_med_supply_lines l on l.tenant_id = t.tenant_id and l.id = t.supply_line_id
-                 where l.supply_batch_id = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_TASK t
+                 join RHN_SUP_INP_MED_SUPPLY_LINE l on l.ID_TNT = t.ID_TNT and l.ID_INP_MED_SUPPLY_LINE = t.ID_INP_MED_SUPPLY_LINE
+                 where l.ID_INP_MED_SUPPLY_BATCH = ?
                 """, Integer.class, batchId));
 
         scheduler.pollAt(discoveryTime);
         assertEquals(1, jdbc.queryForObject("""
-                select count(*) from inpatient_med_supply_gen_runs
-                 where job_key = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where CD_JOB_KEY = ?
                 """, Integer.class, DAY_JOB));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from inpatient_med_supply_batches where id = ?", Integer.class, batchId));
+                "select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?", Integer.class, batchId));
 
         Instant noDemandTime = Instant.parse("2026-09-05T22:00:00Z");
         scheduler.pollAt(noDemandTime);
         assertEquals(0, jdbc.queryForObject("""
-                select count(*) from inpatient_med_supply_gen_runs
-                 where business_date = date '2026-09-06'
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where DA_BUSINESS = date '2026-09-06'
                 """, Integer.class));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from inpatient_med_supply_batches", Integer.class));
+                "select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH", Integer.class));
     }
 
     private JsonNode postJson(String path, String body) throws Exception {

@@ -12,37 +12,37 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "diagnostic_execution_tasks")
+@Table(name = "RHN_EX_DIAG_EXEC_TASK")
 public class DiagnosticExecutionTask {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "settlement_id") private Long settlementId;
-    @Column(name = "report_id") private Long reportId;
-    @Column(name = "task_no", nullable = false) private String taskNo;
-    @Column(name = "request_type", nullable = false) private String requestType;
-    @Column(name = "item_code_snapshot", nullable = false) private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "specimen_type_snapshot") private String specimenTypeSnapshot;
-    @Column(name = "examination_type_snapshot") private String examinationTypeSnapshot;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "collected_at") private Instant collectedAt;
-    @Column(name = "collected_by") private Long collectedBy;
-    @Column(name = "specimen_no") private String specimenNo;
-    @Column(name = "collection_note") private String collectionNote;
-    @Column(name = "started_at") private Instant startedAt;
-    @Column(name = "started_by") private Long startedBy;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "completed_by") private Long completedBy;
-    @Column(name = "completion_note") private String completionNote;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "exception_note") private String exceptionNote;
+    @Id @Column(name = "ID_DIAG_EXEC_TASK") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_STL") private Long settlementId;
+    @Column(name = "ID_DIAG_REPORT") private Long reportId;
+    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "SD_REQ_TYPE", nullable = false) private String requestType;
+    @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "SD_SPEC_TYPE_SNAP") private String specimenTypeSnapshot;
+    @Column(name = "SD_EXAM_TYPE_SNAP") private String examinationTypeSnapshot;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_COLLECTED") private Instant collectedAt;
+    @Column(name = "ID_USER_COLLECTED") private Long collectedBy;
+    @Column(name = "CD_SPEC_NO") private String specimenNo;
+    @Column(name = "DES_COLLECTION_NOTE") private String collectionNote;
+    @Column(name = "DT_STARTED") private Instant startedAt;
+    @Column(name = "ID_USER_STARTED") private Long startedBy;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DES_COMP_NOTE") private String completionNote;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DES_EXCEPT_NOTE") private String exceptionNote;
 
     protected DiagnosticExecutionTask() {}
 

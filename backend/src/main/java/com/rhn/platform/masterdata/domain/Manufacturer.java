@@ -10,23 +10,23 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "manufacturers")
+@Table(name = "RHN_BD_MFR")
 public class Manufacturer {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "short_name") private String shortName;
-    @Column(name = "manufacturer_type", nullable = false) private String manufacturerType;
-    @Column(name = "production_place") private String productionPlace;
-    @Column(name = "country_code") private String countryCode;
-    private String address;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_MFR") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_MFR", nullable = false) private String code;
+    @Column(name = "NA_MFR", nullable = false) private String name;
+    @Column(name = "NA_SHORT") private String shortName;
+    @Column(name = "SD_MFR_TYPE", nullable = false) private String manufacturerType;
+    @Column(name = "PRODUCTION_PLACE") private String productionPlace;
+    @Column(name = "CD_COUNTRY") private String countryCode;
+    @Column(name = "DES_ADDR") private String address;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected Manufacturer() {}
 

@@ -13,56 +13,56 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "dictionary_item_attribute_values")
+@Table(name = "RHN_BD_DICT_ITEM_ATTR_VAL")
 public class DictionaryItemAttributeValue {
     @Id
-    private Long id;
-    @Column(name = "dictionary_item_id", nullable = false)
+    @Column(name = "ID_DICT_ITEM_ATTR_VAL") private Long id;
+    @Column(name = "ID_DICT_ITEM", nullable = false)
     private Long dictionaryItemId;
-    @Column(name = "attribute_definition_id", nullable = false)
+    @Column(name = "ID_DICT_ATTR_DEF", nullable = false)
     private Long attributeDefinitionId;
     @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", nullable = false, length = 32)
+    @Column(name = "SD_SCOPE_TYPE", nullable = false, length = 32)
     private DictionaryAttributeScopeType scopeType;
-    @Column(name = "scope_code", nullable = false, length = 512)
+    @Column(name = "CD_SCOPE", nullable = false, length = 512)
     private String scopeCode;
-    @Column(name = "tenant_id")
+    @Column(name = "ID_TNT")
     private Long tenantId;
-    @Column(name = "organization_id")
+    @Column(name = "ID_ORG")
     private Long organizationId;
-    @Column(name = "department_id")
+    @Column(name = "ID_DEPT")
     private Long departmentId;
-    @Column(name = "value_order", nullable = false)
+    @Column(name = "SN_VALUE", nullable = false)
     private int valueOrder;
     @Enumerated(EnumType.STRING)
-    @Column(name = "value_mode", nullable = false, length = 32)
+    @Column(name = "SD_VAL_MODE", nullable = false, length = 32)
     private DictionaryAttributeValueMode valueMode;
-    @Column(name = "boolean_value")
+    @Column(name = "FG_BOOLEAN_VAL")
     private Boolean booleanValue;
-    @Column(name = "integer_value")
+    @Column(name = "INTEGER_VALUE")
     private Long integerValue;
-    @Column(name = "decimal_value", precision = 28, scale = 8)
+    @Column(name = "DECIMAL_VALUE", precision = 28, scale = 8)
     private BigDecimal decimalValue;
-    @Column(name = "text_value", length = 4000)
+    @Column(name = "TEXT_VALUE", length = 4000)
     private String textValue;
-    @Column(name = "code_value", length = 256)
+    @Column(name = "CODE_VALUE", length = 256)
     private String codeValue;
-    @Column(name = "date_value")
+    @Column(name = "DA_DATE_VAL")
     private LocalDate dateValue;
-    @Column(name = "datetime_value")
+    @Column(name = "DT_DATETIME_VAL")
     private Instant datetimeValue;
-    @Column(name = "reference_item_id")
+    @Column(name = "ID_DICT_ITEM_REFERENCE")
     private Long referenceItemId;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @Column(name = "SD_STATUS", nullable = false, length = 32)
     private DictionaryStatus status;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private Long createdBy;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false)
+    @Column(name = "ID_USER_UPDATED", nullable = false)
     private Long updatedBy;
 
     protected DictionaryItemAttributeValue() {

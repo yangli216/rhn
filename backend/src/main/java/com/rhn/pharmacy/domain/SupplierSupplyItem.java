@@ -12,23 +12,23 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "supplier_supply_items")
+@Table(name = "RHN_SUP_SUPPL_SUPPLY_ITEM")
 public class SupplierSupplyItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "supplier_id", nullable = false) private Long supplierId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "agreement_price", precision = 24, scale = 6) private BigDecimal agreementPrice;
-    @Column(name = "tax_rate", precision = 9, scale = 6) private BigDecimal taxRate;
-    @Column(name = "purchase_enabled", nullable = false) private boolean purchaseEnabled;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SUPPL_SUPPLY_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SUPPL", nullable = false) private Long supplierId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "PRICE_AGREEMENT", precision = 24, scale = 6) private BigDecimal agreementPrice;
+    @Column(name = "TAX_RATE", precision = 9, scale = 6) private BigDecimal taxRate;
+    @Column(name = "FG_PURCH", nullable = false) private boolean purchaseEnabled;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected SupplierSupplyItem() {}
 

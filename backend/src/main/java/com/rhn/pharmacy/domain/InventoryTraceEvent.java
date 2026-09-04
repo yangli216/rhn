@@ -10,27 +10,27 @@ import java.time.Instant;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "inventory_trace_events")
+@Table(name = "RHN_SUP_INV_TRACE_EVT")
 public class InventoryTraceEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "trace_code_id", nullable = false) private Long traceCodeId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "from_status") private String fromStatus;
-    @Column(name = "to_status", nullable = false) private String toStatus;
-    @Column(name = "from_site_id") private Long fromSiteId;
-    @Column(name = "to_site_id") private Long toSiteId;
-    @Column(name = "from_bin_id") private Long fromBinId;
-    @Column(name = "to_bin_id") private Long toBinId;
-    @Column(name = "document_type", nullable = false) private String documentType;
-    @Column(name = "document_id", nullable = false) private Long documentId;
-    @Column(name = "document_no", nullable = false) private String documentNo;
-    private String reason;
-    @Column(name = "quantity_delta", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
-    @Column(name = "balance_after", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
+    @Id @Column(name = "ID_INV_TRACE_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_INV_TRACE_CODE", nullable = false) private Long traceCodeId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_FROM_STATUS") private String fromStatus;
+    @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
+    @Column(name = "ID_STOCK_SITE_FROM") private Long fromSiteId;
+    @Column(name = "ID_STOCK_SITE_TO") private Long toSiteId;
+    @Column(name = "ID_STOCK_BIN_FROM") private Long fromBinId;
+    @Column(name = "ID_STOCK_BIN_TO") private Long toBinId;
+    @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
+    @Column(name = "ID_DOC", nullable = false) private Long documentId;
+    @Column(name = "CD_DOC_NO", nullable = false) private String documentNo;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
+    @Column(name = "BALANCE_AFTER", nullable = false, precision = 28, scale = 8) private BigDecimal balanceAfter;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
 
     protected InventoryTraceEvent() {}
     public InventoryTraceEvent(Long tenantId, Long organizationId, Long traceCodeId, String eventType,

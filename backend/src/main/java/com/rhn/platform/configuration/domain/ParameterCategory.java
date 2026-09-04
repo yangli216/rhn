@@ -12,20 +12,20 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "parameter_categories")
+@Table(name = "RHN_SYS_PARAM_CAT")
 public class ParameterCategory {
-    @Id private Long id;
-    @Column(name = "parent_id") private Long parentId;
-    @Column(nullable = false, length = 64) private String code;
-    @Column(nullable = false, length = 200) private String name;
-    @Column(length = 1000) private String description;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private boolean active;
-    @Version @Column(nullable = false) private Long revision;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_PARAM_CAT") private Long id;
+    @Column(name = "ID_PARAM_CAT_PARENT") private Long parentId;
+    @Column(name = "CD_PARAM_CAT", nullable = false, length = 64) private String code;
+    @Column(name = "NA_PARAM_CAT", nullable = false, length = 200) private String name;
+    @Column(name = "DES_PARAM_CAT", length = 1000) private String description;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "FG_ACTIVE", nullable = false) private boolean active;
+    @Version @Column(name = "REVISION", nullable = false) private Long revision;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ParameterCategory() {
     }

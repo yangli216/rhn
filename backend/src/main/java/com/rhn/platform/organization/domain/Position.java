@@ -11,21 +11,21 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "positions")
+@Table(name = "RHN_SYS_POS")
 public class Position {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
+    @Id @Column(name = "ID_POS") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_POS", nullable = false) private String code;
+    @Column(name = "NA_POS", nullable = false) private String name;
     @Enumerated(EnumType.STRING)
-    @Column(name = "position_type", nullable = false) private PositionType positionType;
-    @Column(name = "duty_description") private String dutyDescription;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private PersonnelStatus status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Column(name = "SD_POS_TYPE", nullable = false) private PositionType positionType;
+    @Column(name = "DES_DUTY_DESCRIPTION") private String dutyDescription;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected Position() {
     }

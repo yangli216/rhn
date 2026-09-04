@@ -167,19 +167,19 @@ class InpatientTemperatureChartTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.events.length()").value(0));
 
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_observation_groups where tenant_id = ?",
+                "select count(*) from RHN_VIS_INP_OBS_GRP where ID_TNT = ?",
                 Integer.class, Long.valueOf(TENANT)));
         assertEquals(11, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_observations where tenant_id = ?",
+                "select count(*) from RHN_VIS_INP_OBS where ID_TNT = ?",
                 Integer.class, Long.valueOf(TENANT)));
         assertEquals(3, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_chart_events where tenant_id = ?",
+                "select count(*) from RHN_VIS_INP_CHART_EVT where ID_TNT = ?",
                 Integer.class, Long.valueOf(TENANT)));
         assertEquals("01床", jdbcTemplate.queryForObject(
-                "select source_location_name from inpatient_chart_events where command_code = ?",
+                "select NA_SRC_LOC as source_location_name from RHN_VIS_INP_CHART_EVT where CD_COMMAND = ?",
                 String.class, "TEST-TEMP-CHART-TRANSFER:CHART"));
         assertEquals("02床", jdbcTemplate.queryForObject(
-                "select target_location_name from inpatient_chart_events where command_code = ?",
+                "select NA_TARGET_LOC as target_location_name from RHN_VIS_INP_CHART_EVT where CD_COMMAND = ?",
                 String.class, "TEST-TEMP-CHART-TRANSFER:CHART"));
     }
 }

@@ -14,29 +14,29 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "departments")
+@Table(name = "RHN_SYS_DEPT")
 public class Department {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "parent_id") private Long parentId;
-    @Column(name = "merged_to_id") private Long mergedToId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "short_name") private String shortName;
-    @Column private String description;
-    @Column(name = "department_type", nullable = false) private String departmentType;
-    @Column(name = "department_property") private String departmentProperty;
-    @Column(nullable = false) private boolean virtual;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private OrganizationStatus status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Id @Column(name = "ID_DEPT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT_PARENT") private Long parentId;
+    @Column(name = "ID_DEPT_MERGED_TO") private Long mergedToId;
+    @Column(name = "CD_DEPT", nullable = false) private String code;
+    @Column(name = "NA_DEPT", nullable = false) private String name;
+    @Column(name = "NA_SHORT") private String shortName;
+    @Column(name = "DES_DEPT") private String description;
+    @Column(name = "SD_DEPT_TYPE", nullable = false) private String departmentType;
+    @Column(name = "SD_DEPT_PROPERTY") private String departmentProperty;
+    @Column(name = "FG_VIRTUAL", nullable = false) private boolean virtual;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private OrganizationStatus status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected Department() {
     }

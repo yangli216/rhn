@@ -10,24 +10,24 @@ import com.rhn.shared.id.GlobalIds;
 import java.time.Instant;
 
 @Entity
-@Table(name = "service_variants")
+@Table(name = "RHN_BD_SVC_VAR")
 public class ServiceVariant {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "body_site_concept_id") private Long bodySiteConceptId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "method_type") private String methodType;
-    @Column(name = "body_site_required", nullable = false) private boolean bodySiteRequired;
-    @Column(name = "mutual_recognition_code") private String mutualRecognitionCode;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_SVC_VAR") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_CONCEPT_BODY_SITE") private Long bodySiteConceptId;
+    @Column(name = "CD_SVC_VAR", nullable = false) private String code;
+    @Column(name = "NA_SVC_VAR", nullable = false) private String name;
+    @Column(name = "SD_METHOD_TYPE") private String methodType;
+    @Column(name = "FG_BODY_SITE_REQUIRED", nullable = false) private boolean bodySiteRequired;
+    @Column(name = "CD_MUTUAL_RECOGNITION") private String mutualRecognitionCode;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected ServiceVariant() {}
 

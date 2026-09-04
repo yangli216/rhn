@@ -12,24 +12,24 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "resident_split_history")
+@Table(name = "RHN_PI_PAT_SPLIT_HIST")
 class ResidentSplitHistory {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT_SPLIT_HIST") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "merge_history_id", nullable = false)
+    @Column(name = "ID_PAT_MERGE_HIST", nullable = false)
     private Long mergeHistoryId;
-    @Column(name = "restored_resident_id", nullable = false)
+    @Column(name = "ID_PAT_RESTORED", nullable = false)
     private Long restoredResidentId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "restored_identifier_ids", nullable = false)
+    @Column(name = "RESTORED_IDENTIFIER_IDS", nullable = false)
     private String restoredIdentifierIds;
-    @Column(nullable = false)
+    @Column(name = "DES_REASON", nullable = false)
     private String reason;
-    @Column(name = "split_by", nullable = false)
+    @Column(name = "ID_USER_SPLIT", nullable = false)
     private String splitBy;
-    @Column(name = "split_at", nullable = false)
+    @Column(name = "DT_SPLIT", nullable = false)
     private Instant splitAt;
 
     protected ResidentSplitHistory() {

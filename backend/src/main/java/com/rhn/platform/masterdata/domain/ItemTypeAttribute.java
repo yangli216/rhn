@@ -11,27 +11,27 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_type_attributes")
+@Table(name = "RHN_BD_ITEM_TYPE_ATTR")
 public class ItemTypeAttribute {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "item_type_id", nullable = false) private Long itemTypeId;
-    @Column(name = "attribute_definition_id", nullable = false) private Long attributeDefinitionId;
-    @Column(name = "required_value", nullable = false) private boolean requiredValue;
-    @Lob @Column(name = "default_json") private String defaultJson;
-    @Column(name = "widget_type", nullable = false) private String widgetType;
-    @Column(name = "group_name") private String groupName;
-    @Column(name = "group_sort_order", nullable = false) private int groupSortOrder;
-    @Column(name = "attribute_sort_order", nullable = false) private int attributeSortOrder;
-    @Lob @Column(name = "visible_condition_json") private String visibleConditionJson;
-    @Lob @Column(name = "required_condition_json") private String requiredConditionJson;
-    @Column(nullable = false) private boolean searchable;
-    @Column(name = "list_display", nullable = false) private boolean listDisplay;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ITEM_TYPE_ATTR") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
+    @Column(name = "ID_ITEM_ATTR_DEF", nullable = false) private Long attributeDefinitionId;
+    @Column(name = "FG_REQUIRED_VAL", nullable = false) private boolean requiredValue;
+    @Lob @Column(name = "JSON_DEFAULT") private String defaultJson;
+    @Column(name = "SD_WIDGET_TYPE", nullable = false) private String widgetType;
+    @Column(name = "NA_GRP") private String groupName;
+    @Column(name = "SN_GRP_SORT", nullable = false) private int groupSortOrder;
+    @Column(name = "SN_ATTR_SORT", nullable = false) private int attributeSortOrder;
+    @Lob @Column(name = "JSON_VISIBLE_COND") private String visibleConditionJson;
+    @Lob @Column(name = "JSON_REQUIRED_COND") private String requiredConditionJson;
+    @Column(name = "FG_SEARCHABLE", nullable = false) private boolean searchable;
+    @Column(name = "FG_LIST_DISPLAY", nullable = false) private boolean listDisplay;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ItemTypeAttribute() {}
 

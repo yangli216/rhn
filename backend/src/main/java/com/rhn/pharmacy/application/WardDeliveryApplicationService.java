@@ -239,19 +239,18 @@ public class WardDeliveryApplicationService {
 
     private Destination destination(Long tenantId, Long dispenseId) {
         List<Destination> values = jdbc.query("""
-                select e.organization_id, sl.department_id, d.name as nursing_unit_name,
-                       r.full_name as resident_name, dtl.product_name_snapshot as medication_name
-                  from medication_dispenses md
-                  join encounters e on e.tenant_id = md.tenant_id and e.id = md.encounter_id
-                  join service_locations sl on sl.tenant_id = e.tenant_id and sl.id = e.service_location_id
-                  join departments d on d.tenant_id = e.tenant_id and d.organization_id = e.organization_id
-                       and d.id = sl.department_id
-                  join residents r on r.tenant_id = md.tenant_id and r.id = md.resident_id
-                  join medication_dispense_lines mdl on mdl.tenant_id = md.tenant_id
-                       and mdl.medication_dispense_id = md.id
-                  join dispense_task_lines dtl on dtl.tenant_id = mdl.tenant_id and dtl.id = mdl.task_line_id
-                 where md.tenant_id = ? and md.id = ?
-                 order by mdl.sort_order
+                select e.ID_ORG as organization_id, sl.ID_DEPT as department_id, d.NA_DEPT as nursing_unit_name,
+                       r.NA_FULL as resident_name, dtl.NA_PRODUCT_SNAP as medication_name from RHN_SUP_MED_DISP md
+                  join RHN_VIS_ENC e on e.ID_TNT = md.ID_TNT and e.ID_ENC = md.ID_ENC
+                  join RHN_VIS_SVC_LOC sl on sl.ID_TNT = e.ID_TNT and sl.ID_SVC_LOC = e.ID_SVC_LOC
+                  join RHN_SYS_DEPT d on d.ID_TNT = e.ID_TNT and d.ID_ORG = e.ID_ORG
+                       and d.ID_DEPT = sl.ID_DEPT
+                  join RHN_PI_PAT r on r.ID_TNT = md.ID_TNT and r.ID_PAT = md.ID_PAT
+                  join RHN_SUP_MED_DISP_LINE mdl on mdl.ID_TNT = md.ID_TNT
+                       and mdl.ID_MED_DISP = md.ID_MED_DISP
+                  join RHN_SUP_DISP_TASK_LINE dtl on dtl.ID_TNT = mdl.ID_TNT and dtl.ID_DISP_TASK_LINE = mdl.ID_DISP_TASK_LINE
+                 where md.ID_TNT = ? and md.ID_MED_DISP = ?
+                 order by mdl.SN_SORT
                 """, (rs, rowNum) -> new Destination(rs.getLong("organization_id"),
                 rs.getLong("department_id"), rs.getString("nursing_unit_name"),
                 rs.getString("resident_name"), rs.getString("medication_name")), tenantId, dispenseId);

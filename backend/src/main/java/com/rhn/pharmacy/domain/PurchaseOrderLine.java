@@ -10,21 +10,21 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "purchase_order_lines")
+@Table(name = "RHN_SUP_PURCH_ORDER_LINE")
 public class PurchaseOrderLine {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "purchase_order_id", nullable = false) private Long purchaseOrderId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "ordered_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal orderedQuantity;
-    @Column(name = "received_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
-    @Column(name = "unit_price", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(name = "tax_rate", precision = 9, scale = 6) private BigDecimal taxRate;
-    @Column(name = "line_status", nullable = false) private String lineStatus;
-    @Column private String description;
+    @Id @Column(name = "ID_PURCH_ORDER_LINE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PURCH_ORDER", nullable = false) private Long purchaseOrderId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "QTY_ORDERED", nullable = false, precision = 28, scale = 8) private BigDecimal orderedQuantity;
+    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
+    @Column(name = "TAX_RATE", precision = 9, scale = 6) private BigDecimal taxRate;
+    @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;
+    @Column(name = "DES_PURCH_ORDER_LINE") private String description;
 
     protected PurchaseOrderLine() {}
 

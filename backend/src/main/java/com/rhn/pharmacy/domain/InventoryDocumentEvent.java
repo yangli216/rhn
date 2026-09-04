@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_document_events")
+@Table(name = "RHN_SUP_INV_DOC_EVT")
 public class InventoryDocumentEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "document_type", nullable = false) private String documentType;
-    @Column(name = "document_id", nullable = false) private Long documentId;
-    @Column(name = "document_no", nullable = false) private String documentNo;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "from_status") private String fromStatus;
-    @Column(name = "to_status", nullable = false) private String toStatus;
-    @Column private String reason;
-    @Column(name = "correlation_id") private String correlationId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
+    @Id @Column(name = "ID_INV_DOC_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
+    @Column(name = "ID_DOC", nullable = false) private Long documentId;
+    @Column(name = "CD_DOC_NO", nullable = false) private String documentNo;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_FROM_STATUS") private String fromStatus;
+    @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "ID_CORRELATION") private String correlationId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
 
     protected InventoryDocumentEvent() {}
 

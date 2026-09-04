@@ -12,26 +12,26 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "disease_management_programs")
+@Table(name = "RHN_HPL_DISEASE_MGMT_PROG")
 public class DiseaseManagementProgram {
-    @Id private Long id;
-    @Version private long revision;
+    @Id @Column(name = "ID_DISEASE_MGMT_PROG") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
     @Enumerated(EnumType.STRING)
-    @Column(name = "scope_type", nullable = false) private TerminologyScope scopeType;
-    @Column(name = "scope_id", nullable = false) private Long scopeId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "management_type", nullable = false) private String managementType;
-    @Column(name = "trigger_action", nullable = false) private String triggerAction;
-    private String description;
-    @Column(name = "report_card_type") private String reportCardType;
-    @Column(name = "report_deadline_hours") private Integer reportDeadlineHours;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private TerminologyScope scopeType;
+    @Column(name = "ID_SCOPE", nullable = false) private Long scopeId;
+    @Column(name = "CD_DISEASE_MGMT_PROG", nullable = false) private String code;
+    @Column(name = "NA_DISEASE_MGMT_PROG", nullable = false) private String name;
+    @Column(name = "SD_MGMT_TYPE", nullable = false) private String managementType;
+    @Column(name = "SD_TRIGGER_ACTION", nullable = false) private String triggerAction;
+    @Column(name = "DES_DISEASE_MGMT_PROG") private String description;
+    @Column(name = "SD_REPORT_CARD_TYPE") private String reportCardType;
+    @Column(name = "QTY_REPORT_DEADLINE_HOURS") private Integer reportDeadlineHours;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) private TerminologyStatus status;
-    @Column(name = "effective_from", nullable = false) private LocalDate effectiveFrom;
-    @Column(name = "effective_to") private LocalDate effectiveTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Column(name = "SD_STATUS", nullable = false) private TerminologyStatus status;
+    @Column(name = "DA_EFFECTIVE_FROM", nullable = false) private LocalDate effectiveFrom;
+    @Column(name = "DA_EFFECTIVE_TO") private LocalDate effectiveTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected DiseaseManagementProgram() {}
 

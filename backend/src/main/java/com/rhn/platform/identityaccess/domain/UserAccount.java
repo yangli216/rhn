@@ -9,30 +9,30 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "user_accounts")
+@Table(name = "RHN_SYS_USER_ACCT")
 public class UserAccount {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_USER") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "practitioner_id")
+    @Column(name = "ID_PRACT")
     private Long practitionerId;
-    @Column(nullable = false)
+    @Column(name = "CD_USERNAME", nullable = false)
     private String username;
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "HASH_PASSWORD", nullable = false)
     private String passwordHash;
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private String status;
-    @Column(name = "password_changed_at")
+    @Column(name = "DT_PASSWORD_CHANGED")
     private Instant passwordChangedAt;
-    @Column(name = "last_login_at")
+    @Column(name = "DT_LAST_LOGIN")
     private Instant lastLoginAt;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
     @Version
-    private long version;
+    @Column(name = "REVISION") private long version;
 
     protected UserAccount() {
     }

@@ -9,31 +9,31 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "resident_identifiers")
+@Table(name = "RHN_PI_PAT_IDENT")
 class ResidentIdentifier {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT_IDENT") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "resident_id", nullable = false)
+    @Column(name = "ID_PAT", nullable = false)
     private Long residentId;
-    @Column(name = "identifier_system", nullable = false)
+    @Column(name = "CD_IDENT_SYS", nullable = false)
     private String identifierSystem;
-    @Column(name = "identifier_value", nullable = false)
+    @Column(name = "CD_IDENT_VAL", nullable = false)
     private String identifierValue;
-    @Column(name = "normalized_value", nullable = false)
+    @Column(name = "NORMALIZED_VALUE", nullable = false)
     private String normalizedValue;
-    @Column(name = "use_type", nullable = false)
+    @Column(name = "SD_USE_TYPE", nullable = false)
     private String useType;
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private String status;
-    @Column(name = "source_organization_id")
+    @Column(name = "ID_ORG_SRC")
     private Long sourceOrganizationId;
-    @Column(name = "valid_from", nullable = false)
+    @Column(name = "DA_VALID_FROM", nullable = false)
     private LocalDate validFrom;
-    @Column(name = "valid_to")
+    @Column(name = "DA_VALID_TO")
     private LocalDate validTo;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
 
     protected ResidentIdentifier() {

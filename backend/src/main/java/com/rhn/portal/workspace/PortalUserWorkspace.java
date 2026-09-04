@@ -12,18 +12,18 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "portal_user_workspaces")
+@Table(name = "RHN_SYS_PORTAL_USER_WKSPACE")
 class PortalUserWorkspace {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "user_id", nullable = false) private Long userId;
-    @Column(name = "default_organization_id") private Long defaultOrganizationId;
-    @Column(name = "default_department_id") private Long defaultDepartmentId;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "favorites_json", nullable = false) private String favoritesJson;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "tabs_json", nullable = false) private String tabsJson;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "layout_json", nullable = false) private String layoutJson;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Version @Column(nullable = false) private long revision;
+    @Id @Column(name = "ID_PORTAL_USER_WKSPACE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_USER", nullable = false) private Long userId;
+    @Column(name = "ID_ORG_DEFAULT") private Long defaultOrganizationId;
+    @Column(name = "ID_DEPT_DEFAULT") private Long defaultDepartmentId;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_FAVORITES", nullable = false) private String favoritesJson;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_TABS", nullable = false) private String tabsJson;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_LAYOUT", nullable = false) private String layoutJson;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected PortalUserWorkspace() {
     }

@@ -13,42 +13,42 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "clinical_document_versions")
+@Table(name = "RHN_VIS_CLIN_DOC_VER")
 class ClinicalDocumentVersion {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_CLIN_DOC_VER") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "document_id", nullable = false)
+    @Column(name = "ID_CLIN_DOC", nullable = false)
     private Long documentId;
-    @Column(name = "version_number", nullable = false)
+    @Column(name = "CD_VER_NUMBER", nullable = false)
     private int versionNumber;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "content_json", nullable = false)
+    @Column(name = "JSON_CONTENT", nullable = false)
     private String contentJson;
-    @Column(name = "content_schema", nullable = false)
+    @Column(name = "JSON_CONTENT_SCHEMA", nullable = false)
     private String contentSchema;
-    @Column(name = "change_type", nullable = false)
+    @Column(name = "SD_CHG_TYPE", nullable = false)
     private String changeType;
-    @Column(name = "change_reason", nullable = false)
+    @Column(name = "DES_CHG_REASON", nullable = false)
     private String changeReason;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private String createdBy;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "signed_by")
+    @Column(name = "ID_USER_SIGNED")
     private String signedBy;
-    @Column(name = "signed_at")
+    @Column(name = "DT_SIGNED")
     private Instant signedAt;
-    @Column(name = "signature_meaning")
+    @Column(name = "SD_SIGN_MEANING")
     private String signatureMeaning;
-    @Column(name = "content_digest_algorithm")
+    @Column(name = "CONTENT_DIGEST_ALGORITHM")
     private String contentDigestAlgorithm;
-    @Column(name = "content_digest")
+    @Column(name = "HASH_CONTENT")
     private String contentDigest;
-    @Column(name = "integrity_evidence_id")
+    @Column(name = "ID_CRYPTO_EVID_INTEGRITY")
     private Long integrityEvidenceId;
-    @Column(name = "signature_evidence_id")
+    @Column(name = "ID_CRYPTO_EVID_SIGN")
     private Long signatureEvidenceId;
 
     protected ClinicalDocumentVersion() {

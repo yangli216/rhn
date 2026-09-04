@@ -9,20 +9,20 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "concept_aliases")
+@Table(name = "RHN_BD_CONCEPT_ALIAS")
 public class ConceptAlias {
     @Id
-    private Long id;
-    @Column(name = "concept_id", nullable = false)
+    @Column(name = "ID_CONCEPT_ALIAS") private Long id;
+    @Column(name = "ID_CONCEPT", nullable = false)
     private Long conceptId;
-    @Column(name = "alias_type", nullable = false)
+    @Column(name = "SD_ALIAS_TYPE", nullable = false)
     private String aliasType;
-    @Column(name = "alias_name", nullable = false)
+    @Column(name = "NA_ALIAS", nullable = false)
     private String aliasName;
-    @Column(name = "search_code")
+    @Column(name = "CD_SEARCH")
     private String searchCode;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private TerminologyStatus status;
 
     protected ConceptAlias() {}

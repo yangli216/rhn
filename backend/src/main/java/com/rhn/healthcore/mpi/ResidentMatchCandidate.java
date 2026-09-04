@@ -11,26 +11,26 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "resident_match_candidates")
+@Table(name = "RHN_PI_PAT_MATCH_CAND")
 class ResidentMatchCandidate {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT_MATCH_CAND") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "source_record_id", nullable = false)
+    @Column(name = "ID_PAT_SRC_RECORD", nullable = false)
     private Long sourceRecordId;
-    @Column(name = "candidate_resident_id", nullable = false)
+    @Column(name = "ID_PAT_CAND", nullable = false)
     private Long candidateResidentId;
-    @Column(name = "match_score", nullable = false)
+    @Column(name = "MATCH_SCORE", nullable = false)
     private BigDecimal matchScore;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "reasons_json", nullable = false)
+    @Column(name = "JSON_REASONS", nullable = false)
     private String reasonsJson;
-    @Column(nullable = false)
+    @Column(name = "SD_DECISION", nullable = false)
     private String decision;
-    @Column(name = "reviewed_by")
+    @Column(name = "ID_USER_REVIEWED")
     private String reviewedBy;
-    @Column(name = "reviewed_at")
+    @Column(name = "DT_REVIEWED")
     private Instant reviewedAt;
 
     protected ResidentMatchCandidate() {

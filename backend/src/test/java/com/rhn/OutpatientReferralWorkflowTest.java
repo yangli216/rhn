@@ -143,8 +143,8 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                         .content("{\"factorResults\":{\"NAME\":true,\"TEST_IDENTIFIER\":true},\"terminalCode\":\"TARGET\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
 
-        assertEquals(1, jdbcCount("select count(*) from encounters where id = ?", Long.valueOf(targetEncounterId)));
-        assertEquals(1, jdbcCount("select count(*) from outpatient_referral_events where referral_request_id = ? and status_to = 'COMPLETED'",
+        assertEquals(1, jdbcCount("select count(*) from RHN_VIS_ENC where ID_ENC = ?", Long.valueOf(targetEncounterId)));
+        assertEquals(1, jdbcCount("select count(*) from RHN_EX_OP_REFER_EVT where ID_OP_REFER_REQ = ? and SD_STATUS_TO = 'COMPLETED'",
                 Long.valueOf(requestId)));
     }
 

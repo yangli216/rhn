@@ -13,44 +13,44 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "concepts")
+@Table(name = "RHN_BD_CONCEPT")
 public class Concept {
     @Id
-    private Long id;
-    @Column(name = "code_system_id", nullable = false)
+    @Column(name = "ID_CONCEPT") private Long id;
+    @Column(name = "ID_CODE_SYSTEM", nullable = false)
     private Long codeSystemId;
-    @Column(nullable = false)
+    @Column(name = "CD_CONCEPT", nullable = false)
     private String code;
-    @Column(nullable = false)
+    @Column(name = "NA_DISPLAY", nullable = false)
     private String display;
-    private String definition;
-    @Column(name = "concept_type", nullable = false)
+    @Column(name = "DES_DEF") private String definition;
+    @Column(name = "SD_CONCEPT_TYPE", nullable = false)
     private String conceptType;
-    @Column(name = "short_display")
+    @Column(name = "NA_SHORT")
     private String shortDisplay;
-    @Column(name = "chapter_code")
+    @Column(name = "CD_CHAPTER")
     private String chapterCode;
-    @Column(name = "chapter_name")
+    @Column(name = "NA_CHAPTER")
     private String chapterName;
-    @Column(name = "search_code")
+    @Column(name = "CD_SEARCH")
     private String searchCode;
-    @Column(name = "source_type", nullable = false)
+    @Column(name = "SD_SRC_TYPE", nullable = false)
     private String sourceType;
-    @Column(name = "replacement_concept_id")
+    @Column(name = "ID_CONCEPT_REPLACEMENT")
     private Long replacementConceptId;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private TerminologyStatus status;
-    @Column(name = "effective_from", nullable = false)
+    @Column(name = "DA_EFFECTIVE_FROM", nullable = false)
     private LocalDate effectiveFrom;
-    @Column(name = "effective_to")
+    @Column(name = "DA_EFFECTIVE_TO")
     private LocalDate effectiveTo;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
     @Version
-    private long revision;
+    @Column(name = "REVISION") private long revision;
 
     protected Concept() {
     }

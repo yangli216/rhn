@@ -12,30 +12,30 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "outpatient_note_templates")
+@Table(name = "RHN_META_OP_NOTE_TMPL")
 class OutpatientNoteTemplate {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "owner_id", nullable = false) private Long ownerId;
-    @Column(name = "specialty_code", nullable = false) private String specialtyCode;
-    @Column(name = "document_type", nullable = false) private String documentType;
-    @Column(name = "content_schema", nullable = false) private String contentSchema;
-    @Column(name = "template_name", nullable = false) private String name;
-    private String description;
+    @Id @Column(name = "ID_OP_NOTE_TMPL") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "ID_OWNER", nullable = false) private Long ownerId;
+    @Column(name = "CD_SPECIALTY", nullable = false) private String specialtyCode;
+    @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
+    @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
+    @Column(name = "NA_TMPL", nullable = false) private String name;
+    @Column(name = "DES_OP_NOTE_TMPL") private String description;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "content_json", nullable = false) private String contentJson;
-    @Column(nullable = false) private String status;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "use_count", nullable = false) private long useCount;
-    @Column(name = "last_used_at") private Instant lastUsedAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Column(name = "JSON_CONTENT", nullable = false) private String contentJson;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "QTY_USE", nullable = false) private long useCount;
+    @Column(name = "DT_LAST_USED") private Instant lastUsedAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected OutpatientNoteTemplate() {}
 

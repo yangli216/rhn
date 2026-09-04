@@ -12,29 +12,29 @@ import java.time.Instant;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Entity
-@Table(name = "ward_med_return_requests")
+@Table(name = "RHN_SUP_WARD_MED_RETURN_REQ")
 public class WardMedicationReturnRequest {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "nursing_unit_department_id", nullable = false) private Long nursingUnitDepartmentId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_no", nullable = false) private String requestNo;
-    @Column(nullable = false) private String status;
-    @Column(name = "requested_at", nullable = false) private Instant requestedAt;
-    @Column(name = "requested_by", nullable = false) private Long requestedBy;
-    @Column(name = "request_note") private String requestNote;
-    @Column(name = "handed_over_at") private Instant handedOverAt;
-    @Column(name = "handed_over_by") private Long handedOverBy;
-    @Column(name = "handover_note") private String handoverNote;
-    @Column(name = "received_at") private Instant receivedAt;
-    @Column(name = "received_by") private Long receivedBy;
-    @Column(name = "processor_practitioner_id") private Long processorPractitionerId;
-    @Column(name = "processor_assignment_id") private Long processorAssignmentId;
-    @Column(name = "receipt_note") private String receiptNote;
+    @Id @Column(name = "ID_WARD_MED_RETURN_REQ") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "DES_REQ_NOTE") private String requestNote;
+    @Column(name = "DT_HANDED_OVER") private Instant handedOverAt;
+    @Column(name = "ID_USER_HANDED_OVER") private Long handedOverBy;
+    @Column(name = "DES_HANDOVER_NOTE") private String handoverNote;
+    @Column(name = "DT_RECEIVED") private Instant receivedAt;
+    @Column(name = "ID_USER_RECEIVED") private Long receivedBy;
+    @Column(name = "ID_PROCESSOR_PRACT") private Long processorPractitionerId;
+    @Column(name = "ID_PROCESSOR_ASSIGN") private Long processorAssignmentId;
+    @Column(name = "DES_RCPT_NOTE") private String receiptNote;
 
     protected WardMedicationReturnRequest() {
     }

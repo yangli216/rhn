@@ -23,7 +23,7 @@ interface ResidentRepository extends JpaRepository<Resident, Long> {
             Long tenantId, ResidentStatus status, String fullName, java.time.LocalDate birthDate);
 
     @Query("""
-            SELECT r FROM Resident r
+            select r from Resident r
             WHERE r.tenantId = :tenantId
               AND (:status IS NULL OR r.status = :status)
               AND (:gender IS NULL OR r.gender = :gender)

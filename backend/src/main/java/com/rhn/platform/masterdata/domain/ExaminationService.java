@@ -10,26 +10,26 @@ import java.time.Instant;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "examination_services")
+@Table(name = "RHN_BD_EXAM_SVC")
 public class ExaminationService {
-    @Id @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "examination_type") private String examinationType;
-    @Column(name = "body_site_required", nullable = false) private boolean bodySiteRequired;
-    @Column(name = "multi_body_site", nullable = false) private boolean multiBodySite;
-    @Column(name = "max_body_site_count") private Integer maxBodySiteCount;
-    @Column(name = "preparation_description") private String preparationDescription;
-    @Column(name = "site_pricing_mode", nullable = false) private String sitePricingMode;
-    @Column(name = "included_site_count", nullable = false) private int includedSiteCount;
-    @Column(name = "additional_site_price") private BigDecimal additionalSitePrice;
-    @Column(name = "additional_site_item_id") private Long additionalSiteItemId;
-    @Column(name = "additional_site_quantity", nullable = false) private BigDecimal additionalSiteQuantity;
-    @Column(name = "max_chargeable_site_count") private Integer maxChargeableSiteCount;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_EXAM_TYPE") private String examinationType;
+    @Column(name = "FG_BODY_SITE_REQUIRED", nullable = false) private boolean bodySiteRequired;
+    @Column(name = "FG_MULTI_BODY_SITE", nullable = false) private boolean multiBodySite;
+    @Column(name = "QTY_MAX_BODY_SITE") private Integer maxBodySiteCount;
+    @Column(name = "DES_PREPARATION_DESCRIPTION") private String preparationDescription;
+    @Column(name = "SD_SITE_PRICING_MODE", nullable = false) private String sitePricingMode;
+    @Column(name = "QTY_INCLUDED_SITE", nullable = false) private int includedSiteCount;
+    @Column(name = "PRICE_ADDL_SITE") private BigDecimal additionalSitePrice;
+    @Column(name = "ID_CATALOG_ITEM_ADDL_SITE") private Long additionalSiteItemId;
+    @Column(name = "QTY_ADDL_SITE", nullable = false) private BigDecimal additionalSiteQuantity;
+    @Column(name = "QTY_MAX_CHARGEABLE_SITE") private Integer maxChargeableSiteCount;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected ExaminationService() {}
 

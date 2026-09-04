@@ -10,31 +10,31 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "observations")
+@Table(name = "RHN_VIS_OBS")
 public class Observation {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "code_system_uri", nullable = false) private String codeSystemUri;
-    @Column(name = "code_release") private String codeRelease;
-    @Column(name = "observation_code", nullable = false) private String observationCode;
-    @Column(name = "observation_name", nullable = false) private String observationName;
-    @Column(nullable = false) private String status;
-    @Column(name = "value_type", nullable = false) private String valueType;
-    @Column(name = "effective_at", nullable = false) private Instant effectiveAt;
-    @Column(name = "value_string") private String valueString;
-    @Column(name = "value_number", precision = 28, scale = 8) private BigDecimal valueNumber;
-    @Column(name = "value_boolean") private Boolean valueBoolean;
-    @Column(name = "value_code") private String valueCode;
-    @Column(name = "value_datetime") private Instant valueDateTime;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(name = "reference_range_low", precision = 28, scale = 8) private BigDecimal referenceRangeLow;
-    @Column(name = "reference_range_high", precision = 28, scale = 8) private BigDecimal referenceRangeHigh;
-    @Column(name = "interpretation_code") private String interpretationCode;
-    @Column(name = "performer_code") private String performerCode;
-    @Column(name = "performer_name") private String performerName;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Id @Column(name = "ID_OBS") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "CODE_SYSTEM_URI", nullable = false) private String codeSystemUri;
+    @Column(name = "CD_CODE_RELEASE") private String codeRelease;
+    @Column(name = "CD_OBS", nullable = false) private String observationCode;
+    @Column(name = "NA_OBS", nullable = false) private String observationName;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_VAL_TYPE", nullable = false) private String valueType;
+    @Column(name = "DT_EFFECTIVE", nullable = false) private Instant effectiveAt;
+    @Column(name = "VALUE_STRING") private String valueString;
+    @Column(name = "CD_VAL_NUMBER", precision = 28, scale = 8) private BigDecimal valueNumber;
+    @Column(name = "FG_VAL_BOOLEAN") private Boolean valueBoolean;
+    @Column(name = "CD_VAL") private String valueCode;
+    @Column(name = "DT_VAL_DATETIME") private Instant valueDateTime;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "REFERENCE_RANGE_LOW", precision = 28, scale = 8) private BigDecimal referenceRangeLow;
+    @Column(name = "REFERENCE_RANGE_HIGH", precision = 28, scale = 8) private BigDecimal referenceRangeHigh;
+    @Column(name = "CD_INTERPRETATION") private String interpretationCode;
+    @Column(name = "CD_PERFORMER") private String performerCode;
+    @Column(name = "NA_PERFORMER") private String performerName;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected Observation() {}
 

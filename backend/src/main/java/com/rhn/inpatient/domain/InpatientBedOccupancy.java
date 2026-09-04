@@ -10,16 +10,16 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_bed_occupancies")
+@Table(name = "RHN_VIS_INP_BED_OCCUP")
 public class InpatientBedOccupancy {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "bed_location_id", nullable = false) private Long bedLocationId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "started_at", nullable = false) private Instant startedAt;
+    @Id @Column(name = "ID_INP_BED_OCCUP") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_BED_LOC", nullable = false) private Long bedLocationId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
 
     protected InpatientBedOccupancy() {
     }

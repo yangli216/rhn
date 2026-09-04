@@ -66,9 +66,9 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
 
         JsonNode replay = postJson("/api/inpatient/orders", medicationBody, 201);
         assertEquals(medicationId, replay.get("id").asText());
-        assertEquals(1, count("select count(*) from care_requests where id = ?", medicationId));
-        assertEquals(1, count("select count(*) from medication_requests where request_id = ?", medicationId));
-        assertEquals(1, count("select count(*) from inpatient_order_workflows where request_id = ?", medicationId));
+        assertEquals(1, count("select count(*) from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", medicationId));
+        assertEquals(1, count("select count(*) from RHN_EX_MED_REQ where ID_CARE_REQ = ?", medicationId));
+        assertEquals(1, count("select count(*) from RHN_EX_INP_ORDER_WF where ID_CARE_REQ = ?", medicationId));
         assertFalse(tableExists("INPATIENT_ORDERS"));
 
         recordInpatientNoKnownDrugAllergy(RESIDENT, medication.get("encounterId").asText());
@@ -111,7 +111,7 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("INPATIENT_MEDICATION_DISPENSE_REQUIRED"))
                 .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("发药明细")));
         assertEquals("PLANNED", jdbcTemplate.queryForObject(
-                "select status from inpatient_order_tasks where id = ?", String.class, Long.valueOf(executeTaskId)));
+                "select SD_STATUS as status from RHN_EX_INP_ORDER_TASK where ID_INP_ORDER_TASK = ?", String.class, Long.valueOf(executeTaskId)));
 
         when(medicationFulfillment.fulfillmentForRequest(Long.valueOf(TENANT), Long.valueOf(medicationId)))
                 .thenReturn(new MedicationFulfillmentDirectory.FulfillmentSnapshot(
@@ -179,12 +179,12 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
 
         String serviceId = createAndCompleteService(episodeId, now.minusSeconds(30));
         String nursingId = createAndCompleteNursing(episodeId, now.minusSeconds(20));
-        assertEquals(1, count("select count(*) from service_requests where request_id = ?", serviceId));
-        assertEquals(0, count("select count(*) from medication_requests where request_id = ?", serviceId));
+        assertEquals(1, count("select count(*) from RHN_EX_SVC_REQ where ID_CARE_REQ = ?", serviceId));
+        assertEquals(0, count("select count(*) from RHN_EX_MED_REQ where ID_CARE_REQ = ?", serviceId));
         assertEquals("CARE_ACTIVITY", jdbcTemplate.queryForObject(
-                "select request_kind from care_requests where id = ?", String.class, Long.valueOf(nursingId)));
-        assertEquals(3, count("select count(*) from care_requests where encounter_id = (select encounter_id from care_requests where id = ?)", medicationId));
-        assertEquals(17, count("select count(*) from inpatient_order_events", null));
+                "select SD_REQ_KIND as request_kind from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", String.class, Long.valueOf(nursingId)));
+        assertEquals(3, count("select count(*) from RHN_EX_CARE_REQ where ID_ENC = (select ID_ENC as encounter_id from RHN_EX_CARE_REQ where ID_CARE_REQ = ?)", medicationId));
+        assertEquals(17, count("select count(*) from RHN_EX_INP_ORDER_EVT", null));
 
         mockMvc.perform(get("/api/inpatient/orders/doctor-worklist")
                         .with(rhnWorkContext()).queryParam("episodeId", episodeId).queryParam("status", "ALL"))
@@ -225,7 +225,7 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-TASK-EXEC-SRV-01"}
                 """, 200);
         assertEquals("COMPLETED", jdbcTemplate.queryForObject(
-                "select status from care_requests where id = ?", String.class, Long.valueOf(id)));
+                "select SD_STATUS as status from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", String.class, Long.valueOf(id)));
         return id;
     }
 

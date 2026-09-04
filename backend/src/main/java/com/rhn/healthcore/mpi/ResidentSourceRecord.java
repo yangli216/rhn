@@ -13,36 +13,36 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "resident_source_records")
+@Table(name = "RHN_PI_PAT_SRC_RECORD")
 class ResidentSourceRecord {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT_SRC_RECORD") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "source_organization_id", nullable = false)
+    @Column(name = "ID_ORG_SRC", nullable = false)
     private Long sourceOrganizationId;
-    @Column(name = "source_system", nullable = false)
+    @Column(name = "CD_SRC_SYS", nullable = false)
     private String sourceSystem;
-    @Column(name = "source_record_id", nullable = false)
+    @Column(name = "ID_SRC_RECORD", nullable = false)
     private String sourceRecordId;
-    @Column(name = "resident_id")
+    @Column(name = "ID_PAT")
     private Long residentId;
     @Enumerated(EnumType.STRING)
-    @Column(name = "match_status", nullable = false)
+    @Column(name = "SD_MATCH_STATUS", nullable = false)
     private ResidentMatchStatus matchStatus;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "raw_payload_json", nullable = false)
+    @Column(name = "JSON_RAW_PAYLOAD", nullable = false)
     private String rawPayloadJson;
-    @Column(name = "last_seen_at", nullable = false)
+    @Column(name = "DT_LAST_SEEN", nullable = false)
     private Instant lastSeenAt;
-    @Column(name = "linked_by")
+    @Column(name = "ID_USER_LINKED")
     private String linkedBy;
-    @Column(name = "linked_at")
+    @Column(name = "DT_LINKED")
     private Instant linkedAt;
-    @Column(name = "link_reason")
+    @Column(name = "DES_LINK_REASON")
     private String linkReason;
     @Version
-    private long version;
+    @Column(name = "REVISION") private long version;
 
     protected ResidentSourceRecord() {
     }

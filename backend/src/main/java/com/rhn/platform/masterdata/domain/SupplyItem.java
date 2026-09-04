@@ -14,52 +14,52 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "catalog_items")
-@SecondaryTable(name = "supply_items", pkJoinColumns = @PrimaryKeyJoinColumn(name = "catalog_item_id"))
+@Table(name = "RHN_BD_CATALOG_ITEM")
+@SecondaryTable(name = "RHN_BD_SUPPLY_ITEM", pkJoinColumns = @PrimaryKeyJoinColumn(name = "ID_CATALOG_ITEM"))
 @SQLRestriction("item_type = 'SUPPLY'")
 public class SupplyItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "item_type_id", nullable = false) private Long itemTypeId;
-    @Column(name = "item_master_id") private Long itemMasterId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "item_type", nullable = false) private String itemType;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(nullable = false) private boolean orderable;
-    @Column(nullable = false) private boolean chargeable;
-    @Column(nullable = false) private boolean stocked;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
+    @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
+    @Column(name = "CD_CATALOG_ITEM", nullable = false) private String code;
+    @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
+    @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
-    @Column(table = "supply_items", name = "tenant_id", nullable = false) private Long supplyTenantId;
-    @Column(table = "supply_items", name = "udi_di") private String udiDi;
-    @Column(table = "supply_items", name = "generic_code") private String genericCode;
-    @Column(table = "supply_items", name = "generic_name") private String genericName;
-    @Column(table = "supply_items", name = "model_name") private String modelName;
-    @Column(table = "supply_items") private String specification;
-    @Column(table = "supply_items", name = "material_type") private String materialType;
-    @Column(table = "supply_items", name = "device_class") private String deviceClass;
-    @Column(table = "supply_items", name = "high_value", nullable = false) private boolean highValue;
-    @Column(table = "supply_items", nullable = false) private boolean implant;
-    @Column(table = "supply_items", nullable = false) private boolean intervention;
-    @Column(table = "supply_items", nullable = false) private boolean sterile;
-    @Column(table = "supply_items", name = "single_use", nullable = false) private boolean singleUse;
-    @Column(table = "supply_items", name = "registration_code") private String registrationCode;
-    @Column(table = "supply_items", name = "registration_name") private String registrationName;
-    @Column(table = "supply_items", name = "registrant_name") private String registrantName;
-    @Column(table = "supply_items", name = "registration_from") private LocalDate registrationFrom;
-    @Column(table = "supply_items", name = "registration_to") private LocalDate registrationTo;
-    @Column(table = "supply_items", name = "manufacturer_id") private Long manufacturerId;
-    @Column(table = "supply_items", name = "structure_description") private String structureDescription;
-    @Column(table = "supply_items", name = "scope_description") private String scopeDescription;
-    @Column(table = "supply_items") private String instruction;
+    @Column(name = "ID_TNT", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private Long supplyTenantId;
+    @Column(name = "CD_UDI_DI", table = "RHN_BD_SUPPLY_ITEM") private String udiDi;
+    @Column(name = "CD_GENERIC", table = "RHN_BD_SUPPLY_ITEM") private String genericCode;
+    @Column(name = "NA_GENERIC", table = "RHN_BD_SUPPLY_ITEM") private String genericName;
+    @Column(name = "NA_MODEL", table = "RHN_BD_SUPPLY_ITEM") private String modelName;
+    @Column(name = "DES_SPEC", table = "RHN_BD_SUPPLY_ITEM") private String specification;
+    @Column(name = "SD_MATERIAL_TYPE", table = "RHN_BD_SUPPLY_ITEM") private String materialType;
+    @Column(name = "SD_DEVICE_CLASS", table = "RHN_BD_SUPPLY_ITEM") private String deviceClass;
+    @Column(name = "FG_HIGH_VAL", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean highValue;
+    @Column(name = "FG_IMPLANT", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean implant;
+    @Column(name = "FG_INTERVENTION", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean intervention;
+    @Column(name = "FG_STERILE", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean sterile;
+    @Column(name = "FG_SINGLE_USE", table = "RHN_BD_SUPPLY_ITEM", nullable = false) private boolean singleUse;
+    @Column(name = "CD_REG", table = "RHN_BD_SUPPLY_ITEM") private String registrationCode;
+    @Column(name = "NA_REG", table = "RHN_BD_SUPPLY_ITEM") private String registrationName;
+    @Column(name = "NA_REGISTRANT", table = "RHN_BD_SUPPLY_ITEM") private String registrantName;
+    @Column(name = "DA_REG_FROM", table = "RHN_BD_SUPPLY_ITEM") private LocalDate registrationFrom;
+    @Column(name = "DA_REG_TO", table = "RHN_BD_SUPPLY_ITEM") private LocalDate registrationTo;
+    @Column(name = "ID_MFR", table = "RHN_BD_SUPPLY_ITEM") private Long manufacturerId;
+    @Column(name = "DES_STRUCTURE_DESCRIPTION", table = "RHN_BD_SUPPLY_ITEM") private String structureDescription;
+    @Column(name = "DES_SCOPE_DESCRIPTION", table = "RHN_BD_SUPPLY_ITEM") private String scopeDescription;
+    @Column(name = "DES_INSTRUCTION", table = "RHN_BD_SUPPLY_ITEM") private String instruction;
 
     protected SupplyItem() {}
 

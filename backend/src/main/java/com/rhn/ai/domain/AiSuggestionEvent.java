@@ -11,23 +11,23 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "ai_suggestion_events")
+@Table(name = "RHN_AI_SUGGEST_EVT")
 public class AiSuggestionEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "suggestion_id", nullable = false) private Long suggestionId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to") private String statusTo;
-    @Column(name = "practitioner_id", nullable = false) private Long practitionerId;
-    @Column(name = "user_id", nullable = false) private Long userId;
-    @Column(name = "section_code") private String sectionCode;
-    @Column(name = "context_hash", nullable = false) private String contextHash;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    private String detail;
+    @Id @Column(name = "ID_AI_SUGGEST_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_AI_SUGGEST", nullable = false) private Long suggestionId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO") private String statusTo;
+    @Column(name = "ID_PRACT", nullable = false) private Long practitionerId;
+    @Column(name = "ID_USER", nullable = false) private Long userId;
+    @Column(name = "CD_SECTION") private String sectionCode;
+    @Column(name = "HASH_CONTEXT", nullable = false) private String contextHash;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_DETAIL") private String detail;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "action_json", nullable = false) private String actionJson;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Column(name = "JSON_ACTION", nullable = false) private String actionJson;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected AiSuggestionEvent() {}
 

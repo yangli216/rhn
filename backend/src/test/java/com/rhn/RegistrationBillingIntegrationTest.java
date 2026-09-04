@@ -10,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -48,9 +50,9 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         assertEquals("SELF_PAY", intent.get("settlementMode").asText());
         assertEquals(0, new java.math.BigDecimal("10.00").compareTo(intent.get("feeAmount").decimalValue()));
         String holdId = intent.get("slotHoldId").asText();
-        assertEquals(1, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(1, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals("ACTIVE", jdbc.queryForObject("select status from schedule_slot_holds where id = ?",
+        assertEquals("ACTIVE", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
                 String.class, Long.valueOf(holdId)));
 
         JsonNode replay = createIntent(residentId, scheduleId, intentCode);
@@ -78,17 +80,17 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.encounterId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
 
-        assertEquals(0, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals(1, jdbc.queryForObject("select occupied_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(1, jdbc.queryForObject("select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals("CONSUMED", jdbc.queryForObject("select status from schedule_slot_holds where id = ?",
+        assertEquals("CONSUMED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
                 String.class, Long.valueOf(holdId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from patient_registrations where encounter_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_ENC = ?",
                 Integer.class, completed.get("encounterId").asLong()));
 
         String externalTransactionNo = jdbc.queryForObject(
-                "select external_transaction_no from payments where payment_order_id = ?", String.class,
+                "select CD_EXT_TXN_NO as external_transaction_no from RHN_BIL_PAY where ID_PAY_ORDER = ?", String.class,
                 order.get("id").asLong());
         JsonNode reconciliation = json(mockMvc.perform(post("/api/billing/reconciliation-batches")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -185,14 +187,14 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/billing/receipts/{receiptId}", pendingReceipt.get("id").asText())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ISSUED"));
-        assertEquals(1, jdbc.queryForObject("select count(*) from queue_tickets qt join patient_registrations pr " +
-                        "on pr.tenant_id = qt.tenant_id and pr.id = qt.registration_id where pr.encounter_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_QUEUE_TICKET qt join RHN_SC_PAT_REG pr " +
+                        "on pr.ID_TNT = qt.ID_TNT and pr.ID_PAT_REG = qt.ID_PAT_REG where pr.ID_ENC = ?",
                 Integer.class, completed.get("encounterId").asLong()));
 
         mockMvc.perform(post("/api/billing/payment-orders/{paymentOrderId}/business-completion/retry",
                         order.get("id").asText()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUCCEEDED"));
-        assertEquals(1, jdbc.queryForObject("select count(*) from patient_registrations where encounter_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_ENC = ?",
                 Integer.class, completed.get("encounterId").asLong()));
 
         Instant closeFrom = Instant.now().minusSeconds(3600);
@@ -260,12 +262,12 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         assertEquals("DEPARTMENT", jdbc.queryForObject(
-                "select registration_scope from service_schedules where id = ?", String.class, Long.valueOf(scheduleId)));
+                "select SD_REG_SCOPE from RHN_SC_SVC_SCHED where ID_SVC_SCHED = ?", String.class, Long.valueOf(scheduleId)));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from appointments where schedule_id = ? and practitioner_id is null " +
-                        "and practitioner_name_snapshot is null", Integer.class, Long.valueOf(scheduleId)));
+                "select count(*) from RHN_SC_APPT where ID_SVC_SCHED = ? and ID_PRACT is null " +
+                        "and NA_PRACT_SNAP is null", Integer.class, Long.valueOf(scheduleId)));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from patient_registrations where schedule_id = ? and encounter_id = ?",
+                "select count(*) from RHN_SC_PAT_REG where ID_SVC_SCHED = ? and ID_ENC = ?",
                 Integer.class, Long.valueOf(scheduleId), completed.get("encounterId").asLong()));
     }
 
@@ -286,7 +288,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.settlementId").doesNotExist())
                 .andExpect(jsonPath("$.encounterId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
-        assertEquals(1, jdbc.queryForObject("select count(*) from patient_registrations where encounter_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_ENC = ?",
                 Integer.class, value.get("encounterId").asLong()));
     }
 
@@ -295,8 +297,9 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);
         long coverageId = GlobalIds.next();
-        jdbc.update("insert into resident_coverages (id, revision, tenant_id, resident_id, coverage_type_code, " +
-                        "payer_name, member_no, primary_flag, valid_from, status, created_at, created_by, updated_at, updated_by) " +
+        jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
+                        "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
+                        "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
                         "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
                 coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
         mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
@@ -342,10 +345,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("COMPLETED"));
 
-        int accountCount = jdbc.queryForObject("select count(*) from patient_accounts", Integer.class);
-        int chargeCount = jdbc.queryForObject("select count(*) from charge_items", Integer.class);
-        int settlementCount = jdbc.queryForObject("select count(*) from settlements", Integer.class);
-        int intentCount = jdbc.queryForObject("select count(*) from registration_billing_intents", Integer.class);
+        int accountCount = jdbc.queryForObject("select count(*) from RHN_BIL_PAT_ACCT", Integer.class);
+        int chargeCount = jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM", Integer.class);
+        int settlementCount = jdbc.queryForObject("select count(*) from RHN_BIL_STL", Integer.class);
+        int intentCount = jdbc.queryForObject("select count(*) from RHN_BIL_REG_BIL_INTENT", Integer.class);
 
         mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -358,11 +361,11 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_ACTIVE_DUPLICATE"));
 
-        assertEquals(accountCount, jdbc.queryForObject("select count(*) from patient_accounts", Integer.class));
-        assertEquals(chargeCount, jdbc.queryForObject("select count(*) from charge_items", Integer.class));
-        assertEquals(settlementCount, jdbc.queryForObject("select count(*) from settlements", Integer.class));
-        assertEquals(intentCount, jdbc.queryForObject("select count(*) from registration_billing_intents", Integer.class));
-        assertEquals(0, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(accountCount, jdbc.queryForObject("select count(*) from RHN_BIL_PAT_ACCT", Integer.class));
+        assertEquals(chargeCount, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM", Integer.class));
+        assertEquals(settlementCount, jdbc.queryForObject("select count(*) from RHN_BIL_STL", Integer.class));
+        assertEquals(intentCount, jdbc.queryForObject("select count(*) from RHN_BIL_REG_BIL_INTENT", Integer.class));
+        assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
     }
 
@@ -416,22 +419,22 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.refundStatus").value("REFUNDED"));
 
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select status from registration_billing_intents where id = ?", String.class, intent.get("id").asLong()));
+                "select SD_STATUS as status from RHN_BIL_REG_BIL_INTENT where ID_REG_BIL_INTENT = ?", String.class, intent.get("id").asLong()));
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select status from patient_registrations where encounter_id = ?", String.class, Long.valueOf(encounterId)));
+                "select SD_STATUS as status from RHN_SC_PAT_REG where ID_ENC = ?", String.class, Long.valueOf(encounterId)));
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select q.status from queue_tickets q join patient_registrations r on r.id = q.registration_id " +
-                        "where r.encounter_id = ?", String.class, Long.valueOf(encounterId)));
-        assertEquals(0, jdbc.queryForObject("select occupied_count from schedule_slot_pools where schedule_id = ?",
+                "select q.SD_STATUS as status from RHN_SC_QUEUE_TICKET q join RHN_SC_PAT_REG r on r.ID_PAT_REG = q.ID_PAT_REG " +
+                        "where r.ID_ENC = ?", String.class, Long.valueOf(encounterId)));
+        assertEquals(0, jdbc.queryForObject("select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from charge_items " +
-                        "where source_type = 'REGISTRATION_REVERSAL' and source_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_CHARGE_ITEM " +
+                        "where SD_SRC_TYPE = 'REGISTRATION_REVERSAL' and ID_SRC = ?",
                 Integer.class, intent.get("id").asLong()));
-        assertEquals(1, jdbc.queryForObject("select count(*) from payment_orders " +
-                        "where patient_account_id = ? and order_type = 'REFUND'",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_PAY_ORDER " +
+                        "where ID_PAT_ACCT = ? and SD_ORDER_TYPE = 'REFUND'",
                 Integer.class, completed.get("patientAccountId").asLong()));
-        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when direction = 'DEBIT' then amount " +
-                        "else -amount end), 0) from ledger_entries where patient_account_id = ?",
+        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+                        "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?",
                 BigDecimal.class, completed.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(BigDecimal.ZERO));
     }
@@ -458,7 +461,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 .formatted(suffix)))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ENCOUNTER_ALREADY_IN_SERVICE"));
         assertEquals("REGISTERED", jdbc.queryForObject(
-                "select status from patient_registrations where encounter_id = ?", String.class, Long.valueOf(encounterId)));
+                "select SD_STATUS as status from RHN_SC_PAT_REG where ID_ENC = ?", String.class, Long.valueOf(encounterId)));
     }
 
     @Test
@@ -472,20 +475,20 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         List<MvcResult> results = List.of(first.join(), second.join());
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 201).count());
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 409).count());
-        assertEquals(1, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(1, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from schedule_slot_holds " +
-                        "where schedule_id = ? and status = 'ACTIVE'", Integer.class, Long.valueOf(scheduleId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from registration_billing_intents where schedule_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_SCHED_SLOT_HOLD " +
+                        "where ID_SVC_SCHED = ? and SD_STATUS = 'ACTIVE'", Integer.class, Long.valueOf(scheduleId)));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_BIL_REG_BIL_INTENT where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
         JsonNode winningIntent = json(results.stream().filter(value -> value.getResponse().getStatus() == 201)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
         mockMvc.perform(post("/api/billing/registration-intents/{intentId}/cancel", winningIntent.get("id").asText())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
-        assertEquals(0, jdbc.queryForObject("select held_count from schedule_slot_pools where schedule_id = ?",
+        assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
-        assertEquals("RELEASED", jdbc.queryForObject("select status from schedule_slot_holds where id = ?",
+        assertEquals("RELEASED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
                 String.class, winningIntent.get("slotHoldId").asLong()));
     }
 
@@ -509,9 +512,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
                 .andExpect(jsonPath("$.paymentOrderId").value(pendingOrder.get("id").asLong()))
                 .andExpect(jsonPath("$.encounterId").doesNotExist());
-        assertEquals(1, jdbc.queryForObject("select count(*) from schedule_slot_holds " +
-                        "where id = ? and status = 'ACTIVE'", Integer.class, intent.get("slotHoldId").asLong()));
-        assertEquals(0, jdbc.queryForObject("select count(*) from patient_registrations where resident_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_SCHED_SLOT_HOLD " +
+                        "where ID_SCHED_SLOT_HOLD = ? and SD_STATUS = 'ACTIVE'", Integer.class,
+                intent.get("slotHoldId").asLong()));
+        assertEquals(0, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_PAT = ?",
                 Integer.class, Long.valueOf(residentId)));
 
         mockMvc.perform(get("/api/billing/payment-orders/recovery-worklist").with(rhnWorkContext()))
@@ -527,7 +531,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.encounterId").isNotEmpty());
-        assertEquals(1, jdbc.queryForObject("select count(*) from patient_registrations where resident_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_PAT = ?",
                 Integer.class, Long.valueOf(residentId)));
     }
 
@@ -536,8 +540,9 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String residentId = createResident(suffix);
         long coverageId = GlobalIds.next();
-        jdbc.update("insert into resident_coverages (id, revision, tenant_id, resident_id, coverage_type_code, " +
-                        "payer_name, member_no, primary_flag, valid_from, status, created_at, created_by, updated_at, updated_by) " +
+        jdbc.update("insert into RHN_INS_PAT_COVER (ID_PAT_COVER, REVISION, ID_TNT, ID_PAT, CD_COVER_TYPE, " +
+                        "NA_PAYER, CD_MEMBER_NO, FG_PRIMARY_FLAG, DA_VALID_FROM, SD_STATUS, " +
+                        "DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED) " +
                         "values (?, 0, ?, ?, 'BASIC', '测试医保基金', 'MASKED', true, ?, 'ACTIVE', ?, 'test', ?, 'test')",
                 coverageId, Long.valueOf(TENANT), Long.valueOf(residentId), LocalDate.now(), Instant.now(), Instant.now());
         String scheduleId = createTodaySchedule(suffix, 1);
@@ -606,12 +611,12 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tenderedAmount").value(10.0))
                 .andExpect(jsonPath("$.outstandingAmount").value(0.0))
                 .andExpect(jsonPath("$.tenders.length()").value(3));
-        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when direction = 'DEBIT' then amount " +
-                        "else -amount end), 0) from ledger_entries where patient_account_id = ?", BigDecimal.class,
+        BigDecimal balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+                        "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", BigDecimal.class,
                 intent.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(BigDecimal.ZERO));
-        assertEquals(2, jdbc.queryForObject("select count(*) from ledger_entries where patient_account_id = ? " +
-                        "and claim_response_id is not null", Integer.class, intent.get("patientAccountId").asLong()));
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ? " +
+                        "and ID_CLAIM_RESP is not null", Integer.class, intent.get("patientAccountId").asLong()));
 
         mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -639,12 +644,13 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.tenderedAmount").value(3.0))
                 .andExpect(jsonPath("$.outstandingAmount").value(7.0))
                 .andExpect(jsonPath("$.tenders.length()").value(5));
-        balance = jdbc.queryForObject("select coalesce(sum(case when direction = 'DEBIT' then amount " +
-                        "else -amount end), 0) from ledger_entries where patient_account_id = ?", BigDecimal.class,
+        balance = jdbc.queryForObject("select coalesce(sum(case when SD_DIRECTION = 'DEBIT' then AMT_ENTRY " +
+                        "else -AMT_ENTRY end), 0) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", BigDecimal.class,
                 intent.get("patientAccountId").asLong());
         assertEquals(0, balance.compareTo(new BigDecimal("7.000000")));
-        assertEquals(2, jdbc.queryForObject("select count(*) from ledger_entries where patient_account_id = ? " +
-                        "and claim_response_id is not null and direction = 'DEBIT' and reverses_ledger_entry_id is not null",
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ? " +
+                        "and ID_CLAIM_RESP is not null and SD_DIRECTION = 'DEBIT' " +
+                        "and ID_LEDGER_ENTRY_REVERSES is not null",
                 Integer.class, intent.get("patientAccountId").asLong()));
     }
 
@@ -726,6 +732,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     @TestConfiguration
     static class ReceiptAdapterConfiguration {
         @Bean
+        @Order(Ordered.HIGHEST_PRECEDENCE)
         FiscalReceiptAdapter pendingThenQueryableReceiptAdapter() {
             return new FiscalReceiptAdapter() {
                 @Override public boolean supports(String authority, String type) {

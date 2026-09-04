@@ -12,24 +12,24 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "unit_conversions")
+@Table(name = "RHN_BD_UNIT_CONV")
 public class UnitConversion {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "scope_code", nullable = false) private String scopeCode;
-    @Column(name = "from_unit_id", nullable = false) private Long fromUnitId;
-    @Column(name = "to_unit_id", nullable = false) private Long toUnitId;
-    @Column(nullable = false) private BigDecimal factor;
-    @Column(name = "offset_value", nullable = false) private BigDecimal offsetValue;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_UNIT_CONV") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "CD_SCOPE", nullable = false) private String scopeCode;
+    @Column(name = "ID_UNIT_DEF_FROM_UNIT", nullable = false) private Long fromUnitId;
+    @Column(name = "ID_UNIT_DEF_TO_UNIT", nullable = false) private Long toUnitId;
+    @Column(name = "FACTOR", nullable = false) private BigDecimal factor;
+    @Column(name = "OFFSET_VALUE", nullable = false) private BigDecimal offsetValue;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected UnitConversion() {}
 

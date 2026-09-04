@@ -6,13 +6,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "medication_route_profiles")
+@Table(name = "RHN_BD_MED_ROUTE_PROF")
 public class MedicationRouteProfile {
     @Id
-    @Column(name = "concept_id")
+    @Column(name = "ID_CONCEPT")
     private Long conceptId;
 
-    @Column(name = "execution_type", nullable = false)
+    @Column(name = "SD_EXEC_TYPE", nullable = false)
     private String executionType;
 
     protected MedicationRouteProfile() {

@@ -50,14 +50,14 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
     @BeforeEach
     void enableAutomaticSupplyAndPrepareHerbalFixture() {
         jdbc.update("""
-                update parameter_definitions set default_value_json = 'true'
-                 where parameter_key = 'pharmacy.inpatient-supply.auto-generation.enabled'
+                update RHN_SYS_PARAM_DEF set JSON_DEFAULT_VAL = 'true'
+                 where CD_PARAM_KEY = 'pharmacy.inpatient-supply.auto-generation.enabled'
                 """);
         configurationCache.invalidateAll();
 
         // Reuse an otherwise complete medication product fixture so the test remains focused on routing.
         // Clinical order creation still goes through the real API and freezes HERBAL into its request snapshot.
-        jdbc.update("update medications set medication_type = 'HERBAL' where id = ?",
+        jdbc.update("update RHN_BD_MED set SD_MED_TYPE = 'HERBAL' where ID_MED = ?",
                 Long.valueOf(HERBAL_MEDICATION));
     }
 
@@ -74,21 +74,20 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
         scheduler.pollAt(DISCOVERY_TIME);
 
         List<Map<String, Object>> batches = jdbc.queryForList("""
-                select id, stock_site_id
-                  from inpatient_med_supply_batches
-                 where tenant_id = ? and nursing_unit_department_id = ?
-                   and window_start = ? and generation_trigger = 'AUTO'
-                 order by stock_site_id
+                select ID_INP_MED_SUPPLY_BATCH as id, ID_STOCK_SITE as stock_site_id from RHN_SUP_INP_MED_SUPPLY_BATCH
+                 where ID_TNT = ? and ID_DEPT_NURS_UNIT = ?
+                   and DT_WINDOW_START = ? and SD_GEN_TRIGGER = 'AUTO'
+                 order by ID_STOCK_SITE
                 """, Long.valueOf(TENANT), Long.valueOf(WARD_DEPARTMENT),
                 Instant.parse("2026-09-05T00:00:00Z"));
         assertEquals(2, batches.size(), "同一病区班次应按西药房和中药房形成两个独立自动批次");
         assertEquals(1, count("""
-                select count(*) from inpatient_med_supply_batches
-                 where nursing_unit_department_id = ? and window_start = ? and stock_site_id = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH
+                 where ID_DEPT_NURS_UNIT = ? and DT_WINDOW_START = ? and ID_STOCK_SITE = ?
                 """, WARD_DEPARTMENT, "2026-09-05T00:00:00Z", GENERAL_INPATIENT_SITE));
         assertEquals(1, count("""
-                select count(*) from inpatient_med_supply_batches
-                 where nursing_unit_department_id = ? and window_start = ? and stock_site_id = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH
+                 where ID_DEPT_NURS_UNIT = ? and DT_WINDOW_START = ? and ID_STOCK_SITE = ?
                 """, WARD_DEPARTMENT, "2026-09-05T00:00:00Z", HERBAL_SITE));
 
         assertEquals(1, routedLineCount(GENERAL_INPATIENT_SITE, westernRequestId, "WESTERN"));
@@ -99,20 +98,20 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                 "西药剂次不得泄漏到中药专项批次");
 
         assertEquals(2, count("""
-                select count(*) from inpatient_med_supply_gen_runs
-                 where nursing_unit_department_id = ? and business_date = ? and shift_code = 'DAY'
-                   and status = 'SUCCEEDED'
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                   and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE));
         assertEquals(1, count("""
-                select count(*) from inpatient_med_supply_gen_runs
-                 where nursing_unit_department_id = ? and business_date = ? and shift_code = 'DAY'
-                   and medication_type_snapshot = 'WESTERN' and stock_site_id = ? and status = 'SUCCEEDED'
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                   and SD_MED_TYPE_SNAP = 'WESTERN' and ID_STOCK_SITE = ? and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE, GENERAL_INPATIENT_SITE));
         assertEquals(1, count("""
-                select count(*) from inpatient_med_supply_gen_runs
-                 where nursing_unit_department_id = ? and business_date = ? and shift_code = 'DAY'
-                   and medication_type_snapshot = 'HERBAL'
-                   and dispense_route_id = ? and stock_site_id = ? and status = 'SUCCEEDED'
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
+                   and SD_MED_TYPE_SNAP = 'HERBAL'
+                   and ID_DISP_ROUTE = ? and ID_STOCK_SITE = ? and SD_STATUS = 'SUCCEEDED'
                 """, WARD_DEPARTMENT, BUSINESS_DATE, herbalRoute.get("id").asText(), HERBAL_SITE));
     }
 
@@ -126,17 +125,18 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
         scheduler.pollAt(DISCOVERY_TIME);
 
         List<Map<String, Object>> blocked = jdbc.queryForList("""
-                select id, job_key, medication_type_snapshot, status, last_error_code
-                  from inpatient_med_supply_gen_runs
-                 where tenant_id = ? and organization_id = ? and nursing_unit_department_id = ?
-                   and business_date = ? and shift_code = 'DAY'
+                select ID_INP_MED_SUPPLY_GEN_RUN as id, CD_JOB_KEY as job_key,
+                       SD_MED_TYPE_SNAP as medication_type_snapshot, SD_STATUS as status,
+                       CD_LAST_ERROR as last_error_code from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_TNT = ? and ID_ORG = ? and ID_DEPT_NURS_UNIT = ?
+                   and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(1, blocked.size(), "缺路由的真实计划剂次必须形成一条且仅一条可治理运行事实");
         assertEquals("WESTERN", blocked.getFirst().get("medication_type_snapshot"));
         assertEquals("ROUTING_BLOCKED", blocked.getFirst().get("status"));
         assertEquals("ROUTE_NOT_CONFIGURED", blocked.getFirst().get("last_error_code"),
                 "阻断事实必须保留可检索的 ROUTE_NOT_CONFIGURED 原因码");
-        assertEquals(0, count("select count(*) from inpatient_med_supply_batches"),
+        assertEquals(0, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH"),
                 "路由未配置时不得生成无归属或错误归属的供药批次");
 
         String runId = String.valueOf(blocked.getFirst().get("id"));
@@ -147,23 +147,23 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
         scheduler.pollAt(DISCOVERY_TIME);
 
         Map<String, Object> recovered = jdbc.queryForMap("""
-                select id, job_key, status, batch_id
-                  from inpatient_med_supply_gen_runs
-                 where tenant_id = ? and organization_id = ? and nursing_unit_department_id = ?
-                   and business_date = ? and shift_code = 'DAY'
+                select ID_INP_MED_SUPPLY_GEN_RUN as id, CD_JOB_KEY as job_key,
+                       SD_STATUS as status, ID_INP_MED_SUPPLY_BATCH as batch_id from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_TNT = ? and ID_ORG = ? and ID_DEPT_NURS_UNIT = ?
+                   and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(runId, String.valueOf(recovered.get("id")),
                 "补齐路由后必须恢复原运行事实而不是制造第二条作业");
         assertEquals(jobKey, String.valueOf(recovered.get("job_key")));
         assertEquals("SUCCEEDED", recovered.get("status"));
         assertNotNull(recovered.get("batch_id"));
-        assertEquals(1, count("select count(*) from inpatient_med_supply_gen_runs"));
-        assertEquals(1, count("select count(*) from inpatient_med_supply_batches"),
+        assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN"));
+        assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH"),
                 "同一 job_key 恢复和再次轮询都只能得到一个批次");
 
         scheduler.pollAt(DISCOVERY_TIME);
-        assertEquals(1, count("select count(*) from inpatient_med_supply_gen_runs"));
-        assertEquals(1, count("select count(*) from inpatient_med_supply_batches"));
+        assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_GEN_RUN"));
+        assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH"));
     }
 
     @Test
@@ -175,16 +175,16 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                 "2026-09-05T01:00:00Z", "IP-ROUTING-UNAVAILABLE-HERBAL");
 
         // The route was valid when configured, then its authoritative target became unavailable.
-        jdbc.update("update stock_sites set active = false, revision = revision + 1 where id = ?",
+        jdbc.update("update RHN_SUP_STOCK_SITE set FG_ACTIVE = false, REVISION = REVISION + 1 where ID_STOCK_SITE = ?",
                 Long.valueOf(HERBAL_SITE));
         scheduler.pollAt(DISCOVERY_TIME);
 
-        assertEquals(0, count("select count(*) from inpatient_med_supply_batches"),
+        assertEquals(0, count("select count(*) from RHN_SUP_INP_MED_SUPPLY_BATCH"),
                 "命中的专项药房不可用时必须整体阻断，不能静默回退到通用药房");
         assertEquals(0, routedLineCount(GENERAL_INPATIENT_SITE, herbalRequestId, "HERBAL"));
         List<Map<String, Object>> blocked = jdbc.queryForList("""
-                select medication_type_snapshot, status, last_error_code from inpatient_med_supply_gen_runs
-                 where nursing_unit_department_id = ? and business_date = ? and shift_code = 'DAY'
+                select SD_MED_TYPE_SNAP as medication_type_snapshot, SD_STATUS as status, CD_LAST_ERROR as last_error_code from RHN_SUP_INP_MED_SUPPLY_GEN_RUN
+                 where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
                 """, Long.valueOf(WARD_DEPARTMENT), BUSINESS_DATE);
         assertEquals(1, blocked.size());
         assertEquals("HERBAL", blocked.getFirst().get("medication_type_snapshot"));
@@ -261,24 +261,24 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
 
     private int routedLineCount(String stockSiteId, String requestId, String medicationType) {
         return count("""
-                select count(*) from inpatient_med_supply_lines line
-                  join inpatient_med_supply_batches batch
-                    on batch.tenant_id = line.tenant_id and batch.id = line.supply_batch_id
-                  join medication_requests medication
-                    on medication.tenant_id = line.tenant_id and medication.request_id = line.request_id
-                 where batch.stock_site_id = ? and line.request_id = ?
-                   and medication.medication_type_snapshot = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_LINE line
+                  join RHN_SUP_INP_MED_SUPPLY_BATCH batch
+                    on batch.ID_TNT = line.ID_TNT and batch.ID_INP_MED_SUPPLY_BATCH = line.ID_INP_MED_SUPPLY_BATCH
+                  join RHN_EX_MED_REQ medication
+                    on medication.ID_TNT = line.ID_TNT and medication.ID_CARE_REQ = line.ID_CARE_REQ
+                 where batch.ID_STOCK_SITE = ? and line.ID_CARE_REQ = ?
+                   and medication.SD_MED_TYPE_SNAP = ?
                 """, stockSiteId, requestId, medicationType);
     }
 
     private int routedMedicationTypeCount(String stockSiteId, String medicationType) {
         return count("""
-                select count(*) from inpatient_med_supply_lines line
-                  join inpatient_med_supply_batches batch
-                    on batch.tenant_id = line.tenant_id and batch.id = line.supply_batch_id
-                  join medication_requests medication
-                    on medication.tenant_id = line.tenant_id and medication.request_id = line.request_id
-                 where batch.stock_site_id = ? and medication.medication_type_snapshot = ?
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_LINE line
+                  join RHN_SUP_INP_MED_SUPPLY_BATCH batch
+                    on batch.ID_TNT = line.ID_TNT and batch.ID_INP_MED_SUPPLY_BATCH = line.ID_INP_MED_SUPPLY_BATCH
+                  join RHN_EX_MED_REQ medication
+                    on medication.ID_TNT = line.ID_TNT and medication.ID_CARE_REQ = line.ID_CARE_REQ
+                 where batch.ID_STOCK_SITE = ? and medication.SD_MED_TYPE_SNAP = ?
                 """, stockSiteId, medicationType);
     }
 

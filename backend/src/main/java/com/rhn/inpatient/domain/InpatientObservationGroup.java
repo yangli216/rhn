@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_observation_groups")
+@Table(name = "RHN_VIS_INP_OBS_GRP")
 public class InpatientObservationGroup {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "measured_at", nullable = false) private Instant measuredAt;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column private String note;
-    @Column(name = "recorded_by", nullable = false) private Long recordedBy;
-    @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
+    @Id @Column(name = "ID_INP_OBS_GRP") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "DT_MEASURED", nullable = false) private Instant measuredAt;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_NOTE") private String note;
+    @Column(name = "ID_USER_RECORDED", nullable = false) private Long recordedBy;
+    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
 
     protected InpatientObservationGroup() {
     }

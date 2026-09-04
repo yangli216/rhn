@@ -48,7 +48,7 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.useCount").value(1))
                 .andReturn().getResponse().getContentAsString());
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from outpatient_plan_diagnoses where template_id=?",
+                "select count(*) from RHN_META_OP_PLAN_DIAG where ID_OP_PLAN_TMPL=?",
                 Integer.class, Long.valueOf(templateId)));
 
         mockMvc.perform(post("/api/outpatient/plan-templates/{id}/disable", templateId).with(rhnWorkContext())

@@ -13,57 +13,57 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "encounters")
+@Table(name = "RHN_VIS_ENC")
 class Encounter {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_ENC") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "resident_id", nullable = false)
+    @Column(name = "ID_PAT", nullable = false)
     private Long residentId;
-    @Column(name = "encounter_no", nullable = false)
+    @Column(name = "CD_ENC_NO", nullable = false)
     private String encounterNo;
-    @Column(name = "organization_id", nullable = false)
+    @Column(name = "ID_ORG", nullable = false)
     private Long organizationId;
-    @Column(name = "department_id", nullable = false)
+    @Column(name = "ID_DEPT", nullable = false)
     private Long departmentId;
-    @Column(name = "registration_id")
+    @Column(name = "ID_PAT_REG")
     private Long registrationId;
-    @Column(name = "schedule_id")
+    @Column(name = "ID_SVC_SCHED")
     private Long scheduleId;
-    @Column(name = "appointment_id")
+    @Column(name = "ID_APPT")
     private Long appointmentId;
-    @Column(name = "registration_source")
+    @Column(name = "SD_REG_SRC")
     private String registrationSource;
-    @Column(name = "visit_type")
+    @Column(name = "SD_VISIT_TYPE")
     private String visitType;
-    @Column(name = "encounter_class", nullable = false)
+    @Column(name = "SD_ENC_CLASS", nullable = false)
     private String encounterClass;
-    @Column(name = "clinician_id")
+    @Column(name = "ID_CLINICIAN")
     private String clinicianId;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private EncounterStatus status;
-    @Column(name = "chief_complaint")
+    @Column(name = "DES_CHIEF_COMPLAINT")
     private String chiefComplaint;
-    private Integer systolic;
-    private Integer diastolic;
-    @Column(name = "registered_at", nullable = false)
+    @Column(name = "SYSTOLIC") private Integer systolic;
+    @Column(name = "DIASTOLIC") private Integer diastolic;
+    @Column(name = "DT_REGISTERED", nullable = false)
     private Instant registeredAt;
-    @Column(name = "started_at")
+    @Column(name = "DT_STARTED")
     private Instant startedAt;
-    @Column(name = "completed_at")
+    @Column(name = "DT_COMPLETED")
     private Instant completedAt;
-    @Column(name = "termination_code")
+    @Column(name = "CD_TERMINATION")
     private String terminationCode;
-    @Column(name = "termination_reason")
+    @Column(name = "DES_TERMINATION_REASON")
     private String terminationReason;
-    @Column(name = "terminated_at")
+    @Column(name = "DT_TERMINATED")
     private Instant terminatedAt;
-    @Column(name = "terminated_by")
+    @Column(name = "ID_USER_TERMINATED")
     private Long terminatedBy;
     @Version
-    private long version;
+    @Column(name = "REVISION") private long version;
 
     protected Encounter() {
     }

@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_order_events")
+@Table(name = "RHN_EX_INP_ORDER_EVT")
 public class InpatientOrderEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "task_id") private Long taskId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "order_status_from") private String orderStatusFrom;
-    @Column(name = "order_status_to") private String orderStatusTo;
-    @Column(name = "task_status_from") private String taskStatusFrom;
-    @Column(name = "task_status_to") private String taskStatusTo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column private String reason;
-    @Column(name = "actor_id", nullable = false) private Long actorId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_INP_ORDER_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_INP_ORDER_TASK") private Long taskId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_ORDER_STATUS_FROM") private String orderStatusFrom;
+    @Column(name = "SD_ORDER_STATUS_TO") private String orderStatusTo;
+    @Column(name = "SD_TASK_STATUS_FROM") private String taskStatusFrom;
+    @Column(name = "SD_TASK_STATUS_TO") private String taskStatusTo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "ID_ACTOR", nullable = false) private Long actorId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected InpatientOrderEvent() {
     }

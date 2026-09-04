@@ -9,15 +9,15 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "event_consumptions")
+@Table(name = "RHN_INT_EVT_CONSUME")
 public class EventConsumption {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "consumer_name", nullable = false) private String consumerName;
-    @Column(name = "event_id", nullable = false) private Long eventId;
-    @Column(nullable = false) private String status;
-    @Column(name = "processed_at", nullable = false) private Instant processedAt;
-    @Column(name = "last_error") private String lastError;
+    @Id @Column(name = "ID_EVT_CONSUME") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "NA_CONSUMER", nullable = false) private String consumerName;
+    @Column(name = "ID_EVT", nullable = false) private Long eventId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_PROCESSED", nullable = false) private Instant processedAt;
+    @Column(name = "DES_LAST_ERROR") private String lastError;
 
     protected EventConsumption() {
     }

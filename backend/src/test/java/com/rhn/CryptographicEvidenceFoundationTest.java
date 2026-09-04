@@ -68,9 +68,9 @@ class CryptographicEvidenceFoundationTest extends RhnIntegrationTestSupport {
         assertEquals("CONTENT_MISMATCH", changedContent.status());
 
         jdbcTemplate.update("""
-                update cryptographic_evidence
-                   set statement_json = replace(statement_json, 'UPDATE', 'DELETE')
-                 where id = ?
+                update RHN_AUD_CRYPTO_EVID
+                   set JSON_STATEMENT = replace(JSON_STATEMENT, 'UPDATE', 'DELETE')
+                 where ID_CRYPTO_EVID = ?
                 """, second.evidenceId());
         EvidenceVerification changedStatement = evidenceService.verify(second.evidenceId(), bytes("第二版内容"));
         assertFalse(changedStatement.valid());

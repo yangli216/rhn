@@ -11,35 +11,35 @@ import java.time.Instant;
 import java.util.List;
 
 @Entity
-@Table(name = "settlements")
+@Table(name = "RHN_BIL_STL")
 public class Settlement {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "reverses_settlement_id") private Long reversesSettlementId;
-    @Column(name = "legacy_invoice_id") private Long legacyInvoiceId;
-    @Column(name = "settlement_no", nullable = false) private String settlementNo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "settlement_type", nullable = false) private String settlementType;
-    @Column(name = "settlement_scene", nullable = false) private String settlementScene;
-    @Column(name = "terminal_scene", nullable = false) private String terminalScene;
-    @Column(nullable = false) private String status;
-    @Column(name = "gross_amount", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "discount_amount", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
-    @Column(name = "insurance_amount", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
-    @Column(name = "patient_amount", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
-    @Column(name = "other_amount", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;
-    @Column(name = "rounding_amount", nullable = false, precision = 24, scale = 6) private BigDecimal roundingAmount;
-    @Column(name = "net_amount", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "terminal_code") private String terminalCode;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "finalized_by") private Long finalizedBy;
-    @Column(name = "finalized_at") private Instant finalizedAt;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
+    @Id @Column(name = "ID_STL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "ID_STL_REVERSES") private Long reversesSettlementId;
+    @Column(name = "ID_INVOICE_LEGACY") private Long legacyInvoiceId;
+    @Column(name = "CD_STL_NO", nullable = false) private String settlementNo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "SD_STL_TYPE", nullable = false) private String settlementType;
+    @Column(name = "SD_STL_SCENE", nullable = false) private String settlementScene;
+    @Column(name = "SD_TERMINAL_SCENE", nullable = false) private String terminalScene;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
+    @Column(name = "AMT_DISCOUNT", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
+    @Column(name = "AMT_INS", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
+    @Column(name = "AMT_PAT", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
+    @Column(name = "AMT_OTHER", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;
+    @Column(name = "AMT_ROUNDING", nullable = false, precision = 24, scale = 6) private BigDecimal roundingAmount;
+    @Column(name = "AMT_NET", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_TERMINAL") private String terminalCode;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_FINALIZED") private Long finalizedBy;
+    @Column(name = "DT_FINALIZED") private Instant finalizedAt;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
 
     protected Settlement() {}
 

@@ -11,33 +11,33 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dispense_task_lines")
+@Table(name = "RHN_SUP_DISP_TASK_LINE")
 public class DispenseTaskLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "task_id", nullable = false) private Long taskId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "fulfillment_source_type", nullable = false) private String fulfillmentSourceType;
-    @Column(name = "fulfillment_source_id", nullable = false) private Long fulfillmentSourceId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "requested_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
-    @Column(name = "planned_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal plannedQuantity;
-    @Column(name = "dispensed_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal dispensedQuantity;
-    @Column(name = "returned_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal returnedQuantity;
-    @Column(name = "dispense_unit_code", nullable = false) private String dispenseUnitCode;
-    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(nullable = false) private boolean split;
-    @Column(name = "trace_required", nullable = false) private boolean traceRequired;
-    @Column(nullable = false) private String status;
-    @Column(name = "product_code_snapshot", nullable = false) private String productCodeSnapshot;
-    @Column(name = "product_name_snapshot", nullable = false) private String productNameSnapshot;
-    @Column(name = "package_spec_snapshot") private String packageSpecSnapshot;
-    @Lob @Column(name = "item_attribute_snapshot", nullable = false) private String itemAttributeSnapshot;
-    @Column(name = "item_attribute_hash", nullable = false) private String itemAttributeHash;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_DISP_TASK_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_DISP_TASK", nullable = false) private Long taskId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "SD_FULFILL_SRC_TYPE", nullable = false) private String fulfillmentSourceType;
+    @Column(name = "ID_FULFILL_SRC", nullable = false) private Long fulfillmentSourceId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_PLANNED", nullable = false, precision = 28, scale = 8) private BigDecimal plannedQuantity;
+    @Column(name = "QTY_DISPENSED", nullable = false, precision = 28, scale = 8) private BigDecimal dispensedQuantity;
+    @Column(name = "QTY_RETURNED", nullable = false, precision = 28, scale = 8) private BigDecimal returnedQuantity;
+    @Column(name = "CD_DISP_UNIT", nullable = false) private String dispenseUnitCode;
+    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "FG_SPLIT", nullable = false) private boolean split;
+    @Column(name = "FG_TRACE_REQUIRED", nullable = false) private boolean traceRequired;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_PRODUCT_SNAP", nullable = false) private String productCodeSnapshot;
+    @Column(name = "NA_PRODUCT_SNAP", nullable = false) private String productNameSnapshot;
+    @Column(name = "PACKAGE_SPEC_SNAPSHOT") private String packageSpecSnapshot;
+    @Lob @Column(name = "JSON_ITEM_ATTR_SNAP", nullable = false) private String itemAttributeSnapshot;
+    @Column(name = "HASH_ITEM_ATTR", nullable = false) private String itemAttributeHash;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected DispenseTaskLine() {}
 

@@ -11,24 +11,24 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "outpatient_note_form_versions")
+@Table(name = "RHN_META_OP_NOTE_FORM_VER")
 class OutpatientNoteFormVersion {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "form_code", nullable = false) private String formCode;
-    @Column(name = "version_number", nullable = false) private int versionNumber;
-    @Column(name = "specialty_code", nullable = false) private String specialtyCode;
-    @Column(name = "form_name", nullable = false) private String name;
-    private String description;
-    @Column(name = "definition_schema", nullable = false) private String definitionSchema;
+    @Id @Column(name = "ID_OP_NOTE_FORM_VER") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "CD_FORM", nullable = false) private String formCode;
+    @Column(name = "CD_VER_NUMBER", nullable = false) private int versionNumber;
+    @Column(name = "CD_SPECIALTY", nullable = false) private String specialtyCode;
+    @Column(name = "NA_FORM", nullable = false) private String name;
+    @Column(name = "DES_OP_NOTE_FORM_VER") private String description;
+    @Column(name = "JSON_DEF_SCHEMA", nullable = false) private String definitionSchema;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "definition_json", nullable = false) private String definitionJson;
-    @Column(nullable = false) private String status;
-    @Column(name = "published_by", nullable = false) private Long publishedBy;
-    @Column(name = "published_at", nullable = false) private Instant publishedAt;
-    @Column(name = "retired_at") private Instant retiredAt;
+    @Column(name = "JSON_DEF", nullable = false) private String definitionJson;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ID_USER_PUBLISD", nullable = false) private Long publishedBy;
+    @Column(name = "DT_PUBLISD", nullable = false) private Instant publishedAt;
+    @Column(name = "DT_RETIRED") private Instant retiredAt;
 
     protected OutpatientNoteFormVersion() {}
 

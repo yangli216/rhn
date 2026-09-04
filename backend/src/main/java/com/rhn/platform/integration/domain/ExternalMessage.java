@@ -11,31 +11,31 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "external_messages")
+@Table(name = "RHN_INT_EXT_MSG")
 public class ExternalMessage {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "endpoint_code", nullable = false) private String endpointCode;
-    @Column(nullable = false) private String direction;
-    @Column(name = "message_type", nullable = false) private String messageType;
-    @Column(name = "business_message_id", nullable = false) private String businessMessageId;
-    @Column(name = "correlation_id") private String correlationId;
-    @Column(nullable = false) private String status;
-    @Lob @Column(name = "payload_json", nullable = false) private String payloadJson;
-    @Column(name = "payload_digest_algorithm", nullable = false) private String payloadDigestAlgorithm;
-    @Column(name = "payload_digest", nullable = false) private String payloadDigest;
-    @Column(name = "related_resource_type") private String relatedResourceType;
-    @Column(name = "related_resource_id") private Long relatedResourceId;
-    @Column(name = "related_resource_version") private Long relatedResourceVersion;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "sent_at") private Instant sentAt;
-    @Column(name = "received_at") private Instant receivedAt;
-    @Column(name = "processed_at") private Instant processedAt;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
+    @Id @Column(name = "ID_EXT_MSG") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "CD_ENDPOINT", nullable = false) private String endpointCode;
+    @Column(name = "SD_DIRECTION", nullable = false) private String direction;
+    @Column(name = "SD_MSG_TYPE", nullable = false) private String messageType;
+    @Column(name = "ID_BUSINESS_MSG", nullable = false) private String businessMessageId;
+    @Column(name = "ID_CORRELATION") private String correlationId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Lob @Column(name = "JSON_PAYLOAD", nullable = false) private String payloadJson;
+    @Column(name = "PAYLOAD_DIGEST_ALGORITHM", nullable = false) private String payloadDigestAlgorithm;
+    @Column(name = "HASH_PAYLOAD", nullable = false) private String payloadDigest;
+    @Column(name = "SD_RELATED_RSRC_TYPE") private String relatedResourceType;
+    @Column(name = "ID_RELATED_RSRC") private Long relatedResourceId;
+    @Column(name = "SN_RELATED_RSRC_VER") private Long relatedResourceVersion;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_SENT") private Instant sentAt;
+    @Column(name = "DT_RECEIVED") private Instant receivedAt;
+    @Column(name = "DT_PROCESSED") private Instant processedAt;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
 
     protected ExternalMessage() {}
 

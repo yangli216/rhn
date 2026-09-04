@@ -11,25 +11,25 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "examination_attachment_items")
+@Table(name = "RHN_EX_EXAM_ATTACH_ITEM")
 public class ExaminationAttachmentItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "attachment_catalog_item_id", nullable = false) private Long attachmentCatalogItemId;
-    @Column(name = "trigger_type", nullable = false) private String triggerType;
-    @Column(name = "quantity_basis", nullable = false) private String quantityBasis;
-    @Column(nullable = false) private BigDecimal quantity;
-    @Column(name = "required_attachment", nullable = false) private boolean requiredAttachment;
-    @Column(name = "separately_chargeable", nullable = false) private boolean separatelyChargeable;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    private String description;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_EXAM_ATTACH_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_CATALOG_ITEM_ATTACH", nullable = false) private Long attachmentCatalogItemId;
+    @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
+    @Column(name = "QTY_BASIS", nullable = false) private String quantityBasis;
+    @Column(name = "QTY_ATTACH", nullable = false) private BigDecimal quantity;
+    @Column(name = "FG_REQUIRED_ATTACH", nullable = false) private boolean requiredAttachment;
+    @Column(name = "FG_SEPARATELY_CHARGEABLE", nullable = false) private boolean separatelyChargeable;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "DES_EXAM_ATTACH_ITEM") private String description;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ExaminationAttachmentItem() {}
 

@@ -9,19 +9,19 @@ import java.time.Instant;
 import java.util.Set;
 
 @Entity
-@Table(name = "disease_management_rules")
+@Table(name = "RHN_HPL_DISEASE_MGMT_RULE")
 public class DiseaseManagementRule {
-    @Id private Long id;
-    @Column(name = "program_id", nullable = false) private Long programId;
-    @Column(name = "inclusion_mode", nullable = false) private String inclusionMode;
-    @Column(name = "diagnosis_domain") private String diagnosisDomain;
-    @Column(name = "code_system_id") private Long codeSystemId;
-    @Column(name = "concept_type") private String conceptType;
-    @Column(name = "chapter_code") private String chapterCode;
-    @Column(name = "code_from") private String codeFrom;
-    @Column(name = "code_to") private String codeTo;
-    private String note;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Id @Column(name = "ID_DISEASE_MGMT_RULE") private Long id;
+    @Column(name = "ID_DISEASE_MGMT_PROG", nullable = false) private Long programId;
+    @Column(name = "SD_INCLUSION_MODE", nullable = false) private String inclusionMode;
+    @Column(name = "SD_DIAG_DOMAIN") private String diagnosisDomain;
+    @Column(name = "ID_CODE_SYSTEM") private Long codeSystemId;
+    @Column(name = "SD_CONCEPT_TYPE") private String conceptType;
+    @Column(name = "CD_CHAPTER") private String chapterCode;
+    @Column(name = "CD_CODE_FROM") private String codeFrom;
+    @Column(name = "CD_CODE_TO") private String codeTo;
+    @Column(name = "DES_NOTE") private String note;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected DiseaseManagementRule() {}
 

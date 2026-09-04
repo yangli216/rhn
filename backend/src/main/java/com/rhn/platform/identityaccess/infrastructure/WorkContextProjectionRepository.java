@@ -17,29 +17,29 @@ public class WorkContextProjectionRepository {
 
     public List<Row> findAvailable(Long tenantId, Long userId) {
         return jdbcTemplate.query("""
-                select assignment.organization_id, organization.name as organization_name,
-                       assignment.department_id, department.name as department_name,
-                       department.department_type, department.department_property,
-                       assignment.data_scope_type, role.code as role_code
-                  from user_role_assignments assignment
-                  join access_roles role
-                    on role.tenant_id = assignment.tenant_id and role.id = assignment.role_id
-                  left join organizations organization
-                    on organization.tenant_id = assignment.tenant_id and organization.id = assignment.organization_id
-                  left join departments department
-                    on department.tenant_id = assignment.tenant_id and department.id = assignment.department_id
-                 where assignment.tenant_id = ? and assignment.user_id = ?
-                   and role.status = 'ACTIVE'
-                   and assignment.valid_from <= current_timestamp
-                   and (assignment.valid_to is null or assignment.valid_to > current_timestamp)
+                select assignment.ID_ORG as organization_id, organization.NA_ORG as organization_name,
+                       assignment.ID_DEPT as department_id, department.NA_DEPT as department_name,
+                       department.SD_DEPT_TYPE as department_type,
+                       department.SD_DEPT_PROPERTY as department_property,
+                       assignment.SD_DATA_SCOPE_TYPE as data_scope_type, role.CD_ACC_ROLE as role_code from RHN_SYS_USER_ROLE_ASSIGN assignment
+                  join RHN_SYS_ACC_ROLE role
+                    on role.ID_TNT = assignment.ID_TNT and role.ID_ACC_ROLE = assignment.ID_ACC_ROLE
+                  left join RHN_SYS_ORG organization
+                    on organization.ID_TNT = assignment.ID_TNT and organization.ID_ORG = assignment.ID_ORG
+                  left join RHN_SYS_DEPT department
+                    on department.ID_TNT = assignment.ID_TNT and department.ID_DEPT = assignment.ID_DEPT
+                 where assignment.ID_TNT = ? and assignment.ID_USER = ?
+                   and role.SD_STATUS = 'ACTIVE'
+                   and assignment.DT_VALID_FROM <= current_timestamp
+                   and (assignment.DT_VALID_TO is null or assignment.DT_VALID_TO > current_timestamp)
                  order by case
-                              when department.department_property = 'CLINICAL' then 0
-                              when department.department_type = 'MED_PHARMACY_OUTPATIENT' then 10
-                              when department.department_type = 'MED_PHARMACY_WAREHOUSE' then 20
-                              when department.department_type like 'MED_PHARMACY%' then 30
+                              when department.SD_DEPT_PROPERTY = 'CLINICAL' then 0
+                              when department.SD_DEPT_TYPE = 'MED_PHARMACY_OUTPATIENT' then 10
+                              when department.SD_DEPT_TYPE = 'MED_PHARMACY_WAREHOUSE' then 20
+                              when department.SD_DEPT_TYPE like 'MED_PHARMACY%' then 30
                               else 40
                           end,
-                          assignment.created_at, assignment.id, organization.name, department.name, role.code
+                          assignment.DT_CREATED, assignment.ID_USER_ROLE_ASSIGN, organization.NA_ORG, department.NA_DEPT, role.CD_ACC_ROLE
                 """, this::row, tenantId, userId);
     }
 

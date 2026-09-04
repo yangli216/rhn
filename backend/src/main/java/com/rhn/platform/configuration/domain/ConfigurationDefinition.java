@@ -19,38 +19,38 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Entity
-@Table(name = "parameter_definitions")
+@Table(name = "RHN_SYS_PARAM_DEF")
 public class ConfigurationDefinition {
-    @Id private Long id;
-    @Column(name = "category_id", nullable = false) private Long categoryId;
-    @Column(name = "parameter_key", nullable = false, length = 160) private String configKey;
-    @Column(nullable = false, length = 200) private String name;
-    @Column(length = 1000) private String description;
-    @Enumerated(EnumType.STRING) @Column(name = "value_type", nullable = false, length = 24)
+    @Id @Column(name = "ID_PARAM_DEF") private Long id;
+    @Column(name = "ID_PARAM_CAT", nullable = false) private Long categoryId;
+    @Column(name = "CD_PARAM_KEY", nullable = false, length = 160) private String configKey;
+    @Column(name = "NA_PARAM_DEF", nullable = false, length = 200) private String name;
+    @Column(name = "DES_PARAM_DEF", length = 1000) private String description;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_VAL_TYPE", nullable = false, length = 24)
     private ConfigurationValueType valueType;
-    @Enumerated(EnumType.STRING) @Column(name = "control_type", nullable = false, length = 32)
+    @Enumerated(EnumType.STRING) @Column(name = "SD_CONTROL_TYPE", nullable = false, length = 32)
     private ConfigurationControlType controlType;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "json_schema") private String jsonSchema;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "default_value_json") private String defaultValueJson;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "example_value_json") private String exampleValueJson;
-    @Column(length = 32) private String unit;
-    @Column(name = "dictionary_code", length = 64) private String dictionaryCode;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "scope_json", nullable = false) private String scopeJson;
-    @Enumerated(EnumType.STRING) @Column(name = "parameter_category", nullable = false, length = 24)
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_SCHEMA") private String jsonSchema;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_DEFAULT_VAL") private String defaultValueJson;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_EXAMPLE_VAL") private String exampleValueJson;
+    @Column(name = "UNIT", length = 32) private String unit;
+    @Column(name = "CD_DICT", length = 64) private String dictionaryCode;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_SCOPE", nullable = false) private String scopeJson;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_PARAM_CAT", nullable = false, length = 24)
     private ConfigurationCategory category;
-    @Column(name = "inheritance_enabled", nullable = false) private boolean inheritanceEnabled;
-    @Column(name = "cache_enabled", nullable = false) private boolean cacheEnabled;
-    @Column(name = "nullable_value", nullable = false) private boolean nullableValue;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 24)
+    @Column(name = "FG_INHERITANCE", nullable = false) private boolean inheritanceEnabled;
+    @Column(name = "FG_CACHE", nullable = false) private boolean cacheEnabled;
+    @Column(name = "FG_NULLABLE_VAL", nullable = false) private boolean nullableValue;
+    @Enumerated(EnumType.STRING) @Column(name = "SENSITIVITY", nullable = false, length = 24)
     private ConfigurationSensitivity sensitivity;
-    @Enumerated(EnumType.STRING) @Column(name = "display_policy", nullable = false, length = 24)
+    @Enumerated(EnumType.STRING) @Column(name = "SD_DISPLAY_POLICY", nullable = false, length = 24)
     private ConfigurationDisplayPolicy displayPolicy;
-    @Enumerated(EnumType.STRING) @Column(nullable = false, length = 16) private ConfigurationStatus status;
-    @Version @Column(nullable = false) private Long revision;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false, length = 16) private ConfigurationStatus status;
+    @Version @Column(name = "REVISION", nullable = false) private Long revision;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ConfigurationDefinition() {
     }

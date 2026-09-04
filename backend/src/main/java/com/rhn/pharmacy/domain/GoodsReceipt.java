@@ -10,30 +10,30 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "goods_receipts")
+@Table(name = "RHN_SUP_GOOD_RCPT")
 public class GoodsReceipt {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "purchase_order_id", nullable = false) private Long purchaseOrderId;
-    @Column(name = "supplier_id", nullable = false) private Long supplierId;
-    @Column(name = "receipt_no", nullable = false) private String receiptNo;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(name = "delivery_note_no") private String deliveryNoteNo;
-    @Column(nullable = false) private String status;
-    @Column(name = "received_at", nullable = false) private Instant receivedAt;
-    @Column(name = "received_by", nullable = false) private Long receivedBy;
-    @Column(name = "inspected_at") private Instant inspectedAt;
-    @Column(name = "inspected_by") private Long inspectedBy;
-    @Column(name = "posted_at") private Instant postedAt;
-    @Column(name = "posted_by") private Long postedBy;
-    @Column private String description;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_GOOD_RCPT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_PURCH_ORDER", nullable = false) private Long purchaseOrderId;
+    @Column(name = "ID_SUPPL", nullable = false) private Long supplierId;
+    @Column(name = "CD_RCPT_NO", nullable = false) private String receiptNo;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "CD_DELIV_NOTE_NO") private String deliveryNoteNo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_RECEIVED", nullable = false) private Instant receivedAt;
+    @Column(name = "ID_USER_RECEIVED", nullable = false) private Long receivedBy;
+    @Column(name = "DT_INSPECTED") private Instant inspectedAt;
+    @Column(name = "ID_USER_INSPECTED") private Long inspectedBy;
+    @Column(name = "DT_POSTED") private Instant postedAt;
+    @Column(name = "ID_USER_POSTED") private Long postedBy;
+    @Column(name = "DES_GOOD_RCPT") private String description;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected GoodsReceipt() {}
 

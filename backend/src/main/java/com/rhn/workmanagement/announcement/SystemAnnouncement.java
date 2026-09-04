@@ -12,30 +12,30 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "system_announcements")
+@Table(name = "RHN_SYS_ANN")
 class SystemAnnouncement {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(nullable = false) private String category;
-    @Column(nullable = false) private String priority;
-    @Column(nullable = false) private String title;
-    @Column(nullable = false) private String summary;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "content_text", nullable = false) private String content;
-    @Column(nullable = false) private boolean pinned;
-    @Column(nullable = false) private String status;
-    @Column(name = "publish_at") private Instant publishAt;
-    @Column(name = "expire_at") private Instant expireAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "published_by") private Long publishedBy;
-    @Column(name = "published_at") private Instant publishedAt;
-    @Column(name = "withdrawn_by") private Long withdrawnBy;
-    @Column(name = "withdrawn_at") private Instant withdrawnAt;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Id @Column(name = "ID_SYS_ANN") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "SD_CAT", nullable = false) private String category;
+    @Column(name = "SD_PRIORITY", nullable = false) private String priority;
+    @Column(name = "NA_TITLE", nullable = false) private String title;
+    @Column(name = "DES_SUM", nullable = false) private String summary;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "DES_CONTENT", nullable = false) private String content;
+    @Column(name = "FG_PINNED", nullable = false) private boolean pinned;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_PUBLISH") private Instant publishAt;
+    @Column(name = "DT_EXPIRE") private Instant expireAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "ID_USER_PUBLISD") private Long publishedBy;
+    @Column(name = "DT_PUBLISD") private Instant publishedAt;
+    @Column(name = "ID_USER_WITHDRAWN") private Long withdrawnBy;
+    @Column(name = "DT_WITHDRAWN") private Instant withdrawnAt;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected SystemAnnouncement() {}
 

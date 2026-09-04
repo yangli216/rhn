@@ -11,26 +11,26 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "dispense_routes")
+@Table(name = "RHN_SUP_DISP_ROUTE")
 public class DispenseRoute {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "care_setting", nullable = false) private String careSetting;
-    @Column(name = "source_department_id") private Long sourceDepartmentId;
-    @Column(name = "medication_type") private String medicationType;
-    @Column(name = "target_stock_site_id", nullable = false) private Long targetStockSiteId;
-    @Column(nullable = false) private boolean active;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    private String description;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_DISP_ROUTE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "CD_DISP_ROUTE", nullable = false) private String code;
+    @Column(name = "NA_DISP_ROUTE", nullable = false) private String name;
+    @Column(name = "SD_CARE_SETTING", nullable = false) private String careSetting;
+    @Column(name = "ID_DEPT_SRC") private Long sourceDepartmentId;
+    @Column(name = "SD_MED_TYPE") private String medicationType;
+    @Column(name = "ID_STOCK_SITE_TARGET", nullable = false) private Long targetStockSiteId;
+    @Column(name = "FG_ACTIVE", nullable = false) private boolean active;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DES_DISP_ROUTE") private String description;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected DispenseRoute() {}
 

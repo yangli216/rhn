@@ -11,24 +11,24 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "insurance_claim_responses")
+@Table(name = "RHN_INS_CLAIM_RESP")
 public class InsuranceClaimResponse {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "claim_id", nullable = false) private Long claimId;
-    @Column(name = "external_message_id") private Long externalMessageId;
-    @Column(name = "response_no", nullable = false) private String responseNo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(nullable = false) private String operation;
-    @Column(nullable = false) private String status;
-    @Column(name = "external_settlement_no") private String externalSettlementNo;
-    @Column(name = "insurance_fund_amount", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
-    @Column(name = "personal_account_amount", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
-    @Column(name = "patient_cash_amount", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
-    @Column(name = "other_fund_amount", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
-    @Column(name = "responded_at", nullable = false) private Instant respondedAt;
+    @Id @Column(name = "ID_CLAIM_RESP") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INS_CLAIM", nullable = false) private Long claimId;
+    @Column(name = "ID_EXT_MSG") private Long externalMessageId;
+    @Column(name = "CD_RESP_NO", nullable = false) private String responseNo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "SD_OPERATION", nullable = false) private String operation;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_EXT_STL_NO") private String externalSettlementNo;
+    @Column(name = "AMT_INS_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceFundAmount;
+    @Column(name = "AMT_PERSONAL_ACCT", nullable = false, precision = 24, scale = 6) private BigDecimal personalAccountAmount;
+    @Column(name = "AMT_PAT_CASH", nullable = false, precision = 24, scale = 6) private BigDecimal patientCashAmount;
+    @Column(name = "AMT_OTHER_FUND", nullable = false, precision = 24, scale = 6) private BigDecimal otherFundAmount;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
+    @Column(name = "DT_RESPONDED", nullable = false) private Instant respondedAt;
 
     protected InsuranceClaimResponse() {}
     public InsuranceClaimResponse(Long tenantId, Long claimId, Long externalMessageId, String commandCode,

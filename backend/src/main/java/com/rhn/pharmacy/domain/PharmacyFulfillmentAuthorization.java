@@ -10,24 +10,24 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "pharmacy_fulfillment_authorizations")
+@Table(name = "RHN_SUP_PHARM_FULFILL_AUTH")
 public class PharmacyFulfillmentAuthorization {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(name = "medication_request_id", nullable = false) private Long medicationRequestId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(nullable = false) private String status;
-    @Column(name = "ready_at", nullable = false) private Instant readyAt;
-    @Column(name = "intake_started_at") private Instant intakeStartedAt;
-    @Column(name = "revoked_at") private Instant revokedAt;
-    @Column(name = "dispense_route_id") private Long dispenseRouteId;
-    @Column(name = "dispense_route_revision") private Long dispenseRouteRevision;
-    @Column(name = "routed_stock_site_id") private Long routedStockSiteId;
-    @Column(name = "routed_at") private Instant routedAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Id @Column(name = "ID_PHARM_FULFILL_AUTH") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "ID_CARE_REQ_MED", nullable = false) private Long medicationRequestId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_READY", nullable = false) private Instant readyAt;
+    @Column(name = "DT_INTAKE_STARTED") private Instant intakeStartedAt;
+    @Column(name = "DT_REVOKED") private Instant revokedAt;
+    @Column(name = "ID_DISP_ROUTE") private Long dispenseRouteId;
+    @Column(name = "SN_DISP_ROUTE_VER") private Long dispenseRouteRevision;
+    @Column(name = "ID_STOCK_SITE_ROUTED") private Long routedStockSiteId;
+    @Column(name = "DT_ROUTED") private Instant routedAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected PharmacyFulfillmentAuthorization() {}
 

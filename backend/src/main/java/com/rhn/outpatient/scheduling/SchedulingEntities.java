@@ -16,27 +16,27 @@ final class SchedulingEntities {
 }
 
 @Entity
-@Table(name = "service_resources")
+@Table(name = "RHN_SYS_SVC_RSRC")
 class ServiceResource {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "resource_type", nullable = false) private String resourceType;
-    @Column(name = "resource_key", nullable = false) private String resourceKey;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "assignment_id") private Long assignmentId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "resource_code", nullable = false) private String resourceCode;
-    @Column(name = "resource_name", nullable = false) private String resourceName;
-    @Column(name = "service_code_snapshot", nullable = false) private String serviceCodeSnapshot;
-    @Column(name = "service_name_snapshot", nullable = false) private String serviceNameSnapshot;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SVC_RSRC") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "SD_RSRC_TYPE", nullable = false) private String resourceType;
+    @Column(name = "CD_RSRC_KEY", nullable = false) private String resourceKey;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_STAFF_ASSIGN") private Long assignmentId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "CD_RSRC", nullable = false) private String resourceCode;
+    @Column(name = "NA_RSRC", nullable = false) private String resourceName;
+    @Column(name = "CD_SVC_SNAP", nullable = false) private String serviceCodeSnapshot;
+    @Column(name = "NA_SVC_SNAP", nullable = false) private String serviceNameSnapshot;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ServiceResource() {}
 
@@ -89,23 +89,23 @@ class ServiceResource {
 }
 
 @Entity
-@Table(name = "schedule_templates")
+@Table(name = "RHN_SC_SCHED_TMPL")
 class ScheduleTemplate {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resource_id", nullable = false) private Long resourceId;
-    @Column(name = "template_code", nullable = false) private String templateCode;
-    @Column(name = "template_name", nullable = false) private String templateName;
-    @Column(name = "management_mode", nullable = false) private String managementMode;
-    @Column(name = "timezone_code", nullable = false) private String timezoneCode;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SCHED_TMPL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SVC_RSRC", nullable = false) private Long resourceId;
+    @Column(name = "CD_TMPL", nullable = false) private String templateCode;
+    @Column(name = "NA_TMPL", nullable = false) private String templateName;
+    @Column(name = "SD_MGMT_MODE", nullable = false) private String managementMode;
+    @Column(name = "CD_TIMEZONE", nullable = false) private String timezoneCode;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ScheduleTemplate() {}
 
@@ -146,19 +146,19 @@ class ScheduleTemplate {
 }
 
 @Entity
-@Table(name = "schedule_template_periods")
+@Table(name = "RHN_SC_SCHED_TMPL_PERIOD")
 class ScheduleTemplatePeriod {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "day_of_week", nullable = false) private int dayOfWeek;
-    @Column(name = "day_part", nullable = false) private String dayPart;
-    @Column(name = "minute_start", nullable = false) private int minuteStart;
-    @Column(name = "minute_end", nullable = false) private int minuteEnd;
-    @Column(name = "default_capacity", nullable = false) private int defaultCapacity;
-    @Column(name = "slot_mode", nullable = false) private String slotMode;
-    @Column(name = "slot_minutes") private Integer slotMinutes;
-    @Column(nullable = false) private boolean active;
+    @Id @Column(name = "ID_SCHED_TMPL_PERIOD") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SCHED_TMPL", nullable = false) private Long templateId;
+    @Column(name = "SD_DAY_OF_WEEK", nullable = false) private int dayOfWeek;
+    @Column(name = "SD_DAY_PART", nullable = false) private String dayPart;
+    @Column(name = "QTY_MINUTE_START", nullable = false) private int minuteStart;
+    @Column(name = "QTY_MINUTE_END", nullable = false) private int minuteEnd;
+    @Column(name = "QTY_DEFAULT_CAPACITY", nullable = false) private int defaultCapacity;
+    @Column(name = "SD_SLOT_MODE", nullable = false) private String slotMode;
+    @Column(name = "QTY_SLOT_MINUTES") private Integer slotMinutes;
+    @Column(name = "FG_ACTIVE", nullable = false) private boolean active;
 
     protected ScheduleTemplatePeriod() {}
 
@@ -195,20 +195,20 @@ class ScheduleTemplatePeriod {
 }
 
 @Entity
-@Table(name = "schedule_exceptions")
+@Table(name = "RHN_SC_SCHED_EXCEPT")
 class ScheduleException {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "exception_date", nullable = false) private LocalDate exceptionDate;
-    @Column(name = "exception_type", nullable = false) private String exceptionType;
-    @Column(name = "minute_start") private Integer minuteStart;
-    @Column(name = "minute_end") private Integer minuteEnd;
-    private Integer capacity;
-    @Column(name = "slot_minutes") private Integer slotMinutes;
-    @Column(nullable = false) private String reason;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_SCHED_EXCEPT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SCHED_TMPL", nullable = false) private Long templateId;
+    @Column(name = "DA_EXCEPT", nullable = false) private LocalDate exceptionDate;
+    @Column(name = "SD_EXCEPT_TYPE", nullable = false) private String exceptionType;
+    @Column(name = "QTY_MINUTE_START") private Integer minuteStart;
+    @Column(name = "QTY_MINUTE_END") private Integer minuteEnd;
+    @Column(name = "QTY_CAPACITY") private Integer capacity;
+    @Column(name = "QTY_SLOT_MINUTES") private Integer slotMinutes;
+    @Column(name = "DES_REASON", nullable = false) private String reason;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected ScheduleException() {}
 
@@ -240,24 +240,24 @@ class ScheduleException {
 }
 
 @Entity
-@Table(name = "schedule_generation_runs")
+@Table(name = "RHN_SC_SCHED_GEN_RUN")
 class ScheduleGenerationRun {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(name = "date_from", nullable = false) private LocalDate dateFrom;
-    @Column(name = "date_to", nullable = false) private LocalDate dateTo;
-    @Column(name = "trigger_type", nullable = false) private String triggerType;
-    @Column(nullable = false) private String status;
-    @Column(name = "generated_count", nullable = false) private int generatedCount;
-    @Column(name = "skipped_count", nullable = false) private int skippedCount;
-    @Lob @Column(name = "request_json", nullable = false) private String requestJson;
-    @Column(name = "started_at", nullable = false) private Instant startedAt;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "error_message") private String errorMessage;
-    @Column(name = "triggered_by", nullable = false) private Long triggeredBy;
+    @Id @Column(name = "ID_SCHED_GEN_RUN") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SCHED_TMPL", nullable = false) private Long templateId;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "DA_DATE_FROM", nullable = false) private LocalDate dateFrom;
+    @Column(name = "DA_DATE_TO", nullable = false) private LocalDate dateTo;
+    @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_GENERATED", nullable = false) private int generatedCount;
+    @Column(name = "QTY_SKIPPED", nullable = false) private int skippedCount;
+    @Lob @Column(name = "JSON_REQ", nullable = false) private String requestJson;
+    @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
+    @Column(name = "ID_USER_TRIGGERED", nullable = false) private Long triggeredBy;
 
     protected ScheduleGenerationRun() {}
 
@@ -296,40 +296,40 @@ class ScheduleGenerationRun {
 }
 
 @Entity
-@Table(name = "service_schedules")
+@Table(name = "RHN_SC_SVC_SCHED")
 class ServiceSchedule {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resource_id", nullable = false) private Long resourceId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "template_period_id", nullable = false) private Long templatePeriodId;
-    @Column(name = "generation_run_id", nullable = false) private Long generationRunId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "registration_scope", nullable = false) private String registrationScope;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "assignment_id") private Long assignmentId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "schedule_code", nullable = false) private String scheduleCode;
-    @Column(name = "management_mode", nullable = false) private String managementMode;
-    @Column(name = "schedule_type", nullable = false) private String scheduleType;
-    @Column(name = "booking_policy", nullable = false) private String bookingPolicy;
-    @Column(name = "day_part", nullable = false) private String dayPart;
-    @Column(name = "practitioner_name_snapshot") private String practitionerNameSnapshot;
-    @Column(name = "service_code_snapshot", nullable = false) private String serviceCodeSnapshot;
-    @Column(name = "service_name_snapshot", nullable = false) private String serviceNameSnapshot;
-    @Column(name = "location_name") private String locationName;
-    @Column(name = "timezone_code", nullable = false) private String timezoneCode;
-    @Column(name = "service_date", nullable = false) private LocalDate serviceDate;
-    @Column(name = "start_at", nullable = false) private Instant startAt;
-    @Column(name = "end_at", nullable = false) private Instant endAt;
-    @Column(name = "total_capacity", nullable = false) private int totalCapacity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SVC_SCHED") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SVC_RSRC", nullable = false) private Long resourceId;
+    @Column(name = "ID_SCHED_TMPL", nullable = false) private Long templateId;
+    @Column(name = "ID_SCHED_TMPL_PERIOD", nullable = false) private Long templatePeriodId;
+    @Column(name = "ID_SCHED_GEN_RUN", nullable = false) private Long generationRunId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "SD_REG_SCOPE", nullable = false) private String registrationScope;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_STAFF_ASSIGN") private Long assignmentId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "CD_SCHED", nullable = false) private String scheduleCode;
+    @Column(name = "SD_MGMT_MODE", nullable = false) private String managementMode;
+    @Column(name = "SD_SCHED_TYPE", nullable = false) private String scheduleType;
+    @Column(name = "SD_BOOKING_POLICY", nullable = false) private String bookingPolicy;
+    @Column(name = "SD_DAY_PART", nullable = false) private String dayPart;
+    @Column(name = "NA_PRACT_SNAP") private String practitionerNameSnapshot;
+    @Column(name = "CD_SVC_SNAP", nullable = false) private String serviceCodeSnapshot;
+    @Column(name = "NA_SVC_SNAP", nullable = false) private String serviceNameSnapshot;
+    @Column(name = "NA_LOC") private String locationName;
+    @Column(name = "CD_TIMEZONE", nullable = false) private String timezoneCode;
+    @Column(name = "DA_SVC", nullable = false) private LocalDate serviceDate;
+    @Column(name = "DT_START", nullable = false) private Instant startAt;
+    @Column(name = "DT_END", nullable = false) private Instant endAt;
+    @Column(name = "QTY_TOTAL_CAPACITY", nullable = false) private int totalCapacity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ServiceSchedule() {}
 
@@ -427,22 +427,22 @@ class ServiceSchedule {
 }
 
 @Entity
-@Table(name = "schedule_slot_pools")
+@Table(name = "RHN_SC_SCHED_SLOT_POOL")
 class ScheduleSlotPool {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "schedule_id", nullable = false) private Long scheduleId;
-    @Column(name = "pool_code", nullable = false) private String poolCode;
-    @Column(name = "slot_mode", nullable = false) private String slotMode;
-    @Column(name = "quota_mode", nullable = false) private String quotaMode;
-    @Column(name = "total_count", nullable = false) private int totalCount;
-    @Column(name = "held_count", nullable = false) private int heldCount;
-    @Column(name = "occupied_count", nullable = false) private int occupiedCount;
-    @Column(name = "frozen_count", nullable = false) private int frozenCount;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Id @Column(name = "ID_SCHED_SLOT_POOL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
+    @Column(name = "CD_POOL", nullable = false) private String poolCode;
+    @Column(name = "SD_SLOT_MODE", nullable = false) private String slotMode;
+    @Column(name = "SD_QUOTA_MODE", nullable = false) private String quotaMode;
+    @Column(name = "QTY_TOTAL", nullable = false) private int totalCount;
+    @Column(name = "QTY_HELD", nullable = false) private int heldCount;
+    @Column(name = "QTY_OCCUPIED", nullable = false) private int occupiedCount;
+    @Column(name = "QTY_FROZEN", nullable = false) private int frozenCount;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected ScheduleSlotPool() {}
 
@@ -542,18 +542,18 @@ class ScheduleSlotPool {
 }
 
 @Entity
-@Table(name = "service_schedule_events")
+@Table(name = "RHN_SC_SVC_SCHED_EVT")
 class ServiceScheduleEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "schedule_id", nullable = false) private Long scheduleId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "actor_user_id", nullable = false) private Long actorUserId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    private String description;
+    @Id @Column(name = "ID_SVC_SCHED_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "ID_USER_ACTOR", nullable = false) private Long actorUserId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DES_SVC_SCHED_EVT") private String description;
 
     protected ServiceScheduleEvent() {}
 
@@ -585,22 +585,22 @@ class ServiceScheduleEvent {
 }
 
 @Entity
-@Table(name = "slot_events")
+@Table(name = "RHN_SC_SLOT_EVT")
 class SlotEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "pool_id", nullable = false) private Long poolId;
-    @Column(name = "schedule_id", nullable = false) private Long scheduleId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "sequence_no", nullable = false) private int sequenceNo;
-    @Column(name = "total_delta", nullable = false) private int totalDelta;
-    @Column(name = "held_delta", nullable = false) private int heldDelta;
-    @Column(name = "occupied_delta", nullable = false) private int occupiedDelta;
-    @Column(name = "frozen_delta", nullable = false) private int frozenDelta;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "actor_user_id", nullable = false) private Long actorUserId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    private String description;
+    @Id @Column(name = "ID_SLOT_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SCHED_SLOT_POOL", nullable = false) private Long poolId;
+    @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SN_SEQUENCE", nullable = false) private int sequenceNo;
+    @Column(name = "QTY_TOTAL_DELTA", nullable = false) private int totalDelta;
+    @Column(name = "QTY_HELD_DELTA", nullable = false) private int heldDelta;
+    @Column(name = "QTY_OCCUPIED_DELTA", nullable = false) private int occupiedDelta;
+    @Column(name = "QTY_FROZEN_DELTA", nullable = false) private int frozenDelta;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "ID_USER_ACTOR", nullable = false) private Long actorUserId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "DES_SLOT_EVT") private String description;
 
     protected SlotEvent() {}
 

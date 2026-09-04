@@ -11,42 +11,42 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "registration_billing_intents")
+@Table(name = "RHN_BIL_REG_BIL_INTENT")
 public class RegistrationBillingIntent {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "appointment_id") private Long appointmentId;
-    @Column(name = "schedule_id") private Long scheduleId;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "slot_hold_id") private Long slotHoldId;
-    @Column(name = "patient_account_id") private Long patientAccountId;
-    @Column(name = "settlement_id") private Long settlementId;
-    @Column(name = "payment_order_id") private Long paymentOrderId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(name = "registration_source", nullable = false) private String registrationSource;
-    @Column(name = "visit_type", nullable = false) private String visitType;
-    @Column(name = "settlement_mode", nullable = false) private String settlementMode;
-    @Column(name = "coverage_id") private Long coverageId;
-    @Column(name = "coverage_type_code_snapshot") private String coverageTypeCodeSnapshot;
-    @Column(name = "coverage_payer_name_snapshot") private String coveragePayerNameSnapshot;
-    @Column(nullable = false) private String status;
-    @Column(name = "fee_amount", nullable = false, precision = 24, scale = 6) private BigDecimal feeAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "item_code_snapshot") private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot") private String itemNameSnapshot;
-    @Column(name = "expires_at") private Instant expiresAt;
-    @Column(name = "completion_attempts", nullable = false) private int completionAttempts;
-    @Column(name = "last_error_code") private String lastErrorCode;
-    @Column(name = "last_error_message") private String lastErrorMessage;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "completed_at") private Instant completedAt;
+    @Id @Column(name = "ID_REG_BIL_INTENT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_APPT") private Long appointmentId;
+    @Column(name = "ID_SVC_SCHED") private Long scheduleId;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "ID_SCHED_SLOT_HOLD") private Long slotHoldId;
+    @Column(name = "ID_PAT_ACCT") private Long patientAccountId;
+    @Column(name = "ID_STL") private Long settlementId;
+    @Column(name = "ID_PAY_ORDER") private Long paymentOrderId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "SD_REG_SRC", nullable = false) private String registrationSource;
+    @Column(name = "SD_VISIT_TYPE", nullable = false) private String visitType;
+    @Column(name = "SD_STL_MODE", nullable = false) private String settlementMode;
+    @Column(name = "ID_PAT_COVER") private Long coverageId;
+    @Column(name = "CD_COVER_TYPE_SNAP") private String coverageTypeCodeSnapshot;
+    @Column(name = "NA_COVER_PAYER_SNAP") private String coveragePayerNameSnapshot;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "AMT_FEE", nullable = false, precision = 24, scale = 6) private BigDecimal feeAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "CD_ITEM_SNAP") private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP") private String itemNameSnapshot;
+    @Column(name = "DT_EXPIRES") private Instant expiresAt;
+    @Column(name = "QTY_COMP_ATTEMPTS", nullable = false) private int completionAttempts;
+    @Column(name = "CD_LAST_ERROR") private String lastErrorCode;
+    @Column(name = "DES_LAST_ERROR_MSG") private String lastErrorMessage;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
 
     protected RegistrationBillingIntent() {}
 

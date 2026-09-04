@@ -10,29 +10,29 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_items")
+@Table(name = "RHN_SUP_STOCK_ITEM")
 public class StockItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "base_package_id", nullable = false) private Long basePackageId;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "issue_policy", nullable = false) private String issuePolicy;
-    @Column(name = "negative_allowed", nullable = false) private boolean negativeAllowed;
-    @Column(name = "lot_required", nullable = false) private boolean lotRequired;
-    @Column(name = "trace_required", nullable = false) private boolean traceRequired;
-    @Column(name = "split_allowed", nullable = false) private boolean splitAllowed;
-    @Column(name = "cold_chain", nullable = false) private boolean coldChain;
-    @Column(name = "controlled", nullable = false) private boolean controlled;
-    @Column(name = "control_level") private String controlLevel;
-    @Column(name = "high_alert", nullable = false) private boolean highAlert;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_STOCK_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ITEM_PKG_BASE", nullable = false) private Long basePackageId;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "SD_ISSUE_POLICY", nullable = false) private String issuePolicy;
+    @Column(name = "FG_NEGATIVE", nullable = false) private boolean negativeAllowed;
+    @Column(name = "FG_LOT_REQUIRED", nullable = false) private boolean lotRequired;
+    @Column(name = "FG_TRACE_REQUIRED", nullable = false) private boolean traceRequired;
+    @Column(name = "FG_SPLIT", nullable = false) private boolean splitAllowed;
+    @Column(name = "FG_COLD_CHAIN", nullable = false) private boolean coldChain;
+    @Column(name = "FG_CONTROLLED", nullable = false) private boolean controlled;
+    @Column(name = "SD_CONTROL_LEVEL") private String controlLevel;
+    @Column(name = "FG_HIGH_ALERT", nullable = false) private boolean highAlert;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected StockItem() {}
 

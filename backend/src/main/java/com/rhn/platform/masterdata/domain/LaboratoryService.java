@@ -10,21 +10,21 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "laboratory_services")
+@Table(name = "RHN_BD_LAB_SVC")
 public class LaboratoryService {
-    @Id @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "laboratory_method") private String laboratoryMethod;
-    @Column(name = "report_duration") private BigDecimal reportDuration;
-    @Column(name = "report_duration_unit") private String reportDurationUnit;
-    @Column(name = "fasting_required", nullable = false) private boolean fastingRequired;
-    @Column(name = "point_of_care", nullable = false) private boolean pointOfCare;
-    @Column(name = "collection_description") private String collectionDescription;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_LAB_METHOD") private String laboratoryMethod;
+    @Column(name = "QTY_REPORT_DURATION") private BigDecimal reportDuration;
+    @Column(name = "REPORT_DURATION_UNIT") private String reportDurationUnit;
+    @Column(name = "FG_FASTING_REQUIRED", nullable = false) private boolean fastingRequired;
+    @Column(name = "FG_POINT_OF_CARE", nullable = false) private boolean pointOfCare;
+    @Column(name = "DES_COLLECTION_DESCRIPTION") private String collectionDescription;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected LaboratoryService() {}
 

@@ -10,25 +10,25 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "master_data_import_batches")
+@Table(name = "RHN_BD_IMPORT_BATCH")
 public class MasterDataImportBatch {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "import_type", nullable = false) private String importType;
-    @Column(name = "file_name", nullable = false) private String fileName;
-    @Column(name = "file_hash", nullable = false) private String fileHash;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "total_rows", nullable = false) private int totalRows;
-    @Column(name = "ready_rows", nullable = false) private int readyRows;
-    @Column(name = "invalid_rows", nullable = false) private int invalidRows;
-    @Column(name = "imported_rows", nullable = false) private int importedRows;
-    @Column(name = "failed_rows", nullable = false) private int failedRows;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_IMPORT_BATCH") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_IMPORT_TYPE", nullable = false) private String importType;
+    @Column(name = "NA_FILE", nullable = false) private String fileName;
+    @Column(name = "HASH_FILE", nullable = false) private String fileHash;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_TOTAL_ROW", nullable = false) private int totalRows;
+    @Column(name = "QTY_READY_ROW", nullable = false) private int readyRows;
+    @Column(name = "QTY_INVALID_ROW", nullable = false) private int invalidRows;
+    @Column(name = "QTY_IMPORTED_ROW", nullable = false) private int importedRows;
+    @Column(name = "QTY_FAILED_ROW", nullable = false) private int failedRows;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected MasterDataImportBatch() {}
 

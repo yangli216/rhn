@@ -14,22 +14,22 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "parameter_changes")
+@Table(name = "RHN_SYS_PARAM_CHG")
 public class ParameterChange {
-    @Id private Long id;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(name = "definition_id", nullable = false) private Long definitionId;
-    @Column(name = "value_id") private Long valueId;
-    @Enumerated(EnumType.STRING) @Column(name = "target_type", nullable = false, length = 24)
+    @Id @Column(name = "ID_PARAM_CHG") private Long id;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "ID_PARAM_DEF", nullable = false) private Long definitionId;
+    @Column(name = "ID_PARAM_VAL") private Long valueId;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_TARGET_TYPE", nullable = false, length = 24)
     private ConfigurationChangeTargetType targetType;
-    @Enumerated(EnumType.STRING) @Column(name = "change_type", nullable = false, length = 24)
+    @Enumerated(EnumType.STRING) @Column(name = "SD_CHG_TYPE", nullable = false, length = 24)
     private ConfigurationChangeType changeType;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "before_json") private String beforeJson;
-    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "after_json") private String afterJson;
-    @Column(name = "change_reason", length = 1000) private String changeReason;
-    @Column(name = "request_code", nullable = false, length = 128) private String requestCode;
-    @Column(name = "changed_at", nullable = false) private Instant changedAt;
-    @Column(name = "changed_by", nullable = false) private Long changedBy;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_BEFORE") private String beforeJson;
+    @JdbcTypeCode(SqlTypes.LONG32VARCHAR) @Column(name = "JSON_AFTER") private String afterJson;
+    @Column(name = "DES_CHG_REASON", length = 1000) private String changeReason;
+    @Column(name = "CD_REQ", nullable = false, length = 128) private String requestCode;
+    @Column(name = "DT_CHANGED", nullable = false) private Instant changedAt;
+    @Column(name = "ID_USER_CHANGED", nullable = false) private Long changedBy;
 
     protected ParameterChange() {
     }

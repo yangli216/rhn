@@ -12,24 +12,24 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "employments")
+@Table(name = "RHN_SYS_EMPL")
 public class Employment {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "practitioner_id", nullable = false) private Long practitionerId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(nullable = false) private String code;
+    @Id @Column(name = "ID_EMPL") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PRACT", nullable = false) private Long practitionerId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "CD_EMPL", nullable = false) private String code;
     @Enumerated(EnumType.STRING)
-    @Column(name = "employment_type", nullable = false) private EmploymentType employmentType;
-    @Column(name = "primary_employment", nullable = false) private boolean primaryEmployment;
-    @Column(name = "hire_date", nullable = false) private LocalDate hireDate;
-    @Column(name = "leave_date") private LocalDate leaveDate;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private PersonnelStatus status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Column(name = "SD_EMPL_TYPE", nullable = false) private EmploymentType employmentType;
+    @Column(name = "FG_PRIMARY_EMPL", nullable = false) private boolean primaryEmployment;
+    @Column(name = "DA_HIRE", nullable = false) private LocalDate hireDate;
+    @Column(name = "DA_LEAVE") private LocalDate leaveDate;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private PersonnelStatus status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected Employment() {
     }

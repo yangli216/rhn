@@ -53,19 +53,19 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         saveRecord(encounterId, "反复头晕三天，晨起明显", "原发性高血压（确认）", true);
 
         assertEquals(1, count("encounter_identity_checks", encounterId));
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_work_sessions where encounter_id=? and status='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_WORK_SESSION where ID_ENC=? and SD_STATUS='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
         assertEquals(2, count("encounter_diagnoses", encounterId));
-        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from encounter_diagnoses where encounter_id=? and diagnosis_status='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_DIAG where ID_ENC=? and SD_DIAG_STATUS='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
         assertEquals(3, count("encounter_diagnosis_revisions", encounterId));
-        assertEquals(2, jdbcTemplate.queryForObject("select business_version_no from encounter_diagnoses where encounter_id=? and code='I10'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(2, jdbcTemplate.queryForObject("select CD_BUSINESS_VER_NO as business_version_no from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'", Integer.class, Long.valueOf(encounterId)));
         assertEquals("WHO.BD.CS.ICD10", jdbcTemplate.queryForObject(
-                "select code_system_code_snapshot from encounter_diagnoses where encounter_id=? and code='I10'",
+                "select CD_CODE_SYS_SNAP as code_system_code_snapshot from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'",
                 String.class, Long.valueOf(encounterId)));
 
         mockMvc.perform(post("/api/encounters/{id}/complete", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DOCUMENT_SIGNATURE_REQUIRED"));
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_completion_checks where encounter_id=? and result='BLOCKED'", Integer.class, Long.valueOf(encounterId)));
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_completion_issues i join encounter_completion_checks c on c.tenant_id=i.tenant_id and c.id=i.completion_check_id where c.encounter_id=? and i.issue_code='OUTPATIENT_NOTE_UNSIGNED'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_COMP_CHECK where ID_ENC=? and SD_RESULT='BLOCKED'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_COMP_ISSUE i join RHN_VIS_ENC_COMP_CHECK c on c.ID_TNT=i.ID_TNT and c.ID_ENC_COMP_CHECK=i.ID_ENC_COMP_CHECK where c.ID_ENC=? and i.CD_ISSUE='OUTPATIENT_NOTE_UNSIGNED'", Integer.class, Long.valueOf(encounterId)));
 
         String documents = mockMvc.perform(get("/api/clinical-documents").param("encounterId", encounterId)
                         .with(rhnWorkContext())).andExpect(status().isOk())
@@ -84,10 +84,10 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                         .content("{\"dispositionCode\":\"FOLLOW_UP\",\"dispositionNote\":\"一周后复诊\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
 
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_completion_checks where encounter_id=? and result='PASS'", Integer.class, Long.valueOf(encounterId)));
-        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from encounter_work_sessions where encounter_id=? and status='CLOSED' and close_reason='COMPLETED'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_COMP_CHECK where ID_ENC=? and SD_RESULT='PASS'", Integer.class, Long.valueOf(encounterId)));
+        assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_WORK_SESSION where ID_ENC=? and SD_STATUS='CLOSED' and DES_CLOSE_REASON='COMPLETED'", Integer.class, Long.valueOf(encounterId)));
         assertEquals("诊毕检查通过；转归=FOLLOW_UP；说明=一周后复诊", jdbcTemplate.queryForObject(
-                "select reason from encounter_status_events where encounter_id=? and status_to='COMPLETED'",
+                "select DES_REASON as reason from RHN_VIS_ENC_STATUS_EVT where ID_ENC=? and SD_STATUS_TO='COMPLETED'",
                 String.class, Long.valueOf(encounterId)));
         assertEquals(3, count("encounter_status_events", encounterId));
     }

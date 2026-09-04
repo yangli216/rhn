@@ -15,35 +15,35 @@ final class RegistrationEntities {
 }
 
 @Entity
-@Table(name = "appointments")
+@Table(name = "RHN_SC_APPT")
 class Appointment {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "schedule_id", nullable = false) private Long scheduleId;
-    @Column(name = "slot_pool_id", nullable = false) private Long slotPoolId;
-    @Column(name = "slot_hold_id") private Long slotHoldId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "appointment_no", nullable = false) private String appointmentNo;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "service_code", nullable = false) private String serviceCode;
-    @Column(name = "service_name_snapshot", nullable = false) private String serviceNameSnapshot;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "practitioner_name_snapshot") private String practitionerNameSnapshot;
-    @Column(name = "start_at", nullable = false) private Instant startAt;
-    @Column(name = "end_at", nullable = false) private Instant endAt;
-    @Column(nullable = false) private int quantity;
-    @Column(name = "confirmed_at", nullable = false) private Instant confirmedAt;
-    @Column(name = "checked_in_at") private Instant checkedInAt;
-    @Column(name = "booking_source", nullable = false) private String bookingSource;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancellation_reason") private String cancellationReason;
-    @Column(name = "rescheduled_from_id") private Long rescheduledFromId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_APPT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
+    @Column(name = "ID_SCHED_SLOT_POOL", nullable = false) private Long slotPoolId;
+    @Column(name = "ID_SCHED_SLOT_HOLD") private Long slotHoldId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_APPT_NO", nullable = false) private String appointmentNo;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_SVC", nullable = false) private String serviceCode;
+    @Column(name = "NA_SVC_SNAP", nullable = false) private String serviceNameSnapshot;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "NA_PRACT_SNAP") private String practitionerNameSnapshot;
+    @Column(name = "DT_START", nullable = false) private Instant startAt;
+    @Column(name = "DT_END", nullable = false) private Instant endAt;
+    @Column(name = "QTY_APPT", nullable = false) private int quantity;
+    @Column(name = "DT_CONFIRMED", nullable = false) private Instant confirmedAt;
+    @Column(name = "DT_CHECKED_IN") private Instant checkedInAt;
+    @Column(name = "SD_BOOKING_SRC", nullable = false) private String bookingSource;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DES_CANCELLATION_REASON") private String cancellationReason;
+    @Column(name = "ID_APPT_RESCHEDULED_FROM") private Long rescheduledFromId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected Appointment() {}
 
@@ -144,19 +144,19 @@ class Appointment {
 }
 
 @Entity
-@Table(name = "appointment_events")
+@Table(name = "RHN_SC_APPT_EVT")
 class AppointmentEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "appointment_id", nullable = false) private Long appointmentId;
-    @Column(name = "replacement_appointment_id") private Long replacementAppointmentId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
-    private String description;
+    @Id @Column(name = "ID_APPT_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_APPT", nullable = false) private Long appointmentId;
+    @Column(name = "ID_APPT_REPLACEMENT") private Long replacementAppointmentId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DES_APPT_EVT") private String description;
 
     protected AppointmentEvent() {}
 
@@ -179,26 +179,26 @@ class AppointmentEvent {
 }
 
 @Entity
-@Table(name = "patient_registrations")
+@Table(name = "RHN_SC_PAT_REG")
 class PatientRegistration {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "appointment_id") private Long appointmentId;
-    @Column(name = "schedule_id") private Long scheduleId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "registration_no", nullable = false) private String registrationNo;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(name = "registration_source", nullable = false) private String registrationSource;
-    @Column(name = "visit_type", nullable = false) private String visitType;
-    @Column(nullable = false) private String status;
-    @Column(name = "registered_at", nullable = false) private Instant registeredAt;
-    @Column(name = "registered_by", nullable = false) private Long registeredBy;
-    @Column(name = "started_at") private Instant startedAt;
-    @Column(name = "completed_at") private Instant completedAt;
+    @Id @Column(name = "ID_PAT_REG") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_APPT") private Long appointmentId;
+    @Column(name = "ID_SVC_SCHED") private Long scheduleId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "CD_REG_NO", nullable = false) private String registrationNo;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "SD_REG_SRC", nullable = false) private String registrationSource;
+    @Column(name = "SD_VISIT_TYPE", nullable = false) private String visitType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_REGISTERED", nullable = false) private Instant registeredAt;
+    @Column(name = "ID_USER_REGISTERED", nullable = false) private Long registeredBy;
+    @Column(name = "DT_STARTED") private Instant startedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
 
     protected PatientRegistration() {}
 
@@ -235,14 +235,14 @@ class PatientRegistration {
 }
 
 @Entity
-@Table(name = "queue_counters")
+@Table(name = "RHN_SC_QUEUE_COUNT")
 class QueueCounter {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "queue_code", nullable = false) private String queueCode;
-    @Column(name = "queue_date", nullable = false) private LocalDate queueDate;
-    @Column(name = "next_sequence", nullable = false) private int nextSequence;
+    @Id @Column(name = "ID_QUEUE_COUNT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_QUEUE", nullable = false) private String queueCode;
+    @Column(name = "DA_QUEUE", nullable = false) private LocalDate queueDate;
+    @Column(name = "SN_NEXT", nullable = false) private int nextSequence;
 
     protected QueueCounter() {}
     QueueCounter(Long tenantId, String queueCode, LocalDate queueDate) {
@@ -253,22 +253,22 @@ class QueueCounter {
 }
 
 @Entity
-@Table(name = "queue_tickets")
+@Table(name = "RHN_SC_QUEUE_TICKET")
 class QueueTicket {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "registration_id", nullable = false) private Long registrationId;
-    @Column(name = "idempotency_code", nullable = false) private String idempotencyCode;
-    @Column(name = "queue_code", nullable = false) private String queueCode;
-    @Column(name = "queue_date", nullable = false) private LocalDate queueDate;
-    @Column(name = "ticket_no", nullable = false) private String ticketNo;
-    @Column(name = "sequence_no", nullable = false) private int sequenceNo;
-    @Column(nullable = false) private int priority;
-    @Column(nullable = false) private String status;
-    @Column(name = "queued_at", nullable = false) private Instant queuedAt;
-    @Column(name = "called_at") private Instant calledAt;
-    @Column(name = "completed_at") private Instant completedAt;
+    @Id @Column(name = "ID_QUEUE_TICKET") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_REG", nullable = false) private Long registrationId;
+    @Column(name = "CD_IDEMP", nullable = false) private String idempotencyCode;
+    @Column(name = "CD_QUEUE", nullable = false) private String queueCode;
+    @Column(name = "DA_QUEUE", nullable = false) private LocalDate queueDate;
+    @Column(name = "CD_TICKET_NO", nullable = false) private String ticketNo;
+    @Column(name = "SN_SEQUENCE", nullable = false) private int sequenceNo;
+    @Column(name = "SD_PRIORITY", nullable = false) private int priority;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_QUEUED", nullable = false) private Instant queuedAt;
+    @Column(name = "DT_CALLED") private Instant calledAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
 
     protected QueueTicket() {}
 
@@ -342,18 +342,18 @@ class QueueTicket {
 }
 
 @Entity
-@Table(name = "queue_ticket_events")
+@Table(name = "RHN_SC_QUEUE_TICKET_EVT")
 class QueueTicketEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "queue_ticket_id", nullable = false) private Long queueTicketId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "occurred_by", nullable = false) private Long occurredBy;
-    private String description;
+    @Id @Column(name = "ID_QUEUE_TICKET_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_QUEUE_TICKET", nullable = false) private Long queueTicketId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_OCCURRED", nullable = false) private Long occurredBy;
+    @Column(name = "DES_QUEUE_TICKET_EVT") private String description;
 
     protected QueueTicketEvent() {}
 

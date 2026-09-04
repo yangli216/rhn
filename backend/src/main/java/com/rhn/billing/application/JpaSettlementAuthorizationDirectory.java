@@ -15,11 +15,10 @@ public class JpaSettlementAuthorizationDirectory implements SettlementAuthorizat
     @Override
     public Optional<Long> finalizedSettlementForRequest(Long tenantId, Long requestId, String sourceType) {
         Long value = jdbc.queryForObject("""
-                select max(s.id)
-                  from settlements s
-                  join settlement_lines sl on sl.tenant_id = s.tenant_id and sl.settlement_id = s.id
-                  join charge_items ci on ci.tenant_id = sl.tenant_id and ci.id = sl.charge_item_id
-                 where s.tenant_id = ? and ci.request_id = ? and ci.source_type = ? and s.status = 'SETTLED'
+                select max(s.ID_STL) from RHN_BIL_STL s
+                  join RHN_BIL_STL_LINE sl on sl.ID_TNT = s.ID_TNT and sl.ID_STL = s.ID_STL
+                  join RHN_BIL_CHARGE_ITEM ci on ci.ID_TNT = sl.ID_TNT and ci.ID_CHARGE_ITEM = sl.ID_CHARGE_ITEM
+                 where s.ID_TNT = ? and ci.ID_CARE_REQ = ? and ci.SD_SRC_TYPE = ? and s.SD_STATUS = 'SETTLED'
                 """, Long.class, tenantId, requestId, sourceType);
         return Optional.ofNullable(value);
     }

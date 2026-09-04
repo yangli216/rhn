@@ -13,39 +13,39 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dictionary_changes")
+@Table(name = "RHN_BD_DICT_CHG")
 public class DictionaryChange {
     @Id
-    private Long id;
-    @Column(name = "tenant_id")
+    @Column(name = "ID_DICT_CHG") private Long id;
+    @Column(name = "ID_TNT")
     private Long tenantId;
-    @Column(name = "category_id")
+    @Column(name = "ID_DICT_CAT")
     private Long categoryId;
-    @Column(name = "dictionary_id")
+    @Column(name = "ID_DICT_DEF_DICT")
     private Long dictionaryId;
-    @Column(name = "item_id")
+    @Column(name = "ID_DICT_ITEM")
     private Long itemId;
-    @Column(name = "attribute_definition_id")
+    @Column(name = "ID_DICT_ATTR_DEF")
     private Long attributeDefinitionId;
     @Enumerated(EnumType.STRING)
-    @Column(name = "change_type", nullable = false, length = 32)
+    @Column(name = "SD_CHG_TYPE", nullable = false, length = 32)
     private DictionaryChangeType changeType;
     @Enumerated(EnumType.STRING)
-    @Column(name = "target_type", nullable = false, length = 16)
+    @Column(name = "SD_TARGET_TYPE", nullable = false, length = 16)
     private DictionaryChangeTargetType targetType;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "before_json")
+    @Column(name = "JSON_BEFORE")
     private String beforeJson;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "after_json")
+    @Column(name = "JSON_AFTER")
     private String afterJson;
-    @Column(length = 1000)
+    @Column(name = "DES_REASON", length = 1000)
     private String reason;
-    @Column(name = "request_code", nullable = false, length = 128)
+    @Column(name = "CD_REQ", nullable = false, length = 128)
     private String requestCode;
-    @Column(name = "changed_at", nullable = false)
+    @Column(name = "DT_CHANGED", nullable = false)
     private Instant changedAt;
-    @Column(name = "changed_by", nullable = false)
+    @Column(name = "ID_USER_CHANGED", nullable = false)
     private Long changedBy;
 
     protected DictionaryChange() {

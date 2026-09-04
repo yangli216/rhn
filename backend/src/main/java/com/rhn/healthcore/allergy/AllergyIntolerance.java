@@ -13,33 +13,33 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "allergy_intolerances")
+@Table(name = "RHN_VIS_ALLERGY_INTOL")
 class AllergyIntolerance {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "assertion_type", nullable = false) private String assertionType;
-    @Column(name = "category_code") private String categoryCode;
-    @Column(name = "clinical_status", nullable = false) private String clinicalStatus;
-    @Column(name = "verification_status", nullable = false) private String verificationStatus;
-    @Column(name = "criticality_code") private String criticalityCode;
-    @Column(name = "reaction_severity") private String reactionSeverity;
-    @Column(name = "information_source", nullable = false) private String informationSource;
-    @Column(name = "substance_code_system_uri") private String substanceCodeSystemUri;
-    @Column(name = "substance_code") private String substanceCode;
-    @Column(name = "substance_display") private String substanceDisplay;
-    @Column(name = "reaction_text") private String reactionText;
-    @Column(name = "onset_at") private Instant onsetAt;
-    @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
-    @Column(name = "recorder_practitioner_id") private Long recorderPractitionerId;
-    @Column(name = "recorder_user_id", nullable = false) private Long recorderUserId;
-    @Column(name = "verified_at") private Instant verifiedAt;
-    @Column(name = "verifier_practitioner_id") private Long verifierPractitionerId;
-    @Column(name = "inactivated_at") private Instant inactivatedAt;
-    @Column(name = "inactivated_by") private Long inactivatedBy;
-    @Column(name = "inactivation_reason") private String inactivationReason;
+    @Id @Column(name = "ID_ALLERGY_INTOL") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "SD_ASSERTION_TYPE", nullable = false) private String assertionType;
+    @Column(name = "CD_CAT") private String categoryCode;
+    @Column(name = "SD_CLIN_STATUS", nullable = false) private String clinicalStatus;
+    @Column(name = "SD_VERIFICATION_STATUS", nullable = false) private String verificationStatus;
+    @Column(name = "CD_CRITICALITY") private String criticalityCode;
+    @Column(name = "SD_REACTION_SEVERITY") private String reactionSeverity;
+    @Column(name = "SD_INFORMATION_SRC", nullable = false) private String informationSource;
+    @Column(name = "CD_SUBSTANCE_CODE_SYS_URI") private String substanceCodeSystemUri;
+    @Column(name = "CD_SUBSTANCE") private String substanceCode;
+    @Column(name = "NA_SUBSTANCE") private String substanceDisplay;
+    @Column(name = "DES_REACTION") private String reactionText;
+    @Column(name = "DT_ONSET") private Instant onsetAt;
+    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
+    @Column(name = "ID_PRACT_RECORDER") private Long recorderPractitionerId;
+    @Column(name = "ID_USER_RECORDER", nullable = false) private Long recorderUserId;
+    @Column(name = "DT_VERIFIED") private Instant verifiedAt;
+    @Column(name = "ID_PRACT_VERIFIER") private Long verifierPractitionerId;
+    @Column(name = "DT_INACTIVATED") private Instant inactivatedAt;
+    @Column(name = "ID_USER_INACTIVATED") private Long inactivatedBy;
+    @Column(name = "DES_INACTIVATION_REASON") private String inactivationReason;
 
     protected AllergyIntolerance() {}
 

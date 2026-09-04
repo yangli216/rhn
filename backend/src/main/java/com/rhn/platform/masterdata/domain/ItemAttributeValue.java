@@ -12,23 +12,23 @@ import java.time.LocalDate;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_attribute_values")
+@Table(name = "RHN_BD_ITEM_ATTR_VAL")
 public class ItemAttributeValue {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "scope_code", nullable = false) private String scopeCode;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(name = "attribute_subject_id", nullable = false) private Long attributeSubjectId;
-    @Column(name = "attribute_definition_id", nullable = false) private Long attributeDefinitionId;
-    @Lob @Column(name = "value_json", nullable = false) private String valueJson;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ITEM_ATTR_VAL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "CD_SCOPE", nullable = false) private String scopeCode;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "ID_ITEM_ATTR_SUBJECT", nullable = false) private Long attributeSubjectId;
+    @Column(name = "ID_ITEM_ATTR_DEF", nullable = false) private Long attributeDefinitionId;
+    @Lob @Column(name = "JSON_VAL", nullable = false) private String valueJson;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ItemAttributeValue() {}
 

@@ -9,23 +9,23 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_chart_events")
+@Table(name = "RHN_VIS_INP_CHART_EVT")
 public class InpatientChartEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "source_location_id") private Long sourceLocationId;
-    @Column(name = "source_location_name") private String sourceLocationName;
-    @Column(name = "target_location_id") private Long targetLocationId;
-    @Column(name = "target_location_name") private String targetLocationName;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "display_text", nullable = false) private String displayText;
-    @Column private String note;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "recorded_by", nullable = false) private Long recordedBy;
-    @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
+    @Id @Column(name = "ID_INP_CHART_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "ID_SVC_LOC_SRC") private Long sourceLocationId;
+    @Column(name = "NA_SRC_LOC") private String sourceLocationName;
+    @Column(name = "ID_SVC_LOC_TARGET") private Long targetLocationId;
+    @Column(name = "NA_TARGET_LOC") private String targetLocationName;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_DISPLAY", nullable = false) private String displayText;
+    @Column(name = "DES_NOTE") private String note;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_RECORDED", nullable = false) private Long recordedBy;
+    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
 
     protected InpatientChartEvent() {
     }

@@ -14,35 +14,35 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 
 /** Inpatient projection of the shared CareRequest aggregate. */
 @Entity
-@Table(name = "care_requests")
+@Table(name = "RHN_EX_CARE_REQ")
 public class InpatientCareRequest {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_no", nullable = false) private String requestNo;
-    @Column(name = "request_kind", nullable = false) private String requestKind;
-    @Column(nullable = false) private String status;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "performer_organization_id", nullable = false) private Long performerOrganizationId;
-    @Column(name = "performer_department_id", nullable = false) private Long performerDepartmentId;
-    @Column(name = "business_date", nullable = false) private LocalDate businessDate;
-    @Column(name = "authored_at", nullable = false) private Instant authoredAt;
-    @Column(name = "authored_by", nullable = false) private Long authoredBy;
-    @Column(name = "reason_text") private String reasonText;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
-    @Column(name = "item_code_snapshot", nullable = false) private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "unit_code_snapshot", nullable = false) private String unitCodeSnapshot;
-    @Column(name = "price_id") private Long priceId;
-    @Column(name = "price_revision") private Long priceRevision;
-    @Column(name = "price_type") private String priceType;
-    @Column(name = "unit_price") private BigDecimal unitPrice;
-    @Column(name = "total_amount") private BigDecimal totalAmount;
-    @Column(name = "currency_code") private String currencyCode;
+    @Id @Column(name = "ID_CARE_REQ") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
+    @Column(name = "DES_REASON") private String reasonText;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
+    @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "CD_UNIT_SNAP", nullable = false) private String unitCodeSnapshot;
+    @Column(name = "ID_CATALOG_PRICE") private Long priceId;
+    @Column(name = "SN_PRICE_VER") private Long priceRevision;
+    @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "PRICE_UNIT") private BigDecimal unitPrice;
+    @Column(name = "AMT_TOTAL") private BigDecimal totalAmount;
+    @Column(name = "CD_CURRENCY") private String currencyCode;
 
     protected InpatientCareRequest() {
     }

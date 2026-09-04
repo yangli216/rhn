@@ -10,24 +10,24 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "item_packages")
+@Table(name = "RHN_BD_ITEM_PKG")
 public class ItemPackage {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "base_package_id") private Long basePackageId;
-    @Column(name = "unit_code", nullable = false) private String unitCode;
-    @Column(name = "unit_name", nullable = false) private String unitName;
-    @Column(name = "package_spec") private String packageSpec;
-    @Column(name = "quantity_factor", nullable = false) private BigDecimal quantityFactor;
-    @Column(name = "usage_type") private String usageType;
-    private String barcode;
-    @Column(name = "default_purchase", nullable = false) private boolean defaultPurchase;
-    @Column(name = "default_sale", nullable = false) private boolean defaultSale;
-    @Column(name = "default_dispense", nullable = false) private boolean defaultDispense;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
+    @Id @Column(name = "ID_ITEM_PKG") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ITEM_PKG_BASE") private Long basePackageId;
+    @Column(name = "CD_UNIT", nullable = false) private String unitCode;
+    @Column(name = "NA_UNIT", nullable = false) private String unitName;
+    @Column(name = "PACKAGE_SPEC") private String packageSpec;
+    @Column(name = "QTY_FACTOR", nullable = false) private BigDecimal quantityFactor;
+    @Column(name = "SD_USAGE_TYPE") private String usageType;
+    @Column(name = "CD_BARCODE") private String barcode;
+    @Column(name = "FG_DEFAULT_PURCH", nullable = false) private boolean defaultPurchase;
+    @Column(name = "FG_DEFAULT_SALE", nullable = false) private boolean defaultSale;
+    @Column(name = "FG_DEFAULT_DISP", nullable = false) private boolean defaultDispense;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
 
     protected ItemPackage() {}
 

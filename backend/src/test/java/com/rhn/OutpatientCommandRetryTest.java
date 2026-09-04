@@ -85,8 +85,8 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
                         .content(record.replace("头晕三天", "头晕四天")))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("IDEMPOTENCY_KEY_REUSED"));
         assertEquals(1, jdbcTemplate.queryForObject("""
-                select count(*) from clinical_document_versions v join clinical_documents d
-                  on d.tenant_id=v.tenant_id and d.id=v.document_id where d.encounter_id=?
+                select count(*) from RHN_VIS_CLIN_DOC_VER v join RHN_VIS_CLIN_DOC d
+                  on d.ID_TNT=v.ID_TNT and d.ID_CLIN_DOC=v.ID_CLIN_DOC where d.ID_ENC=?
                 """, Integer.class, Long.valueOf(encounterId)));
         assertEquals(2, count("observations", encounterId));
         assertEquals(1, count("encounter_diagnosis_revisions", encounterId));
@@ -110,11 +110,11 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
         }
         assertEquals(1, statusEventCount(encounterId, "COMPLETED"));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from encounter_completion_checks where encounter_id=? and result='PASS'",
+                "select count(*) from RHN_VIS_ENC_COMP_CHECK where ID_ENC=? and SD_RESULT='PASS'",
                 Integer.class, Long.valueOf(encounterId)));
         assertEquals(5, jdbcTemplate.queryForObject("""
-                select count(*) from idempotency_records
-                 where resource_id=? and operation_code like 'OUTPATIENT.ENCOUNTER.%' and status='COMPLETED'
+                select count(*) from RHN_INT_IDEMP_RECORD
+                 where ID_RSRC=? and CD_OPERATION like 'OUTPATIENT.ENCOUNTER.%' and SD_STATUS='COMPLETED'
                 """, Integer.class, Long.valueOf(encounterId)));
     }
 
@@ -125,7 +125,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
 
     private int statusEventCount(String encounterId, String statusTo) {
         return jdbcTemplate.queryForObject(
-                "select count(*) from encounter_status_events where encounter_id=? and status_to=?",
+                "select count(*) from RHN_VIS_ENC_STATUS_EVT where ID_ENC=? and SD_STATUS_TO=?",
                 Integer.class, Long.valueOf(encounterId), statusTo);
     }
 }

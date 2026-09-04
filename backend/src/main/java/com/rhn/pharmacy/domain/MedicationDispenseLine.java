@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "medication_dispense_lines")
+@Table(name = "RHN_SUP_MED_DISP_LINE")
 public class MedicationDispenseLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "medication_dispense_id", nullable = false) private Long medicationDispenseId;
-    @Column(name = "task_line_id", nullable = false) private Long taskLineId;
-    @Column(name = "original_dispense_line_id") private Long originalDispenseLineId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "inventory_transaction_line_id", nullable = false) private Long inventoryTransactionLineId;
-    @Column(name = "quantity_dispensed", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDispensed;
-    @Column(name = "dispense_unit_code", nullable = false) private String dispenseUnitCode;
-    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Id @Column(name = "ID_MED_DISP_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_MED_DISP", nullable = false) private Long medicationDispenseId;
+    @Column(name = "ID_DISP_TASK_LINE", nullable = false) private Long taskLineId;
+    @Column(name = "ID_MED_DISP_LINE_ORIGINAL") private Long originalDispenseLineId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "ID_INV_TXN_LINE", nullable = false) private Long inventoryTransactionLineId;
+    @Column(name = "QTY_DISPENSED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDispensed;
+    @Column(name = "CD_DISP_UNIT", nullable = false) private String dispenseUnitCode;
+    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
 
     protected MedicationDispenseLine() {}
 

@@ -9,17 +9,17 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "encounter_location_histories")
+@Table(name = "RHN_VIS_ENC_LOC_HIST")
 public class EncounterLocationHistory {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "location_id", nullable = false) private Long locationId;
-    @Column(nullable = false) private String status;
-    @Column(name = "start_at", nullable = false) private Instant startAt;
-    @Column(name = "end_at") private Instant endAt;
-    @Column(name = "change_reason") private String changeReason;
-    @Column(name = "changed_by", nullable = false) private Long changedBy;
+    @Id @Column(name = "ID_ENC_LOC_HIST") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_SVC_LOC", nullable = false) private Long locationId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_START", nullable = false) private Instant startAt;
+    @Column(name = "DT_END") private Instant endAt;
+    @Column(name = "DES_CHG_REASON") private String changeReason;
+    @Column(name = "ID_USER_CHANGED", nullable = false) private Long changedBy;
 
     protected EncounterLocationHistory() {
     }

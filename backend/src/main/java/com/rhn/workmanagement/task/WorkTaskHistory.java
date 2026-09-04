@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "work_task_history")
+@Table(name = "RHN_SYS_WORK_TASK_HIST")
 class WorkTaskHistory {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "task_id", nullable = false) private Long taskId;
-    @Column(nullable = false) private String action;
-    @Column(name = "from_status") private String fromStatus;
-    @Column(name = "to_status", nullable = false) private String toStatus;
-    @Column(name = "actor_id") private Long actorId;
-    @Column(name = "comment_text") private String comment;
-    @Column(name = "correlation_id", nullable = false) private String correlationId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_WORK_TASK_HIST") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_WORK_TASK", nullable = false) private Long taskId;
+    @Column(name = "SD_ACTION", nullable = false) private String action;
+    @Column(name = "SD_FROM_STATUS") private String fromStatus;
+    @Column(name = "SD_TO_STATUS", nullable = false) private String toStatus;
+    @Column(name = "ID_USER_ACTOR") private Long actorId;
+    @Column(name = "DES_COMMENT") private String comment;
+    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected WorkTaskHistory() {
     }

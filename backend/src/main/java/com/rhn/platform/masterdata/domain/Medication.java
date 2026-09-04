@@ -11,41 +11,41 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "medications")
+@Table(name = "RHN_BD_MED")
 public class Medication {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "item_type_id", nullable = false) private Long itemTypeId;
-    @Column(name = "item_master_id") private Long itemMasterId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "alias_name") private String aliasName;
-    @Column(name = "medication_type", nullable = false) private String medicationType;
-    @Column(name = "dose_form") private String doseForm;
-    @Column(name = "preparation_spec") private String preparationSpec;
-    @Column(name = "preparation_unit") private String preparationUnit;
-    @Column(name = "strength_value") private BigDecimal strengthValue;
-    @Column(name = "strength_unit") private String strengthUnit;
-    @Column(name = "storage_type") private String storageType;
-    @Column(name = "prescription_drug", nullable = false) private boolean prescriptionDrug;
-    @Column(name = "essential_drug", nullable = false) private boolean essentialDrug;
-    @Column(nullable = false) private boolean antimicrobial;
-    @Column(name = "antimicrobial_level") private String antimicrobialLevel;
-    @Column(name = "skin_test_required", nullable = false) private boolean skinTestRequired;
-    @Column(name = "default_dose") private BigDecimal defaultDose;
-    @Column(name = "default_dose_unit") private String defaultDoseUnit;
-    @Column(name = "default_route_id") private Long defaultRouteId;
-    @Column(name = "default_route") private String defaultRoute;
-    @Column(name = "default_frequency_id") private Long defaultFrequencyId;
-    @Column(name = "default_frequency") private String defaultFrequency;
-    @Column(name = "chronic_disease_drug", nullable = false) private boolean chronicDiseaseDrug;
-    @Column(name = "single_order", nullable = false) private boolean singleOrder;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_MED") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
+    @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
+    @Column(name = "CD_MED", nullable = false) private String code;
+    @Column(name = "NA_MED", nullable = false) private String name;
+    @Column(name = "NA_ALIAS") private String aliasName;
+    @Column(name = "SD_MED_TYPE", nullable = false) private String medicationType;
+    @Column(name = "DOSE_FORM") private String doseForm;
+    @Column(name = "PREPARATION_SPEC") private String preparationSpec;
+    @Column(name = "PREPARATION_UNIT") private String preparationUnit;
+    @Column(name = "QTY_STRENGTH_VAL") private BigDecimal strengthValue;
+    @Column(name = "STRENGTH_UNIT") private String strengthUnit;
+    @Column(name = "SD_STORAGE_TYPE") private String storageType;
+    @Column(name = "FG_PRESCRIPTION_DRUG", nullable = false) private boolean prescriptionDrug;
+    @Column(name = "FG_ESSENTIAL_DRUG", nullable = false) private boolean essentialDrug;
+    @Column(name = "FG_ANTIMICROBIAL", nullable = false) private boolean antimicrobial;
+    @Column(name = "SD_ANTIMICROBIAL_LEVEL") private String antimicrobialLevel;
+    @Column(name = "FG_SKIN_TEST_REQUIRED", nullable = false) private boolean skinTestRequired;
+    @Column(name = "QTY_DEFAULT_DOSE") private BigDecimal defaultDose;
+    @Column(name = "DEFAULT_DOSE_UNIT") private String defaultDoseUnit;
+    @Column(name = "ID_CONCEPT_DEFAULT_ROUTE") private Long defaultRouteId;
+    @Column(name = "DEFAULT_ROUTE") private String defaultRoute;
+    @Column(name = "ID_ORDER_FREQ_DEFAULT") private Long defaultFrequencyId;
+    @Column(name = "DEFAULT_FREQUENCY") private String defaultFrequency;
+    @Column(name = "FG_CHRONIC_DISEASE_DRUG", nullable = false) private boolean chronicDiseaseDrug;
+    @Column(name = "FG_SINGLE_ORDER", nullable = false) private boolean singleOrder;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected Medication() {}
 

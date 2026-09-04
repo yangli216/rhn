@@ -36,18 +36,18 @@ class PortalSummaryService {
         ZoneId zoneId = organizationZone(context);
         Timestamp today = Timestamp.from(LocalDate.now(zoneId).atStartOfDay(zoneId).toInstant());
         long registered = count("""
-                select count(*) from encounters where tenant_id = ? and organization_id = ? and department_id = ?
-                 and registered_at >= ?
+                select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
+                 and DT_REGISTERED >= ?
                 """, context.tenantId(), context.organizationId(), context.departmentId(), today);
         long inProgress = count("""
-                select count(*) from encounters where tenant_id = ? and organization_id = ? and department_id = ?
-                 and status = 'IN_PROGRESS'
+                select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
+                 and SD_STATUS = 'IN_PROGRESS'
                 """, context.tenantId(), context.organizationId(), context.departmentId());
         long completed = count("""
-                select count(*) from encounters where tenant_id = ? and organization_id = ? and department_id = ?
-                 and status = 'COMPLETED' and completed_at >= ?
+                select count(*) from RHN_VIS_ENC where ID_TNT = ? and ID_ORG = ? and ID_DEPT = ?
+                 and SD_STATUS = 'COMPLETED' and DT_COMPLETED >= ?
                 """, context.tenantId(), context.organizationId(), context.departmentId(), today);
-        long residents = count("select count(*) from residents where tenant_id = ? and status = 'ACTIVE'",
+        long residents = count("select count(*) from RHN_PI_PAT where ID_TNT = ? and SD_STATUS = 'ACTIVE'",
                 context.tenantId());
         return new PortalSummaryResponse(workSummaryDirectory.tasks(), workSummaryDirectory.notifications(), registered,
                 inProgress, completed, residents);
@@ -60,7 +60,7 @@ class PortalSummaryService {
 
     private ZoneId organizationZone(ExecutionContext context) {
         String configured = jdbcTemplate.query("""
-                        select timezone_code from organizations where tenant_id = ? and id = ?
+                        select CD_TIMEZONE as timezone_code from RHN_SYS_ORG where ID_TNT = ? and ID_ORG = ?
                         """, resultSet -> resultSet.next() ? resultSet.getString(1) : null,
                 context.tenantId(), context.organizationId());
         try {

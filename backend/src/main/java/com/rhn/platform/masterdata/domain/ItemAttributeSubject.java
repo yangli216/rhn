@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_attribute_subjects")
+@Table(name = "RHN_BD_ITEM_ATTR_SUBJECT")
 public class ItemAttributeSubject {
-    @Id private Long id;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(name = "subject_type", nullable = false) private String subjectType;
-    @Column(name = "subject_key", nullable = false) private String subjectKey;
-    @Column(name = "item_master_id") private Long itemMasterId;
-    @Column(name = "medication_id") private Long medicationId;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "service_variant_id") private Long serviceVariantId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_ITEM_ATTR_SUBJECT") private Long id;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "SD_SUBJECT_TYPE", nullable = false) private String subjectType;
+    @Column(name = "CD_SUBJECT_KEY", nullable = false) private String subjectKey;
+    @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
+    @Column(name = "ID_MED") private Long medicationId;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "ID_SVC_VAR") private Long serviceVariantId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected ItemAttributeSubject() {}
 

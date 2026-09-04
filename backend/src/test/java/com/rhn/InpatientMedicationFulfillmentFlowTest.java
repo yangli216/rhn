@@ -62,9 +62,9 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         String firstTaskId = plan.at("/tasks/0/id").asText();
         String secondTaskId = plan.at("/tasks/1/id").asText();
 
-        assertMoney("1", jdbc.queryForObject("select quantity from medication_requests where request_id = ?",
+        assertMoney("1", jdbc.queryForObject("select QTY_ORDERED as quantity from RHN_EX_MED_REQ where ID_CARE_REQ = ?",
                 BigDecimal.class, Long.valueOf(requestId)));
-        assertMoney("0.533333", jdbc.queryForObject("select total_amount from care_requests where id = ?",
+        assertMoney("0.533333", jdbc.queryForObject("select AMT_TOTAL as total_amount from RHN_EX_CARE_REQ where ID_CARE_REQ = ?",
                 BigDecimal.class, Long.valueOf(requestId)));
 
         JsonNode supplyBatch = generateSupplyBatch(supplyDate, order.get("departmentId").asText(),
@@ -168,11 +168,11 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INPATIENT_TASK_NOT_PLANNED"));
 
-        assertEquals(1, count("select count(*) from inpatient_med_consumptions where request_id = ?", requestId));
-        assertMoney("1.066666", scalar("select total_amount from charge_items where request_id = ? "
-                + "and source_type = 'MEDICATION_DISPENSE'", requestId));
-        assertMoney("-0.533333", scalar("select total_amount from charge_items where request_id = ? "
-                + "and source_type = 'MEDICATION_RETURN'", requestId));
+        assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_CONSUME where ID_CARE_REQ = ?", requestId));
+        assertMoney("1.066666", scalar("select AMT_TOTAL as total_amount from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
+                + "and SD_SRC_TYPE = 'MEDICATION_DISPENSE'", requestId));
+        assertMoney("-0.533333", scalar("select AMT_TOTAL as total_amount from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
+                + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId));
     }
 
     @Test
@@ -181,7 +181,7 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         OrderFacts facts = createPlannedOrder("IP-MED-STOP-PREP", 2);
         JsonNode dispenseTask = intakeAndPrepare(facts, "IP-MED-STOP-PREP");
         String dispenseTaskId = dispenseTask.get("id").asText();
-        assertEquals(1, count("select count(*) from inventory_reservations where request_id = ? and status = 'ACTIVE'",
+        assertEquals(1, count("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? and SD_STATUS = 'ACTIVE'",
                 facts.requestId()));
 
         JsonNode stopped = postJson("/api/inpatient/orders/" + facts.requestId() + "/stop", """
@@ -190,11 +190,11 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         assertEquals("CANCELLED", stopped.at("/medicationClosure/status").asText());
         assertEquals("AUTO_CANCELLED", stopped.at("/medicationClosure/action").asText());
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select status from dispense_tasks where id = ?", String.class, Long.valueOf(dispenseTaskId)));
+                "select SD_STATUS as status from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, Long.valueOf(dispenseTaskId)));
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select status from dispense_task_lines where task_id = ?", String.class, Long.valueOf(dispenseTaskId)));
-        assertEquals(0, count("select count(*) from inventory_reservations where request_id = ? "
-                + "and status in ('ACTIVE','PARTIAL')", facts.requestId()));
+                "select SD_STATUS as status from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?", String.class, Long.valueOf(dispenseTaskId)));
+        assertEquals(0, count("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? "
+                + "and SD_STATUS in ('ACTIVE','PARTIAL')", facts.requestId()));
 
         mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", dispenseTaskId)
                         .with(pharmacyContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -203,8 +203,8 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("MEDICATION_DISPENSE_RESERVATION_INSUFFICIENT"));
-        assertEquals(0, count("select count(*) from medication_dispenses md join dispense_tasks dt on dt.id=md.task_id "
-                + "where dt.id = ? and md.dispense_type in ('DISPENSE','REDISPENSE')", dispenseTaskId));
+        assertEquals(0, count("select count(*) from RHN_SUP_MED_DISP md join RHN_SUP_DISP_TASK dt on dt.ID_DISP_TASK=md.ID_DISP_TASK "
+                + "where dt.ID_DISP_TASK = ? and md.SD_DISP_TYPE in ('DISPENSE','REDISPENSE')", dispenseTaskId));
     }
 
     @Test
@@ -244,9 +244,9 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         assertMoney("1", stopped.at("/medicationClosure/returnableQuantity").decimalValue());
         assertEquals("WARD_RETURN", stopped.at("/medicationClosure/action").asText());
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select status from dispense_tasks where id = ?", String.class, Long.valueOf(dispenseTaskId)));
-        assertEquals(0, count("select count(*) from inventory_reservations where request_id = ? "
-                + "and status in ('ACTIVE','PARTIAL')", facts.requestId()));
+                "select SD_STATUS as status from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, Long.valueOf(dispenseTaskId)));
+        assertEquals(0, count("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? "
+                + "and SD_STATUS in ('ACTIVE','PARTIAL')", facts.requestId()));
         mockMvc.perform(get("/api/pharmacy/inbox").with(pharmacyContext())
                         .queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk())

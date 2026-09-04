@@ -12,42 +12,42 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "residents")
+@Table(name = "RHN_PI_PAT")
 class Resident {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_PAT") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "health_record_no", nullable = false)
+    @Column(name = "CD_HEALTH_RECORD_NO", nullable = false)
     private String healthRecordNo;
-    @Column(name = "full_name", nullable = false)
+    @Column(name = "NA_FULL", nullable = false)
     private String fullName;
-    @Column(name = "national_id")
+    @Column(name = "ID_NATIONAL")
     private String nationalId;
-    @Column(nullable = false)
+    @Column(name = "SD_GENDER", nullable = false)
     private String gender;
-    @Column(name = "birth_date", nullable = false)
+    @Column(name = "DA_BIRTH", nullable = false)
     private LocalDate birthDate;
-    private String phone;
-    @Column(nullable = false)
+    @Column(name = "CD_PHONE") private String phone;
+    @Column(name = "FG_DECEASED", nullable = false)
     private boolean deceased;
-    @Column(name = "deceased_at")
+    @Column(name = "DT_DECEASED")
     private Instant deceasedAt;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private String createdBy;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private ResidentStatus status;
-    @Column(name = "merged_into_id")
+    @Column(name = "ID_PAT_MERGED_INTO")
     private Long mergedIntoId;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false)
+    @Column(name = "ID_USER_UPDATED", nullable = false)
     private String updatedBy;
     @Version
-    private long version;
+    @Column(name = "REVISION") private long version;
 
     protected Resident() {
     }

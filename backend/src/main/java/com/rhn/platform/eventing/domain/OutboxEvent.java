@@ -13,57 +13,57 @@ import java.time.Duration;
 import com.rhn.shared.json.JsonCodec;
 
 @Entity
-@Table(name = "outbox_events")
+@Table(name = "RHN_INT_OUTBOX_EVT")
 public class OutboxEvent {
     @Id
-    @Column(name = "event_id")
+    @Column(name = "ID_EVT")
     private Long eventId;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "organization_id")
+    @Column(name = "ID_ORG")
     private Long organizationId;
-    @Column(name = "event_type", nullable = false)
+    @Column(name = "SD_EVT_TYPE", nullable = false)
     private String eventType;
-    @Column(name = "event_version", nullable = false)
+    @Column(name = "SN_EVT_VER", nullable = false)
     private int eventVersion;
-    @Column(name = "aggregate_type", nullable = false)
+    @Column(name = "SD_AGGREGATE_TYPE", nullable = false)
     private String aggregateType;
-    @Column(name = "aggregate_id", nullable = false)
+    @Column(name = "ID_AGGREGATE", nullable = false)
     private Long aggregateId;
-    @Column(name = "aggregate_version", nullable = false)
+    @Column(name = "SN_AGGREGATE_VER", nullable = false)
     private long aggregateVersion;
-    @Column(name = "subject_id")
+    @Column(name = "ID_SUBJECT")
     private Long subjectId;
-    @Column(name = "occurred_at", nullable = false)
+    @Column(name = "DT_OCCURRED", nullable = false)
     private Instant occurredAt;
-    @Column(name = "recorded_at", nullable = false)
+    @Column(name = "DT_RECORDED", nullable = false)
     private Instant recordedAt;
-    @Column(nullable = false)
+    @Column(name = "CD_ACTOR", nullable = false)
     private String actor;
-    @Column(nullable = false)
+    @Column(name = "SOURCE", nullable = false)
     private String source;
-    @Column(name = "correlation_id", nullable = false)
+    @Column(name = "ID_CORRELATION", nullable = false)
     private String correlationId;
-    @Column(name = "causation_id")
+    @Column(name = "ID_CAUSATION")
     private Long causationId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "payload_json", nullable = false)
+    @Column(name = "JSON_PAYLOAD", nullable = false)
     private String payloadJson;
-    @Column(name = "schema_version", nullable = false)
+    @Column(name = "SN_SCHEMA_VER", nullable = false)
     private int schemaVersion;
-    @Column(name = "publication_status", nullable = false)
+    @Column(name = "SD_PUBLICATION_STATUS", nullable = false)
     private String publicationStatus;
-    @Column(name = "published_at")
+    @Column(name = "DT_PUBLISD")
     private Instant publishedAt;
-    @Column(name = "attempt_count", nullable = false)
+    @Column(name = "QTY_ATTEMPT", nullable = false)
     private int attemptCount;
-    @Column(name = "last_error")
+    @Column(name = "DES_LAST_ERROR")
     private String lastError;
-    @Column(name = "next_attempt_at", nullable = false)
+    @Column(name = "DT_NEXT_ATTEMPT", nullable = false)
     private Instant nextAttemptAt;
-    @Column(name = "claimed_by")
+    @Column(name = "ID_USER_CLAIMED")
     private String claimedBy;
-    @Column(name = "claimed_until")
+    @Column(name = "DT_CLAIMED_UNTIL")
     private Instant claimedUntil;
 
     protected OutboxEvent() {

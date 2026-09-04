@@ -11,35 +11,35 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "health_events")
+@Table(name = "RHN_VIS_HEALTH_EVT")
 class HealthEvent {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_HEALTH_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "resident_id", nullable = false)
+    @Column(name = "ID_PAT", nullable = false)
     private Long residentId;
-    @Column(name = "encounter_id")
+    @Column(name = "ID_ENC")
     private Long encounterId;
-    @Column(name = "event_type", nullable = false)
+    @Column(name = "SD_EVT_TYPE", nullable = false)
     private String eventType;
-    @Column(nullable = false)
+    @Column(name = "DES_SUM", nullable = false)
     private String summary;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "payload_json", nullable = false)
+    @Column(name = "JSON_PAYLOAD", nullable = false)
     private String payloadJson;
-    @Column(name = "occurred_at", nullable = false)
+    @Column(name = "DT_OCCURRED", nullable = false)
     private Instant occurredAt;
-    @Column(name = "recorded_at", nullable = false)
+    @Column(name = "DT_RECORDED", nullable = false)
     private Instant recordedAt;
-    @Column(name = "recorded_by", nullable = false)
+    @Column(name = "ID_USER_RECORDED", nullable = false)
     private String recordedBy;
-    @Column(name = "source_event_id")
+    @Column(name = "ID_SRC_EVT")
     private Long sourceEventId;
-    @Column(name = "event_version")
+    @Column(name = "SN_EVT_VER")
     private Integer eventVersion;
-    private String source;
-    @Column(name = "correlation_id")
+    @Column(name = "SOURCE") private String source;
+    @Column(name = "ID_CORRELATION")
     private String correlationId;
 
     protected HealthEvent() {

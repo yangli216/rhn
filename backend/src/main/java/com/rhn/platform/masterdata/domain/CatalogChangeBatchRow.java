@@ -11,24 +11,24 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "catalog_change_batch_rows")
+@Table(name = "RHN_BD_CATALOG_CHG_ROW")
 public class CatalogChangeBatchRow {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "batch_id", nullable = false) private Long batchId;
-    @Column(name = "row_number", nullable = false) private int rowNumber;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "package_id") private Long packageId;
+    @Id @Column(name = "ID_CATALOG_CHG_ROW") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_CHG_BATCH", nullable = false) private Long batchId;
+    @Column(name = "CD_ROW_NUMBER", nullable = false) private int rowNumber;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_PKG") private Long packageId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "source_json", nullable = false) private String sourceJson;
-    @Column(nullable = false) private String status;
-    @Column(name = "target_resource_type") private String targetResourceType;
-    @Column(name = "target_id") private Long targetId;
-    @Column(name = "error_code") private String errorCode;
-    @Column(name = "error_message") private String errorMessage;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Column(name = "JSON_SRC", nullable = false) private String sourceJson;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_TARGET_RSRC_TYPE") private String targetResourceType;
+    @Column(name = "ID_TARGET") private Long targetId;
+    @Column(name = "CD_ERROR") private String errorCode;
+    @Column(name = "DES_ERROR_MSG") private String errorMessage;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected CatalogChangeBatchRow() {}
 

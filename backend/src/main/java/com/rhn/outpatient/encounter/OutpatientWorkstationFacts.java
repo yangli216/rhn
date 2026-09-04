@@ -11,20 +11,20 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "encounter_identity_checks")
+@Table(name = "RHN_VIS_ENC_IDENT_CHECK")
 class EncounterIdentityCheck {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "check_scenario", nullable = false) private String checkScenario;
-    @Lob @Column(name = "factor_results_json", nullable = false) private String factorResultsJson;
-    @Column(nullable = false) private String result;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "user_id") private Long userId;
-    @Column(name = "terminal_code") private String terminalCode;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_ENC_IDENT_CHECK") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "SD_CHECK_SCENARIO", nullable = false) private String checkScenario;
+    @Lob @Column(name = "JSON_FACTOR_RESULT", nullable = false) private String factorResultsJson;
+    @Column(name = "SD_RESULT", nullable = false) private String result;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_USER") private Long userId;
+    @Column(name = "CD_TERMINAL") private String terminalCode;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected EncounterIdentityCheck() {}
 
@@ -46,21 +46,21 @@ class EncounterIdentityCheck {
 }
 
 @Entity
-@Table(name = "encounter_status_events")
+@Table(name = "RHN_VIS_ENC_STATUS_EVT")
 class EncounterStatusEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "expected_revision", nullable = false) private long expectedRevision;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "user_id") private Long userId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    private String reason;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_ENC_STATUS_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "SN_EXPECTED_VER", nullable = false) private long expectedRevision;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_USER") private Long userId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected EncounterStatusEvent() {}
 
@@ -83,20 +83,20 @@ class EncounterStatusEvent {
 }
 
 @Entity
-@Table(name = "encounter_work_sessions")
+@Table(name = "RHN_VIS_ENC_WORK_SESSION")
 class EncounterWorkSession {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "user_id") private Long userId;
-    @Column(name = "terminal_code") private String terminalCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "started_at", nullable = false) private Instant startedAt;
-    @Column(name = "heartbeat_at", nullable = false) private Instant heartbeatAt;
-    @Column(name = "closed_at") private Instant closedAt;
-    @Column(name = "close_reason") private String closeReason;
+    @Id @Column(name = "ID_ENC_WORK_SESSION") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_USER") private Long userId;
+    @Column(name = "CD_TERMINAL") private String terminalCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
+    @Column(name = "DT_HEARTBEAT", nullable = false) private Instant heartbeatAt;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
+    @Column(name = "DES_CLOSE_REASON") private String closeReason;
 
     protected EncounterWorkSession() {}
 
@@ -122,31 +122,31 @@ class EncounterWorkSession {
 }
 
 @Entity
-@Table(name = "encounter_diagnosis_revisions")
+@Table(name = "RHN_VIS_ENC_DIAG_REV")
 class EncounterDiagnosisRevision {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_diagnosis_id", nullable = false) private Long encounterDiagnosisId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "diagnosis_stage", nullable = false) private String diagnosisStage;
-    @Column(name = "business_version_no", nullable = false) private int businessVersionNo;
-    @Column(name = "change_type", nullable = false) private String changeType;
-    @Column(name = "diagnosis_type", nullable = false) private String diagnosisType;
-    @Column(name = "verification_status", nullable = false) private String verificationStatus;
-    @Column(name = "diagnosis_status", nullable = false) private String diagnosisStatus;
-    @Column(name = "code_snapshot", nullable = false) private String codeSnapshot;
-    @Column(name = "display_snapshot", nullable = false) private String displaySnapshot;
-    @Column(name = "concept_id") private Long conceptId;
-    @Column(name = "code_system_code_snapshot") private String codeSystemCodeSnapshot;
-    @Column(name = "code_system_version_snapshot") private String codeSystemVersionSnapshot;
-    @Column(name = "diagnosis_domain", nullable = false) private String diagnosisDomain;
-    @Column(name = "diagnosis_group_id") private String diagnosisGroupId;
-    @Column(name = "management_snapshot_json") private String managementSnapshotJson;
-    @Column(name = "clinical_note") private String clinicalNote;
-    @Column(name = "change_reason", nullable = false) private String changeReason;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "user_id") private Long userId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_ENC_DIAG_REV") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC_DIAG", nullable = false) private Long encounterDiagnosisId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "SD_DIAG_STAGE", nullable = false) private String diagnosisStage;
+    @Column(name = "CD_BUSINESS_VER_NO", nullable = false) private int businessVersionNo;
+    @Column(name = "SD_CHG_TYPE", nullable = false) private String changeType;
+    @Column(name = "SD_DIAG_TYPE", nullable = false) private String diagnosisType;
+    @Column(name = "SD_VERIFICATION_STATUS", nullable = false) private String verificationStatus;
+    @Column(name = "SD_DIAG_STATUS", nullable = false) private String diagnosisStatus;
+    @Column(name = "CD_CODE_SNAP", nullable = false) private String codeSnapshot;
+    @Column(name = "NA_DISPLAY_SNAP", nullable = false) private String displaySnapshot;
+    @Column(name = "ID_CONCEPT") private Long conceptId;
+    @Column(name = "CD_CODE_SYS_SNAP") private String codeSystemCodeSnapshot;
+    @Column(name = "CODE_SYSTEM_VERSION_SNAPSHOT") private String codeSystemVersionSnapshot;
+    @Column(name = "SD_DIAG_DOMAIN", nullable = false) private String diagnosisDomain;
+    @Column(name = "ID_DIAG_GRP") private String diagnosisGroupId;
+    @Column(name = "JSON_MGMT_SNAP") private String managementSnapshotJson;
+    @Column(name = "DES_CLIN_NOTE") private String clinicalNote;
+    @Column(name = "DES_CHG_REASON", nullable = false) private String changeReason;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_USER") private Long userId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected EncounterDiagnosisRevision() {}
 
@@ -179,17 +179,17 @@ class EncounterDiagnosisRevision {
 }
 
 @Entity
-@Table(name = "encounter_completion_checks")
+@Table(name = "RHN_VIS_ENC_COMP_CHECK")
 class EncounterCompletionCheck {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "expected_revision", nullable = false) private long expectedRevision;
-    @Column(nullable = false) private String result;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "practitioner_id") private Long practitionerId;
-    @Column(name = "user_id") private Long userId;
-    @Column(name = "checked_at", nullable = false) private Instant checkedAt;
+    @Id @Column(name = "ID_ENC_COMP_CHECK") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "SN_EXPECTED_VER", nullable = false) private long expectedRevision;
+    @Column(name = "SD_RESULT", nullable = false) private String result;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "ID_PRACT") private Long practitionerId;
+    @Column(name = "ID_USER") private Long userId;
+    @Column(name = "DT_CHECKED", nullable = false) private Instant checkedAt;
 
     protected EncounterCompletionCheck() {}
 
@@ -210,14 +210,14 @@ class EncounterCompletionCheck {
 }
 
 @Entity
-@Table(name = "encounter_completion_issues")
+@Table(name = "RHN_VIS_ENC_COMP_ISSUE")
 class EncounterCompletionIssue {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "completion_check_id", nullable = false) private Long completionCheckId;
-    @Column(name = "issue_code", nullable = false) private String issueCode;
-    @Column(nullable = false) private String severity;
-    @Column(nullable = false) private String description;
+    @Id @Column(name = "ID_ENC_COMP_ISSUE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC_COMP_CHECK", nullable = false) private Long completionCheckId;
+    @Column(name = "CD_ISSUE", nullable = false) private String issueCode;
+    @Column(name = "SD_SEVERITY", nullable = false) private String severity;
+    @Column(name = "DES_ENC_COMP_ISSUE", nullable = false) private String description;
 
     protected EncounterCompletionIssue() {}
 

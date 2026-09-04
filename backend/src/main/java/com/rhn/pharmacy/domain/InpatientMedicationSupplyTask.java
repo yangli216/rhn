@@ -12,28 +12,28 @@ import java.time.Instant;
 
 /** Exact administration occurrence covered by a request-level supply line. */
 @Entity
-@Table(name = "inpatient_med_supply_tasks")
+@Table(name = "RHN_SUP_INP_MED_SUPPLY_TASK")
 public class InpatientMedicationSupplyTask {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "supply_line_id", nullable = false) private Long supplyLineId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "order_task_id", nullable = false) private Long orderTaskId;
-    @Column(name = "scheduled_at", nullable = false) private Instant scheduledAt;
-    @Column(name = "required_quantity", nullable = false, precision = 28, scale = 8)
+    @Id @Column(name = "ID_INP_MED_SUPPLY_TASK") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INP_MED_SUPPLY_LINE", nullable = false) private Long supplyLineId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_INP_ORDER_TASK", nullable = false) private Long orderTaskId;
+    @Column(name = "DT_SCHEDULED", nullable = false) private Instant scheduledAt;
+    @Column(name = "QTY_REQUIRED", nullable = false, precision = 28, scale = 8)
     private BigDecimal requiredQuantity;
-    @Column(name = "quantity_unit_code", nullable = false) private String quantityUnitCode;
-    @Column(name = "required_base_quantity", nullable = false, precision = 28, scale = 8)
+    @Column(name = "CD_QUANTITY_UNIT", nullable = false) private String quantityUnitCode;
+    @Column(name = "QTY_REQUIRED_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requiredBaseQuantity;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "active_slot") private Short activeSlot;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ACTIVE_SLOT") private Short activeSlot;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
     protected InpatientMedicationSupplyTask() {
     }

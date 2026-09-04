@@ -10,33 +10,33 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "charge_items")
+@Table(name = "RHN_BIL_CHARGE_ITEM")
 public class ChargeItem {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "request_id") private Long requestId;
-    @Column(name = "care_event_id") private Long careEventId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_id", nullable = false) private Long sourceId;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(nullable = false) private String status;
-    @Column(nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
-    @Column(name = "unit_code", nullable = false) private String unitCode;
-    @Column(name = "unit_price", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(name = "total_amount", nullable = false, precision = 24, scale = 6) private BigDecimal totalAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "price_id") private Long priceId;
-    @Column(name = "price_revision") private Long priceRevision;
-    @Column(name = "price_type") private String priceType;
-    @Column(name = "item_code_snapshot", nullable = false) private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "entered_by", nullable = false) private Long enteredBy;
-    @Column(name = "reverses_charge_item_id") private Long reversesChargeItemId;
+    @Id @Column(name = "ID_CHARGE_ITEM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "ID_CARE_REQ") private Long requestId;
+    @Column(name = "ID_CARE_EVT") private Long careEventId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "ID_SRC", nullable = false) private Long sourceId;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_CHARGE", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
+    @Column(name = "CD_UNIT", nullable = false) private String unitCode;
+    @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
+    @Column(name = "AMT_TOTAL", nullable = false, precision = 24, scale = 6) private BigDecimal totalAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "ID_PRICE") private Long priceId;
+    @Column(name = "SN_PRICE_VER") private Long priceRevision;
+    @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_USER_ENTERED", nullable = false) private Long enteredBy;
+    @Column(name = "ID_CHARGE_ITEM_REVERSES") private Long reversesChargeItemId;
 
     protected ChargeItem() {}
 

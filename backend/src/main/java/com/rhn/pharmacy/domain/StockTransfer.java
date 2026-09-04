@@ -10,32 +10,32 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_transfers")
+@Table(name = "RHN_SUP_STOCK_XFER")
 public class StockTransfer {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "source_site_id", nullable = false) private Long sourceSiteId;
-    @Column(name = "destination_site_id", nullable = false) private Long destinationSiteId;
-    @Column(name = "transfer_no", nullable = false) private String transferNo;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "requested_at", nullable = false) private Instant requestedAt;
-    @Column(name = "requested_by", nullable = false) private Long requestedBy;
-    @Column(name = "approved_at") private Instant approvedAt;
-    @Column(name = "approved_by") private Long approvedBy;
-    @Column(name = "dispatched_at") private Instant dispatchedAt;
-    @Column(name = "dispatched_by") private Long dispatchedBy;
-    @Column(name = "received_at") private Instant receivedAt;
-    @Column(name = "received_by") private Long receivedBy;
-    @Column private String reason;
-    @Column private String description;
-    @Column(name = "outbound_transaction_id") private Long outboundTransactionId;
-    @Column(name = "inbound_transaction_id") private Long inboundTransactionId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_STOCK_XFER") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE_SRC", nullable = false) private Long sourceSiteId;
+    @Column(name = "ID_STOCK_SITE_DESTINATION", nullable = false) private Long destinationSiteId;
+    @Column(name = "CD_XFER_NO", nullable = false) private String transferNo;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "DT_APPROVED") private Instant approvedAt;
+    @Column(name = "ID_USER_APPROVED") private Long approvedBy;
+    @Column(name = "DT_DISPATCHED") private Instant dispatchedAt;
+    @Column(name = "ID_USER_DISPATCHED") private Long dispatchedBy;
+    @Column(name = "DT_RECEIVED") private Instant receivedAt;
+    @Column(name = "ID_USER_RECEIVED") private Long receivedBy;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "DES_STOCK_XFER") private String description;
+    @Column(name = "ID_INV_TXN_OUTBOUND") private Long outboundTransactionId;
+    @Column(name = "ID_INV_TXN_INBOUND") private Long inboundTransactionId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected StockTransfer() {}
     public StockTransfer(Long tenantId, Long organizationId, Long sourceSiteId, Long destinationSiteId,

@@ -51,8 +51,7 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
             @Param("now") Instant now);
 
     @Query("""
-            select distinct r.tenantId as tenantId, r.dispenseTaskLineId as dispenseTaskLineId
-            from InventoryReservation r
+            select distinct r.tenantId as tenantId, r.dispenseTaskLineId as dispenseTaskLineId from InventoryReservation r
             where r.reservationType = 'DISPENSE' and r.status in ('ACTIVE', 'PARTIAL')
               and r.expiresAt <= :now
             order by r.tenantId, r.dispenseTaskLineId

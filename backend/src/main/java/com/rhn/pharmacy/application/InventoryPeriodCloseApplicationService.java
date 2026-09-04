@@ -97,8 +97,8 @@ public class InventoryPeriodCloseApplicationService {
         String request = required(requestCode, "INVENTORY_CLOSE_REQUEST_REQUIRED", "月结请求编码不能为空");
         String currency = upper(currencyCode == null ? "CNY" : currencyCode);
         RunIdentity repeated = jdbc.query("""
-                select id, inventory_period_id from inventory_period_close_runs
-                where tenant_id = ? and request_code = ?
+                select ID_INV_PERIOD_CLOSE_RUN as id, ID_INV_PERIOD as inventory_period_id from RHN_SUP_INV_PERIOD_CLOSE_RUN
+                where ID_TNT = ? and CD_REQ = ?
                 """, (rs, row) -> new RunIdentity(rs.getLong("id"), rs.getLong("inventory_period_id")),
                 context.tenantId(), request).stream().findFirst().orElse(null);
         if (repeated != null) {
@@ -120,17 +120,17 @@ public class InventoryPeriodCloseApplicationService {
         String runNo = "PC" + RUN_TIME.format(now) + GlobalIds.randomSuffix(6);
         String reconciliationNo = "REC" + RUN_TIME.format(now) + GlobalIds.randomSuffix(6);
         jdbc.update("""
-                insert into inventory_reconciliation_runs
-                (id, tenant_id, organization_id, stock_site_id, run_no, run_type, status, business_date,
-                 started_at, run_by, dimension_count, issue_count)
+                insert into RHN_SUP_INV_RECON_RUN
+                (ID_INV_RECON_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, CD_RUN_NO, SD_RUN_TYPE, SD_STATUS, DA_BUSINESS,
+                 DT_STARTED, ID_USER_RUN, QTY_DIMENSION, QTY_ISSUE)
                 values (?, ?, ?, ?, ?, 'PERIOD_CLOSE', 'RUNNING', ?, ?, ?, 0, 0)
                 """, reconciliationId, context.tenantId(), site.organizationId(), site.id(), reconciliationNo,
                 sqlDate(period.periodTo()), sqlTimestamp(now), context.subjectId());
         jdbc.update("""
-                insert into inventory_period_close_runs
-                (id, tenant_id, organization_id, stock_site_id, inventory_period_id, previous_period_id,
-                 reconciliation_run_id, run_no, request_code, request_hash, status, dimension_count,
-                 difference_count, started_at, started_by)
+                insert into RHN_SUP_INV_PERIOD_CLOSE_RUN
+                (ID_INV_PERIOD_CLOSE_RUN, ID_TNT, ID_ORG, ID_STOCK_SITE, ID_INV_PERIOD, ID_INV_PERIOD_PREVIOUS,
+                 ID_INV_RECON_RUN, CD_RUN_NO, CD_REQ, HASH_REQ, SD_STATUS, QTY_DIMENSION,
+                 QTY_DIFFERENCE, DT_STARTED, ID_USER_STARTED)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'RUNNING', 0, 0, ?, ?)
                 """, closeRunId, context.tenantId(), site.organizationId(), site.id(), period.id(),
                 period.previousPeriodId(), reconciliationId, runNo, request, stateHash, sqlTimestamp(now),
@@ -146,12 +146,12 @@ public class InventoryPeriodCloseApplicationService {
             boolean valueIssue = dimension.valueIssue() || dimension.valueDifference().signum() != 0;
             if (quantityIssue || valueIssue) differenceCount++;
             jdbc.update("""
-                    insert into inventory_period_balance_snapshots
-                    (id, tenant_id, close_run_id, inventory_period_id, opening_source_snapshot_id,
-                     inventory_balance_id, inventory_balance_revision, stock_site_id, stock_bin_id,
-                     stock_item_id, stock_lot_id, stock_status, base_unit_code, opening_quantity,
-                     movement_quantity, closing_quantity, balance_quantity, quantity_difference,
-                     snapshot_status, created_at, created_by)
+                    insert into RHN_SUP_INV_PERIOD_BAL_SNAP
+                    (ID_INV_PERIOD_BAL_SNAP, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, ID_INV_PERIOD,
+                     ID_INV_PERIOD_BAL_SNAP_OPENING, ID_INV_BAL, SN_INV_BAL_VER, ID_STOCK_SITE, ID_STOCK_BIN,
+                     ID_STOCK_ITEM, ID_STOCK_LOT, SD_STOCK_STATUS, CD_BASE_UNIT, QTY_OPENING,
+                     QTY_MOVEMENT, QTY_CLOSE, QTY_BAL, QTY_DIFFERENCE,
+                     SD_SNAP_STATUS, DT_CREATED, ID_USER_CREATED)
                     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, snapshotId, context.tenantId(), closeRunId, period.id(), dimension.openingSnapshotId(),
                     dimension.balanceId(), dimension.balanceRevision(), site.id(), dimension.binId(),
@@ -160,11 +160,11 @@ public class InventoryPeriodCloseApplicationService {
                     dimension.balanceQuantity(), dimension.quantityDifference(),
                     quantityIssue ? "DIFFERENCE" : "RECONCILED", sqlTimestamp(now), context.subjectId());
             jdbc.update("""
-                    insert into inventory_period_balance_values
-                    (id, tenant_id, period_balance_snapshot_id, valuation_basis, currency_code,
-                     opening_unit_value, closing_unit_value, opening_value, movement_amount,
-                     valuation_adjustment_amount, rounding_adjustment_amount, closing_value,
-                     balance_value, value_difference, value_status, created_at)
+                    insert into RHN_SUP_INV_PERIOD_BAL_VAL
+                    (ID_INV_PERIOD_BAL_VAL, ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS, CD_CURRENCY,
+                     PRICE_OPENING, PRICE_CLOSE, AMT_OPENING, AMT_MOVEMENT,
+                     AMT_VALUAT_ADJ, AMT_ROUNDING_ADJ, AMT_CLOSE,
+                     AMT_BAL, AMT_VAL_DIFFERENCE, SD_VAL_STATUS, DT_CREATED)
                     values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, GlobalIds.next(), context.tenantId(), snapshotId, currency,
                     dimension.openingUnitValue(), dimension.closingUnitValue(), dimension.openingValue(),
@@ -196,24 +196,24 @@ public class InventoryPeriodCloseApplicationService {
         }
         BigDecimal totalDifference = amount(balanceTotal.subtract(closingTotal));
         jdbc.update("""
-                insert into inventory_period_close_totals
-                (id, tenant_id, close_run_id, valuation_basis, currency_code, opening_value,
-                 movement_amount, valuation_adjustment_amount, rounding_adjustment_amount,
-                 closing_value, balance_value, value_difference, created_at)
+                insert into RHN_SUP_INV_PERIOD_CLOSE_TOTAL
+                (ID_INV_PERIOD_CLOSE_TOTAL, ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS, CD_CURRENCY, AMT_OPENING,
+                 AMT_MOVEMENT, AMT_VALUAT_ADJ, AMT_ROUNDING_ADJ,
+                 AMT_CLOSE, AMT_BAL, AMT_VAL_DIFFERENCE, DT_CREATED)
                 values (?, ?, ?, 'COST', ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), context.tenantId(), closeRunId, currency, amount(openingTotal),
                 amount(movementTotal), amount(valuationTotal), amount(roundingTotal), amount(closingTotal),
                 amount(balanceTotal), totalDifference, sqlTimestamp(now));
         String reconciliationStatus = issueCount == 0 ? "PASSED" : "ISSUES";
         jdbc.update("""
-                update inventory_reconciliation_runs set status = ?, completed_at = ?,
-                       dimension_count = ?, issue_count = ? where tenant_id = ? and id = ?
+                update RHN_SUP_INV_RECON_RUN set SD_STATUS = ?, DT_COMPLETED = ?,
+                       QTY_DIMENSION = ?, QTY_ISSUE = ? where ID_TNT = ? and ID_INV_RECON_RUN = ?
                 """, reconciliationStatus, sqlTimestamp(now), dimensions.size() + missing.size(), issueCount,
                 context.tenantId(), reconciliationId);
         jdbc.update("""
-                update inventory_period_close_runs set status = 'VALIDATED', dimension_count = ?,
-                       difference_count = ?, validated_at = ?, validated_by = ?, completed_at = ?
-                where tenant_id = ? and id = ?
+                update RHN_SUP_INV_PERIOD_CLOSE_RUN set SD_STATUS = 'VALIDATED', QTY_DIMENSION = ?,
+                       QTY_DIFFERENCE = ?, DT_VALIDATED = ?, ID_USER_VALIDATED = ?, DT_COMPLETED = ?
+                where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, dimensions.size() + missing.size(), differenceCount, sqlTimestamp(now), context.subjectId(),
                 sqlTimestamp(now), context.tenantId(), closeRunId);
         return closeRun(context.tenantId(), closeRunId);
@@ -248,8 +248,8 @@ public class InventoryPeriodCloseApplicationService {
         period.beginClosing(); periods.saveAndFlush(period);
         Instant now = Instant.now();
         jdbc.update("""
-                update inventory_period_close_runs set status = 'POSTED', posted_at = ?, posted_by = ?,
-                       completed_at = ? where tenant_id = ? and id = ? and status = 'VALIDATED'
+                update RHN_SUP_INV_PERIOD_CLOSE_RUN set SD_STATUS = 'POSTED', DT_POSTED = ?, ID_USER_POSTED = ?,
+                       DT_COMPLETED = ? where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ? and SD_STATUS = 'VALIDATED'
                 """, sqlTimestamp(now), context.subjectId(), sqlTimestamp(now), context.tenantId(), closeRunId);
         period.close(closeRunId, context.subjectId()); periods.saveAndFlush(period);
         createNextPeriodIfAbsent(context, period);
@@ -268,8 +268,8 @@ public class InventoryPeriodCloseApplicationService {
         ExecutionContext context = requireContext(); InventoryPeriod period = requirePeriod(context, periodId);
         requireSite(context, period.stockSiteId());
         return jdbc.query("""
-                select id from inventory_period_close_runs
-                where tenant_id = ? and inventory_period_id = ? order by started_at desc
+                select ID_INV_PERIOD_CLOSE_RUN as id from RHN_SUP_INV_PERIOD_CLOSE_RUN
+                where ID_TNT = ? and ID_INV_PERIOD = ? order by DT_STARTED desc
                 """, (rs, row) -> rs.getLong("id"), context.tenantId(), periodId)
                 .stream().map(id -> closeRun(context.tenantId(), id)).toList();
     }
@@ -279,19 +279,23 @@ public class InventoryPeriodCloseApplicationService {
         ExecutionContext context = requireContext(); PeriodCloseRunView run = closeRun(context.tenantId(), closeRunId);
         requirePeriod(context, run.inventoryPeriodId());
         return jdbc.query("""
-                select s.id, s.inventory_balance_id, s.inventory_balance_revision, s.stock_bin_id,
-                       s.stock_item_id, s.stock_lot_id, l.lot_no, s.stock_status, s.base_unit_code,
-                       s.opening_quantity, s.movement_quantity, s.closing_quantity,
-                       s.balance_quantity, s.quantity_difference, v.valuation_basis, v.currency_code,
-                       v.opening_value, v.movement_amount, v.valuation_adjustment_amount,
-                       v.rounding_adjustment_amount, v.closing_value, v.balance_value, v.value_difference
-                from inventory_period_balance_snapshots s
-                join inventory_period_balance_values v
-                  on v.tenant_id = s.tenant_id and v.period_balance_snapshot_id = s.id
-                join stock_lots l on l.tenant_id = s.tenant_id and l.id = s.stock_lot_id
-                where s.tenant_id = ? and s.close_run_id = ?
-                  and (s.snapshot_status = 'DIFFERENCE' or v.value_status = 'DIFFERENCE')
-                order by s.stock_bin_id, s.stock_item_id, s.stock_lot_id, s.stock_status, v.valuation_basis
+                select s.ID_INV_PERIOD_BAL_SNAP as id, s.ID_INV_BAL as inventory_balance_id,
+                       s.SN_INV_BAL_VER as inventory_balance_revision, s.ID_STOCK_BIN as stock_bin_id,
+                       s.ID_STOCK_ITEM as stock_item_id, s.ID_STOCK_LOT as stock_lot_id, l.CD_LOT_NO as lot_no, s.SD_STOCK_STATUS as stock_status, s.CD_BASE_UNIT as base_unit_code,
+                       s.QTY_OPENING as opening_quantity, s.QTY_MOVEMENT as movement_quantity, s.QTY_CLOSE as closing_quantity,
+                       s.QTY_BAL as balance_quantity, s.QTY_DIFFERENCE as quantity_difference,
+                       v.SD_VALUAT_BASIS as valuation_basis, v.CD_CURRENCY as currency_code,
+                       v.AMT_OPENING as opening_value, v.AMT_MOVEMENT as movement_amount,
+                       v.AMT_VALUAT_ADJ as valuation_adjustment_amount,
+                       v.AMT_ROUNDING_ADJ as rounding_adjustment_amount, v.AMT_CLOSE as closing_value,
+                       v.AMT_BAL as balance_value, v.AMT_VAL_DIFFERENCE as value_difference
+                  from RHN_SUP_INV_PERIOD_BAL_SNAP s
+                join RHN_SUP_INV_PERIOD_BAL_VAL v
+                  on v.ID_TNT = s.ID_TNT and v.ID_INV_PERIOD_BAL_SNAP = s.ID_INV_PERIOD_BAL_SNAP
+                join RHN_SUP_STOCK_LOT l on l.ID_TNT = s.ID_TNT and l.ID_STOCK_LOT = s.ID_STOCK_LOT
+                where s.ID_TNT = ? and s.ID_INV_PERIOD_CLOSE_RUN = ?
+                  and (s.SD_SNAP_STATUS = 'DIFFERENCE' or v.SD_VAL_STATUS = 'DIFFERENCE')
+                order by s.ID_STOCK_BIN, s.ID_STOCK_ITEM, s.ID_STOCK_LOT, s.SD_STOCK_STATUS, v.SD_VALUAT_BASIS
                 """, (rs, row) -> new PeriodCloseDifferenceView(rs.getLong("id"),
                 rs.getLong("inventory_balance_id"), rs.getLong("inventory_balance_revision"),
                 rs.getLong("stock_bin_id"), rs.getLong("stock_item_id"), rs.getLong("stock_lot_id"),
@@ -309,47 +313,45 @@ public class InventoryPeriodCloseApplicationService {
     private List<CloseDimension> dimensions(Long tenantId, Long siteId, Long periodId, Long previousCloseRunId) {
         return jdbc.query("""
                 with movement as (
-                    select l.stock_bin_id, l.stock_item_id, l.stock_lot_id, l.stock_status,
-                           sum(l.quantity_delta) movement_quantity,
-                           coalesce(sum(l.amount_delta), 0) movement_amount,
-                           sum(case when l.amount_delta is null then 1 else 0 end) missing_cost_count
-                    from inventory_transaction_lines l
-                    join inventory_transactions t on t.tenant_id = l.tenant_id
-                     and t.id = l.inventory_transaction_id
-                    where l.tenant_id = ? and l.stock_site_id = ? and t.inventory_period_id = ?
-                    group by l.stock_bin_id, l.stock_item_id, l.stock_lot_id, l.stock_status
+                    select l.ID_STOCK_BIN as stock_bin_id, l.ID_STOCK_ITEM as stock_item_id, l.ID_STOCK_LOT as stock_lot_id, l.SD_STOCK_STATUS as stock_status,
+                           sum(l.QTY_DELTA) as movement_quantity,
+                           coalesce(sum(l.AMT_DELTA), 0) as movement_amount,
+                           sum(case when l.AMT_DELTA is null then 1 else 0 end) as missing_cost_count from RHN_SUP_INV_TXN_LINE l
+                    join RHN_SUP_INV_TXN t on t.ID_TNT = l.ID_TNT
+                     and t.ID_INV_TXN = l.ID_INV_TXN
+                    where l.ID_TNT = ? and l.ID_STOCK_SITE = ? and t.ID_INV_PERIOD = ?
+                    group by l.ID_STOCK_BIN, l.ID_STOCK_ITEM, l.ID_STOCK_LOT, l.SD_STOCK_STATUS
                 ), valuation as (
-                    select inventory_balance_id,
-                           coalesce(sum(case when entry_type = 'ROUNDING' then 0 else amount_delta end), 0) valuation_amount,
-                           coalesce(sum(case when entry_type = 'ROUNDING' then amount_delta else 0 end), 0) rounding_amount
-                    from inventory_valuation_entries
-                    where tenant_id = ? and stock_site_id = ? and inventory_period_id = ?
-                      and valuation_basis = 'COST'
-                    group by inventory_balance_id
+                    select ID_INV_BAL as inventory_balance_id,
+                           coalesce(sum(case when SD_ENTRY_TYPE = 'ROUNDING' then 0 else AMT_DELTA end), 0) as valuation_amount,
+                           coalesce(sum(case when SD_ENTRY_TYPE = 'ROUNDING' then AMT_DELTA else 0 end), 0) as rounding_amount from RHN_SUP_INV_VALUAT_ENTRY
+                    where ID_TNT = ? and ID_STOCK_SITE = ? and ID_INV_PERIOD = ?
+                      and SD_VALUAT_BASIS = 'COST'
+                    group by ID_INV_BAL
                 )
-                select b.id balance_id, b.revision balance_revision, b.stock_bin_id, b.stock_item_id,
-                       b.stock_lot_id, b.stock_status, b.base_unit_code, b.quantity_on_hand,
-                       b.average_unit_cost, s.id opening_snapshot_id,
-                       coalesce(s.closing_quantity, 0) opening_quantity,
-                       coalesce(m.movement_quantity, 0) movement_quantity,
-                       v.id opening_value_id, coalesce(v.closing_value, 0) opening_value,
-                       coalesce(m.movement_amount, 0) movement_amount,
-                       coalesce(m.missing_cost_count, 0) missing_cost_count,
-                       coalesce(a.valuation_amount, 0) valuation_amount,
-                       coalesce(a.rounding_amount, 0) rounding_amount
-                from inventory_balances b
-                left join inventory_period_balance_snapshots s
-                  on s.tenant_id = b.tenant_id and s.close_run_id = ?
-                 and s.stock_bin_id = b.stock_bin_id and s.stock_item_id = b.stock_item_id
-                 and s.stock_lot_id = b.stock_lot_id and s.stock_status = b.stock_status
-                left join inventory_period_balance_values v
-                  on v.tenant_id = s.tenant_id and v.period_balance_snapshot_id = s.id
-                 and v.valuation_basis = 'COST'
-                left join movement m on m.stock_bin_id = b.stock_bin_id and m.stock_item_id = b.stock_item_id
-                 and m.stock_lot_id = b.stock_lot_id and m.stock_status = b.stock_status
-                left join valuation a on a.inventory_balance_id = b.id
-                where b.tenant_id = ? and b.stock_site_id = ?
-                order by b.stock_bin_id, b.stock_item_id, b.stock_lot_id, b.stock_status
+                select b.ID_INV_BAL as balance_id, b.REVISION as balance_revision, b.ID_STOCK_BIN as stock_bin_id, b.ID_STOCK_ITEM as stock_item_id,
+                       b.ID_STOCK_LOT as stock_lot_id, b.SD_STOCK_STATUS as stock_status, b.CD_BASE_UNIT as base_unit_code, b.QTY_ON_HAND as quantity_on_hand,
+                       b.PRICE_AVERAGE_UNIT_COST as average_unit_cost,
+                       s.ID_INV_PERIOD_BAL_SNAP as opening_snapshot_id,
+                       coalesce(s.QTY_CLOSE, 0) as opening_quantity,
+                       coalesce(m.movement_quantity, 0) as movement_quantity,
+                       v.ID_INV_PERIOD_BAL_VAL as opening_value_id, coalesce(v.AMT_CLOSE, 0) as opening_value,
+                       coalesce(m.movement_amount, 0) as movement_amount,
+                       coalesce(m.missing_cost_count, 0) as missing_cost_count,
+                       coalesce(a.valuation_amount, 0) as valuation_amount,
+                       coalesce(a.rounding_amount, 0) as rounding_amount from RHN_SUP_INV_BAL b
+                left join RHN_SUP_INV_PERIOD_BAL_SNAP s
+                  on s.ID_TNT = b.ID_TNT and s.ID_INV_PERIOD_CLOSE_RUN = ?
+                 and s.ID_STOCK_BIN = b.ID_STOCK_BIN and s.ID_STOCK_ITEM = b.ID_STOCK_ITEM
+                 and s.ID_STOCK_LOT = b.ID_STOCK_LOT and s.SD_STOCK_STATUS = b.SD_STOCK_STATUS
+                left join RHN_SUP_INV_PERIOD_BAL_VAL v
+                  on v.ID_TNT = s.ID_TNT and v.ID_INV_PERIOD_BAL_SNAP = s.ID_INV_PERIOD_BAL_SNAP
+                 and v.SD_VALUAT_BASIS = 'COST'
+                left join movement m on m.stock_bin_id = b.ID_STOCK_BIN and m.stock_item_id = b.ID_STOCK_ITEM
+                 and m.stock_lot_id = b.ID_STOCK_LOT and m.stock_status = b.SD_STOCK_STATUS
+                left join valuation a on a.inventory_balance_id = b.ID_INV_BAL
+                where b.ID_TNT = ? and b.ID_STOCK_SITE = ?
+                order by b.ID_STOCK_BIN, b.ID_STOCK_ITEM, b.ID_STOCK_LOT, b.SD_STOCK_STATUS
                 """, (rs, row) -> dimension(rs, previousCloseRunId != null), tenantId, siteId, periodId,
                 tenantId, siteId, periodId, previousCloseRunId == null ? -1L : previousCloseRunId,
                 tenantId, siteId);
@@ -383,32 +385,32 @@ public class InventoryPeriodCloseApplicationService {
                                                      Long previousCloseRunId) {
         return jdbc.query("""
                 with opening as (
-                    select stock_bin_id, stock_item_id, stock_lot_id, stock_status, closing_quantity quantity
-                    from inventory_period_balance_snapshots where tenant_id = ? and close_run_id = ?
+                    select ID_STOCK_BIN as stock_bin_id, ID_STOCK_ITEM as stock_item_id,
+                           ID_STOCK_LOT as stock_lot_id, SD_STOCK_STATUS as stock_status,
+                           QTY_CLOSE as quantity from RHN_SUP_INV_PERIOD_BAL_SNAP
+                    where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 ), movement as (
-                    select l.stock_bin_id, l.stock_item_id, l.stock_lot_id, l.stock_status,
-                           sum(l.quantity_delta) quantity
-                    from inventory_transaction_lines l
-                    join inventory_transactions t on t.tenant_id = l.tenant_id
-                     and t.id = l.inventory_transaction_id
-                    where l.tenant_id = ? and l.stock_site_id = ? and t.inventory_period_id = ?
-                    group by l.stock_bin_id, l.stock_item_id, l.stock_lot_id, l.stock_status
+                    select l.ID_STOCK_BIN as stock_bin_id, l.ID_STOCK_ITEM as stock_item_id, l.ID_STOCK_LOT as stock_lot_id, l.SD_STOCK_STATUS as stock_status,
+                           sum(l.QTY_DELTA) as quantity from RHN_SUP_INV_TXN_LINE l
+                    join RHN_SUP_INV_TXN t on t.ID_TNT = l.ID_TNT
+                     and t.ID_INV_TXN = l.ID_INV_TXN
+                    where l.ID_TNT = ? and l.ID_STOCK_SITE = ? and t.ID_INV_PERIOD = ?
+                    group by l.ID_STOCK_BIN, l.ID_STOCK_ITEM, l.ID_STOCK_LOT, l.SD_STOCK_STATUS
                 ), dimension_keys as (
                     select stock_bin_id, stock_item_id, stock_lot_id, stock_status from opening
                     union
                     select stock_bin_id, stock_item_id, stock_lot_id, stock_status from movement
                 )
                 select k.stock_bin_id, k.stock_item_id, k.stock_lot_id, k.stock_status,
-                       coalesce(o.quantity, 0) + coalesce(m.quantity, 0) expected_quantity
-                from dimension_keys k
+                       coalesce(o.quantity, 0) + coalesce(m.quantity, 0) as expected_quantity from dimension_keys k
                 left join opening o on o.stock_bin_id = k.stock_bin_id and o.stock_item_id = k.stock_item_id
                  and o.stock_lot_id = k.stock_lot_id and o.stock_status = k.stock_status
                 left join movement m on m.stock_bin_id = k.stock_bin_id and m.stock_item_id = k.stock_item_id
                  and m.stock_lot_id = k.stock_lot_id and m.stock_status = k.stock_status
                 where not exists (
-                    select 1 from inventory_balances b where b.tenant_id = ? and b.stock_site_id = ?
-                      and b.stock_bin_id = k.stock_bin_id and b.stock_item_id = k.stock_item_id
-                      and b.stock_lot_id = k.stock_lot_id and b.stock_status = k.stock_status)
+                    select 1 from RHN_SUP_INV_BAL b where b.ID_TNT = ? and b.ID_STOCK_SITE = ?
+                      and b.ID_STOCK_BIN = k.stock_bin_id and b.ID_STOCK_ITEM = k.stock_item_id
+                      and b.ID_STOCK_LOT = k.stock_lot_id and b.SD_STOCK_STATUS = k.stock_status)
                 order by k.stock_bin_id, k.stock_item_id, k.stock_lot_id, k.stock_status
                 """, (rs, row) -> new MissingDimension(rs.getLong("stock_bin_id"), rs.getLong("stock_item_id"),
                 rs.getLong("stock_lot_id"), rs.getString("stock_status"),
@@ -421,10 +423,10 @@ public class InventoryPeriodCloseApplicationService {
                                      Long lotId, String status, String type, BigDecimal expected,
                                      BigDecimal actual, String description) {
         jdbc.update("""
-                insert into inventory_reconciliation_lines
-                (id, tenant_id, reconciliation_run_id, stock_bin_id, stock_item_id, stock_lot_id,
-                 stock_status, issue_type, expected_quantity, actual_quantity, difference_quantity,
-                 severity, description)
+                insert into RHN_SUP_INV_RECON_LINE
+                (ID_INV_RECON_LINE, ID_TNT, ID_INV_RECON_RUN, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
+                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPECTED, QTY_ACTUAL, QTY_DIFFERENCE,
+                 SD_SEVERITY, DES_INV_RECON_LINE)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'ERROR', ?)
                 """, GlobalIds.next(), tenantId, reconciliationId, binId, itemId, lotId, status, type,
                 expected, actual, quantity(actual.subtract(expected)), description);
@@ -435,11 +437,11 @@ public class InventoryPeriodCloseApplicationService {
                 ? "库存成本信息不完整，无法可靠计算期末价值"
                 : "期间期末账面价值与实时库存成本价值不一致";
         jdbc.update("""
-                insert into inventory_reconciliation_lines
-                (id, tenant_id, reconciliation_run_id, stock_bin_id, stock_item_id, stock_lot_id,
-                 stock_status, issue_type, expected_quantity, actual_quantity, difference_quantity,
-                 valuation_basis, currency_code, expected_amount, actual_amount, difference_amount,
-                 severity, description)
+                insert into RHN_SUP_INV_RECON_LINE
+                (ID_INV_RECON_LINE, ID_TNT, ID_INV_RECON_RUN, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT,
+                 SD_STOCK_STATUS, SD_ISSUE_TYPE, QTY_EXPECTED, QTY_ACTUAL, QTY_DIFFERENCE,
+                 SD_VALUAT_BASIS, CD_CURRENCY, AMT_EXPECTED, AMT_ACTUAL, AMT_DIFFERENCE,
+                 SD_SEVERITY, DES_INV_RECON_LINE)
                 values (?, ?, ?, ?, ?, ?, ?, 'PERIOD_VALUE', 0, 0, 0,
                         'COST', ?, ?, ?, ?, 'ERROR', ?)
                 """, GlobalIds.next(), tenantId, reconciliationId, d.binId(), d.itemId(), d.lotId(), d.status(),
@@ -468,11 +470,14 @@ public class InventoryPeriodCloseApplicationService {
 
     private PeriodCloseRunView closeRun(Long tenantId, Long id) {
         List<PeriodCloseRunView> values = jdbc.query("""
-                select id, revision, stock_site_id, inventory_period_id, previous_period_id,
-                       reconciliation_run_id, run_no, request_code, status, dimension_count,
-                       difference_count, started_at, started_by, validated_at, validated_by,
-                       posted_at, posted_by, completed_at, failure_code, failure_message
-                from inventory_period_close_runs where tenant_id = ? and id = ?
+                select ID_INV_PERIOD_CLOSE_RUN as id, REVISION,
+                       ID_STOCK_SITE as stock_site_id, ID_INV_PERIOD as inventory_period_id,
+                       ID_INV_PERIOD_PREVIOUS as previous_period_id,
+                       ID_INV_RECON_RUN as reconciliation_run_id, CD_RUN_NO as run_no,
+                       CD_REQ as request_code, SD_STATUS as status, QTY_DIMENSION as dimension_count,
+                       QTY_DIFFERENCE as difference_count, DT_STARTED as started_at,
+                       ID_USER_STARTED as started_by, DT_VALIDATED as validated_at, ID_USER_VALIDATED as validated_by,
+                       DT_POSTED as posted_at, ID_USER_POSTED as posted_by, DT_COMPLETED as completed_at, CD_FAILURE as failure_code, DES_FAILURE_MSG as failure_message from RHN_SUP_INV_PERIOD_CLOSE_RUN where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, (rs, row) -> new PeriodCloseRunView(rs.getLong("id"), rs.getLong("revision"),
                 rs.getLong("stock_site_id"), rs.getLong("inventory_period_id"),
                 nullableLong(rs, "previous_period_id"), nullableLong(rs, "reconciliation_run_id"),
@@ -488,11 +493,14 @@ public class InventoryPeriodCloseApplicationService {
 
     private List<PeriodCloseTotalView> closeTotals(Long tenantId, Long closeRunId) {
         return jdbc.query("""
-                select valuation_basis, currency_code, opening_value, movement_amount,
-                       valuation_adjustment_amount, rounding_adjustment_amount, closing_value,
-                       balance_value, value_difference
-                from inventory_period_close_totals where tenant_id = ? and close_run_id = ?
-                order by valuation_basis, currency_code
+                select SD_VALUAT_BASIS as valuation_basis, CD_CURRENCY as currency_code,
+                       AMT_OPENING as opening_value, AMT_MOVEMENT as movement_amount,
+                       AMT_VALUAT_ADJ as valuation_adjustment_amount,
+                       AMT_ROUNDING_ADJ as rounding_adjustment_amount, AMT_CLOSE as closing_value,
+                       AMT_BAL as balance_value, AMT_VAL_DIFFERENCE as value_difference
+                  from RHN_SUP_INV_PERIOD_CLOSE_TOTAL
+                 where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
+                order by SD_VALUAT_BASIS, CD_CURRENCY
                 """, (rs, row) -> new PeriodCloseTotalView(rs.getString("valuation_basis"),
                 rs.getString("currency_code"), rs.getBigDecimal("opening_value"),
                 rs.getBigDecimal("movement_amount"), rs.getBigDecimal("valuation_adjustment_amount"),
@@ -502,8 +510,10 @@ public class InventoryPeriodCloseApplicationService {
 
     private RunRecord requireRun(Long tenantId, Long id) {
         return jdbc.query("""
-                select id, inventory_period_id, request_hash, status, difference_count
-                from inventory_period_close_runs where tenant_id = ? and id = ?
+                select ID_INV_PERIOD_CLOSE_RUN as id, ID_INV_PERIOD as inventory_period_id,
+                       HASH_REQ as request_hash, SD_STATUS as status, QTY_DIFFERENCE as difference_count
+                  from RHN_SUP_INV_PERIOD_CLOSE_RUN
+                 where ID_TNT = ? and ID_INV_PERIOD_CLOSE_RUN = ?
                 """, (rs, row) -> new RunRecord(rs.getLong("id"), rs.getLong("inventory_period_id"),
                 rs.getString("request_hash"), rs.getString("status"), rs.getInt("difference_count")),
                 tenantId, id).stream().findFirst()

@@ -8,20 +8,20 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "inpatient_shift_handoff_items")
+@Table(name = "RHN_VIS_INP_SHIFT_HANDOFF_ITEM")
 public class InpatientShiftHandoffItem {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "handoff_id", nullable = false) private Long handoffId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "resident_name_snapshot", nullable = false) private String residentNameSnapshot;
-    @Column(name = "bed_no_snapshot") private String bedNoSnapshot;
-    @Column(nullable = false) private String situation;
-    @Lob @Column(name = "pending_actions_json", nullable = false) private String pendingActionsJson;
-    @Lob @Column(name = "risk_flags_json", nullable = false) private String riskFlagsJson;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
+    @Id @Column(name = "ID_INP_SHIFT_HANDOFF_ITEM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INP_SHIFT_HANDOFF", nullable = false) private Long handoffId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
+    @Column(name = "CD_BED_SNAP") private String bedNoSnapshot;
+    @Column(name = "DES_SITUATION", nullable = false) private String situation;
+    @Lob @Column(name = "JSON_PENDING_ACTIONS", nullable = false) private String pendingActionsJson;
+    @Lob @Column(name = "JSON_RISK_FLAGS", nullable = false) private String riskFlagsJson;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
 
     protected InpatientShiftHandoffItem() {
     }

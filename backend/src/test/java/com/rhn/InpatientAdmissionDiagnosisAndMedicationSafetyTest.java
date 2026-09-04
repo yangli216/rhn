@@ -49,7 +49,7 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                 .andExpect(jsonPath("$.diagnoses[0].verificationStatus").value("PROVISIONAL"));
         putJson("/api/inpatient/episodes/" + episodeId + "/admission-diagnoses", initialDiagnoses, 200)
                 .andExpect(jsonPath("$.diagnoses.length()").value(2));
-        assertEquals(2, count("select count(*) from encounter_diagnosis_revisions "
+        assertEquals(2, count("select count(*) from RHN_VIS_ENC_DIAG_REV "
                 + "where encounter_id=? and diagnosis_stage='ADMISSION'", encounterId));
 
         putJson("/api/inpatient/episodes/" + episodeId + "/admission-diagnoses", initialDiagnoses
@@ -75,7 +75,7 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                 confirmedDiagnoses.replace("expectedEpisodeRevision\":0", "expectedEpisodeRevision\":1")
                         .replace("IP-ADMISSION-DIAGNOSIS-STALE", "IP-ADMISSION-DIAGNOSIS-02"), 200)
                 .andExpect(jsonPath("$.diagnoses[0].verificationStatus").value("CONFIRMED"));
-        assertEquals(3, count("select count(*) from encounter_diagnosis_revisions "
+        assertEquals(3, count("select count(*) from RHN_VIS_ENC_DIAG_REV "
                 + "where encounter_id=? and diagnosis_stage='ADMISSION'", encounterId));
 
         JsonNode nursing = postJson("/api/inpatient/orders", """
@@ -132,9 +132,9 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
         assertEquals(1, signed.get("revision").asInt());
         assertEquals(1, postJson("/api/inpatient/orders/" + medicationId + "/sign", reviewedSign, 200)
                 .get("revision").asInt());
-        assertEquals(1, count("select count(*) from inpatient_order_events "
+        assertEquals(1, count("select count(*) from RHN_EX_INP_ORDER_EVT "
                 + "where request_id=? and event_type='ORDER_SIGNED'", medicationId));
-        String eventReason = jdbc.queryForObject("select reason from inpatient_order_events "
+        String eventReason = jdbc.queryForObject("select DES_REASON as reason from RHN_EX_INP_ORDER_EVT "
                 + "where request_id=? and event_type='ORDER_SIGNED'", String.class, Long.valueOf(medicationId));
         org.junit.jupiter.api.Assertions.assertTrue(eventReason.contains("过敏核对已确认"));
         org.junit.jupiter.api.Assertions.assertTrue(eventReason.contains("覆盖理由：感染治疗获益大于风险"));
@@ -159,9 +159,9 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                 .andExpect(jsonPath("$.diagnoses.length()").value(2))
                 .andExpect(jsonPath("$.diagnoses[0].diagnosisStage").value("ADMISSION"))
                 .andExpect(jsonPath("$.diagnoses[0].display").value("社区获得性肺炎"));
-        assertEquals(2, count("select count(*) from encounter_diagnoses where encounter_id=? "
+        assertEquals(2, count("select count(*) from RHN_VIS_ENC_DIAG where ID_ENC=? "
                 + "and diagnosis_stage='ADMISSION' and diagnosis_status='ACTIVE'", encounterId));
-        assertEquals(1, count("select count(*) from encounter_diagnoses where encounter_id=? "
+        assertEquals(1, count("select count(*) from RHN_VIS_ENC_DIAG where ID_ENC=? "
                 + "and diagnosis_stage='DISCHARGE' and diagnosis_status='ACTIVE'", encounterId));
         putJson("/api/inpatient/episodes/" + episodeId + "/admission-diagnoses", """
                 {"expectedEpisodeRevision":2,

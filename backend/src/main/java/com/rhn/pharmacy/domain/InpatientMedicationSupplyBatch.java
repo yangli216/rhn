@@ -13,39 +13,39 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 
 /** A ward-to-pharmacy supply window; it never replaces clinical orders or dispense facts. */
 @Entity
-@Table(name = "inpatient_med_supply_batches")
+@Table(name = "RHN_SUP_INP_MED_SUPPLY_BATCH")
 public class InpatientMedicationSupplyBatch {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "nursing_unit_department_id", nullable = false) private Long nursingUnitDepartmentId;
-    @Column(name = "dispense_route_id") private Long dispenseRouteId;
-    @Column(name = "dispense_route_revision") private Long dispenseRouteRevision;
-    @Column(name = "medication_type_snapshot") private String routingDimension;
-    @Column(name = "batch_no", nullable = false) private String batchNo;
-    @Column(name = "batch_type", nullable = false) private String batchType;
-    @Column(name = "supply_mode", nullable = false) private String supplyMode;
-    @Column(name = "window_start", nullable = false) private Instant windowStart;
-    @Column(name = "window_end", nullable = false) private Instant windowEnd;
-    @Column(name = "cutoff_at", nullable = false) private Instant cutoffAt;
-    @Column(nullable = false) private String status;
-    @Column(name = "generation_command_code", nullable = false) private String generationCommandCode;
-    @Column(name = "generation_payload_hash", nullable = false) private String generationPayloadHash;
-    @Column(name = "generation_trigger", nullable = false) private String generationTrigger;
-    @Column(name = "submit_command_code") private String submitCommandCode;
-    @Column(name = "submit_payload_hash") private String submitPayloadHash;
-    @Column(name = "cancel_command_code") private String cancelCommandCode;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "submitted_at") private Instant submittedAt;
-    @Column(name = "submitted_by") private Long submittedBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
-    @Column(name = "closed_at") private Instant closedAt;
-    @Column(name = "closed_by") private Long closedBy;
+    @Id @Column(name = "ID_INP_MED_SUPPLY_BATCH") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
+    @Column(name = "ID_DISP_ROUTE") private Long dispenseRouteId;
+    @Column(name = "SN_DISP_ROUTE_VER") private Long dispenseRouteRevision;
+    @Column(name = "SD_MED_TYPE_SNAP") private String routingDimension;
+    @Column(name = "CD_BATCH_NO", nullable = false) private String batchNo;
+    @Column(name = "SD_BATCH_TYPE", nullable = false) private String batchType;
+    @Column(name = "SD_SUPPLY_MODE", nullable = false) private String supplyMode;
+    @Column(name = "DT_WINDOW_START", nullable = false) private Instant windowStart;
+    @Column(name = "DT_WINDOW_END", nullable = false) private Instant windowEnd;
+    @Column(name = "DT_CUTOFF", nullable = false) private Instant cutoffAt;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_GEN_COMMAND", nullable = false) private String generationCommandCode;
+    @Column(name = "HASH_GEN_PAYLOAD", nullable = false) private String generationPayloadHash;
+    @Column(name = "SD_GEN_TRIGGER", nullable = false) private String generationTrigger;
+    @Column(name = "CD_SUBMIT_COMMAND") private String submitCommandCode;
+    @Column(name = "HASH_SUBMIT_PAYLOAD") private String submitPayloadHash;
+    @Column(name = "CD_CANCEL_COMMAND") private String cancelCommandCode;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
+    @Column(name = "ID_USER_CLOSED") private Long closedBy;
 
     protected InpatientMedicationSupplyBatch() {
     }

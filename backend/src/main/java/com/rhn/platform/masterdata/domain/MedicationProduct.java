@@ -14,51 +14,51 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "catalog_items")
-@SecondaryTable(name = "medication_products", pkJoinColumns = @PrimaryKeyJoinColumn(name = "catalog_item_id"))
+@Table(name = "RHN_BD_CATALOG_ITEM")
+@SecondaryTable(name = "RHN_BD_MED_PRODUCT", pkJoinColumns = @PrimaryKeyJoinColumn(name = "ID_CATALOG_ITEM"))
 public class MedicationProduct {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "item_type_id", nullable = false) private Long itemTypeId;
-    @Column(name = "item_master_id") private Long itemMasterId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "item_type", nullable = false) private String itemType;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(nullable = false) private boolean orderable;
-    @Column(nullable = false) private boolean chargeable;
-    @Column(nullable = false) private boolean stocked;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_CATALOG_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ITEM_TYPE", nullable = false) private Long itemTypeId;
+    @Column(name = "ID_ITEM_MASTER") private Long itemMasterId;
+    @Column(name = "CD_CATALOG_ITEM", nullable = false) private String code;
+    @Column(name = "NA_CATALOG_ITEM", nullable = false) private String name;
+    @Column(name = "SD_ITEM_TYPE", nullable = false) private String itemType;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
+    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
-    @Column(table = "medication_products", name = "tenant_id", nullable = false) private Long productTenantId;
-    @Column(table = "medication_products", name = "medication_id", nullable = false) private Long medicationId;
-    @Column(table = "medication_products", name = "manufacturer_id", nullable = false) private Long manufacturerId;
-    @Column(table = "medication_products", name = "trade_name") private String tradeName;
-    @Column(table = "medication_products", name = "approval_code") private String approvalCode;
-    @Column(table = "medication_products", name = "trace_code") private String traceCode;
-    @Column(table = "medication_products", name = "approval_from") private LocalDate approvalFrom;
-    @Column(table = "medication_products", name = "approval_to") private LocalDate approvalTo;
-    @Column(table = "medication_products", name = "registration_code") private String registrationCode;
-    @Column(table = "medication_products", name = "registration_from") private LocalDate registrationFrom;
-    @Column(table = "medication_products", name = "registration_to") private LocalDate registrationTo;
-    @Column(table = "medication_products", name = "purchase_code") private String purchaseCode;
-    @Column(table = "medication_products", name = "market_status") private String marketStatus;
-    @Column(table = "medication_products", name = "production_place") private String productionPlace;
-    @Column(table = "medication_products", nullable = false) private boolean otc;
-    @Column(table = "medication_products", name = "central_purchase", nullable = false) private boolean centralPurchase;
-    @Column(table = "medication_products", name = "import_allowed", nullable = false) private boolean importAllowed;
-    @Column(table = "medication_products", name = "trace_split_required", nullable = false) private boolean traceSplitRequired;
-    @Column(table = "medication_products", name = "shelf_life_value") private BigDecimal shelfLifeValue;
-    @Column(table = "medication_products", name = "shelf_life_unit") private String shelfLifeUnit;
-    @Column(table = "medication_products") private String indication;
-    @Column(table = "medication_products") private String instruction;
+    @Column(name = "ID_TNT", table = "RHN_BD_MED_PRODUCT", nullable = false) private Long productTenantId;
+    @Column(name = "ID_MED", table = "RHN_BD_MED_PRODUCT", nullable = false) private Long medicationId;
+    @Column(name = "ID_MFR", table = "RHN_BD_MED_PRODUCT", nullable = false) private Long manufacturerId;
+    @Column(name = "NA_TRADE", table = "RHN_BD_MED_PRODUCT") private String tradeName;
+    @Column(name = "CD_APPROVAL", table = "RHN_BD_MED_PRODUCT") private String approvalCode;
+    @Column(name = "CD_TRACE", table = "RHN_BD_MED_PRODUCT") private String traceCode;
+    @Column(name = "DA_APPROVAL_FROM", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalFrom;
+    @Column(name = "DA_APPROVAL_TO", table = "RHN_BD_MED_PRODUCT") private LocalDate approvalTo;
+    @Column(name = "CD_REG", table = "RHN_BD_MED_PRODUCT") private String registrationCode;
+    @Column(name = "DA_REG_FROM", table = "RHN_BD_MED_PRODUCT") private LocalDate registrationFrom;
+    @Column(name = "DA_REG_TO", table = "RHN_BD_MED_PRODUCT") private LocalDate registrationTo;
+    @Column(name = "CD_PURCH", table = "RHN_BD_MED_PRODUCT") private String purchaseCode;
+    @Column(name = "SD_MARKET_STATUS", table = "RHN_BD_MED_PRODUCT") private String marketStatus;
+    @Column(name = "PRODUCTION_PLACE", table = "RHN_BD_MED_PRODUCT") private String productionPlace;
+    @Column(name = "FG_OTC", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean otc;
+    @Column(name = "FG_CENTRAL_PURCH", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean centralPurchase;
+    @Column(name = "FG_IMPORT", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean importAllowed;
+    @Column(name = "FG_TRACE_SPLIT_REQUIRED", table = "RHN_BD_MED_PRODUCT", nullable = false) private boolean traceSplitRequired;
+    @Column(name = "QTY_SHELF_LIFE_VAL", table = "RHN_BD_MED_PRODUCT") private BigDecimal shelfLifeValue;
+    @Column(name = "SHELF_LIFE_UNIT", table = "RHN_BD_MED_PRODUCT") private String shelfLifeUnit;
+    @Column(name = "DES_INDICATION", table = "RHN_BD_MED_PRODUCT") private String indication;
+    @Column(name = "DES_INSTRUCTION", table = "RHN_BD_MED_PRODUCT") private String instruction;
 
     protected MedicationProduct() {}
 

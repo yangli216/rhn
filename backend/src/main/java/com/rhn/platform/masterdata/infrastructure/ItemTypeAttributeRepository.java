@@ -15,8 +15,7 @@ public interface ItemTypeAttributeRepository extends JpaRepository<ItemTypeAttri
     Optional<ItemTypeAttribute> findByIdAndAttributeDefinitionId(Long id, Long definitionId);
     Optional<ItemTypeAttribute> findByItemTypeIdAndAttributeDefinitionId(Long itemTypeId, Long definitionId);
     @Query("""
-            select (count(assignment) > 0)
-              from ItemTypeAttribute assignment, ItemAttributeDefinition definition
+            select (count(assignment) > 0) from ItemTypeAttribute assignment, ItemAttributeDefinition definition
              where assignment.attributeDefinitionId = definition.id
                and assignment.itemTypeId = :itemTypeId
                and assignment.groupSortOrder = :groupSortOrder

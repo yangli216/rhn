@@ -66,9 +66,9 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城镇职工基本医疗保险"));
 
         LocalDate today = LocalDate.now();
-        jdbcTemplate.update("delete from schedule_slot_pools where schedule_id in (select id from service_schedules where practitioner_id = 362387869790223 and service_date = ?)", today);
-        jdbcTemplate.update("delete from appointments where schedule_id in (select id from service_schedules where practitioner_id = 362387869790223 and service_date = ?)", today);
-        jdbcTemplate.update("delete from service_schedules where practitioner_id = 362387869790223 and service_date = ?", today);
+        jdbcTemplate.update("delete from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED in (select id from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
+        jdbcTemplate.update("delete from RHN_SC_APPT where ID_SVC_SCHED in (select id from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
+        jdbcTemplate.update("delete from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?", today);
         JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -139,16 +139,16 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .value("REGISTERED"));
 
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select occupied_count from schedule_slot_pools where schedule_id = ?", Integer.class,
+                "select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?", Integer.class,
                 Long.valueOf(scheduleId)));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from appointments where id = ?", Integer.class,
+                "select count(*) from RHN_SC_APPT where ID_APPT = ?", Integer.class,
                 encounter.get("appointmentId").asLong()));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from queue_tickets where registration_id = ?", Integer.class,
+                "select count(*) from RHN_SC_QUEUE_TICKET where ID_PAT_REG = ?", Integer.class,
                 encounter.get("registrationId").asLong()));
         assertEquals("REGISTERED", jdbcTemplate.queryForObject(
-                "select status from patient_registrations where id = ?", String.class,
+                "select SD_STATUS as status from RHN_SC_PAT_REG where ID_PAT_REG = ?", String.class,
                 encounter.get("registrationId").asLong()));
     }
 

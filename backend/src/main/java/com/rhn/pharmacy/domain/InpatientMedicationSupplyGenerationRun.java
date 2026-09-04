@@ -13,38 +13,38 @@ import java.time.LocalDate;
 
 /** Durable execution fact for one automatically generated ward supply window. */
 @Entity
-@Table(name = "inpatient_med_supply_gen_runs")
+@Table(name = "RHN_SUP_INP_MED_SUPPLY_GEN_RUN")
 public class InpatientMedicationSupplyGenerationRun {
     private static final int MAX_ATTEMPTS = 10;
 
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id") private Long stockSiteId;
-    @Column(name = "nursing_unit_department_id", nullable = false) private Long nursingUnitDepartmentId;
-    @Column(name = "dispense_route_id") private Long dispenseRouteId;
-    @Column(name = "dispense_route_revision") private Long dispenseRouteRevision;
-    @Column(name = "medication_type_snapshot", nullable = false) private String medicationTypeSnapshot;
-    @Column(name = "business_date", nullable = false) private LocalDate businessDate;
-    @Column(name = "shift_code", nullable = false) private String shiftCode;
-    @Column(name = "window_start", nullable = false) private Instant windowStart;
-    @Column(name = "window_end", nullable = false) private Instant windowEnd;
-    @Column(name = "job_key", nullable = false) private String jobKey;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "trigger_type", nullable = false) private String triggerType;
-    @Column(nullable = false) private String status;
-    @Column(name = "attempt_count", nullable = false) private int attemptCount;
-    @Column(name = "next_attempt_at", nullable = false) private Instant nextAttemptAt;
-    @Column(name = "claimed_by") private String claimedBy;
-    @Column(name = "claimed_until") private Instant claimedUntil;
-    @Column(name = "batch_id") private Long batchId;
-    @Column(name = "last_error_code") private String lastErrorCode;
-    @Column(name = "last_error") private String lastError;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "started_at") private Instant startedAt;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Id @Column(name = "ID_INP_MED_SUPPLY_GEN_RUN") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE") private Long stockSiteId;
+    @Column(name = "ID_DEPT_NURS_UNIT", nullable = false) private Long nursingUnitDepartmentId;
+    @Column(name = "ID_DISP_ROUTE") private Long dispenseRouteId;
+    @Column(name = "SN_DISP_ROUTE_VER") private Long dispenseRouteRevision;
+    @Column(name = "SD_MED_TYPE_SNAP", nullable = false) private String medicationTypeSnapshot;
+    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "CD_SHIFT", nullable = false) private String shiftCode;
+    @Column(name = "DT_WINDOW_START", nullable = false) private Instant windowStart;
+    @Column(name = "DT_WINDOW_END", nullable = false) private Instant windowEnd;
+    @Column(name = "CD_JOB_KEY", nullable = false) private String jobKey;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "SD_TRIGGER_TYPE", nullable = false) private String triggerType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_ATTEMPT", nullable = false) private int attemptCount;
+    @Column(name = "DT_NEXT_ATTEMPT", nullable = false) private Instant nextAttemptAt;
+    @Column(name = "ID_USER_CLAIMED") private String claimedBy;
+    @Column(name = "DT_CLAIMED_UNTIL") private Instant claimedUntil;
+    @Column(name = "ID_INP_MED_SUPPLY_BATCH") private Long batchId;
+    @Column(name = "CD_LAST_ERROR") private String lastErrorCode;
+    @Column(name = "DES_LAST_ERROR") private String lastError;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_STARTED") private Instant startedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected InpatientMedicationSupplyGenerationRun() {
     }

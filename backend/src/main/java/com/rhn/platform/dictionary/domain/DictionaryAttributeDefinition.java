@@ -14,52 +14,52 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dictionary_attribute_definitions")
+@Table(name = "RHN_BD_DICT_ATTR_DEF")
 public class DictionaryAttributeDefinition {
     @Id
-    private Long id;
+    @Column(name = "ID_DICT_ATTR_DEF") private Long id;
     @Version
-    @Column(nullable = false)
+    @Column(name = "REVISION", nullable = false)
     private Long revision;
-    @Column(name = "dictionary_id", nullable = false)
+    @Column(name = "ID_DICT_DEF_DICT", nullable = false)
     private Long dictionaryId;
-    @Column(nullable = false, length = 64)
+    @Column(name = "CD_DICT_ATTR_DEF", nullable = false, length = 64)
     private String code;
-    @Column(nullable = false, length = 200)
+    @Column(name = "NA_DICT_ATTR_DEF", nullable = false, length = 200)
     private String name;
-    @Column(nullable = false, length = 1000)
+    @Column(name = "DES_DICT_ATTR_DEF", nullable = false, length = 1000)
     private String description;
     @Enumerated(EnumType.STRING)
-    @Column(name = "data_type", nullable = false, length = 32)
+    @Column(name = "SD_DATA_TYPE", nullable = false, length = 32)
     private DictionaryAttributeDataType dataType;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Column(name = "SD_CARDINALITY", nullable = false, length = 16)
     private DictionaryAttributeCardinality cardinality;
-    @Column(name = "reference_dictionary_id")
+    @Column(name = "ID_DICT_DEF_REFERENCE_DICT")
     private Long referenceDictionaryId;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "schema_json", nullable = false)
+    @Column(name = "JSON_SCHEMA", nullable = false)
     private String schemaJson;
     @Enumerated(EnumType.STRING)
-    @Column(name = "minimum_scope", nullable = false, length = 32)
+    @Column(name = "SD_MINIMUM_SCOPE", nullable = false, length = 32)
     private DictionaryAttributeScopeType minimumScope;
     @Enumerated(EnumType.STRING)
-    @Column(name = "override_policy", nullable = false, length = 32)
+    @Column(name = "SD_OVRD_POLICY", nullable = false, length = 32)
     private DictionaryAttributeOverridePolicy overridePolicy;
-    @Column(name = "required_value", nullable = false)
+    @Column(name = "FG_REQUIRED_VAL", nullable = false)
     private boolean requiredValue;
-    @Column(nullable = false)
+    @Column(name = "FG_SEARCHABLE", nullable = false)
     private boolean searchable;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @Column(name = "SD_STATUS", nullable = false, length = 32)
     private DictionaryStatus status;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private Long createdBy;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false)
+    @Column(name = "ID_USER_UPDATED", nullable = false)
     private Long updatedBy;
 
     protected DictionaryAttributeDefinition() {

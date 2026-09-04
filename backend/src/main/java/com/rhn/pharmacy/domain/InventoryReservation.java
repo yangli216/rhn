@@ -13,31 +13,31 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_reservations")
+@Table(name = "RHN_SUP_INV_RESV")
 public class InventoryReservation {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "dispense_task_line_id", nullable = false) private Long dispenseTaskLineId;
-    @Column(name = "reservation_group_code", nullable = false) private String reservationGroupCode;
-    @Column(name = "reservation_type", nullable = false) private String reservationType;
-    @Column(nullable = false) private String status;
-    @Column(name = "quantity_reserved", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
-    @Column(name = "quantity_consumed", nullable = false, precision = 28, scale = 8) private BigDecimal quantityConsumed;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "expires_at") private Instant expiresAt;
-    @Column(name = "consumed_at") private Instant consumedAt;
-    @Column(name = "consumed_by") private Long consumedBy;
-    @Column(name = "released_at") private Instant releasedAt;
-    @Column(name = "released_by") private Long releasedBy;
-    @Column(name = "release_reason") private String releaseReason;
+    @Id @Column(name = "ID_INV_RESV") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_DISP_TASK_LINE", nullable = false) private Long dispenseTaskLineId;
+    @Column(name = "CD_RESV_GRP", nullable = false) private String reservationGroupCode;
+    @Column(name = "SD_RESV_TYPE", nullable = false) private String reservationType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "QTY_RESERVED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
+    @Column(name = "QTY_CONSUMED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityConsumed;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_EXPIRES") private Instant expiresAt;
+    @Column(name = "DT_CONSUMED") private Instant consumedAt;
+    @Column(name = "ID_USER_CONSUMED") private Long consumedBy;
+    @Column(name = "DT_RELEASED") private Instant releasedAt;
+    @Column(name = "ID_USER_RELEASED") private Long releasedBy;
+    @Column(name = "DES_RELEASE_REASON") private String releaseReason;
 
     protected InventoryReservation() {}
 

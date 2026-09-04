@@ -199,6 +199,16 @@ export interface ReceptionQueueItem {
   calledAt?: string
 }
 
+export interface RegistrationPageView {
+  content: ReceptionQueueItem[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
+}
+
 function dates(dateFrom: string, dateTo: string) {
   const query = new URLSearchParams({ dateFrom, dateTo })
   return query.toString()
@@ -222,6 +232,68 @@ export function createSchedulingApi(client: ApiClient) {
       return client.request<ReceptionQueueItem[]>(
         `/api/outpatient/reception/queue${queryStr ? `?${queryStr}` : ''}`,
       )
+    },
+    receptionPage: async (params: {
+      dateFrom?: string
+      dateTo?: string
+      status?: string
+      query?: string
+      page?: number
+      size?: number
+    } = {}) => {
+      const query = new URLSearchParams()
+      if (params.dateFrom) query.set('dateFrom', params.dateFrom)
+      if (params.dateTo) query.set('dateTo', params.dateTo)
+      if (params.status) query.set('status', params.status)
+      if (params.query) query.set('query', params.query)
+      if (params.page !== undefined) query.set('page', String(params.page))
+      if (params.size !== undefined) query.set('size', String(params.size))
+      const queryStr = query.toString()
+      try {
+        return await client.request<RegistrationPageView>(
+          `/api/outpatient/reception/page${queryStr ? `?${queryStr}` : ''}`,
+        )
+      } catch (err: unknown) {
+        // 当后端服务尚未部署或识别 /page 端点时，平滑降级调用 /queue 并适配为分页视图
+        const fallbackParams = new URLSearchParams()
+        if (params.dateFrom && params.dateTo) {
+          fallbackParams.set('dateFrom', params.dateFrom)
+          fallbackParams.set('dateTo', params.dateTo)
+        } else if (params.dateFrom) {
+          fallbackParams.set('date', params.dateFrom)
+        }
+        const fallbackQueryStr = fallbackParams.toString()
+        const items = await client.request<ReceptionQueueItem[]>(
+          `/api/outpatient/reception/queue${fallbackQueryStr ? `?${fallbackQueryStr}` : ''}`,
+        )
+        const page = params.page ?? 0
+        const size = params.size ?? 20
+        const queryNormalized = params.query?.trim().toLocaleLowerCase('zh-CN')
+        const filtered = items.filter((item) => {
+          if (params.status && item.status !== params.status) return false
+          if (queryNormalized) {
+            const matches = [
+              item.residentName, item.healthRecordNo, item.registrationNo, item.ticketNo,
+              item.practitionerName, item.serviceName, item.locationName,
+            ].some((value) => value?.toLocaleLowerCase('zh-CN').includes(queryNormalized))
+            if (!matches) return false
+          }
+          return true
+        })
+        const totalElements = filtered.length
+        const totalPages = Math.ceil(totalElements / size)
+        const start = page * size
+        const content = filtered.slice(start, start + size)
+        return {
+          content,
+          page,
+          size,
+          totalElements,
+          totalPages,
+          first: page === 0,
+          last: totalPages === 0 || page >= totalPages - 1,
+        }
+      }
     },
     quickCreate: (input: QuickScheduleInput) => client.request<QuickScheduleResult>(
       '/api/outpatient/scheduling/quick-schedules', { method: 'POST', body: JSON.stringify(input) },

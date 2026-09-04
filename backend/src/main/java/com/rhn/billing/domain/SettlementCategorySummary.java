@@ -10,15 +10,15 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "settlement_category_summaries")
+@Table(name = "RHN_BIL_STL_CAT_SUM")
 public class SettlementCategorySummary {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(name = "category_code", nullable = false) private String categoryCode;
-    @Column(name = "category_name_snapshot") private String categoryNameSnapshot;
-    @Column(name = "category_amount", nullable = false, precision = 24, scale = 6) private BigDecimal categoryAmount;
-    @Column(name = "as_of", nullable = false) private Instant asOf;
+    @Id @Column(name = "ID_STL_CAT_SUM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "CD_CAT", nullable = false) private String categoryCode;
+    @Column(name = "NA_CAT_SNAP") private String categoryNameSnapshot;
+    @Column(name = "AMT_CAT", nullable = false, precision = 24, scale = 6) private BigDecimal categoryAmount;
+    @Column(name = "DT_AS_OF", nullable = false) private Instant asOf;
 
     protected SettlementCategorySummary() {}
     public SettlementCategorySummary(Long tenantId, Long settlementId, String categoryCode,

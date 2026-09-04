@@ -14,33 +14,33 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "organizations")
+@Table(name = "RHN_SYS_ORG")
 public class Organization {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "parent_id") private Long parentId;
-    @Column(name = "merged_to_id") private Long mergedToId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "short_name") private String shortName;
-    @Column private String description;
+    @Id @Column(name = "ID_ORG") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG_PARENT") private Long parentId;
+    @Column(name = "ID_ORG_MERGED_TO") private Long mergedToId;
+    @Column(name = "CD_ORG", nullable = false) private String code;
+    @Column(name = "NA_ORG", nullable = false) private String name;
+    @Column(name = "NA_SHORT") private String shortName;
+    @Column(name = "DES_ORG") private String description;
     @Enumerated(EnumType.STRING)
-    @Column(name = "organization_kind", nullable = false) private OrganizationKind organizationKind;
+    @Column(name = "SD_ORG_KIND", nullable = false) private OrganizationKind organizationKind;
     @Enumerated(EnumType.STRING)
-    @Column(name = "organization_type", nullable = false) private OrganizationType organizationType;
-    @Column(name = "organization_property") private String organizationProperty;
-    @Column(nullable = false) private boolean virtual;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "timezone_code") private String timezoneCode;
-    @Column(name = "department_type_code") private String departmentTypeCode;
-    @Enumerated(EnumType.STRING) @Column(nullable = false) private OrganizationStatus status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
-    @Version @Column(name = "revision", nullable = false) private long revision;
+    @Column(name = "SD_ORG_TYPE", nullable = false) private OrganizationType organizationType;
+    @Column(name = "SD_ORG_PROPERTY") private String organizationProperty;
+    @Column(name = "FG_VIRTUAL", nullable = false) private boolean virtual;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "CD_TIMEZONE") private String timezoneCode;
+    @Column(name = "CD_DEPT_TYPE") private String departmentTypeCode;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false) private OrganizationStatus status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
 
     protected Organization() {
     }

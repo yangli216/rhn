@@ -12,30 +12,30 @@ import java.math.BigDecimal;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 
 @Entity
-@Table(name = "inpatient_order_workflows")
+@Table(name = "RHN_EX_INP_ORDER_WF")
 public class InpatientOrderWorkflow {
-    @Id @Column(name = "request_id") private Long requestId;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "duration_type", nullable = false) private String durationType;
-    @Column(name = "workflow_status", nullable = false) private String workflowStatus;
-    @Column(name = "authored_practitioner_id") private Long authoredPractitionerId;
-    @Column(name = "medication_quantity_per_occurrence", precision = 28, scale = 8)
+    @Id @Column(name = "ID_CARE_REQ") private Long requestId;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "SD_DURATION_TYPE", nullable = false) private String durationType;
+    @Column(name = "SD_WF_STATUS", nullable = false) private String workflowStatus;
+    @Column(name = "ID_AUTHORED_PRACT") private Long authoredPractitionerId;
+    @Column(name = "QTY_MED_PER_OCC", precision = 28, scale = 8)
     private BigDecimal medicationQuantityPerOccurrence;
-    @Column(name = "medication_quantity_unit") private String medicationQuantityUnit;
-    @Column(name = "medication_base_quantity_per_occurrence", precision = 28, scale = 8)
+    @Column(name = "MEDICATION_QUANTITY_UNIT") private String medicationQuantityUnit;
+    @Column(name = "QTY_MED_BASE_PER_OCC", precision = 28, scale = 8)
     private BigDecimal medicationBaseQuantityPerOccurrence;
-    @Column(name = "medication_base_unit") private String medicationBaseUnit;
-    @Column(name = "signed_by") private Long signedBy;
-    @Column(name = "signed_at") private Instant signedAt;
-    @Column(name = "verified_by") private Long verifiedBy;
-    @Column(name = "verified_at") private Instant verifiedAt;
-    @Column(name = "stopped_by") private Long stoppedBy;
-    @Column(name = "stopped_at") private Instant stoppedAt;
-    @Column(name = "stop_reason") private String stopReason;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
+    @Column(name = "MEDICATION_BASE_UNIT") private String medicationBaseUnit;
+    @Column(name = "ID_USER_SIGNED") private Long signedBy;
+    @Column(name = "DT_SIGNED") private Instant signedAt;
+    @Column(name = "ID_USER_VERIFIED") private Long verifiedBy;
+    @Column(name = "DT_VERIFIED") private Instant verifiedAt;
+    @Column(name = "ID_USER_STOPPED") private Long stoppedBy;
+    @Column(name = "DT_STOPPED") private Instant stoppedAt;
+    @Column(name = "DES_STOP_REASON") private String stopReason;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
 
     protected InpatientOrderWorkflow() {
     }

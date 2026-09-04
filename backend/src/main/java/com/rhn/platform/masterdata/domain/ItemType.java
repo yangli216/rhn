@@ -7,20 +7,20 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
 @Entity
-@Table(name = "item_types")
+@Table(name = "RHN_BD_ITEM_TYPE")
 public class ItemType {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "scope_code", nullable = false) private String scopeCode;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(name = "parent_id") private Long parentId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    private String description;
-    @Column(name = "subject_type", nullable = false) private String subjectType;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private String status;
+    @Id @Column(name = "ID_ITEM_TYPE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "CD_SCOPE", nullable = false) private String scopeCode;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "ID_ITEM_TYPE_PARENT") private Long parentId;
+    @Column(name = "CD_ITEM_TYPE", nullable = false) private String code;
+    @Column(name = "NA_ITEM_TYPE", nullable = false) private String name;
+    @Column(name = "DES_ITEM_TYPE") private String description;
+    @Column(name = "SD_SUBJECT_TYPE", nullable = false) private String subjectType;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
 
     protected ItemType() {}
 

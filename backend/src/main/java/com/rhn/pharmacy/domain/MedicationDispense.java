@@ -10,28 +10,28 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "medication_dispenses")
+@Table(name = "RHN_SUP_MED_DISP")
 public class MedicationDispense {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "task_id", nullable = false) private Long taskId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "original_dispense_id") private Long originalDispenseId;
-    @Column(name = "dispense_no", nullable = false) private String dispenseNo;
-    @Column(name = "dispense_type", nullable = false) private String dispenseType;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "dispenser_practitioner_id", nullable = false) private Long dispenserPractitionerId;
-    @Column(name = "dispenser_user_id", nullable = false) private Long dispenserUserId;
-    @Column(name = "dispenser_assignment_id", nullable = false) private Long dispenserAssignmentId;
-    @Column(name = "checker_practitioner_id") private Long checkerPractitionerId;
-    @Column(name = "checker_user_id") private Long checkerUserId;
-    @Column(name = "checker_assignment_id") private Long checkerAssignmentId;
-    @Column(name = "checked_at") private Instant checkedAt;
-    @Column(name = "operation_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
-    @Column(name = "operation_unit_code", nullable = false) private String operationUnitCode;
-    @Column private String description;
+    @Id @Column(name = "ID_MED_DISP") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_DISP_TASK", nullable = false) private Long taskId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_MED_DISP_ORIGINAL") private Long originalDispenseId;
+    @Column(name = "CD_DISP_NO", nullable = false) private String dispenseNo;
+    @Column(name = "SD_DISP_TYPE", nullable = false) private String dispenseType;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "ID_DISPENSER_PRACT", nullable = false) private Long dispenserPractitionerId;
+    @Column(name = "ID_DISPENSER_USER", nullable = false) private Long dispenserUserId;
+    @Column(name = "ID_DISPENSER_ASSIGN", nullable = false) private Long dispenserAssignmentId;
+    @Column(name = "ID_CHECKER_PRACT") private Long checkerPractitionerId;
+    @Column(name = "ID_CHECKER_USER") private Long checkerUserId;
+    @Column(name = "ID_CHECKER_ASSIGN") private Long checkerAssignmentId;
+    @Column(name = "DT_CHECKED") private Instant checkedAt;
+    @Column(name = "QTY_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
+    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "DES_MED_DISP") private String description;
 
     protected MedicationDispense() {}
 

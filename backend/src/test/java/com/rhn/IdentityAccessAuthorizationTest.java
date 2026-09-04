@@ -65,8 +65,8 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(delete("/api/platform/iam/user-role-assignments/{id}", assignmentId).with(rhnWorkContext()))
                 .andExpect(status().isNoContent());
         Integer events = jdbc.queryForObject("""
-                select count(*) from iam_authorization_events where tenant_id = cast(? as bigint)
-                  and target_id in (cast(? as bigint), cast(? as bigint))
+                select count(*) from RHN_AUD_IAM_AUTH_EVT where ID_TNT = cast(? as bigint)
+                  and ID_TARGET in (cast(? as bigint), cast(? as bigint))
                 """, Integer.class, TENANT, roleId, assignmentId);
         assertThat(events).isEqualTo(4);
     }
@@ -77,24 +77,24 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
         Long permissionId = GlobalIds.next();
         Instant now = Instant.now();
         jdbc.update("""
-                insert into access_roles
-                    (id, tenant_id, code, name, role_type, status, created_at, updated_at, version)
+                insert into RHN_SYS_ACC_ROLE
+                    (ID_ACC_ROLE, ID_TNT, CD_ACC_ROLE, NA_ACC_ROLE, SD_ROLE_TYPE, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, cast(? as bigint), 'CONTEXT_ONLY', '上下文专属角色', 'CUSTOM', 'ACTIVE', ?, ?, 0)
                 """, roleId, TENANT, now, now);
         jdbc.update("""
-                insert into access_permissions
-                    (id, tenant_id, code, name, action_code, resource_code, status)
+                insert into RHN_SYS_ACC_PERM
+                    (ID_ACC_PERM, ID_TNT, CD_ACC_PERM, NA_ACC_PERM, CD_ACTION, CD_RSRC, SD_STATUS)
                 values (?, cast(? as bigint), 'TEST_CONTEXT.ACCESS', '上下文专属权限', 'ACCESS', 'TEST_CONTEXT', 'ACTIVE')
                 """, permissionId, TENANT);
         jdbc.update("""
-                insert into role_permission_assignments
-                    (id, tenant_id, role_id, permission_id, valid_from, created_at)
+                insert into RHN_SYS_ROLE_PERM_ASSIGN
+                    (ID_ROLE_PERM_ASSIGN, ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, DT_VALID_FROM, DT_CREATED)
                 values (?, cast(? as bigint), ?, ?, ?, ?)
                 """, GlobalIds.next(), TENANT, roleId, permissionId, now.minusSeconds(10), now);
         jdbc.update("""
-                insert into user_role_assignments
-                    (id, tenant_id, user_id, role_id, organization_id, department_id,
-                     data_scope_type, valid_from, created_at)
+                insert into RHN_SYS_USER_ROLE_ASSIGN
+                    (ID_USER_ROLE_ASSIGN, ID_TNT, ID_USER, ID_ACC_ROLE, ID_ORG, ID_DEPT,
+                     SD_DATA_SCOPE_TYPE, DT_VALID_FROM, DT_CREATED)
                 values (?, cast(? as bigint), 362387869790222, ?, cast(? as bigint), cast(? as bigint),
                         'DEPARTMENT', ?, ?)
                 """, GlobalIds.next(), TENANT, roleId, ORGANIZATION, DEPARTMENT, now.minusSeconds(10), now);

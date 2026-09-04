@@ -8,23 +8,23 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "RHN_AUD_LOG")
 class AuditLog {
     @Id
-    private Long id;
-    @Column(name = "tenant_id")
+    @Column(name = "ID_AUD_LOG") private Long id;
+    @Column(name = "ID_TNT")
     private Long tenantId;
-    @Column(nullable = false)
+    @Column(name = "CD_ACTOR", nullable = false)
     private String actor;
-    @Column(name = "http_method", nullable = false)
+    @Column(name = "SD_HTTP_METHOD", nullable = false)
     private String httpMethod;
-    @Column(name = "request_path", nullable = false)
+    @Column(name = "REQUEST_PATH", nullable = false)
     private String requestPath;
-    @Column(name = "response_status", nullable = false)
+    @Column(name = "SD_RESP_STATUS", nullable = false)
     private int responseStatus;
-    @Column(name = "correlation_id", nullable = false)
+    @Column(name = "ID_CORRELATION", nullable = false)
     private String correlationId;
-    @Column(name = "occurred_at", nullable = false)
+    @Column(name = "DT_OCCURRED", nullable = false)
     private Instant occurredAt;
 
     protected AuditLog() {

@@ -11,35 +11,35 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_attribute_definitions")
+@Table(name = "RHN_BD_ITEM_ATTR_DEF")
 public class ItemAttributeDefinition {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "scope_type", nullable = false) private String scopeType;
-    @Column(name = "scope_code", nullable = false) private String scopeCode;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(nullable = false) private String description;
-    @Column(name = "data_type", nullable = false) private String dataType;
-    @Column(nullable = false) private String cardinality;
-    @Column(name = "dictionary_id") private Long dictionaryId;
-    @Column(name = "unit_code") private String unitCode;
-    @Lob @Column(name = "schema_json", nullable = false) private String schemaJson;
-    @Lob @Column(name = "default_json") private String defaultJson;
-    @Column(nullable = false) private String variability;
-    @Column(name = "override_policy", nullable = false) private String overridePolicy;
-    @Lob @Column(name = "allowed_scope_json", nullable = false) private String allowedScopeJson;
-    @Column(name = "context_basis", nullable = false) private String contextBasis;
-    @Column(name = "storage_mode", nullable = false) private String storageMode;
-    @Column(name = "projection_field") private String projectionField;
-    @Column(name = "validation_rule_id") private Long validationRuleId;
-    @Column(nullable = false) private String sensitivity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_ITEM_ATTR_DEF") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "SD_SCOPE_TYPE", nullable = false) private String scopeType;
+    @Column(name = "CD_SCOPE", nullable = false) private String scopeCode;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "CD_ITEM_ATTR_DEF", nullable = false) private String code;
+    @Column(name = "NA_ITEM_ATTR_DEF", nullable = false) private String name;
+    @Column(name = "DES_ITEM_ATTR_DEF", nullable = false) private String description;
+    @Column(name = "SD_DATA_TYPE", nullable = false) private String dataType;
+    @Column(name = "SD_CARDINALITY", nullable = false) private String cardinality;
+    @Column(name = "ID_DICT_DEF_DICT") private Long dictionaryId;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Lob @Column(name = "JSON_SCHEMA", nullable = false) private String schemaJson;
+    @Lob @Column(name = "JSON_DEFAULT") private String defaultJson;
+    @Column(name = "SD_VARIABILITY", nullable = false) private String variability;
+    @Column(name = "SD_OVRD_POLICY", nullable = false) private String overridePolicy;
+    @Lob @Column(name = "JSON_ALLOWED_SCOPE", nullable = false) private String allowedScopeJson;
+    @Column(name = "SD_CONTEXT_BASIS", nullable = false) private String contextBasis;
+    @Column(name = "SD_STORAGE_MODE", nullable = false) private String storageMode;
+    @Column(name = "PROJECTION_FIELD") private String projectionField;
+    @Column(name = "ID_VALIDATION_RULE") private Long validationRuleId;
+    @Column(name = "SENSITIVITY", nullable = false) private String sensitivity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected ItemAttributeDefinition() {}
 

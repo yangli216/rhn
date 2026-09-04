@@ -176,9 +176,9 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].id").value(handoffId));
 
         Instant dischargedAt = Instant.now();
-        jdbcTemplate.update("update care_episodes set status = 'DISCHARGED', end_at = ? where id = ?",
+        jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set SD_STATUS = 'DISCHARGED', DT_END = ? where ID_CARE_EPISODE = ?",
                 dischargedAt, Long.valueOf(episodeId));
-        jdbcTemplate.update("update encounters set status = 'COMPLETED', completed_at = ? where id = ?",
+        jdbcTemplate.update("update RHN_VIS_ENC set SD_STATUS = 'COMPLETED', DT_COMPLETED = ? where ID_ENC = ?",
                 dischargedAt, Long.valueOf(encounterId));
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
                         .with(ward).contentType(MediaType.APPLICATION_JSON).content("""
@@ -194,16 +194,16 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].id").value(nursingId));
 
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_nursing_records where tenant_id = ?", Integer.class,
+                "select count(*) from RHN_VIS_INP_NURS_RECORD where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_shift_handoffs where tenant_id = ?", Integer.class,
+                "select count(*) from RHN_VIS_INP_SHIFT_HANDOFF where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from inpatient_shift_handoff_signatures where tenant_id = ?", Integer.class,
+                "select count(*) from RHN_VIS_INP_SHIFT_HANDOFF_SIGN where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from cryptographic_evidence where target_type = 'InpatientShiftHandoff' "
+                "select count(*) from RHN_AUD_CRYPTO_EVID where SD_TARGET_TYPE = 'InpatientShiftHandoff' "
                         + "and protection_purpose = 'NON_REPUDIATION'", Integer.class));
     }
 

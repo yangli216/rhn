@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "critical_value_alert_events")
+@Table(name = "RHN_VIS_CRIT_VAL_ALERT_EVT")
 public class CriticalValueAlertEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "alert_id", nullable = false) private Long alertId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "actor_id") private Long actorId;
-    @Column(name = "note_text") private String noteText;
-    @Column(name = "correlation_id", nullable = false) private String correlationId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_CRIT_VAL_ALERT_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CRIT_VAL_ALERT", nullable = false) private Long alertId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "ID_USER_ACTOR") private Long actorId;
+    @Column(name = "DES_NOTE") private String noteText;
+    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected CriticalValueAlertEvent() {}
 

@@ -10,25 +10,25 @@ import jakarta.persistence.Version;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "stock_transfer_lines")
+@Table(name = "RHN_SUP_STOCK_XFER_LINE")
 public class StockTransferLine {
-    @Id private Long id; @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_transfer_id", nullable = false) private Long stockTransferId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "source_stock_item_id", nullable = false) private Long sourceStockItemId;
-    @Column(name = "destination_stock_item_id", nullable = false) private Long destinationStockItemId;
-    @Column(name = "requested_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
-    @Column(name = "requested_operation_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal requestedOperationQuantity;
-    @Column(name = "operation_unit_code", nullable = false) private String operationUnitCode;
-    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(name = "approved_quantity", precision = 28, scale = 8) private BigDecimal approvedQuantity;
-    @Column(name = "dispatched_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
-    @Column(name = "received_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
-    @Column(name = "damaged_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "line_status", nullable = false) private String lineStatus;
-    @Column(name = "discrepancy_reason") private String discrepancyReason;
+    @Id @Column(name = "ID_STOCK_XFER_LINE") private Long id; @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_XFER", nullable = false) private Long stockTransferId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_ITEM_SRC", nullable = false) private Long sourceStockItemId;
+    @Column(name = "ID_STOCK_ITEM_DESTINATION", nullable = false) private Long destinationStockItemId;
+    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal requestedQuantity;
+    @Column(name = "QTY_REQUESTED_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal requestedOperationQuantity;
+    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "QTY_APPROVED", precision = 28, scale = 8) private BigDecimal approvedQuantity;
+    @Column(name = "QTY_DISPATCHED", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
+    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "QTY_DAMAGED", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "SD_LINE_STATUS", nullable = false) private String lineStatus;
+    @Column(name = "DES_DISCREPANCY_REASON") private String discrepancyReason;
     protected StockTransferLine() {}
     public StockTransferLine(Long tenantId, Long transferId, int sortOrder, Long sourceItemId, Long destinationItemId,
                              BigDecimal requestedQuantity, String baseUnitCode) {

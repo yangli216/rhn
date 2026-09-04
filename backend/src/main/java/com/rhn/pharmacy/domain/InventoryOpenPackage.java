@@ -11,30 +11,30 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_open_packages")
+@Table(name = "RHN_SUP_INV_OPEN_PKG")
 public class InventoryOpenPackage {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "trace_code_id") private Long traceCodeId;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(name = "source_unit_code", nullable = false) private String sourceUnitCode;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "package_factor", nullable = false, precision = 28, scale = 8) private BigDecimal packageFactor;
-    @Column(name = "opened_base_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal openedBaseQuantity;
-    @Column(name = "remaining_base_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "opened_at", nullable = false) private Instant openedAt;
-    @Column(name = "opened_by", nullable = false) private Long openedBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
-    @Column(name = "closed_at") private Instant closedAt;
+    @Id @Column(name = "ID_INV_OPEN_PKG") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "ID_INV_TRACE_CODE") private Long traceCodeId;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "CD_SRC_UNIT", nullable = false) private String sourceUnitCode;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "PACKAGE_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal packageFactor;
+    @Column(name = "QTY_OPENED_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal openedBaseQuantity;
+    @Column(name = "QTY_REMAINING_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_OPENED", nullable = false) private Instant openedAt;
+    @Column(name = "ID_USER_OPENED", nullable = false) private Long openedBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
+    @Column(name = "DT_CLOSED") private Instant closedAt;
 
     protected InventoryOpenPackage() {}
 

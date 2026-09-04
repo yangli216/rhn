@@ -10,24 +10,24 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_bins")
+@Table(name = "RHN_SUP_STOCK_BIN")
 public class StockBin {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "parent_bin_id") private Long parentBinId;
-    @Column(nullable = false) private String code;
-    @Column(nullable = false) private String name;
-    @Column(name = "bin_type", nullable = false) private String binType;
-    @Column(name = "stock_default", nullable = false) private String stockDefault;
-    @Column(name = "receive_allowed", nullable = false) private boolean receiveAllowed;
-    @Column(name = "pick_allowed", nullable = false) private boolean pickAllowed;
-    @Column(name = "count_allowed", nullable = false) private boolean countAllowed;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(nullable = false) private boolean active;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_STOCK_BIN") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN_PARENT") private Long parentBinId;
+    @Column(name = "CD_STOCK_BIN", nullable = false) private String code;
+    @Column(name = "NA_STOCK_BIN", nullable = false) private String name;
+    @Column(name = "SD_BIN_TYPE", nullable = false) private String binType;
+    @Column(name = "SD_STOCK_DEFAULT", nullable = false) private String stockDefault;
+    @Column(name = "FG_RECEIVE", nullable = false) private boolean receiveAllowed;
+    @Column(name = "FG_PICK", nullable = false) private boolean pickAllowed;
+    @Column(name = "FG_COUNT", nullable = false) private boolean countAllowed;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "FG_ACTIVE", nullable = false) private boolean active;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected StockBin() {}
 

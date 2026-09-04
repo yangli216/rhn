@@ -14,23 +14,23 @@ import java.math.MathContext;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inventory_balances")
+@Table(name = "RHN_SUP_INV_BAL")
 public class InventoryBalance {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "stock_status", nullable = false) private String stockStatus;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "quantity_on_hand", nullable = false, precision = 28, scale = 8) private BigDecimal quantityOnHand;
-    @Column(name = "quantity_reserved", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
-    @Column(name = "quantity_frozen", nullable = false, precision = 28, scale = 8) private BigDecimal quantityFrozen;
-    @Column(name = "quantity_available", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAvailable;
-    @Column(name = "average_unit_cost", precision = 24, scale = 6) private BigDecimal averageUnitCost;
-    @Column(name = "projected_at", nullable = false) private Instant projectedAt;
+    @Id @Column(name = "ID_INV_BAL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "QTY_ON_HAND", nullable = false, precision = 28, scale = 8) private BigDecimal quantityOnHand;
+    @Column(name = "QTY_RESERVED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityReserved;
+    @Column(name = "QTY_FROZEN", nullable = false, precision = 28, scale = 8) private BigDecimal quantityFrozen;
+    @Column(name = "QTY_AVAILABLE", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAvailable;
+    @Column(name = "PRICE_AVERAGE_UNIT_COST", precision = 24, scale = 6) private BigDecimal averageUnitCost;
+    @Column(name = "DT_PROJECTED", nullable = false) private Instant projectedAt;
 
     protected InventoryBalance() {}
 

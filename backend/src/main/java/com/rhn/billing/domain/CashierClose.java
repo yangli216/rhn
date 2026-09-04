@@ -11,30 +11,30 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "cashier_closes")
+@Table(name = "RHN_BIL_CASHIER_CLOSE")
 public class CashierClose {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "cashier_user_id", nullable = false) private Long cashierUserId;
-    @Column(name = "reverses_close_id") private Long reversesCloseId;
-    @Column(name = "close_no", nullable = false) private String closeNo;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "terminal_code", nullable = false) private String terminalCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "range_from", nullable = false) private Instant rangeFrom;
-    @Column(name = "range_to", nullable = false) private Instant rangeTo;
-    @Column(name = "transaction_count", nullable = false) private int transactionCount;
-    @Column(name = "expected_amount", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
-    @Column(name = "actual_amount", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
-    @Column(name = "difference_amount", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "difference_reason") private String differenceReason;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "confirmed_by") private Long confirmedBy;
-    @Column(name = "confirmed_at") private Instant confirmedAt;
+    @Id @Column(name = "ID_CASHIER_CLOSE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_CASHIER_USER", nullable = false) private Long cashierUserId;
+    @Column(name = "ID_CASHIER_CLOSE_REVERSES") private Long reversesCloseId;
+    @Column(name = "CD_CLOSE_NO", nullable = false) private String closeNo;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "CD_TERMINAL", nullable = false) private String terminalCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_RANGE_FROM", nullable = false) private Instant rangeFrom;
+    @Column(name = "DT_RANGE_TO", nullable = false) private Instant rangeTo;
+    @Column(name = "QTY_TXN", nullable = false) private int transactionCount;
+    @Column(name = "AMT_EXPECTED", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
+    @Column(name = "AMT_ACTUAL", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
+    @Column(name = "AMT_DIFFERENCE", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "DES_DIFFERENCE_REASON") private String differenceReason;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CONFIRMED") private Long confirmedBy;
+    @Column(name = "DT_CONFIRMED") private Instant confirmedAt;
 
     protected CashierClose() {}
 

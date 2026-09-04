@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "settlement_lines")
+@Table(name = "RHN_BIL_STL_LINE")
 public class SettlementLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "settlement_id", nullable = false) private Long settlementId;
-    @Column(name = "charge_item_id", nullable = false) private Long chargeItemId;
-    @Column(name = "legacy_invoice_line_id") private Long legacyInvoiceLineId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "settled_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal settledQuantity;
-    @Column(name = "gross_amount", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "discount_amount", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
-    @Column(name = "insurance_amount", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
-    @Column(name = "patient_amount", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
-    @Column(name = "other_amount", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;
-    @Column(name = "net_amount", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
+    @Id @Column(name = "ID_STL_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STL", nullable = false) private Long settlementId;
+    @Column(name = "ID_CHARGE_ITEM", nullable = false) private Long chargeItemId;
+    @Column(name = "ID_INVOICE_LINE_LEGACY") private Long legacyInvoiceLineId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "QTY_SETTLED", nullable = false, precision = 28, scale = 8) private BigDecimal settledQuantity;
+    @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
+    @Column(name = "AMT_DISCOUNT", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
+    @Column(name = "AMT_INS", nullable = false, precision = 24, scale = 6) private BigDecimal insuranceAmount;
+    @Column(name = "AMT_PAT", nullable = false, precision = 24, scale = 6) private BigDecimal patientAmount;
+    @Column(name = "AMT_OTHER", nullable = false, precision = 24, scale = 6) private BigDecimal otherAmount;
+    @Column(name = "AMT_NET", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
 
     protected SettlementLine() {}
     public SettlementLine(Long tenantId, Long settlementId, Long chargeItemId, Long legacyInvoiceLineId,

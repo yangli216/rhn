@@ -13,39 +13,39 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "clinical_documents")
+@Table(name = "RHN_VIS_CLIN_DOC")
 class ClinicalDocument {
     @Id
-    private Long id;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "ID_CLIN_DOC") private Long id;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "resident_id", nullable = false)
+    @Column(name = "ID_PAT", nullable = false)
     private Long residentId;
-    @Column(name = "encounter_id")
+    @Column(name = "ID_ENC")
     private Long encounterId;
-    @Column(name = "organization_id")
+    @Column(name = "ID_ORG")
     private Long organizationId;
-    @Column(name = "department_id")
+    @Column(name = "ID_DEPT")
     private Long departmentId;
-    @Column(name = "document_type", nullable = false)
+    @Column(name = "SD_DOC_TYPE", nullable = false)
     private String documentType;
-    @Column(name = "instance_key", nullable = false)
+    @Column(name = "CD_INSTANCE_KEY", nullable = false)
     private String instanceKey;
-    @Column(nullable = false)
+    @Column(name = "NA_TITLE", nullable = false)
     private String title;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "SD_STATUS", nullable = false)
     private ClinicalDocumentStatus status;
-    @Column(name = "current_version", nullable = false)
+    @Column(name = "SN_CURRENT_VER", nullable = false)
     private int currentVersion;
-    @Column(name = "created_by", nullable = false)
+    @Column(name = "ID_USER_CREATED", nullable = false)
     private String createdBy;
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DT_CREATED", nullable = false)
     private Instant createdAt;
-    @Column(name = "updated_at", nullable = false)
+    @Column(name = "DT_UPDATED", nullable = false)
     private Instant updatedAt;
     @Version
-    private long version;
+    @Column(name = "REVISION") private long version;
 
     protected ClinicalDocument() {
     }

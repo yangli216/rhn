@@ -11,31 +11,31 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "organization_catalog_items")
+@Table(name = "RHN_BD_ORG_CATALOG_ITEM")
 public class OrganizationCatalogItem {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "default_department_id") private Long defaultDepartmentId;
-    @Column(name = "local_code") private String localCode;
-    @Column(name = "local_name") private String localName;
-    @Column(nullable = false) private boolean orderable;
-    @Column(nullable = false) private boolean executable;
-    @Column(nullable = false) private boolean chargeable;
-    @Column(nullable = false) private boolean purchasable;
-    @Column(nullable = false) private boolean stocked;
-    @Column(nullable = false) private boolean dispensable;
-    @Column(nullable = false) private boolean returnable;
-    @Column(nullable = false) private String status;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(name = "replaces_adoption_id") private Long replacesAdoptionId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_ORG_CATALOG_ITEM") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_DEPT_DEFAULT") private Long defaultDepartmentId;
+    @Column(name = "CD_LOCAL") private String localCode;
+    @Column(name = "NA_LOCAL") private String localName;
+    @Column(name = "FG_ORDERABLE", nullable = false) private boolean orderable;
+    @Column(name = "FG_EXECUTABLE", nullable = false) private boolean executable;
+    @Column(name = "FG_CHARGEABLE", nullable = false) private boolean chargeable;
+    @Column(name = "FG_PURCHASABLE", nullable = false) private boolean purchasable;
+    @Column(name = "FG_STOCKED", nullable = false) private boolean stocked;
+    @Column(name = "FG_DISPENSABLE", nullable = false) private boolean dispensable;
+    @Column(name = "FG_RETURNABLE", nullable = false) private boolean returnable;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "ID_ORG_CATALOG_ITEM_REPLACED") private Long replacesAdoptionId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected OrganizationCatalogItem() {}
 

@@ -53,7 +53,7 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertEquals(0, balances.get(0).get("quantityOnHand").decimalValue().compareTo(new BigDecimal("42")));
         assertEquals(0, balances.get(0).get("averageUnitCost").decimalValue().compareTo(new BigDecimal("10.5")));
-        assertEquals(1, jdbc.queryForObject("select count(*) from inventory_valuation_entries where source_id = ?",
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_INV_VALUAT_ENTRY where ID_SRC = ?",
                 Integer.class, Long.valueOf(current.get("id").asText())));
 
         JsonNode period = periods(fixture.siteId()).get(0);

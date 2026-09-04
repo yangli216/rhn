@@ -10,31 +10,31 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "diagnostic_reports")
+@Table(name = "RHN_EX_DIAG_REPORT")
 public class DiagnosticReport {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "endpoint_code", nullable = false) private String endpointCode;
-    @Column(name = "external_report_id", nullable = false) private String externalReportId;
-    @Column(name = "report_version", nullable = false) private int reportVersion;
-    @Column(name = "replaces_report_id") private Long replacesReportId;
-    @Column(name = "report_type", nullable = false) private String reportType;
-    @Column(nullable = false) private String status;
-    @Column(name = "report_code", nullable = false) private String reportCode;
-    @Column(name = "report_name", nullable = false) private String reportName;
-    @Column(name = "issued_at", nullable = false) private Instant issuedAt;
-    @Column(name = "received_at", nullable = false) private Instant receivedAt;
-    @Lob private String conclusion;
-    @Column(name = "author_code") private String authorCode;
-    @Column(name = "author_name") private String authorName;
-    @Column(name = "content_digest_algorithm", nullable = false) private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false) private String contentDigest;
-    @Column(name = "inbound_message_id", nullable = false) private Long inboundMessageId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_DIAG_REPORT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "CD_ENDPOINT", nullable = false) private String endpointCode;
+    @Column(name = "ID_EXT_REPORT", nullable = false) private String externalReportId;
+    @Column(name = "SN_REPORT_VER", nullable = false) private int reportVersion;
+    @Column(name = "ID_DIAG_REPORT_REPLACES") private Long replacesReportId;
+    @Column(name = "SD_REPORT_TYPE", nullable = false) private String reportType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_REPORT", nullable = false) private String reportCode;
+    @Column(name = "NA_REPORT", nullable = false) private String reportName;
+    @Column(name = "DT_ISSUED", nullable = false) private Instant issuedAt;
+    @Column(name = "DT_RECEIVED", nullable = false) private Instant receivedAt;
+    @Lob @Column(name = "DES_CONCLUSION") private String conclusion;
+    @Column(name = "CD_AUTHOR") private String authorCode;
+    @Column(name = "NA_AUTHOR") private String authorName;
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
+    @Column(name = "ID_EXT_MSG_INBOUND", nullable = false) private Long inboundMessageId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected DiagnosticReport() {}
 

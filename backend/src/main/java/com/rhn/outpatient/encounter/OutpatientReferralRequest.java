@@ -14,37 +14,37 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "outpatient_referral_requests")
+@Table(name = "RHN_EX_OP_REFER_REQ")
 class OutpatientReferralRequest {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "request_no", nullable = false) private String requestNo;
+    @Id @Column(name = "ID_OP_REFER_REQ") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
     @Enumerated(EnumType.STRING)
-    @Column(name = "referral_type", nullable = false) private ReferralType referralType;
-    @Column(name = "target_organization_id", nullable = false) private Long targetOrganizationId;
-    @Column(name = "target_department_id", nullable = false) private Long targetDepartmentId;
-    @Column(name = "target_practitioner_id") private Long targetPractitionerId;
+    @Column(name = "SD_REFER_TYPE", nullable = false) private ReferralType referralType;
+    @Column(name = "ID_ORG_TARGET", nullable = false) private Long targetOrganizationId;
+    @Column(name = "ID_DEPT_TARGET", nullable = false) private Long targetDepartmentId;
+    @Column(name = "ID_PRACT_TARGET") private Long targetPractitionerId;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) private ReferralUrgency urgency;
-    @Column(name = "referral_reason", nullable = false) private String referralReason;
-    @Column(name = "clinical_summary", nullable = false) private String clinicalSummary;
-    @Column(name = "expected_at") private Instant expectedAt;
+    @Column(name = "SD_URGENCY", nullable = false) private ReferralUrgency urgency;
+    @Column(name = "DES_REFER_REASON", nullable = false) private String referralReason;
+    @Column(name = "DES_CLIN_SUM", nullable = false) private String clinicalSummary;
+    @Column(name = "DT_EXPECTED") private Instant expectedAt;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) private ReferralStatus status;
-    @Column(name = "target_registration_id") private Long targetRegistrationId;
-    @Column(name = "target_encounter_id") private Long targetEncounterId;
-    @Column(name = "requested_by", nullable = false) private Long requestedBy;
-    @Column(name = "requested_at", nullable = false) private Instant requestedAt;
-    @Column(name = "accepted_by") private Long acceptedBy;
-    @Column(name = "accepted_at") private Instant acceptedAt;
-    @Column(name = "completed_by") private Long completedBy;
-    @Column(name = "completed_at") private Instant completedAt;
-    @Column(name = "outcome_text") private String outcomeText;
-    @Column(name = "rejection_reason") private String rejectionReason;
-    @Column(name = "create_command_code", nullable = false) private String createCommandCode;
+    @Column(name = "SD_STATUS", nullable = false) private ReferralStatus status;
+    @Column(name = "ID_PAT_REG_TARGET") private Long targetRegistrationId;
+    @Column(name = "ID_ENC_TARGET") private Long targetEncounterId;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_ACCEPTED") private Long acceptedBy;
+    @Column(name = "DT_ACCEPTED") private Instant acceptedAt;
+    @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "DES_OUTCOME") private String outcomeText;
+    @Column(name = "DES_REJECTION_REASON") private String rejectionReason;
+    @Column(name = "CD_CREATE_COMMAND", nullable = false) private String createCommandCode;
 
     protected OutpatientReferralRequest() {}
 

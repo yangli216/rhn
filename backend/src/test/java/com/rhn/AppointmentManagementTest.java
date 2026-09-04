@@ -78,7 +78,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(replacementId));
         assertPool(morningId, 0);
         assertPool(afternoonId, 1);
-        assertEquals("CANCELLED", jdbc.queryForObject("select status from appointments where id = ?",
+        assertEquals("CANCELLED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_APPT where ID_APPT = ?",
                 String.class, Long.valueOf(originalId)));
 
         String cancelBody = """
@@ -94,7 +94,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.sdStatus").value("CANCELLED"));
         assertPool(afternoonId, 0);
         assertEquals(4, jdbc.queryForObject(
-                "select count(*) from appointment_events where appointment_id in (?, ?)", Integer.class,
+                "select count(*) from RHN_SC_APPT_EVT where ID_APPT in (?, ?)", Integer.class,
                 Long.valueOf(originalId), Long.valueOf(replacementId)));
     }
 
@@ -113,9 +113,9 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
         String appointmentId = appointment.get("id").asText();
         assertPool(scheduleId, 1);
 
-        jdbc.update("update service_schedules set service_date = ? where id = ?",
+        jdbc.update("update RHN_SC_SVC_SCHED set DA_SVC = ? where ID_SVC_SCHED = ?",
                 LocalDate.now(), Long.valueOf(scheduleId));
-        jdbc.update("update catalog_items set chargeable = false where id = ?", 362387869795104L);
+        jdbc.update("update RHN_BD_CATALOG_ITEM set FG_CHARGEABLE = false where ID_CATALOG_ITEM = ?", 362387869795104L);
         JsonNode completed = json(mockMvc.perform(post("/api/billing/registration-intents")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
@@ -129,13 +129,13 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         assertPool(scheduleId, 1);
-        assertEquals("REGISTERED", jdbc.queryForObject("select status from appointments where id = ?",
+        assertEquals("REGISTERED", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_APPT where ID_APPT = ?",
                 String.class, Long.valueOf(appointmentId)));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from patient_registrations where appointment_id = ? and encounter_id = ?",
+                "select count(*) from RHN_SC_PAT_REG where ID_APPT = ? and ID_ENC = ?",
                 Integer.class, Long.valueOf(appointmentId), completed.get("encounterId").asLong()));
         assertEquals(1, jdbc.queryForObject(
-                "select count(*) from appointment_events where appointment_id = ? and event_type = 'REGISTERED'",
+                "select count(*) from RHN_SC_APPT_EVT where ID_APPT = ? and SD_EVT_TYPE = 'REGISTERED'",
                 Integer.class, Long.valueOf(appointmentId)));
     }
 
@@ -168,7 +168,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
 
     private void assertPool(String scheduleId, int occupied) {
         assertEquals(occupied, jdbc.queryForObject(
-                "select occupied_count from schedule_slot_pools where schedule_id = ?",
+                "select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
     }
 }

@@ -11,18 +11,18 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "disease_management_members")
+@Table(name = "RHN_HPL_DISEASE_MGMT_MEMBER")
 public class DiseaseManagementMember {
-    @Id private Long id;
-    @Column(name = "program_id", nullable = false) private Long programId;
-    @Column(name = "concept_id", nullable = false) private Long conceptId;
-    @Column(name = "inclusion_mode", nullable = false) private String inclusionMode;
+    @Id @Column(name = "ID_DISEASE_MGMT_MEMBER") private Long id;
+    @Column(name = "ID_DISEASE_MGMT_PROG", nullable = false) private Long programId;
+    @Column(name = "ID_CONCEPT", nullable = false) private Long conceptId;
+    @Column(name = "SD_INCLUSION_MODE", nullable = false) private String inclusionMode;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) private TerminologyStatus status;
-    @Column(name = "effective_from", nullable = false) private LocalDate effectiveFrom;
-    @Column(name = "effective_to") private LocalDate effectiveTo;
-    private String note;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Column(name = "SD_STATUS", nullable = false) private TerminologyStatus status;
+    @Column(name = "DA_EFFECTIVE_FROM", nullable = false) private LocalDate effectiveFrom;
+    @Column(name = "DA_EFFECTIVE_TO") private LocalDate effectiveTo;
+    @Column(name = "DES_NOTE") private String note;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected DiseaseManagementMember() {}
 

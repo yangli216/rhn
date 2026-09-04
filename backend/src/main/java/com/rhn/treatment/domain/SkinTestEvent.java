@@ -15,50 +15,50 @@ import java.time.Instant;
 import java.util.Set;
 
 @Entity
-@Table(name = "skin_test_events")
+@Table(name = "RHN_EX_SKIN_TEST_EVT")
 public class SkinTestEvent {
     private static final Set<String> METHODS = Set.of("INTRADERMAL", "PRICK", "OTHER");
     private static final Set<String> RESULTS = Set.of("NEGATIVE", "POSITIVE", "UNCERTAIN", "INVALID");
 
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "medication_request_id", nullable = false) private Long medicationRequestId;
-    @Column(name = "medication_id", nullable = false) private Long medicationId;
-    @Column(name = "attempt_no", nullable = false) private int attemptNo;
-    @Column(name = "medication_code_snapshot", nullable = false) private String medicationCodeSnapshot;
-    @Column(name = "medication_name_snapshot", nullable = false) private String medicationNameSnapshot;
-    @Column(nullable = false) private String status;
-    @Column(name = "test_method", nullable = false) private String testMethod;
-    @Column(name = "original_solution", nullable = false) private boolean originalSolution;
-    @Column(name = "solution_catalog_item_id") private Long solutionCatalogItemId;
-    @Column(name = "solution_name_snapshot", length = 300) private String solutionNameSnapshot;
-    @Column(name = "stock_lot_id") private Long stockLotId;
-    @Column(name = "lot_no_snapshot", length = 128) private String lotNoSnapshot;
-    @Column(precision = 28, scale = 8) private BigDecimal concentration;
-    @Column(name = "concentration_unit", length = 64) private String concentrationUnit;
-    @Column(name = "body_site", length = 128) private String bodySite;
-    @Column(name = "verification_method", nullable = false) private String verificationMethod;
-    @Column(name = "observation_minutes", nullable = false) private int observationMinutes;
-    @Column(name = "started_at", nullable = false) private Instant startedAt;
-    @Column(name = "completed_at") private Instant completedAt;
-    private String result;
-    @Column(name = "wheal_diameter_mm", precision = 8, scale = 2) private BigDecimal whealDiameterMm;
-    @Column(name = "flare_diameter_mm", precision = 8, scale = 2) private BigDecimal flareDiameterMm;
-    @Column(name = "reaction_description", length = 1000) private String reactionDescription;
-    @Column(name = "early_read_reason", length = 1000) private String earlyReadReason;
-    @Column(name = "performed_by_user_id", nullable = false) private Long performedByUserId;
-    @Column(name = "performed_by_practitioner_id") private Long performedByPractitionerId;
-    @Column(name = "read_by_user_id") private Long readByUserId;
-    @Column(name = "read_by_practitioner_id") private Long readByPractitionerId;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason", length = 1000) private String cancelReason;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Id @Column(name = "ID_SKIN_TEST_EVT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_CARE_REQ_MED", nullable = false) private Long medicationRequestId;
+    @Column(name = "ID_MED", nullable = false) private Long medicationId;
+    @Column(name = "SN_ATTEMPT", nullable = false) private int attemptNo;
+    @Column(name = "CD_MED_SNAP", nullable = false) private String medicationCodeSnapshot;
+    @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_TEST_METHOD", nullable = false) private String testMethod;
+    @Column(name = "FG_ORIGINAL_SOLUTION", nullable = false) private boolean originalSolution;
+    @Column(name = "ID_CATALOG_ITEM_SOLUTION") private Long solutionCatalogItemId;
+    @Column(name = "NA_SOLUTION_SNAP", length = 300) private String solutionNameSnapshot;
+    @Column(name = "ID_STOCK_LOT") private Long stockLotId;
+    @Column(name = "CD_LOT_SNAP", length = 128) private String lotNoSnapshot;
+    @Column(name = "CONCENTRATION", precision = 28, scale = 8) private BigDecimal concentration;
+    @Column(name = "CONCENTRATION_UNIT", length = 64) private String concentrationUnit;
+    @Column(name = "BODY_SITE", length = 128) private String bodySite;
+    @Column(name = "SD_VERIFICATION_METHOD", nullable = false) private String verificationMethod;
+    @Column(name = "QTY_OBS_MINUTES", nullable = false) private int observationMinutes;
+    @Column(name = "DT_STARTED", nullable = false) private Instant startedAt;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
+    @Column(name = "SD_RESULT") private String result;
+    @Column(name = "QTY_WHEAL_DIAMETER_MM", precision = 8, scale = 2) private BigDecimal whealDiameterMm;
+    @Column(name = "QTY_FLARE_DIAMETER_MM", precision = 8, scale = 2) private BigDecimal flareDiameterMm;
+    @Column(name = "DES_REACTION_DESCRIPTION", length = 1000) private String reactionDescription;
+    @Column(name = "DES_EARLY_READ_REASON", length = 1000) private String earlyReadReason;
+    @Column(name = "ID_USER_PERFORMED", nullable = false) private Long performedByUserId;
+    @Column(name = "ID_PRACT_PERFORMED") private Long performedByPractitionerId;
+    @Column(name = "ID_USER_READ") private Long readByUserId;
+    @Column(name = "ID_PRACT_READ") private Long readByPractitionerId;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON", length = 1000) private String cancelReason;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected SkinTestEvent() {}
 

@@ -9,22 +9,22 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "dictionary_items")
+@Table(name = "RHN_BD_DICT_ITEM")
 public class DictionaryItem {
     @Id
-    private Long id;
-    @Column(name = "dictionary_id", nullable = false)
+    @Column(name = "ID_DICT_ITEM") private Long id;
+    @Column(name = "ID_DICT_DEF_DICT", nullable = false)
     private Long dictionaryId;
-    @Column(nullable = false, length = 128)
+    @Column(name = "CD_DICT_ITEM", nullable = false, length = 128)
     private String code;
-    @Column(nullable = false, length = 300)
+    @Column(name = "NA_DICT_ITEM", nullable = false, length = 300)
     private String name;
-    @Column(length = 1000)
+    @Column(name = "DES_DICT_ITEM", length = 1000)
     private String description;
-    @Column(name = "sort_order", nullable = false)
+    @Column(name = "SN_SORT", nullable = false)
     private int sortOrder;
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 32)
+    @Column(name = "SD_STATUS", nullable = false, length = 32)
     private DictionaryStatus status;
 
     protected DictionaryItem() {

@@ -11,22 +11,22 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "master_data_import_rows")
+@Table(name = "RHN_BD_IMPORT_ROW")
 public class MasterDataImportRow {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "batch_id", nullable = false) private Long batchId;
-    @Column(name = "row_number", nullable = false) private int rowNumber;
-    @Column(name = "source_key") private String sourceKey;
-    @Lob @Column(name = "source_json", nullable = false) private String sourceJson;
-    @Lob @Column(name = "normalized_json") private String normalizedJson;
-    @Lob @Column(name = "errors_json", nullable = false) private String errorsJson;
-    @Column(nullable = false) private String status;
-    @Column(name = "target_id") private Long targetId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_IMPORT_ROW") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_IMPORT_BATCH", nullable = false) private Long batchId;
+    @Column(name = "CD_ROW_NUMBER", nullable = false) private int rowNumber;
+    @Column(name = "CD_SRC_KEY") private String sourceKey;
+    @Lob @Column(name = "JSON_SRC", nullable = false) private String sourceJson;
+    @Lob @Column(name = "JSON_NORMALIZED") private String normalizedJson;
+    @Lob @Column(name = "JSON_ERRORS", nullable = false) private String errorsJson;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ID_TARGET") private Long targetId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected MasterDataImportRow() {}
 

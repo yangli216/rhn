@@ -9,19 +9,19 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "cashier_close_lines")
+@Table(name = "RHN_BIL_CASHIER_CLOSE_LINE")
 public class CashierCloseLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "cashier_close_id", nullable = false) private Long cashierCloseId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "payment_method_code", nullable = false) private String paymentMethodCode;
-    @Column(name = "close_line_type", nullable = false) private String closeLineType;
-    @Column(name = "transaction_count", nullable = false) private int transactionCount;
-    @Column(name = "expected_amount", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
-    @Column(name = "actual_amount", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
-    @Column(name = "difference_amount", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
+    @Id @Column(name = "ID_CASHIER_CLOSE_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CASHIER_CLOSE", nullable = false) private Long cashierCloseId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "CD_PAY_METHOD", nullable = false) private String paymentMethodCode;
+    @Column(name = "SD_CLOSE_LINE_TYPE", nullable = false) private String closeLineType;
+    @Column(name = "QTY_TXN", nullable = false) private int transactionCount;
+    @Column(name = "AMT_EXPECTED", nullable = false, precision = 24, scale = 6) private BigDecimal expectedAmount;
+    @Column(name = "AMT_ACTUAL", nullable = false, precision = 24, scale = 6) private BigDecimal actualAmount;
+    @Column(name = "AMT_DIFFERENCE", nullable = false, precision = 24, scale = 6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
 
     protected CashierCloseLine() {}
     public CashierCloseLine(Long tenantId, Long cashierCloseId, int lineNo, String paymentMethodCode,

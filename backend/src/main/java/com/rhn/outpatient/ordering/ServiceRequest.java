@@ -17,55 +17,55 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "care_requests")
-@SecondaryTable(name = "service_requests", pkJoinColumns = @PrimaryKeyJoinColumn(name = "request_id"))
+@Table(name = "RHN_EX_CARE_REQ")
+@SecondaryTable(name = "RHN_EX_SVC_REQ", pkJoinColumns = @PrimaryKeyJoinColumn(name = "ID_CARE_REQ"))
 class ServiceRequest {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "request_no", nullable = false) private String requestNo;
-    @Column(name = "request_kind", nullable = false) private String requestKind;
-    @Column(nullable = false) private String status;
-    @Column(name = "intent_code", nullable = false) private String intentCode;
-    @Column(name = "priority_code", nullable = false) private String priorityCode;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "package_id") private Long packageId;
-    @Column(name = "performer_organization_id", nullable = false) private Long performerOrganizationId;
-    @Column(name = "performer_department_id", nullable = false) private Long performerDepartmentId;
-    @Column(name = "business_date", nullable = false) private LocalDate businessDate;
-    @Column(name = "authored_at", nullable = false) private Instant authoredAt;
-    @Column(name = "authored_by", nullable = false) private Long authoredBy;
-    @Column(name = "reason_text") private String reasonText;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
+    @Id @Column(name = "ID_CARE_REQ") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "CD_REQ_NO", nullable = false) private String requestNo;
+    @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_INTENT", nullable = false) private String intentCode;
+    @Column(name = "CD_PRIORITY", nullable = false) private String priorityCode;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ITEM_PKG") private Long packageId;
+    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
+    @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
+    @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
+    @Column(name = "DES_REASON") private String reasonText;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
-    @Column(name = "item_code_snapshot", nullable = false) private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "unit_code_snapshot", nullable = false) private String unitCodeSnapshot;
-    @Column(name = "local_code_snapshot") private String localCodeSnapshot;
-    @Column(name = "local_name_snapshot") private String localNameSnapshot;
-    @Column(name = "adoption_id", nullable = false) private Long adoptionId;
-    @Column(name = "adoption_revision", nullable = false) private long adoptionRevision;
-    @Column(name = "price_id") private Long priceId;
-    @Column(name = "price_revision") private Long priceRevision;
-    @Column(name = "price_type") private String priceType;
-    @Column(name = "unit_price", precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(name = "total_amount", precision = 24, scale = 6) private BigDecimal totalAmount;
-    @Column(name = "currency_code") private String currencyCode;
-    @Lob @Column(name = "item_attribute_snapshot", nullable = false) private String itemAttributeSnapshot;
-    @Column(name = "item_attribute_hash", nullable = false) private String itemAttributeHash;
-    @Column(name = "item_attribute_resolved_at", nullable = false) private Instant itemAttributeResolvedAt;
-    @Lob @Column(name = "standard_mapping_snapshot", nullable = false) private String standardMappingSnapshot;
+    @Column(name = "CD_ITEM_SNAP", nullable = false) private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "CD_UNIT_SNAP", nullable = false) private String unitCodeSnapshot;
+    @Column(name = "CD_LOCAL_SNAP") private String localCodeSnapshot;
+    @Column(name = "NA_LOCAL_SNAP") private String localNameSnapshot;
+    @Column(name = "ID_ORG_CATALOG_ITEM_ADOPTION", nullable = false) private Long adoptionId;
+    @Column(name = "SN_ADOPTION_VER", nullable = false) private long adoptionRevision;
+    @Column(name = "ID_CATALOG_PRICE") private Long priceId;
+    @Column(name = "SN_PRICE_VER") private Long priceRevision;
+    @Column(name = "SD_PRICE_TYPE") private String priceType;
+    @Column(name = "PRICE_UNIT", precision = 24, scale = 6) private BigDecimal unitPrice;
+    @Column(name = "AMT_TOTAL", precision = 24, scale = 6) private BigDecimal totalAmount;
+    @Column(name = "CD_CURRENCY") private String currencyCode;
+    @Lob @Column(name = "JSON_ITEM_ATTR_SNAP", nullable = false) private String itemAttributeSnapshot;
+    @Column(name = "HASH_ITEM_ATTR", nullable = false) private String itemAttributeHash;
+    @Column(name = "DT_ITEM_ATTR_RESOLVED", nullable = false) private Instant itemAttributeResolvedAt;
+    @Lob @Column(name = "JSON_STD_MAP_SNAP", nullable = false) private String standardMappingSnapshot;
 
-    @Column(table = "service_requests", name = "tenant_id", nullable = false) private Long serviceTenantId;
-    @Column(table = "service_requests", name = "service_type_snapshot", nullable = false) private String serviceTypeSnapshot;
-    @Column(table = "service_requests", name = "specimen_type_snapshot") private String specimenTypeSnapshot;
-    @Column(table = "service_requests", name = "examination_type_snapshot") private String examinationTypeSnapshot;
-    @Column(table = "service_requests", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
-    @Column(table = "service_requests", name = "clinical_description") private String clinicalDescription;
+    @Column(name = "ID_TNT", table = "RHN_EX_SVC_REQ", nullable = false) private Long serviceTenantId;
+    @Column(name = "SD_SVC_TYPE_SNAP", table = "RHN_EX_SVC_REQ", nullable = false) private String serviceTypeSnapshot;
+    @Column(name = "SD_SPEC_TYPE_SNAP", table = "RHN_EX_SVC_REQ") private String specimenTypeSnapshot;
+    @Column(name = "SD_EXAM_TYPE_SNAP", table = "RHN_EX_SVC_REQ") private String examinationTypeSnapshot;
+    @Column(name = "QTY_ORDERED", table = "RHN_EX_SVC_REQ", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
+    @Column(name = "DES_CLIN_DESCRIPTION", table = "RHN_EX_SVC_REQ") private String clinicalDescription;
 
     protected ServiceRequest() {}
 

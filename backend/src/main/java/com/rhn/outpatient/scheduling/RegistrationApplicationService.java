@@ -12,7 +12,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -325,6 +327,123 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     registration.registeredAt(), ticket.calledAt());
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public RegistrationPageView page(LocalDate dateFrom, LocalDate dateTo, String status, String query, int page, int size) {
+        ExecutionContext context = requireContext(null, null);
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+
+        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
+        LocalDate end = dateTo == null ? start : dateTo;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+        List<PatientRegistration> registrations = registrationRepository
+                .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                        context.tenantId(), context.organizationId(), context.departmentId(), from, to);
+        if (registrations.isEmpty()) {
+            return new RegistrationPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
+        }
+
+        Map<Long, QueueTicket> tickets = ticketRepository.findByTenantIdAndRegistrationIdIn(context.tenantId(),
+                        registrations.stream().map(PatientRegistration::id).toList()).stream()
+                .collect(Collectors.toMap(QueueTicket::registrationId, Function.identity()));
+
+        String normalizedStatus = clean(status);
+        String normalizedQuery = clean(query);
+        if (normalizedQuery != null) {
+            normalizedQuery = normalizedQuery.toLowerCase(Locale.ROOT);
+        }
+        final String matchQuery = normalizedQuery;
+
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new HashMap<>();
+        Map<Long, ServiceSchedule> scheduleCache = new HashMap<>();
+
+        List<PatientRegistration> filtered = registrations.stream().filter(reg -> {
+            QueueTicket ticket = tickets.get(reg.id());
+            if (normalizedStatus != null) {
+                String queueStatus = ticket == null ? null : ticket.status();
+                if (!normalizedStatus.equalsIgnoreCase(queueStatus) && !normalizedStatus.equalsIgnoreCase(reg.status())) {
+                    return false;
+                }
+            }
+            if (matchQuery != null) {
+                String ticketNo = ticket == null ? null : ticket.ticketNo();
+                String regNo = reg.registrationNo();
+                if (regNo != null && regNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                if (ticketNo != null && ticketNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+
+                ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(reg.residentId(),
+                        residentDirectory::requireSnapshot);
+                if (resident != null) {
+                    if (resident.fullName() != null && resident.fullName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                    if (resident.healthRecordNo() != null && resident.healthRecordNo().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                }
+                if (reg.scheduleId() != null) {
+                    ServiceSchedule schedule = scheduleCache.computeIfAbsent(reg.scheduleId(),
+                            id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+                    if (schedule != null) {
+                        if (schedule.practitionerName() != null && schedule.practitionerName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                        if (schedule.serviceName() != null && schedule.serviceName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                        if (schedule.locationName() != null && schedule.locationName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                    }
+                }
+                return false;
+            }
+            return true;
+        }).sorted((a, b) -> {
+            QueueTicket ta = tickets.get(a.id());
+            QueueTicket tb = tickets.get(b.id());
+            int pa = ta == null ? 0 : ta.priority();
+            int pb = tb == null ? 0 : tb.priority();
+            if (pa != pb) return Integer.compare(pb, pa);
+            int sa = ta == null ? 0 : ta.sequenceNo();
+            int sb = tb == null ? 0 : tb.sequenceNo();
+            if (sa != sb) return Integer.compare(sa, sb);
+            return b.registeredAt().compareTo(a.registeredAt());
+        }).toList();
+
+        long totalElements = filtered.size();
+        int totalPages = (int) Math.ceil((double) totalElements / safeSize);
+        int fromIndex = Math.min((int) totalElements, safePage * safeSize);
+        int toIndex = Math.min((int) totalElements, fromIndex + safeSize);
+        List<PatientRegistration> slice = filtered.subList(fromIndex, toIndex);
+
+        List<ReceptionQueueItem> content = slice.stream().map(registration -> {
+            QueueTicket ticket = tickets.get(registration.id());
+            ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
+                    residentDirectory::requireSnapshot);
+            ServiceSchedule schedule = registration.scheduleId() == null ? null :
+                    scheduleCache.computeIfAbsent(registration.scheduleId(),
+                            id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+            return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
+                    registration.encounterId(), resident.id(), resident.healthRecordNo(), resident.fullName(),
+                    resident.gender(), resident.birthDate(), registration.registrationNo(),
+                    ticket == null ? null : ticket.ticketNo(),
+                    ticket == null ? 0 : ticket.sequenceNo(),
+                    ticket == null ? 0 : ticket.priority(),
+                    registration.registrationSource(), registration.visitType(),
+                    registration.status(), ticket == null ? null : ticket.status(),
+                    schedule == null ? null : schedule.practitionerName(),
+                    schedule == null ? null : schedule.serviceName(),
+                    schedule == null ? null : schedule.locationName(),
+                    registration.registeredAt(), ticket == null ? null : ticket.calledAt());
+        }).toList();
+
+        boolean first = safePage == 0;
+        boolean last = totalPages == 0 || safePage >= totalPages - 1;
+        return new RegistrationPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private String clean(String value) {
+        if (value == null || value.isBlank()) return null;
+        return value.trim();
     }
 
     private RegistrationSnapshot snapshot(PatientRegistration registration) {

@@ -44,10 +44,9 @@ public class IdentityAccessAdministrationService {
     public List<RoleView> roles() {
         Long tenantId = current().tenantId();
         List<BaseRole> rows = jdbc.query("""
-                select id, code, name, role_type, status, version
-                  from access_roles
-                 where tenant_id = ?
-                 order by status, role_type, code
+                select ID_ACC_ROLE as id, CD_ACC_ROLE as code, NA_ACC_ROLE as name, SD_ROLE_TYPE as role_type, SD_STATUS as status, REVISION as version from RHN_SYS_ACC_ROLE
+                 where ID_TNT = ?
+                 order by SD_STATUS, SD_ROLE_TYPE, CD_ACC_ROLE
                 """, (result, index) -> new BaseRole(result.getLong("id"), result.getString("code"),
                 result.getString("name"), result.getString("role_type"), result.getString("status"),
                 result.getLong("version")), tenantId);
@@ -58,14 +57,13 @@ public class IdentityAccessAdministrationService {
     public List<PermissionView> permissions() {
         Long tenantId = current().tenantId();
         return jdbc.query("""
-                select permission.id, permission.code, permission.name, permission.resource_code,
-                       permission.action_code, permission.status, module.id as module_id,
-                       module.code as module_code, module.name as module_name, module.route_path
-                  from access_permissions permission
-                  left join management_modules module
-                    on module.tenant_id = permission.tenant_id and module.id = permission.management_module_id
-                 where permission.tenant_id = ?
-                 order by module.sort_order, permission.resource_code, permission.action_code
+                select permission.ID_ACC_PERM as id, permission.CD_ACC_PERM as code, permission.NA_ACC_PERM as name, permission.CD_RSRC as resource_code,
+                       permission.CD_ACTION as action_code, permission.SD_STATUS as status, module.ID_MGMT_MOD as module_id,
+                       module.CD_MGMT_MOD as module_code, module.NA_MGMT_MOD as module_name, module.ROUTE_PATH from RHN_SYS_ACC_PERM permission
+                  left join RHN_SYS_MGMT_MOD module
+                    on module.ID_TNT = permission.ID_TNT and module.ID_MGMT_MOD = permission.ID_MGMT_MOD
+                 where permission.ID_TNT = ?
+                 order by module.SN_SORT, permission.CD_RSRC, permission.CD_ACTION
                 """, (result, index) -> new PermissionView(result.getLong("id"), result.getString("code"),
                 result.getString("name"), result.getString("resource_code"), result.getString("action_code"),
                 result.getString("status"), result.getObject("module_id", Long.class),
@@ -78,27 +76,26 @@ public class IdentityAccessAdministrationService {
         ExecutionContext context = current();
         if (!context.hasWorkContext()) {
             return jdbc.query("""
-                    select id, username, status from user_accounts where tenant_id = ? order by username
+                    select ID_USER as id, CD_USERNAME, SD_STATUS as status from RHN_SYS_USER_ACCT where ID_TNT = ? order by CD_USERNAME
                     """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
                     result.getString("status")), context.tenantId());
         }
         return jdbc.query("""
-                select distinct account.id, account.username, account.status
-                  from user_accounts account
-                  join employments employment
-                    on employment.tenant_id = account.tenant_id
-                   and employment.practitioner_id = account.practitioner_id
-                  join staff_assignments assignment
-                    on assignment.tenant_id = employment.tenant_id
-                   and assignment.employment_id = employment.id
-                 where account.tenant_id = ?
-                   and assignment.organization_id = ? and assignment.department_id = ?
-                   and employment.status = 'ACTIVE' and assignment.status = 'ACTIVE'
-                   and employment.hire_date <= current_date
-                   and (employment.leave_date is null or employment.leave_date >= current_date)
-                   and assignment.valid_from <= current_date
-                   and (assignment.valid_to is null or assignment.valid_to >= current_date)
-                 order by account.username
+                select distinct account.ID_USER as id, account.CD_USERNAME, account.SD_STATUS as status from RHN_SYS_USER_ACCT account
+                  join RHN_SYS_EMPL employment
+                    on employment.ID_TNT = account.ID_TNT
+                   and employment.ID_PRACT = account.ID_PRACT
+                  join RHN_SYS_STAFF_ASSIGN assignment
+                    on assignment.ID_TNT = employment.ID_TNT
+                   and assignment.ID_EMPL = employment.ID_EMPL
+                 where account.ID_TNT = ?
+                   and assignment.ID_ORG = ? and assignment.ID_DEPT = ?
+                   and employment.SD_STATUS = 'ACTIVE' and assignment.SD_STATUS = 'ACTIVE'
+                   and employment.DA_HIRE <= current_date
+                   and (employment.DA_LEAVE is null or employment.DA_LEAVE >= current_date)
+                   and assignment.DA_VALID_FROM <= current_date
+                   and (assignment.DA_VALID_TO is null or assignment.DA_VALID_TO >= current_date)
+                 order by account.CD_USERNAME
                 """, (result, index) -> new UserView(result.getLong("id"), result.getString("username"),
                 result.getString("status")), context.tenantId(), context.organizationId(), context.departmentId());
     }
@@ -110,7 +107,7 @@ public class IdentityAccessAdministrationService {
         requireManageableUser(context, userId);
         Instant now = Instant.now();
         String scopeFilter = context.hasWorkContext()
-                ? " and assignment.organization_id = ? and assignment.department_id = ? and assignment.data_scope_type = 'DEPARTMENT'"
+                ? " and assignment.ID_ORG = ? and assignment.ID_DEPT = ? and assignment.SD_DATA_SCOPE_TYPE = 'DEPARTMENT'"
                 : "";
         List<Object> parameters = new ArrayList<>(List.of(tenantId, userId));
         if (context.hasWorkContext()) {
@@ -118,24 +115,23 @@ public class IdentityAccessAdministrationService {
             parameters.add(context.departmentId());
         }
         return jdbc.query("""
-                select assignment.id, assignment.user_id, account.username, assignment.role_id,
-                       role.code as role_code, role.name as role_name,
-                       assignment.organization_id, organization.name as organization_name,
-                       assignment.department_id, department.name as department_name,
-                       assignment.data_scope_type, assignment.valid_from, assignment.valid_to,
-                       assignment.granted_by, assignment.created_at
-                  from user_role_assignments assignment
-                  join user_accounts account
-                    on account.tenant_id = assignment.tenant_id and account.id = assignment.user_id
-                  join access_roles role
-                    on role.tenant_id = assignment.tenant_id and role.id = assignment.role_id
-                  left join organizations organization
-                    on organization.tenant_id = assignment.tenant_id and organization.id = assignment.organization_id
-                  left join departments department
-                    on department.tenant_id = assignment.tenant_id and department.id = assignment.department_id
-                 where assignment.tenant_id = ? and assignment.user_id = ?
+                select assignment.ID_USER_ROLE_ASSIGN as id, assignment.ID_USER as user_id, account.CD_USERNAME, assignment.ID_ACC_ROLE as role_id,
+                       role.CD_ACC_ROLE as role_code, role.NA_ACC_ROLE as role_name,
+                       assignment.ID_ORG as organization_id, organization.NA_ORG as organization_name,
+                       assignment.ID_DEPT as department_id, department.NA_DEPT as department_name,
+                       assignment.SD_DATA_SCOPE_TYPE as data_scope_type, assignment.DT_VALID_FROM as valid_from, assignment.DT_VALID_TO as valid_to,
+                       assignment.ID_USER_GRANTED as granted_by, assignment.DT_CREATED as created_at from RHN_SYS_USER_ROLE_ASSIGN assignment
+                  join RHN_SYS_USER_ACCT account
+                    on account.ID_TNT = assignment.ID_TNT and account.ID_USER = assignment.ID_USER
+                  join RHN_SYS_ACC_ROLE role
+                    on role.ID_TNT = assignment.ID_TNT and role.ID_ACC_ROLE = assignment.ID_ACC_ROLE
+                  left join RHN_SYS_ORG organization
+                    on organization.ID_TNT = assignment.ID_TNT and organization.ID_ORG = assignment.ID_ORG
+                  left join RHN_SYS_DEPT department
+                    on department.ID_TNT = assignment.ID_TNT and department.ID_DEPT = assignment.ID_DEPT
+                 where assignment.ID_TNT = ? and assignment.ID_USER = ?
                 """ + scopeFilter + """
-                 order by assignment.valid_from desc, assignment.id desc
+                 order by assignment.DT_VALID_FROM desc, assignment.ID_USER_ROLE_ASSIGN desc
                 """, (result, index) -> {
             Instant from = result.getTimestamp("valid_from").toInstant();
             var toValue = result.getTimestamp("valid_to");
@@ -157,14 +153,14 @@ public class IdentityAccessAdministrationService {
         String normalizedName = required(name, "角色名称");
         String normalizedType = enumValue(roleType, ROLE_TYPES, "角色类型");
         Integer exists = jdbc.queryForObject("""
-                select count(*) from access_roles where tenant_id = ? and code = ?
+                select count(*) from RHN_SYS_ACC_ROLE where ID_TNT = ? and CD_ACC_ROLE = ?
                 """, Integer.class, context.tenantId(), normalizedCode);
         if (exists != null && exists > 0) throw conflict("IAM_ROLE_CODE_DUPLICATE", "角色编码已经存在");
         Long id = GlobalIds.next();
         Instant now = Instant.now();
         jdbc.update("""
-                insert into access_roles
-                    (id, tenant_id, code, name, role_type, status, created_at, updated_at, version)
+                insert into RHN_SYS_ACC_ROLE
+                    (ID_ACC_ROLE, ID_TNT, CD_ACC_ROLE, NA_ACC_ROLE, SD_ROLE_TYPE, SD_STATUS, DT_CREATED, DT_UPDATED, REVISION)
                 values (?, ?, ?, ?, ?, 'ACTIVE', ?, ?, 0)
                 """, id, context.tenantId(), normalizedCode, normalizedName, normalizedType,
                 sqlTimestamp(now), sqlTimestamp(now));
@@ -179,8 +175,8 @@ public class IdentityAccessAdministrationService {
         String normalizedName = required(name, "角色名称");
         String normalizedStatus = enumValue(status, ROLE_STATUSES, "角色状态");
         int changed = jdbc.update("""
-                update access_roles set name = ?, status = ?, updated_at = ?, version = version + 1
-                 where tenant_id = ? and id = ? and version = ?
+                update RHN_SYS_ACC_ROLE set NA_ACC_ROLE = ?, SD_STATUS = ?, DT_UPDATED = ?, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_ACC_ROLE = ? and REVISION = ?
                 """, normalizedName, normalizedStatus, sqlTimestamp(Instant.now()),
                 context.tenantId(), roleId, expectedVersion);
         if (changed == 0) throw conflict("IAM_ROLE_VERSION_CONFLICT", "角色已被其他用户修改，请刷新后重试");
@@ -199,30 +195,30 @@ public class IdentityAccessAdministrationService {
             throw forbidden("IAM_PERMISSION_ESCALATION_FORBIDDEN", "不能授予当前账号自身不具备的权限");
         }
         int versionChanged = jdbc.update("""
-                update access_roles set updated_at = ?, version = version + 1
-                 where tenant_id = ? and id = ? and version = ?
+                update RHN_SYS_ACC_ROLE set DT_UPDATED = ?, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_ACC_ROLE = ? and REVISION = ?
                 """, sqlTimestamp(Instant.now()), context.tenantId(), roleId, expectedVersion);
         if (versionChanged == 0) throw conflict("IAM_ROLE_VERSION_CONFLICT", "角色已被其他用户修改，请刷新后重试");
 
         Instant now = Instant.now();
         Set<Long> active = new LinkedHashSet<>(jdbc.query("""
-                select permission_id from role_permission_assignments
-                 where tenant_id = ? and role_id = ? and valid_from <= ?
-                   and (valid_to is null or valid_to > ?)
+                select ID_ACC_PERM as permission_id from RHN_SYS_ROLE_PERM_ASSIGN
+                 where ID_TNT = ? and ID_ACC_ROLE = ? and DT_VALID_FROM <= ?
+                   and (DT_VALID_TO is null or DT_VALID_TO > ?)
                 """, (result, index) -> result.getLong(1), context.tenantId(), roleId,
                 sqlTimestamp(now), sqlTimestamp(now)));
         for (Long permissionId : active) {
             if (!desired.contains(permissionId)) jdbc.update("""
-                    update role_permission_assignments set valid_to = ?
-                     where tenant_id = ? and role_id = ? and permission_id = ?
-                       and valid_from <= ? and (valid_to is null or valid_to > ?)
+                    update RHN_SYS_ROLE_PERM_ASSIGN set DT_VALID_TO = ?
+                     where ID_TNT = ? and ID_ACC_ROLE = ? and ID_ACC_PERM = ?
+                       and DT_VALID_FROM <= ? and (DT_VALID_TO is null or DT_VALID_TO > ?)
                     """, sqlTimestamp(now), context.tenantId(), roleId, permissionId,
                     sqlTimestamp(now), sqlTimestamp(now));
         }
         for (Long permissionId : desired) {
             if (!active.contains(permissionId)) jdbc.update("""
-                    insert into role_permission_assignments
-                        (id, tenant_id, role_id, permission_id, valid_from, valid_to, granted_by, created_at)
+                    insert into RHN_SYS_ROLE_PERM_ASSIGN
+                        (ID_ROLE_PERM_ASSIGN, ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, DT_VALID_FROM, DT_VALID_TO, ID_USER_GRANTED, DT_CREATED)
                     values (?, ?, ?, ?, ?, null, ?, ?)
                     """, GlobalIds.next(), context.tenantId(), roleId, permissionId,
                     sqlTimestamp(now), context.subjectId(), sqlTimestamp(now));
@@ -253,9 +249,9 @@ public class IdentityAccessAdministrationService {
         Long id = GlobalIds.next();
         Instant now = Instant.now();
         jdbc.update("""
-                insert into user_role_assignments
-                    (id, tenant_id, user_id, role_id, organization_id, department_id, data_scope_type,
-                     valid_from, valid_to, granted_by, created_at)
+                insert into RHN_SYS_USER_ROLE_ASSIGN
+                    (ID_USER_ROLE_ASSIGN, ID_TNT, ID_USER, ID_ACC_ROLE, ID_ORG, ID_DEPT, SD_DATA_SCOPE_TYPE,
+                     DT_VALID_FROM, DT_VALID_TO, ID_USER_GRANTED, DT_CREATED)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, id, context.tenantId(), userId, roleId, organizationId, departmentId, scope,
                 sqlTimestamp(from), sqlTimestamp(validTo), context.subjectId(), sqlTimestamp(now));
@@ -268,8 +264,7 @@ public class IdentityAccessAdministrationService {
     public void revokeAssignment(Long assignmentId) {
         ExecutionContext context = current();
         List<AssignmentTarget> targets = jdbc.query("""
-                select user_id, organization_id, department_id, data_scope_type
-                  from user_role_assignments where tenant_id = ? and id = ?
+                select ID_USER as user_id, ID_ORG as organization_id, ID_DEPT as department_id, SD_DATA_SCOPE_TYPE as data_scope_type from RHN_SYS_USER_ROLE_ASSIGN where ID_TNT = ? and ID_USER_ROLE_ASSIGN = ?
                 """, (result, index) -> new AssignmentTarget(result.getLong("user_id"),
                 result.getObject("organization_id", Long.class), result.getObject("department_id", Long.class),
                 result.getString("data_scope_type")), context.tenantId(), assignmentId);
@@ -283,9 +278,9 @@ public class IdentityAccessAdministrationService {
         }
         Instant now = Instant.now();
         int changed = jdbc.update("""
-                update user_role_assignments
-                   set valid_to = case when valid_from > ? then valid_from else ? end
-                 where tenant_id = ? and id = ? and (valid_to is null or valid_to > ?)
+                update RHN_SYS_USER_ROLE_ASSIGN
+                   set DT_VALID_TO = case when DT_VALID_FROM > ? then DT_VALID_FROM else ? end
+                 where ID_TNT = ? and ID_USER_ROLE_ASSIGN = ? and (DT_VALID_TO is null or DT_VALID_TO > ?)
                 """, sqlTimestamp(now), sqlTimestamp(now), context.tenantId(), assignmentId, sqlTimestamp(now));
         if (changed == 0) throw conflict("IAM_ASSIGNMENT_ALREADY_REVOKED", "授权已经失效");
         event(context, "USER_ROLE_REVOKED", "USER_ROLE_ASSIGNMENT", assignmentId, target.userId().toString());
@@ -295,14 +290,13 @@ public class IdentityAccessAdministrationService {
                           long version, Long tenantId) {
         Instant now = Instant.now();
         List<String> permissions = jdbc.query("""
-                select permission.code
-                  from role_permission_assignments assignment
-                  join access_permissions permission
-                    on permission.tenant_id = assignment.tenant_id and permission.id = assignment.permission_id
-                 where assignment.tenant_id = ? and assignment.role_id = ?
-                   and permission.status = 'ACTIVE' and assignment.valid_from <= ?
-                   and (assignment.valid_to is null or assignment.valid_to > ?)
-                 order by permission.code
+                select permission.CD_ACC_PERM as code from RHN_SYS_ROLE_PERM_ASSIGN assignment
+                  join RHN_SYS_ACC_PERM permission
+                    on permission.ID_TNT = assignment.ID_TNT and permission.ID_ACC_PERM = assignment.ID_ACC_PERM
+                 where assignment.ID_TNT = ? and assignment.ID_ACC_ROLE = ?
+                   and permission.SD_STATUS = 'ACTIVE' and assignment.DT_VALID_FROM <= ?
+                   and (assignment.DT_VALID_TO is null or assignment.DT_VALID_TO > ?)
+                 order by permission.CD_ACC_PERM
                 """, (result, index) -> result.getString(1), tenantId, id,
                 sqlTimestamp(now), sqlTimestamp(now));
         return new RoleView(id, code, name, roleType, status, version, permissions);
@@ -310,8 +304,7 @@ public class IdentityAccessAdministrationService {
 
     private RoleView requireRole(Long tenantId, Long roleId) {
         List<BaseRole> values = jdbc.query("""
-                select id, code, name, role_type, status, version
-                  from access_roles where tenant_id = ? and id = ?
+                select ID_ACC_ROLE as id, CD_ACC_ROLE as code, NA_ACC_ROLE as name, SD_ROLE_TYPE as role_type, SD_STATUS as status, REVISION as version from RHN_SYS_ACC_ROLE where ID_TNT = ? and ID_ACC_ROLE = ?
                 """, (result, index) -> new BaseRole(result.getLong("id"), result.getString("code"),
                 result.getString("name"), result.getString("role_type"), result.getString("status"),
                 result.getLong("version")), tenantId, roleId);
@@ -325,7 +318,7 @@ public class IdentityAccessAdministrationService {
 
     private void requireUser(Long tenantId, Long userId) {
         Integer count = jdbc.queryForObject("""
-                select count(*) from user_accounts where tenant_id = ? and id = ?
+                select count(*) from RHN_SYS_USER_ACCT where ID_TNT = ? and ID_USER = ?
                 """, Integer.class, tenantId, userId);
         if (count == null || count == 0) throw notFound("IAM_USER_NOT_FOUND", "未找到用户账号");
     }
@@ -334,21 +327,20 @@ public class IdentityAccessAdministrationService {
         requireUser(context.tenantId(), userId);
         if (!context.hasWorkContext()) return;
         Integer count = jdbc.queryForObject("""
-                select count(*)
-                  from user_accounts account
-                  join employments employment
-                    on employment.tenant_id = account.tenant_id
-                   and employment.practitioner_id = account.practitioner_id
-                  join staff_assignments assignment
-                    on assignment.tenant_id = employment.tenant_id
-                   and assignment.employment_id = employment.id
-                 where account.tenant_id = ? and account.id = ?
-                   and assignment.organization_id = ? and assignment.department_id = ?
-                   and employment.status = 'ACTIVE' and assignment.status = 'ACTIVE'
-                   and employment.hire_date <= current_date
-                   and (employment.leave_date is null or employment.leave_date >= current_date)
-                   and assignment.valid_from <= current_date
-                   and (assignment.valid_to is null or assignment.valid_to >= current_date)
+                select count(*) from RHN_SYS_USER_ACCT account
+                  join RHN_SYS_EMPL employment
+                    on employment.ID_TNT = account.ID_TNT
+                   and employment.ID_PRACT = account.ID_PRACT
+                  join RHN_SYS_STAFF_ASSIGN assignment
+                    on assignment.ID_TNT = employment.ID_TNT
+                   and assignment.ID_EMPL = employment.ID_EMPL
+                 where account.ID_TNT = ? and account.ID_USER = ?
+                   and assignment.ID_ORG = ? and assignment.ID_DEPT = ?
+                   and employment.SD_STATUS = 'ACTIVE' and assignment.SD_STATUS = 'ACTIVE'
+                   and employment.DA_HIRE <= current_date
+                   and (employment.DA_LEAVE is null or employment.DA_LEAVE >= current_date)
+                   and assignment.DA_VALID_FROM <= current_date
+                   and (assignment.DA_VALID_TO is null or assignment.DA_VALID_TO >= current_date)
                 """, Integer.class, context.tenantId(), userId,
                 context.organizationId(), context.departmentId());
         if (count == null || count == 0) {
@@ -363,7 +355,7 @@ public class IdentityAccessAdministrationService {
         parameters.add(tenantId);
         parameters.addAll(ids);
         java.util.LinkedHashMap<Long, String> result = new java.util.LinkedHashMap<>();
-        jdbc.query("select id, code from access_permissions where tenant_id = ? and status = 'ACTIVE' and id in ("
+        jdbc.query("select ID_ACC_PERM as id, CD_ACC_PERM as code from RHN_SYS_ACC_PERM where ID_TNT = ? and SD_STATUS = 'ACTIVE' and ID_ACC_PERM in ("
                         + placeholders + ")", (org.springframework.jdbc.core.RowCallbackHandler)
                         values -> result.put(values.getLong(1), values.getString(2)), parameters.toArray());
         return result;
@@ -379,13 +371,13 @@ public class IdentityAccessAdministrationService {
         if (!shapeValid) throw badRequest("IAM_SCOPE_INVALID", "数据范围与机构、科室选择不匹配");
         if (organizationId != null) {
             Integer organization = jdbc.queryForObject("""
-                    select count(*) from organizations where tenant_id = ? and id = ?
+                    select count(*) from RHN_SYS_ORG where ID_TNT = ? and ID_ORG = ?
                     """, Integer.class, context.tenantId(), organizationId);
             if (organization == null || organization == 0) throw badRequest("IAM_ORGANIZATION_INVALID", "授权机构不存在");
         }
         if (departmentId != null) {
             Integer department = jdbc.queryForObject("""
-                    select count(*) from departments where tenant_id = ? and id = ? and organization_id = ?
+                    select count(*) from RHN_SYS_DEPT where ID_TNT = ? and ID_DEPT = ? and ID_ORG = ?
                     """, Integer.class, context.tenantId(), departmentId, organizationId);
             if (department == null || department == 0) throw badRequest("IAM_DEPARTMENT_INVALID", "授权科室不属于所选机构");
         }
@@ -397,7 +389,7 @@ public class IdentityAccessAdministrationService {
 
     private boolean overlaps(Long tenantId, Long userId, Long roleId, Long organizationId, Long departmentId,
                              Instant validFrom, Instant validTo) {
-        String endCondition = validTo == null ? "" : " and valid_from < ?";
+        String endCondition = validTo == null ? "" : " and DT_VALID_FROM < ?";
         List<Object> parameters = new ArrayList<>(List.of(tenantId, userId, roleId));
         parameters.add(organizationId);
         parameters.add(organizationId);
@@ -406,19 +398,19 @@ public class IdentityAccessAdministrationService {
         parameters.add(sqlTimestamp(validFrom));
         if (validTo != null) parameters.add(sqlTimestamp(validTo));
         Integer count = jdbc.queryForObject("""
-                select count(*) from user_role_assignments
-                 where tenant_id = ? and user_id = ? and role_id = ?
-                   and ((organization_id is null and ? is null) or organization_id = ?)
-                   and ((department_id is null and ? is null) or department_id = ?)
-                   and (valid_to is null or valid_to > ?)
+                select count(*) from RHN_SYS_USER_ROLE_ASSIGN
+                 where ID_TNT = ? and ID_USER = ? and ID_ACC_ROLE = ?
+                   and ((ID_ORG is null and ? is null) or ID_ORG = ?)
+                   and ((ID_DEPT is null and ? is null) or ID_DEPT = ?)
+                   and (DT_VALID_TO is null or DT_VALID_TO > ?)
                 """ + endCondition, Integer.class, parameters.toArray());
         return count != null && count > 0;
     }
 
     private void event(ExecutionContext context, String eventType, String targetType, Long targetId, String details) {
         jdbc.update("""
-                insert into iam_authorization_events
-                    (id, tenant_id, event_type, target_type, target_id, actor_id, details_json, occurred_at)
+                insert into RHN_AUD_IAM_AUTH_EVT
+                    (ID_IAM_AUTH_EVT, ID_TNT, SD_EVT_TYPE, SD_TARGET_TYPE, ID_TARGET, ID_ACTOR, JSON_DETAIL, DT_OCCURRED)
                 values (?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), context.tenantId(), eventType, targetType, targetId,
                 context.subjectId(), details, sqlTimestamp(Instant.now()));

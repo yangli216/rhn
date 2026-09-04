@@ -10,21 +10,21 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "stock_transfer_allocations")
+@Table(name = "RHN_SUP_STOCK_XFER_ALLOC")
 public class StockTransferAllocation {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_transfer_line_id", nullable = false) private Long stockTransferLineId;
-    @Column(name = "source_bin_id", nullable = false) private Long sourceBinId;
-    @Column(name = "destination_bin_id") private Long destinationBinId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "stock_status", nullable = false) private String stockStatus;
-    @Column(name = "dispatched_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
-    @Column(name = "received_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
-    @Column(name = "damaged_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_STOCK_XFER_ALLOC") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_XFER_LINE", nullable = false) private Long stockTransferLineId;
+    @Column(name = "ID_STOCK_BIN_SRC", nullable = false) private Long sourceBinId;
+    @Column(name = "ID_STOCK_BIN_DESTINATION") private Long destinationBinId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
+    @Column(name = "QTY_DISPATCHED", nullable = false, precision = 28, scale = 8) private BigDecimal dispatchedQuantity;
+    @Column(name = "QTY_RECEIVED", nullable = false, precision = 28, scale = 8) private BigDecimal receivedQuantity;
+    @Column(name = "QTY_DAMAGED", nullable = false, precision = 28, scale = 8) private BigDecimal damagedQuantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
     protected StockTransferAllocation() {}
     public StockTransferAllocation(Long tenantId, Long lineId, Long sourceBinId, Long stockLotId,
                                    String stockStatus, BigDecimal quantity, Long actorId) {

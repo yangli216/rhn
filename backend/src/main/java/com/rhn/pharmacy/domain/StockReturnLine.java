@@ -9,23 +9,23 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "stock_return_lines")
+@Table(name = "RHN_SUP_STOCK_RETURN_LINE")
 public class StockReturnLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "stock_return_id", nullable = false) private Long stockReturnId;
-    @Column(name = "original_dispense_line_id", nullable = false) private Long originalDispenseLineId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "inventory_transaction_line_id", nullable = false) private Long inventoryTransactionLineId;
-    @Column(name = "quantity_requested", nullable = false, precision = 28, scale = 8) private BigDecimal quantityRequested;
-    @Column(name = "quantity_accepted", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAccepted;
-    @Column(name = "return_unit_code", nullable = false) private String returnUnitCode;
-    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(nullable = false) private String disposition;
-    @Column(name = "exception_description") private String exceptionDescription;
+    @Id @Column(name = "ID_STOCK_RETURN_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_STOCK_RETURN", nullable = false) private Long stockReturnId;
+    @Column(name = "ID_MED_DISP_LINE_ORIGINAL", nullable = false) private Long originalDispenseLineId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "ID_INV_TXN_LINE", nullable = false) private Long inventoryTransactionLineId;
+    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityRequested;
+    @Column(name = "QTY_ACCEPTED", nullable = false, precision = 28, scale = 8) private BigDecimal quantityAccepted;
+    @Column(name = "CD_RETURN_UNIT", nullable = false) private String returnUnitCode;
+    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "SD_DISPOSITION", nullable = false) private String disposition;
+    @Column(name = "DES_EXCEPT_DESCRIPTION") private String exceptionDescription;
 
     protected StockReturnLine() {}
 

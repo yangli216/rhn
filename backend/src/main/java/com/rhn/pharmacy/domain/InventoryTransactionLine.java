@@ -9,24 +9,24 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "inventory_transaction_lines")
+@Table(name = "RHN_SUP_INV_TXN_LINE")
 public class InventoryTransactionLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "inventory_transaction_id", nullable = false) private Long inventoryTransactionId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "stock_bin_id", nullable = false) private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id", nullable = false) private Long stockLotId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "stock_status", nullable = false) private String stockStatus;
-    @Column(name = "operation_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
-    @Column(name = "operation_unit_code", nullable = false) private String operationUnitCode;
-    @Column(name = "base_quantity_factor", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
-    @Column(name = "quantity_delta", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
-    @Column(name = "unit_cost", precision = 24, scale = 6) private BigDecimal unitCost;
-    @Column(name = "amount_delta", precision = 24, scale = 6) private BigDecimal amountDelta;
+    @Id @Column(name = "ID_INV_TXN_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INV_TXN", nullable = false) private Long inventoryTransactionId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN", nullable = false) private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT", nullable = false) private Long stockLotId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "SD_STOCK_STATUS", nullable = false) private String stockStatus;
+    @Column(name = "QTY_OPERATION", nullable = false, precision = 28, scale = 8) private BigDecimal operationQuantity;
+    @Column(name = "CD_OPERATION_UNIT", nullable = false) private String operationUnitCode;
+    @Column(name = "BASE_QUANTITY_FACTOR", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantityFactor;
+    @Column(name = "QTY_DELTA", nullable = false, precision = 28, scale = 8) private BigDecimal quantityDelta;
+    @Column(name = "PRICE_UNIT_COST", precision = 24, scale = 6) private BigDecimal unitCost;
+    @Column(name = "AMT_DELTA", precision = 24, scale = 6) private BigDecimal amountDelta;
 
     protected InventoryTransactionLine() {}
 

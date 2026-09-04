@@ -11,52 +11,52 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "encounter_diagnoses")
+@Table(name = "RHN_VIS_ENC_DIAG")
 class EncounterDiagnosis {
     enum DiagnosisType { PRIMARY, SECONDARY }
 
     @Id
-    private Long id;
+    @Column(name = "ID_ENC_DIAG") private Long id;
     @Version
-    private long revision;
-    @Column(name = "tenant_id", nullable = false)
+    @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
-    @Column(name = "encounter_id", nullable = false)
+    @Column(name = "ID_ENC", nullable = false)
     private Long encounterId;
-    @Column(name = "concept_id")
+    @Column(name = "ID_CONCEPT")
     private Long conceptId;
-    @Column(name = "diagnosis_stage", nullable = false)
+    @Column(name = "SD_DIAG_STAGE", nullable = false)
     private String diagnosisStage;
-    @Column(nullable = false)
+    @Column(name = "CD_ENC_DIAG", nullable = false)
     private String code;
-    @Column(nullable = false)
+    @Column(name = "NA_DISPLAY", nullable = false)
     private String display;
-    @Column(name = "code_system_code_snapshot")
+    @Column(name = "CD_CODE_SYS_SNAP")
     private String codeSystemCodeSnapshot;
-    @Column(name = "code_system_version_snapshot")
+    @Column(name = "CODE_SYSTEM_VERSION_SNAPSHOT")
     private String codeSystemVersionSnapshot;
-    @Column(name = "diagnosis_domain", nullable = false)
+    @Column(name = "SD_DIAG_DOMAIN", nullable = false)
     private String diagnosisDomain;
-    @Column(name = "diagnosis_group_id")
+    @Column(name = "ID_DIAG_GRP")
     private String diagnosisGroupId;
-    @Column(name = "management_snapshot_json")
+    @Column(name = "JSON_MGMT_SNAP")
     private String managementSnapshotJson;
     @Enumerated(EnumType.STRING)
-    @Column(name = "diagnosis_type", nullable = false)
+    @Column(name = "SD_DIAG_TYPE", nullable = false)
     private DiagnosisType diagnosisType;
-    @Column(name = "recorded_at", nullable = false)
+    @Column(name = "DT_RECORDED", nullable = false)
     private Instant recordedAt;
-    @Column(name = "business_version_no", nullable = false)
+    @Column(name = "CD_BUSINESS_VER_NO", nullable = false)
     private int businessVersionNo;
-    @Column(name = "verification_status", nullable = false)
+    @Column(name = "SD_VERIFICATION_STATUS", nullable = false)
     private String verificationStatus;
-    @Column(name = "diagnosis_status", nullable = false)
+    @Column(name = "SD_DIAG_STATUS", nullable = false)
     private String diagnosisStatus;
-    @Column(name = "clinical_note")
+    @Column(name = "DES_CLIN_NOTE")
     private String clinicalNote;
-    @Column(name = "updated_at")
+    @Column(name = "DT_UPDATED")
     private Instant updatedAt;
-    @Column(name = "updated_by")
+    @Column(name = "ID_USER_UPDATED")
     private Long updatedBy;
 
     protected EncounterDiagnosis() {

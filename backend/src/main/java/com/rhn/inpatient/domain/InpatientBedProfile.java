@@ -10,20 +10,20 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_bed_profiles")
+@Table(name = "RHN_VIS_INP_BED_PROF")
 public class InpatientBedProfile {
-    @Id @Column(name = "bed_location_id") private Long bedLocationId;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "bed_type", nullable = false) private String bedType;
-    @Column(name = "gender_restriction", nullable = false) private String genderRestriction;
-    @Column(name = "operational_status", nullable = false) private String operationalStatus;
-    @Column(name = "nursing_group_code") private String nursingGroupCode;
-    @Column(name = "responsible_nurse_id") private Long responsibleNurseId;
-    @Column(name = "daily_bed_rate") private BigDecimal dailyBedRate;
-    @Column(name = "charge_catalog_item_id") private Long chargeCatalogItemId;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_SVC_LOC_BED") private Long bedLocationId;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "SD_BED_TYPE", nullable = false) private String bedType;
+    @Column(name = "SD_GENDER_RESTRICTION", nullable = false) private String genderRestriction;
+    @Column(name = "SD_OPERATIONAL_STATUS", nullable = false) private String operationalStatus;
+    @Column(name = "CD_NURS_GRP") private String nursingGroupCode;
+    @Column(name = "ID_RESPONSIBLE_NURSE") private Long responsibleNurseId;
+    @Column(name = "PRICE_BED_DAY") private BigDecimal dailyBedRate;
+    @Column(name = "ID_CATALOG_ITEM_CHARGE") private Long chargeCatalogItemId;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected InpatientBedProfile() {
     }

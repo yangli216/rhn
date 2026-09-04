@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_events")
+@Table(name = "RHN_VIS_INP_EVT")
 public class InpatientEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "episode_id") private Long episodeId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "source_location_id") private Long sourceLocationId;
-    @Column(name = "target_location_id") private Long targetLocationId;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column private String reason;
-    @Column(name = "actor_id", nullable = false) private Long actorId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_INP_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_EPISODE") private Long episodeId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "ID_SVC_LOC_SRC") private Long sourceLocationId;
+    @Column(name = "ID_SVC_LOC_TARGET") private Long targetLocationId;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_REASON") private String reason;
+    @Column(name = "ID_ACTOR", nullable = false) private Long actorId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected InpatientEvent() {
     }

@@ -12,40 +12,40 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 
 @Entity
-@Table(name = "ai_suggestions")
+@Table(name = "RHN_AI_SUGGEST")
 public class AiSuggestion {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "suggestion_code", nullable = false) private String suggestionCode;
-    @Column(name = "suggestion_type", nullable = false) private String suggestionType;
-    @Column(nullable = false) private String status;
-    @Column(name = "risk_level", nullable = false) private String riskLevel;
-    @Column(name = "schema_code", nullable = false) private String schemaCode;
-    @Column(name = "schema_version", nullable = false) private String schemaVersion;
-    @Column(name = "client_context_fingerprint", nullable = false) private String clientContextFingerprint;
-    @Column(name = "context_hash", nullable = false) private String contextHash;
-    @Column(name = "server_context_hash", nullable = false) private String serverContextHash;
+    @Id @Column(name = "ID_AI_SUGGEST") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "CD_SUGGEST", nullable = false) private String suggestionCode;
+    @Column(name = "SD_SUGGEST_TYPE", nullable = false) private String suggestionType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_RISK_LEVEL", nullable = false) private String riskLevel;
+    @Column(name = "CD_SCHEMA", nullable = false) private String schemaCode;
+    @Column(name = "CD_SCHEMA_VER", nullable = false) private String schemaVersion;
+    @Column(name = "HASH_CLIENT_CONTEXT", nullable = false) private String clientContextFingerprint;
+    @Column(name = "HASH_CONTEXT", nullable = false) private String contextHash;
+    @Column(name = "HASH_SERVER_CONTEXT", nullable = false) private String serverContextHash;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "content_json", nullable = false) private String contentJson;
+    @Column(name = "JSON_CONTENT", nullable = false) private String contentJson;
     @JdbcTypeCode(SqlTypes.LONG32VARCHAR)
-    @Column(name = "evidence_json", nullable = false) private String evidenceJson;
-    @Column(name = "provider_code", nullable = false) private String providerCode;
-    @Column(name = "model_code") private String modelCode;
-    @Column(name = "prompt_version", nullable = false) private String promptVersion;
-    @Column(name = "knowledge_version") private String knowledgeVersion;
-    @Column(name = "data_cutoff") private Instant dataCutoff;
-    @Column(name = "generated_at", nullable = false) private Instant generatedAt;
-    @Column(name = "expires_at", nullable = false) private Instant expiresAt;
-    @Column(name = "invalidated_at") private Instant invalidatedAt;
-    @Column(name = "invalidation_reason") private String invalidationReason;
-    @Column(name = "requested_practitioner_id", nullable = false) private Long requestedPractitionerId;
-    @Column(name = "requested_user_id", nullable = false) private Long requestedUserId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
+    @Column(name = "JSON_EVID", nullable = false) private String evidenceJson;
+    @Column(name = "CD_PROVIDER", nullable = false) private String providerCode;
+    @Column(name = "CD_MODEL") private String modelCode;
+    @Column(name = "CD_PROMPT_VER", nullable = false) private String promptVersion;
+    @Column(name = "CD_KNOWLEDGE_VER") private String knowledgeVersion;
+    @Column(name = "DT_DATA_CUTOFF") private Instant dataCutoff;
+    @Column(name = "DT_GENERATED", nullable = false) private Instant generatedAt;
+    @Column(name = "DT_EXPIRES", nullable = false) private Instant expiresAt;
+    @Column(name = "DT_INVALIDATED") private Instant invalidatedAt;
+    @Column(name = "DES_INVALIDATION_REASON") private String invalidationReason;
+    @Column(name = "ID_PRACT_REQUESTED", nullable = false) private Long requestedPractitionerId;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedUserId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
 
     protected AiSuggestion() {}
 

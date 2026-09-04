@@ -10,25 +10,25 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "item_attribute_changes")
+@Table(name = "RHN_BD_ITEM_ATTR_CHG")
 public class ItemAttributeChange {
-    @Id private Long id;
-    @Column(name = "tenant_id") private Long tenantId;
-    @Column(name = "attribute_definition_id", nullable = false) private Long attributeDefinitionId;
-    @Column(name = "item_type_id") private Long itemTypeId;
-    @Column(name = "item_type_attribute_id") private Long itemTypeAttributeId;
-    @Column(name = "attribute_subject_id") private Long attributeSubjectId;
-    @Column(name = "attribute_value_id") private Long attributeValueId;
-    @Column(name = "attribute_override_id") private Long attributeOverrideId;
-    @Column(name = "target_type", nullable = false) private String targetType;
-    @Column(name = "change_type", nullable = false) private String changeType;
-    @Column(name = "scope_key") private String scopeKey;
-    @Lob @Column(name = "before_json") private String beforeJson;
-    @Lob @Column(name = "after_json") private String afterJson;
-    @Column(name = "change_reason", nullable = false) private String changeReason;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(name = "changed_at", nullable = false) private Instant changedAt;
-    @Column(name = "changed_by", nullable = false) private Long changedBy;
+    @Id @Column(name = "ID_ITEM_ATTR_CHG") private Long id;
+    @Column(name = "ID_TNT") private Long tenantId;
+    @Column(name = "ID_ITEM_ATTR_DEF", nullable = false) private Long attributeDefinitionId;
+    @Column(name = "ID_ITEM_TYPE") private Long itemTypeId;
+    @Column(name = "ID_ITEM_TYPE_ATTR") private Long itemTypeAttributeId;
+    @Column(name = "ID_ITEM_ATTR_SUBJECT") private Long attributeSubjectId;
+    @Column(name = "ID_ITEM_ATTR_VAL") private Long attributeValueId;
+    @Column(name = "ID_ITEM_ATTR_OVRD") private Long attributeOverrideId;
+    @Column(name = "SD_TARGET_TYPE", nullable = false) private String targetType;
+    @Column(name = "SD_CHG_TYPE", nullable = false) private String changeType;
+    @Column(name = "CD_SCOPE_KEY") private String scopeKey;
+    @Lob @Column(name = "JSON_BEFORE") private String beforeJson;
+    @Lob @Column(name = "JSON_AFTER") private String afterJson;
+    @Column(name = "DES_CHG_REASON", nullable = false) private String changeReason;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "DT_CHANGED", nullable = false) private Instant changedAt;
+    @Column(name = "ID_USER_CHANGED", nullable = false) private Long changedBy;
 
     protected ItemAttributeChange() {}
 

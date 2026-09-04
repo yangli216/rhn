@@ -12,29 +12,29 @@ import jakarta.persistence.Version;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_shift_handoffs")
+@Table(name = "RHN_VIS_INP_SHIFT_HANDOFF")
 public class InpatientShiftHandoff {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "shift_from", nullable = false) private Instant shiftFrom;
-    @Column(name = "shift_to", nullable = false) private Instant shiftTo;
-    @Column(name = "ward_summary", nullable = false) private String wardSummary;
-    @Lob @Column(name = "general_items_json", nullable = false) private String generalItemsJson;
-    @Column(nullable = false) private String status;
-    @Column(name = "create_command_code", nullable = false) private String createCommandCode;
-    @Column(name = "create_request_hash", nullable = false) private String createRequestHash;
-    @Column(name = "created_by_subject_id", nullable = false) private Long createdBySubjectId;
-    @Column(name = "created_by_practitioner_id") private Long createdByPractitionerId;
-    @Column(name = "creator_name", nullable = false) private String creatorName;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "content_schema", nullable = false) private String contentSchema;
-    @Column(name = "content_digest_algorithm", nullable = false) private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false) private String contentDigest;
-    @Column(name = "integrity_evidence_id", nullable = false) private Long integrityEvidenceId;
+    @Id @Column(name = "ID_INP_SHIFT_HANDOFF") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "DT_SHIFT_FROM", nullable = false) private Instant shiftFrom;
+    @Column(name = "DT_SHIFT_TO", nullable = false) private Instant shiftTo;
+    @Column(name = "DES_WARD_SUM", nullable = false) private String wardSummary;
+    @Lob @Column(name = "JSON_GENERAL_ITEM", nullable = false) private String generalItemsJson;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_CREATE_COMMAND", nullable = false) private String createCommandCode;
+    @Column(name = "HASH_CREATE_REQ", nullable = false) private String createRequestHash;
+    @Column(name = "ID_CREATED_BY_SUBJECT", nullable = false) private Long createdBySubjectId;
+    @Column(name = "ID_CREATED_BY_PRACT") private Long createdByPractitionerId;
+    @Column(name = "NA_CREATOR", nullable = false) private String creatorName;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
+    @Column(name = "ID_CRYPTO_EVID_INTEGRITY", nullable = false) private Long integrityEvidenceId;
 
     protected InpatientShiftHandoff() {
     }

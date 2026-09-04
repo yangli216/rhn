@@ -29,4 +29,15 @@ class ReceptionController {
         }
         return service.queue(date);
     }
+
+    @GetMapping("/page")
+    @PreAuthorize("hasAnyAuthority('OUTPATIENT_REGISTRATION.ACCESS','OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
+    RegistrationPageView page(@RequestParam(required = false) LocalDate dateFrom,
+                              @RequestParam(required = false) LocalDate dateTo,
+                              @RequestParam(required = false) String status,
+                              @RequestParam(required = false) String query,
+                              @RequestParam(defaultValue = "0") int page,
+                              @RequestParam(defaultValue = "20") int size) {
+        return service.page(dateFrom, dateTo, status, query, page, size);
+    }
 }

@@ -8,12 +8,12 @@ import jakarta.persistence.Table;
 
 @Entity
 @IdClass(DiagnosticReportResultId.class)
-@Table(name = "diagnostic_report_results")
+@Table(name = "RHN_EX_DIAG_REPORT_RESULT")
 public class DiagnosticReportResult {
-    @Id @Column(name = "tenant_id") private Long tenantId;
-    @Id @Column(name = "report_id") private Long reportId;
-    @Id @Column(name = "observation_id") private Long observationId;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
+    @Id @Column(name = "ID_TNT") private Long tenantId;
+    @Id @Column(name = "ID_DIAG_REPORT") private Long reportId;
+    @Id @Column(name = "ID_OBS") private Long observationId;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
 
     protected DiagnosticReportResult() {}
     public DiagnosticReportResult(Long tenantId, Long reportId, Long observationId, int sortOrder) {

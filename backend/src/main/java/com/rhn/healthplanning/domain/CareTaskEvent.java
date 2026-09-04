@@ -10,23 +10,23 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "care_task_events")
+@Table(name = "RHN_HPL_CARE_TASK_EVT")
 public class CareTaskEvent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "care_task_id", nullable = false) private Long careTaskId;
-    @Column(name = "event_type", nullable = false) private String eventType;
-    @Column(name = "status_from") private String statusFrom;
-    @Column(name = "status_to", nullable = false) private String statusTo;
-    @Column(name = "actor_practitioner_id") private Long actorPractitionerId;
-    @Column(name = "actor_user_id") private Long actorUserId;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "result_description") private String resultDescription;
-    @Column(name = "rule_code") private String ruleCode;
-    @Column(name = "rule_version") private String ruleVersion;
-    @Lob @Column(name = "evidence_json") private String evidenceJson;
-    @Column(name = "evidence_hash") private String evidenceHash;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
+    @Id @Column(name = "ID_CARE_TASK_EVT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CARE_TASK", nullable = false) private Long careTaskId;
+    @Column(name = "SD_EVT_TYPE", nullable = false) private String eventType;
+    @Column(name = "SD_STATUS_FROM") private String statusFrom;
+    @Column(name = "SD_STATUS_TO", nullable = false) private String statusTo;
+    @Column(name = "ID_PRACT_ACTOR") private Long actorPractitionerId;
+    @Column(name = "ID_USER_ACTOR") private Long actorUserId;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "DES_RESULT_DESCRIPTION") private String resultDescription;
+    @Column(name = "CD_RULE") private String ruleCode;
+    @Column(name = "CD_RULE_VER") private String ruleVersion;
+    @Lob @Column(name = "JSON_EVID") private String evidenceJson;
+    @Column(name = "HASH_EVID") private String evidenceHash;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
 
     protected CareTaskEvent() {
     }

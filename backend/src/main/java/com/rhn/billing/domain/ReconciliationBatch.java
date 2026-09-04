@@ -6,22 +6,22 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
-@Entity @Table(name="reconciliation_batches")
+@Entity @Table(name="RHN_BIL_RECON_BATCH")
 public class ReconciliationBatch {
-    @Id private Long id; @Version private long revision;
-    @Column(name="tenant_id") private Long tenantId; @Column(name="organization_id") private Long organizationId;
-    @Column(name="external_message_id") private Long externalMessageId; @Column(name="batch_no") private String batchNo;
-    @Column(name="command_code") private String commandCode; @Column(name="reconciliation_type") private String reconciliationType;
-    private String status; @Column(name="source_code") private String sourceCode;
-    @Column(name="payment_method_code") private String paymentMethodCode; @Column(name="external_batch_no") private String externalBatchNo;
-    @Column(name="business_date") private LocalDate businessDate; @Column(name="local_count") private int localCount;
-    @Column(name="external_count") private int externalCount; @Column(name="difference_count") private int differenceCount;
-    @Column(name="local_amount",precision=24,scale=6) private BigDecimal localAmount;
-    @Column(name="external_amount",precision=24,scale=6) private BigDecimal externalAmount;
-    @Column(name="difference_amount",precision=24,scale=6) private BigDecimal differenceAmount;
-    @Column(name="currency_code") private String currencyCode; @Column(name="created_by") private Long createdBy;
-    @Column(name="created_at") private Instant createdAt; @Column(name="completed_by") private Long completedBy;
-    @Column(name="completed_at") private Instant completedAt;
+    @Id @Column(name = "ID_RECON_BATCH") private Long id; @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT") private Long tenantId; @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_EXT_MSG") private Long externalMessageId; @Column(name = "CD_BATCH_NO") private String batchNo;
+    @Column(name = "CD_COMMAND") private String commandCode; @Column(name = "SD_RECON_TYPE") private String reconciliationType;
+    @Column(name = "SD_STATUS") private String status; @Column(name = "CD_SRC") private String sourceCode;
+    @Column(name = "CD_PAY_METHOD") private String paymentMethodCode; @Column(name = "CD_EXT_BATCH_NO") private String externalBatchNo;
+    @Column(name = "DA_BUSINESS") private LocalDate businessDate; @Column(name = "QTY_LOCAL") private int localCount;
+    @Column(name = "QTY_EXT") private int externalCount; @Column(name = "QTY_DIFFERENCE") private int differenceCount;
+    @Column(name = "AMT_LOCAL", precision=24, scale=6) private BigDecimal localAmount;
+    @Column(name = "AMT_EXT", precision=24, scale=6) private BigDecimal externalAmount;
+    @Column(name = "AMT_DIFFERENCE", precision=24, scale=6) private BigDecimal differenceAmount;
+    @Column(name = "CD_CURRENCY") private String currencyCode; @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_CREATED") private Instant createdAt; @Column(name = "ID_USER_COMPLETED") private Long completedBy;
+    @Column(name = "DT_COMPLETED") private Instant completedAt;
     protected ReconciliationBatch() {}
     public ReconciliationBatch(Long tenantId,Long organizationId,String batchNo,String commandCode,String type,
                                String sourceCode,String method,LocalDate date,String currency,Long actor){

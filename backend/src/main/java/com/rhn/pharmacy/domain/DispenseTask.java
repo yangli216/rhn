@@ -12,27 +12,27 @@ import org.springframework.http.HttpStatus;
 import java.time.Instant;
 
 @Entity
-@Table(name = "dispense_tasks")
+@Table(name = "RHN_SUP_DISP_TASK")
 public class DispenseTask {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "latest_review_id") private Long latestReviewId;
-    @Column(name = "task_no", nullable = false) private String taskNo;
-    @Column(name = "task_type", nullable = false) private String taskType;
-    @Column(nullable = false) private String priority;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "due_at") private Instant dueAt;
-    @Column(name = "picked_at") private Instant pickedAt;
-    @Column(name = "assigned_practitioner_id") private Long assignedPractitionerId;
-    @Column(name = "picked_by_user_id") private Long pickedByUserId;
-    @Column(name = "picked_assignment_id") private Long pickedAssignmentId;
-    @Column(name = "pick_description") private String pickDescription;
-    @Column private String description;
+    @Id @Column(name = "ID_DISP_TASK") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_PHARM_REVIEW_LATEST") private Long latestReviewId;
+    @Column(name = "CD_TASK_NO", nullable = false) private String taskNo;
+    @Column(name = "SD_TASK_TYPE", nullable = false) private String taskType;
+    @Column(name = "SD_PRIORITY", nullable = false) private String priority;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "DT_DUE") private Instant dueAt;
+    @Column(name = "DT_PICKED") private Instant pickedAt;
+    @Column(name = "ID_ASSIGNED_PRACT") private Long assignedPractitionerId;
+    @Column(name = "ID_PICKED_BY_USER") private Long pickedByUserId;
+    @Column(name = "ID_PICKED_ASSIGN") private Long pickedAssignmentId;
+    @Column(name = "DES_PICK_DESCRIPTION") private String pickDescription;
+    @Column(name = "DES_DISP_TASK") private String description;
 
     protected DispenseTask() {}
 

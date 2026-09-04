@@ -11,29 +11,29 @@ import java.time.Instant;
 import java.util.Base64;
 
 @Entity
-@Table(name = "print_outputs")
+@Table(name = "RHN_SYS_PRINT_OUTPUT")
 public class PrintOutput {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "template_id", nullable = false) private Long templateId;
-    @Column(name = "template_version_id", nullable = false) private Long templateVersionId;
-    @Column(name = "source_type", nullable = false) private String sourceType;
-    @Column(name = "source_id", nullable = false) private Long sourceId;
-    @Column(name = "source_version", nullable = false) private long sourceVersion;
-    @Column(name = "document_type", nullable = false) private String documentType;
-    @Column(name = "resident_id") private Long residentId;
-    @Column(name = "encounter_id") private Long encounterId;
-    @Column(name = "organization_id") private Long organizationId;
-    @Column(name = "department_id") private Long departmentId;
-    @Column(nullable = false) private String purpose;
-    @Lob @Column(name = "snapshot_json", nullable = false) private String snapshotJson;
-    @Column(name = "file_name", nullable = false) private String fileName;
-    @Column(name = "media_type", nullable = false) private String mediaType;
-    @Lob @Column(name = "content_base64", nullable = false) private String contentBase64;
-    @Column(name = "content_digest_algorithm", nullable = false) private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false) private String contentDigest;
-    @Column(name = "generated_at", nullable = false) private Instant generatedAt;
-    @Column(name = "generated_by", nullable = false) private Long generatedBy;
+    @Id @Column(name = "ID_PRINT_OUTPUT") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PRINT_TMPL", nullable = false) private Long templateId;
+    @Column(name = "ID_PRINT_TMPL_VER", nullable = false) private Long templateVersionId;
+    @Column(name = "SD_SRC_TYPE", nullable = false) private String sourceType;
+    @Column(name = "ID_SRC", nullable = false) private Long sourceId;
+    @Column(name = "SN_SRC_VER", nullable = false) private long sourceVersion;
+    @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
+    @Column(name = "ID_PAT") private Long residentId;
+    @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "ID_ORG") private Long organizationId;
+    @Column(name = "ID_DEPT") private Long departmentId;
+    @Column(name = "SD_PURPOSE", nullable = false) private String purpose;
+    @Lob @Column(name = "JSON_SNAP", nullable = false) private String snapshotJson;
+    @Column(name = "NA_FILE", nullable = false) private String fileName;
+    @Column(name = "SD_MEDIA_TYPE", nullable = false) private String mediaType;
+    @Lob @Column(name = "CONTENT_BASE64", nullable = false) private String contentBase64;
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
+    @Column(name = "DT_GENERATED", nullable = false) private Instant generatedAt;
+    @Column(name = "ID_USER_GENERATED", nullable = false) private Long generatedBy;
 
     protected PrintOutput() {}
 

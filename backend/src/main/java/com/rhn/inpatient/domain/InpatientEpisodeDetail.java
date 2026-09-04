@@ -6,29 +6,29 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "inpatient_episode_details")
+@Table(name = "RHN_VIS_INP_EPISODE_DETAIL")
 public class InpatientEpisodeDetail {
-    @Id @Column(name = "episode_id") private Long episodeId;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "admission_type_code") private String admissionTypeCode;
-    @Column(name = "admission_source_code") private String admissionSourceCode;
-    @Column(name = "admission_location_id") private Long admissionLocationId;
-    @Column(name = "admission_reason") private String admissionReason;
-    @Column(name = "admission_method_code") private String admissionMethodCode;
-    @Column(name = "condition_code") private String conditionCode;
-    @Column(name = "payment_method_code") private String paymentMethodCode;
-    @Column(name = "referral_organization_name") private String referralOrganizationName;
-    @Column(name = "emergency_contact_name") private String emergencyContactName;
-    @Column(name = "emergency_contact_relationship") private String emergencyContactRelationship;
-    @Column(name = "emergency_contact_phone") private String emergencyContactPhone;
-    @Column(name = "admission_note") private String admissionNote;
-    @Column(name = "discharge_disposition_code") private String dischargeDispositionCode;
-    @Column(name = "discharge_location_id") private Long dischargeLocationId;
-    @Column(name = "discharge_note") private String dischargeNote;
-    @Column(name = "nursing_level_code") private String nursingLevelCode;
-    @Column(name = "diet_code") private String dietCode;
-    @Column(name = "bed_no_snapshot") private String bedNoSnapshot;
-    @Column(name = "responsible_nurse_id") private Long responsibleNurseId;
+    @Id @Column(name = "ID_CARE_EPISODE") private Long episodeId;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_ADMISSION_TYPE") private String admissionTypeCode;
+    @Column(name = "CD_ADMISSION_SRC") private String admissionSourceCode;
+    @Column(name = "ID_SVC_LOC_ADMISSION") private Long admissionLocationId;
+    @Column(name = "DES_ADMISSION_REASON") private String admissionReason;
+    @Column(name = "CD_ADMISSION_METHOD") private String admissionMethodCode;
+    @Column(name = "CD_COND") private String conditionCode;
+    @Column(name = "CD_PAY_METHOD") private String paymentMethodCode;
+    @Column(name = "NA_REFER_ORG") private String referralOrganizationName;
+    @Column(name = "NA_EMERGENCY_CONTACT") private String emergencyContactName;
+    @Column(name = "EMERGENCY_CONTACT_RELATIONSHIP") private String emergencyContactRelationship;
+    @Column(name = "EMERGENCY_CONTACT_PHONE") private String emergencyContactPhone;
+    @Column(name = "DES_ADMISSION_NOTE") private String admissionNote;
+    @Column(name = "CD_DISCHARGE_DISPOSITION") private String dischargeDispositionCode;
+    @Column(name = "ID_SVC_LOC_DISCHARGE") private Long dischargeLocationId;
+    @Column(name = "DES_DISCHARGE_NOTE") private String dischargeNote;
+    @Column(name = "CD_NURS_LEVEL") private String nursingLevelCode;
+    @Column(name = "CD_DIET") private String dietCode;
+    @Column(name = "CD_BED_SNAP") private String bedNoSnapshot;
+    @Column(name = "ID_RESPONSIBLE_NURSE") private Long responsibleNurseId;
 
     protected InpatientEpisodeDetail() {
     }

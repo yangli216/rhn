@@ -14,37 +14,37 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 
 /** Request-level total inside one rolling supply window. */
 @Entity
-@Table(name = "inpatient_med_supply_lines")
+@Table(name = "RHN_SUP_INP_MED_SUPPLY_LINE")
 public class InpatientMedicationSupplyLine {
-    @Id private Long id;
-    @Version @Column(nullable = false) private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "supply_batch_id", nullable = false) private Long supplyBatchId;
-    @Column(name = "request_id", nullable = false) private Long requestId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "bed_no_snapshot", nullable = false) private String bedNoSnapshot;
-    @Column(name = "resident_name_snapshot", nullable = false) private String residentNameSnapshot;
-    @Column(name = "medication_code_snapshot", nullable = false) private String medicationCodeSnapshot;
-    @Column(name = "medication_name_snapshot", nullable = false) private String medicationNameSnapshot;
-    @Column(name = "requested_quantity", nullable = false, precision = 28, scale = 8)
+    @Id @Column(name = "ID_INP_MED_SUPPLY_LINE") private Long id;
+    @Version @Column(name = "REVISION", nullable = false) private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INP_MED_SUPPLY_BATCH", nullable = false) private Long supplyBatchId;
+    @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_BED_SNAP", nullable = false) private String bedNoSnapshot;
+    @Column(name = "NA_PAT_SNAP", nullable = false) private String residentNameSnapshot;
+    @Column(name = "CD_MED_SNAP", nullable = false) private String medicationCodeSnapshot;
+    @Column(name = "NA_MED_SNAP", nullable = false) private String medicationNameSnapshot;
+    @Column(name = "QTY_REQUESTED", nullable = false, precision = 28, scale = 8)
     private BigDecimal requestedQuantity;
-    @Column(name = "quantity_unit_code", nullable = false) private String quantityUnitCode;
-    @Column(name = "requested_base_quantity", nullable = false, precision = 28, scale = 8)
+    @Column(name = "CD_QUANTITY_UNIT", nullable = false) private String quantityUnitCode;
+    @Column(name = "QTY_REQUESTED_BASE", nullable = false, precision = 28, scale = 8)
     private BigDecimal requestedBaseQuantity;
-    @Column(name = "base_unit_code", nullable = false) private String baseUnitCode;
-    @Column(name = "occurrence_count", nullable = false) private int occurrenceCount;
-    @Column(nullable = false) private String status;
-    @Column(name = "dispense_task_line_id") private Long dispenseTaskLineId;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "submitted_at") private Instant submittedAt;
-    @Column(name = "submitted_by") private Long submittedBy;
-    @Column(name = "taken_at") private Instant takenAt;
-    @Column(name = "taken_by") private Long takenBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancelled_by") private Long cancelledBy;
-    @Column(name = "cancel_reason") private String cancelReason;
+    @Column(name = "CD_BASE_UNIT", nullable = false) private String baseUnitCode;
+    @Column(name = "QTY_OCCURRENCE", nullable = false) private int occurrenceCount;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "ID_DISP_TASK_LINE") private Long dispenseTaskLineId;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
+    @Column(name = "DT_TAKEN") private Instant takenAt;
+    @Column(name = "ID_USER_TAKEN") private Long takenBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
+    @Column(name = "DES_CANCEL_REASON") private String cancelReason;
 
     protected InpatientMedicationSupplyLine() {
     }

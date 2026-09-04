@@ -53,8 +53,8 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
         assertTrue(Instant.parse(candidate.get("dueAt").asText()).isAfter(Instant.now().plusSeconds(27L * 86400)));
 
         Integer observationCount = jdbcTemplate.queryForObject("""
-                select count(*) from observations where tenant_id = ? and resident_id = ?
-                  and observation_code in ('8480-6', '8462-4') and status = 'FINAL'
+                select count(*) from RHN_VIS_OBS where ID_TNT = ? and ID_PAT = ?
+                  and CD_OBS in ('8480-6', '8462-4') and SD_STATUS = 'FINAL'
                 """, Integer.class, Long.valueOf(TENANT), Long.valueOf(residentId));
         assertEquals(2, observationCount);
 
@@ -85,8 +85,8 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
         assertEquals(2, jdbcTemplate.queryForObject("""
-                select count(*) from observations where tenant_id = ? and resident_id = ?
-                  and observation_code in ('8480-6', '8462-4')
+                select count(*) from RHN_VIS_OBS where ID_TNT = ? and ID_PAT = ?
+                  and CD_OBS in ('8480-6', '8462-4')
                 """, Integer.class, Long.valueOf(TENANT), Long.valueOf(residentId)));
     }
 

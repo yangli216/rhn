@@ -9,14 +9,14 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "invoice_category_summaries")
+@Table(name = "RHN_BIL_INVOICE_CAT_SUM")
 public class InvoiceCategorySummary {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "invoice_id", nullable = false) private Long invoiceId;
-    @Column(name = "category_code", nullable = false) private String categoryCode;
-    @Column(name = "category_name_snapshot") private String categoryNameSnapshot;
-    @Column(nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Id @Column(name = "ID_INVOICE_CAT_SUM") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INVOICE", nullable = false) private Long invoiceId;
+    @Column(name = "CD_CAT", nullable = false) private String categoryCode;
+    @Column(name = "NA_CAT_SNAP") private String categoryNameSnapshot;
+    @Column(name = "AMT_CATEGORY", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
 
     protected InvoiceCategorySummary() {}
 

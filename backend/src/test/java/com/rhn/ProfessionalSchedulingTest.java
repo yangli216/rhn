@@ -22,10 +22,10 @@ class ProfessionalSchedulingTest extends RhnIntegrationTestSupport {
     @Test
     void creates_timed_professional_template_with_closed_and_override_exceptions_idempotently() throws Exception {
         jdbc.update("""
-                insert into parameter_values (
-                    id, definition_id, tenant_id, scope_type, scope_id, scope_reference, scope_code,
-                    value_mode, value_json, secret_ref, active, revision,
-                    created_at, created_by, updated_at, updated_by
+                insert into RHN_SYS_PARAM_VAL (
+                    ID_PARAM_VAL, ID_PARAM_DEF, ID_TNT, SD_SCOPE_TYPE, ID_SCOPE, SCOPE_REFERENCE, CD_SCOPE,
+                    SD_VAL_MODE, JSON_VAL, SECRET_REF, FG_ACTIVE, REVISION,
+                    DT_CREATED, ID_USER_CREATED, DT_UPDATED, ID_USER_UPDATED
                 ) values (?, 362387869795020, ?, 'DEPARTMENT', ?, null, ?,
                     'OVERRIDE', '\"PROFESSIONAL\"', null, true, 0,
                     current_timestamp, 362387869790222, current_timestamp, 362387869790222)
@@ -91,15 +91,15 @@ class ProfessionalSchedulingTest extends RhnIntegrationTestSupport {
                         .value("全科分时预约模板"));
 
         assertEquals(2, jdbc.queryForObject(
-                "select count(*) from schedule_exceptions where template_id = ?", Integer.class,
+                "select count(*) from RHN_SC_SCHED_EXCEPT where ID_SCHED_TMPL = ?", Integer.class,
                 Long.valueOf(templateId)));
         assertEquals(4, jdbc.queryForObject(
-                "select count(*) from service_schedules where template_id = ? and management_mode = 'PROFESSIONAL'",
+                "select count(*) from RHN_SC_SVC_SCHED where ID_SCHED_TMPL = ? and SD_MGMT_MODE = 'PROFESSIONAL'",
                 Integer.class, Long.valueOf(templateId)));
         assertEquals(4, jdbc.queryForObject("""
-                select count(*) from schedule_slot_pools p
-                join service_schedules s on s.tenant_id = p.tenant_id and s.id = p.schedule_id
-                where s.template_id = ? and p.slot_mode = 'TIMED'
+                select count(*) from RHN_SC_SCHED_SLOT_POOL p
+                join RHN_SC_SVC_SCHED s on s.ID_TNT = p.ID_TNT and s.ID_SVC_SCHED = p.ID_SVC_SCHED
+                where s.ID_SCHED_TMPL = ? and p.SD_SLOT_MODE = 'TIMED'
                 """, Integer.class, Long.valueOf(templateId)));
     }
 }

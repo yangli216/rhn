@@ -11,24 +11,24 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "stock_lots")
+@Table(name = "RHN_SUP_STOCK_LOT")
 public class StockLot {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "package_id", nullable = false) private Long packageId;
-    @Column(name = "lot_no", nullable = false) private String lotNo;
-    @Column(name = "production_date") private LocalDate productionDate;
-    @Column(name = "expiry_date") private LocalDate expiryDate;
-    @Column(name = "approval_code_snapshot") private String approvalCodeSnapshot;
-    @Column(name = "manufacturer_name_snapshot") private String manufacturerNameSnapshot;
-    @Column(name = "quality_status", nullable = false) private String qualityStatus;
-    @Column(name = "quality_at", nullable = false) private Instant qualityAt;
-    @Column(name = "quality_user_id", nullable = false) private Long qualityUserId;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
+    @Id @Column(name = "ID_STOCK_LOT") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_ITEM_PKG", nullable = false) private Long packageId;
+    @Column(name = "CD_LOT_NO", nullable = false) private String lotNo;
+    @Column(name = "DA_PRODUCTION") private LocalDate productionDate;
+    @Column(name = "DA_EXPIRY") private LocalDate expiryDate;
+    @Column(name = "CD_APPROVAL_SNAP") private String approvalCodeSnapshot;
+    @Column(name = "NA_MFR_SNAP") private String manufacturerNameSnapshot;
+    @Column(name = "SD_QUALITY_STATUS", nullable = false) private String qualityStatus;
+    @Column(name = "DT_QUALITY", nullable = false) private Instant qualityAt;
+    @Column(name = "ID_QUALITY_USER", nullable = false) private Long qualityUserId;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
 
     protected StockLot() {}
 

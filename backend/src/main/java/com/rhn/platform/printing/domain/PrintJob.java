@@ -9,18 +9,18 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "print_jobs")
+@Table(name = "RHN_SYS_PRINT_JOB")
 public class PrintJob {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "output_id", nullable = false) private Long outputId;
-    @Column(name = "original_job_id") private Long originalJobId;
-    @Column(name = "request_type", nullable = false) private String requestType;
-    @Column(nullable = false) private int copies;
-    @Column(nullable = false) private String status;
-    @Column(name = "requested_at", nullable = false) private Instant requestedAt;
-    @Column(name = "requested_by", nullable = false) private Long requestedBy;
-    @Column(name = "correlation_id", nullable = false) private String correlationId;
+    @Id @Column(name = "ID_PRINT_JOB") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PRINT_OUTPUT", nullable = false) private Long outputId;
+    @Column(name = "ID_PRINT_JOB_ORIGINAL") private Long originalJobId;
+    @Column(name = "SD_REQ_TYPE", nullable = false) private String requestType;
+    @Column(name = "QTY_COPIES", nullable = false) private int copies;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_REQUESTED", nullable = false) private Instant requestedAt;
+    @Column(name = "ID_USER_REQUESTED", nullable = false) private Long requestedBy;
+    @Column(name = "ID_CORRELATION", nullable = false) private String correlationId;
 
     protected PrintJob() {}
 

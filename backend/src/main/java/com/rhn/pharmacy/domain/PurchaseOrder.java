@@ -11,29 +11,29 @@ import java.time.Instant;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "purchase_orders")
+@Table(name = "RHN_SUP_PURCH_ORDER")
 public class PurchaseOrder {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "supplier_id", nullable = false) private Long supplierId;
-    @Column(name = "order_no", nullable = false) private String orderNo;
-    @Column(name = "request_code", nullable = false) private String requestCode;
-    @Column(nullable = false) private String status;
-    @Column(name = "order_date", nullable = false) private LocalDate orderDate;
-    @Column(name = "expected_date") private LocalDate expectedDate;
-    @Column(name = "submitted_at") private Instant submittedAt;
-    @Column(name = "submitted_by") private Long submittedBy;
-    @Column(name = "approved_at") private Instant approvedAt;
-    @Column(name = "approved_by") private Long approvedBy;
-    @Column(name = "approval_reason") private String approvalReason;
-    @Column private String description;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_PURCH_ORDER") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_SUPPL", nullable = false) private Long supplierId;
+    @Column(name = "CD_ORDER_NO", nullable = false) private String orderNo;
+    @Column(name = "CD_REQ", nullable = false) private String requestCode;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DA_ORDER", nullable = false) private LocalDate orderDate;
+    @Column(name = "DA_EXPECTED") private LocalDate expectedDate;
+    @Column(name = "DT_SUBMITTED") private Instant submittedAt;
+    @Column(name = "ID_USER_SUBMITTED") private Long submittedBy;
+    @Column(name = "DT_APPROVED") private Instant approvedAt;
+    @Column(name = "ID_USER_APPROVED") private Long approvedBy;
+    @Column(name = "DES_APPROVAL_REASON") private String approvalReason;
+    @Column(name = "DES_PURCH_ORDER") private String description;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected PurchaseOrder() {}
 

@@ -9,21 +9,21 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "charge_item_components")
+@Table(name = "RHN_BIL_CHARGE_ITEM_COMP")
 public class ChargeItemComponent {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "charge_item_id", nullable = false) private Long chargeItemId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "catalog_item_id") private Long catalogItemId;
-    @Column(name = "item_code_snapshot") private String itemCodeSnapshot;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "body_site_code") private String bodySiteCode;
-    @Column(nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
-    @Column(name = "unit_code") private String unitCode;
-    @Column(name = "unit_factor", precision = 28, scale = 8) private BigDecimal unitFactor;
-    @Column(name = "unit_price", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(nullable = false, precision = 24, scale = 6) private BigDecimal amount;
+    @Id @Column(name = "ID_CHARGE_ITEM_COMP") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CHARGE_ITEM", nullable = false) private Long chargeItemId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
+    @Column(name = "CD_ITEM_SNAP") private String itemCodeSnapshot;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "CD_BODY_SITE") private String bodySiteCode;
+    @Column(name = "QTY_COMPONENT", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
+    @Column(name = "CD_UNIT") private String unitCode;
+    @Column(name = "UNIT_FACTOR", precision = 28, scale = 8) private BigDecimal unitFactor;
+    @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
+    @Column(name = "AMT_COMPONENT", nullable = false, precision = 24, scale = 6) private BigDecimal amount;
 
     protected ChargeItemComponent() {}
 

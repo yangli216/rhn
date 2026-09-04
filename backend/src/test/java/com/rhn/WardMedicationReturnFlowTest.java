@@ -137,7 +137,7 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
         assertEquals(request.get("id").asText(), createReplay.get("id").asText());
         String returnRequestId = request.get("id").asText();
         String returnRequestLineId = request.at("/lines/0/id").asText();
-        assertEquals(1, countId("select count(*) from ward_med_return_requests where id = ?", returnRequestId));
+        assertEquals(1, countId("select count(*) from RHN_SUP_WARD_MED_RETURN_REQ where ID_WARD_MED_RETURN_REQ = ?", returnRequestId));
 
         mockMvc.perform(get("/api/pharmacy/ward-medication-returns/returnable")
                         .with(wardContext()).queryParam("encounterId", encounterId))
@@ -175,10 +175,10 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT, returnRequestLineId);
         JsonNode received = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
                 receiveBody, pharmacyContext(), 200);
-        int stockReturnCount = countText("select count(*) from stock_returns where return_no like ?", "WMR%");
+        int stockReturnCount = countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_RETURN_NO like ?", "WMR%");
         int inventoryTransactionCount = countText(
-                "select count(*) from inventory_transactions where request_code like ?", "WMR%");
-        int returnChargeCount = countId("select count(*) from charge_items where request_id = ? "
+                "select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%");
+        int returnChargeCount = countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
                 + "and source_type = 'MEDICATION_RETURN'", requestId);
         JsonNode receiveReplay = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
                 receiveBody, pharmacyContext(), 200);
@@ -187,17 +187,17 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 receiveReplay.at("/lines/0/stockReturnId").asText());
         assertEquals(1, stockReturnCount);
         assertEquals(stockReturnCount,
-                countText("select count(*) from stock_returns where return_no like ?", "WMR%"));
+                countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_RETURN_NO like ?", "WMR%"));
         assertEquals(2, inventoryTransactionCount);
         assertEquals(inventoryTransactionCount,
-                countText("select count(*) from inventory_transactions where request_code like ?", "WMR%"));
+                countText("select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%"));
         assertEquals(1, returnChargeCount);
-        assertEquals(returnChargeCount, countId("select count(*) from charge_items where request_id = ? "
+        assertEquals(returnChargeCount, countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
                 + "and source_type = 'MEDICATION_RETURN'", requestId));
-        assertDecimal("1", jdbc.queryForObject("select quantity_accepted from stock_return_lines "
+        assertDecimal("1", jdbc.queryForObject("select QTY_ACCEPTED as quantity_accepted from RHN_SUP_STOCK_RETURN_LINE "
                 + "where stock_return_id = ?", BigDecimal.class,
                 received.at("/lines/0/stockReturnId").asLong()));
-        assertEquals(1, countId("select count(*) from ward_med_return_events where return_request_id = ? "
+        assertEquals(1, countId("select count(*) from RHN_SUP_WARD_MED_RETURN_EVT where ID_WARD_MED_RETURN_REQ = ? "
                 + "and event_type = 'RECEIVED'", returnRequestId));
     }
 

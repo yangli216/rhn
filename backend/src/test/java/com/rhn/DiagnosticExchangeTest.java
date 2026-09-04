@@ -58,7 +58,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.reportId == '%s')]".formatted(report.get("id").asText())).isEmpty());
         assertEquals("SUPERSEDED", jdbcTemplate.queryForObject(
-                "select status from critical_value_alerts where id = ?", String.class, alert.get("id").asLong()));
+                "select SD_STATUS as status from RHN_VIS_CRIT_VAL_ALERT where ID_CRIT_VAL_ALERT = ?", String.class, alert.get("id").asLong()));
     }
 
     @Test
@@ -173,10 +173,10 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/encounters/{id}/diagnostic-reports", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(3));
         assertEquals(3, jdbcTemplate.queryForObject(
-                "select count(*) from diagnostic_reports where tenant_id = ? and encounter_id = ?",
+                "select count(*) from RHN_EX_DIAG_REPORT where ID_TNT = ? and ID_ENC = ?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(encounterId)));
         assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from observations where tenant_id = ? and encounter_id = ?",
+                "select count(*) from RHN_VIS_OBS where ID_TNT = ? and ID_ENC = ?",
                 Integer.class, Long.valueOf(TENANT), Long.valueOf(encounterId)));
     }
 

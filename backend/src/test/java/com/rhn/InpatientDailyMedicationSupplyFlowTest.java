@@ -90,7 +90,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         assertEquals(2, firstSupplyLine.get("occurrenceCount").asInt());
         assertEquals(2, firstSupplyLine.get("occurrences").size());
         assertEquals("SUBMITTED", jdbc.queryForObject("""
-                select status from inpatient_med_supply_batches where id = ?
+                select SD_STATUS as status from RHN_SUP_INP_MED_SUPPLY_BATCH where ID_INP_MED_SUPPLY_BATCH = ?
                 """, String.class, firstBatch.get("id").asLong()));
 
         JsonNode commandReplay = generate(firstDate, nursingUnitDepartmentId, "IP-DAILY-SUPPLY-GENERATE-1");
@@ -109,10 +109,10 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         String firstDispenseTaskId = findLine(firstIntake, requestId).get("dispenseTaskId").asText();
         String companionDispenseTaskId = findLine(firstIntake, companionRequestId).get("dispenseTaskId").asText();
         assertEquals("INPATIENT_SUPPLY_LINE", jdbc.queryForObject("""
-                select fulfillment_source_type from dispense_task_lines where id = ?
+                select SD_FULFILL_SRC_TYPE as fulfillment_source_type from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?
                 """, String.class, Long.valueOf(firstDispenseTaskLineId)));
         assertEquals(Long.valueOf(firstSupplyLine.get("id").asLong()), jdbc.queryForObject("""
-                select fulfillment_source_id from dispense_task_lines where id = ?
+                select ID_FULFILL_SRC as fulfillment_source_id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?
                 """, Long.class, Long.valueOf(firstDispenseTaskLineId)));
         JsonNode firstIntakeReplay = intakeBatch(firstBatch.get("id").asText(),
                 List.of(firstSupplyLine.get("id").asText(), companionSupplyLine.get("id").asText()),
@@ -120,17 +120,17 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         assertEquals(firstDispenseTaskLineId,
                 findLine(firstIntakeReplay, requestId).get("dispenseTaskLineId").asText());
         assertEquals(1, count("""
-                select count(*) from dispense_task_lines
-                 where fulfillment_source_type = 'INPATIENT_SUPPLY_LINE' and fulfillment_source_id = ?
+                select count(*) from RHN_SUP_DISP_TASK_LINE
+                 where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
                 """, firstSupplyLine.get("id").asText()));
 
         // The whole action is one transaction: a shortage on the second task must roll back
         // the first task's review and reservation instead of leaving a half-prepared ward batch.
         jdbc.update("""
-                update inventory_balances
-                   set quantity_on_hand = 2, quantity_reserved = 0, quantity_frozen = 0,
-                       quantity_available = 2, revision = revision + 1
-                 where tenant_id = ? and stock_item_id = ? and stock_status = 'AVAILABLE'
+                update RHN_SUP_INV_BAL
+                   set QTY_ON_HAND = 2, QTY_RESERVED = 0, QTY_FROZEN = 0,
+                       QTY_AVAILABLE = 2, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/review-reserve",
                         firstBatch.get("id").asText()).with(pharmacyContext())
@@ -140,39 +140,39 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT)))
                 .andExpect(status().isConflict());
         assertEquals(0, jdbc.queryForObject("""
-                select count(*) from pharmacy_reviews where task_id in (?, ?)
+                select count(*) from RHN_SUP_PHARM_REVIEW where ID_DISP_TASK in (?, ?)
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
         assertEquals(0, jdbc.queryForObject("""
-                select count(*) from inventory_reservations r
-                  join dispense_task_lines l on l.tenant_id = r.tenant_id and l.id = r.dispense_task_line_id
-                 where l.task_id in (?, ?) and r.status in ('ACTIVE','PARTIAL')
+                select count(*) from RHN_SUP_INV_RESV r
+                  join RHN_SUP_DISP_TASK_LINE l on l.ID_TNT = r.ID_TNT and l.ID_DISP_TASK_LINE = r.ID_DISP_TASK_LINE
+                 where l.ID_DISP_TASK in (?, ?) and r.SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from dispense_tasks where id in (?, ?) and status = 'PENDING_REVIEW'
+                select count(*) from RHN_SUP_DISP_TASK where ID_DISP_TASK in (?, ?) and SD_STATUS = 'PENDING_REVIEW'
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
         jdbc.update("""
-                update inventory_balances
-                   set quantity_on_hand = 240, quantity_reserved = 0, quantity_frozen = 0,
-                       quantity_available = 240, revision = revision + 1
-                 where tenant_id = ? and stock_item_id = ? and stock_status = 'AVAILABLE'
+                update RHN_SUP_INV_BAL
+                   set QTY_ON_HAND = 240, QTY_RESERVED = 0, QTY_FROZEN = 0,
+                       QTY_AVAILABLE = 240, REVISION = REVISION + 1
+                 where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
         JsonNode preparedBatch = reviewAndReserve(firstBatch.get("id").asText());
         assertEquals("PICKING", findLine(preparedBatch, requestId).get("dispenseTaskStatus").asText());
         assertEquals("PICKING", findLine(preparedBatch, companionRequestId).get("dispenseTaskStatus").asText());
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from pharmacy_reviews where task_id in (?, ?)
+                select count(*) from RHN_SUP_PHARM_REVIEW where ID_DISP_TASK in (?, ?)
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
         assertEquals(2, jdbc.queryForObject("""
-                select count(distinct r.dispense_task_line_id) from inventory_reservations r
-                  join dispense_task_lines l on l.tenant_id = r.tenant_id and l.id = r.dispense_task_line_id
-                 where l.task_id in (?, ?) and r.status in ('ACTIVE','PARTIAL')
+                select count(distinct r.ID_DISP_TASK_LINE) from RHN_SUP_INV_RESV r
+                  join RHN_SUP_DISP_TASK_LINE l on l.ID_TNT = r.ID_TNT and l.ID_DISP_TASK_LINE = r.ID_DISP_TASK_LINE
+                 where l.ID_DISP_TASK in (?, ?) and r.SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
         JsonNode preparedReplay = reviewAndReserve(firstBatch.get("id").asText());
         assertEquals("PICKING", findLine(preparedReplay, requestId).get("dispenseTaskStatus").asText());
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from pharmacy_reviews where task_id in (?, ?)
+                select count(*) from RHN_SUP_PHARM_REVIEW where ID_DISP_TASK in (?, ?)
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
         JsonNode pickingCompleted = completePicking(firstBatch.get("id").asText());
@@ -193,9 +193,9 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         // then fail the higher task with an expired reservation; the first issue must roll back as well.
         long expiredTaskId = Math.max(Long.parseLong(firstDispenseTaskId), Long.parseLong(companionDispenseTaskId));
         jdbc.update("""
-                update inventory_reservations set expires_at = ?
-                 where dispense_task_line_id = (select id from dispense_task_lines where task_id = ?)
-                   and status in ('ACTIVE','PARTIAL')
+                update RHN_SUP_INV_RESV set DT_EXPIRES = ?
+                 where ID_DISP_TASK_LINE = (select id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?)
+                   and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().minusSeconds(60), expiredTaskId);
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/dispense-deliveries",
                         firstBatch.get("id").asText()).with(pharmacyContext())
@@ -205,17 +205,17 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT)))
                 .andExpect(status().isConflict());
         assertEquals(0, jdbc.queryForObject("""
-                select count(*) from medication_dispenses where task_id in (?, ?)
-                  and dispense_type in ('DISPENSE','REDISPENSE')
+                select count(*) from RHN_SUP_MED_DISP where ID_DISP_TASK in (?, ?)
+                  and SD_DISP_TYPE in ('DISPENSE','REDISPENSE')
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from dispense_tasks where id in (?, ?) and status = 'READY_TO_DISPENSE'
+                select count(*) from RHN_SUP_DISP_TASK where ID_DISP_TASK in (?, ?) and SD_STATUS = 'READY_TO_DISPENSE'
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
         jdbc.update("""
-                update inventory_reservations set expires_at = ?
-                 where dispense_task_line_id in (select id from dispense_task_lines where task_id in (?, ?))
-                   and status in ('ACTIVE','PARTIAL')
+                update RHN_SUP_INV_RESV set DT_EXPIRES = ?
+                 where ID_DISP_TASK_LINE in (select id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK in (?, ?))
+                   and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().plusSeconds(1800), Long.valueOf(firstDispenseTaskId),
                 Long.valueOf(companionDispenseTaskId));
         JsonNode fulfillment = dispenseAndDeliver(firstBatch.get("id").asText());
@@ -225,17 +225,17 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                 .get("dispenseTaskStatus").asText());
         assertEquals("ISSUED", findLine(fulfillment.get("batch"), requestId).get("status").asText());
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from medication_dispenses where task_id in (?, ?)
-                  and dispense_type = 'DISPENSE'
+                select count(*) from RHN_SUP_MED_DISP where ID_DISP_TASK in (?, ?)
+                  and SD_DISP_TYPE = 'DISPENSE'
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from ward_deliveries", Integer.class));
-        assertEquals(2, jdbc.queryForObject("select count(*) from ward_delivery_lines", Integer.class));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_LINE", Integer.class));
 
         JsonNode fulfillmentReplay = dispenseAndDeliver(firstBatch.get("id").asText());
         assertEquals(fulfillment.at("/deliveries/0/id").asText(),
                 fulfillmentReplay.at("/deliveries/0/id").asText());
-        assertEquals(1, jdbc.queryForObject("select count(*) from ward_deliveries", Integer.class));
-        assertEquals(2, jdbc.queryForObject("select count(*) from ward_delivery_lines", Integer.class));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
+        assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_LINE", Integer.class));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/dispense-deliveries",
                         firstBatch.get("id").asText()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -244,10 +244,10 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PHARMACIST_ASSIGNMENT)))
                 .andExpect(status().isConflict());
         assertEquals(2, jdbc.queryForObject("""
-                select count(*) from medication_dispenses where task_id in (?, ?)
-                  and dispense_type = 'DISPENSE'
+                select count(*) from RHN_SUP_MED_DISP where ID_DISP_TASK in (?, ?)
+                  and SD_DISP_TYPE = 'DISPENSE'
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
-        assertEquals(1, jdbc.queryForObject("select count(*) from ward_deliveries", Integer.class));
+        assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/intake",
                         firstBatch.get("id").asText()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -256,8 +256,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(firstSupplyLine.get("id").asText())))
                 .andExpect(status().isConflict());
         assertEquals(1, count("""
-                select count(*) from dispense_task_lines
-                 where fulfillment_source_type = 'INPATIENT_SUPPLY_LINE' and fulfillment_source_id = ?
+                select count(*) from RHN_SUP_DISP_TASK_LINE
+                 where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
                 """, firstSupplyLine.get("id").asText()));
 
         // The first daily line is already accepted by pharmacy. Appending the next clinical day must remain legal.
@@ -286,8 +286,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 firstSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM)))
                 .andExpect(status().isBadRequest());
         assertEquals(0, count("""
-                select count(*) from dispense_task_lines
-                 where fulfillment_source_type = 'INPATIENT_SUPPLY_LINE' and fulfillment_source_id = ?
+                select count(*) from RHN_SUP_DISP_TASK_LINE
+                 where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
                 """, secondSupplyLine.get("id").asText()));
 
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/intake",
@@ -301,8 +301,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                                 secondSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM)))
                 .andExpect(status().isBadRequest());
         assertEquals(0, count("""
-                select count(*) from dispense_task_lines
-                 where fulfillment_source_type = 'INPATIENT_SUPPLY_LINE' and fulfillment_source_id = ?
+                select count(*) from RHN_SUP_DISP_TASK_LINE
+                 where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
                 """, secondSupplyLine.get("id").asText()));
 
         JsonNode secondIntake = intakeBatch(secondBatch.get("id").asText(),
@@ -311,8 +311,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                 .get("dispenseTaskLineId").asText();
         assertNotEquals(firstDispenseTaskLineId, secondDispenseTaskLineId);
         assertEquals(2, count("""
-                select count(*) from dispense_task_lines
-                 where request_id = ? and fulfillment_source_type = 'INPATIENT_SUPPLY_LINE'
+                select count(*) from RHN_SUP_DISP_TASK_LINE
+                 where ID_CARE_REQ = ? and SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE'
                 """, requestId));
         assertSingleActiveSupply(thirdTaskId);
         assertSingleActiveSupply(fourthTaskId);
@@ -374,8 +374,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
 
     private void assertSingleActiveSupply(String taskId) {
         assertEquals(1, count("""
-                select count(*) from inpatient_med_supply_tasks
-                 where order_task_id = ? and status = 'ACTIVE'
+                select count(*) from RHN_SUP_INP_MED_SUPPLY_TASK
+                 where ID_INP_ORDER_TASK = ? and SD_STATUS = 'ACTIVE'
                 """, taskId));
     }
 

@@ -12,35 +12,35 @@ import java.time.Instant;
 import java.util.Set;
 
 @Entity
-@Table(name = "inventory_trace_codes")
+@Table(name = "RHN_SUP_INV_TRACE_CODE")
 public class InventoryTraceCode {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "stock_site_id", nullable = false) private Long stockSiteId;
-    @Column(name = "stock_bin_id") private Long stockBinId;
-    @Column(name = "stock_item_id", nullable = false) private Long stockItemId;
-    @Column(name = "stock_lot_id") private Long stockLotId;
-    @Column(name = "goods_receipt_line_id") private Long goodsReceiptLineId;
-    @Column(name = "trace_code", nullable = false) private String traceCode;
-    @Column(name = "normalized_code", nullable = false) private String normalizedCode;
-    @Column(name = "product_code_snapshot", nullable = false) private String productCodeSnapshot;
-    @Column(name = "product_name_snapshot", nullable = false) private String productNameSnapshot;
-    @Column(name = "lot_no_snapshot", nullable = false) private String lotNoSnapshot;
-    @Column(name = "package_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal packageQuantity;
-    @Column(name = "base_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantity;
-    @Column(name = "remaining_base_quantity", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "current_document_type") private String currentDocumentType;
-    @Column(name = "current_document_id") private Long currentDocumentId;
-    @Column(name = "current_document_no") private String currentDocumentNo;
-    @Column(name = "received_at") private Instant receivedAt;
-    @Column(name = "issued_at") private Instant issuedAt;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private Long updatedBy;
+    @Id @Column(name = "ID_INV_TRACE_CODE") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_STOCK_SITE", nullable = false) private Long stockSiteId;
+    @Column(name = "ID_STOCK_BIN") private Long stockBinId;
+    @Column(name = "ID_STOCK_ITEM", nullable = false) private Long stockItemId;
+    @Column(name = "ID_STOCK_LOT") private Long stockLotId;
+    @Column(name = "ID_GOOD_RCPT_LINE") private Long goodsReceiptLineId;
+    @Column(name = "CD_TRACE", nullable = false) private String traceCode;
+    @Column(name = "CD_NORMALIZED", nullable = false) private String normalizedCode;
+    @Column(name = "CD_PRODUCT_SNAP", nullable = false) private String productCodeSnapshot;
+    @Column(name = "NA_PRODUCT_SNAP", nullable = false) private String productNameSnapshot;
+    @Column(name = "CD_LOT_SNAP", nullable = false) private String lotNoSnapshot;
+    @Column(name = "QTY_PKG", nullable = false, precision = 28, scale = 8) private BigDecimal packageQuantity;
+    @Column(name = "QTY_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal baseQuantity;
+    @Column(name = "QTY_REMAINING_BASE", nullable = false, precision = 28, scale = 8) private BigDecimal remainingBaseQuantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "SD_CURRENT_DOC_TYPE") private String currentDocumentType;
+    @Column(name = "ID_CURRENT_DOC") private Long currentDocumentId;
+    @Column(name = "CD_CURRENT_DOC_NO") private String currentDocumentNo;
+    @Column(name = "DT_RECEIVED") private Instant receivedAt;
+    @Column(name = "DT_ISSUED") private Instant issuedAt;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected InventoryTraceCode() {}
 

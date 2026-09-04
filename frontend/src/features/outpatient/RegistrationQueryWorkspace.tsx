@@ -7,7 +7,7 @@ import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/ap
 import { age, genderLabel } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
-  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Panel, PanelHead, Select,
+  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead, Select,
   StatusBadge, type DateRange,
 } from '../../shared/ui'
 
@@ -55,14 +55,24 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
   const [status, setStatus] = useState<ReceptionQueueItem['status'] | ''>('')
   const [query, setQuery] = useState('')
   const [submittedQuery, setSubmittedQuery] = useState('')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
   const [cancelling, setCancelling] = useState<ReceptionQueueItem | null>(null)
   const [cancellationResult, setCancellationResult] = useState<CancelEncounterResult | null>(null)
 
   const registrations = useQuery({
     queryKey: [
-      'outpatient-registrations', clinicalContext.organization.id, clinicalContext.department.id, dateRange.from, dateRange.to,
+      'outpatient-registrations', clinicalContext.organization.id, clinicalContext.department.id,
+      dateRange.from, dateRange.to, status, submittedQuery, pageIndex, pageSize,
     ],
-    queryFn: () => api.scheduling.receptionQueue(dateRange.from, dateRange.to),
+    queryFn: () => api.scheduling.receptionPage({
+      dateFrom: dateRange.from,
+      dateTo: dateRange.to,
+      status: status || undefined,
+      query: submittedQuery || undefined,
+      page: pageIndex,
+      size: pageSize,
+    }),
     enabled: Boolean(dateRange.from && dateRange.to),
   })
   const visitTypes = useQuery({
@@ -77,6 +87,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
   useEffect(() => {
     setCancelling(null)
     setCancellationResult(null)
+    setPageIndex(0)
   }, [clinicalContext.organization.id, clinicalContext.department.id])
 
   const statusText = (value: ReceptionQueueItem['status']) => {
@@ -90,10 +101,9 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     { value: '', label: '全部状态' },
     ...queueStatuses.map((value) => ({ value, label: statusText(value) })),
   ]
-  const normalizedQuery = submittedQuery.toLocaleLowerCase('zh-CN')
-  const registrationItems = useMemo(() => (registrations.data ?? []).filter((item) =>
-    (!status || item.status === status) && includesQuery(item, normalizedQuery),
-  ), [normalizedQuery, registrations.data, status])
+  const registrationItems = registrations.data?.content ?? []
+  const totalElements = registrations.data?.totalElements ?? 0
+  const totalPages = registrations.data?.totalPages ?? 0
 
   const cancelRegistration = useMutation({
     mutationFn: ({ item, reason }: { item: ReceptionQueueItem; reason: string }) =>
@@ -114,9 +124,20 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     },
   })
 
+  function handleDateRangeChange(range: DateRange) {
+    setDateRange(range)
+    setPageIndex(0)
+  }
+
+  function handleStatusChange(value: ReceptionQueueItem['status'] | '') {
+    setStatus(value)
+    setPageIndex(0)
+  }
+
   function search(event: FormEvent) {
     event.preventDefault()
     setSubmittedQuery(query.trim())
+    setPageIndex(0)
   }
 
   const pageError = registrations.error || visitTypes.error || receptionStatuses.error || cancelRegistration.error
@@ -139,7 +160,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
       {cancellationResult.refundStatus ? `（退款状态：${cancellationResult.refundStatus}）` : ''}</Alert>}
 
     <section className="registration-metrics" aria-label="挂号查询摘要">
-      <div><span>查询结果</span><strong>{registrationItems.length}</strong><small>{dateRangeLabel}</small></div>
+      <div><span>查询结果</span><strong>{totalElements}</strong><small>{dateRangeLabel}</small></div>
       <div><span>候诊中</span><strong>{waiting}</strong><small>等待医生接诊</small></div>
       <div><span>接诊中 / 暂挂</span><strong>{active}</strong><small>仍在本次诊疗流程</small></div>
       <div><span>已诊毕 / 已取消</span><strong>{completed} / {cancelled}</strong><small>已结束记录</small></div>
@@ -148,11 +169,11 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     <Panel className="registration-query-filter-panel">
       <form className="registration-query-filter-form" onSubmit={search}>
         <FormField label="挂号日期范围">
-          <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <DateRangePicker value={dateRange} onChange={handleDateRangeChange} />
         </FormField>
         <FormField label="接诊状态"><Select value={status} options={statusOptions} placeholder="全部状态"
           searchable={false} clearable={false}
-          onChange={(value) => setStatus(value as ReceptionQueueItem['status'] | '')} /></FormField>
+          onChange={(value) => handleStatusChange(value as ReceptionQueueItem['status'] | '')} /></FormField>
         <FormField label="挂号记录关键词"><input value={query} onChange={(event) => setQuery(event.target.value)}
           placeholder="姓名、档案号、挂号单或候诊号" /></FormField>
         <Button type="submit" variant="secondary" busy={registrations.isFetching}>
@@ -161,13 +182,13 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
     </Panel>
 
     <Panel className="registration-query-list-panel">
-      <PanelHead title="挂号记录" meta={`${registrationItems.length} 条 · ${clinicalContext.department.name}`} />
-      {registrations.isPending ? <LoadingState label="正在加载挂号记录…" /> : registrationItems.length === 0
-        ? <EmptyState icon="clinical" title={(registrations.data ?? []).length === 0 ? `${dateRangeLabel} 暂无挂号` : '没有匹配的挂号记录'}
-          copy={(registrations.data ?? []).length === 0 ? '可前往门诊挂号办理新的挂号。' : '请调整状态或关键词后重新查询。'}
-          action={(registrations.data ?? []).length === 0
+      <PanelHead title="挂号记录" meta={`共 ${totalElements} 条 · ${clinicalContext.department.name}`} />
+      {registrations.isPending ? <LoadingState label="正在加载挂号记录…" /> : totalElements === 0
+        ? <EmptyState icon="clinical" title={!submittedQuery && !status ? `${dateRangeLabel} 暂无挂号` : '没有匹配的挂号记录'}
+          copy={!submittedQuery && !status ? '可前往门诊挂号办理新的挂号。' : '请调整状态或关键词后重新查询。'}
+          action={!submittedQuery && !status
             ? <Button onClick={() => onNavigate('/outpatient/registration')}>办理挂号</Button> : undefined} />
-        : <div className="registration-query-list-scroll"><div className="registration-today-list">
+        : <><div className="registration-query-list-scroll"><div className="registration-today-list">
           <div className="registration-today-list__head"><span>候诊号</span><span>居民</span><span>门诊服务</span>
             <span>挂号信息</span><span>状态</span><span>操作</span></div>
           {registrationItems.map((item) => <article key={item.registrationId}>
@@ -186,7 +207,21 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
                 }).toString()}`)}>{['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
             </span>
           </article>)}
-        </div></div>}
+        </div></div>
+        <Pagination
+          page={pageIndex}
+          totalPages={totalPages}
+          total={totalElements}
+          pageSize={pageSize}
+          onChange={setPageIndex}
+          onPageSizeChange={(size) => {
+            setPageSize(size)
+            setPageIndex(0)
+          }}
+          pageSizeOptions={[10, 20, 50]}
+          label="挂号记录分页"
+        />
+        </>}
     </Panel>
 
     {cancelling && <RegistrationCancellationDialog item={cancelling} busy={cancelRegistration.isPending}

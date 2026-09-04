@@ -12,33 +12,33 @@ import java.time.Instant;
 import com.rhn.shared.id.GlobalIds;
 
 @Entity
-@Table(name = "laboratory_service_specimens")
+@Table(name = "RHN_EX_LAB_SVC_SPEC")
 public class LaboratoryServiceSpecimen {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "catalog_item_id", nullable = false) private Long catalogItemId;
-    @Column(name = "specimen_item_id", nullable = false) private Long specimenItemId;
-    @Column(name = "container_item_id") private Long containerItemId;
-    @Column(name = "minimum_quantity") private BigDecimal minimumQuantity;
-    @Column(name = "minimum_quantity_unit") private String minimumQuantityUnit;
-    @Column(name = "default_specimen", nullable = false) private boolean defaultSpecimen;
-    @Column(name = "required_specimen", nullable = false) private boolean requiredSpecimen;
-    @Column(name = "sort_order", nullable = false) private int sortOrder;
-    @Column(name = "collection_description") private String collectionDescription;
-    @Column(name = "tube_group_code") private String tubeGroupCode;
-    @Column(name = "tube_sharing_mode", nullable = false) private String tubeSharingMode;
-    @Column(name = "base_tube_count", nullable = false) private int baseTubeCount;
-    @Column(name = "max_tests_per_tube") private Integer maxTestsPerTube;
-    @Column(name = "tube_charge_mode", nullable = false) private String tubeChargeMode;
-    @Column(name = "tube_charge_item_id") private Long tubeChargeItemId;
-    @Column(name = "included_tube_count", nullable = false) private int includedTubeCount;
-    @Column(name = "tube_charge_quantity", nullable = false) private BigDecimal tubeChargeQuantity;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by") private Long createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by") private Long updatedBy;
+    @Id @Column(name = "ID_LAB_SVC_SPEC") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
+    @Column(name = "ID_DICT_ITEM_SPEC", nullable = false) private Long specimenItemId;
+    @Column(name = "ID_DICT_ITEM_CONTAINER") private Long containerItemId;
+    @Column(name = "QTY_MINIMUM") private BigDecimal minimumQuantity;
+    @Column(name = "MINIMUM_QUANTITY_UNIT") private String minimumQuantityUnit;
+    @Column(name = "FG_DEFAULT_SPEC", nullable = false) private boolean defaultSpecimen;
+    @Column(name = "FG_REQUIRED_SPEC", nullable = false) private boolean requiredSpecimen;
+    @Column(name = "SN_SORT", nullable = false) private int sortOrder;
+    @Column(name = "DES_COLLECTION_DESCRIPTION") private String collectionDescription;
+    @Column(name = "CD_TUBE_GRP") private String tubeGroupCode;
+    @Column(name = "SD_TUBE_SHARING_MODE", nullable = false) private String tubeSharingMode;
+    @Column(name = "QTY_BASE_TUBE", nullable = false) private int baseTubeCount;
+    @Column(name = "QTY_MAX_TEST_PER_TUBE") private Integer maxTestsPerTube;
+    @Column(name = "SD_TUBE_CHARGE_MODE", nullable = false) private String tubeChargeMode;
+    @Column(name = "ID_CATALOG_ITEM_TUBE_CHARGE") private Long tubeChargeItemId;
+    @Column(name = "QTY_INCLUDED_TUBE", nullable = false) private int includedTubeCount;
+    @Column(name = "QTY_TUBE_CHARGE", nullable = false) private BigDecimal tubeChargeQuantity;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED") private Long createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED") private Long updatedBy;
 
     protected LaboratoryServiceSpecimen() {}
 

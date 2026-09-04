@@ -15,20 +15,20 @@ final class ResidentProfileEntities {
 }
 
 @Entity
-@Table(name = "resident_demographic_profiles")
+@Table(name = "RHN_PI_PAT_DEMO_PROF")
 class ResidentDemographicProfile {
-    @Id @Column(name = "resident_id") private Long residentId;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "nationality_code") private String nationalityCode;
-    @Column(name = "ethnicity_code") private String ethnicityCode;
-    @Column(name = "residency_type_code") private String residencyTypeCode;
-    @Column(name = "marital_status_code") private String maritalStatusCode;
-    @Column(name = "education_code") private String educationCode;
-    @Column(name = "occupation_code") private String occupationCode;
-    @Column(name = "blood_type_code") private String bloodTypeCode;
-    @Column(name = "rh_type_code") private String rhTypeCode;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private String updatedBy;
+    @Id @Column(name = "ID_PAT") private Long residentId;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "CD_NATIONALITY") private String nationalityCode;
+    @Column(name = "CD_ETHNICITY") private String ethnicityCode;
+    @Column(name = "CD_RESIDENCY_TYPE") private String residencyTypeCode;
+    @Column(name = "CD_MARITAL_STATUS") private String maritalStatusCode;
+    @Column(name = "CD_EDUCATION") private String educationCode;
+    @Column(name = "CD_OCCUPATION") private String occupationCode;
+    @Column(name = "CD_BLOOD_TYPE") private String bloodTypeCode;
+    @Column(name = "CD_RH_TYPE") private String rhTypeCode;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private String updatedBy;
 
     protected ResidentDemographicProfile() {}
 
@@ -65,25 +65,25 @@ class ResidentDemographicProfile {
 }
 
 @Entity
-@Table(name = "resident_employments")
+@Table(name = "RHN_PI_PAT_EMPL")
 class ResidentEmployment {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "employer_name", nullable = false) private String employerName;
-    @Column(name = "occupation_code") private String occupationCode;
-    private String phone;
-    @Column(name = "postal_code") private String postalCode;
-    @Column(name = "address_text") private String addressText;
-    @Column(name = "primary_flag", nullable = false) private boolean primary;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private String createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private String updatedBy;
+    @Id @Column(name = "ID_PAT_EMPL") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "NA_EMPLOYER", nullable = false) private String employerName;
+    @Column(name = "CD_OCCUPATION") private String occupationCode;
+    @Column(name = "CD_PHONE") private String phone;
+    @Column(name = "CD_POSTAL") private String postalCode;
+    @Column(name = "DES_ADDRESS") private String addressText;
+    @Column(name = "FG_PRIMARY_FLAG", nullable = false) private boolean primary;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private String createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private String updatedBy;
 
     protected ResidentEmployment() {}
 
@@ -104,28 +104,28 @@ class ResidentEmployment {
 }
 
 @Entity
-@Table(name = "resident_addresses")
+@Table(name = "RHN_PI_PAT_ADDR")
 class ResidentAddress {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "use_code", nullable = false) private String useCode;
-    @Column(name = "province_code") private String provinceCode;
-    @Column(name = "city_code") private String cityCode;
-    @Column(name = "district_code") private String districtCode;
-    @Column(name = "street_code") private String streetCode;
-    @Column(name = "community_code") private String communityCode;
-    @Column(name = "address_text", nullable = false) private String addressText;
-    @Column(name = "postal_code") private String postalCode;
-    @Column(name = "primary_flag", nullable = false) private boolean primary;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private String createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private String updatedBy;
+    @Id @Column(name = "ID_PAT_ADDR") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_USE", nullable = false) private String useCode;
+    @Column(name = "CD_PROVINCE") private String provinceCode;
+    @Column(name = "CD_CITY") private String cityCode;
+    @Column(name = "CD_DISTRICT") private String districtCode;
+    @Column(name = "CD_STREET") private String streetCode;
+    @Column(name = "CD_COMMUNITY") private String communityCode;
+    @Column(name = "DES_ADDRESS", nullable = false) private String addressText;
+    @Column(name = "CD_POSTAL") private String postalCode;
+    @Column(name = "FG_PRIMARY_FLAG", nullable = false) private boolean primary;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private String createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private String updatedBy;
 
     protected ResidentAddress() {}
 
@@ -150,25 +150,25 @@ class ResidentAddress {
 }
 
 @Entity
-@Table(name = "resident_related_persons")
+@Table(name = "RHN_PI_PAT_RELATED_PERSON")
 class ResidentRelatedPerson {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "full_name", nullable = false) private String fullName;
-    @Column(name = "relationship_code", nullable = false) private String relationshipCode;
-    private String phone;
-    @Column(name = "address_text") private String addressText;
-    @Column(name = "guardian_flag", nullable = false) private boolean guardian;
-    @Column(name = "emergency_contact_flag", nullable = false) private boolean emergencyContact;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private String createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private String updatedBy;
+    @Id @Column(name = "ID_PAT_RELATED_PERSON") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "NA_FULL", nullable = false) private String fullName;
+    @Column(name = "CD_RELATIONSHIP", nullable = false) private String relationshipCode;
+    @Column(name = "CD_PHONE") private String phone;
+    @Column(name = "DES_ADDRESS") private String addressText;
+    @Column(name = "FG_GUARDIAN_FLAG", nullable = false) private boolean guardian;
+    @Column(name = "FG_EMERGENCY_CONTACT_FLAG", nullable = false) private boolean emergencyContact;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private String createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private String updatedBy;
 
     protected ResidentRelatedPerson() {}
 
@@ -189,23 +189,23 @@ class ResidentRelatedPerson {
 }
 
 @Entity
-@Table(name = "resident_coverages")
+@Table(name = "RHN_INS_PAT_COVER")
 class ResidentCoverage {
-    @Id private Long id;
-    @Version private long revision;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "coverage_type_code", nullable = false) private String coverageTypeCode;
-    @Column(name = "payer_name", nullable = false) private String payerName;
-    @Column(name = "member_no") private String memberNo;
-    @Column(name = "primary_flag", nullable = false) private boolean primary;
-    @Column(name = "valid_from", nullable = false) private LocalDate validFrom;
-    @Column(name = "valid_to") private LocalDate validTo;
-    @Column(nullable = false) private String status;
-    @Column(name = "created_at", nullable = false) private Instant createdAt;
-    @Column(name = "created_by", nullable = false) private String createdBy;
-    @Column(name = "updated_at", nullable = false) private Instant updatedAt;
-    @Column(name = "updated_by", nullable = false) private String updatedBy;
+    @Id @Column(name = "ID_PAT_COVER") private Long id;
+    @Version @Column(name = "REVISION") private long revision;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "CD_COVER_TYPE", nullable = false) private String coverageTypeCode;
+    @Column(name = "NA_PAYER", nullable = false) private String payerName;
+    @Column(name = "CD_MEMBER_NO") private String memberNo;
+    @Column(name = "FG_PRIMARY_FLAG", nullable = false) private boolean primary;
+    @Column(name = "DA_VALID_FROM", nullable = false) private LocalDate validFrom;
+    @Column(name = "DA_VALID_TO") private LocalDate validTo;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
+    @Column(name = "ID_USER_CREATED", nullable = false) private String createdBy;
+    @Column(name = "DT_UPDATED", nullable = false) private Instant updatedAt;
+    @Column(name = "ID_USER_UPDATED", nullable = false) private String updatedBy;
 
     protected ResidentCoverage() {}
 

@@ -10,22 +10,22 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 @Entity
-@Table(name = "invoices")
+@Table(name = "RHN_BIL_INVOICE")
 public class Invoice {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "patient_account_id", nullable = false) private Long patientAccountId;
-    @Column(name = "invoice_no", nullable = false) private String invoiceNo;
-    @Column(name = "invoice_type", nullable = false) private String invoiceType;
-    @Column(nullable = false) private String status;
-    @Column(name = "currency_code", nullable = false) private String currencyCode;
-    @Column(name = "gross_amount", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
-    @Column(name = "discount_amount", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
-    @Column(name = "net_amount", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
-    @Column(name = "issued_at", nullable = false) private Instant issuedAt;
-    @Column(name = "issued_by", nullable = false) private Long issuedBy;
-    @Column(name = "cancelled_at") private Instant cancelledAt;
-    @Column(name = "cancellation_reason") private String cancellationReason;
+    @Id @Column(name = "ID_INVOICE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
+    @Column(name = "CD_INVOICE_NO", nullable = false) private String invoiceNo;
+    @Column(name = "SD_INVOICE_TYPE", nullable = false) private String invoiceType;
+    @Column(name = "SD_STATUS", nullable = false) private String status;
+    @Column(name = "CD_CURRENCY", nullable = false) private String currencyCode;
+    @Column(name = "AMT_GROSS", nullable = false, precision = 24, scale = 6) private BigDecimal grossAmount;
+    @Column(name = "AMT_DISCOUNT", nullable = false, precision = 24, scale = 6) private BigDecimal discountAmount;
+    @Column(name = "AMT_NET", nullable = false, precision = 24, scale = 6) private BigDecimal netAmount;
+    @Column(name = "DT_ISSUED", nullable = false) private Instant issuedAt;
+    @Column(name = "ID_USER_ISSUED", nullable = false) private Long issuedBy;
+    @Column(name = "DT_CANCELLED") private Instant cancelledAt;
+    @Column(name = "DES_CANCELLATION_REASON") private String cancellationReason;
 
     protected Invoice() {}
 

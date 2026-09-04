@@ -9,23 +9,23 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "insurance_claim_lines")
+@Table(name = "RHN_INS_CLAIM_LINE")
 public class InsuranceClaimLine {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "claim_id", nullable = false) private Long claimId;
-    @Column(name = "settlement_line_id", nullable = false) private Long settlementLineId;
-    @Column(name = "line_no", nullable = false) private int lineNo;
-    @Column(name = "item_code", nullable = false) private String itemCode;
-    @Column(name = "insurance_item_code", nullable = false) private String insuranceItemCode;
-    @Column(name = "item_name_snapshot", nullable = false) private String itemNameSnapshot;
-    @Column(name = "category_code", nullable = false) private String categoryCode;
-    @Column(nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
-    @Column(name = "unit_price", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
-    @Column(name = "claimed_amount", nullable = false, precision = 24, scale = 6) private BigDecimal claimedAmount;
-    @Column(name = "approved_amount", precision = 24, scale = 6) private BigDecimal approvedAmount;
-    @Column(name = "rejection_code") private String rejectionCode;
-    @Column(name = "trace_attributes_json") private String traceAttributesJson;
+    @Id @Column(name = "ID_INS_CLAIM_LINE") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_INS_CLAIM", nullable = false) private Long claimId;
+    @Column(name = "ID_STL_LINE", nullable = false) private Long settlementLineId;
+    @Column(name = "SN_LINE", nullable = false) private int lineNo;
+    @Column(name = "CD_ITEM", nullable = false) private String itemCode;
+    @Column(name = "CD_INS_ITEM", nullable = false) private String insuranceItemCode;
+    @Column(name = "NA_ITEM_SNAP", nullable = false) private String itemNameSnapshot;
+    @Column(name = "CD_CAT", nullable = false) private String categoryCode;
+    @Column(name = "QTY_CLAIM", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
+    @Column(name = "PRICE_UNIT", nullable = false, precision = 24, scale = 6) private BigDecimal unitPrice;
+    @Column(name = "AMT_CLAIMED", nullable = false, precision = 24, scale = 6) private BigDecimal claimedAmount;
+    @Column(name = "AMT_APPROVED", precision = 24, scale = 6) private BigDecimal approvedAmount;
+    @Column(name = "CD_REJECTION") private String rejectionCode;
+    @Column(name = "JSON_TRACE_ATTR") private String traceAttributesJson;
 
     protected InsuranceClaimLine() {}
     public InsuranceClaimLine(Long tenantId, Long claimId, Long settlementLineId, int lineNo, String itemCode,

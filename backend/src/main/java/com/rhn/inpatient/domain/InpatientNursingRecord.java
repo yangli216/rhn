@@ -11,30 +11,30 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 
 @Entity
-@Table(name = "inpatient_nursing_records")
+@Table(name = "RHN_VIS_INP_NURS_RECORD")
 public class InpatientNursingRecord {
-    @Id private Long id;
-    @Column(name = "tenant_id", nullable = false) private Long tenantId;
-    @Column(name = "organization_id", nullable = false) private Long organizationId;
-    @Column(name = "department_id", nullable = false) private Long departmentId;
-    @Column(name = "episode_id", nullable = false) private Long episodeId;
-    @Column(name = "encounter_id", nullable = false) private Long encounterId;
-    @Column(name = "resident_id", nullable = false) private Long residentId;
-    @Column(name = "occurred_at", nullable = false) private Instant occurredAt;
-    @Column(name = "record_type", nullable = false) private String recordType;
-    @Lob @Column(name = "content_json", nullable = false) private String contentJson;
-    @Lob @Column(name = "observation_summary_json") private String observationSummaryJson;
-    @Lob @Column(name = "assessment_json") private String assessmentJson;
-    @Column(name = "content_schema", nullable = false) private String contentSchema;
-    @Column(name = "command_code", nullable = false) private String commandCode;
-    @Column(name = "request_hash", nullable = false) private String requestHash;
-    @Column(name = "recorded_by_subject_id", nullable = false) private Long recordedBySubjectId;
-    @Column(name = "recorded_by_practitioner_id") private Long recordedByPractitionerId;
-    @Column(name = "recorder_name", nullable = false) private String recorderName;
-    @Column(name = "recorded_at", nullable = false) private Instant recordedAt;
-    @Column(name = "content_digest_algorithm", nullable = false) private String contentDigestAlgorithm;
-    @Column(name = "content_digest", nullable = false) private String contentDigest;
-    @Column(name = "integrity_evidence_id", nullable = false) private Long integrityEvidenceId;
+    @Id @Column(name = "ID_INP_NURS_RECORD") private Long id;
+    @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
+    @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
+    @Column(name = "ID_ENC", nullable = false) private Long encounterId;
+    @Column(name = "ID_PAT", nullable = false) private Long residentId;
+    @Column(name = "DT_OCCURRED", nullable = false) private Instant occurredAt;
+    @Column(name = "SD_RECORD_TYPE", nullable = false) private String recordType;
+    @Lob @Column(name = "JSON_CONTENT", nullable = false) private String contentJson;
+    @Lob @Column(name = "JSON_OBS_SUM") private String observationSummaryJson;
+    @Lob @Column(name = "JSON_ASSESSMENT") private String assessmentJson;
+    @Column(name = "JSON_CONTENT_SCHEMA", nullable = false) private String contentSchema;
+    @Column(name = "CD_COMMAND", nullable = false) private String commandCode;
+    @Column(name = "HASH_REQ", nullable = false) private String requestHash;
+    @Column(name = "ID_RECORDED_BY_SUBJECT", nullable = false) private Long recordedBySubjectId;
+    @Column(name = "ID_RECORDED_BY_PRACT") private Long recordedByPractitionerId;
+    @Column(name = "NA_RECORDER", nullable = false) private String recorderName;
+    @Column(name = "DT_RECORDED", nullable = false) private Instant recordedAt;
+    @Column(name = "CONTENT_DIGEST_ALGORITHM", nullable = false) private String contentDigestAlgorithm;
+    @Column(name = "HASH_CONTENT", nullable = false) private String contentDigest;
+    @Column(name = "ID_CRYPTO_EVID_INTEGRITY", nullable = false) private Long integrityEvidenceId;
 
     protected InpatientNursingRecord() {
     }

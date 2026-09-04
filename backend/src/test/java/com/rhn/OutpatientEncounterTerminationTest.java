@@ -102,12 +102,12 @@ class OutpatientEncounterTerminationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ENCOUNTER_STATE_INVALID"));
 
         assertEquals(1, jdbc.queryForObject("""
-                select count(*) from encounter_work_sessions
-                where encounter_id = ? and status = 'CLOSED' and close_reason = 'TERMINATED'
+                select count(*) from RHN_VIS_ENC_WORK_SESSION
+                where ID_ENC = ? and SD_STATUS = 'CLOSED' and DES_CLOSE_REASON = 'TERMINATED'
                 """, Integer.class, Long.valueOf(encounterId)));
         assertEquals(1, jdbc.queryForObject("""
-                select count(*) from encounter_status_events
-                where encounter_id = ? and status_to = 'TERMINATED'
+                select count(*) from RHN_VIS_ENC_STATUS_EVT
+                where ID_ENC = ? and SD_STATUS_TO = 'TERMINATED'
                 """, Integer.class, Long.valueOf(encounterId)));
     }
 
