@@ -114,8 +114,13 @@ export function PageHeader({ eyebrow, title, description, actions, compact = fal
   </header>
 }
 
-export function PanelHead({ title, meta, actions }: { title: string; meta?: ReactNode; actions?: ReactNode }) {
-  return <header className="ui-panel__head">
+export function PanelHead({ title, meta, actions, className = '' }: {
+  title: string
+  meta?: ReactNode
+  actions?: ReactNode
+  className?: string
+}) {
+  return <header className={`ui-panel__head ${className}`}>
     <h2>{title}</h2>
     {meta && <span className="ui-panel__meta">{meta}</span>}
     {actions}

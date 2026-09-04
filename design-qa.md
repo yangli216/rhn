@@ -1,3 +1,53 @@
+# Outpatient doctor record PCIE-style presentation QA
+
+- Source visual truth: `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-6f62c3df-6373-4ccd-b32c-84b405e63d03.png` plus the PCIE reference implementation in `/Users/yangl/IdeaProjects/floating-ball/src/features/consultation-result/ui/ClinicalResultEditor.css` and `VoiceRecordFieldEditor.vue`.
+- Browser-rendered implementation: `/tmp/rhn-pcie-record-1767-final2.png`.
+- Combined comparison: `/tmp/rhn-pcie-record-comparison-final.png`.
+- Source pixels: 755 × 779 at 1× density. The source is an annotated crop of the patient context and left record panel.
+- Implementation pixels and CSS viewport: 1767 × 1038 at device scale factor 1. The left context-and-record region was cropped without scaling for the focused comparison; the combined comparison is 1404 × 823.
+- State: authenticated outpatient doctor station, in-progress patient opened in editing mode, empty unsaved record, chief-complaint field focused.
+
+## Full-view comparison evidence
+
+The browser capture confirms that the former standalone template row is removed and the template selector, import action and save-template action now share the record title bar. The record and order columns remain bottom-aligned and the 1767 px viewport has no horizontal overflow.
+
+The record body follows the PCIE document presentation: a white document surface, bold stable section labels, borderless narrative text, content-height fields, quiet default state and a restrained hover/focus wash with a single edit underline. Structured vital signs remain visibly grouped because they are measurements rather than narrative prose.
+
+## Focused region comparison evidence
+
+The combined image places the annotated source crop and the final left-panel implementation together. It shows the requested removal of the second template row and the reduction from five persistent bordered text boxes to one continuous clinical document. The focused chief-complaint state demonstrates the edit affordance without restoring form-box chrome.
+
+## Fidelity surfaces
+
+- Fonts and typography: the existing RHN family and scale are retained; section labels use the stronger PCIE-style document weight, while narrative text keeps the normal clinical reading weight and line height. No copy wraps or truncates unexpectedly at the checked desktop widths.
+- Spacing and layout rhythm: the template controls occupy one 57 px heading row. Narrative sections use compact content-driven heights and expand with content; the second pass reduced empty-field minimum heights after the first comparison found excessive vertical gaps.
+- Colors and visual tokens: RHN green and neutral surface tokens remain authoritative. PCIE's quiet white document treatment and low-opacity edit feedback are mapped to existing RHN semantic tokens instead of copying its blue theme.
+- Image quality and asset fidelity: the target region contains no imagery. Existing shared controls and icon-library assets are retained; no placeholder, emoji, custom SVG or decorative raster was introduced.
+- Copy and content: all clinical labels, placeholders, validation semantics, record status and template actions are preserved. No AI-generated content or AI capability claim is shown in this presentation-only release.
+
+## Interaction, accessibility and responsive checks
+
+- “存为模板” opens the existing save-template dialog and cancel closes it without mutation.
+- The chief-complaint field receives keyboard focus, retains its accessible label and required state, and exposes a visible focus treatment.
+- At 1767 × 1038 and 1280 × 900 there is no document-level horizontal overflow; the template selector remains inside the record heading at both widths.
+- The record and order panels share the same bottom edge in the primary desktop state.
+- ego-lite event output contained no console or runtime error events.
+- The focused outpatient test suite, TypeScript production build and UI standards check pass.
+
+## Comparison history
+
+1. The first implementation merged the template row and introduced the PCIE-style document surface. The combined comparison found one P2 density issue: minimum textarea heights left more empty vertical space than the content-driven PCIE fields.
+2. Narrative minimum heights were reduced and native resize handles were replaced with content sizing, allowing longer clinical text to expand without restoring persistent boxes.
+3. Post-fix evidence shows compact narrative rhythm, complete vital-sign values, a single-row header, zero horizontal overflow and working template/focus interactions. No actionable P0/P1/P2 differences remain for the requested presentation scope.
+
+## Findings
+
+No actionable P0/P1/P2 differences remain. Inline AI annotations, evidence popovers and AI draft generation are intentionally deferred; this release establishes the document presentation and interaction surface they can later occupy.
+
+final result: passed
+
+---
+
 # Inpatient doctor and nurse station reference-structure design QA
 
 - Source visual truth: `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-918228ec-83cc-4fff-8e4d-27b8b5e38ec3.png` and `/var/folders/tq/31b1_m3x7934pqwkcfc3qhcc0000gp/T/codex-clipboard-a6c495ff-7945-4723-99a6-295cb9ec6b75.png`.

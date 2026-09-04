@@ -438,6 +438,14 @@ export function createBillingApi(client: ApiClient) {
     }) => client.request<Payment>(`/api/billing/payments/${paymentId}/refunds`, {
       method: 'POST', body: JSON.stringify(input),
     }),
+    refundPreCheck: (encounterId: string) => client.request<RefundPreCheckSummaryView>(
+      `/api/billing/encounters/${encounterId}/refund-precheck`,
+    ),
+    directRefund: (paymentId: string, input: DirectRefundRequest) => client.request<PaymentOrder>(
+      `/api/billing/payments/${paymentId}/direct-refund`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
     dailyReconciliation: (businessDate: string) => client.request<DailyReconciliation>(
       `/api/billing/reconciliation/daily?businessDate=${encodeURIComponent(businessDate)}`,
     ),
@@ -661,5 +669,56 @@ export interface ReceiptEventView {
   errorMessage?: string
   occurredAt: string
 }
+
+export interface RefundItemPreCheckView {
+  chargeItemId: string
+  sourceType: string
+  sourceId?: string
+  documentNo?: string
+  itemName: string
+  itemCode: string
+  quantity: number
+  unitCode: string
+  totalAmount: number
+  executionStatusCode: 'DISPENSED' | 'RETURNED' | 'UNDISPENSED' | 'UNDISPENSED_NEED_CANCEL' | 'REPORTED' | 'UNEXECUTED' | 'UNEXECUTED_NEED_CANCEL' | 'EXECUTED' | 'OTHER' | string
+  executionStatusName: string
+  allowed: boolean
+  statusBadgeText: string
+  statusTone: 'success' | 'warning' | 'danger' | 'info' | string
+  blockReason?: string
+}
+
+export interface RefundPaymentCandidateView {
+  paymentId: string
+  paymentNo: string
+  paymentMethodCode: string
+  amount: number
+  refundedAmount: number
+  refundableAmount: number
+  currencyCode: string
+  paidAt: string
+}
+
+export interface RefundPreCheckSummaryView {
+  encounterId: string
+  accountId?: string
+  eligibleForRefund: boolean
+  overallDecision: 'ALLOWED' | 'BLOCKED' | string
+  summaryNotice?: string
+  totalPaidAmount: number
+  refundableAmount: number
+  currencyCode: string
+  items: RefundItemPreCheckView[]
+  refundablePayments: RefundPaymentCandidateView[]
+}
+
+export interface DirectRefundRequest {
+  idempotencyKey: string
+  refundAmount: number
+  reason: string
+  terminalCode?: string
+  chargeItemIds?: string[]
+}
+
 
 

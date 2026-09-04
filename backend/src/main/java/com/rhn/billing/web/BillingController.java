@@ -17,6 +17,10 @@ import com.rhn.billing.application.SettlementApplicationService;
 import com.rhn.billing.application.PaymentOrchestrationService.CreatePaymentOrderCommand;
 import com.rhn.billing.application.PaymentOrchestrationService.CreateRefundOrderCommand;
 import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
+import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
+import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
+import com.rhn.billing.application.DirectRefundApplicationService;
+import com.rhn.billing.application.RefundPreCheckService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -45,10 +49,16 @@ public class BillingController {
     private final BillingApplicationService service;
     private final PaymentOrchestrationService payments;
     private final SettlementApplicationService settlements;
+    private final RefundPreCheckService refundPreCheckService;
+    private final DirectRefundApplicationService directRefundService;
 
     public BillingController(BillingApplicationService service, PaymentOrchestrationService payments,
-                             SettlementApplicationService settlements) {
+                             SettlementApplicationService settlements,
+                             RefundPreCheckService refundPreCheckService,
+                             DirectRefundApplicationService directRefundService) {
         this.service = service; this.payments = payments; this.settlements = settlements;
+        this.refundPreCheckService = refundPreCheckService;
+        this.directRefundService = directRefundService;
     }
 
     @PostMapping("/encounters/{encounterId}/charges/synchronize")
@@ -150,6 +160,24 @@ public class BillingController {
         return service.dailyReconciliation(businessDate);
     }
 
+    @GetMapping("/encounters/{encounterId}/refund-precheck")
+    public RefundPreCheckSummaryView getRefundPreCheck(@PathVariable Long encounterId) {
+        return refundPreCheckService.preCheck(encounterId);
+    }
+
+    @PostMapping("/payments/{paymentId}/direct-refund")
+    @ResponseStatus(HttpStatus.CREATED)
+    public PaymentOrderView directRefund(@PathVariable Long paymentId,
+                                         @Valid @RequestBody DirectRefundRequest input) {
+        return directRefundService.directRefund(paymentId, new DirectRefundCommand(
+                input.idempotencyKey(),
+                input.refundAmount(),
+                input.reason(),
+                input.terminalCode(),
+                input.chargeItemIds()
+        ));
+    }
+
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
     record IssueInvoiceRequest(
             @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,
@@ -188,6 +216,14 @@ public class BillingController {
             @NotBlank @Size(max = 1000) String reason,
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode) {}
+    record DirectRefundRequest(
+            @NotBlank @Size(max = 128) String idempotencyKey,
+            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
+            BigDecimal refundAmount,
+            @NotBlank @Size(max = 1000) String reason,
+            @Size(max = 128) String correlationId,
+            @Size(max = 128) String terminalCode,
+            List<Long> chargeItemIds) {}
     record PaymentRecoveryRequest(@NotBlank @Size(max = 128) String batchCode,
                                   @NotNull @jakarta.validation.constraints.Min(1)
                                   @jakarta.validation.constraints.Max(100) Integer limit) {}

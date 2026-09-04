@@ -1183,21 +1183,28 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
     mutationFn: (value: OutpatientNoteTemplate) => api.outpatientNoteTemplates.use(value.id),
     onSuccess: (value) => {
       onApply(value, checked, overwrite); setApplyOpen(false)
-      setNotice(`已带入“${value.name}”的 ${checked.size} 个病历段落，请核对后保存。`)
+      setNotice(`已调入“${value.name}”的 ${checked.size} 个病历段落，请核对后保存。`)
       void queryClient.invalidateQueries({ queryKey: ['outpatient-note-templates'] })
     },
   })
+  const fieldsInTemplate = (value: OutpatientNoteTemplate) => new Set<NoteTemplateField>(
+    noteTemplateFields.filter(({ key }) => Boolean(value.content[key]?.trim())).map(({ key }) => key),
+  )
   const openApply = () => {
-    if (!selected) return
-    setChecked(new Set(noteTemplateFields.filter(({ key }) => Boolean(selected.content[key]?.trim()))
-      .map(({ key }) => key)))
+    const value = selected ?? templates.data?.[0]
+    if (value) setSelectedId(value.id)
+    setChecked(value ? fieldsInTemplate(value) : new Set())
     setOverwrite(false); setApplyOpen(true)
+  }
+  const selectForApply = (id: string) => {
+    setSelectedId(id)
+    setNotice('')
+    const value = templates.data?.find((template) => template.id === id)
+    setChecked(value ? fieldsInTemplate(value) : new Set())
   }
   const toggleField = (key: NoteTemplateField) => setChecked((current) => {
     const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next
   })
-  const error = templates.error || save.error || apply.error
-
   const templateOptions: SelectOption[] = useMemo(() => (
     templates.data?.length
       ? templates.data.map((value) => ({
@@ -1209,28 +1216,13 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
 
   return <div className="doctor-note-template-bar">
     <div>
-      <strong>病历模板</strong>
-      <Select
-        className="doctor-note-template-select"
-        aria-label="选择病历模板"
-        value={selectedId}
-        options={templateOptions}
-        clearable={false}
-        searchable={templateOptions.length > 5}
-        disabled={disabled || !templates.data?.length}
-        placeholder="请选择模板"
-        onChange={(val) => { setSelectedId(val); setNotice('') }}
-      />
-      <Button size="sm" type="button" variant="secondary" disabled={disabled || !selected}
-        onClick={openApply}>带入</Button>
+      <Button size="sm" type="button" variant="secondary" disabled={disabled}
+        onClick={openApply}>模板调入</Button>
       <Button size="sm" type="button" variant="text" disabled={disabled}
         onClick={() => setSaveOpen(true)}>存为模板</Button>
     </div>
     {templates.isPending && <small>正在加载模板…</small>}
-    {selected && <small>{selected.description || '受控病历段落模板'}
-      {selected.useCount > 0 ? ` · 已用 ${selected.useCount} 次` : ''}</small>}
     {notice && <span>{notice}</span>}
-    {error && <Alert>{errorMessage(error)}</Alert>}
     {saveOpen && <Dialog title="保存病历模板" eyebrow="门诊病历 · 书写效率"
       description="仅保存主诉、现病史、既往史、查体所见和诊疗计划；患者信息、生命体征、诊断及医嘱不会进入模板。"
       onClose={() => !save.isPending && setSaveOpen(false)} footer={<>
@@ -1253,18 +1245,37 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
       </div>
       {save.error && <Alert>{errorMessage(save.error)}</Alert>}
     </Dialog>}
-    {applyOpen && selected && <Dialog title={`带入“${selected.name}”`} eyebrow="病历模板"
-      description="模板只修改当前页面草稿，不会自动保存或签署病历。默认保留已经书写的内容。"
+    {applyOpen && <Dialog title="调入病历模板" eyebrow="门诊病历"
+      description="选择模板和需要调入的段落；确认后只修改当前页面草稿，不会自动保存或签署病历。"
       closeOnBackdrop={false} onClose={() => !apply.isPending && setApplyOpen(false)} footer={<>
         <Button variant="secondary" disabled={apply.isPending} onClick={() => setApplyOpen(false)}>取消</Button>
-        <Button busy={apply.isPending} disabled={checked.size === 0}
-          onClick={() => apply.mutate(selected)}>确认带入</Button>
+        <Button busy={apply.isPending} disabled={!selected || checked.size === 0}
+          onClick={() => selected && apply.mutate(selected)}>确认调入</Button>
       </>}>
+      <div className="doctor-note-template-picker">
+        <span>选择模板</span>
+        <Select
+          className="doctor-note-template-select"
+          aria-label="选择调入模板"
+          value={selectedId}
+          options={templateOptions}
+          clearable={false}
+          searchable={templateOptions.length > 5}
+          disabled={apply.isPending || !templates.data?.length}
+          placeholder="请选择模板"
+          onChange={selectForApply}
+        />
+        <small>{selected
+          ? selected.description || `${selected.scopeType === 'PERSONAL' ? '个人' : '科室'}模板 · 已使用 ${selected.useCount} 次`
+          : templates.isPending ? '正在加载模板…' : '暂无可用病历模板，可先取消并使用“存为模板”创建。'}</small>
+      </div>
+      {templates.error && <Alert>{errorMessage(templates.error)}</Alert>}
       <label className="doctor-note-template-mode"><input type="checkbox" checked={overwrite}
+        disabled={!selected || apply.isPending}
         onChange={(event) => setOverwrite(event.target.checked)} />
         <span><strong>覆盖所选字段已有内容</strong><small>未勾选时只填充当前为空的段落。</small></span></label>
       <div className="doctor-note-template-preview">
-        {noteTemplateFields.filter(({ key }) => selected.content[key]?.trim()).map(({ key, label }) => <label key={key}>
+        {selected && noteTemplateFields.filter(({ key }) => selected.content[key]?.trim()).map(({ key, label }) => <label key={key}>
           <input type="checkbox" checked={checked.has(key)} onChange={() => toggleField(key)} />
           <span><strong>{label}</strong><small>{selected.content[key]}</small></span>
         </label>)}
@@ -1402,8 +1413,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       })
     },
     onSuccess: async () => { pendingRecordCommand.current = null; acceptNextServerState.current = true; setCopyNotice('')
-      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh()
-      if (!medicationDrafts.length && !serviceDrafts.length) onRequestReading() },
+      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh() },
   })
   const sign = useMutation({
     mutationFn: () => api.clinicalDocuments.sign(document!.id, document!.currentVersion),
@@ -1518,8 +1528,6 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     setCopyNotice(`已从病历模板“${template.name}”带入所选段落，请结合本次患者情况核对后保存。`)
   }
   const error = save.error || sign.error || documents.error || noteForms.error
-  const hasUnsavedChanges = formState.isDirty || structuredChanged || diagnosesChanged
-    || medicationDrafts.length > 0 || serviceDrafts.length > 0
   const encounterEditable = ['REGISTERED', 'IN_PROGRESS', 'SUSPENDED'].includes(encounter.status)
   const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
     : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'
@@ -1527,60 +1535,32 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     : !encounterEditable ? '本次就诊已结束；如需更正，应发起病历修订并保留原始版本'
       : signed ? '病历已签署；如需更正，应发起病历修订' : ''
 
-  const noteFormOptions: SelectOption[] = useMemo(() => {
-    const options: SelectOption[] = [
-      { value: '', label: '基础门诊病历（简易）' },
-    ]
-    noteForms.data?.forEach((value) => {
-      options.push({ value: value.id, label: `${value.name} · V${value.version}` })
-    })
-    if (snapshotForm && !noteForms.data?.some((value) => value.id === snapshotForm.id)) {
-      options.push({ value: snapshotForm.id, label: `${snapshotForm.name} · V${snapshotForm.version}（文书快照）` })
-    }
-    return options
-  }, [noteForms.data, snapshotForm])
-
   return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
-    <div className="doctor-clinical-modebar">
-      <span><strong>{editing ? '编辑状态' : '阅读状态'}</strong>
-        <small>{editing ? (hasUnsavedChanges ? '有未保存内容' : '本次接诊可修改')
-          : signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small></span>
-      {editing ? <Button size="sm" variant="secondary" disabled={hasUnsavedChanges}
-          title={hasUnsavedChanges ? '请先保存或处理当前草稿' : '退出编辑并返回只读查看'}
-          onClick={onRequestReading}>返回阅读</Button>
-        : <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
+    {!editing && <div className="doctor-clinical-modebar">
+      <span><strong>阅读状态</strong>
+        <small>{signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small></span>
+      <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
           title={readOnlyReason || `${editActionLabel}后可修改病历`}
-          onClick={onRequestEditing}>{editActionLabel}</Button>}
-    </div>
+          onClick={onRequestEditing}>{editActionLabel}</Button>
+    </div>}
     {!editing && readOnlyReason && <div className="doctor-clinical-readonly-note"><Icon name="lock" />
       <span>{readOnlyReason}</span></div>}
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
-      <PanelHead title="门诊病历" meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
-        actions={document && signed ? <Button size="sm" variant="secondary"
-          onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button> : undefined} />
+      <PanelHead className="doctor-record-heading" title="门诊病历"
+        meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
+        actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
+          onApply={applyNoteTemplate} />}{document && signed && <Button size="sm" variant="secondary"
+          onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}</>} />
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
-      {editing && <div className="doctor-record-toolbar">
-        <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
-          onApply={applyNoteTemplate} />
-        <div className="doctor-note-mode-inline">
-          <label><span>书写模式</span>
-            <Select className="doctor-note-form-select" aria-label="病历书写模式" value={selectedNoteFormId}
-              options={noteFormOptions} clearable={false} searchable={false} disabled={signed}
-              onChange={(val) => {
-                setSelectedNoteFormId(val); setStructuredValues({}); setStructuredErrors({})
-              }} />
-          </label>
-        </div>
-      </div>}
       {editing ? <form className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
-        <FormField className="doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
+        <FormField className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
           <textarea {...register('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" />
         </FormField>
-        <FormField label="现病史" error={formState.errors.presentIllness?.message}>
+        <FormField className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
           <textarea {...register('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" />
         </FormField>
-        <FormField label="既往史" error={formState.errors.medicalHistory?.message}>
+        <FormField className="doctor-record-narrative" label="既往史" error={formState.errors.medicalHistory?.message}>
           <textarea {...register('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" />
         </FormField>
         <div className="doctor-physical-exam" role="group" aria-labelledby="doctor-physical-exam-label">
@@ -1657,10 +1637,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             weightKg: formState.errors.weightKg, oxygenSaturation: formState.errors.oxygenSaturation })
             .find(Boolean)?.message && <small className="ui-field__message ui-field__error">请检查生命体征录入范围</small>}
         </div>
-        <FormField label="查体所见" error={formState.errors.physicalExam?.message}>
+        <FormField className="doctor-record-narrative" label="查体所见" error={formState.errors.physicalExam?.message}>
           <textarea {...register('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" />
         </FormField>
-        <FormField label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
+        <FormField className="doctor-record-narrative" label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
           <textarea {...register('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" />
         </FormField>
         {selectedNoteForm && <StructuredNoteForm form={selectedNoteForm} values={structuredValues}

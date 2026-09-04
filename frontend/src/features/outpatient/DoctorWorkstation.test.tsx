@@ -132,6 +132,23 @@ function createMockApi({
     outpatientNoteForms: {
       list: vi.fn().mockResolvedValue([]),
     },
+    outpatientNoteTemplates: {
+      list: vi.fn().mockResolvedValue([{
+        id: 'note-template-1', revision: 1, scopeType: 'PERSONAL', name: '常规复诊',
+        description: '适用于慢病常规复诊', specialtyCode: 'GENERAL_PRACTICE',
+        documentType: 'OUTPATIENT_NOTE', contentSchema: 'RHN.OUTPATIENT_NOTE_TEMPLATE.V1',
+        content: { chiefComplaint: '复诊', presentIllness: '病情平稳' }, status: 'ACTIVE',
+        sortOrder: 0, useCount: 3, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+      }]),
+      use: vi.fn().mockImplementation((id: string) => Promise.resolve({
+        id, revision: 1, scopeType: 'PERSONAL', name: '常规复诊',
+        description: '适用于慢病常规复诊', specialtyCode: 'GENERAL_PRACTICE',
+        documentType: 'OUTPATIENT_NOTE', contentSchema: 'RHN.OUTPATIENT_NOTE_TEMPLATE.V1',
+        content: { chiefComplaint: '复诊', presentIllness: '病情平稳' }, status: 'ACTIVE',
+        sortOrder: 0, useCount: 4, createdAt: '2026-09-01T00:00:00Z', updatedAt: '2026-09-01T00:00:00Z',
+      })),
+      create: vi.fn(),
+    },
     unifiedOrders: {
       list: vi.fn().mockResolvedValue([]),
       serviceDefinitions: vi.fn().mockResolvedValue([]),
@@ -207,13 +224,25 @@ describe('DoctorWorkstation reception flow', () => {
         })
       ))
 
-    expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
+    const recordHeading = await screen.findByRole('heading', { name: '门诊病历' })
+    expect(recordHeading).toBeInTheDocument()
+    const importTemplate = screen.getByRole('button', { name: '模板调入' })
+    await waitFor(() => expect(importTemplate).toBeEnabled())
+    expect(importTemplate.closest('header')).toContainElement(recordHeading)
+    expect(screen.queryByLabelText('选择病历模板')).not.toBeInTheDocument()
+    await user.click(importTemplate)
+    expect(await screen.findByRole('heading', { name: '调入病历模板' })).toBeInTheDocument()
+    expect(screen.getByLabelText('选择调入模板')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认调入' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '取消' }))
     expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toBeInTheDocument()
 
     const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
     await user.type(complaint, '咳嗽三天')
-    expect(screen.getByRole('button', { name: '返回阅读' })).toBeDisabled()
+    expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '返回阅读' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('病历书写模式')).not.toBeInTheDocument()
   })
 
   it('continues an in-progress encounter directly in editing without starting it again', async () => {
@@ -234,7 +263,8 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(screen.getByRole('button', { name: '切换患者' }))
 
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
-    expect(await screen.findByText('编辑状态')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
+    expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
     expect(api.encounters.start).not.toHaveBeenCalled()
     expect(api.encounters.resume).not.toHaveBeenCalled()
   })
@@ -269,7 +299,8 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(resumeSpy).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
       terminalCode: 'WEB-DOCTOR-WORKSTATION',
     })))
-    expect(await screen.findByText('编辑状态')).toBeInTheDocument()
+    expect(await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
+    expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
   })
 
   it('keeps the record read-only when the current account has no edit permission', async () => {
