@@ -3,6 +3,8 @@ package com.rhn.outpatient.scheduling;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientScheduleDirectory;
+import com.rhn.queueing.api.QueueingDirectory;
+import com.rhn.queueing.api.QueueingDirectory.TicketSnapshot;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -31,9 +33,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final PatientRegistrationRepository registrationRepository;
     private final AppointmentRepository appointmentRepository;
     private final AppointmentEventRepository appointmentEventRepository;
-    private final QueueCounterRepository counterRepository;
-    private final QueueTicketRepository ticketRepository;
-    private final QueueTicketEventRepository ticketEventRepository;
+    private final QueueingDirectory queueing;
     private final ServiceScheduleRepository scheduleRepository;
     private final ScheduleSlotPoolRepository poolRepository;
     private final SlotEventRepository slotEventRepository;
@@ -44,9 +44,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public RegistrationApplicationService(PatientRegistrationRepository registrationRepository,
                                           AppointmentRepository appointmentRepository,
                                           AppointmentEventRepository appointmentEventRepository,
-                                          QueueCounterRepository counterRepository,
-                                          QueueTicketRepository ticketRepository,
-                                          QueueTicketEventRepository ticketEventRepository,
+                                          QueueingDirectory queueing,
                                           ServiceScheduleRepository scheduleRepository,
                                           ScheduleSlotPoolRepository poolRepository,
                                           SlotEventRepository slotEventRepository,
@@ -56,9 +54,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
-        this.counterRepository = counterRepository;
-        this.ticketRepository = ticketRepository;
-        this.ticketEventRepository = ticketEventRepository;
+        this.queueing = queueing;
         this.scheduleRepository = scheduleRepository;
         this.poolRepository = poolRepository;
         this.slotEventRepository = slotEventRepository;
@@ -137,16 +133,11 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 normalizeSource(command.registrationSource(), schedule != null), normalizeVisitType(command.visitType()),
                 context.subjectId()));
         if (command.slotHoldId() != null) slotHolds.bindRegistration(command.slotHoldId(), registration.id());
-        LocalDate queueDate = LocalDate.now(BUSINESS_ZONE);
-        String queueCode = "OPD:" + command.organizationId() + ":" + command.departmentId();
-        QueueCounter counter = counterRepository
-                .findByTenantIdAndQueueCodeAndQueueDate(context.tenantId(), queueCode, queueDate)
-                .orElseGet(() -> counterRepository.saveAndFlush(new QueueCounter(context.tenantId(), queueCode, queueDate)));
-        int sequence = counter.take();
-        QueueTicket ticket = ticketRepository.save(new QueueTicket(context.tenantId(), registration.id(),
-                idempotencyCode, queueCode, queueDate, sequence));
-        ticketEventRepository.save(new QueueTicketEvent(context.tenantId(), ticket.id(), "ENQUEUED", null,
-                "WAITING", idempotencyCode, context.subjectId(), "挂号后进入门诊候诊队列"));
+        TicketSnapshot ticket = queueing.checkIn(new QueueingDirectory.CheckInCommand(
+                command.organizationId(), command.departmentId(), null,
+                "OPD-" + command.organizationId() + "-" + command.departmentId(),
+                "门诊候诊", "OUTPATIENT", "A", command.residentId(), command.encounterId(),
+                "PAT_REG", registration.id(), 0, true, idempotencyCode));
         return snapshot(registration, ticket);
     }
 
@@ -155,10 +146,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markInService(Long encounterId, String commandCode) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
-        String previous = ticket.start();
+        queueing.startBySource("PAT_REG", registration.id(), commandCode, null, "医生开始接诊", true);
         registration.start();
-        appendTicketEvent(context, ticket, "STARTED", previous, "IN_SERVICE", commandCode, "医生开始接诊");
     }
 
     @Override
@@ -166,10 +155,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markSuspended(Long encounterId, String commandCode, String reason) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
-        String previous = ticket.suspend();
-        appendTicketEvent(context, ticket, "SUSPENDED", previous, "SUSPENDED", commandCode,
-                "门诊接诊暂挂：" + reason);
+        queueing.suspendBySource("PAT_REG", registration.id(), commandCode, "门诊接诊暂挂：" + reason);
     }
 
     @Override
@@ -177,9 +163,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markResumed(Long encounterId, String commandCode) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
-        String previous = ticket.resume();
-        appendTicketEvent(context, ticket, "RESUMED", previous, "IN_SERVICE", commandCode, "患者返回并恢复接诊");
+        queueing.resumeBySource("PAT_REG", registration.id(), commandCode, null, "患者返回并恢复接诊");
     }
 
     @Override
@@ -187,8 +171,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markCompleted(Long encounterId, String commandCode) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
-        String previous = ticket.complete();
+        queueing.completeBySource("PAT_REG", registration.id(), commandCode, "本次门诊接诊完成");
         registration.complete();
         if (registration.appointmentId() != null) {
             appointmentRepository.findByIdAndTenantId(registration.appointmentId(), context.tenantId())
@@ -197,7 +180,6 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                             context.tenantId(), appointment.id(), null, "VISITED", "REGISTERED", "VISITED",
                             commandCode, context.subjectId(), "门诊接诊完成")));
         }
-        appendTicketEvent(context, ticket, "COMPLETED", previous, "COMPLETED", commandCode, "本次门诊接诊完成");
     }
 
     @Override
@@ -205,10 +187,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markTransferred(Long encounterId, String commandCode, String reason) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
-        String previous = ticket.transfer();
+        queueing.completeBySource("PAT_REG", registration.id(), commandCode, reason);
         registration.complete();
-        appendTicketEvent(context, ticket, "TRANSFERRED", previous, "TRANSFERRED", commandCode, reason);
     }
 
     @Override
@@ -216,8 +196,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public void markTerminated(Long encounterId, String commandCode, String reason) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistration(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicket(context.tenantId(), registration.id());
-        String previous = ticket.terminate();
+        queueing.completeBySource("PAT_REG", registration.id(), commandCode, reason);
         registration.complete();
         if (registration.appointmentId() != null) {
             appointmentRepository.findByIdAndTenantId(registration.appointmentId(), context.tenantId())
@@ -226,7 +205,6 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                             context.tenantId(), appointment.id(), null, "VISITED", "REGISTERED", "VISITED",
                             commandCode, context.subjectId(), "接诊后终止诊疗")));
         }
-        appendTicketEvent(context, ticket, "TERMINATED", previous, "TERMINATED", commandCode, reason);
     }
 
     @Override
@@ -234,10 +212,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public CancellationSnapshot requireCancellationReady(Long encounterId) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
+        TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         Appointment appointment = lockAppointment(context, registration);
         if (!"CANCELLED".equals(registration.status())) {
-            if (!"WAITING".equals(ticket.status())) {
+            if (!List.of("WAITING", "CALLED", "MISSED").contains(ticket.status())) {
                 throw conflict("REGISTRATION_ALREADY_IN_SERVICE", "该挂号已经开始接诊，不能退号");
             }
             if (appointment != null && !"REGISTERED".equals(appointment.status())) {
@@ -252,15 +230,15 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     public CancellationSnapshot cancelBeforeService(Long encounterId, String commandCode, String reason) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);
-        QueueTicket ticket = requireTicketWithLock(context.tenantId(), registration.id());
+        TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         Appointment appointment = lockAppointment(context, registration);
         if ("CANCELLED".equals(registration.status())) {
             return cancellationSnapshot(registration, ticket, appointment);
         }
-        if (!"WAITING".equals(ticket.status())) {
+        if (!List.of("WAITING", "CALLED", "MISSED").contains(ticket.status())) {
             throw conflict("REGISTRATION_ALREADY_IN_SERVICE", "该挂号已经开始接诊，不能退号");
         }
-        String previous = ticket.cancel();
+        ticket = queueing.cancelBySource("PAT_REG", registration.id(), commandCode, reason);
         registration.cancel();
         if (appointment != null) {
             String appointmentFrom = appointment.status();
@@ -280,7 +258,6 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                         "CANCELLED", appointmentFrom, "CANCELLED", commandCode, context.subjectId(), reason));
             }
         }
-        appendTicketEvent(context, ticket, "CANCELLED", previous, "CANCELLED", commandCode, reason);
         return cancellationSnapshot(registration, ticket, appointment);
     }
 
@@ -307,24 +284,25 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
                         context.tenantId(), context.organizationId(), context.departmentId(), from, to);
         if (registrations.isEmpty()) return List.of();
-        Map<Long, QueueTicket> tickets = ticketRepository.findByTenantIdAndRegistrationIdIn(context.tenantId(),
-                        registrations.stream().map(PatientRegistration::id).toList()).stream()
-                .collect(Collectors.toMap(QueueTicket::registrationId, Function.identity()));
+        Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
+                registrations.stream().map(PatientRegistration::id).toList());
         Map<Long, ServiceSchedule> schedules = registrations.stream().map(PatientRegistration::scheduleId)
                 .filter(java.util.Objects::nonNull).distinct()
                 .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
                 .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
         return registrations.stream().map(registration -> {
-            QueueTicket ticket = tickets.get(registration.id());
+            TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
             ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                    registration.encounterId(), resident.id(), resident.healthRecordNo(), resident.fullName(),
-                    resident.gender(), resident.birthDate(), registration.registrationNo(), ticket.ticketNo(),
+                    registration.encounterId(), ticket.id(), ticket.serviceQueueId(), resident.id(),
+                    resident.healthRecordNo(), resident.fullName(), resident.gender(), resident.birthDate(),
+                    registration.registrationNo(), ticket.ticketCode(),
                     ticket.sequenceNo(), ticket.priority(), registration.registrationSource(), registration.visitType(),
                     registration.status(), ticket.status(), schedule == null ? null : schedule.practitionerName(),
                     schedule == null ? null : schedule.serviceName(), schedule == null ? null : schedule.locationName(),
-                    registration.registeredAt(), ticket.calledAt());
+                    registration.registeredAt(), ticket.readyAt(), ticket.calledAt(), ticket.startedAt(),
+                    ticket.callCount(), ticket.missedCount(), ticket.currentLocationId());
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
@@ -351,9 +329,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             return new RegistrationPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
 
-        Map<Long, QueueTicket> tickets = ticketRepository.findByTenantIdAndRegistrationIdIn(context.tenantId(),
-                        registrations.stream().map(PatientRegistration::id).toList()).stream()
-                .collect(Collectors.toMap(QueueTicket::registrationId, Function.identity()));
+        Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
+                registrations.stream().map(PatientRegistration::id).toList());
 
         String normalizedStatus = clean(status);
         String normalizedQuery = clean(query);
@@ -366,7 +343,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, ServiceSchedule> scheduleCache = new HashMap<>();
 
         List<PatientRegistration> filtered = registrations.stream().filter(reg -> {
-            QueueTicket ticket = tickets.get(reg.id());
+            TicketSnapshot ticket = tickets.get(reg.id());
             if (normalizedStatus != null) {
                 String queueStatus = ticket == null ? null : ticket.status();
                 if (!normalizedStatus.equalsIgnoreCase(queueStatus) && !normalizedStatus.equalsIgnoreCase(reg.status())) {
@@ -374,7 +351,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 }
             }
             if (matchQuery != null) {
-                String ticketNo = ticket == null ? null : ticket.ticketNo();
+                String ticketNo = ticket == null ? null : ticket.ticketCode();
                 String regNo = reg.registrationNo();
                 if (regNo != null && regNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
                 if (ticketNo != null && ticketNo.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
@@ -398,8 +375,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             }
             return true;
         }).sorted((a, b) -> {
-            QueueTicket ta = tickets.get(a.id());
-            QueueTicket tb = tickets.get(b.id());
+            TicketSnapshot ta = tickets.get(a.id());
+            TicketSnapshot tb = tickets.get(b.id());
             int pa = ta == null ? 0 : ta.priority();
             int pb = tb == null ? 0 : tb.priority();
             if (pa != pb) return Integer.compare(pb, pa);
@@ -416,24 +393,27 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         List<PatientRegistration> slice = filtered.subList(fromIndex, toIndex);
 
         List<ReceptionQueueItem> content = slice.stream().map(registration -> {
-            QueueTicket ticket = tickets.get(registration.id());
+            TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentCache.computeIfAbsent(registration.residentId(),
                     residentDirectory::requireSnapshot);
             ServiceSchedule schedule = registration.scheduleId() == null ? null :
                     scheduleCache.computeIfAbsent(registration.scheduleId(),
                             id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                    registration.encounterId(), resident.id(), resident.healthRecordNo(), resident.fullName(),
-                    resident.gender(), resident.birthDate(), registration.registrationNo(),
-                    ticket == null ? null : ticket.ticketNo(),
+                    registration.encounterId(), ticket == null ? null : ticket.id(),
+                    ticket == null ? null : ticket.serviceQueueId(), resident.id(), resident.healthRecordNo(),
+                    resident.fullName(), resident.gender(), resident.birthDate(), registration.registrationNo(),
+                    ticket == null ? null : ticket.ticketCode(),
                     ticket == null ? 0 : ticket.sequenceNo(),
                     ticket == null ? 0 : ticket.priority(),
                     registration.registrationSource(), registration.visitType(),
                     registration.status(), ticket == null ? null : ticket.status(),
                     schedule == null ? null : schedule.practitionerName(),
                     schedule == null ? null : schedule.serviceName(),
-                    schedule == null ? null : schedule.locationName(),
-                    registration.registeredAt(), ticket == null ? null : ticket.calledAt());
+                    schedule == null ? null : schedule.locationName(), registration.registeredAt(),
+                    ticket == null ? null : ticket.readyAt(), ticket == null ? null : ticket.calledAt(),
+                    ticket == null ? null : ticket.startedAt(), ticket == null ? 0 : ticket.callCount(),
+                    ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId());
         }).toList();
 
         boolean first = safePage == 0;
@@ -447,13 +427,13 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     }
 
     private RegistrationSnapshot snapshot(PatientRegistration registration) {
-        QueueTicket ticket = requireTicket(registration.tenantId(), registration.id());
+        TicketSnapshot ticket = queueing.requireBySource("PAT_REG", registration.id());
         return snapshot(registration, ticket);
     }
 
-    private RegistrationSnapshot snapshot(PatientRegistration registration, QueueTicket ticket) {
+    private RegistrationSnapshot snapshot(PatientRegistration registration, TicketSnapshot ticket) {
         return new RegistrationSnapshot(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                registration.encounterId(), registration.registrationNo(), ticket.ticketNo(), ticket.sequenceNo(),
+                registration.encounterId(), registration.registrationNo(), ticket.ticketCode(), ticket.sequenceNo(),
                 registration.status());
     }
 
@@ -480,35 +460,16 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         }
     }
 
-    private QueueTicket requireTicket(Long tenantId, Long registrationId) {
-        return ticketRepository.findByTenantIdAndRegistrationId(tenantId, registrationId)
-                .orElseThrow(() -> notFound("QUEUE_TICKET_NOT_FOUND", "未找到该次挂号的候诊票"));
-    }
-
-    private QueueTicket requireTicketWithLock(Long tenantId, Long registrationId) {
-        return ticketRepository.findWithLockByTenantIdAndRegistrationId(tenantId, registrationId)
-                .orElseThrow(() -> notFound("QUEUE_TICKET_NOT_FOUND", "未找到该次挂号的候诊票"));
-    }
-
     private Appointment lockAppointment(ExecutionContext context, PatientRegistration registration) {
         if (registration.appointmentId() == null) return null;
         return appointmentRepository.findWithLockByIdAndTenantId(registration.appointmentId(), context.tenantId())
                 .orElseThrow(() -> notFound("APPOINTMENT_NOT_FOUND", "挂号关联的预约不存在"));
     }
 
-    private CancellationSnapshot cancellationSnapshot(PatientRegistration registration, QueueTicket ticket,
+    private CancellationSnapshot cancellationSnapshot(PatientRegistration registration, TicketSnapshot ticket,
                                                       Appointment appointment) {
         return new CancellationSnapshot(registration.id(), registration.appointmentId(), registration.scheduleId(),
                 registration.status(), ticket.status(), appointment == null ? null : appointment.status());
-    }
-
-    private void appendTicketEvent(ExecutionContext context, QueueTicket ticket, String eventType,
-                                   String from, String to, String commandCode, String description) {
-        if (!ticketEventRepository.existsByTenantIdAndQueueTicketIdAndCommandCode(
-                context.tenantId(), ticket.id(), commandCode)) {
-            ticketEventRepository.save(new QueueTicketEvent(context.tenantId(), ticket.id(), eventType,
-                    from, to, commandCode, context.subjectId(), description));
-        }
     }
 
     private ExecutionContext requireContext(Long organizationId, Long departmentId) {

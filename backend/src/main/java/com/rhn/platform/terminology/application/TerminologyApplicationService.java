@@ -32,6 +32,7 @@ import com.rhn.platform.terminology.infrastructure.DiseaseManagementRuleReposito
 import com.rhn.platform.terminology.infrastructure.ValueSetMemberRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetRepository;
 import com.rhn.shared.api.BusinessException;
+import com.rhn.shared.api.PageResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -423,6 +424,37 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
         return programs.stream().map(value -> programView(value, rules.getOrDefault(value.id(), List.of()),
                 members.getOrDefault(value.id(), List.of()), concepts, systems)).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<DiseaseManagementProgramView> searchDiseaseManagementPrograms(Long tenantId, String query,
+            String managementType, TerminologyStatus status, int page, int size) {
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.max(10, Math.min(size, 100));
+        Page<DiseaseManagementProgram> result = managementProgramRepository.searchVisible(tenantId, query,
+                managementType, status, PageRequest.of(normalizedPage, normalizedSize,
+                        Sort.by("name").ascending().and(Sort.by("id").ascending())));
+        List<DiseaseManagementProgram> programs = result.getContent();
+        Map<Long, List<DiseaseManagementMember>> members = managementMemberRepository
+                .findByProgramIdIn(programs.stream().map(DiseaseManagementProgram::id).toList()).stream()
+                .collect(Collectors.groupingBy(DiseaseManagementMember::programId));
+        Map<Long, List<DiseaseManagementRule>> rules = managementRuleRepository
+                .findByProgramIdIn(programs.stream().map(DiseaseManagementProgram::id).toList()).stream()
+                .collect(Collectors.groupingBy(DiseaseManagementRule::programId));
+        Set<Long> conceptIds = members.values().stream().flatMap(Collection::stream)
+                .map(DiseaseManagementMember::conceptId).collect(Collectors.toSet());
+        Map<Long, Concept> concepts = conceptRepository.findAllById(conceptIds).stream()
+                .collect(Collectors.toMap(Concept::id, Function.identity()));
+        Set<Long> systemIds = concepts.values().stream().map(Concept::codeSystemId).collect(Collectors.toSet());
+        rules.values().stream().flatMap(Collection::stream).map(DiseaseManagementRule::codeSystemId)
+                .filter(Objects::nonNull).forEach(systemIds::add);
+        Map<Long, CodeSystem> systems = codeSystemRepository.findAllById(systemIds).stream()
+                .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+        List<DiseaseManagementProgramView> content = programs.stream()
+                .map(value -> programView(value, rules.getOrDefault(value.id(), List.of()),
+                        members.getOrDefault(value.id(), List.of()), concepts, systems)).toList();
+        return new PageResult<>(content, result.getTotalElements(), result.getTotalPages(),
+                result.getNumber(), result.getSize());
     }
 
     @Transactional

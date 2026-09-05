@@ -26,7 +26,7 @@ class DomainEventProjectionTest extends RhnIntegrationTestSupport {
                         .content("""
                                 {
                                   "fullName":"幂等测试居民",
-                                  "nationalId":"330102199901019999",
+                                  "identifiers":[{"system":"9","value":"EVENT-199901019999","useType":"SECONDARY"}],
                                   "gender":"UNKNOWN",
                                   "birthDate":"1999-01-01"
                                 }

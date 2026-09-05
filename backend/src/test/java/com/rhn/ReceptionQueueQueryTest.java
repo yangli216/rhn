@@ -51,7 +51,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"挂号日期边界患者%s","nationalId":"33010219900102%s",
+                                  "fullName":"挂号日期边界患者%s","identifiers":[{"system":"9","value":"QUEUE-DATE-%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138086"
                                 }
                                 """.formatted(suffix, suffix)))
@@ -85,7 +85,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"分页测试患者%s","nationalId":"33010219900102%s",
+                                  "fullName":"分页测试患者%s","identifiers":[{"system":"9","value":"QUEUE-PAGE-%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138099"
                                 }
                                 """.formatted(suffix, suffix)))

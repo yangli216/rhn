@@ -4,7 +4,6 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
-import java.time.LocalDate;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -45,24 +44,4 @@ interface PatientRegistrationRepository extends JpaRepository<PatientRegistratio
     boolean existsByTenantIdAndAppointmentId(Long tenantId, Long appointmentId);
     List<PatientRegistration> findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
             Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive);
-}
-
-interface QueueCounterRepository extends JpaRepository<QueueCounter, Long> {
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    Optional<QueueCounter> findByTenantIdAndQueueCodeAndQueueDate(Long tenantId, String queueCode, LocalDate queueDate);
-}
-
-interface QueueTicketRepository extends JpaRepository<QueueTicket, Long> {
-    Optional<QueueTicket> findByTenantIdAndRegistrationId(Long tenantId, Long registrationId);
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @org.springframework.data.jpa.repository.Query(
-            "select value from QueueTicket value where value.tenantId = :tenantId and value.registrationId = :registrationId")
-    Optional<QueueTicket> findWithLockByTenantIdAndRegistrationId(
-            @org.springframework.data.repository.query.Param("tenantId") Long tenantId,
-            @org.springframework.data.repository.query.Param("registrationId") Long registrationId);
-    List<QueueTicket> findByTenantIdAndRegistrationIdIn(Long tenantId, List<Long> registrationIds);
-}
-
-interface QueueTicketEventRepository extends JpaRepository<QueueTicketEvent, Long> {
-    boolean existsByTenantIdAndQueueTicketIdAndCommandCode(Long tenantId, Long queueTicketId, String commandCode);
 }

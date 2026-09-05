@@ -24,6 +24,23 @@ interface ResidentRepository extends JpaRepository<Resident, Long> {
 
     @Query("""
             select r from Resident r
+            where r.tenantId = :tenantId
+              and r.status = :status
+              and (
+                   lower(r.fullName) like lower(concat('%', :query, '%')) or
+                   lower(r.healthRecordNo) like lower(concat('%', :query, '%')) or
+                   (r.nationalId is not null and lower(r.nationalId) like lower(concat('%', :query, '%'))) or
+                   (r.phone is not null and lower(r.phone) like lower(concat('%', :query, '%')))
+              )
+            """)
+    List<Resident> searchResidents(
+            @Param("tenantId") Long tenantId,
+            @Param("status") ResidentStatus status,
+            @Param("query") String query,
+            Pageable pageable);
+
+    @Query("""
+            select r from Resident r
             WHERE r.tenantId = :tenantId
               AND (:status IS NULL OR r.status = :status)
               AND (:gender IS NULL OR r.gender = :gender)

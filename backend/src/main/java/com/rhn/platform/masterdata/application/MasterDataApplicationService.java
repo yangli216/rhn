@@ -57,6 +57,10 @@ import com.rhn.platform.masterdata.infrastructure.SupplyItemRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.shared.api.PageResult;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -164,6 +168,19 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 .filter(value -> matchesServiceView(query, value))
                 .limit(500)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<ServiceView> searchServices(String query, String serviceType, String status,
+                                                   Long organizationId, int page, int size) {
+        ExecutionContext context = current();
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.max(10, Math.min(size, 100));
+        Page<ServiceCatalogItem> result = serviceRepository.search(context.tenantId(), query, serviceType, status,
+                PageRequest.of(normalizedPage, normalizedSize,
+                        Sort.by("name").ascending().and(Sort.by("id").ascending())));
+        return new PageResult<>(serviceViews(context.tenantId(), result.getContent(), organizationId),
+                result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
     @Override
@@ -279,6 +296,19 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                         value.preparationSpec()))
                 .limit(500).toList();
         return medicationViews(context.tenantId(), items, organizationId);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<MedicationView> searchMedications(String query, String medicationType, String status,
+                                                         Long organizationId, int page, int size) {
+        ExecutionContext context = current();
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.max(10, Math.min(size, 100));
+        Page<Medication> result = medicationRepository.search(context.tenantId(), query, medicationType, status,
+                PageRequest.of(normalizedPage, normalizedSize,
+                        Sort.by("name").ascending().and(Sort.by("id").ascending())));
+        return new PageResult<>(medicationViews(context.tenantId(), result.getContent(), organizationId),
+                result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
     @Transactional

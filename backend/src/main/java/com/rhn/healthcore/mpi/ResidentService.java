@@ -103,6 +103,7 @@ public class ResidentService implements ResidentDirectory {
         if (identifiers.isEmpty()) {
             throw badRequest("RESIDENT_IDENTIFIER_REQUIRED", "至少需要提供一个居民标识");
         }
+        validateNationalIdentifiers(identifiers, request.birthDate(), request.gender());
         identifiers.forEach(identifier -> requireDictionaryValue(tenantId, "PI_IDENTIFIER_TYPE", identifier.system()));
         ensureIdentifiersAvailable(tenantId, identifiers);
         ProfileValues profile = validateProfile(tenantId, request.demographicProfile(), request.addresses(),
@@ -134,12 +135,17 @@ public class ResidentService implements ResidentDirectory {
         Long tenantId = TenantContext.requireTenantId();
         String normalized = query.trim();
         Map<Long, Resident> matches = new LinkedHashMap<>();
-        residentRepository.findByTenantIdAndStatusAndFullNameContainingIgnoreCase(
+        residentRepository.searchResidents(
                         tenantId, ResidentStatus.ACTIVE, normalized, PageRequest.of(0, 20))
                 .forEach(resident -> matches.put(resident.id(), resident));
         identifierRepository.findTop20ByTenantIdAndNormalizedValueContainingIgnoreCaseAndStatus(
                         tenantId, normalizeIdentifierValue(normalized), ACTIVE)
                 .forEach(identifier -> residentRepository.findByIdAndTenantId(identifier.residentId(), tenantId)
+                        .filter(resident -> resident.status() == ResidentStatus.ACTIVE)
+                        .ifPresent(resident -> matches.putIfAbsent(resident.id(), resident)));
+        coverageRepository.findTop20ByTenantIdAndMemberNoContainingIgnoreCaseAndStatus(
+                        tenantId, normalized, ACTIVE)
+                .forEach(coverage -> residentRepository.findByIdAndTenantId(coverage.residentId(), tenantId)
                         .filter(resident -> resident.status() == ResidentStatus.ACTIVE)
                         .ifPresent(resident -> matches.putIfAbsent(resident.id(), resident)));
         return matches.values().stream().limit(20).map(this::toResponse).toList();
@@ -361,6 +367,7 @@ public class ResidentService implements ResidentDirectory {
         ResidentSourceRecord source = sourceRecordRepository.save(new ResidentSourceRecord(tenantId,
                 request.sourceOrganizationId(), sourceSystem, sourceRecordId, serialize(request)));
         List<NormalizedIdentifier> identifiers = normalizedIdentifiers(null, request.identifiers());
+        validateNationalIdentifiers(identifiers, request.birthDate(), request.gender());
         Set<Long> exactMatches = new LinkedHashSet<>();
         identifiers.forEach(identifier -> identifierRepository
                 .findByTenantIdAndIdentifierSystemAndNormalizedValueAndStatus(
@@ -464,8 +471,17 @@ public class ResidentService implements ResidentDirectory {
     private NormalizedIdentifier normalizeIdentifier(String system, String value, String useType) {
         String normalizedSystem = normalizeIdentifierSystem(system);
         String trimmedValue = value.trim();
-        return new NormalizedIdentifier(normalizedSystem, trimmedValue, normalizeIdentifierValue(trimmedValue),
+        String normalizedValue = normalizeIdentifierValue(trimmedValue);
+        String storedValue = "1".equals(normalizedSystem) ? normalizedValue : trimmedValue;
+        return new NormalizedIdentifier(normalizedSystem, storedValue, normalizedValue,
                 StrUtil.isBlank(useType) ? "OFFICIAL" : useType.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private void validateNationalIdentifiers(List<NormalizedIdentifier> identifiers,
+                                             LocalDate birthDate, String gender) {
+        identifiers.stream().filter(identifier -> "1".equals(identifier.system()))
+                .forEach(identifier -> ResidentIdentifierValidator.validateNationalId(
+                        identifier.normalized(), birthDate, gender));
     }
 
     private String normalizeIdentifierSystem(String system) {

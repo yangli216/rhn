@@ -240,7 +240,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"门诊主流程患者","nationalId":"33010219880808%s",
+                                  "fullName":"门诊主流程患者","identifiers":[{"system":"9","value":"33010219880808%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(digits)))

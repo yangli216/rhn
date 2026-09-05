@@ -236,10 +236,13 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("FOLLOW_UP", "复诊", "同一健康问题的后续复诊", 20),
                             item("EMERGENCY", "急诊", "需要按急诊流程接诊", 30))),
             definition(SC_RECEPTION_STATUS, "门诊候诊状态", "挂号后在接诊队列中的当前状态", List.of(
-                            item("WAITING", "候诊中", "已挂号并等待接诊", 10),
-                            item("IN_SERVICE", "接诊中", "医生已经开始接诊", 20),
-                            item("COMPLETED", "已诊毕", "本次门诊接诊已经完成", 30),
-                            item("CANCELLED", "已取消", "挂号或候诊已经取消", 40))),
+                            item("WAITING", "候诊中", "已签到并等待叫号", 10),
+                            item("CALLED", "已叫号", "已叫号并等待患者到诊", 20),
+                            item("SERVING", "接诊中", "医生已经开始接诊", 30),
+                            item("SUSPENDED", "已暂挂", "接诊暂时中断，等待恢复", 40),
+                            item("MISSED", "已过号", "叫号后患者未及时到诊", 50),
+                            item("COMPLETED", "已诊毕", "本次门诊接诊已经完成", 60),
+                            item("CANCELLED", "已取消", "挂号或候诊已经取消", 70))),
             definition(SC_APPOINTMENT_STATUS, "预约状态", "预约业务当前生命周期状态", List.of(
                             item("BOOKED", "待就诊", "预约已确认并占用号源", 10),
                             item("REGISTERED", "已挂号", "预约已转换为门诊挂号", 20),

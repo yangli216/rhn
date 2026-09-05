@@ -178,6 +178,8 @@ export interface ReceptionQueueItem {
   appointmentId?: string
   scheduleId?: string
   encounterId: string
+  ticketId?: string
+  serviceQueueId?: string
   residentId: string
   healthRecordNo: string
   residentName: string
@@ -190,13 +192,18 @@ export interface ReceptionQueueItem {
   registrationSource: 'WINDOW' | 'WALK_IN' | 'DIRECT' | 'EMERGENCY' | 'TRANSFER'
   visitType: 'GENERAL' | 'FOLLOW_UP' | 'EMERGENCY' | 'TRANSFER'
   registrationStatus: 'REGISTERED' | 'CANCELLED'
-  status: 'WAITING' | 'IN_SERVICE' | 'SUSPENDED' | 'COMPLETED' | 'TRANSFERRED' | 'CANCELLED'
+  status: import('./queueingApi').QueueTicketStatus
   practitionerName?: string
   serviceName?: string
   sdDayPartText?: string
   locationName?: string
   registeredAt: string
+  readyAt?: string
   calledAt?: string
+  startedAt?: string
+  callCount?: number
+  missedCount?: number
+  currentLocationId?: string
 }
 
 export interface RegistrationPageView {

@@ -21,7 +21,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"fullName":"签署居民","nationalId":"330102198801011288",
+                                {"fullName":"签署居民","identifiers":[{"system":"9","value":"330102198801011288","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
@@ -90,7 +90,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                         .content("""
                                 {
                                   "fullName":"赵青",
-                                  "nationalId":"330102198801011199",
+                                  "identifiers":[{"system":"9","value":"330102198801011199","useType":"SECONDARY"}],
                                   "gender":"FEMALE",
                                   "birthDate":"1988-01-01"
                                 }
@@ -170,7 +170,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
         String residentBody = mockMvc.perform(post("/api/residents")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"fullName":"多病程居民","nationalId":"330102198801011377",
+                                {"fullName":"多病程居民","identifiers":[{"system":"9","value":"330102198801011377","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();

@@ -3,6 +3,7 @@ package com.rhn.outpatient.encounter;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.healthcore.api.ClinicalDocumentDirectory;
 import com.rhn.healthcore.api.ClinicalObservationDirectory;
+import com.rhn.healthcore.api.ClinicalValidationDirectory;
 import com.rhn.healthplanning.api.HypertensionCareDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.idempotency.IdempotencyService;
@@ -62,6 +63,7 @@ public class EncounterService implements EncounterDirectory {
     private final OutpatientNoteFormDirectory noteFormDirectory;
     private final ClinicalDocumentDirectory clinicalDocumentDirectory;
     private final ClinicalObservationDirectory clinicalObservationDirectory;
+    private final ClinicalValidationDirectory clinicalValidationDirectory;
     private final HypertensionCareDirectory hypertensionCareDirectory;
     private final TerminologyDirectory terminologyDirectory;
     private final DomainEventPublisher eventPublisher;
@@ -83,6 +85,7 @@ public class EncounterService implements EncounterDirectory {
                             OutpatientNoteFormDirectory noteFormDirectory,
                             ClinicalDocumentDirectory clinicalDocumentDirectory,
                             ClinicalObservationDirectory clinicalObservationDirectory,
+                            ClinicalValidationDirectory clinicalValidationDirectory,
                             HypertensionCareDirectory hypertensionCareDirectory,
                             TerminologyDirectory terminologyDirectory,
                             DomainEventPublisher eventPublisher,
@@ -103,6 +106,7 @@ public class EncounterService implements EncounterDirectory {
         this.noteFormDirectory = noteFormDirectory;
         this.clinicalDocumentDirectory = clinicalDocumentDirectory;
         this.clinicalObservationDirectory = clinicalObservationDirectory;
+        this.clinicalValidationDirectory = clinicalValidationDirectory;
         this.hypertensionCareDirectory = hypertensionCareDirectory;
         this.terminologyDirectory = terminologyDirectory;
         this.eventPublisher = eventPublisher;
@@ -267,6 +271,10 @@ public class EncounterService implements EncounterDirectory {
     public EncounterResponse recordClinicalData(Long encounterId, RecordClinicalDataRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
         Long tenantId = TenantContext.requireTenantId();
+        clinicalValidationDirectory.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
+                request.temperature(), decimal(request.pulseRate()), decimal(request.respiratoryRate()),
+                decimal(request.systolic()), decimal(request.diastolic()), decimal(request.oxygenSaturation()),
+                request.heightCm(), request.weightKg(), null, null));
         validateDiagnoses(request);
         String commandCode = clean(request.commandCode()) == null
                 ? "RECORD-" + encounterId + "-" + encounter.version() + "-" + com.rhn.shared.id.GlobalIds.next()
@@ -398,6 +406,10 @@ public class EncounterService implements EncounterDirectory {
         idempotencyService.complete(RECORD_OPERATION, commandCode, "Encounter", encounter.id(), 200,
                 jsonCodec.write(response));
         return response;
+    }
+
+    private static java.math.BigDecimal decimal(Integer value) {
+        return value == null ? null : java.math.BigDecimal.valueOf(value);
     }
 
     @Transactional

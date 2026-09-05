@@ -1,5 +1,6 @@
 package com.rhn.inpatient.application;
 
+import com.rhn.healthcore.api.ClinicalValidationDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot;
 import com.rhn.inpatient.api.InpatientNursingViews.HandoffPatientView;
@@ -86,6 +87,7 @@ public class InpatientNursingService {
     private final InpatientShiftHandoffSignatureRepository handoffSignatures;
     private final CryptographicEvidenceService evidenceService;
     private final JsonCodec jsonCodec;
+    private final ClinicalValidationDirectory clinicalValidation;
 
     public InpatientNursingService(
             ExecutionContextProvider contextProvider,
@@ -99,7 +101,8 @@ public class InpatientNursingService {
             InpatientShiftHandoffItemRepository handoffItems,
             InpatientShiftHandoffSignatureRepository handoffSignatures,
             CryptographicEvidenceService evidenceService,
-            JsonCodec jsonCodec) {
+            JsonCodec jsonCodec,
+            ClinicalValidationDirectory clinicalValidation) {
         this.contextProvider = contextProvider;
         this.episodes = episodes;
         this.encounters = encounters;
@@ -112,6 +115,7 @@ public class InpatientNursingService {
         this.handoffSignatures = handoffSignatures;
         this.evidenceService = evidenceService;
         this.jsonCodec = jsonCodec;
+        this.clinicalValidation = clinicalValidation;
     }
 
     @Transactional
@@ -409,19 +413,10 @@ public class InpatientNursingService {
 
     private ObservationSummary normalizeObservationSummary(ObservationSummary value) {
         if (value == null) return null;
-        boolean systolic = value.systolicBloodPressure() != null;
-        boolean diastolic = value.diastolicBloodPressure() != null;
-        if (systolic != diastolic) {
-            throw badRequest("INPATIENT_BLOOD_PRESSURE_PAIR_REQUIRED", "收缩压和舒张压必须同时录入");
-        }
-        requireRange(value.temperatureCelsius(), "30", "45", "体温");
-        requireRange(value.pulseRate(), "0", "300", "脉搏");
-        requireRange(value.respiratoryRate(), "0", "100", "呼吸");
-        requireRange(value.systolicBloodPressure(), "20", "300", "收缩压");
-        requireRange(value.diastolicBloodPressure(), "10", "200", "舒张压");
-        requireRange(value.oxygenSaturation(), "0", "100", "血氧饱和度");
-        requireRange(value.intakeVolumeMl(), "0", "100000", "入量");
-        requireRange(value.outputVolumeMl(), "0", "100000", "出量");
+        clinicalValidation.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
+                value.temperatureCelsius(), value.pulseRate(), value.respiratoryRate(),
+                value.systolicBloodPressure(), value.diastolicBloodPressure(), value.oxygenSaturation(),
+                null, null, value.intakeVolumeMl(), value.outputVolumeMl()));
         if (value.painScore() != null && (value.painScore() < 0 || value.painScore() > 10)) {
             throw badRequest("INPATIENT_PAIN_SCORE_INVALID", "疼痛评分必须在0至10之间");
         }
@@ -490,13 +485,6 @@ public class InpatientNursingService {
             if (!seen.add(patient.episodeId())) {
                 throw badRequest("INPATIENT_HANDOFF_PATIENT_DUPLICATE", "同一患者住院记录不能重复交班");
             }
-        }
-    }
-
-    private void requireRange(BigDecimal value, String minimum, String maximum, String label) {
-        if (value == null) return;
-        if (value.compareTo(new BigDecimal(minimum)) < 0 || value.compareTo(new BigDecimal(maximum)) > 0) {
-            throw badRequest("INPATIENT_OBSERVATION_VALUE_INVALID", label + "超出允许录入范围");
         }
     }
 

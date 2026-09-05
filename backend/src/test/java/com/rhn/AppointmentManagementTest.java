@@ -143,7 +143,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
         String digits = "%06d".formatted(Math.floorMod(suffix.hashCode(), 1_000_000));
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"预约管理患者%s","nationalId":"33010219900101%s",
+                                {"fullName":"预约管理患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1990-01-01"}
                                 """.formatted(suffix, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

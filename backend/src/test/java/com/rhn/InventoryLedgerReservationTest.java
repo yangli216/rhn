@@ -517,7 +517,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"库存并发患者","nationalId":"33010219910101%s",
+                                {"fullName":"库存并发患者","identifiers":[{"system":"9","value":"33010219910101%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1991-01-01"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

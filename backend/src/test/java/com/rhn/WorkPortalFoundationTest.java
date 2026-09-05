@@ -34,7 +34,7 @@ class WorkPortalFoundationTest extends RhnIntegrationTestSupport {
                         .content("""
                                 {
                                   "fullName":"任务居民",
-                                  "nationalId":"330102198801011237",
+                                  "identifiers":[{"system":"9","value":"330102198801011237","useType":"SECONDARY"}],
                                   "gender":"FEMALE",
                                   "birthDate":"1988-01-01",
                                   "phone":"13800138009"

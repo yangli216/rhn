@@ -22,9 +22,9 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
     @Query("""
             select c from Concept c
             where c.codeSystemId in :systemIds
-              and (:conceptType = '' or c.conceptType = :conceptType)
+              and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
               and (:status is null or c.status = :status)
-              and (:query = '' or lower(c.code) like lower(concat('%', :query, '%'))
+              and (:query is null or :query = '' or lower(c.code) like lower(concat('%', :query, '%'))
                    or lower(c.display) like lower(concat('%', :query, '%'))
                    or lower(coalesce(c.shortDisplay, '')) like lower(concat('%', :query, '%'))
                    or lower(coalesce(c.searchCode, '')) like lower(concat('%', :query, '%'))

@@ -125,13 +125,15 @@ export interface DiseaseManagementExceptionInput {
   note?: string
 }
 
-export interface DiseaseSearchPage {
-  content: DiseaseConcept[]
+export interface MasterDataPage<T> {
+  content: T[]
   totalElements: number
   totalPages: number
   page: number
   size: number
 }
+
+export type DiseaseSearchPage = MasterDataPage<DiseaseConcept>
 
 export interface DiseaseManagementProgramInput {
   productScope: boolean
@@ -1253,6 +1255,12 @@ export function createMasterDataApi(client: ApiClient) {
     diseaseManagementPrograms: (status = '') => client.request<DiseaseManagementProgram[]>(
       `/api/platform/terminology/disease-management-programs${queryString({ status })}`,
     ),
+    searchDiseaseManagementPrograms: (query = '', managementType = '', status = '', page = 0, size = 20) =>
+      client.request<MasterDataPage<DiseaseManagementProgram>>(
+        `/api/platform/terminology/disease-management-programs/search${queryString({
+          query, managementType, status, page: String(page), size: String(size),
+        })}`,
+      ),
     createDiseaseManagementProgram: (input: DiseaseManagementProgramInput) =>
       client.request<DiseaseManagementProgram>('/api/platform/terminology/disease-management-programs', {
         method: 'POST', body: JSON.stringify(input),
@@ -1280,6 +1288,10 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<ServiceCatalogItem[]>(`/api/platform/master-data/services${queryString({
         query, serviceType, status, organizationId,
       })}`),
+    searchServices: (query = '', serviceType = '', status = '', organizationId = '', page = 0, size = 20) =>
+      client.request<MasterDataPage<ServiceCatalogItem>>(`/api/platform/master-data/services/search${queryString({
+        query, serviceType, status, organizationId, page: String(page), size: String(size),
+      })}`),
     createService: (input: ServiceInput, organizationId = '') => client.request<ServiceCatalogItem>(
       `/api/platform/master-data/services${queryString({ organizationId })}`, {
         method: 'POST', body: JSON.stringify(input),
@@ -1300,6 +1312,10 @@ export function createMasterDataApi(client: ApiClient) {
     medications: (query = '', medicationType = '', status = '', organizationId = '') =>
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,
+      })}`),
+    searchMedications: (query = '', medicationType = '', status = '', organizationId = '', page = 0, size = 20) =>
+      client.request<MasterDataPage<MedicationKnowledge>>(`/api/platform/master-data/medications/search${queryString({
+        query, medicationType, status, organizationId, page: String(page), size: String(size),
       })}`),
     createMedication: (input: MedicationInput, organizationId = '') => client.request<MedicationKnowledge>(
       `/api/platform/master-data/medications${queryString({ organizationId })}`, {

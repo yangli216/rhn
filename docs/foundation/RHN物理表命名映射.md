@@ -197,9 +197,10 @@
 | META | `meta.print_template` | 打印模板；一行代表一条打印模板记录 | `print_templates` | `RHN_META_PRINT_TMPL` | 12 |
 | SUP | `sup.purchase_order_line` | 采购医嘱明细；一行代表一条采购医嘱明细记录 | `purchase_order_lines` | `RHN_SUP_PURCH_ORDER_LINE` | 13 |
 | SUP | `sup.purchase_order` | 采购医嘱；一行代表一条采购医嘱记录 | `purchase_orders` | `RHN_SUP_PURCH_ORDER` | 21 |
-| SC | `sc.queue_counter` | 队列计数器；一行代表一条队列计数器记录 | `queue_counters` | `RHN_SC_QUEUE_COUNT` | 6 |
-| SC | `sc.queue_ticket_event` | 队列票号事件；一行代表一条队列票号事件记录 | `queue_ticket_events` | `RHN_SC_QUEUE_TICKET_EVT` | 10 |
-| SC | `sc.queue_ticket` | 队列票号；一行代表一条队列票号记录 | `queue_tickets` | `RHN_SC_QUEUE_TICKET` | 14 |
+| SC | `sc.service_queue` | 服务队列；一行代表一个可独立编号和调度的服务队列 | `service_queues` | `RHN_SC_SVC_QUEUE` | 15 |
+| SC | `sc.queue_counter` | 队列计数器；一行代表一个服务队列在一个业务日期的发号进度 | `queue_counters` | `RHN_SC_QUEUE_COUNT` | 6 |
+| SC | `sc.queue_ticket_event` | 排队号票事件；一行代表一次不可变的号票业务动作 | `queue_ticket_events` | `RHN_SC_QUEUE_TICKET_EVT` | 11 |
+| SC | `sc.queue_ticket` | 排队号票；一行代表一名患者一次进入一个服务队列 | `queue_tickets` | `RHN_SC_QUEUE_TICKET` | 22 |
 | BIL | `bil.receipt_event` | 票据事件；一行代表一条票据事件记录 | `receipt_events` | `RHN_BIL_RCPT_EVT` | 13 |
 | BIL | `bil.receipt` | 票据；一行代表一条票据记录 | `receipts` | `RHN_BIL_RCPT` | 27 |
 | BIL | `bil.reconciliation_batch` | 核对批次；一行代表一条核对批次记录 | `reconciliation_batches` | `RHN_BIL_RECON_BATCH` | 24 |
@@ -276,7 +277,7 @@
 | SYS | `sys.work_task_history` | 工作任务历史；一行代表一条工作任务历史记录 | `work_task_history` | `RHN_SYS_WORK_TASK_HIST` | 10 |
 | SYS | `sys.work_task` | 工作任务；一行代表一条工作任务记录 | `work_tasks` | `RHN_SYS_WORK_TASK` | 26 |
 
-合计：271 张表。
+合计：272 张表。
 
 ## Oracle 适配器技术列
 

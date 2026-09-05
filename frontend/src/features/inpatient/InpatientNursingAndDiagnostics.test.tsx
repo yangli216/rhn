@@ -25,9 +25,12 @@ describe('InpatientNursingWorkspace', () => {
   it('records compact nursing and assessment facts with shared form controls', async () => {
     vi.stubGlobal('crypto', { randomUUID: () => 'command-1' })
     const appendNursingRecord = vi.fn().mockResolvedValue({ id: 'record-1' })
-    const api = { inpatient: {
-      nursingRecords: vi.fn().mockResolvedValue([]), appendNursingRecord,
-    } } as unknown as RhnApi
+    const api = {
+      clinicalSafety: { vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }) },
+      inpatient: {
+        nursingRecords: vi.fn().mockResolvedValue([]), appendNursingRecord,
+      },
+    } as unknown as RhnApi
     renderWithQuery(<InpatientNursingWorkspace api={api} episode={episode} />)
 
     await userEvent.click(await screen.findByRole('button', { name: '新增护理记录' }))

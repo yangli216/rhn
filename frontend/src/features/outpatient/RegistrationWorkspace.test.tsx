@@ -9,7 +9,7 @@ import type { ReceptionQueueItem, ServiceSchedule } from '../../shared/api/sched
 import type { Encounter, Resident } from '../../shared/model'
 import type { RegistrationBillingIntent } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
-import { OutpatientRegistrationWorkspace, registrationDayPart } from './RegistrationWorkspace'
+import { OutpatientRegistrationWorkspace, queueItemStatusLabel, queueItemStatusTone, registrationDayPart } from './RegistrationWorkspace'
 
 const resident: Resident = {
   id: 'resident-1', healthRecordNo: 'HR0001', fullName: '张三', maskedNationalId: '3301********1234',
@@ -507,5 +507,76 @@ describe('OutpatientRegistrationWorkspace', () => {
     await userEvent.clear(cashInput)
     await userEvent.type(cashInput, '5')
     expect(await screen.findByRole('button', { name: /实收缴款不足，还差 ¥5.00/ })).toBeDisabled()
+  })
+
+  it('correctly maps all queue item statuses to Chinese labels and semantic tones', () => {
+    expect(queueItemStatusLabel('WAITING')).toBe('候诊中')
+    expect(queueItemStatusTone('WAITING')).toBe('warning')
+
+    expect(queueItemStatusLabel('CALLED')).toBe('已叫号')
+    expect(queueItemStatusTone('CALLED')).toBe('info')
+
+    expect(queueItemStatusLabel('SERVING')).toBe('接诊中')
+    expect(queueItemStatusTone('SERVING')).toBe('info')
+
+    expect(queueItemStatusLabel('SERVING')).toBe('接诊中')
+    expect(queueItemStatusTone('SERVING')).toBe('info')
+
+    expect(queueItemStatusLabel('SUSPENDED')).toBe('已暂挂')
+    expect(queueItemStatusTone('SUSPENDED')).toBe('warning')
+
+    expect(queueItemStatusLabel('MISSED')).toBe('已过号')
+    expect(queueItemStatusTone('MISSED')).toBe('warning')
+
+    expect(queueItemStatusLabel('COMPLETED')).toBe('已诊毕')
+    expect(queueItemStatusTone('COMPLETED')).toBe('success')
+
+    expect(queueItemStatusLabel('CANCELLED')).toBe('已退号')
+    expect(queueItemStatusTone('CANCELLED')).toBe('neutral')
+
+    // registrationStatus: 'CANCELLED' always yields '已退号'
+    expect(queueItemStatusLabel({ status: 'WAITING', registrationStatus: 'CANCELLED' } as ReceptionQueueItem)).toBe('已退号')
+    expect(queueItemStatusTone({ status: 'WAITING', registrationStatus: 'CANCELLED' } as ReceptionQueueItem)).toBe('neutral')
+  })
+
+  it('renders 接诊中 status badge for a SERVING patient in today registration stream', async () => {
+    const inServiceReceipt: ReceptionQueueItem = {
+      ...receipt,
+      registrationId: 'reg-in-service',
+      residentName: '张建国',
+      status: 'SERVING',
+    }
+    const api = {
+      residents: { get: vi.fn(), search: vi.fn(), profile: vi.fn() },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([inServiceReceipt]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    expect(await screen.findByText('本窗口今日挂号记录（最近流水）')).toBeInTheDocument()
+    expect(await screen.findByText('张建国')).toBeInTheDocument()
+
+    // The unified queue status is presented as a concise Chinese label.
+    expect(screen.getByText('接诊中')).toBeInTheDocument()
+    const badge = screen.getByText('接诊中')
+    expect(badge).toHaveClass('ui-badge--info')
+
+    // Cannot refund once already in service
+    expect(screen.queryByRole('button', { name: '退号' })).not.toBeInTheDocument()
   })
 })

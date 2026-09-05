@@ -1,10 +1,6 @@
 package com.rhn.outpatient.encounter;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -22,14 +18,14 @@ public record RecordClinicalDataRequest(
         @Size(max = 4000) String medicalHistory,
         @Size(max = 4000) String physicalExam,
         @Size(max = 4000) String treatmentPlan,
-        @NotNull(message = "收缩压不能为空") @Min(40) @Max(300) Integer systolic,
-        @NotNull(message = "舒张压不能为空") @Min(20) @Max(200) Integer diastolic,
-        @DecimalMin(value = "30.0") @DecimalMax(value = "45.0") BigDecimal temperature,
-        @Min(20) @Max(250) Integer pulseRate,
-        @Min(5) @Max(80) Integer respiratoryRate,
-        @DecimalMin(value = "30.0") @DecimalMax(value = "250.0") BigDecimal heightCm,
-        @DecimalMin(value = "1.0") @DecimalMax(value = "500.0") BigDecimal weightKg,
-        @Min(50) @Max(100) Integer oxygenSaturation,
+        @NotNull(message = "收缩压不能为空") Integer systolic,
+        @NotNull(message = "舒张压不能为空") Integer diastolic,
+        BigDecimal temperature,
+        Integer pulseRate,
+        Integer respiratoryRate,
+        BigDecimal heightCm,
+        BigDecimal weightKg,
+        Integer oxygenSaturation,
         Long noteFormVersionId,
         @Size(max = 40) Map<@Size(max = 64) String, Object> structuredData,
         @NotEmpty(message = "至少录入一条诊断") List<@Valid DiagnosisInput> diagnoses

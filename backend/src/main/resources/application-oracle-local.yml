@@ -20,6 +20,7 @@ spring:
     locations: classpath:db/oracle,classpath:db/oracle-local
     # Local demo datasets may be added behind the current schema version during parallel iteration.
     out-of-order: true
+    validate-on-migrate: false
 
 rhn:
   id:

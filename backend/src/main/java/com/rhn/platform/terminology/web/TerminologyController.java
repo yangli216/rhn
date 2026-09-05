@@ -6,6 +6,7 @@ import com.rhn.platform.terminology.api.CodeSystemSummary;
 import com.rhn.platform.terminology.api.DiseaseConceptView;
 import com.rhn.platform.terminology.api.DiseaseManagementProgramView;
 import com.rhn.platform.terminology.api.DiseaseSearchPage;
+import com.rhn.shared.api.PageResult;
 import com.rhn.platform.terminology.application.TerminologyApplicationService;
 import com.rhn.platform.terminology.domain.TerminologyCodePolicy;
 import jakarta.validation.Valid;
@@ -99,6 +100,17 @@ public class TerminologyController {
     List<DiseaseManagementProgramView> diseaseManagementPrograms(
             @RequestParam(required = false) com.rhn.platform.terminology.domain.TerminologyStatus status) {
         return service.listDiseaseManagementPrograms(TenantContext.requireTenantId(), status);
+    }
+
+    @GetMapping("/disease-management-programs/search")
+    PageResult<DiseaseManagementProgramView> searchDiseaseManagementPrograms(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String managementType,
+            @RequestParam(required = false) com.rhn.platform.terminology.domain.TerminologyStatus status,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(10) int size) {
+        return service.searchDiseaseManagementPrograms(TenantContext.requireTenantId(), query, managementType,
+                status, page, size);
     }
 
     @PostMapping("/disease-management-programs")

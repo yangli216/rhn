@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
@@ -12,15 +12,16 @@ import {
 } from '../../shared/ui'
 
 const queueStatuses: ReceptionQueueItem['status'][] = [
-  'WAITING', 'IN_SERVICE', 'SUSPENDED', 'COMPLETED', 'TRANSFERRED', 'CANCELLED',
+  'WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED', 'CANCELLED',
 ]
 
 const fallbackStatusNames: Record<ReceptionQueueItem['status'], string> = {
   WAITING: '候诊中',
-  IN_SERVICE: '接诊中',
+  CALLED: '已叫号',
+  SERVING: '接诊中',
   SUSPENDED: '已暂挂',
+  MISSED: '已过号',
   COMPLETED: '已诊毕',
-  TRANSFERRED: '已转诊',
   CANCELLED: '已取消',
 }
 
@@ -31,13 +32,13 @@ function clock(value: string) {
 }
 
 function queueTone(status: ReceptionQueueItem['status']) {
-  if (status === 'WAITING' || status === 'SUSPENDED') return 'warning' as const
-  if (status === 'IN_SERVICE' || status === 'TRANSFERRED') return 'info' as const
+  if (status === 'WAITING' || status === 'SUSPENDED' || status === 'MISSED') return 'warning' as const
+  if (status === 'CALLED' || status === 'SERVING') return 'info' as const
   if (status === 'COMPLETED') return 'success' as const
   return 'neutral' as const
 }
 
-function includesQuery(item: ReceptionQueueItem, query: string) {
+export function includesQuery(item: ReceptionQueueItem, query: string) {
   if (!query) return true
   return [
     item.residentName, item.healthRecordNo, item.registrationNo, item.ticketNo,
@@ -142,7 +143,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
 
   const pageError = registrations.error || visitTypes.error || receptionStatuses.error || cancelRegistration.error
   const waiting = registrationItems.filter((item) => item.status === 'WAITING').length
-  const active = registrationItems.filter((item) => ['IN_SERVICE', 'SUSPENDED'].includes(item.status)).length
+  const active = registrationItems.filter((item) => ['CALLED', 'SERVING', 'SUSPENDED'].includes(item.status)).length
   const completed = registrationItems.filter((item) => item.status === 'COMPLETED').length
   const cancelled = registrationItems.filter((item) => item.status === 'CANCELLED').length
   const dateRangeLabel = dateRange.from === dateRange.to ? dateRange.from : `${dateRange.from} 至 ${dateRange.to}`
@@ -199,12 +200,12 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
             <div><strong>{item.registrationNo}</strong><small>{clock(item.registeredAt)} · {visitTypeText(item.visitType)}</small></div>
             <StatusBadge tone={queueTone(item.status)}>{statusText(item.status)}</StatusBadge>
             <span className="registration-row-actions">
-              {item.status === 'WAITING' && item.registrationStatus === 'REGISTERED' && <Button size="sm"
+              {['WAITING', 'CALLED', 'MISSED'].includes(item.status) && item.registrationStatus === 'REGISTERED' && <Button size="sm"
                 variant="text" onClick={() => { setCancellationResult(null); setCancelling(item) }}>退号</Button>}
               <Button size="sm" variant="text"
                 onClick={() => onNavigate(`/outpatient/reception?${new URLSearchParams({
                   residentId: item.residentId, encounterId: item.encounterId,
-                }).toString()}`)}>{['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
+                }).toString()}`)}>{['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
             </span>
           </article>)}
         </div></div>

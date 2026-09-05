@@ -12,6 +12,7 @@ import type {
   InpatientVitalObservationInput,
 } from '../../shared/api/inpatientApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { VITAL_HARD_LIMITS } from '../../shared/validation/businessValidation'
 import { Alert, Button, EmptyState, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './inpatient-temperature-chart.css'
 
@@ -292,6 +293,11 @@ export function TemperatureChartEntry({ weekStart, busy, onRecordVital, onRecord
       setEntryError('血压需要同时填写收缩压和舒张压。')
       return
     }
+    if (input.systolicBloodPressure !== undefined && input.diastolicBloodPressure !== undefined
+        && input.systolicBloodPressure <= input.diastolicBloodPressure) {
+      setEntryError('收缩压必须大于舒张压。')
+      return
+    }
     setEntryError('')
     await onRecordVital(input)
   }
@@ -315,18 +321,18 @@ export function TemperatureChartEntry({ weekStart, busy, onRecordVital, onRecord
       <CompactSelect label="时点" name="hour" defaultValue="10" options={OBSERVATION_HOURS.map((hour) => ({
         value: String(hour), label: `${String(hour).padStart(2, '0')}:00`,
       }))} />
-      <CompactField label="体温 ℃"><input name="temperatureCelsius" type="number" min="30" max="45" step="0.1" /></CompactField>
+      <CompactField label="体温 ℃"><input name="temperatureCelsius" type="number" min={VITAL_HARD_LIMITS.temperature.minimum} max={VITAL_HARD_LIMITS.temperature.maximum} step="0.1" /></CompactField>
       <CompactSelect label="测温方式" name="temperatureSite" defaultValue="AXILLARY"
         options={Object.entries(temperatureSiteText).map(([value, label]) => ({ value, label }))} />
-      <CompactField label="脉搏 次/分"><input name="pulseRate" type="number" min="20" max="250" /></CompactField>
-      <CompactField label="呼吸 次/分"><input name="respiratoryRate" type="number" min="5" max="80" /></CompactField>
-      <CompactField label="降温后 ℃"><input name="coolingTemperatureCelsius" type="number" min="30" max="45" step="0.1" /></CompactField>
-      <CompactField label="血压 mmHg" className="is-pressure"><span><input name="systolicBloodPressure" type="number" min="40" max="260" aria-label="收缩压" placeholder="收缩压" />
-        <b>/</b><input name="diastolicBloodPressure" type="number" min="20" max="180" aria-label="舒张压" placeholder="舒张压" /></span></CompactField>
-      <CompactField label="SpO₂ %"><input name="oxygenSaturation" type="number" min="50" max="100" /></CompactField>
-      <CompactField label="体重 kg"><input name="bodyWeightKg" type="number" min="0.5" max="500" step="0.1" /></CompactField>
-      <CompactField label="入量 ml"><input name="intakeVolumeMl" type="number" min="0" max="50000" /></CompactField>
-      <CompactField label="出量 ml"><input name="outputVolumeMl" type="number" min="0" max="50000" /></CompactField>
+      <CompactField label="脉搏 次/分"><input name="pulseRate" type="number" min={VITAL_HARD_LIMITS.pulse.minimum} max={VITAL_HARD_LIMITS.pulse.maximum} /></CompactField>
+      <CompactField label="呼吸 次/分"><input name="respiratoryRate" type="number" min={VITAL_HARD_LIMITS.respiratoryRate.minimum} max={VITAL_HARD_LIMITS.respiratoryRate.maximum} /></CompactField>
+      <CompactField label="降温后 ℃"><input name="coolingTemperatureCelsius" type="number" min={VITAL_HARD_LIMITS.temperature.minimum} max={VITAL_HARD_LIMITS.temperature.maximum} step="0.1" /></CompactField>
+      <CompactField label="血压 mmHg" className="is-pressure"><span><input name="systolicBloodPressure" type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum} max={VITAL_HARD_LIMITS.systolicPressure.maximum} aria-label="收缩压" placeholder="收缩压" />
+        <b>/</b><input name="diastolicBloodPressure" type="number" min={VITAL_HARD_LIMITS.diastolicPressure.minimum} max={VITAL_HARD_LIMITS.diastolicPressure.maximum} aria-label="舒张压" placeholder="舒张压" /></span></CompactField>
+      <CompactField label="SpO₂ %"><input name="oxygenSaturation" type="number" min={VITAL_HARD_LIMITS.oxygenSaturation.minimum} max={VITAL_HARD_LIMITS.oxygenSaturation.maximum} /></CompactField>
+      <CompactField label="体重 kg"><input name="bodyWeightKg" type="number" min={VITAL_HARD_LIMITS.weight.minimum} max={VITAL_HARD_LIMITS.weight.maximum} step="0.1" /></CompactField>
+      <CompactField label="入量 ml"><input name="intakeVolumeMl" type="number" min={VITAL_HARD_LIMITS.volume.minimum} max={VITAL_HARD_LIMITS.volume.maximum} /></CompactField>
+      <CompactField label="出量 ml"><input name="outputVolumeMl" type="number" min={VITAL_HARD_LIMITS.volume.minimum} max={VITAL_HARD_LIMITS.volume.maximum} /></CompactField>
       <Button type="submit" size="sm" busy={busy}>保存体征</Button>
     </form>
     <form key={`event-${weekStart}`} className="inpatient-chart-event-form" onSubmit={recordEvent}>

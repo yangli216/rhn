@@ -1,5 +1,7 @@
 package com.rhn.inpatient.application;
 
+import com.rhn.healthcore.api.ClinicalValidationDirectory;
+
 import com.rhn.inpatient.api.InpatientTemperatureChartViews.ChartEventView;
 import com.rhn.inpatient.api.InpatientTemperatureChartViews.VitalObservationView;
 import com.rhn.inpatient.api.InpatientTemperatureChartViews.WeekView;
@@ -56,6 +58,7 @@ public class InpatientTemperatureChartService {
     private final InpatientObservationGroupRepository groups;
     private final InpatientObservationRepository observations;
     private final InpatientChartEventRepository chartEvents;
+    private final ClinicalValidationDirectory clinicalValidation;
 
     public InpatientTemperatureChartService(
             ExecutionContextProvider contextProvider,
@@ -65,7 +68,8 @@ public class InpatientTemperatureChartService {
             ServiceLocationRepository locations,
             InpatientObservationGroupRepository groups,
             InpatientObservationRepository observations,
-            InpatientChartEventRepository chartEvents) {
+            InpatientChartEventRepository chartEvents,
+            ClinicalValidationDirectory clinicalValidation) {
         this.contextProvider = contextProvider;
         this.organizations = organizations;
         this.episodes = episodes;
@@ -74,6 +78,7 @@ public class InpatientTemperatureChartService {
         this.groups = groups;
         this.observations = observations;
         this.chartEvents = chartEvents;
+        this.clinicalValidation = clinicalValidation;
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +130,15 @@ public class InpatientTemperatureChartService {
             throw badRequest("INPATIENT_TEMPERATURE_SITE_INVALID", "体温测量部位不合法");
         }
         requireCoolingObservation(relation.episode(), input);
+        clinicalValidation.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
+                input.temperatureCelsius(), input.pulseRate(), input.respiratoryRate(),
+                input.systolicBloodPressure(), input.diastolicBloodPressure(), input.oxygenSaturation(),
+                null, input.bodyWeightKg(), input.intakeVolumeMl(), input.outputVolumeMl()));
+        if (input.coolingTemperatureCelsius() != null) {
+            clinicalValidation.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
+                    input.coolingTemperatureCelsius(), null, null, null, null, null,
+                    null, null, null, null));
+        }
         List<MeasurementSpec> measurementSpecs = measurementSpecs(input, temperatureSite);
         if (measurementSpecs.isEmpty()) {
             throw badRequest("INPATIENT_OBSERVATION_EMPTY", "请至少录入一项生命体征或出入量");
@@ -222,42 +236,34 @@ public class InpatientTemperatureChartService {
     }
 
     private List<MeasurementSpec> measurementSpecs(ObservationCommand input, String temperatureSite) {
-        boolean systolicPresent = input.systolicBloodPressure() != null;
-        boolean diastolicPresent = input.diastolicBloodPressure() != null;
-        if (systolicPresent != diastolicPresent) {
-            throw badRequest("INPATIENT_BLOOD_PRESSURE_PAIR_REQUIRED", "收缩压和舒张压必须同时录入");
-        }
         List<MeasurementSpec> result = new ArrayList<>();
         add(result, "BODY_TEMPERATURE", input.observedAt(), input.temperatureCelsius(), "Cel", temperatureSite,
-                "体温", "30", "45");
+                "体温");
         add(result, "COOLING_TEMPERATURE", input.coolingObservedAt(), input.coolingTemperatureCelsius(),
-                "Cel", temperatureSite, "降温后体温", "30", "45");
+                "Cel", temperatureSite, "降温后体温");
         add(result, "PULSE_RATE", input.observedAt(), input.pulseRate(), "/min", null,
-                "脉搏", "0", "300");
+                "脉搏");
         add(result, "RESPIRATORY_RATE", input.observedAt(), input.respiratoryRate(), "/min", null,
-                "呼吸", "0", "100");
+                "呼吸");
         add(result, "SYSTOLIC_BLOOD_PRESSURE", input.observedAt(), input.systolicBloodPressure(), "mm[Hg]", null,
-                "收缩压", "20", "300");
+                "收缩压");
         add(result, "DIASTOLIC_BLOOD_PRESSURE", input.observedAt(), input.diastolicBloodPressure(), "mm[Hg]", null,
-                "舒张压", "10", "200");
+                "舒张压");
         add(result, "OXYGEN_SATURATION", input.observedAt(), input.oxygenSaturation(), "%", null,
-                "血氧饱和度", "0", "100");
+                "血氧饱和度");
         add(result, "BODY_WEIGHT", input.observedAt(), input.bodyWeightKg(), "kg", null,
-                "体重", "0.1", "500");
+                "体重");
         add(result, "FLUID_INTAKE", input.observedAt(), input.intakeVolumeMl(), "mL", null,
-                "入量", "0", "100000");
+                "入量");
         add(result, "FLUID_OUTPUT", input.observedAt(), input.outputVolumeMl(), "mL", null,
-                "出量", "0", "100000");
+                "出量");
         return result;
     }
 
     private void add(List<MeasurementSpec> target, String code, Instant observedAt,
                      BigDecimal value, String unit,
-                     String bodySiteCode, String label, String minimum, String maximum) {
+                     String bodySiteCode, String label) {
         if (value == null) return;
-        if (value.compareTo(new BigDecimal(minimum)) < 0 || value.compareTo(new BigDecimal(maximum)) > 0) {
-            throw badRequest("INPATIENT_OBSERVATION_VALUE_INVALID", label + "超出允许录入范围");
-        }
         target.add(new MeasurementSpec(code, observedAt, value, unit, bodySiteCode));
     }
 

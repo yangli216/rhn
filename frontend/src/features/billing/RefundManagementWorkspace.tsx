@@ -187,7 +187,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
       description="临床-医技-药房协同审批闭环与退费防损管理，支持未发药未执行医嘱误收费直接退款及已发药严控拦截。"
       actions={<Button variant="secondary" onClick={() => void refresh()}>刷新</Button>}
     />
-    {error && <Alert tone="danger">{errorMessage(error)}</Alert>}
+    {error && <Alert tone="error">{errorMessage(error)}</Alert>}
 
     <div className="billing-context-bar billing-context-bar--compact">
       <div><span>当前收费机构</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong></div>
@@ -254,7 +254,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
                   </h3>
                 </div>
                 <div>
-                  <Button variant="secondary" size="small" onClick={handleSelectAllAllowed}>
+                  <Button variant="secondary" size="sm" onClick={handleSelectAllAllowed}>
                     全选允许退款项
                   </Button>
                 </div>
@@ -464,7 +464,7 @@ export function RefundManagementWorkspace({ api, clinicalContext }: { api: RhnAp
             {refundMode === 'DIRECT' ? (
               <>
                 {hasSelectedBlockedItem && (
-                  <Alert tone="danger">
+                  <Alert tone="error">
                     当前勾选的项目中包含协同阻断项（如已发药或已出报告），严禁直接退款！
                   </Alert>
                 )}

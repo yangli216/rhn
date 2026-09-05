@@ -28,7 +28,7 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"门诊暂挂患者%s","nationalId":"33010219880808%s",
+                                  "fullName":"门诊暂挂患者%s","identifiers":[{"system":"9","value":"33010219880808%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(suffix, digits)))
@@ -85,7 +85,7 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                         .queryParam("date", LocalDate.now().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.encounterId == '%s')].status".formatted(encounterId))
-                        .value("IN_SERVICE"));
+                        .value("SERVING"));
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(clinicalRecord()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.chiefComplaint").value("复诊头晕"));

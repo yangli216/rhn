@@ -188,7 +188,8 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ISSUED"));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_QUEUE_TICKET qt join RHN_SC_PAT_REG pr " +
-                        "on pr.ID_TNT = qt.ID_TNT and pr.ID_PAT_REG = qt.ID_PAT_REG where pr.ID_ENC = ?",
+                        "on pr.ID_TNT = qt.ID_TNT and qt.SD_SOURCE_TYPE = 'PAT_REG' " +
+                        "and pr.ID_PAT_REG = qt.ID_SOURCE where pr.ID_ENC = ?",
                 Integer.class, completed.get("encounterId").asLong()));
 
         mockMvc.perform(post("/api/billing/payment-orders/{paymentOrderId}/business-completion/retry",
@@ -423,7 +424,8 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         assertEquals("CANCELLED", jdbc.queryForObject(
                 "select SD_STATUS as status from RHN_SC_PAT_REG where ID_ENC = ?", String.class, Long.valueOf(encounterId)));
         assertEquals("CANCELLED", jdbc.queryForObject(
-                "select q.SD_STATUS as status from RHN_SC_QUEUE_TICKET q join RHN_SC_PAT_REG r on r.ID_PAT_REG = q.ID_PAT_REG " +
+                "select q.SD_STATUS as status from RHN_SC_QUEUE_TICKET q join RHN_SC_PAT_REG r " +
+                        "on r.ID_TNT = q.ID_TNT and q.SD_SOURCE_TYPE = 'PAT_REG' and r.ID_PAT_REG = q.ID_SOURCE " +
                         "where r.ID_ENC = ?", String.class, Long.valueOf(encounterId)));
         assertEquals(0, jdbc.queryForObject("select QTY_OCCUPIED from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
@@ -688,7 +690,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"挂号收费验收患者","nationalId":"33010219920303%s",
+                                {"fullName":"挂号收费验收患者","identifiers":[{"system":"9","value":"33010219920303%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-03-03"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

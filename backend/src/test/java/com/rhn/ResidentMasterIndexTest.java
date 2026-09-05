@@ -14,15 +14,21 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
     void identifiers_source_matching_merge_and_split_remain_reversible() throws Exception {
         mockMvc.perform(get("/api/residents")
                         .with(rhn())
-                        .queryParam("query", "195501010000"))
+                        .queryParam("query", "195501010002"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].healthRecordNo").value("RHN-LEGACY-0001"))
                 .andExpect(jsonPath("$[0].identifiers[0].system").value("1"));
 
+        mockMvc.perform(get("/api/residents")
+                        .with(rhn())
+                        .queryParam("query", "RHN-LEGACY-0001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].healthRecordNo").value("RHN-LEGACY-0001"));
+
         String survivorId = createResident("陈晨", "330102196601011111", null);
         String duplicateId = createResident("陈晨", null, """
                 [
-                  {"system":"NATIONAL_ID","value":"330102196601011112","useType":"OFFICIAL"},
+                  {"system":"NATIONAL_ID","value":"330102196601011138","useType":"OFFICIAL"},
                   {"system":"HOSPITAL_MRN","value":"MRN-90001","useType":"SECONDARY"}
                 ]
                 """);
@@ -45,7 +51,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.identifiers.length()").value(0));
 
         mockMvc.perform(post("/api/encounters")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -92,8 +98,8 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
     @Test
     void resident_page_query_supports_filtering_and_pagination() throws Exception {
         String testName = "分页测试" + Long.toString(System.currentTimeMillis()).substring(8);
-        String id1 = createResident(testName + "甲", "330102197001018881", null);
-        String id2 = createResident(testName + "乙", "330102197001018882", null);
+        String id1 = createResident(testName + "甲", "330102196601011154", null);
+        String id2 = createResident(testName + "乙", "330102196601011170", null);
 
         mockMvc.perform(get("/api/residents/page")
                         .with(rhn())

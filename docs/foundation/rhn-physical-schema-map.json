@@ -18005,11 +18005,95 @@
     ]
   },
   {
+    "logical": "sc.service_queue",
+    "legacy": "service_queues",
+    "physical": "RHN_SC_SVC_QUEUE",
+    "domain": "SC",
+    "comment": "服务队列；一行代表一个可独立编号和调度的服务队列",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_SVC_QUEUE",
+        "comment": "服务队列主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "waiting_service_location_id",
+        "physical": "ID_SVC_LOC_WAITING",
+        "comment": "候诊服务位置标识"
+      },
+      {
+        "logical": "code",
+        "physical": "CD_SVC_QUEUE",
+        "comment": "服务队列编码"
+      },
+      {
+        "logical": "name",
+        "physical": "NA_SVC_QUEUE",
+        "comment": "服务队列名称"
+      },
+      {
+        "logical": "scene",
+        "physical": "SD_SCENE",
+        "comment": "排队业务场景"
+      },
+      {
+        "logical": "ticket_prefix",
+        "physical": "CD_TICKET_PREFIX",
+        "comment": "票号前缀"
+      },
+      {
+        "logical": "active",
+        "physical": "FG_ACTIVE",
+        "comment": "是否有效"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
+      }
+    ]
+  },
+  {
     "logical": "sc.queue_counter",
     "legacy": "queue_counters",
     "physical": "RHN_SC_QUEUE_COUNT",
     "domain": "SC",
-    "comment": "队列计数器；一行代表一条队列计数器记录",
+    "comment": "队列计数器；一行代表一个服务队列在一个业务日期的发号进度",
     "columns": [
       {
         "logical": "id",
@@ -18027,14 +18111,14 @@
         "comment": "租户标识"
       },
       {
-        "logical": "queue_code",
-        "physical": "CD_QUEUE",
-        "comment": "队列编码"
+        "logical": "service_queue_id",
+        "physical": "ID_SVC_QUEUE",
+        "comment": "服务队列标识"
       },
       {
-        "logical": "queue_date",
-        "physical": "DA_QUEUE",
-        "comment": "队列日期"
+        "logical": "business_date",
+        "physical": "DA_BUSINESS",
+        "comment": "业务日期"
       },
       {
         "logical": "next_sequence",
@@ -18049,7 +18133,7 @@
     "legacy": "queue_ticket_events",
     "physical": "RHN_SC_QUEUE_TICKET_EVT",
     "domain": "SC",
-    "comment": "队列票号事件；一行代表一条队列票号事件记录",
+    "comment": "排队号票事件；一行代表一次不可变的号票业务动作",
     "columns": [
       {
         "logical": "id",
@@ -18074,13 +18158,13 @@
       {
         "logical": "status_from",
         "physical": "SD_STATUS_FROM",
-        "comment": "状态原",
+        "comment": "变更前状态",
         "previousPhysical": "STATUS_FROM"
       },
       {
         "logical": "status_to",
         "physical": "SD_STATUS_TO",
-        "comment": "状态目标",
+        "comment": "变更后状态",
         "previousPhysical": "STATUS_TO"
       },
       {
@@ -18099,6 +18183,11 @@
         "comment": "发生人标识"
       },
       {
+        "logical": "service_location_id",
+        "physical": "ID_SVC_LOC",
+        "comment": "动作发生或目标服务位置标识"
+      },
+      {
         "logical": "description",
         "physical": "DES_QUEUE_TICKET_EVT",
         "comment": "说明"
@@ -18110,7 +18199,7 @@
     "legacy": "queue_tickets",
     "physical": "RHN_SC_QUEUE_TICKET",
     "domain": "SC",
-    "comment": "队列票号；一行代表一条队列票号记录",
+    "comment": "排队号票；一行代表一名患者一次进入一个服务队列",
     "columns": [
       {
         "logical": "id",
@@ -18128,9 +18217,29 @@
         "comment": "租户标识"
       },
       {
-        "logical": "registration_id",
-        "physical": "ID_PAT_REG",
-        "comment": "挂号标识"
+        "logical": "service_queue_id",
+        "physical": "ID_SVC_QUEUE",
+        "comment": "服务队列标识"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "患者标识"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "source_type",
+        "physical": "SD_SOURCE_TYPE",
+        "comment": "来源业务类型"
+      },
+      {
+        "logical": "source_id",
+        "physical": "ID_SOURCE",
+        "comment": "来源业务聚合标识"
       },
       {
         "logical": "idempotency_code",
@@ -18138,30 +18247,24 @@
         "comment": "幂等编码"
       },
       {
-        "logical": "queue_code",
-        "physical": "CD_QUEUE",
-        "comment": "队列编码"
+        "logical": "business_date",
+        "physical": "DA_BUSINESS",
+        "comment": "业务日期"
       },
       {
-        "logical": "queue_date",
-        "physical": "DA_QUEUE",
-        "comment": "队列日期"
-      },
-      {
-        "logical": "ticket_no",
-        "physical": "CD_TICKET_NO",
-        "comment": "票号编号"
+        "logical": "ticket_code",
+        "physical": "CD_TICKET",
+        "comment": "票号编码"
       },
       {
         "logical": "sequence_no",
         "physical": "SN_SEQUENCE",
-        "comment": "序号编号"
+        "comment": "队内原始序号"
       },
       {
         "logical": "priority",
-        "physical": "SD_PRIORITY",
-        "comment": "优先级",
-        "previousPhysical": "PRIORITY"
+        "physical": "SN_PRIORITY",
+        "comment": "调度优先级"
       },
       {
         "logical": "status",
@@ -18169,19 +18272,44 @@
         "comment": "状态"
       },
       {
-        "logical": "queued_at",
-        "physical": "DT_QUEUED",
-        "comment": "queued时间"
+        "logical": "checked_in_at",
+        "physical": "DT_CHECKED_IN",
+        "comment": "签到时间"
+      },
+      {
+        "logical": "ready_at",
+        "physical": "DT_READY",
+        "comment": "可呼叫时间"
       },
       {
         "logical": "called_at",
         "physical": "DT_CALLED",
-        "comment": "called时间"
+        "comment": "最近叫号时间"
+      },
+      {
+        "logical": "started_at",
+        "physical": "DT_STARTED",
+        "comment": "开始服务时间"
       },
       {
         "logical": "completed_at",
         "physical": "DT_COMPLETED",
-        "comment": "完成时间"
+        "comment": "结束时间"
+      },
+      {
+        "logical": "call_count",
+        "physical": "QTY_CALL",
+        "comment": "叫号次数"
+      },
+      {
+        "logical": "missed_count",
+        "physical": "QTY_MISSED",
+        "comment": "过号次数"
+      },
+      {
+        "logical": "current_location_id",
+        "physical": "ID_SVC_LOC_CURRENT",
+        "comment": "当前服务位置标识"
       }
     ]
   },

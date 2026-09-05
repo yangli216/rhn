@@ -20,7 +20,7 @@ import {
 } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
-  SearchField, Select, StatusBadge, TableShell, Tabs,
+  Pagination, SearchField, Select, StatusBadge, TableShell, Tabs,
 } from '../../shared/ui'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
@@ -50,6 +50,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
   const [dialog, setDialog] = useState<ReactNode>()
   const [feedback, setFeedback] = useState('')
   const [operationError, setOperationError] = useState('')
@@ -64,21 +66,26 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     queryKey: ['master-data-disease-code-systems'], queryFn: api.masterData.diseaseCodeSystems,
   })
   const diseases = useQuery({
-    queryKey: ['master-data-diseases', query, typeFilter, statusFilter],
-    queryFn: () => api.masterData.diseases(query, typeFilter, statusFilter), enabled: tab === 'disease',
+    queryKey: ['master-data-diseases', query, typeFilter, statusFilter, page, pageSize],
+    queryFn: () => api.masterData.searchDiseases(query, typeFilter, statusFilter, '', page, pageSize),
+    enabled: tab === 'disease' && diseaseMode === 'terms',
   })
   const diseasePrograms = useQuery({
-    queryKey: ['master-data-disease-management-programs'],
-    queryFn: () => api.masterData.diseaseManagementPrograms(), enabled: tab === 'disease',
+    queryKey: ['master-data-disease-management-programs', query, typeFilter, statusFilter, page, pageSize],
+    queryFn: () => api.masterData.searchDiseaseManagementPrograms(
+      query, typeFilter, statusFilter, page, pageSize),
+    enabled: tab === 'disease' && diseaseMode === 'management',
   })
   const services = useQuery({
-    queryKey: ['master-data-services', query, typeFilter, statusFilter, organization.id],
-    queryFn: () => api.masterData.services(query, typeFilter, statusFilter, organization.id),
+    queryKey: ['master-data-services', query, typeFilter, statusFilter, organization.id, page, pageSize],
+    queryFn: () => api.masterData.searchServices(
+      query, typeFilter, statusFilter, organization.id, page, pageSize),
     enabled: tab === 'service',
   })
   const medications = useQuery({
-    queryKey: ['master-data-medications', query, typeFilter, statusFilter, organization.id],
-    queryFn: () => api.masterData.medications(query, typeFilter, statusFilter, organization.id),
+    queryKey: ['master-data-medications', query, typeFilter, statusFilter, organization.id, page, pageSize],
+    queryFn: () => api.masterData.searchMedications(
+      query, typeFilter, statusFilter, organization.id, page, pageSize),
     enabled: tab === 'medication',
   })
   const frequencies = useQuery({
@@ -96,7 +103,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     enabled: tab === 'medication' || tab === 'operations',
   })
 
-  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery('') }, [diseaseMode, tab])
+  useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery(''); setPage(0) }, [diseaseMode, tab])
+  useEffect(() => { setPage(0) }, [pageSize, query, statusFilter, typeFilter])
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
@@ -111,15 +119,19 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     : tab === 'disease' ? options(dictionaries.data, 'BD_CONCEPT_TYPE')
     : tab === 'service' ? options(dictionaries.data, 'BD_SERVICE_TYPE')
       : options(dictionaries.data, 'BD_MEDICATION_TYPE')
-  const visibleDiseasePrograms = useMemo(() => (diseasePrograms.data ?? []).filter((value) =>
-    (!query || [value.name, value.code, value.description].some((item) => item?.toLowerCase().includes(query.toLowerCase())))
-    && (!typeFilter || value.sdManagementType === typeFilter)
-    && (!statusFilter || value.sdStatus === statusFilter)), [diseasePrograms.data, query, statusFilter, typeFilter])
-  const count = tab === 'disease' && diseaseMode === 'management' ? visibleDiseasePrograms.length
-    : tab === 'disease' ? diseases.data?.length : tab === 'service' ? services.data?.length : medications.data?.length
-  const lifecycleCandidates = useMemo(() => tab === 'service' ? (services.data ?? []).map((value) => ({
+  const currentPage = tab === 'disease'
+    ? diseaseMode === 'terms' ? diseases.data : diseasePrograms.data
+    : tab === 'service' ? services.data : medications.data
+  const count = currentPage?.totalElements ?? 0
+  const totalPages = Math.max(1, currentPage?.totalPages ?? 1)
+  const safePage = Math.min(page, totalPages - 1)
+  const pageDataReady = Boolean(currentPage)
+  const pagination = <Pagination page={safePage} totalPages={totalPages} total={count} pageSize={pageSize}
+    onPageSizeChange={setPageSize} onChange={setPage} label={`${tabLabel(tab)}列表分页`} />
+  useEffect(() => { if (pageDataReady && page !== safePage) setPage(safePage) }, [page, pageDataReady, safePage])
+  const lifecycleCandidates = useMemo(() => tab === 'service' ? (services.data?.content ?? []).map((value) => ({
     id: value.id, code: value.code, name: value.name,
-  })) : (medications.data ?? []).flatMap((value) => value.products.map((product) => ({
+  })) : (medications.data?.content ?? []).flatMap((value) => value.products.map((product) => ({
     id: product.id, code: product.code, name: `${value.name} · ${product.name}`,
   }))), [medications.data, services.data, tab])
   const pageActions = tab === 'attribute' || tab === 'operations' ? undefined : <>
@@ -187,7 +199,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
       </div>}
 
       <div className="master-data-body">
-        {tab === 'disease' && diseaseMode === 'terms' && <DiseaseTable values={diseases.data} loading={diseases.isPending}
+        {tab === 'disease' && diseaseMode === 'terms' && <DiseaseTable values={diseases.data?.content}
+        loading={diseases.isPending} pagination={pagination}
         onEdit={(value) => setDialog(<DiseaseDialog dictionaries={dictionaries.data!}
           codeSystems={codeSystems.data ?? []} value={value} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updateDisease(value.id, value.revision, input)
@@ -195,7 +208,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onStatus={(value) => api.masterData.diseaseStatus(value.id, value.revision,
           value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE').then(() => invalidate('疾病状态已更新')).catch(fail)} />}
         {tab === 'disease' && diseaseMode === 'management' && <DiseaseManagementTable
-          values={visibleDiseasePrograms} loading={diseasePrograms.isPending}
+          values={diseasePrograms.data?.content ?? []} loading={diseasePrograms.isPending} pagination={pagination}
           onEdit={(value) => setDialog(<DiseaseManagementProgramDialog dictionaries={dictionaries.data!}
             value={value} onClose={() => setDialog(undefined)}
             onSave={(input) => api.masterData.updateDiseaseManagementProgram(value.id, value.revision, input)
@@ -209,7 +222,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           onStatus={(value) => api.masterData.diseaseManagementProgramStatus(value.id, value.revision,
             value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
             .then(() => invalidate('疾病管理项目状态已更新')).catch(fail)} />}
-      {tab === 'service' && <ServiceTable values={services.data} loading={services.isPending}
+      {tab === 'service' && <ServiceTable values={services.data?.content} loading={services.isPending}
+        pagination={pagination}
         onConfigure={(value) => setDialog(<ClinicalServiceConfigurationDialog api={api} service={value}
           organizationId={organization.id} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} />)}
@@ -227,7 +241,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           defaults={{ orderable: value.orderable, executable: true, chargeable: value.chargeable,
             purchasable: false, stocked: false, dispensable: false, returnable: false }}
           onClose={() => setDialog(undefined)} onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
-      {tab === 'medication' && <MedicationTable values={medications.data} loading={medications.isPending}
+      {tab === 'medication' && <MedicationTable values={medications.data?.content}
+        loading={medications.isPending} pagination={pagination}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
         onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
           routes={routes.data ?? []} value={value}
@@ -273,11 +288,13 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   </div>
 }
 
-function DiseaseTable({ values, loading, onEdit, onStatus }: { values?: DiseaseConcept[]; loading: boolean;
+function DiseaseTable({ values, loading, pagination, onEdit, onStatus }: { values?: DiseaseConcept[]; loading: boolean;
+  pagination: ReactNode;
   onEdit: (value: DiseaseConcept) => void; onStatus: (value: DiseaseConcept) => void }) {
   if (loading) return <LoadingState label="正在加载疾病术语…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到疾病概念" copy="请调整筛选条件或新增疾病概念。" />
-  return <Table headers={['疾病概念', '标准编码', '诊断体系 / 类型', '管理标识', '别名', '状态', '操作']}>
+  return <Table headers={['疾病概念', '标准编码', '诊断体系 / 类型', '管理标识', '别名', '状态', '操作']}
+    footer={pagination}>
     {values.map((value) => <tr key={value.id}><td><strong>{value.display}</strong><small>{value.shortDisplay || value.definition || '—'}</small></td>
       <td><code>{value.code}</code><small>{value.systemName} · {value.systemVersion}</small></td>
       <td><strong>{value.sdDiagnosisDomainText}</strong><small>{value.sdConceptTypeText} · {value.chapterName || '未分类'}</small></td>
@@ -290,16 +307,17 @@ function DiseaseTable({ values, loading, onEdit, onStatus }: { values?: DiseaseC
   </Table>
 }
 
-function DiseaseManagementTable({ values, loading, onEdit, onMembers, onStatus }: {
-  values: DiseaseManagementProgram[]; loading: boolean
+function DiseaseManagementTable({ values, loading, pagination, onEdit, onMembers, onStatus }: {
+  values?: DiseaseManagementProgram[]; loading: boolean; pagination: ReactNode
   onEdit: (value: DiseaseManagementProgram) => void
   onMembers: (value: DiseaseManagementProgram) => void
   onStatus: (value: DiseaseManagementProgram) => void
 }) {
   if (loading) return <LoadingState label="正在加载疾病管理项目…" />
-  if (!values.length) return <EmptyState icon="clinical" title="未找到疾病管理项目"
+  if (!values?.length) return <EmptyState icon="clinical" title="未找到疾病管理项目"
     copy="请新增慢病管理、疾病报告或专项登记项目。" />
-  return <Table headers={['管理项目', '类别 / 触发动作', '适用疾病', '报卡要求', '有效期 / 状态', '操作']}>
+  return <Table headers={['管理项目', '类别 / 触发动作', '适用疾病', '报卡要求', '有效期 / 状态', '操作']}
+    footer={pagination}>
     {values.map((value) => <tr key={value.id}>
       <td><strong>{value.name}</strong><code>{value.code}</code><small>{value.description || '未填写说明'}</small></td>
       <td><StatusBadge tone={value.sdManagementType === 'DISEASE_REPORT' ? 'warning' : 'success'}>
@@ -318,14 +336,15 @@ function DiseaseManagementTable({ values, loading, onEdit, onMembers, onStatus }
   </Table>
 }
 
-function ServiceTable({ values, loading, onConfigure, onEdit, onAttributes, onMappings, onLifecycle }: { values?: ServiceCatalogItem[]; loading: boolean;
+function ServiceTable({ values, loading, pagination, onConfigure, onEdit, onAttributes, onMappings, onLifecycle }: { values?: ServiceCatalogItem[]; loading: boolean;
+  pagination: ReactNode;
   onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
   onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void;
   onLifecycle: (value: ServiceCatalogItem) => void }) {
   if (loading) return <LoadingState label="正在加载诊疗项目…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到诊疗项目" copy="请调整筛选条件或新增项目。" />
-  return <Table headers={['项目', '临床语义', '中心能力', '机构目录', '当前价格', '操作']}>
+  return <Table headers={['项目', '临床语义', '中心能力', '机构目录', '当前价格', '操作']} footer={pagination}>
     {values.map((value) => <tr key={value.id}><td><strong>{value.name}</strong><code>{value.code}</code></td>
       <td>{value.sdServiceTypeText}<small>{value.sdUsageTypeText}{value.serviceSubtype ? ` · ${value.serviceSubtype}` : ''}</small>
         <small>{[value.sdDuplicateRuleText, value.mutualRecognitionCode && `互认 ${value.mutualRecognitionCode}`]
@@ -351,8 +370,8 @@ function ServiceTable({ values, loading, onConfigure, onEdit, onAttributes, onMa
   </Table>
 }
 
-function MedicationTable({ values, loading, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
-  values?: MedicationKnowledge[]; loading: boolean; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
+function MedicationTable({ values, loading, pagination, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
+  values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
@@ -363,7 +382,8 @@ function MedicationTable({ values, loading, routes, frequencies, onEdit, onAttri
   onLifecycle: (value: MedicationProduct) => void }) {
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
-  return <div className="medication-list">{values.map((value) => <article className="medication-card" key={value.id}>
+  return <TableShell className="master-data-list-shell" scrollClassName="medication-list" footer={pagination}>
+    {values.map((value) => <article className="medication-card" key={value.id}>
     <header><div className="medication-card__title"><strong>{value.name}</strong><code>{value.code}</code></div>
       <div className="medication-card__meta">
         <StatusBadge>{value.sdMedicationTypeText}</StatusBadge><StatusBadge>{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
@@ -387,7 +407,7 @@ function MedicationTable({ values, loading, routes, frequencies, onEdit, onAttri
             <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
             <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>目录价格</Button>
           </RowActions></td></tr>)}</Table>}
-  </article>)}</div>
+  </article>)}</TableShell>
 }
 
 function medicationSummary(value: MedicationKnowledge, routes: MedicationRoute[], frequencies: ActiveOrderFrequency[]) {
@@ -1922,8 +1942,10 @@ function StaticSelectControl({ id, name, className, value, onChange, options: va
       aria-describedby={ariaDescribedBy} aria-invalid={ariaInvalid} aria-required={ariaRequired} />
   </div>
 }
-function Table({ headers, children, compact = false }: { headers: string[]; children: ReactNode; compact?: boolean }) {
-  return <TableShell scrollClassName="master-data-table-wrap">
+function Table({ headers, children, compact = false, footer }: {
+  headers: string[]; children: ReactNode; compact?: boolean; footer?: ReactNode
+}) {
+  return <TableShell scrollClassName="master-data-table-wrap" footer={footer}>
     <DataTable className="master-data-table" compact={compact}>
       <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody>
     </DataTable>

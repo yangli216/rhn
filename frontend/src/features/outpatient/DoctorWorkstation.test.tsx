@@ -101,6 +101,9 @@ function createMockApi({
   })
 
   return {
+    clinicalSafety: {
+      vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }),
+    },
     scheduling: {
       receptionQueue: vi.fn().mockResolvedValue([{ ...mockQueueItem, status: queueStatus }]),
     },
@@ -247,7 +250,7 @@ describe('DoctorWorkstation reception flow', () => {
 
   it('continues an in-progress encounter directly in editing without starting it again', async () => {
     const user = userEvent.setup()
-    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'IN_SERVICE' })
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
     render(<StrictMode>
@@ -320,5 +323,87 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.getByRole('button', { name: '开始接诊' })).toBeDisabled()
     expect(screen.getByText('当前账号没有病历编辑权限')).toBeInTheDocument()
     expect(api.encounters.start).not.toHaveBeenCalled()
+  })
+
+  it('renders physical exam inputs without dummy value placeholders and applies reference vitals from history', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    const pastEncounter = {
+      id: 'encounter-past-1',
+      encounterNo: 'ENC20260825001',
+      residentId: 'resident-1',
+      status: 'COMPLETED',
+      visitType: 'GENERAL',
+      registeredAt: '2026-08-25T09:00:00Z',
+      systolic: 135,
+      diastolic: 85,
+      diagnoses: [],
+    } as unknown as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([
+      mockInProgressEncounter,
+      pastEncounter,
+    ])
+    api.clinicalDocuments.byEncounter = vi.fn().mockImplementation((encId: string) => {
+      if (encId === 'encounter-past-1') {
+        return Promise.resolve([{
+          id: 'doc-past-1',
+          documentType: 'OUTPATIENT_NOTE',
+          content: {
+            vitalSigns: {
+              systolic: 135,
+              diastolic: 85,
+              temperature: 36.6,
+              pulseRate: 76,
+              weightKg: 68,
+              heightCm: 172,
+            },
+          },
+        }])
+      }
+      return Promise.resolve([])
+    })
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // 点击接诊进入编辑模式
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
+    expect(await screen.findByText('体格检查')).toBeInTheDocument()
+
+    // 1. 验证没有任何假数值的 placeholder
+    expect(screen.queryByPlaceholderText('36.5')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('75')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('120')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('80')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('170')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
+
+    // 2. 验证出现近期体征参考条与双数据源 tabs（分诊测量 + 上次就诊）
+    expect(await screen.findByText('近期参考')).toBeInTheDocument()
+    expect(screen.getByText(/分诊测量/)).toBeInTheDocument()
+    const pastTab = screen.getByRole('button', { name: /上次就诊/ })
+    expect(pastTab).toBeInTheDocument()
+
+    // 默认展示分诊数据，点击切换至“上次就诊”
+    await user.click(pastTab)
+    expect(await screen.findByText('135/85 mmHg')).toBeInTheDocument()
+
+    // 3. 验证引用上次结果按钮并点击
+    const applyBtn = screen.getByRole('button', { name: /引用上次结果/ })
+    expect(applyBtn).toBeInTheDocument()
+    await user.click(applyBtn)
+
+    // 验证数值填入收缩压与舒张压，且按钮反馈为已带入
+    const sysInput = screen.getByLabelText('收缩压') as HTMLInputElement
+    const diaInput = screen.getByLabelText('舒张压') as HTMLInputElement
+    expect(sysInput.value).toBe('135')
+    expect(diaInput.value).toBe('85')
+    expect(await screen.findByText('已带入')).toBeInTheDocument()
   })
 })

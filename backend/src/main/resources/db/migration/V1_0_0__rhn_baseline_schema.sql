@@ -3369,40 +3369,73 @@ create table RHN_SC_PAT_REG (
     constraint UK_SC_PAT_REG_REGISTRATION_APP unique (ID_TNT, ID_APPT)
 );
 
+create table RHN_SC_SVC_QUEUE (
+    ID_SVC_QUEUE bigint,
+    REVISION bigint default 0 not null,
+    ID_TNT bigint not null,
+    ID_ORG bigint not null,
+    ID_DEPT bigint not null,
+    ID_SVC_LOC_WAITING bigint,
+    CD_SVC_QUEUE varchar(64) not null,
+    NA_SVC_QUEUE varchar(100) not null,
+    SD_SCENE varchar(32) not null,
+    CD_TICKET_PREFIX varchar(8) not null,
+    FG_ACTIVE boolean default true not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED bigint not null,
+    DT_UPDATED timestamp with time zone not null,
+    ID_USER_UPDATED bigint not null,
+    constraint PK_SC_SVC_QUEUE primary key (ID_SVC_QUEUE),
+    constraint UK_SC_SVC_QUEUE_ID unique (ID_TNT, ID_SVC_QUEUE),
+    constraint UK_SC_SVC_QUEUE_CODE unique (ID_TNT, CD_SVC_QUEUE),
+    constraint CK_SC_SVC_QUEUE_SCENE check (SD_SCENE in ('OUTPATIENT','PHARMACY','LAB_COLLECTION','EXAMINATION'))
+);
+
 create table RHN_SC_QUEUE_COUNT (
     ID_QUEUE_COUNT bigint,
     REVISION bigint default 0 not null,
     ID_TNT bigint not null,
-    CD_QUEUE varchar(100) not null,
-    DA_QUEUE date not null,
+    ID_SVC_QUEUE bigint not null,
+    DA_BUSINESS date not null,
     SN_NEXT integer default 1 not null,
-    constraint PK_SC_QUEUE_COUNT_PK primary key (ID_QUEUE_COUNT),
-    constraint UK_SC_QUEUE_COUNT_QUEUE_COUNTE unique (ID_TNT, CD_QUEUE, DA_QUEUE),
-    constraint CK_SC_QUEUE_COUNT_QUEUE_COUNTE check (SN_NEXT > 0)
+    constraint PK_SC_QUEUE_COUNT primary key (ID_QUEUE_COUNT),
+    constraint UK_SC_QUEUE_COUNT_BUSINESS unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS),
+    constraint CK_SC_QUEUE_COUNT_NEXT check (SN_NEXT > 0)
 );
 
 create table RHN_SC_QUEUE_TICKET (
     ID_QUEUE_TICKET bigint,
     REVISION bigint default 0 not null,
     ID_TNT bigint not null,
-    ID_PAT_REG bigint not null,
+    ID_SVC_QUEUE bigint not null,
+    ID_PAT bigint not null,
+    ID_ENC bigint,
+    SD_SOURCE_TYPE varchar(24) not null,
+    ID_SOURCE bigint not null,
     CD_IDEMP varchar(128) not null,
-    CD_QUEUE varchar(100) not null,
-    DA_QUEUE date not null,
-    CD_TICKET_NO varchar(32) not null,
+    DA_BUSINESS date not null,
+    CD_TICKET varchar(32) not null,
     SN_SEQUENCE integer not null,
-    SD_PRIORITY integer default 0 not null,
+    SN_PRIORITY integer default 0 not null,
     SD_STATUS varchar(24) not null,
-    DT_QUEUED timestamp with time zone not null,
+    DT_CHECKED_IN timestamp with time zone not null,
+    DT_READY timestamp with time zone,
     DT_CALLED timestamp with time zone,
+    DT_STARTED timestamp with time zone,
     DT_COMPLETED timestamp with time zone,
-    constraint PK_SC_QUEUE_TICKET_PK primary key (ID_QUEUE_TICKET),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICKET unique (ID_TNT, ID_QUEUE_TICKET),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_1 unique (ID_TNT, ID_PAT_REG),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_2 unique (ID_TNT, CD_IDEMP),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_3 unique (ID_TNT, CD_QUEUE, DA_QUEUE, SN_SEQUENCE),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_4 unique (ID_TNT, CD_QUEUE, DA_QUEUE, CD_TICKET_NO),
-    constraint CK_SC_QUEUE_TICKE_QUEUE_TICKET check (SD_PRIORITY >= 0)
+    QTY_CALL integer default 0 not null,
+    QTY_MISSED integer default 0 not null,
+    ID_SVC_LOC_CURRENT bigint,
+    constraint PK_SC_QUEUE_TICKET primary key (ID_QUEUE_TICKET),
+    constraint UK_SC_QUEUE_TICKET_ID unique (ID_TNT, ID_QUEUE_TICKET),
+    constraint UK_SC_QUEUE_TICKET_SOURCE unique (ID_TNT, SD_SOURCE_TYPE, ID_SOURCE),
+    constraint UK_SC_QUEUE_TICKET_IDEMP unique (ID_TNT, CD_IDEMP),
+    constraint UK_SC_QUEUE_TICKET_SEQ unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, SN_SEQUENCE),
+    constraint UK_SC_QUEUE_TICKET_CODE unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, CD_TICKET),
+    constraint CK_SC_QUEUE_TICKET_SOURCE check (SD_SOURCE_TYPE in ('PAT_REG','DISP_TASK','DIAG_TASK')),
+    constraint CK_SC_QUEUE_TICKET_STATUS check (SD_STATUS in ('WAITING','CALLED','SERVING','SUSPENDED','MISSED','COMPLETED','CANCELLED')),
+    constraint CK_SC_QUEUE_TICKET_PRIORITY check (SN_PRIORITY >= 0),
+    constraint CK_SC_QUEUE_TICKET_COUNTS check (QTY_CALL >= 0 and QTY_MISSED >= 0)
 );
 
 create table RHN_SC_QUEUE_TICKET_EVT (
@@ -3415,9 +3448,10 @@ create table RHN_SC_QUEUE_TICKET_EVT (
     CD_COMMAND varchar(128) not null,
     DT_OCCURRED timestamp with time zone not null,
     ID_USER_OCCURRED bigint not null,
+    ID_SVC_LOC bigint,
     DES_QUEUE_TICKET_EVT varchar(500),
-    constraint PK_SC_QUEUE_TICKET_EVT_PK primary key (ID_QUEUE_TICKET_EVT),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_EVENT_ unique (ID_TNT, ID_QUEUE_TICKET, CD_COMMAND)
+    constraint PK_SC_QUEUE_TICKET_EVT primary key (ID_QUEUE_TICKET_EVT),
+    constraint UK_SC_QUEUE_TICKET_EVT_CMD unique (ID_TNT, CD_COMMAND)
 );
 
 create table RHN_SC_SCHED_EXCEPT (
@@ -6795,7 +6829,7 @@ create table RHN_VIS_SVC_LOC (
     constraint PK_VIS_SVC_LOC_PK primary key (ID_SVC_LOC),
     constraint UK_VIS_SVC_LOC_SRV_LOC_TENANT_ unique (ID_TNT, ID_SVC_LOC),
     constraint UK_VIS_SVC_LOC_SRV_LOC_CODE unique (ID_TNT, ID_ORG, CD_SVC_LOC),
-    constraint CK_VIS_SVC_LOC_SRV_LOC_TYPE check (SD_LOC_TYPE in ('WARD', 'ROOM', 'BED')),
+    constraint CK_VIS_SVC_LOC_SRV_LOC_TYPE check (SD_LOC_TYPE in ('WARD', 'ROOM', 'BED', 'COUNTER')),
     constraint CK_VIS_SVC_LOC_SRV_LOC_STATUS check (SD_STATUS in ('ACTIVE', 'INACTIVE')),
     constraint CK_VIS_SVC_LOC_SRV_LOC_PERIOD check (DA_VALID_TO is null or DA_VALID_TO >= DA_VALID_FROM)
 );
@@ -7233,10 +7267,21 @@ alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_PI_PAT_REGISTRAT foreign
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_ORG_REGISTRA foreign key (ID_TNT, ID_ORG) references RHN_SYS_ORG(ID_TNT, ID_ORG);
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_DEPT_REGISTR foreign key (ID_TNT, ID_ORG, ID_DEPT) references RHN_SYS_DEPT(ID_TNT, ID_ORG, ID_DEPT);
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_USER_REGISTR foreign key (ID_TNT, ID_USER_REGISTERED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
-alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_SYS_TNT_QUEU foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
-alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKE_SC_PAT_R_QUE foreign key (ID_TNT, ID_PAT_REG) references RHN_SC_PAT_REG(ID_TNT, ID_PAT_REG);
-alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_TICKE_SC_QUEUE_QUE foreign key (ID_TNT, ID_QUEUE_TICKET) references RHN_SC_QUEUE_TICKET(ID_TNT, ID_QUEUE_TICKET);
-alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_TICKE_SYS_USER_QUE foreign key (ID_TNT, ID_USER_OCCURRED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_ORG foreign key (ID_TNT, ID_ORG) references RHN_SYS_ORG(ID_TNT, ID_ORG);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_DEPT foreign key (ID_TNT, ID_ORG, ID_DEPT) references RHN_SYS_DEPT(ID_TNT, ID_ORG, ID_DEPT);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_WAIT_LOC foreign key (ID_TNT, ID_SVC_LOC_WAITING) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_CREATED_BY foreign key (ID_TNT, ID_USER_CREATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_UPDATED_BY foreign key (ID_TNT, ID_USER_UPDATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
+alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_QUEUE foreign key (ID_TNT, ID_SVC_QUEUE) references RHN_SC_SVC_QUEUE(ID_TNT, ID_SVC_QUEUE);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_QUEUE foreign key (ID_TNT, ID_SVC_QUEUE) references RHN_SC_SVC_QUEUE(ID_TNT, ID_SVC_QUEUE);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_PAT foreign key (ID_TNT, ID_PAT) references RHN_PI_PAT(ID_TNT, ID_PAT);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_ENC foreign key (ID_TNT, ID_PAT, ID_ENC) references RHN_VIS_ENC(ID_TNT, ID_PAT, ID_ENC);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_CUR_LOC foreign key (ID_TNT, ID_SVC_LOC_CURRENT) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVT_TICKET foreign key (ID_TNT, ID_QUEUE_TICKET) references RHN_SC_QUEUE_TICKET(ID_TNT, ID_QUEUE_TICKET);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVT_USER foreign key (ID_TNT, ID_USER_OCCURRED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVENT_LOC foreign key (ID_TNT, ID_SVC_LOC) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SYS_TNT_SCHE foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SC_SCHED_SCH foreign key (ID_TNT, ID_SCHED_TMPL) references RHN_SC_SCHED_TMPL(ID_TNT, ID_SCHED_TMPL);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SYS_USER_SCH foreign key (ID_TNT, ID_USER_CREATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
@@ -8000,8 +8045,10 @@ create index IDX_SC_APPT_APPT_SOURCE_STATUS on RHN_SC_APPT (ID_TNT, SD_BOOKING_S
 create index IDX_SC_APPT_EVT_APPT_EVT_TIME on RHN_SC_APPT_EVT (ID_TNT, ID_APPT, DT_OCCURRED);
 create index IDX_SC_PAT_REG_REGISTRATION_RE on RHN_SC_PAT_REG (ID_TNT, ID_PAT, DT_REGISTERED, SD_STATUS);
 create index IDX_SC_PAT_REG_REGISTRATION_CO on RHN_SC_PAT_REG (ID_TNT, ID_ORG, ID_DEPT, DT_REGISTERED, SD_STATUS);
-create index IDX_SC_QUEUE_TICKE_QUEUE_TICKE on RHN_SC_QUEUE_TICKET (ID_TNT, CD_QUEUE, DA_QUEUE, SD_STATUS, SD_PRIORITY, SN_SEQUENCE);
-create index IDX_SC_QUEUE_TICKE_QUEUE_EVENT on RHN_SC_QUEUE_TICKET_EVT (ID_TNT, ID_QUEUE_TICKET, DT_OCCURRED);
+create index IDX_SC_SVC_QUEUE_SCOPE on RHN_SC_SVC_QUEUE (ID_TNT, ID_ORG, ID_DEPT, SD_SCENE, FG_ACTIVE);
+create index IDX_SC_QUEUE_TICKET_WORK on RHN_SC_QUEUE_TICKET (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, SD_STATUS, DT_READY, SN_PRIORITY, SN_SEQUENCE);
+create index IDX_SC_QUEUE_TICKET_PAT on RHN_SC_QUEUE_TICKET (ID_TNT, ID_PAT, DA_BUSINESS);
+create index IDX_SC_QUEUE_EVT_TICKET on RHN_SC_QUEUE_TICKET_EVT (ID_TNT, ID_QUEUE_TICKET, DT_OCCURRED);
 create index IDX_SC_SCHED_EXCEP_SCHED_EXCEP on RHN_SC_SCHED_EXCEPT (ID_TNT, ID_SCHED_TMPL, DA_EXCEPT);
 create index IDX_SC_SCHED_GEN_R_SCHED_RUN_T on RHN_SC_SCHED_GEN_RUN (ID_TNT, ID_SCHED_TMPL, DT_STARTED);
 create index IDX_SC_SCHED_SLOT_SLOT_HOLD_PO on RHN_SC_SCHED_SLOT_HOLD (ID_TNT, ID_SCHED_SLOT_POOL, SD_STATUS, DT_EXPIRES);
@@ -10536,38 +10583,63 @@ comment on column RHN_SC_PAT_REG.DT_REGISTERED is 'registered时间';
 comment on column RHN_SC_PAT_REG.ID_USER_REGISTERED is 'registered人标识';
 comment on column RHN_SC_PAT_REG.DT_STARTED is '开始时间';
 comment on column RHN_SC_PAT_REG.DT_COMPLETED is '完成时间';
-comment on table RHN_SC_QUEUE_COUNT is '队列计数器；一行代表一条队列计数器记录';
+comment on table RHN_SC_SVC_QUEUE is '服务队列；一行代表一个可独立编号和调度的服务队列';
+comment on column RHN_SC_SVC_QUEUE.ID_SVC_QUEUE is '服务队列主键';
+comment on column RHN_SC_SVC_QUEUE.REVISION is '乐观锁修订号';
+comment on column RHN_SC_SVC_QUEUE.ID_TNT is '租户标识';
+comment on column RHN_SC_SVC_QUEUE.ID_ORG is '机构标识';
+comment on column RHN_SC_SVC_QUEUE.ID_DEPT is '科室标识';
+comment on column RHN_SC_SVC_QUEUE.ID_SVC_LOC_WAITING is '候诊服务位置标识';
+comment on column RHN_SC_SVC_QUEUE.CD_SVC_QUEUE is '服务队列编码';
+comment on column RHN_SC_SVC_QUEUE.NA_SVC_QUEUE is '服务队列名称';
+comment on column RHN_SC_SVC_QUEUE.SD_SCENE is '排队业务场景';
+comment on column RHN_SC_SVC_QUEUE.CD_TICKET_PREFIX is '票号前缀';
+comment on column RHN_SC_SVC_QUEUE.FG_ACTIVE is '是否有效';
+comment on column RHN_SC_SVC_QUEUE.DT_CREATED is '创建时间';
+comment on column RHN_SC_SVC_QUEUE.ID_USER_CREATED is '创建人标识';
+comment on column RHN_SC_SVC_QUEUE.DT_UPDATED is '更新时间';
+comment on column RHN_SC_SVC_QUEUE.ID_USER_UPDATED is '更新人标识';
+comment on table RHN_SC_QUEUE_COUNT is '队列计数器；一行代表一个服务队列在一个业务日期的发号进度';
 comment on column RHN_SC_QUEUE_COUNT.ID_QUEUE_COUNT is '队列计数器主键';
 comment on column RHN_SC_QUEUE_COUNT.REVISION is '乐观锁修订号';
 comment on column RHN_SC_QUEUE_COUNT.ID_TNT is '租户标识';
-comment on column RHN_SC_QUEUE_COUNT.CD_QUEUE is '队列编码';
-comment on column RHN_SC_QUEUE_COUNT.DA_QUEUE is '队列日期';
+comment on column RHN_SC_QUEUE_COUNT.ID_SVC_QUEUE is '服务队列标识';
+comment on column RHN_SC_QUEUE_COUNT.DA_BUSINESS is '业务日期';
 comment on column RHN_SC_QUEUE_COUNT.SN_NEXT is '下一序号';
-comment on table RHN_SC_QUEUE_TICKET is '队列票号；一行代表一条队列票号记录';
+comment on table RHN_SC_QUEUE_TICKET is '排队号票；一行代表一名患者一次进入一个服务队列';
 comment on column RHN_SC_QUEUE_TICKET.ID_QUEUE_TICKET is '队列票号主键';
 comment on column RHN_SC_QUEUE_TICKET.REVISION is '乐观锁修订号';
 comment on column RHN_SC_QUEUE_TICKET.ID_TNT is '租户标识';
-comment on column RHN_SC_QUEUE_TICKET.ID_PAT_REG is '挂号标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_SVC_QUEUE is '服务队列标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_PAT is '患者标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_ENC is '就诊标识';
+comment on column RHN_SC_QUEUE_TICKET.SD_SOURCE_TYPE is '来源业务类型';
+comment on column RHN_SC_QUEUE_TICKET.ID_SOURCE is '来源业务聚合标识';
 comment on column RHN_SC_QUEUE_TICKET.CD_IDEMP is '幂等编码';
-comment on column RHN_SC_QUEUE_TICKET.CD_QUEUE is '队列编码';
-comment on column RHN_SC_QUEUE_TICKET.DA_QUEUE is '队列日期';
-comment on column RHN_SC_QUEUE_TICKET.CD_TICKET_NO is '票号编号';
-comment on column RHN_SC_QUEUE_TICKET.SN_SEQUENCE is '序号编号';
-comment on column RHN_SC_QUEUE_TICKET.SD_PRIORITY is '优先级';
+comment on column RHN_SC_QUEUE_TICKET.DA_BUSINESS is '业务日期';
+comment on column RHN_SC_QUEUE_TICKET.CD_TICKET is '票号编码';
+comment on column RHN_SC_QUEUE_TICKET.SN_SEQUENCE is '队内原始序号';
+comment on column RHN_SC_QUEUE_TICKET.SN_PRIORITY is '调度优先级';
 comment on column RHN_SC_QUEUE_TICKET.SD_STATUS is '状态';
-comment on column RHN_SC_QUEUE_TICKET.DT_QUEUED is 'queued时间';
-comment on column RHN_SC_QUEUE_TICKET.DT_CALLED is 'called时间';
-comment on column RHN_SC_QUEUE_TICKET.DT_COMPLETED is '完成时间';
-comment on table RHN_SC_QUEUE_TICKET_EVT is '队列票号事件；一行代表一条队列票号事件记录';
+comment on column RHN_SC_QUEUE_TICKET.DT_CHECKED_IN is '签到时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_READY is '可呼叫时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_CALLED is '最近叫号时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_STARTED is '开始服务时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_COMPLETED is '结束时间';
+comment on column RHN_SC_QUEUE_TICKET.QTY_CALL is '叫号次数';
+comment on column RHN_SC_QUEUE_TICKET.QTY_MISSED is '过号次数';
+comment on column RHN_SC_QUEUE_TICKET.ID_SVC_LOC_CURRENT is '当前服务位置标识';
+comment on table RHN_SC_QUEUE_TICKET_EVT is '排队号票事件；一行代表一次不可变的号票业务动作';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_QUEUE_TICKET_EVT is '队列票号事件主键';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_TNT is '租户标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_QUEUE_TICKET is '队列票号标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.SD_EVT_TYPE is '事件类型';
-comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_FROM is '状态原';
-comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_TO is '状态目标';
+comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_FROM is '变更前状态';
+comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_TO is '变更后状态';
 comment on column RHN_SC_QUEUE_TICKET_EVT.CD_COMMAND is '命令编码';
 comment on column RHN_SC_QUEUE_TICKET_EVT.DT_OCCURRED is '发生时间';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_USER_OCCURRED is '发生人标识';
+comment on column RHN_SC_QUEUE_TICKET_EVT.ID_SVC_LOC is '动作发生或目标服务位置标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.DES_QUEUE_TICKET_EVT is '说明';
 comment on table RHN_SC_SCHED_EXCEPT is '排班例外；一行代表一条排班例外记录';
 comment on column RHN_SC_SCHED_EXCEPT.ID_SCHED_EXCEPT is '排班例外主键';

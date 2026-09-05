@@ -24,7 +24,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"门诊重试患者","nationalId":"RETRY%s",
+                                {"fullName":"门诊重试患者","identifiers":[{"system":"9","value":"RETRY%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1991-05-06"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

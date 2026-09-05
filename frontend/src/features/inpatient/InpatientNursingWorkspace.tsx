@@ -7,7 +7,9 @@ import type {
   InpatientNursingRecord,
   InpatientNursingRecordType,
 } from '../../shared/api/inpatientApi'
+import type { VitalValidationProfile } from '../../shared/api/clinicalSafetyApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { exceedsWarning, VITAL_HARD_LIMITS, vitalRule } from '../../shared/validation/businessValidation'
 import { Alert, Button, EmptyState, FormField, LoadingState, Panel, Select, StatusBadge, Tabs } from '../../shared/ui'
 import './inpatient-nursing.css'
 
@@ -28,6 +30,11 @@ export function InpatientNursingWorkspace({ api, episode }: { api: RhnApi; episo
   const records = useQuery({
     queryKey: ['inpatient-nursing-records', episode.id, range.from, range.to],
     queryFn: () => api.inpatient.nursingRecords(episode.id, range.from, range.to),
+  })
+  const vitalRules = useQuery({
+    queryKey: ['clinical-safety-vital-rules'],
+    queryFn: api.clinicalSafety.vitalSignRules,
+    staleTime: 5 * 60 * 1000,
   })
   useEffect(() => setTab('RECORD'), [episode.id])
   const refreshRecords = () => queryClient.invalidateQueries({ queryKey: ['inpatient-nursing-records', episode.id] })
@@ -56,7 +63,7 @@ export function InpatientNursingWorkspace({ api, episode }: { api: RhnApi; episo
         ? <NursingAssessmentPane values={assessments} readOnly={episode.status !== 'ADMITTED'} busy={busy}
             onSubmit={(input) => append.mutateAsync(input)} />
         : <NursingRecordPane records={records.data ?? []} readOnly={episode.status !== 'ADMITTED'} busy={busy}
-            onSubmit={(input) => append.mutateAsync(input)} />}
+            profile={vitalRules.data} onSubmit={(input) => append.mutateAsync(input)} />}
   </Panel>
 }
 
@@ -171,10 +178,11 @@ const assessmentText = {
   risk: { LOW: '低', MEDIUM: '中', HIGH: '高' },
 } as const
 
-function NursingRecordPane({ records, readOnly, busy, onSubmit }: {
+function NursingRecordPane({ records, readOnly, busy, profile, onSubmit }: {
   records: InpatientNursingRecord[]
   readOnly: boolean
   busy: boolean
+  profile?: VitalValidationProfile
   onSubmit: (input: Parameters<RhnApi['inpatient']['appendNursingRecord']>[1]) => Promise<unknown>
 }) {
   const [open, setOpen] = useState(false)
@@ -189,6 +197,11 @@ function NursingRecordPane({ records, readOnly, busy, onSubmit }: {
   const [oxygen, setOxygen] = useState('')
   const [riskFlags, setRiskFlags] = useState('')
   const [validation, setValidation] = useState('')
+  const warningItems = [
+    exceedsWarning(numberOrUndefined(temperature), vitalRule(profile, 'temperature')) ? '体温' : '',
+    exceedsWarning(numberOrUndefined(pulse), vitalRule(profile, 'pulse')) ? '脉搏' : '',
+    exceedsWarning(numberOrUndefined(oxygen), vitalRule(profile, 'oxygen-saturation')) ? '血氧' : '',
+  ].filter(Boolean)
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     if (![focus, observation, intervention, response].some((value) => value.trim())
@@ -213,6 +226,7 @@ function NursingRecordPane({ records, readOnly, busy, onSubmit }: {
       <Button size="sm" onClick={() => setOpen((value) => !value)}>{open ? '收起录入' : '新增护理记录'}</Button></div>}
     {open && !readOnly && <form className="inpatient-nursing__form" onSubmit={(event) => void submit(event).catch(() => undefined)}>
       {validation && <Alert>{validation}</Alert>}
+      {warningItems.length > 0 && <Alert tone="warning">{warningItems.join('、')}达到警戒范围，请核对测量结果并及时处置。</Alert>}
       <FormField label="记录时间" required><input aria-label="护理记录时间" type="datetime-local" value={occurredAt}
         onChange={(event) => setOccurredAt(event.target.value)} required /></FormField>
       <FormField label="记录类型"><Select aria-label="护理记录类型" value={recordType} clearable={false} searchable={false}
@@ -226,11 +240,14 @@ function NursingRecordPane({ records, readOnly, busy, onSubmit }: {
         placeholder="记录已采取的护理措施" onChange={(event) => setIntervention(event.target.value)} /></FormField>
       <FormField label="护理反应"><input aria-label="护理反应" value={response}
         placeholder="如：症状缓解" onChange={(event) => setResponse(event.target.value)} /></FormField>
-      <FormField label="体温 ℃"><input aria-label="护理记录体温" inputMode="decimal" value={temperature}
+      <FormField label="体温 ℃"><input aria-label="护理记录体温" type="number" step="0.1"
+        min={VITAL_HARD_LIMITS.temperature.minimum} max={VITAL_HARD_LIMITS.temperature.maximum} value={temperature}
         placeholder="36.5" onChange={(event) => setTemperature(event.target.value)} /></FormField>
-      <FormField label="脉搏 次/分"><input aria-label="护理记录脉搏" inputMode="decimal" value={pulse}
+      <FormField label="脉搏 次/分"><input aria-label="护理记录脉搏" type="number" step="1"
+        min={VITAL_HARD_LIMITS.pulse.minimum} max={VITAL_HARD_LIMITS.pulse.maximum} value={pulse}
         placeholder="72" onChange={(event) => setPulse(event.target.value)} /></FormField>
-      <FormField label="血氧 %"><input aria-label="护理记录血氧" inputMode="decimal" value={oxygen}
+      <FormField label="血氧 %"><input aria-label="护理记录血氧" type="number" step="1"
+        min={VITAL_HARD_LIMITS.oxygenSaturation.minimum} max={VITAL_HARD_LIMITS.oxygenSaturation.maximum} value={oxygen}
         placeholder="98" onChange={(event) => setOxygen(event.target.value)} /></FormField>
       <FormField label="风险标记" className="is-wide" hint="可选，多项使用逗号分隔"><input aria-label="护理风险标记" value={riskFlags}
         placeholder="如：跌倒、压力损伤" onChange={(event) => setRiskFlags(event.target.value)} /></FormField>

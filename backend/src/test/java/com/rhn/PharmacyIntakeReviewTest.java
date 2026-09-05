@@ -294,7 +294,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"药房验收患者","nationalId":"33010219881212%s",
+                                  "fullName":"药房验收患者","identifiers":[{"system":"9","value":"PHARMACY-%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1988-12-12"
                                 }
                                 """.formatted(digits)))

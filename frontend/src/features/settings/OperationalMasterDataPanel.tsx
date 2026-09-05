@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import type {
   ClinicalConfiguration, DiagnosticChargeLine, DictionaryValue, ExaminationChargePlan, ExaminationProfileInput, ExaminationVariantConfiguration, ExaminationVariantInput,
   ExaminationAttachmentConfiguration, ExaminationAttachmentInput,
@@ -60,14 +60,14 @@ export function OperationalMasterDataPanel({ api, organization, manufacturers }:
       { value: 'frequency', label: '医嘱频次', meta: '规则语义、适用场景与执行时点' },
     ]} />
     {area === 'group' && <ListSection title="项目组套" copy="LIS 只能选检验项目，PACS 只能选检查项目；服务端会再次校验。"
-      action={<Button onClick={() => setDialog(<GroupDialog services={services.data ?? []} organization={organization} units={units.data ?? []}
+      action={<Button onClick={() => setDialog(<GroupDialog api={api} services={services.data ?? []} organization={organization} units={units.data ?? []}
         onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已新增', api.masterData.createItemGroup(input))} />)}><Icon name="add" />新增组套</Button>}>
       {groups.isPending ? <LoadingState label="正在加载项目组套…" /> : !groups.data?.length
         ? <EmptyState icon="clinical" title="暂无项目组套" copy="可建立检验组套、检查组套或常用组合项目。" />
         : <DataTable headers={['组套', '类型', '适用范围', '成员', '状态', '操作']} rows={groups.data.map((value) => [
           <b>{value.name}<code>{value.code}</code></b>, value.groupType,
           value.organizationId ? organization.name : '租户通用', `${value.members.length} 项`, <State value={value.status} />,
-          <Button size="sm" variant="text" onClick={() => setDialog(<GroupDialog value={value} services={services.data ?? []} organization={organization} units={units.data ?? []}
+          <Button size="sm" variant="text" onClick={() => setDialog(<GroupDialog api={api} value={value} services={services.data ?? []} organization={organization} units={units.data ?? []}
             onClose={() => setDialog(undefined)} onSave={(input) => execute('项目组套已更新', api.masterData.updateItemGroup(value, input))} />)}>编辑</Button>,
         ])} />}
     </ListSection>}
@@ -148,13 +148,17 @@ export function ClinicalServiceConfigurationDialog({ api, service, organizationI
         : value && !configurationMatchesType ? <Alert>项目类型与执行配置不一致，已停止展示和编辑，请联系管理员修复主数据。</Alert>
           : value && <ClinicalWorkspace api={api} value={value} services={allServices} dictionaries={dictionaries}
           unitCodes={allUnits.filter((item) => item.status === 'ACTIVE')}
+          onSaveLaboratoryProfile={(input) => execute('检验项目基本配置已更新',
+            api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))}
+          onSaveExaminationProfile={(input) => execute('检查项目基本配置已更新',
+            api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))}
           onEditProfile={() => setDialog(laboratory
             ? <LaboratoryProfileDialog value={value.laboratory!} dictionaries={dictionaries} units={allUnits}
-              onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目配置已更新',
+              onClose={() => setDialog(undefined)} onSave={(input) => execute('检验项目基本配置已更新',
                 api.masterData.updateLaboratoryProfile(service.id, value.laboratory!.revision, input))} />
             : <ExaminationProfileDialog value={value.examination!} dictionaries={dictionaries}
               services={allServices} currentServiceId={service.id} onClose={() => setDialog(undefined)}
-              onSave={(input) => execute('检查项目配置已更新',
+              onSave={(input) => execute('检查项目基本配置已更新',
                 api.masterData.updateExaminationProfile(service.id, value.examination!.revision, input))} />)}
           onSpecimen={(row) => setDialog(<SpecimenDialog value={row} configuration={value}
             units={allUnits} services={allServices} onClose={() => setDialog(undefined)}
@@ -185,141 +189,759 @@ function DataTable({ headers, rows }: { headers: string[]; rows: ReactNode[][] }
   </UiDataTable></TableShell>
 }
 
-function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEditProfile, onSpecimen, onVariant, onAttachment }: {
+function ClinicalDataTable({ headers, rows, colWidths }: { headers: string[]; rows: ReactNode[][]; colWidths?: string[] }) {
+  return (
+    <div style={{ width: '100%', overflowX: 'hidden' }}>
+      <table className="clinical-table">
+        {colWidths && (
+          <colgroup>
+            {colWidths.map((w, idx) => <col key={idx} style={{ width: w }} />)}
+          </colgroup>
+        )}
+        <thead>
+          <tr>
+            {headers.map((h) => <th key={h}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, index) => (
+            <tr key={index}>
+              {row.map((cell, i) => <td key={i}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ClinicalWorkspace({ api, value, services, dictionaries, unitCodes, onEditProfile, onSaveLaboratoryProfile, onSaveExaminationProfile, onSpecimen, onVariant, onAttachment }: {
   api: RhnApi; value: ClinicalConfiguration; services: ServiceCatalogItem[]
   dictionaries: Record<string, DictionaryValue[]>; unitCodes: UnitDefinition[]
-  onEditProfile: () => void; onSpecimen: (value?: SpecimenConfiguration) => void
+  onEditProfile?: () => void
+  onSaveLaboratoryProfile?: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void
+  onSaveExaminationProfile?: (input: ExaminationProfileInput) => void
+  onSpecimen: (value?: SpecimenConfiguration) => void
   onVariant: (value?: ExaminationVariantConfiguration) => void
   onAttachment: (value?: ExaminationAttachmentConfiguration) => void
 }) {
   void unitCodes
   const laboratory = value.serviceType === 'LABORATORY'
-  const [tab, setTab] = useState<'requirements' | 'options' | 'charge'>('requirements')
+  const [tab, setTab] = useState<'options' | 'requirements' | 'attachments'>('options')
+  const [editingProfile, setEditingProfile] = useState(false)
   const profile = value.laboratory ?? value.examination
   const dictionaryName = (dictionaryCode: string, code?: string) =>
     code ? dictionaries[dictionaryCode]?.find((item) => item.code === code)?.name ?? code : '未设置'
+
   const tabs = laboratory
-    ? ([['requirements', '执行要求'], ['options', '标本与分管'], ['charge', '分管试算']] as const)
-    : ([['requirements', '执行要求'], ['options', '允许部位与方式'], ['charge', '收费规则与试算']] as const)
+    ? ([['options', '标本容器与分管加收'], ['requirements', '报告与执行要求']] as const)
+    : ([['options', '允许部位与阶梯计费'], ['attachments', '连带附加收费规则'], ['requirements', '检查前准备与要求']] as const)
+
   return <div className="clinical-configuration">
-    <header><div><strong>{value.serviceName}</strong><code>{value.serviceCode}</code></div><State value="ACTIVE" />
-      <Button variant="secondary" onClick={onEditProfile}>编辑项目执行配置</Button></header>
-    <div className="clinical-configuration__facts">
-      {laboratory ? <><span>检验方法<strong>{dictionaryName('BD_LAB_METHOD', value.laboratory!.laboratoryMethod)}</strong></span>
-        <span>报告时长<strong>{value.laboratory!.reportDuration ? `${value.laboratory!.reportDuration} ${value.laboratory!.reportDurationUnit ?? ''}`.trim() : '未设置'}</strong></span>
-        <span>执行属性<strong>{[value.laboratory!.fastingRequired && '空腹', value.laboratory!.pointOfCare && 'POCT'].filter(Boolean).join(' · ') || '常规'}</strong></span></>
-        : <><span>检查类型<strong>{dictionaryName('BD_EXAM_TYPE', value.examination?.examinationType)}</strong></span>
-          <span>部位规则<strong>{value.examination?.bodySiteRequired ? `必选 · ${value.examination.maxBodySiteCount ? `最多 ${value.examination.maxBodySiteCount} 个` : '数量不限'}` : '不要求'}</strong></span>
-          <span>多部位计价<strong>{sitePricingLabel(value.examination!)}</strong></span></>}
+    {/* 紧凑现代临床头部看板 */}
+    <div className="clinical-header-card">
+      <div className="clinical-header-card__info">
+        <div className="clinical-header-card__titles">
+          <strong>{value.serviceName}</strong>
+          <code>{value.serviceCode}</code>
+        </div>
+        <State value="ACTIVE" />
+      </div>
+
+      <div className="clinical-header-card__facts">
+        {laboratory ? <>
+          <span className="clinical-fact-pill">检验方法: <strong>{dictionaryName('BD_LAB_METHOD', value.laboratory!.laboratoryMethod)}</strong></span>
+          <span className="clinical-fact-pill">报告时长: <strong>{value.laboratory!.reportDuration ? `${value.laboratory!.reportDuration} ${value.laboratory!.reportDurationUnit ?? ''}`.trim() : '未设置'}</strong></span>
+          <span className="clinical-fact-pill">执行属性: <strong>{[value.laboratory!.fastingRequired && '空腹', value.laboratory!.pointOfCare && 'POCT'].filter(Boolean).join(' · ') || '常规'}</strong></span>
+        </> : <>
+          <span className="clinical-fact-pill">检查类型: <strong>{dictionaryName('BD_EXAM_TYPE', value.examination?.examinationType)}</strong></span>
+          <span className="clinical-fact-pill">部位约束: <strong>{value.examination?.bodySiteRequired ? `必选(最多${value.examination.maxBodySiteCount ? `${value.examination.maxBodySiteCount}个` : '不限'})` : '不限'}</strong></span>
+          <span className="clinical-fact-pill">计费模式: <strong>{sitePricingLabel(value.examination!)}</strong></span>
+        </>}
+      </div>
+
+      <Button
+        variant={editingProfile ? 'primary' : 'secondary'}
+        onClick={() => {
+          if (onSaveLaboratoryProfile || onSaveExaminationProfile) {
+            setEditingProfile(!editingProfile)
+          } else if (onEditProfile) {
+            onEditProfile()
+          }
+        }}
+      >
+        {editingProfile ? '收起基本配置' : '编辑项目基本配置'}
+      </Button>
     </div>
-    <nav className="clinical-configuration__tabs" aria-label="项目配置内容">
-      {tabs.map(([key, label]) => <button type="button" key={key} className={tab === key ? 'is-active' : ''} onClick={() => setTab(key)}>{label}</button>)}
-    </nav>
-    {tab === 'requirements' && <div className="clinical-requirement-card">
-      <div><span>开立与执行说明</span><strong>{laboratory ? value.laboratory!.collectionDescription || '暂未维护' : value.examination!.preparationDescription || '暂未维护'}</strong></div>
-      <div><span>配置完整度</span><strong>{profile ? '已建立项目配置' : '待初始化'}</strong></div>
-      <p>执行要求用于开立校验与{laboratory ? '采集' : '检查'}提示；收费结果请在“{laboratory ? '分管试算' : '收费规则与试算'}”中验证。</p>
-    </div>}
-    {tab === 'options' && <div className="clinical-configuration__section"><div className="section-heading"><div><h4>{laboratory ? '可用标本、容器与分管规则' : '允许部位与检查方式'}</h4>
-      <p>{laboratory ? '维护标本、容器和同次申请的合管拆管依据。' : '部位与执行方式按独立业务含义维护，编码用于开立与执行交换。'}</p></div>
-      <Button onClick={() => laboratory ? onSpecimen() : onVariant()}><Icon name="add" />{laboratory ? '新增标本规则' : '新增部位或方式'}</Button></div>
-      {laboratory ? <DataTable headers={['标本', '容器', '最小采集量', '分管/加收', '状态', '操作']} rows={value.laboratory!.specimens.map((row) => [
-        <b>{row.specimenName}<code>{row.specimenCode}</code></b>, row.containerName || '未限定', row.minimumQuantity ? `${row.minimumQuantity} ${row.minimumQuantityUnit}` : '未设置',
-        <span>{tubeRuleLabel(row)}<small>{[row.defaultSpecimen && '默认', row.requiredSpecimen && '必需'].filter(Boolean).join(' · ') || '可选'}</small></span>, <State value={row.status} />,
-        <Button size="sm" variant="text" onClick={() => onSpecimen(row)}>编辑</Button>,
-      ])} /> : <DataTable headers={['配置项', '执行方式', '申请要求', '排序', '状态', '操作']} rows={(value.examination?.variants ?? []).map((row) => [
-        <b>{row.name}<code>{row.code}</code></b>, dictionaryName('BD_SERVICE_VARIANT_METHOD', row.methodType), row.bodySiteRequired ? '需选择标准部位' : '无需另选部位', row.sortOrder,
-        <State value={row.status} />, <Button size="sm" variant="text" onClick={() => onVariant(row)}>编辑</Button>,
-      ])} />}
-    </div>}
-    {tab === 'charge' && !laboratory && value.examination && <><div className="clinical-configuration__section"><div className="section-heading"><div>
-      <h4>附加收费规则</h4><p>以“触发条件 → 收费动作”展示胶片、造影、麻醉和多部位加收。</p></div>
-      <Button onClick={() => onAttachment()}><Icon name="add" />新增收费规则</Button></div>
-      {!value.examination.attachments.length ? <EmptyState icon="clinical" title="暂无附加收费规则" copy="可配置始终带出、按需选择或多部位触发的收费动作。" />
-        : <DataTable headers={['规则项目', '触发条件', '收费动作', '要求', '状态', '操作']} rows={value.examination.attachments.map((row) => [
-          <b>{row.attachmentItemName}<code>{row.attachmentItemCode}</code></b>, attachmentTriggerLabel(row.triggerType),
-          `${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`, [row.requiredAttachment && '必须', row.separatelyChargeable ? '独立收费行' : '随主项'].filter(Boolean).join(' · '),
-          <State value={row.status} />, <Button size="sm" variant="text" onClick={() => onAttachment(row)}>编辑</Button>,
-        ])} />}
-    </div><ExaminationChargeSimulator api={api} value={value} /></>}
-    {tab === 'charge' && laboratory && <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} />}
-    {!profile && <Alert>当前项目未初始化执行配置。</Alert>}
+
+    {/* 原地内联卡片：项目基本配置与多部位计价 */}
+    {editingProfile && (
+      laboratory ? (
+        <LaboratoryProfileInlineEditor
+          value={value.laboratory!}
+          dictionaries={dictionaries}
+          units={unitCodes}
+          onClose={() => setEditingProfile(false)}
+          onSave={(input) => {
+            if (onSaveLaboratoryProfile) {
+              onSaveLaboratoryProfile(input)
+              setEditingProfile(false)
+            } else if (onEditProfile) {
+              onEditProfile()
+            }
+          }}
+        />
+      ) : (
+        <ExaminationProfileInlineEditor
+          value={value.examination!}
+          dictionaries={dictionaries}
+          services={services}
+          currentServiceId={value.serviceId}
+          onClose={() => setEditingProfile(false)}
+          onSave={(input) => {
+            if (onSaveExaminationProfile) {
+              onSaveExaminationProfile(input)
+              setEditingProfile(false)
+            } else if (onEditProfile) {
+              onEditProfile()
+            }
+          }}
+        />
+      )
+    )}
+
+    {/* PC 端宽屏双栏工作台布局 */}
+    <div className="clinical-workbench-grid" style={{ marginTop: 'var(--space-3)' }}>
+      {/* 左栏：核心业务规则配置 */}
+      <div className="clinical-workbench-grid__main">
+        <nav className="clinical-configuration__tabs" aria-label="项目配置内容" style={{ marginTop: 0 }}>
+          {tabs.map(([key, label]) => (
+            <button type="button" key={key} className={tab === key ? 'is-active' : ''} onClick={() => setTab(key as typeof tab)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {/* 检验：标本与分管加收 */}
+        {laboratory && tab === 'options' && (
+          <div className="clinical-configuration__section" style={{ marginTop: 'var(--space-2)' }}>
+            <div className="section-heading">
+              <div>
+                <h4>可用标本、采血管与同次分管规则</h4>
+                <p>支持一键套用成熟采血管方案；定义同次申请的合管、拆管及试管加收依据。</p>
+              </div>
+              <Button size="sm" onClick={() => onSpecimen()}><Icon name="add" />新增标本规则</Button>
+            </div>
+            {!value.laboratory!.specimens.length ? (
+              <EmptyState icon="clinical" title="暂未配置标本与采血管" copy="请点击上方“新增标本规则”，可一键套用生化黄头管、血常规紫头管等成熟方案。" />
+            ) : (
+              <ClinicalDataTable
+                headers={['标本类型', '采血管容器', '采样量', '分管模式与加收', '状态', '操作']}
+                colWidths={['25%', '25%', '13%', '23%', '7%', '7%']}
+                rows={value.laboratory!.specimens.map((row) => [
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.875rem' }}>{row.specimenName}</strong>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', marginTop: '0.125rem' }}>
+                      <code style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.specimenCode}</code>
+                      {row.defaultSpecimen && <span className="clinical-tag-pill clinical-tag-pill--primary">首选默认</span>}
+                      {row.requiredSpecimen && <span className="clinical-tag-pill clinical-tag-pill--purple">必需</span>}
+                    </div>
+                  </div>,
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                    <span className="tube-dot" style={{ backgroundColor: tubeDotColor(row.containerName || '', row.tubeGroupCode || ''), flexShrink: 0 }} />
+                    <span style={{ fontSize: '0.85rem' }}>{row.containerName || '未限定容器'}</span>
+                  </span>,
+                  <span style={{ fontSize: '0.85rem' }}>{row.minimumQuantity ? `${row.minimumQuantity} ${row.minimumQuantityUnit}` : '未限定'}</span>,
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.8125rem' }}>{tubeRuleLabel(row)}</strong>
+                    <small style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>
+                      {row.tubeChargeMode === 'NONE' ? '免加收' : `加收 ${row.tubeChargeQuantity} 支`}
+                    </small>
+                  </div>,
+                  <State value={row.status} />,
+                  <Button size="sm" variant="text" onClick={() => onSpecimen(row)}>编辑</Button>,
+                ])} />
+            )}
+          </div>
+        )}
+
+        {/* 检查：允许部位与阶梯计费看板 */}
+        {!laboratory && tab === 'options' && value.examination && (
+          <>
+            {/* 多部位阶梯计费看板 */}
+            <div className="site-pricing-dashboard">
+              <div className="site-pricing-dashboard__header">
+                <div>
+                  <h4>多部位阶梯计费矩阵</h4>
+                  <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)' }}>
+                    国内主流三甲医院标准多部位计费策略：区分首部位基础价与次部位加收
+                  </p>
+                </div>
+                <Button size="sm" variant="secondary" onClick={() => setEditingProfile(true)}>
+                  调整阶梯规则
+                </Button>
+              </div>
+              <div className="site-pricing-steps">
+                <div className="site-pricing-step site-pricing-step--tier1">
+                  <strong>阶梯 1 · 首部位 / 包含部位</strong>
+                  <p>前 {value.examination.includedSiteCount} 个部位按主项目基准价收取（100%）</p>
+                  <small>基础部位涵盖常规扫描与主要诊断要求</small>
+                </div>
+                <div className="site-pricing-step site-pricing-step--tier2">
+                  <strong>阶梯 2 · 超出部位加收规则</strong>
+                  <p>{sitePricingDetail(value.examination)}</p>
+                  <small>{value.examination.maxChargeableSiteCount ? `最多累计计费 ${value.examination.maxChargeableSiteCount} 个部位` : '计费部位不限上限'}</small>
+                </div>
+              </div>
+            </div>
+
+            {/* 允许部位与方式列表 */}
+            <div className="clinical-configuration__section" style={{ marginTop: 'var(--space-2)' }}>
+              <div className="section-heading">
+                <div>
+                  <h4>允许部位与检查方式</h4>
+                  <p>维护医生开单可选的解剖部位或技术方式；支持通过常用解剖标签快速维护。</p>
+                </div>
+                <Button size="sm" onClick={() => onVariant()}><Icon name="add" />新增部位或方式</Button>
+              </div>
+              {!value.examination.variants.length ? (
+                <EmptyState icon="clinical" title="暂未配置允许部位" copy="请点击上方按钮添加允许执行的解剖部位（如头颅、胸部、全腹部）。" />
+              ) : (
+                <ClinicalDataTable
+                  headers={['部位/选项', '检查方式', '标准部位要求', '排序', '状态', '操作']}
+                  colWidths={['30%', '20%', '24%', '10%', '8%', '8%']}
+                  rows={value.examination.variants.map((row) => [
+                    <div>
+                      <strong style={{ display: 'block', fontSize: '0.875rem' }}>{row.name}</strong>
+                      <code style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.code}</code>
+                    </div>,
+                    <span className="clinical-tag-pill clinical-tag-pill--primary">
+                      {dictionaryName('BD_SERVICE_VARIANT_METHOD', row.methodType)}
+                    </span>,
+                    row.bodySiteRequired ? (
+                      <span className="clinical-tag-pill clinical-tag-pill--purple">需选择标准部位</span>
+                    ) : (
+                      <span className="clinical-tag-pill">无需另选部位</span>
+                    ),
+                    row.sortOrder,
+                    <State value={row.status} />,
+                    <Button size="sm" variant="text" onClick={() => onVariant(row)}>编辑</Button>,
+                  ])} />
+              )}
+            </div>
+          </>
+        )}
+
+        {/* 检查：连带附加收费规则 */}
+        {!laboratory && tab === 'attachments' && value.examination && (
+          <div className="clinical-configuration__section" style={{ marginTop: 'var(--space-2)' }}>
+            <div className="section-heading">
+              <div>
+                <h4>连带附加收费规则（胶片、造影剂、耗材）</h4>
+                <p>以“业务场景向导”引导维护：胶片（按部位倍增）、造影剂（单次固定）、穿刺或特殊服务等。</p>
+              </div>
+              <Button size="sm" onClick={() => onAttachment()}><Icon name="add" />新增收费规则</Button>
+            </div>
+            {!value.examination.attachments.length ? (
+              <EmptyState icon="clinical" title="暂无附加收费规则" copy="可配置胶片耗材（按部位倍增）或造影推注费（单次固定）等。" />
+            ) : (
+              <ClinicalDataTable
+                headers={['连带项目', '触发场景条件', '数量计算依据', '约束属性', '状态', '操作']}
+                colWidths={['28%', '20%', '22%', '16%', '7%', '7%']}
+                rows={value.examination.attachments.map((row) => [
+                  <div>
+                    <strong style={{ display: 'block', fontSize: '0.875rem' }}>{row.attachmentItemName}</strong>
+                    <code style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{row.attachmentItemCode}</code>
+                  </div>,
+                  <span className="clinical-tag-pill clinical-tag-pill--primary">{attachmentTriggerLabel(row.triggerType)}</span>,
+                  <span style={{ fontSize: '0.85rem' }}>{`${attachmentQuantityLabel(row.quantityBasis)} × ${row.quantity}`}</span>,
+                  <span style={{ fontSize: '0.8125rem' }}>
+                    {[row.requiredAttachment && '强制带出', row.separatelyChargeable ? '独立收费行' : '合并计价'].filter(Boolean).join(' · ')}
+                  </span>,
+                  <State value={row.status} />,
+                  <Button size="sm" variant="text" onClick={() => onAttachment(row)}>编辑</Button>,
+                ])} />
+            )}
+          </div>
+        )}
+
+        {/* 通用：执行与准备要求 */}
+        {tab === 'requirements' && (
+          <div className="clinical-requirement-card" style={{ marginTop: 'var(--space-2)' }}>
+            <div>
+              <span>开立与执行准备说明</span>
+              <strong>{laboratory ? value.laboratory!.collectionDescription || '暂未维护采样说明' : value.examination!.preparationDescription || '暂未维护检查准备说明'}</strong>
+            </div>
+            <div>
+              <span>项目配置完整度</span>
+              <strong>{profile ? '已建立专业业务配置' : '待初始化配置'}</strong>
+            </div>
+            <p>执行要求直接用于门诊/住院医生开立时的安全核验与患者指引；计费与分管结果请在右侧沙盒中实时核对验证。</p>
+          </div>
+        )}
+      </div>
+
+      {/* 右栏：即时联动试算沙盒（Live Sandbox） */}
+      <div className="clinical-workbench-grid__aside">
+        {laboratory ? (
+          <LaboratoryTubeSimulator api={api} currentServiceId={value.serviceId} services={services} />
+        ) : (
+          <ExaminationChargeSimulator api={api} value={value} />
+        )}
+      </div>
+    </div>
   </div>
+}
+
+function tubeDotColor(containerName: string, groupCode: string) {
+  const text = `${containerName} ${groupCode}`.toUpperCase()
+  if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return '#eab308'
+  if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return '#a855f7'
+  if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return '#0ea5e9'
+  if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return '#64748b'
+  if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return '#ef4444'
+  return '#3b82f6'
+}
+
+function sitePricingDetail(ex: NonNullable<ClinicalConfiguration['examination']>) {
+  if (ex.sitePricingMode === 'SINGLE') return '不论选择多少个部位，主项目仅收 1 次基准费用'
+  if (ex.sitePricingMode === 'PER_SITE') return '按选择的部位总数量，每个部位全额（100%）收取主项费用'
+  if (ex.sitePricingMode === 'BASE_PLUS_FIXED') return `超出基础部位后，每增加 1 个部位固定加收 ¥${ex.additionalSitePrice || 0}`
+  if (ex.sitePricingMode === 'BASE_PLUS_ITEM') return `超出基础部位后，每增加 1 个部位加收项目【${ex.additionalSiteItemName || '加收项'}】 × ${ex.additionalSiteQuantity || 1}`
+  return '未设定多部位计价策略'
 }
 
 function ExaminationChargeSimulator({ api, value }: { api: RhnApi; value: ClinicalConfiguration }) {
   const examination = value.examination!
   const availableSites = examination.variants.filter((item) => item.status === 'ACTIVE')
   const optionalRules = examination.attachments.filter((item) => item.status === 'ACTIVE' && item.triggerType === 'OPTIONAL')
-  const [selectedSites, setSelectedSites] = useState<string[]>([])
+  const [selectedSites, setSelectedSites] = useState<string[]>(availableSites.slice(0, 1).map((s) => s.code))
   const [selectedRules, setSelectedRules] = useState<string[]>([])
   const [result, setResult] = useState<ExaminationChargePlan>()
   const [error, setError] = useState('')
   const [running, setRunning] = useState(false)
-  const toggle = (items: string[], value: string, setter: (next: string[]) => void) =>
-    setter(items.includes(value) ? items.filter((item) => item !== value) : [...items, value])
+
+  const toggle = (items: string[], v: string, setter: (next: string[]) => void) =>
+    setter(items.includes(v) ? items.filter((item) => item !== v) : [...items, v])
+
   const run = () => {
     setRunning(true); setError('')
     api.masterData.examinationChargePlan(value.serviceId, selectedSites, selectedRules)
       .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
   }
-  return <section className="rule-simulator" aria-label="检查收费规则试算">
-    <header><div><h4>收费规则试算</h4><p>选择本次实际执行部位和按需项目，核对收费行与计算依据。</p></div>
-      <Button onClick={run} disabled={running || examination.bodySiteRequired && selectedSites.length === 0}>{running ? '计算中…' : '开始试算'}</Button></header>
+
+  useEffect(() => {
+    if (selectedSites.length > 0 || !examination.bodySiteRequired) {
+      run()
+    }
+  }, [selectedSites, selectedRules])
+
+  return <section className="rule-simulator" aria-label="检查收费规则试算" style={{ marginTop: 0 }}>
+    <header>
+      <div>
+        <h4>⚡ 阶梯收费实时试算沙盒</h4>
+        <p>模拟勾选实际执行部位与附加耗材，核验费用与计算依据。</p>
+      </div>
+      <Button size="sm" onClick={run} disabled={running || (examination.bodySiteRequired && selectedSites.length === 0)}>
+        {running ? '计算中…' : '刷新试算'}
+      </Button>
+    </header>
     {error && <Alert>{error}</Alert>}
-    <div className="rule-simulator__inputs">
-      <div><strong>实际执行部位</strong><div className="rule-option-grid">
-        {availableSites.map((site) => <Check key={site.id} label={`${site.name} · ${site.code}`} checked={selectedSites.includes(site.code)} onChange={() => toggle(selectedSites, site.code, setSelectedSites)} />)}
-        {!availableSites.length && <span>请先在“允许部位与方式”中配置启用项。</span>}
-      </div></div>
-      <div><strong>本次按需收费项</strong><div className="rule-option-grid">
-        {optionalRules.map((rule) => <Check key={rule.id} label={`${rule.attachmentItemName} · ${rule.attachmentItemCode}`} checked={selectedRules.includes(rule.id)} onChange={() => toggle(selectedRules, rule.id, setSelectedRules)} />)}
-        {!optionalRules.length && <span>当前没有需要人工选择的附加收费规则。</span>}
-      </div></div>
+    <div className="rule-simulator__inputs" style={{ gridTemplateColumns: '1fr' }}>
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'var(--space-1)' }}>
+          <strong>模拟执行部位（已选 {selectedSites.length} 个）</strong>
+          {availableSites.length > 1 && (
+            <Button size="sm" variant="text" onClick={() => setSelectedSites(selectedSites.length === availableSites.length ? [] : availableSites.map((s) => s.code))}>
+              {selectedSites.length === availableSites.length ? '清空' : '全选所有部位'}
+            </Button>
+          )}
+        </div>
+        <div className="rule-option-grid" style={{ maxHeight: '9rem', overflowY: 'auto' }}>
+          {availableSites.map((site) => (
+            <Check key={site.id} label={`${site.name} (${site.code})`}
+              checked={selectedSites.includes(site.code)} onChange={() => toggle(selectedSites, site.code, setSelectedSites)} />
+          ))}
+          {!availableSites.length && <span>请先在左侧“允许部位与阶梯计费”中添加部位。</span>}
+        </div>
+      </div>
+      {optionalRules.length > 0 && (
+        <div>
+          <strong>本次按需附加项（选收）</strong>
+          <div className="rule-option-grid" style={{ maxHeight: '7rem', overflowY: 'auto' }}>
+            {optionalRules.map((rule) => (
+              <Check key={rule.id} label={`${rule.attachmentItemName} (${rule.attachmentItemCode})`}
+                checked={selectedRules.includes(rule.id)} onChange={() => toggle(selectedRules, rule.id, setSelectedRules)} />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-    {result && <div className="rule-simulator__result"><div className="rule-simulator__summary">
-      <span>实际部位 <strong>{result.siteCount}</strong></span><span>包含部位 <strong>{result.includedSiteCount}</strong></span><span>加收部位 <strong>{result.extraSiteCount}</strong></span>
-    </div><ChargeLines lines={result.lines} /></div>}
+    {result && <div className="rule-simulator__result">
+      <div className="rule-simulator__summary">
+        <span>执行部位 <strong>{result.siteCount}</strong></span>
+        <span>基础包含 <strong>{result.includedSiteCount}</strong></span>
+        <span>超出加收 <strong>{result.extraSiteCount}</strong></span>
+      </div>
+      <ChargeLines lines={result.lines} />
+    </div>}
   </section>
 }
 
+const SPECIMEN_TYPE_ZH: Record<string, string> = {
+  SERUM: '血清',
+  WHOLE_BLOOD: '全血',
+  PLASMA: '血浆',
+  URINE: '尿液',
+  CSF: '脑脊液',
+  STOOL: '粪便',
+  FECES: '粪便',
+  PLEURAL_FLUID: '胸腹水',
+  SECRETION: '分泌物',
+  SWAB: '咽拭子',
+  BONE_MARROW: '骨髓',
+}
+
+function formatSpecimenLabel(raw?: string): string {
+  if (!raw) return ''
+  const upper = raw.trim().toUpperCase()
+  return SPECIMEN_TYPE_ZH[upper] || raw
+}
+
+const TUBE_GROUP_ZH: Record<string, string> = {
+  SERUM: '血清',
+  BIOCHEM_SERUM: '生化血清',
+  EDTA_HEMATOLOGY: '全血临检',
+  CITRATE_COAGULATION: '凝血血浆',
+  GLUCOSE_LACTATE: '血糖生化',
+  IMMUNO_SERUM: '免疫血清',
+  URINE_ROUTINE: '尿液常规',
+}
+
+function formatTubeGroupLabel(groupCode: string, specimenName?: string): string {
+  if (groupCode.startsWith('ITEM:')) return '独立专管'
+  const upper = groupCode.trim().toUpperCase()
+  if (TUBE_GROUP_ZH[upper]) return TUBE_GROUP_ZH[upper]
+  if (SPECIMEN_TYPE_ZH[upper]) return SPECIMEN_TYPE_ZH[upper]
+  if (specimenName) return specimenName
+  return groupCode
+}
+
 function LaboratoryTubeSimulator({ api, currentServiceId, services }: { api: RhnApi; currentServiceId: string; services: ServiceCatalogItem[] }) {
-  const laboratoryServices = services.filter((service) => service.sdServiceType === 'LABORATORY' && service.sdStatus === 'ACTIVE')
+  const laboratoryServices = useMemo(
+    () => services.filter((service) => service.sdServiceType === 'LABORATORY' && service.sdStatus === 'ACTIVE'),
+    [services],
+  )
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [selected, setSelected] = useState<string[]>([currentServiceId])
   const [quantities, setQuantities] = useState<Record<string, string>>({ [currentServiceId]: '1' })
   const [result, setResult] = useState<LaboratoryTubePlan>()
   const [error, setError] = useState('')
   const [running, setRunning] = useState(false)
-  useEffect(() => { setSelected([currentServiceId]); setQuantities({ [currentServiceId]: '1' }); setResult(undefined) }, [currentServiceId])
-  const toggle = (serviceId: string) => setSelected((items) => items.includes(serviceId)
-    ? items.filter((item) => item !== serviceId) : [...items, serviceId])
+
+  useEffect(() => { setSelected([currentServiceId]); setQuantities({ [currentServiceId]: '1' }) }, [currentServiceId])
+
+  const addService = (serviceId: string) => {
+    if (!selected.includes(serviceId)) {
+      setSelected((items) => [...items, serviceId])
+      setQuantities((prev) => ({ ...prev, [serviceId]: prev[serviceId] || '1' }))
+    }
+  }
+
+  const removeService = (serviceId: string) => {
+    setSelected((items) => items.filter((id) => id !== serviceId))
+  }
+
+  const matchedServices = useMemo(() => {
+    const kw = searchKeyword.trim().toLowerCase()
+    if (!kw) return []
+    return laboratoryServices.filter((s) =>
+      s.name.toLowerCase().includes(kw) ||
+      s.code.toLowerCase().includes(kw) ||
+      (s.specimenType && s.specimenType.toLowerCase().includes(kw))
+    )
+  }, [laboratoryServices, searchKeyword])
+
   const run = () => {
     setRunning(true); setError('')
     api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({ serviceId, quantity: Number(quantities[serviceId] || 1) })))
       .then(setResult).catch((reason) => setError(errorMessage(reason))).finally(() => setRunning(false))
   }
-  return <section className="rule-simulator" aria-label="检验分管规则试算">
-    <header><div><h4>同次申请分管试算</h4><p>组合多个检验项目，核对建议试管数、每管项目与试管加收。</p></div>
-      <Button onClick={run} disabled={running || selected.length === 0}>{running ? '计算中…' : '开始试算'}</Button></header>
+
+  useEffect(() => {
+    if (selected.length > 0) run()
+    else setResult(undefined)
+  }, [selected, quantities])
+
+  return <section className="rule-simulator" aria-label="检验分管规则试算" style={{ marginTop: 0 }}>
+    <header>
+      <div>
+        <h4>⚡ 同次采血分管沙盒</h4>
+        <p>模拟同次申请中多项开立，实时核验合管结果与试管耗材加收。</p>
+      </div>
+      <Button size="sm" onClick={run} disabled={running || selected.length === 0}>
+        {running ? '计算中…' : '刷新沙盒'}
+      </Button>
+    </header>
     {error && <Alert>{error}</Alert>}
-    <div className="tube-service-picker">{laboratoryServices.map((service) => <div key={service.id} className={selected.includes(service.id) ? 'is-selected' : ''}>
-      <Check label={`${service.name} · ${service.code}`} checked={selected.includes(service.id)} onChange={() => toggle(service.id)} />
-      {selected.includes(service.id) && <input type="number" min="1" aria-label={`${service.name}数量`} value={quantities[service.id] ?? '1'} onChange={(event) => setQuantities({ ...quantities, [service.id]: event.target.value })} />}
-    </div>)}</div>
-    {result && <div className="tube-plan-result">{result.groups.map((group) => <article key={group.groupCode}>
-      <div><strong>{group.specimenName || '未命名标本'} · {group.containerName || '未限定容器'}</strong><code>{group.groupCode.startsWith('ITEM:') ? '独立分管' : group.groupCode}</code></div>
-      <b>{group.tubeCount} 管</b><small>{group.serviceIds.length} 个项目 · {tubeSharingModeLabel(group.sharingMode)}</small>
-    </article>)}<ChargeLines lines={result.chargeLines} /></div>}
+
+    {/* 搜索与添加工具栏 */}
+    <div className="tube-simulator-toolbar">
+      <div className="tube-simulator-search-wrap">
+        <div className="tube-search-input-container">
+          <input
+            type="text"
+            className="tube-simulator-search"
+            placeholder="🔍 检索检验项目名称/编码/拼音码添加..."
+            value={searchKeyword}
+            onChange={(e) => setSearchKeyword(e.target.value)}
+            aria-label="搜索检验项目"
+          />
+          {searchKeyword && (
+            <button
+              type="button"
+              onClick={() => setSearchKeyword('')}
+              style={{
+                position: 'absolute',
+                right: '0.5rem',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.875rem',
+                padding: '0.25rem',
+              }}
+              title="清空搜索"
+              aria-label="清空搜索"
+            >
+              ✕
+            </button>
+          )}
+
+          {/* 实时联想匹配下拉建议 */}
+          {searchKeyword.trim() && (
+            <div className="tube-search-dropdown" role="listbox" aria-label="搜索结果建议">
+              {matchedServices.length === 0 ? (
+                <div className="tube-search-dropdown__empty">未找到匹配的检验项目</div>
+              ) : (
+                matchedServices.slice(0, 10).map((service) => {
+                  const isAdded = selected.includes(service.id)
+                  return (
+                    <button
+                      key={service.id}
+                      type="button"
+                      className={`tube-search-dropdown__item${isAdded ? ' is-added' : ''}`}
+                      onClick={() => addService(service.id)}
+                      aria-label={service.name}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', textAlign: 'left' }}>
+                        <strong className="tube-search-dropdown__name">{service.name}</strong>
+                        <span className="tube-search-dropdown__code">
+                          {service.code} {service.specimenType ? `· ${formatSpecimenLabel(service.specimenType)}` : ''}
+                        </span>
+                      </div>
+                      <div>
+                        {isAdded ? (
+                          <span className="tube-search-dropdown__badge">已在列表中</span>
+                        ) : (
+                          <span className="tube-search-dropdown__add-btn">+ 加入本轮</span>
+                        )}
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          )}
+        </div>
+
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => {
+            setSelected([currentServiceId])
+            setQuantities({ [currentServiceId]: '1' })
+            setSearchKeyword('')
+          }}
+          title="重置为仅当前开立项"
+        >
+          重置当前项
+        </Button>
+      </div>
+
+      {/* 快捷组合套用 */}
+      <div className="tube-quick-scenarios">
+        <small>快捷组合：</small>
+        <Button
+          size="sm"
+          variant="text"
+          onClick={() => {
+            const biochemServices = laboratoryServices.filter((s) =>
+              s.name.includes('生化') || s.name.includes('肝') || s.name.includes('肾') || s.name.includes('脂') || s.name.includes('糖')
+            )
+            const targetIds = biochemServices.length > 0 ? biochemServices.slice(0, 3).map((s) => s.id) : laboratoryServices.slice(0, 2).map((s) => s.id)
+            const newSelected = Array.from(new Set([...selected, ...targetIds]))
+            setSelected(newSelected)
+            setQuantities((prev) => {
+              const next = { ...prev }
+              newSelected.forEach((id) => { if (!next[id]) next[id] = '1' })
+              return next
+            })
+          }}
+          title="一键添加多项生化检验，模拟同组共管合并为1管"
+        >
+          + 生化合管组
+        </Button>
+        <Button
+          size="sm"
+          variant="text"
+          onClick={() => {
+            const mixed = laboratoryServices.filter((s) =>
+              s.name.includes('血常规') || s.name.includes('生化') || s.name.includes('凝血') || s.name.includes('CRP')
+            )
+            const targetIds = mixed.length > 0 ? mixed.slice(0, 3).map((s) => s.id) : laboratoryServices.slice(0, 3).map((s) => s.id)
+            const newSelected = Array.from(new Set([...selected, ...targetIds]))
+            setSelected(newSelected)
+            setQuantities((prev) => {
+              const next = { ...prev }
+              newSelected.forEach((id) => { if (!next[id]) next[id] = '1' })
+              return next
+            })
+          }}
+          title="一键加入血常规+生化+凝血，验证专管与合管协同"
+        >
+          + 入院常规三项
+        </Button>
+      </div>
+    </div>
+
+    {/* 本轮输入检验项目专属列表（已移除全量静态列表，不显示项目编码，标本显示中文） */}
+    <div className="tube-batch-section" aria-label="已选项目胶囊池">
+      <div className="tube-batch-header">
+        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+          已选 ({selected.length})：
+          <span style={{ fontWeight: 'normal', color: 'var(--color-text-secondary)', marginLeft: '4px' }}>
+            本轮输入检验项目
+          </span>
+        </span>
+        {selected.length > 0 && (
+          <Button
+            size="sm"
+            variant="text"
+            onClick={() => setSelected([])}
+            style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem', padding: '0 0.25rem' }}
+          >
+            清空所有
+          </Button>
+        )}
+      </div>
+
+      <div className="tube-batch-list">
+        {selected.length === 0 ? (
+          <div className="tube-batch-empty">
+            <span>🔍 暂未输入检验项目</span>
+            <small>请在上方检索框搜索并选择需要的项目，或点击快捷组合快速加入</small>
+          </div>
+        ) : (
+          selected.map((serviceId) => {
+            const s = services.find((item) => item.id === serviceId)
+            const isCurrent = serviceId === currentServiceId
+            return (
+              <div key={serviceId} className="tube-batch-card">
+                <div className="tube-batch-card__info">
+                  {isCurrent && <span className="tube-batch-card__badge">当前项</span>}
+                  <strong className="tube-batch-card__name">{s ? s.name : serviceId}</strong>
+                  {s?.specimenType && (
+                    <span className="tube-batch-card__specimen">{formatSpecimenLabel(s.specimenType)}</span>
+                  )}
+                </div>
+
+                <div className="tube-batch-card__actions">
+                  <div className="tube-batch-card__qty">
+                    <input
+                      type="number"
+                      min="1"
+                      aria-label={`${s ? s.name : serviceId}数量`}
+                      value={quantities[serviceId] ?? '1'}
+                      onChange={(event) =>
+                        setQuantities({ ...quantities, [serviceId]: event.target.value })
+                      }
+                    />
+                    <small>次</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="tube-batch-card__remove"
+                    onClick={() => removeService(serviceId)}
+                    title={`移除 ${s ? s.name : serviceId}`}
+                    aria-label={`移除 ${s ? s.name : serviceId}`}
+                  >
+                    ✕ 移除
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+
+    {result && <div className="tube-plan-result">
+      <div style={{ padding: 'var(--space-3) var(--space-4)', background: 'var(--color-surface-subtle)', borderBottom: '1px solid var(--color-border)', fontSize: 'var(--font-size-small)' }}>
+        预计采血管数：<strong>{result.groups.reduce((acc, g) => acc + g.tubeCount, 0)} 管</strong>
+      </div>
+      {result.groups.map((group) => {
+        const dotColor = tubeDotColor(group.containerName || '', group.groupCode || '')
+        return (
+          <article key={group.groupCode}>
+            <div>
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                <span className="tube-dot" style={{ backgroundColor: dotColor }} />
+                {group.specimenName || '标本'} · {group.containerName || '标准采血管'}
+              </strong>
+              <code>{group.groupCode.startsWith('ITEM:') ? '独立专管' : `合管组: ${formatTubeGroupLabel(group.groupCode, group.specimenName)}`}</code>
+            </div>
+            <b>{group.tubeCount} 管</b>
+            <small>{group.serviceIds.length} 项 · {tubeSharingModeLabel(group.sharingMode)}</small>
+          </article>
+        )
+      })}
+      <ChargeLines lines={result.chargeLines} />
+    </div>}
   </section>
 }
 
 function ChargeLines({ lines }: { lines: DiagnosticChargeLine[] }) {
-  if (!lines.length) return <p className="rule-simulator__empty">本次没有生成收费行。</p>
-  return <DataTable headers={['收费项目', '来源', '数量/金额', '说明']} rows={lines.map((line) => [
-    <b>{line.itemName}<code>{line.itemCode}</code></b>, chargeSourceLabel(line.sourceType),
-    line.fixedAmount != null ? `¥ ${line.fixedAmount}` : `${line.quantity}${line.unitCode ? ` ${line.unitCode}` : ''}`,
-    line.description || '—',
-  ])} />
+  if (!lines.length) return <p className="rule-simulator__empty">本次模拟未产生额外收费行（耗材已包含或免加收）。</p>
+  const totalAmount = lines.reduce((sum, line) => sum + (line.fixedAmount ?? 0), 0)
+  return (
+    <div className="sandbox-charge-wrap">
+      <div className="sandbox-charge-list">
+        {lines.map((line, idx) => (
+          <div key={idx} className="sandbox-charge-item">
+            <div className="sandbox-charge-item__main">
+              <strong>{line.itemName}</strong>
+              <code>{line.itemCode} · {chargeSourceLabel(line.sourceType)}</code>
+            </div>
+            <div className="sandbox-charge-item__price">
+              <span>{line.quantity}{line.unitCode ? ` ${line.unitCode}` : ' 次'}</span>
+              {line.fixedAmount != null ? (
+                <strong>¥ {line.fixedAmount.toFixed(2)}</strong>
+              ) : (
+                <span style={{ color: 'var(--color-text-secondary)', fontSize: '0.75rem' }}>基准主项收费</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+      {totalAmount > 0 && (
+        <div className="charge-total-bar">
+          <span>本次附加费用合计：</span>
+          <strong>¥ {totalAmount.toFixed(2)}</strong>
+        </div>
+      )}
+    </div>
+  )
 }
 
 const sitePricingLabel = (value: NonNullable<ClinicalConfiguration['examination']>) => ({
@@ -344,6 +966,394 @@ function FormDialog({ title, description, onClose, onSubmit, children }: { title
 }
 function Check({ label, checked, disabled = false, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
   return <label className={`operational-check${disabled ? ' is-disabled' : ''}`}><input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} /><span>{label}</span></label>
+}
+
+function LaboratoryProfileInlineEditor({ value, dictionaries, units, onClose, onSave }: {
+  value: LaboratoryProfile
+  dictionaries: Record<string, DictionaryValue[]>
+  units: UnitDefinition[]
+  onClose: () => void
+  onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void
+}) {
+  const [form, setForm] = useState({
+    laboratoryMethod: value.laboratoryMethod ?? '',
+    reportDuration: value.reportDuration?.toString() ?? '',
+    reportDurationUnit: value.reportDurationUnit ?? '',
+    fastingRequired: value.fastingRequired,
+    pointOfCare: value.pointOfCare,
+    collectionDescription: value.collectionDescription ?? '',
+  })
+
+  return (
+    <div className="clinical-inline-profile-editor">
+      <div className="clinical-inline-profile-editor__header">
+        <div>
+          <h4>检验项目核心属性与报告要求</h4>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+            原地维护检验方法、报告时效与执行属性，保存后即刻更新
+          </span>
+        </div>
+        <Button size="sm" variant="text" onClick={onClose} type="button">
+          <Icon name="close" /> 收起
+        </Button>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave({
+            ...form,
+            laboratoryMethod: form.laboratoryMethod || undefined,
+            reportDuration: form.reportDuration ? Number(form.reportDuration) : undefined,
+            reportDurationUnit: form.reportDurationUnit || undefined,
+            collectionDescription: form.collectionDescription || undefined,
+          })
+        }}
+      >
+        <div className="clinical-inline-profile-editor__grid">
+          <FormField label="检验方法">
+            <Select
+              value={form.laboratoryMethod}
+              onChange={(v) => setForm({ ...form, laboratoryMethod: v })}
+              showValue
+              placeholder="选择检验方法"
+              options={(dictionaries.BD_LAB_METHOD ?? []).map((v) => ({
+                value: v.code,
+                label: v.name,
+                secondaryText: v.code,
+              }))}
+            />
+          </FormField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+            <FormField label="报告出具时长">
+              <input
+                type="number"
+                min="0.001"
+                step="0.001"
+                placeholder="例如 2"
+                value={form.reportDuration}
+                onChange={(e) => setForm({ ...form, reportDuration: e.target.value })}
+              />
+            </FormField>
+            <FormField label="时长单位">
+              <Select
+                value={form.reportDurationUnit}
+                onChange={(v) => setForm({ ...form, reportDurationUnit: v })}
+                showValue
+                placeholder="选择单位"
+                options={units.filter((v) => v.dimension === 'TIME' && v.status === 'ACTIVE').map(unitOption)}
+              />
+            </FormField>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', paddingTop: 'var(--space-2)' }}>
+            <Check
+              label="要求患者空腹"
+              checked={form.fastingRequired}
+              onChange={(v) => setForm({ ...form, fastingRequired: v })}
+            />
+            <Check
+              label="院内快速检验 (POCT)"
+              checked={form.pointOfCare}
+              onChange={(v) => setForm({ ...form, pointOfCare: v })}
+            />
+          </div>
+
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', alignSelf: 'center' }}>
+            {form.fastingRequired && <span className="clinical-tag-pill clinical-tag-pill--primary" style={{ marginRight: '0.5rem' }}>空腹项目：医嘱端提示饮食禁忌</span>}
+            {form.pointOfCare && <span className="clinical-tag-pill clinical-tag-pill--purple">POCT即时检验：床旁快速出结果</span>}
+          </div>
+
+          <FormField label="标本采集与临床执行说明" className="span-2">
+            <textarea
+              rows={2}
+              placeholder="说明标本采集前准备、送检时限、特殊保存条件或临床禁忌…"
+              value={form.collectionDescription}
+              onChange={(e) => setForm({ ...form, collectionDescription: e.target.value })}
+            />
+          </FormField>
+        </div>
+
+        <div className="clinical-inline-profile-editor__actions">
+          <Button variant="secondary" onClick={onClose} type="button">取消</Button>
+          <Button type="submit">保存配置</Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ExaminationProfileInlineEditor({
+  value,
+  dictionaries,
+  services,
+  currentServiceId,
+  onClose,
+  onSave,
+}: {
+  value: NonNullable<ClinicalConfiguration['examination']>
+  dictionaries: Record<string, DictionaryValue[]>
+  services: ServiceCatalogItem[]
+  currentServiceId: string
+  onClose: () => void
+  onSave: (input: ExaminationProfileInput) => void
+}) {
+  const [form, setForm] = useState({
+    examinationType: value.examinationType ?? '',
+    bodySiteRequired: value.bodySiteRequired,
+    multiBodySite: value.multiBodySite,
+    maxBodySiteCount: value.maxBodySiteCount?.toString() ?? '1',
+    preparationDescription: value.preparationDescription ?? '',
+    sitePricingMode: value.sitePricingMode,
+    includedSiteCount: String(value.includedSiteCount),
+    additionalSitePrice: value.additionalSitePrice?.toString() ?? '',
+    additionalSiteItemId: value.additionalSiteItemId ?? '',
+    additionalSiteQuantity: String(value.additionalSiteQuantity || 1),
+    maxChargeableSiteCount: value.maxChargeableSiteCount?.toString() ?? value.maxBodySiteCount?.toString() ?? '1',
+  })
+
+  const itemOptions = services
+    .filter((v) => v.id !== currentServiceId && v.chargeable && v.sdStatus === 'ACTIVE')
+    .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
+
+  const pricingMode = form.multiBodySite ? form.sitePricingMode : 'SINGLE'
+
+  const PRICING_MODES = [
+    {
+      mode: 'SINGLE' as const,
+      title: '主项单次计费',
+      desc: '无论选几个部位，均按项目基准价收取一次',
+    },
+    {
+      mode: 'PER_SITE' as const,
+      title: '按部位数计主项',
+      desc: '主项基准价 × 部位数，每个部位全额独立计收',
+    },
+    {
+      mode: 'BASE_PLUS_FIXED' as const,
+      title: '基础部位 + 固定加收',
+      desc: '含首批部位，超出部位每部位固定加收金额',
+    },
+    {
+      mode: 'BASE_PLUS_ITEM' as const,
+      title: '基础部位 + 加收项目',
+      desc: '含首批部位，超出部位自动带出指定收费项目',
+    },
+  ]
+
+  const ruleSummaryText = useMemo(() => {
+    if (!form.bodySiteRequired) {
+      return '开立时无需限定具体解剖部位，按主项目单次全额计收。'
+    }
+    if (!form.multiBodySite) {
+      return '必须且仅允许选择 1 个解剖部位，按主项目单次基准价收取。'
+    }
+    switch (form.sitePricingMode) {
+      case 'SINGLE':
+        return `允许多选部位（最多可选 ${form.maxBodySiteCount} 个），但主项目基准费只计收 1 次。`
+      case 'PER_SITE':
+        return `主项目按实际选择部位全额计费（最多 ${form.maxBodySiteCount} 个），总价 = 主项单价 × 部位数。`
+      case 'BASE_PLUS_FIXED':
+        return `包含前 ${form.includedSiteCount} 个部位（按主项原价）；超出部位每部位固定加收 ¥${form.additionalSitePrice || '0.00'}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
+      case 'BASE_PLUS_ITEM': {
+        const item = services.find((s) => s.id === form.additionalSiteItemId)
+        return `包含前 ${form.includedSiteCount} 个部位；超出部位每部位加收【${item ? item.name : '加收项目'}】× ${form.additionalSiteQuantity || 1}${form.maxChargeableSiteCount ? `，累计最多计费 ${form.maxChargeableSiteCount} 个部位` : ''}。`
+      }
+      default:
+        return ''
+    }
+  }, [form, services])
+
+  return (
+    <div className="clinical-inline-profile-editor">
+      <div className="clinical-inline-profile-editor__header">
+        <div>
+          <h4>检查项目执行属性与多部位阶梯计价规则</h4>
+          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+            在此就地维护检查类型、部位选择约束与超部位阶梯计价逻辑，右侧试算沙盒即时同步
+          </span>
+        </div>
+        <Button size="sm" variant="text" onClick={onClose} type="button">
+          <Icon name="close" /> 收起
+        </Button>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          onSave({
+            examinationType: form.examinationType || undefined,
+            bodySiteRequired: form.bodySiteRequired,
+            multiBodySite: form.bodySiteRequired && form.multiBodySite,
+            maxBodySiteCount: form.bodySiteRequired ? Number(form.maxBodySiteCount || 1) : undefined,
+            preparationDescription: form.preparationDescription || undefined,
+            sitePricingMode: pricingMode,
+            includedSiteCount: Number(form.includedSiteCount || 1),
+            additionalSitePrice: pricingMode === 'BASE_PLUS_FIXED' ? Number(form.additionalSitePrice) : undefined,
+            additionalSiteItemId: pricingMode === 'BASE_PLUS_ITEM' ? form.additionalSiteItemId : undefined,
+            additionalSiteQuantity: Number(form.additionalSiteQuantity || 1),
+            maxChargeableSiteCount: form.multiBodySite ? Number(form.maxChargeableSiteCount || form.maxBodySiteCount) : 1,
+          })
+        }}
+      >
+        <div className="clinical-inline-profile-editor__grid">
+          <FormField label="检查类型">
+            <Select
+              value={form.examinationType}
+              onChange={(v) => setForm({ ...form, examinationType: v })}
+              showValue
+              placeholder="选择检查类型"
+              options={(dictionaries.BD_EXAM_TYPE ?? []).map((v) => ({
+                value: v.code,
+                label: v.name,
+                secondaryText: v.code,
+              }))}
+            />
+          </FormField>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+            <FormField label="最多可选部位数">
+              <input
+                type="number"
+                min="1"
+                disabled={!form.bodySiteRequired || !form.multiBodySite}
+                value={form.maxBodySiteCount}
+                onChange={(e) => setForm({ ...form, maxBodySiteCount: e.target.value })}
+              />
+            </FormField>
+            <FormField label="最大计费部位数">
+              <input
+                type="number"
+                min={form.includedSiteCount || 1}
+                max={form.maxBodySiteCount}
+                disabled={!form.bodySiteRequired || !form.multiBodySite}
+                value={form.maxChargeableSiteCount}
+                onChange={(e) => setForm({ ...form, maxChargeableSiteCount: e.target.value })}
+              />
+            </FormField>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', paddingTop: 'var(--space-1)' }}>
+            <Check
+              label="申请时必须选择检查部位"
+              checked={form.bodySiteRequired}
+              onChange={(v) => {
+                setForm({
+                  ...form,
+                  bodySiteRequired: v,
+                  multiBodySite: v ? form.multiBodySite : false,
+                })
+              }}
+            />
+            <Check
+              label="允许多部位同时勾选"
+              disabled={!form.bodySiteRequired}
+              checked={form.multiBodySite}
+              onChange={(v) => setForm({ ...form, multiBodySite: v })}
+            />
+          </div>
+
+          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', alignSelf: 'center' }}>
+            {!form.bodySiteRequired ? (
+              <span className="clinical-tag-pill">无部位约束</span>
+            ) : form.multiBodySite ? (
+              <span className="clinical-tag-pill clinical-tag-pill--primary">支持多部位 · 启用阶梯计价矩阵</span>
+            ) : (
+              <span className="clinical-tag-pill clinical-tag-pill--purple">单部位开立</span>
+            )}
+          </div>
+
+          {form.bodySiteRequired && form.multiBodySite && (
+            <>
+              <div className="pricing-mode-cards">
+                {PRICING_MODES.map((item) => {
+                  const isActive = form.sitePricingMode === item.mode
+                  return (
+                    <button
+                      key={item.mode}
+                      type="button"
+                      className={`pricing-mode-card${isActive ? ' is-active' : ''}`}
+                      onClick={() => setForm({ ...form, sitePricingMode: item.mode })}
+                    >
+                      <span className="pricing-mode-card__title">
+                        {isActive ? '✓ ' : ''}{item.title}
+                      </span>
+                      <span className="pricing-mode-card__desc">{item.desc}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <FormField label="主项价格包含部位数" required>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.includedSiteCount}
+                  onChange={(e) => setForm({ ...form, includedSiteCount: e.target.value })}
+                />
+              </FormField>
+
+              {pricingMode === 'BASE_PLUS_FIXED' && (
+                <FormField label="每超出部位加收金额 (元)" required>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="例如 80.00"
+                    value={form.additionalSitePrice}
+                    onChange={(e) => setForm({ ...form, additionalSitePrice: e.target.value })}
+                  />
+                </FormField>
+              )}
+
+              {pricingMode === 'BASE_PLUS_ITEM' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-2)' }}>
+                  <FormField label="多部位加收项目" required>
+                    <Select
+                      value={form.additionalSiteItemId}
+                      onChange={(v) => setForm({ ...form, additionalSiteItemId: v })}
+                      showValue
+                      placeholder="选择加收收费项"
+                      options={itemOptions}
+                    />
+                  </FormField>
+                  <FormField label="每超出部位加收数量">
+                    <input
+                      type="number"
+                      min="0.0001"
+                      step="any"
+                      value={form.additionalSiteQuantity}
+                      onChange={(e) => setForm({ ...form, additionalSiteQuantity: e.target.value })}
+                    />
+                  </FormField>
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="clinical-inline-profile-editor__rule-callout">
+            <Icon name="clinical" />
+            <span><strong>计费策略规则：</strong>{ruleSummaryText}</span>
+          </div>
+
+          <FormField label="检查前准备与患者须知" className="span-2">
+            <textarea
+              rows={2}
+              placeholder="说明检查前是否需要禁食禁水、憋尿、摘除金属饰品或停用特殊药物…"
+              value={form.preparationDescription}
+              onChange={(e) => setForm({ ...form, preparationDescription: e.target.value })}
+            />
+          </FormField>
+        </div>
+
+        <div className="clinical-inline-profile-editor__actions">
+          <Button variant="secondary" onClick={onClose} type="button">取消</Button>
+          <Button type="submit">保存配置</Button>
+        </div>
+      </form>
+    </div>
+  )
 }
 
 function LaboratoryProfileDialog({ value, dictionaries, units, onClose, onSave }: { value: LaboratoryProfile; dictionaries: Record<string, DictionaryValue[]>; units: UnitDefinition[]; onClose: () => void; onSave: (input: Omit<LaboratoryProfile, 'serviceId' | 'revision' | 'specimens'>) => void }) {
@@ -388,74 +1398,688 @@ function ExaminationProfileDialog({ value, dictionaries, services, currentServic
   </FormDialog>
 }
 
-function SpecimenDialog({ value, configuration, units, services, onClose, onSave }: { value?: SpecimenConfiguration; configuration: ClinicalConfiguration; units: UnitDefinition[]; services: ServiceCatalogItem[]; onClose: () => void; onSave: (input: SpecimenConfigurationInput) => void }) {
-  const [form, setForm] = useState({ specimenItemId: value?.specimenItemId ?? '', containerItemId: value?.containerItemId ?? '', minimumQuantity: value?.minimumQuantity?.toString() ?? '', minimumQuantityUnit: value?.minimumQuantityUnit?.toUpperCase() ?? '', defaultSpecimen: value?.defaultSpecimen ?? false, requiredSpecimen: value?.requiredSpecimen ?? true, sortOrder: String(value?.sortOrder ?? ((configuration.laboratory?.specimens.length ?? 0) + 1) * 10), collectionDescription: value?.collectionDescription ?? '', status: value?.status ?? 'ACTIVE', tubeGroupCode: value?.tubeGroupCode ?? '', tubeSharingMode: value?.tubeSharingMode ?? 'SEPARATE', baseTubeCount: String(value?.baseTubeCount ?? 1), maxTestsPerTube: value?.maxTestsPerTube?.toString() ?? '', tubeChargeMode: value?.tubeChargeMode ?? 'NONE', tubeChargeItemId: value?.tubeChargeItemId ?? '', includedTubeCount: String(value?.includedTubeCount ?? 0), tubeChargeQuantity: String(value?.tubeChargeQuantity ?? 1) })
+interface TubePresetTemplate {
+  id: string
+  name: string
+  color: string
+  specimenKeyword: string
+  containerKeyword: string
+  tubeGroupCode: string
+  tubeSharingMode: 'SHARE' | 'SEPARATE' | 'BY_TEST_COUNT'
+  baseTubeCount: number
+  tubeChargeMode: 'NONE' | 'PER_TUBE' | 'EXCESS_TUBE'
+  includedTubeCount: number
+  chargeItemKeyword?: string
+  description: string
+}
+
+const TUBE_PRESET_TEMPLATES: TubePresetTemplate[] = [
+  {
+    id: 'biochem_serum',
+    name: '黄色促凝管 · 生化共管',
+    color: '#eab308',
+    specimenKeyword: '血清',
+    containerKeyword: '促凝',
+    tubeGroupCode: 'BIOCHEM_SERUM',
+    tubeSharingMode: 'SHARE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'PER_TUBE',
+    includedTubeCount: 0,
+    chargeItemKeyword: '采血管',
+    description: '肝功、肾功、电解质、血脂等生化检测，同次采血合并共用 1 管',
+  },
+  {
+    id: 'edta_blood',
+    name: '紫色EDTA管 · 血常规专管',
+    color: '#a855f7',
+    specimenKeyword: '全血',
+    containerKeyword: 'EDTA',
+    tubeGroupCode: 'EDTA_HEMATOLOGY',
+    tubeSharingMode: 'SEPARATE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'PER_TUBE',
+    includedTubeCount: 0,
+    chargeItemKeyword: '采血管',
+    description: '血常规、网织红细胞、糖化血红蛋白等临检项目，独立专管',
+  },
+  {
+    id: 'citrate_coag',
+    name: '蓝色枸橼酸钠 · 凝血专管',
+    color: '#0ea5e9',
+    specimenKeyword: '血浆',
+    containerKeyword: '枸橼酸',
+    tubeGroupCode: 'CITRATE_COAGULATION',
+    tubeSharingMode: 'SEPARATE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'PER_TUBE',
+    includedTubeCount: 0,
+    chargeItemKeyword: '采血管',
+    description: '凝血四项、D-二聚体等凝血功能检测，比例严格，独立专管',
+  },
+  {
+    id: 'glucose_lactate',
+    name: '灰色氟化钠 · 血糖生化',
+    color: '#64748b',
+    specimenKeyword: '血浆',
+    containerKeyword: '氟化钠',
+    tubeGroupCode: 'GLUCOSE_LACTATE',
+    tubeSharingMode: 'SHARE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'PER_TUBE',
+    includedTubeCount: 0,
+    chargeItemKeyword: '采血管',
+    description: '血糖、糖耐量、血乳酸等抑制糖酵解检验，同次申请合并一管',
+  },
+  {
+    id: 'immuno_serum',
+    name: '红色干燥管 · 免疫发光',
+    color: '#ef4444',
+    specimenKeyword: '血清',
+    containerKeyword: '干燥',
+    tubeGroupCode: 'IMMUNO_SERUM',
+    tubeSharingMode: 'SHARE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'PER_TUBE',
+    includedTubeCount: 0,
+    chargeItemKeyword: '采血管',
+    description: '甲状腺功能、肿瘤标志物、传染病发光检测等免疫项目',
+  },
+  {
+    id: 'urine_routine',
+    name: '尿杯/试管 · 尿液常规',
+    color: '#f59e0b',
+    specimenKeyword: '尿',
+    containerKeyword: '尿',
+    tubeGroupCode: 'URINE_ROUTINE',
+    tubeSharingMode: 'SEPARATE',
+    baseTubeCount: 1,
+    tubeChargeMode: 'NONE',
+    includedTubeCount: 0,
+    description: '尿常规、尿沉渣、尿妊娠等常规体液检测，无需采血管加收',
+  },
+]
+
+function SpecimenDialog({ value, configuration, units, services, onClose, onSave }: {
+  value?: SpecimenConfiguration; configuration: ClinicalConfiguration
+  units: UnitDefinition[]; services: ServiceCatalogItem[]; onClose: () => void
+  onSave: (input: SpecimenConfigurationInput) => void
+}) {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>()
+  const [form, setForm] = useState({
+    specimenItemId: value?.specimenItemId ?? '', containerItemId: value?.containerItemId ?? '',
+    minimumQuantity: value?.minimumQuantity?.toString() ?? '', minimumQuantityUnit: value?.minimumQuantityUnit?.toUpperCase() ?? '',
+    defaultSpecimen: value?.defaultSpecimen ?? false, requiredSpecimen: value?.requiredSpecimen ?? true,
+    sortOrder: String(value?.sortOrder ?? ((configuration.laboratory?.specimens.length ?? 0) + 1) * 10),
+    collectionDescription: value?.collectionDescription ?? '', status: value?.status ?? 'ACTIVE',
+    tubeGroupCode: value?.tubeGroupCode ?? '', tubeSharingMode: value?.tubeSharingMode ?? 'SEPARATE',
+    baseTubeCount: String(value?.baseTubeCount ?? 1), maxTestsPerTube: value?.maxTestsPerTube?.toString() ?? '',
+    tubeChargeMode: value?.tubeChargeMode ?? 'NONE', tubeChargeItemId: value?.tubeChargeItemId ?? '',
+    includedTubeCount: String(value?.includedTubeCount ?? 0), tubeChargeQuantity: String(value?.tubeChargeQuantity ?? 1),
+  })
+
   const chargeOptions = services.filter((v) => v.id !== configuration.serviceId && v.chargeable && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))
-  return <FormDialog title={value ? '编辑标本与分管规则' : '新增标本与分管规则'} description="维护标本容器、合管拆管条件以及采血管加收规则。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ specimenItemId: form.specimenItemId, containerItemId: form.containerItemId || undefined, minimumQuantity: form.minimumQuantity ? Number(form.minimumQuantity) : undefined, minimumQuantityUnit: form.minimumQuantityUnit || undefined, defaultSpecimen: form.defaultSpecimen, requiredSpecimen: form.requiredSpecimen, sortOrder: Number(form.sortOrder), collectionDescription: form.collectionDescription || undefined, status: form.status as 'ACTIVE' | 'INACTIVE', tubeGroupCode: form.tubeGroupCode || undefined, tubeSharingMode: form.tubeSharingMode, baseTubeCount: Number(form.baseTubeCount || 1), maxTestsPerTube: form.tubeSharingMode === 'BY_TEST_COUNT' ? Number(form.maxTestsPerTube) : undefined, tubeChargeMode: form.tubeChargeMode, tubeChargeItemId: form.tubeChargeMode === 'NONE' ? undefined : form.tubeChargeItemId, includedTubeCount: Number(form.includedTubeCount || 0), tubeChargeQuantity: Number(form.tubeChargeQuantity || 1) }) }}>
-    <FormField label="标本类型" required><Select value={form.specimenItemId} onChange={(v) => setForm({ ...form, specimenItemId: v })} showValue options={configuration.specimenOptions.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>
-    <FormField label="采集容器"><Select value={form.containerItemId} onChange={(v) => setForm({ ...form, containerItemId: v })} showValue placeholder="不限定" options={configuration.containerOptions.map((v) => ({ value: v.id, label: v.name, secondaryText: v.code }))} /></FormField>
-    <FormField label="最小采集量"><input type="number" min="0.001" step="0.001" value={form.minimumQuantity} onChange={(e) => setForm({ ...form, minimumQuantity: e.target.value })} /></FormField>
-    <FormField label="采集量单位"><Select value={form.minimumQuantityUnit} onChange={(v) => setForm({ ...form, minimumQuantityUnit: v })} showValue options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} /></FormField>
-    <FormField label="分管方式"><Select value={form.tubeSharingMode} onChange={(v) => setForm({ ...form, tubeSharingMode: v as typeof form.tubeSharingMode })} options={[
-      { value: 'SEPARATE', label: '独立分管' }, { value: 'SHARE', label: '同组项目共管' }, { value: 'BY_TEST_COUNT', label: '按每管项目数拆分' },
-    ]} /></FormField>
-    <FormField label="分管编码" required={form.tubeSharingMode !== 'SEPARATE'}><input value={form.tubeGroupCode} placeholder="如 EDTA_HEMATOLOGY" onChange={(e) => setForm({ ...form, tubeGroupCode: e.target.value.toUpperCase() })} /></FormField>
-    <FormField label="基础试管数" required><input type="number" min="1" value={form.baseTubeCount} onChange={(e) => setForm({ ...form, baseTubeCount: e.target.value })} /></FormField>
-    {form.tubeSharingMode === 'BY_TEST_COUNT' && <FormField label="每管最大项目数" required><input type="number" min="1" value={form.maxTestsPerTube} onChange={(e) => setForm({ ...form, maxTestsPerTube: e.target.value })} /></FormField>}
-    <FormField label="试管加收"><Select value={form.tubeChargeMode} onChange={(v) => setForm({ ...form, tubeChargeMode: v as typeof form.tubeChargeMode })} options={[
-      { value: 'NONE', label: '不加收' }, { value: 'PER_TUBE', label: '每管加收' }, { value: 'EXCESS_TUBE', label: '超出包含管数后加收' },
-    ]} /></FormField>
-    {form.tubeChargeMode !== 'NONE' && <FormField label="试管加收项目" required><Select value={form.tubeChargeItemId} onChange={(v) => setForm({ ...form, tubeChargeItemId: v })} showValue options={chargeOptions} /></FormField>}
-    {form.tubeChargeMode === 'EXCESS_TUBE' && <FormField label="已包含试管数"><input type="number" min="0" value={form.includedTubeCount} onChange={(e) => setForm({ ...form, includedTubeCount: e.target.value })} /></FormField>}
-    {form.tubeChargeMode !== 'NONE' && <FormField label="每管加收数量"><input type="number" min="0.0001" step="any" value={form.tubeChargeQuantity} onChange={(e) => setForm({ ...form, tubeChargeQuantity: e.target.value })} /></FormField>}
-    <FormField label="排序号" required><input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' })} options={activeStatus} /></FormField>
-    <FormField label="采集说明" className="span-2"><textarea value={form.collectionDescription} onChange={(e) => setForm({ ...form, collectionDescription: e.target.value })} /></FormField>
-    <Check label="默认标本" checked={form.defaultSpecimen} onChange={(v) => setForm({ ...form, defaultSpecimen: v })} /><Check label="必需标本" checked={form.requiredSpecimen} onChange={(v) => setForm({ ...form, requiredSpecimen: v })} />
+
+  const applyTemplate = (tpl: TubePresetTemplate) => {
+    setSelectedTemplateId(tpl.id)
+    const matchedSpecimen = configuration.specimenOptions.find((opt) =>
+      opt.name.includes(tpl.specimenKeyword) || opt.code.includes(tpl.specimenKeyword.toUpperCase()))
+    const matchedContainer = configuration.containerOptions.find((opt) =>
+      opt.name.includes(tpl.containerKeyword) || opt.code.includes(tpl.containerKeyword.toUpperCase()))
+    const matchedChargeItem = tpl.chargeItemKeyword
+      ? chargeOptions.find((opt) => opt.label.includes(tpl.chargeItemKeyword!) || opt.secondaryText.includes(tpl.chargeItemKeyword!))
+      : undefined
+
+    setForm((prev) => ({
+      ...prev,
+      specimenItemId: matchedSpecimen ? matchedSpecimen.id : prev.specimenItemId,
+      containerItemId: matchedContainer ? matchedContainer.id : prev.containerItemId,
+      tubeSharingMode: tpl.tubeSharingMode,
+      tubeGroupCode: tpl.tubeGroupCode,
+      baseTubeCount: String(tpl.baseTubeCount),
+      tubeChargeMode: tpl.tubeChargeMode,
+      tubeChargeItemId: matchedChargeItem ? matchedChargeItem.value : (prev.tubeChargeItemId || (chargeOptions[0]?.value ?? '')),
+      includedTubeCount: String(tpl.includedTubeCount),
+      tubeChargeQuantity: '1',
+    }))
+  }
+
+  const sharingRuleDescription = useMemo(() => {
+    if (form.tubeSharingMode === 'SHARE') {
+      const spName = configuration.specimenOptions.find((o) => o.id === form.specimenItemId)?.name || '相同标本'
+      const ctName = configuration.containerOptions.find((o) => o.id === form.containerItemId)?.name || '相同采血管'
+      return `⚡ 同组共管：同一采血医嘱下，【${spName} + ${ctName}】的项目自动合并采血 1 管，避免重复扎针。`
+    }
+    if (form.tubeSharingMode === 'BY_TEST_COUNT') {
+      return `🔢 按项拆管：每管最多容纳 ${form.maxTestsPerTube || 1} 个项目，超出上限自动分拆下一管。`
+    }
+    return '🔒 独立专管：常规血常规、凝血等敏感项目不论是否同开，均单独采集 1 管。'
+  }, [form.tubeSharingMode, form.specimenItemId, form.containerItemId, form.maxTestsPerTube, configuration])
+
+  return (
+    <Dialog
+      title={value ? '编辑标本与分管规则' : '新增标本与分管规则'}
+      eyebrow="基础数据 · 运营配置"
+      size="xwide"
+      className="specimen-config-dialog"
+      onClose={onClose}
+    >
+      <form
+        className="master-data-dialog-form"
+        onSubmit={(e) => {
+          e.preventDefault()
+          // 方案 A：分管编码由系统依据标本与容器自动隐式派生（或沿用预设模板），无需操作人员手工输入
+          let finalTubeGroupCode = form.tubeGroupCode
+          if (form.tubeSharingMode !== 'SEPARATE' && !finalTubeGroupCode) {
+            const sp = configuration.specimenOptions.find((o) => o.id === form.specimenItemId)
+            const ct = configuration.containerOptions.find((o) => o.id === form.containerItemId)
+            const spCode = sp ? sp.code.toUpperCase() : 'SPEC'
+            const ctCode = ct ? ct.code.toUpperCase() : 'CONT'
+            finalTubeGroupCode = `${spCode}_${ctCode}`
+          } else if (form.tubeSharingMode === 'SEPARATE') {
+            finalTubeGroupCode = ''
+          }
+
+          onSave({
+            specimenItemId: form.specimenItemId, containerItemId: form.containerItemId || undefined,
+            minimumQuantity: form.minimumQuantity ? Number(form.minimumQuantity) : undefined,
+            minimumQuantityUnit: form.minimumQuantityUnit || undefined, defaultSpecimen: form.defaultSpecimen,
+            requiredSpecimen: form.requiredSpecimen, sortOrder: Number(form.sortOrder),
+            collectionDescription: form.collectionDescription || undefined, status: form.status as 'ACTIVE' | 'INACTIVE',
+            tubeGroupCode: finalTubeGroupCode || undefined, tubeSharingMode: form.tubeSharingMode,
+            baseTubeCount: Number(form.baseTubeCount || 1),
+            maxTestsPerTube: form.tubeSharingMode === 'BY_TEST_COUNT' ? Number(form.maxTestsPerTube) : undefined,
+            tubeChargeMode: form.tubeChargeMode,
+            tubeChargeItemId: form.tubeChargeMode === 'NONE' ? undefined : form.tubeChargeItemId,
+            includedTubeCount: Number(form.includedTubeCount || 0),
+            tubeChargeQuantity: Number(form.tubeChargeQuantity || 1),
+          })
+        }}
+      >
+        <div className="specimen-config-workbench">
+          {/* 左栏：成熟采血管方案预设流 */}
+          <div className="specimen-template-box">
+            <div className="specimen-template-box__header">
+              <div>
+                <strong>常用采血管预设方案</strong>
+                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: '0.125rem' }}>
+                  点击卡片一键套用成熟方案
+                </span>
+              </div>
+              <div style={{ minHeight: '1.75rem', display: 'flex', alignItems: 'center' }}>
+                {selectedTemplateId && (
+                  <Button size="sm" variant="text" onClick={() => setSelectedTemplateId(undefined)}>
+                    清除选中
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="specimen-template-grid">
+              {TUBE_PRESET_TEMPLATES.map((tpl) => {
+                const isActive = selectedTemplateId === tpl.id
+                return (
+                  <button
+                    type="button"
+                    key={tpl.id}
+                    className={`specimen-template-card${isActive ? ' is-active' : ''}`}
+                    onClick={() => applyTemplate(tpl)}
+                  >
+                    <div className="specimen-template-card__color-bar" style={{ backgroundColor: tpl.color }} />
+                    <strong>
+                      <span className="tube-dot" style={{ backgroundColor: tpl.color }} />
+                      {tpl.name}
+                      {isActive && <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--color-brand-primary)' }}>✓ 已套用</span>}
+                    </strong>
+                    <span>{tpl.description}</span>
+                    <small>
+                      {tpl.tubeSharingMode === 'SHARE' ? '⚡ 同组共管' : '🔒 独立专管'} · {tpl.tubeChargeMode === 'NONE' ? '免加收试管费' : '按管加收耗材'}
+                    </small>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div style={{ marginTop: 'var(--space-3)', padding: 'var(--space-2) var(--space-3)', background: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+              💡 <strong>提示</strong>：点击预设方案可一键填入标本、对应采血管及分管规则，可在右侧微调。
+            </div>
+          </div>
+
+          {/* 右栏：三大业务卡片表单 */}
+          <div className="specimen-config-main">
+            {/* 卡片 1：标本与采集容器 */}
+            <div className="form-section-card">
+              <div className="form-section-card__title">
+                <span>01 标本类型与标准采血管容器</span>
+                <small>明确标本材质与标准真空采血管要求</small>
+              </div>
+              <div className="master-data-form-grid master-data-form-grid--2">
+                <FormField label="送检标本类型" required>
+                  <Select
+                    value={form.specimenItemId}
+                    onChange={(v) => {
+                      setForm({ ...form, specimenItemId: v })
+                    }}
+                    showValue
+                    placeholder="选择标本类型"
+                    options={configuration.specimenOptions.map((v) => ({
+                      value: v.id,
+                      label: v.name,
+                      secondaryText: v.code,
+                    }))}
+                  />
+                </FormField>
+                <FormField label="标准采血管容器">
+                  <Select
+                    value={form.containerItemId}
+                    onChange={(v) => {
+                      setForm({ ...form, containerItemId: v })
+                    }}
+                    showValue
+                    placeholder="不限定容器（常规无菌器）"
+                    options={configuration.containerOptions.map((v) => ({
+                      value: v.id,
+                      label: v.name,
+                      secondaryText: v.code,
+                    }))}
+                  />
+                </FormField>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}>
+                  <FormField label="最小送检采集量">
+                    <input
+                      type="number"
+                      min="0.001"
+                      step="0.001"
+                      value={form.minimumQuantity}
+                      onChange={(e) => setForm({ ...form, minimumQuantity: e.target.value })}
+                      placeholder="如：2"
+                    />
+                  </FormField>
+                  <FormField label="采集量单位">
+                    <Select
+                      value={form.minimumQuantityUnit}
+                      onChange={(v) => setForm({ ...form, minimumQuantityUnit: v })}
+                      showValue
+                      placeholder="单位"
+                      options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)}
+                    />
+                  </FormField>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)', alignSelf: 'center', paddingTop: 'var(--space-2)' }}>
+                  <Check
+                    label="设为默认标本"
+                    checked={form.defaultSpecimen}
+                    onChange={(v) => setForm({ ...form, defaultSpecimen: v })}
+                  />
+                  <Check
+                    label="开立必需标本"
+                    checked={form.requiredSpecimen}
+                    onChange={(v) => setForm({ ...form, requiredSpecimen: v })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 卡片 2：同次开立分管规则（无需手工维护分管编码，纯临床业务逻辑） */}
+            <div className="form-section-card">
+              <div className="form-section-card__title">
+                <span>02 同次开立分管与合管策略</span>
+                <small>同一医嘱下多检验项目的合管、拆管及并管规则</small>
+              </div>
+
+              {form.tubeSharingMode === 'BY_TEST_COUNT' ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr', gap: 'var(--space-3)' }}>
+                  <FormField label="分管模式" required>
+                    <Select
+                      value={form.tubeSharingMode}
+                      onChange={(v) => setForm({ ...form, tubeSharingMode: v as typeof form.tubeSharingMode })}
+                      options={[
+                        { value: 'SHARE', label: '同组共管（相同标本与容器的项目合并抽1管）' },
+                        { value: 'SEPARATE', label: '独立专管（不论是否有同类项目均独立采1管）' },
+                        { value: 'BY_TEST_COUNT', label: '按项目数拆管（超出试管容纳上限后另起1管）' },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label="基础试管数" required>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.baseTubeCount}
+                      onChange={(e) => setForm({ ...form, baseTubeCount: e.target.value })}
+                    />
+                  </FormField>
+                  <FormField label="每管最大项目数" required>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.maxTestsPerTube}
+                      onChange={(e) => setForm({ ...form, maxTestsPerTube: e.target.value })}
+                      placeholder="例如：10"
+                    />
+                  </FormField>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1fr', gap: 'var(--space-3)' }}>
+                  <FormField label="分管模式" required>
+                    <Select
+                      value={form.tubeSharingMode}
+                      onChange={(v) => setForm({ ...form, tubeSharingMode: v as typeof form.tubeSharingMode })}
+                      options={[
+                        { value: 'SHARE', label: '同组共管（相同标本与容器的项目合并抽1管）' },
+                        { value: 'SEPARATE', label: '独立专管（不论是否有同类项目均独立采1管）' },
+                        { value: 'BY_TEST_COUNT', label: '按项目数拆管（超出试管容纳上限后另起1管）' },
+                      ]}
+                    />
+                  </FormField>
+                  <FormField label="基础试管数" required>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.baseTubeCount}
+                      onChange={(e) => setForm({ ...form, baseTubeCount: e.target.value })}
+                    />
+                  </FormField>
+                </div>
+              )}
+
+              <div className="tube-rule-callout" style={{ marginTop: 'var(--space-2)' }}>
+                <span>{sharingRuleDescription}</span>
+              </div>
+            </div>
+
+            {/* 卡片 3：采血管耗材加收与执行说明 */}
+            <div className="form-section-card">
+              <div className="form-section-card__title">
+                <span>03 采血管耗材加收与送检指引</span>
+                <small>关联采血管收费耗材项目及采样注意事项</small>
+              </div>
+              <div className="master-data-form-grid master-data-form-grid--2" style={{ marginBottom: 'var(--space-3)' }}>
+                <FormField label="试管耗材加收模式">
+                  <Select
+                    value={form.tubeChargeMode}
+                    onChange={(v) => setForm({ ...form, tubeChargeMode: v as typeof form.tubeChargeMode })}
+                    options={[
+                      { value: 'NONE', label: '不加收（已含在项目中或免费）' },
+                      { value: 'PER_TUBE', label: '按管加收（每产生 1 管加收 1 支）' },
+                      { value: 'EXCESS_TUBE', label: '超管加收（超出免收数量后加收）' },
+                    ]}
+                  />
+                </FormField>
+
+                <FormField label="关联采血管收费项目" required={form.tubeChargeMode !== 'NONE'}>
+                  <Select
+                    disabled={form.tubeChargeMode === 'NONE'}
+                    value={form.tubeChargeMode === 'NONE' ? '' : form.tubeChargeItemId}
+                    onChange={(v) => setForm({ ...form, tubeChargeItemId: v })}
+                    showValue
+                    options={chargeOptions}
+                    placeholder={form.tubeChargeMode === 'NONE' ? '当前模式无需关联试管耗材' : '选择真空采血管收费项目'}
+                  />
+                </FormField>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+                {form.tubeChargeMode === 'EXCESS_TUBE' ? (
+                  <FormField label="已包含试管数 (免加收数)">
+                    <input
+                      type="number"
+                      min="0"
+                      value={form.includedTubeCount}
+                      onChange={(e) => setForm({ ...form, includedTubeCount: e.target.value })}
+                    />
+                  </FormField>
+                ) : (
+                  <FormField label="每管加收数量">
+                    <input
+                      disabled={form.tubeChargeMode === 'NONE'}
+                      type="number"
+                      min="0.0001"
+                      step="any"
+                      value={form.tubeChargeMode === 'NONE' ? '0' : form.tubeChargeQuantity}
+                      onChange={(e) => setForm({ ...form, tubeChargeQuantity: e.target.value })}
+                    />
+                  </FormField>
+                )}
+
+                <FormField label="显示排序号" required>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.sortOrder}
+                    onChange={(e) => setForm({ ...form, sortOrder: e.target.value })}
+                  />
+                </FormField>
+
+                <FormField label="规则状态">
+                  <Select
+                    value={form.status}
+                    onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' })}
+                    options={activeStatus}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="采样与送检说明">
+                <textarea
+                  rows={2}
+                  value={form.collectionDescription}
+                  onChange={(e) => setForm({ ...form, collectionDescription: e.target.value })}
+                  placeholder="如：禁食8-12小时、轻柔颠倒混匀5-8次、避免溶血及冷藏运送要求…"
+                />
+              </FormField>
+            </div>
+          </div>
+        </div>
+
+        <div className="ui-form-actions" style={{ marginTop: 'var(--space-4)', borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-3)' }}>
+          <Button variant="secondary" onClick={onClose} type="button">
+            取消
+          </Button>
+          <Button type="submit">
+            保存标本与分管规则
+          </Button>
+        </div>
+      </form>
+    </Dialog>
+  )
+}
+
+const BODY_SITE_QUICK_TAGS = ['头颅', '脑部', '颌面五官', '颈部', '胸部', '肺部', '全腹部', '上腹部', '盆腔', '腰椎', '颈椎', '胸椎', '四肢关节']
+
+function VariantDialog({ value, dictionaries, onClose, onSave }: {
+  value?: ExaminationVariantConfiguration; dictionaries: Record<string, DictionaryValue[]>
+  onClose: () => void; onSave: (input: ExaminationVariantInput) => void
+}) {
+  const [form, setForm] = useState({
+    code: value?.code ?? '', name: value?.name ?? '', methodType: value?.methodType ?? '',
+    bodySiteRequired: value?.bodySiteRequired ?? true, mutualRecognitionCode: value?.mutualRecognitionCode ?? '',
+    sortOrder: String(value?.sortOrder ?? 10), status: value?.status ?? 'ACTIVE',
+  })
+
+  const pickTag = (tag: string) => {
+    if (!form.name) {
+      setForm((prev) => ({ ...prev, name: tag, code: prev.code || tag.toUpperCase() }))
+    } else if (!form.name.includes(tag)) {
+      setForm((prev) => ({ ...prev, name: `${prev.name} · ${tag}` }))
+    }
+  }
+
+  return <FormDialog title={value ? '编辑允许部位或检查方式' : '新增允许部位或检查方式'}
+    description="维护检查项目允许选择的解剖部位与执行方式，编码用于申请与 PACS 执行交互。"
+    onClose={onClose} onSubmit={(e) => {
+      e.preventDefault()
+      onSave({
+        code: form.code, name: form.name, methodType: form.methodType || undefined,
+        bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined,
+        sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE',
+      })
+    }}>
+    <div className="span-2 form-section-card" style={{ padding: 'var(--space-3)' }}>
+      <div className="form-section-card__title" style={{ paddingBottom: 'var(--space-1)', marginBottom: 'var(--space-2)' }}>
+        <span>常用解剖部位快捷标签（点击填入）</span>
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+        {BODY_SITE_QUICK_TAGS.map((tag) => (
+          <Button key={tag} size="sm" variant="secondary" onClick={() => pickTag(tag)}>
+            + {tag}
+          </Button>
+        ))}
+      </div>
+    </div>
+    <FormField label="配置编码" required>
+      <input value={form.code} disabled={Boolean(value)} placeholder="如 CHEST、ABDOMEN"
+        onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+    </FormField>
+    <FormField label="部位或选项名称" required>
+      <input value={form.name} placeholder="如 胸部、全腹部" onChange={(e) => setForm({ ...form, name: e.target.value })} />
+    </FormField>
+    <FormField label="检查技术方式">
+      <Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })} showValue
+        placeholder="未限定方式（平扫/增强通用）"
+        options={(dictionaries.BD_SERVICE_VARIANT_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} />
+    </FormField>
+    <FormField label="国家/省市互认编码">
+      <input value={form.mutualRecognitionCode} placeholder="填写互认标准编码（选填）"
+        onChange={(e) => setForm({ ...form, mutualRecognitionCode: e.target.value })} />
+    </FormField>
+    <FormField label="排序号">
+      <input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} />
+    </FormField>
+    <FormField label="状态">
+      <Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' })} options={activeStatus} />
+    </FormField>
+    <Check label="选择此选项后仍需明确指定标准解剖部位" checked={form.bodySiteRequired} onChange={(v) => setForm({ ...form, bodySiteRequired: v })} />
   </FormDialog>
 }
 
-function VariantDialog({ value, dictionaries, onClose, onSave }: { value?: ExaminationVariantConfiguration; dictionaries: Record<string, DictionaryValue[]>; onClose: () => void; onSave: (input: ExaminationVariantInput) => void }) {
-  const [form, setForm] = useState({ code: value?.code ?? '', name: value?.name ?? '', methodType: value?.methodType ?? '', bodySiteRequired: value?.bodySiteRequired ?? true, mutualRecognitionCode: value?.mutualRecognitionCode ?? '', sortOrder: String(value?.sortOrder ?? 10), status: value?.status ?? 'ACTIVE' })
-  return <FormDialog title={value ? '编辑允许部位或检查方式' : '新增允许部位或检查方式'} description="维护申请可选项及其执行方式；部位名称与方式名称不要合并为一个长名称。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ code: form.code, name: form.name, methodType: form.methodType || undefined, bodySiteRequired: form.bodySiteRequired, mutualRecognitionCode: form.mutualRecognitionCode || undefined, sortOrder: Number(form.sortOrder), status: form.status as 'ACTIVE' | 'INACTIVE' }) }}>
-    <FormField label="配置编码" required><input value={form.code} disabled={Boolean(value)} onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })} /></FormField><FormField label="配置名称" required><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></FormField>
-    <FormField label="检查方式"><Select value={form.methodType} onChange={(v) => setForm({ ...form, methodType: v })} showValue placeholder="未限定检查方式" options={(dictionaries.BD_SERVICE_VARIANT_METHOD ?? []).map((v) => ({ value: v.code, label: v.name, secondaryText: v.code }))} /></FormField><FormField label="标准/互认编码"><input value={form.mutualRecognitionCode} onChange={(e) => setForm({ ...form, mutualRecognitionCode: e.target.value })} /></FormField>
-    <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} /></FormField><FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as 'ACTIVE' })} options={activeStatus} /></FormField>
-    <Check label="选择此项后仍需指定标准部位" checked={form.bodySiteRequired} onChange={(v) => setForm({ ...form, bodySiteRequired: v })} />
-  </FormDialog>
-}
+const ATTACHMENT_SCENE_TEMPLATES = [
+  {
+    id: 'film',
+    title: '🎞️ 影像胶片耗材',
+    desc: '按检查部位数量倍增，每增加一个部位带出 1 张胶片',
+    triggerType: 'ALWAYS' as const,
+    quantityBasis: 'PER_SITE' as const,
+    quantity: '1',
+    requiredAttachment: true,
+    separatelyChargeable: true,
+    keyword: '胶片',
+  },
+  {
+    id: 'contrast',
+    title: '💉 增强造影与注射',
+    desc: '单次检查固定收取 1 次，不论检查多少个部位',
+    triggerType: 'OPTIONAL' as const,
+    quantityBasis: 'FIXED' as const,
+    quantity: '1',
+    requiredAttachment: false,
+    separatelyChargeable: true,
+    keyword: '造影',
+  },
+  {
+    id: 'anesthesia',
+    title: '🩺 麻醉镇静/特殊监护',
+    desc: '申请时由临床按需勾选，按固定单次收取',
+    triggerType: 'OPTIONAL' as const,
+    quantityBasis: 'FIXED' as const,
+    quantity: '1',
+    requiredAttachment: false,
+    separatelyChargeable: true,
+    keyword: '麻醉',
+  },
+]
 
 function AttachmentDialog({ value, services, currentServiceId, onClose, onSave }: {
   value?: ExaminationAttachmentConfiguration; services: ServiceCatalogItem[]; currentServiceId: string
   onClose: () => void; onSave: (input: ExaminationAttachmentInput) => void
 }) {
-  const [form, setForm] = useState({ attachmentCatalogItemId: value?.attachmentCatalogItemId ?? '',
+  const [form, setForm] = useState({
+    attachmentCatalogItemId: value?.attachmentCatalogItemId ?? '',
     triggerType: value?.triggerType ?? 'ALWAYS', quantityBasis: value?.quantityBasis ?? 'FIXED',
     quantity: String(value?.quantity ?? 1), requiredAttachment: value?.requiredAttachment ?? false,
     separatelyChargeable: value?.separatelyChargeable ?? true, sortOrder: String(value?.sortOrder ?? 10),
-    description: value?.description ?? '', status: value?.status ?? 'ACTIVE' })
+    description: value?.description ?? '', status: value?.status ?? 'ACTIVE',
+  })
+
   const options = services.filter((v) => v.id !== currentServiceId && v.sdStatus === 'ACTIVE')
     .map((v) => ({ value: v.id, label: v.name, secondaryText: `${v.code}${v.chargeable ? ' · 可收费' : ''}` }))
+
+  const applyScene = (scene: typeof ATTACHMENT_SCENE_TEMPLATES[number]) => {
+    const matched = options.find((opt) => opt.label.includes(scene.keyword) || opt.secondaryText.includes(scene.keyword))
+    setForm((prev) => ({
+      ...prev,
+      triggerType: scene.triggerType,
+      quantityBasis: scene.quantityBasis,
+      quantity: scene.quantity,
+      requiredAttachment: scene.requiredAttachment,
+      separatelyChargeable: scene.separatelyChargeable,
+      attachmentCatalogItemId: matched ? matched.value : prev.attachmentCatalogItemId,
+      description: prev.description || scene.desc,
+    }))
+  }
+
   return <FormDialog title={value ? '编辑附加收费规则' : '新增附加收费规则'}
-    description="以触发条件和数量依据生成胶片、造影、麻醉、耗材等收费动作。"
-    onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ attachmentCatalogItemId: form.attachmentCatalogItemId,
-      triggerType: form.triggerType, quantityBasis: form.quantityBasis, quantity: Number(form.quantity),
-      requiredAttachment: form.triggerType === 'OPTIONAL' ? false : form.requiredAttachment,
-      separatelyChargeable: form.separatelyChargeable, sortOrder: Number(form.sortOrder),
-      description: form.description || undefined, status: form.status as 'ACTIVE' | 'INACTIVE' }) }}>
-    <FormField label="收费项目" required><Select disabled={Boolean(value)} value={form.attachmentCatalogItemId} onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} showValue options={options} /></FormField>
-    <FormField label="触发条件"><Select value={form.triggerType} onChange={(v) => setForm({ ...form, triggerType: v as typeof form.triggerType })} options={[
-      { value: 'ALWAYS', label: '始终带出' }, { value: 'OPTIONAL', label: '申请时按需选择' }, { value: 'MULTI_SITE', label: '选择多个部位时' },
-    ]} /></FormField>
-    <FormField label="数量依据"><Select value={form.quantityBasis} onChange={(v) => setForm({ ...form, quantityBasis: v as typeof form.quantityBasis })} options={[
-      { value: 'FIXED', label: '固定数量' }, { value: 'PER_SITE', label: '每个检查部位' }, { value: 'PER_EXTRA_SITE', label: '每个超出部位' },
-    ]} /></FormField>
-    <FormField label="数量"><input type="number" min="0.0001" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} /></FormField>
-    <FormField label="排序号"><input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} /></FormField>
-    <FormField label="状态"><Select value={form.status} onChange={(v) => setForm({ ...form, status: v as typeof form.status })} options={activeStatus} /></FormField>
-    <FormField label="规则说明" className="span-2"><textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="说明适用条件、人工调整约束或收费依据" /></FormField>
-    <Check label="命中后必须带出" checked={form.requiredAttachment} disabled={form.triggerType === 'OPTIONAL'} onChange={(v) => setForm({ ...form, requiredAttachment: v })} />
-    <Check label="生成独立收费行" checked={form.separatelyChargeable} onChange={(v) => setForm({ ...form, separatelyChargeable: v })} />
+    description="支持场景化向导，根据触发条件（始终/按需/多部位）和数量依据（固定/每部位）自动计算胶片、造影剂与耗材收费。"
+    onClose={onClose} onSubmit={(e) => {
+      e.preventDefault()
+      onSave({
+        attachmentCatalogItemId: form.attachmentCatalogItemId,
+        triggerType: form.triggerType, quantityBasis: form.quantityBasis, quantity: Number(form.quantity),
+        requiredAttachment: form.triggerType === 'OPTIONAL' ? false : form.requiredAttachment,
+        separatelyChargeable: form.separatelyChargeable, sortOrder: Number(form.sortOrder),
+        description: form.description || undefined, status: form.status as 'ACTIVE' | 'INACTIVE',
+      })
+    }}>
+    <div className="span-2">
+      <div style={{ marginBottom: 'var(--space-2)', fontSize: 'var(--font-size-small)', color: 'var(--color-text-secondary)' }}>
+        <strong>推荐业务场景预设（点击一键套用规则）</strong>
+      </div>
+      <div className="scene-wizard-grid">
+        {ATTACHMENT_SCENE_TEMPLATES.map((scene) => (
+          <button type="button" key={scene.id} className="scene-wizard-btn" onClick={() => applyScene(scene)}>
+            <strong>{scene.title}</strong>
+            <span>{scene.desc}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+
+    <FormField label="连带收费项目" required className="span-2">
+      <Select disabled={Boolean(value)} value={form.attachmentCatalogItemId}
+        onChange={(v) => setForm({ ...form, attachmentCatalogItemId: v })} showValue options={options}
+        placeholder="选择胶片、造影剂、穿刺包或特殊技术服务项目" />
+    </FormField>
+    <FormField label="触发条件">
+      <Select value={form.triggerType} onChange={(v) => setForm({ ...form, triggerType: v as typeof form.triggerType })} options={[
+        { value: 'ALWAYS', label: '始终带出（不论选几个部位均收取）' },
+        { value: 'OPTIONAL', label: '申请时按需选择（医生手动勾选才收）' },
+        { value: 'MULTI_SITE', label: '多部位时触发（选择 ≥2 个部位才收取）' },
+      ]} />
+    </FormField>
+    <FormField label="数量计算依据">
+      <Select value={form.quantityBasis} onChange={(v) => setForm({ ...form, quantityBasis: v as typeof form.quantityBasis })} options={[
+        { value: 'FIXED', label: '固定数量（与部位数无关）' },
+        { value: 'PER_SITE', label: '每个检查部位（部位数 × 数量）' },
+        { value: 'PER_EXTRA_SITE', label: '每个超出部位（超出基础部位数 × 数量）' },
+      ]} />
+    </FormField>
+    <FormField label="基准数量">
+      <input type="number" min="0.0001" step="any" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
+    </FormField>
+    <FormField label="排序号">
+      <input type="number" min="0" value={form.sortOrder} onChange={(e) => setForm({ ...form, sortOrder: e.target.value })} />
+    </FormField>
+    <FormField label="状态">
+      <Select value={form.status} onChange={(v) => setForm({ ...form, status: v as typeof form.status })} options={activeStatus} />
+    </FormField>
+    <FormField label="规则说明" className="span-2">
+      <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+        placeholder="说明适用条件、人工调整约束或收费依据（如：每增加一个部位加收1张胶片）" />
+    </FormField>
+    <Check label="命中条件后必须强制带出" checked={form.requiredAttachment} disabled={form.triggerType === 'OPTIONAL'}
+      onChange={(v) => setForm({ ...form, requiredAttachment: v })} />
+    <Check label="在账单中生成独立收费行" checked={form.separatelyChargeable} onChange={(v) => setForm({ ...form, separatelyChargeable: v })} />
   </FormDialog>
 }
 
@@ -529,7 +2153,11 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
   </FormDialog>
 }
 
-function GroupDialog({ value, services, organization, units, onClose, onSave }: { value?: ItemGroup; services: ServiceCatalogItem[]; organization: Organization; units: UnitDefinition[]; onClose: () => void; onSave: (input: ItemGroupInput) => void }) {
+function GroupDialog({ api, value, services, organization, units, onClose, onSave }: {
+  api?: RhnApi; value?: ItemGroup; services: ServiceCatalogItem[]
+  organization: Organization; units: UnitDefinition[]; onClose: () => void
+  onSave: (input: ItemGroupInput) => void
+}) {
   const [type, setType] = useState(value?.groupType ?? 'LIS')
   const [selected, setSelected] = useState<string[]>(value?.members.map((v) => v.catalogItemId) ?? [])
   const [memberConfig, setMemberConfig] = useState<Record<string, { quantity: string; unitCode: string; requiredMember: boolean; memberDescription: string }>>(
@@ -543,34 +2171,243 @@ function GroupDialog({ value, services, organization, units, onClose, onSave }: 
   const [validFrom, setValidFrom] = useState(value?.validFrom ?? today())
   const [validTo, setValidTo] = useState(value?.validTo ?? '')
   const [status, setStatus] = useState(value?.status ?? 'ACTIVE')
-  const available = services.filter((v) => type === 'LIS' ? v.sdServiceType === 'LABORATORY' : type === 'PACS' ? v.sdServiceType === 'EXAMINATION' : true)
+
+  const [search, setSearch] = useState('')
+  const [tubePlan, setTubePlan] = useState<LaboratoryTubePlan>()
+  const [loadingTubePlan, setLoadingTubePlan] = useState(false)
+
+  const available = services.filter((v) =>
+    type === 'LIS' ? v.sdServiceType === 'LABORATORY' : type === 'PACS' ? v.sdServiceType === 'EXAMINATION' : true)
+
+  const filtered = available.filter((service) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return service.name.toLowerCase().includes(q) || service.code.toLowerCase().includes(q)
+  })
+
   const toggle = (id: string) => setSelected((items) => {
     if (items.includes(id)) return items.filter((v) => v !== id)
     setMemberConfig((current) => ({ ...current, [id]: current[id] ?? { quantity: '1', unitCode: '', requiredMember: true, memberDescription: '' } }))
     return [...items, id]
   })
+
   const setMember = (id: string, patch: Partial<{ quantity: string; unitCode: string; requiredMember: boolean; memberDescription: string }>) =>
     setMemberConfig((current) => ({ ...current, [id]: {
       quantity: current[id]?.quantity ?? '1', unitCode: current[id]?.unitCode ?? '',
       requiredMember: current[id]?.requiredMember ?? true,
       memberDescription: current[id]?.memberDescription ?? '', ...patch,
     } }))
-  return <FormDialog title={value ? '编辑项目组套' : '新增项目组套'} description="组套成员会在开立时展开，不复制成员主档。" onClose={onClose} onSubmit={(e) => { e.preventDefault(); onSave({ organizationId: scope === 'ORGANIZATION' ? organization.id : undefined, code, name, groupType: type as ItemGroup['groupType'], usageType: usageType || undefined, pointOfCare, status: status as 'ACTIVE' | 'INACTIVE', validFrom, validTo: validTo || undefined, members: selected.map((catalogItemId, index) => ({ catalogItemId, sortOrder: (index + 1) * 10, quantity: Number(memberConfig[catalogItemId]?.quantity || 1), unitCode: memberConfig[catalogItemId]?.unitCode || undefined, requiredMember: memberConfig[catalogItemId]?.requiredMember ?? true, memberDescription: memberConfig[catalogItemId]?.memberDescription || undefined })) }) }}>
-    <FormField label="组套编码" required><input value={code} disabled={Boolean(value)} onChange={(e) => setCode(e.target.value.toUpperCase())} /></FormField><FormField label="组套名称" required><input value={name} onChange={(e) => setName(e.target.value)} /></FormField>
-    <FormField label="组套类型"><Select value={type} onChange={(v) => { setType(v as typeof type); setSelected([]); setMemberConfig({}) }} options={[{ value: 'LIS', label: '检验组套（LIS）' }, { value: 'PACS', label: '检查组套（PACS）' }, { value: 'ORDER_SET', label: '常用组合项目' }, { value: 'PACKAGE', label: '项目包' }]} /></FormField><FormField label="适用范围"><Select value={scope} onChange={setScope} options={[{ value: 'TENANT', label: '租户通用' }, { value: 'ORGANIZATION', label: organization.name }]} /></FormField>
-    <FormField label="使用场景"><input value={usageType} onChange={(e) => setUsageType(e.target.value)} placeholder="例如：门诊、住院、体检" /></FormField><FormField label="状态"><Select value={status} onChange={(v) => setStatus(v as 'ACTIVE' | 'INACTIVE')} options={activeStatus} /></FormField>
-    <FormField label="生效日期" required><input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} /></FormField><FormField label="失效日期"><input type="date" min={validFrom} value={validTo} onChange={(e) => setValidTo(e.target.value)} /></FormField>
+
+  // 当选择变动且为 LIS 组套时，实时计算试管计划
+  useEffect(() => {
+    if (type !== 'LIS' || !api || selected.length === 0) {
+      setTubePlan(undefined)
+      return
+    }
+    let cancelled = false
+    setLoadingTubePlan(true)
+    api.masterData.laboratoryTubePlan(selected.map((serviceId) => ({
+      serviceId, quantity: Number(memberConfig[serviceId]?.quantity || 1),
+    }))).then((res) => {
+      if (!cancelled) setTubePlan(res)
+    }).catch(() => {
+      if (!cancelled) setTubePlan(undefined)
+    }).finally(() => {
+      if (!cancelled) setLoadingTubePlan(false)
+    })
+    return () => { cancelled = true }
+  }, [type, selected, memberConfig, api])
+
+  const tubeColor = (group: LaboratoryTubePlan['groups'][number]) => {
+    const text = `${group.containerName || ''} ${group.groupCode || ''}`.toUpperCase()
+    if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return '#eab308'
+    if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return '#a855f7'
+    if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return '#0ea5e9'
+    if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return '#64748b'
+    if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return '#ef4444'
+    return '#3b82f6'
+  }
+
+  return <FormDialog title={value ? '编辑项目组套' : '新增项目组套'}
+    description="专业维护检验/检查组合项目与组套；支持双栏智能穿梭选择，并提供实时采血分管与加收透视。"
+    onClose={onClose} onSubmit={(e) => {
+      e.preventDefault()
+      onSave({
+        organizationId: scope === 'ORGANIZATION' ? organization.id : undefined,
+        code, name, groupType: type as ItemGroup['groupType'], usageType: usageType || undefined,
+        pointOfCare, status: status as 'ACTIVE' | 'INACTIVE', validFrom, validTo: validTo || undefined,
+        members: selected.map((catalogItemId, index) => ({
+          catalogItemId, sortOrder: (index + 1) * 10,
+          quantity: Number(memberConfig[catalogItemId]?.quantity || 1),
+          unitCode: memberConfig[catalogItemId]?.unitCode || undefined,
+          requiredMember: memberConfig[catalogItemId]?.requiredMember ?? true,
+          memberDescription: memberConfig[catalogItemId]?.memberDescription || undefined,
+        })),
+      })
+    }}>
+    <FormField label="组套编码" required>
+      <input value={code} disabled={Boolean(value)} placeholder="如 CHEM_LIVER_12、ROUTINE_CBC"
+        onChange={(e) => setCode(e.target.value.toUpperCase())} />
+    </FormField>
+    <FormField label="组套名称" required>
+      <input value={name} placeholder="如 肝功能十二项、全血细胞分析+CRP" onChange={(e) => setName(e.target.value)} />
+    </FormField>
+    <FormField label="组套类型">
+      <Select value={type} onChange={(v) => { setType(v as typeof type); setSelected([]); setMemberConfig({}) }} options={[
+        { value: 'LIS', label: '检验组套（LIS）' }, { value: 'PACS', label: '检查组套（PACS）' },
+        { value: 'ORDER_SET', label: '常用组合项目' }, { value: 'PACKAGE', label: '项目包' },
+      ]} />
+    </FormField>
+    <FormField label="适用范围">
+      <Select value={scope} onChange={setScope} options={[
+        { value: 'TENANT', label: '租户通用' }, { value: 'ORGANIZATION', label: organization.name },
+      ]} />
+    </FormField>
+    <FormField label="使用场景">
+      <input value={usageType} onChange={(e) => setUsageType(e.target.value)} placeholder="例如：门诊、住院、体检" />
+    </FormField>
+    <FormField label="状态">
+      <Select value={status} onChange={(v) => setStatus(v as 'ACTIVE' | 'INACTIVE')} options={activeStatus} />
+    </FormField>
+    <FormField label="生效日期" required>
+      <input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
+    </FormField>
+    <FormField label="失效日期">
+      <input type="date" min={validFrom} value={validTo} onChange={(e) => setValidTo(e.target.value)} />
+    </FormField>
     <Check label="院内快速检测组套（POCT）" checked={pointOfCare} onChange={setPointOfCare} />
-    <FormField label={`组套成员（已选 ${selected.length} 项）`} required className="span-2"><div className="group-member-picker">{available.map((service) => <Check key={service.id} label={`${service.name} · ${service.code}`} checked={selected.includes(service.id)} onChange={() => toggle(service.id)} />)}</div></FormField>
-    {selected.length > 0 && <FormField label="成员执行参数" className="span-2"><div className="group-member-config">
-      {selected.map((id) => { const service = services.find((v) => v.id === id); const config = memberConfig[id] ?? { quantity: '1', unitCode: '', requiredMember: true, memberDescription: '' }; return <div className="group-member-config__row" key={id}>
-        <strong>{service?.name}<code>{service?.code}</code></strong>
-        <input type="number" min="0.001" step="any" aria-label={`${service?.name}数量`} value={config.quantity} onChange={(e) => setMember(id, { quantity: e.target.value })} />
-        <Select aria-label={`${service?.name}单位`} value={config.unitCode} onChange={(unitCode) => setMember(id, { unitCode })} placeholder="沿用项目单位" showValue options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} />
-        <Check label="必选" checked={config.requiredMember} onChange={(requiredMember) => setMember(id, { requiredMember })} />
-        <input aria-label={`${service?.name}说明`} value={config.memberDescription} onChange={(e) => setMember(id, { memberDescription: e.target.value })} placeholder="成员说明（可选）" />
-      </div> })}
-    </div></FormField>}
+
+    {/* 双栏穿梭选择器 */}
+    <div className="span-2 group-transfer-wrap">
+      {/* 左栏：备选库 */}
+      <div className="group-transfer-pane">
+        <div className="group-transfer-pane__header">
+          <div className="group-transfer-pane__title">
+            <span>备选项目库（{filtered.length}/{available.length}）</span>
+            <small>{type === 'LIS' ? '仅显示检验项目' : type === 'PACS' ? '仅显示检查项目' : '诊疗目录'}</small>
+          </div>
+          <input className="group-transfer-pane__search" placeholder="输入项目名称或编码过滤…"
+            value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
+        <div className="group-transfer-catalog">
+          {filtered.map((service) => {
+            const isSelected = selected.includes(service.id)
+            return (
+              <div key={service.id}
+                className={`group-transfer-catalog__item${isSelected ? ' is-selected' : ''}`}
+                onClick={() => toggle(service.id)}>
+                <div>
+                  <strong>{service.name}</strong>
+                  <code>{service.code} {service.chargeable ? '· 收费' : '· 不收费'}</code>
+                </div>
+                <Button size="sm" variant={isSelected ? 'secondary' : 'primary'} type="button">
+                  {isSelected ? '移出' : '加入'}
+                </Button>
+              </div>
+            )
+          })}
+          {!filtered.length && <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>未找到匹配项目</div>}
+        </div>
+      </div>
+
+      {/* 右栏：已选成员与执行参数 */}
+      <div className="group-transfer-pane">
+        <div className="group-transfer-pane__header">
+          <div className="group-transfer-pane__title">
+            <span>已选组套成员（{selected.length} 项）</span>
+            {selected.length > 0 && <Button size="sm" variant="text" type="button" onClick={() => setSelected([])}>清空已选</Button>}
+          </div>
+          <small>配置各成员在开立时的默认数量、单位及必选约束</small>
+        </div>
+        <div className="group-transfer-members">
+          {selected.length === 0 ? (
+            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+              请在左侧点击“加入”选定组套明细项目
+            </div>
+          ) : (
+            <div className="group-member-table-wrap">
+              <table className="group-member-table">
+                <thead>
+                  <tr>
+                    <th>项目信息</th>
+                    <th style={{ width: '5.5rem' }}>默认数量</th>
+                    <th style={{ width: '7.5rem' }}>开立单位</th>
+                    <th style={{ width: '4.5rem' }}>必选</th>
+                    <th>说明备注</th>
+                    <th style={{ width: '3.5rem' }}>操作</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.map((id) => {
+                    const service = services.find((v) => v.id === id)
+                    const config = memberConfig[id] ?? { quantity: '1', unitCode: '', requiredMember: true, memberDescription: '' }
+                    return (
+                      <tr key={id}>
+                        <td>
+                          <strong>{service?.name || id}</strong>
+                          <code>{service?.code}</code>
+                        </td>
+                        <td>
+                          <input type="number" min="0.001" step="any" value={config.quantity}
+                            onChange={(e) => setMember(id, { quantity: e.target.value })} />
+                        </td>
+                        <td>
+                          <Select value={config.unitCode} onChange={(unitCode) => setMember(id, { unitCode })}
+                            placeholder="沿用主档" showValue options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} />
+                        </td>
+                        <td>
+                          <Check label="" checked={config.requiredMember} onChange={(v) => setMember(id, { requiredMember: v })} />
+                        </td>
+                        <td>
+                          <input type="text" value={config.memberDescription} placeholder="选填"
+                            onChange={(e) => setMember(id, { memberDescription: e.target.value })} />
+                        </td>
+                        <td>
+                          <Button size="sm" variant="text" type="button" onClick={() => toggle(id)}>移除</Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+
+    {/* 实时采血分管与费用透视卡片 (仅检验组套) */}
+    {type === 'LIS' && selected.length > 0 && (
+      <div className="span-2 group-tube-insight">
+        <div className="group-tube-insight__summary">
+          <strong>
+            <span>🧪</span>
+            <span>组套采血与试管加收实时透视</span>
+            {loadingTubePlan && <small style={{ fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>（计算中…）</small>}
+          </strong>
+          {tubePlan && (
+            <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-primary)' }}>
+              预计生成采血管：<strong>{tubePlan.groups.reduce((acc, g) => acc + g.tubeCount, 0)} 管</strong>
+              {tubePlan.chargeLines.length > 0 && ` · 试管耗材费预估：¥ ${tubePlan.chargeLines.reduce((acc, l) => acc + (l.fixedAmount ? Number(l.fixedAmount) : 0), 0).toFixed(2)}`}
+            </span>
+          )}
+        </div>
+        {tubePlan && (
+          <div className="group-tube-insight__badges">
+            {tubePlan.groups.map((group) => {
+              const color = tubeColor(group)
+              return (
+                <div key={group.groupCode} className="group-tube-pill">
+                  <span className="tube-dot" style={{ backgroundColor: color }} />
+                  <strong>{group.specimenName || '标本'} · {group.containerName || '标准管'}</strong>
+                  <span>({group.tubeCount} 管 · 含 {group.serviceIds.length} 个检验单项)</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )}
   </FormDialog>
 }
 

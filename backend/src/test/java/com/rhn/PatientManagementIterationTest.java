@@ -26,7 +26,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"基层门诊患者%s","nationalId":"33010219900101%s",
+                                  "fullName":"基层门诊患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1990-01-01","phone":"13800138088"
                                 }
                                 """.formatted(suffix, suffix)))
@@ -64,6 +64,12 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.relatedPersons[0].emergencyContact").value(true))
                 .andExpect(jsonPath("$.coverages[0].sdCoverageType").value("01"))
                 .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城镇职工基本医疗保险"));
+
+        mockMvc.perform(get("/api/residents")
+                        .with(rhnWorkContext())
+                        .queryParam("query", "YB" + suffix))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(residentId));
 
         LocalDate today = LocalDate.now();
         jdbcTemplate.update("delete from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED in (select ID_SVC_SCHED from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
@@ -134,7 +140,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                         .queryParam("date", today.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.encounterId == '%s')].status".formatted(encounterId))
-                        .value("IN_SERVICE"))
+                        .value("SERVING"))
                 .andExpect(jsonPath("$[?(@.encounterId == '%s')].registrationStatus".formatted(encounterId))
                         .value("REGISTERED"));
 
@@ -145,7 +151,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 "select count(*) from RHN_SC_APPT where ID_APPT = ?", Integer.class,
                 encounter.get("appointmentId").asLong()));
         assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from RHN_SC_QUEUE_TICKET where ID_PAT_REG = ?", Integer.class,
+                "select count(*) from RHN_SC_QUEUE_TICKET where SD_SOURCE_TYPE = 'PAT_REG' and ID_SOURCE = ?", Integer.class,
                 encounter.get("registrationId").asLong()));
         assertEquals("REGISTERED", jdbcTemplate.queryForObject(
                 "select SD_STATUS as status from RHN_SC_PAT_REG where ID_PAT_REG = ?", String.class,
@@ -161,7 +167,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                                   "fullName":"完整建档居民%s","nationalId":"",
                                   "gender":"MALE","birthDate":"1988-01-01","phone":"1380013%s",
                                   "identifiers":[
-                                    {"system":"1","value":"33010219880101%s","useType":"OFFICIAL"},
+                                    {"system":"6","value":"P%s","useType":"OFFICIAL"},
                                     {"system":"9","value":"JK%s","useType":"SECONDARY"}
                                   ],
                                   "demographicProfile":{"nationalityCode":"CN","ethnicityCode":"01",

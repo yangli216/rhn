@@ -22,7 +22,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
         String resident = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"门诊重建患者","nationalId":"OPD%s",
+                                {"fullName":"门诊重建患者","identifiers":[{"system":"9","value":"OPD%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-03-04"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
@@ -98,7 +98,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         String medicationCode = "MED-ALLERGY-" + suffix;
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"过敏核对患者","nationalId":"SAFE%s",
+                                {"fullName":"过敏核对患者","identifiers":[{"system":"9","value":"SAFE%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1988-06-08"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

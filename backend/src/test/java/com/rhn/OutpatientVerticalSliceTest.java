@@ -351,7 +351,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
 
         String residentId = extract(residentBody, "id");
         String encounterBody = mockMvc.perform(post("/api/encounters")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -396,29 +396,30 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("SIGNED"));
 
         mockMvc.perform(post("/api/encounters/{id}/complete", encounterId)
-                        .with(rhn()))
+                        .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
         mockMvc.perform(get("/api/residents/{id}/timeline", residentId)
                 .with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(6))
+                .andExpect(jsonPath("$.length()").value(10))
                 .andExpect(jsonPath("$[0].eventType").value("ENCOUNTER_COMPLETED"))
-                .andExpect(jsonPath("$[1].eventType").value("CLINICAL_DOCUMENT_SIGNED"))
-                .andExpect(jsonPath("$[2].eventType").value("DIAGNOSIS_RECORDED"))
-                .andExpect(jsonPath("$[3].details.systolic").value(148));
+                .andExpect(jsonPath("$[1].eventType").value("QUEUE_TICKET_COMPLETED"))
+                .andExpect(jsonPath("$[2].eventType").value("CLINICAL_DOCUMENT_SIGNED"))
+                .andExpect(jsonPath("$[3].eventType").value("DIAGNOSIS_RECORDED"))
+                .andExpect(jsonPath("$[4].details.systolic").value(148));
 
         var outboxEvents = outboxEventRepository.findByAggregateIdOrderByRecordedAt(Long.valueOf(encounterId));
         assertEquals(5, outboxEvents.size());
-        assertEquals(outboxCountBefore + 7, outboxEventRepository.countByTenantId(Long.valueOf(TENANT)));
+        assertEquals(outboxCountBefore + 11, outboxEventRepository.countByTenantId(Long.valueOf(TENANT)));
         assertTrue(outboxEvents.stream().allMatch(event -> event.publicationStatus().equals("PENDING")));
         assertEquals(5, outboxEvents.stream().map(OutboxEvent::eventId).distinct().count());
     }
 
     @Test
     void duplicate_identity_is_rejected_inside_tenant_but_isolated_between_tenants() throws Exception {
-        String identity = "330102197701011111";
+        String identity = "330102197701011121";
         createResident(TENANT, identity).andExpect(status().isCreated());
         createResident(TENANT, identity)
                 .andExpect(status().isConflict())
@@ -454,7 +455,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String body = mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"目录快照患者","nationalId":"%s","gender":"FEMALE",
+                                  "fullName":"目录快照患者","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE",
                                   "birthDate":"1988-12-12","phone":"13800138009"
                                 }
                                 """.formatted(nationalId)))

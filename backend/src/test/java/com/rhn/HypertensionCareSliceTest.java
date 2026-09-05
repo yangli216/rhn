@@ -126,7 +126,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"%s","nationalId":"%s","gender":"FEMALE",
+                                  "fullName":"%s","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE",
                                   "birthDate":"%s","phone":"13800138009"
                                 }
                                 """.formatted(name, externalId, birthDate)))

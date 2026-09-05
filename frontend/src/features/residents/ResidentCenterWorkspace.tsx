@@ -7,6 +7,7 @@ import type {
   CreateResidentInput, ResidentIdentifierInput, ResidentProfile, UpdateResidentProfileInput,
 } from '../../shared/api/residentsApi'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 import {
   Alert, BackButton, Button, DataTable, Dialog, DictionarySelect,
   EmptyState, FormField, GridAddressInput, Icon, IconButton, LoadingState, ObjectContextBar,
@@ -293,12 +294,58 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
   </>
 }
 
+function identifierSystemLabel(system?: string | null, value?: string | null) {
+  if (value && /^E/i.test(value)) {
+    return '电子健康卡'
+  }
+  if (value && /^YB/i.test(value)) {
+    return '医疗保障卡'
+  }
+  if (value && /^MRN/i.test(value)) {
+    return '病案号'
+  }
+  if (!system) return '证件/卡'
+  const normalized = system.trim().toUpperCase()
+  switch (normalized) {
+    case '1':
+    case 'NATIONAL_ID':
+      return '居民身份证'
+    case '2':
+      return '军官证'
+    case '3':
+      return '警官证'
+    case '4':
+      return '文职干部证'
+    case '6':
+    case 'PASSPORT':
+      return '护照'
+    case '7':
+      return '港澳居民来往内地通行证'
+    case '8':
+      return '台湾居民来往大陆通行证'
+    case '9':
+    case 'OTHER':
+      return '其他证件/卡'
+    case 'SOCIAL_SECURITY_CARD':
+      return '社会保障卡'
+    case 'HEALTH_CARD':
+      return '电子健康卡'
+    case 'HOSPITAL_MRN':
+      return '病案号'
+    case 'BIRTH_CERTIFICATE':
+      return '出生医学证明'
+    default:
+      return system
+  }
+}
+
 function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
   const { resident, demographicProfile } = profile
   return <div className="resident-profile-grid">
     <Panel><PanelHead title="基本与人口学资料" meta={<StatusBadge tone={resident.deceased ? 'warning' : 'success'}>
       {resident.deceased ? '已登记死亡' : '有效居民'}</StatusBadge>} />
       <dl className="resident-profile-facts">
+        <div><dt>身份证号</dt><dd>{resident.maskedNationalId || '未登记'}</dd></div>
         <div><dt>姓名</dt><dd>{resident.fullName}</dd></div><div><dt>出生日期</dt><dd>{resident.birthDate}</dd></div>
         <div><dt>国籍</dt><dd>{demographicProfile.nationalityCodeText || demographicProfile.nationalityCode || '未登记'}</dd></div>
         <div><dt>民族</dt><dd>{demographicProfile.ethnicityCodeText || demographicProfile.ethnicityCode || '未登记'}</dd></div>
@@ -308,8 +355,10 @@ function ResidentProfileView({ profile }: { profile: ResidentProfile }) {
         <div><dt>职业类别</dt><dd>{demographicProfile.sdOccupationTypeText || demographicProfile.sdOccupationType || '未登记'}</dd></div>
         <div><dt>血型</dt><dd>{[demographicProfile.sdBloodTypeText || demographicProfile.sdBloodType, demographicProfile.sdRhTypeText || demographicProfile.sdRhType].filter(Boolean).join(' / ') || '未登记'}</dd></div>
       </dl>
-      <div className="resident-profile-list"><article><strong>证件和卡</strong>
-        <span>{resident.identifiers.map((item) => `${item.system} ${item.maskedValue}`).join(' · ')}</span></article></div>
+      <div className="resident-profile-list"><article><strong>已登记证件与卡</strong>
+        <span>{resident.identifiers?.length
+          ? resident.identifiers.map((item) => `${identifierSystemLabel(item.system, item.maskedValue)}: ${item.maskedValue}`).join(' · ')
+          : (resident.maskedNationalId ? `居民身份证: ${resident.maskedNationalId}` : '暂无其他证件与卡')}</span></article></div>
     </Panel>
     <Panel><PanelHead title="地址" meta={`${profile.addresses.length} 条`} />
       <div className="resident-profile-list">{profile.addresses.length ? profile.addresses.map((item) => <article key={item.id}>
@@ -380,6 +429,17 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
             <h3>基本资料</h3>
           </div>
         </header>
+        <div className="resident-profile-id-banner">
+          <div className="resident-profile-id-badge">
+            <span className="resident-profile-id-badge__label">健康档案号</span>
+            <strong className="resident-profile-id-badge__val">{profile.resident.healthRecordNo}</strong>
+          </div>
+          <div className="resident-profile-id-badge">
+            <span className="resident-profile-id-badge__label">居民身份证号</span>
+            <strong className="resident-profile-id-badge__val">{profile.resident.maskedNationalId || '未登记'}</strong>
+            <small className="resident-profile-id-badge__hint">法定唯一身份凭证（主索引受控）</small>
+          </div>
+        </div>
         <div className="ui-form-row">
           <FormField className="ui-field--grow" label="姓名" required><input {...register('fullName')} required /></FormField>
           <FormField label="性别" required><Controller control={control} name="gender" render={({ field }) => <Select
@@ -416,6 +476,65 @@ function ResidentProfileDialog({ api, profile, onClose, onSaved }: {
           {isDeceased && <FormField label="死亡时间" className="resident-deceased-date">
             <input type="datetime-local" {...register('deceasedAt')} />
           </FormField>}
+        </div>
+      </section>
+
+      <section className="resident-profile-section">
+        <header className="resident-profile-section-head">
+          <div className="resident-profile-section-title">
+            <h3>已登记证件与卡</h3>
+            <span className="resident-profile-section-count">
+              (居民身份标识由主索引集中校验管理)
+            </span>
+          </div>
+        </header>
+        <div className="resident-profile-cards-grid">
+          <div className="resident-registered-card is-primary">
+            <div className="resident-registered-card__head">
+              <Icon name="credential" />
+              <strong>居民身份证</strong>
+              <span className="ui-badge ui-badge--info">法定主标识</span>
+            </div>
+            <div className="resident-registered-card__body">
+              <span className="resident-registered-card__number">{profile.resident.maskedNationalId || '未登记'}</span>
+              <span className="resident-registered-card__status">状态: {profile.resident.status === 'ACTIVE' ? '正常' : profile.resident.status}</span>
+            </div>
+          </div>
+          {profile.resident.identifiers
+            .filter((item) => {
+              if (item.system === '1' || item.system === 'NATIONAL_ID') {
+                return Boolean(item.maskedValue && /^E/i.test(item.maskedValue))
+              }
+              return true
+            })
+            .map((item) => (
+              <div className="resident-registered-card" key={item.id}>
+                <div className="resident-registered-card__head">
+                  <Icon name="card" />
+                  <strong>{identifierSystemLabel(item.system, item.maskedValue)}</strong>
+                  <span className="ui-badge ui-badge--neutral">{item.useType || '辅助标识'}</span>
+                </div>
+                <div className="resident-registered-card__body">
+                  <span className="resident-registered-card__number">{item.maskedValue}</span>
+                  <span className="resident-registered-card__status">状态: {item.status === 'ACTIVE' ? '正常' : item.status}</span>
+                </div>
+              </div>
+            ))}
+          {profile.coverages.some((c) => Boolean(c.memberNo)) && (
+            <div className="resident-registered-card">
+              <div className="resident-registered-card__head">
+                <Icon name="card" />
+                <strong>医疗保障卡号</strong>
+                <span className="ui-badge ui-badge--neutral">医保凭证</span>
+              </div>
+              <div className="resident-registered-card__body">
+                <span className="resident-registered-card__number">
+                  {profile.coverages.filter((c) => Boolean(c.memberNo)).map((c) => `${c.memberNo}（${c.payerName}）`).join(' · ')}
+                </span>
+                <span className="resident-registered-card__status">可在下方保障信息中维护</span>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
@@ -606,20 +725,6 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
   const employments = useFieldArray({ control, name: 'employments' })
   const create = useMutation({ mutationFn: api.residents.create, onSuccess: onCreated })
 
-  function parseIdCard(id: string) {
-    const clean = id.trim()
-    if (!/^\d{17}[\dXx]$/.test(clean)) return null
-    const year = clean.slice(6, 10)
-    const month = clean.slice(10, 12)
-    const day = clean.slice(12, 14)
-    const m = Number(month)
-    const d = Number(day)
-    if (m < 1 || m > 12 || d < 1 || d > 31) return null
-    const birthDate = `${year}-${month}-${day}`
-    const gender: 'MALE' | 'FEMALE' = Number(clean[16]) % 2 === 1 ? 'MALE' : 'FEMALE'
-    return { birthDate, gender }
-  }
-
   function syncCoverageWithIdentifiers(updatedIdentifiers?: ResidentIdentifierInput[]) {
     const currentIdentifiers = updatedIdentifiers ?? getValues('identifiers') ?? []
     const socialSecurity = currentIdentifiers.find((id) => id.system === 'SOCIAL_SECURITY_CARD' && id.value?.trim())
@@ -666,7 +771,7 @@ function CreateResidentDialog({ api, onClose, onCreated }: {
     const clean = val.trim()
     // Auto-parse ID card if system is 1 / NATIONAL_ID or length is 18 digits
     if (system === '1' || system === 'NATIONAL_ID' || /^\d{17}[\dXx]$/.test(clean)) {
-      const parsed = parseIdCard(clean)
+      const parsed = parseChineseResidentId(clean)
       if (parsed) {
         setValue('birthDate', parsed.birthDate, { shouldValidate: true, shouldDirty: true })
         setValue('gender', parsed.gender, { shouldValidate: true, shouldDirty: true })

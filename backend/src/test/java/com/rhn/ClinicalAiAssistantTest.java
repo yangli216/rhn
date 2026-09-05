@@ -288,7 +288,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
-                                  "fullName":"AI助手测试居民","nationalId":"AI%s",
+                                  "fullName":"AI助手测试居民","identifiers":[{"system":"9","value":"AI%s","useType":"SECONDARY"}],
                                   "gender":"FEMALE","birthDate":"1988-08-08"
                                 }
                                 """.formatted(suffix)))

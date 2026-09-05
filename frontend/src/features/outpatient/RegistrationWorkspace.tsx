@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
-import { systemEnumItems } from '../../shared/api/dictionaryApi'
+import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '../../shared/api/dictionaryApi'
 import type { ResidentCoverageInput } from '../../shared/api/residentsApi'
 import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ServiceSchedule } from '../../shared/api/schedulingApi'
 import { age, genderLabel } from '../../shared/format'
@@ -15,6 +15,7 @@ import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../s
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
   PatientIdentitySearch, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
+import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 
 export { getCashPresets }
 
@@ -122,23 +123,61 @@ const PAYMENT_METHOD_NAMES: Record<string, string> = {
   BANK_CARD: '银行卡刷卡',
 }
 
-function statusTone(status: ReceptionQueueItem['status']) {
-  if (status === 'WAITING' || status === 'SUSPENDED') return 'warning' as const
-  if (status === 'IN_SERVICE' || status === 'TRANSFERRED') return 'info' as const
-  if (status === 'COMPLETED') return 'success' as const
-  return 'neutral' as const
-}
+export function queueItemStatusLabel(
+  item: ReceptionQueueItem | ReceptionQueueItem['status'] | string,
+  receptionStatuses?: SystemEnumDefinition,
+): string {
+  const isObject = typeof item === 'object' && item !== null
+  const status = isObject ? item.status : item
+  const registrationStatus = isObject ? item.registrationStatus : undefined
 
-function statusLabel(status: ReceptionQueueItem['status']) {
-  const map: Record<ReceptionQueueItem['status'], string> = {
+  if (registrationStatus === 'CANCELLED' || status === 'CANCELLED') {
+    return '已退号'
+  }
+
+  if (receptionStatuses) {
+    const resolved = systemEnumItemName([receptionStatuses], SCHEDULING_SYSTEM_ENUM.receptionStatus, status)
+    if (resolved && resolved !== status) {
+      return resolved
+    }
+  }
+
+  const map: Record<string, string> = {
     WAITING: '候诊中',
-    IN_SERVICE: '接诊中',
+    CALLED: '已叫号',
+    SERVING: '接诊中',
+    IN_PROGRESS: '接诊中',
     SUSPENDED: '已暂挂',
+    MISSED: '已过号',
     COMPLETED: '已诊毕',
-    TRANSFERRED: '已转诊',
     CANCELLED: '已退号',
   }
   return map[status] || status
+}
+
+export function queueItemStatusTone(
+  item: ReceptionQueueItem | ReceptionQueueItem['status'] | string,
+): 'info' | 'success' | 'warning' | 'danger' | 'neutral' {
+  const isObject = typeof item === 'object' && item !== null
+  const status = isObject ? item.status : item
+  const registrationStatus = isObject ? item.registrationStatus : undefined
+
+  if (registrationStatus === 'CANCELLED' || status === 'CANCELLED') return 'neutral'
+  if (status === 'WAITING' || status === 'SUSPENDED' || status === 'MISSED') return 'warning'
+  if (status === 'CALLED' || status === 'SERVING' || status === 'IN_PROGRESS') return 'info'
+  if (status === 'COMPLETED') return 'success'
+  return 'neutral'
+}
+
+function statusTone(item: ReceptionQueueItem | ReceptionQueueItem['status'] | string) {
+  return queueItemStatusTone(item)
+}
+
+function statusLabel(
+  item: ReceptionQueueItem | ReceptionQueueItem['status'] | string,
+  receptionStatuses?: SystemEnumDefinition,
+) {
+  return queueItemStatusLabel(item, receptionStatuses)
 }
 
 function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
@@ -156,14 +195,11 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   const fullNameRef = useRef<HTMLInputElement>(null)
 
   const handleIdChange = (val: string) => {
-    setNationalId(val)
-    if (val.length === 18 && /^\d{17}[\dXx]$/.test(val)) {
-      const year = val.substring(6, 10)
-      const month = val.substring(10, 12)
-      const day = val.substring(12, 14)
-      setBirthDate(`${year}-${month}-${day}`)
-      const genderDigit = parseInt(val.substring(16, 17), 10)
-      setGender(genderDigit % 2 === 1 ? 'MALE' : 'FEMALE')
+    setNationalId(val.toUpperCase())
+    const parsed = parseChineseResidentId(val)
+    if (parsed) {
+      setBirthDate(parsed.birthDate)
+      setGender(parsed.gender)
     }
   }
 
@@ -192,7 +228,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   return <Dialog title="30秒极速建档" eyebrow="窗口临时/快速办卡" size="wide" onClose={onClose}
     initialFocusRef={fullNameRef}
     footer={<><Button variant="secondary" onClick={onClose}>取消</Button>
-      <Button busy={createMutation.isPending} disabled={!fullName || !birthDate}
+      <Button busy={createMutation.isPending} disabled={!fullName || !birthDate || Boolean(nationalId && !parseChineseResidentId(nationalId))}
         onClick={() => createMutation.mutate()}>确认建档并挂号</Button></>}>
     {Boolean(error) && <Alert tone="error">{errorMessage(error)}</Alert>}
     <form className="quick-resident-form" onSubmit={(e) => { e.preventDefault(); createMutation.mutate() }}>
@@ -397,6 +433,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const visitTypes = useQuery({
     queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.visitType],
     queryFn: () => api.dictionaries.systemEnum(SCHEDULING_SYSTEM_ENUM.visitType),
+  })
+  const receptionStatuses = useQuery({
+    queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.receptionStatus],
+    queryFn: () => api.dictionaries.systemEnum(SCHEDULING_SYSTEM_ENUM.receptionStatus),
   })
   const paymentMethods = useQuery({
     queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'],
@@ -774,7 +814,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     otherFundAmount: currentSettlement?.otherAmount }] : []
 
   const todayList = (todayQueue.data ?? []).slice(0, 10)
-  const todayWaitingCount = (todayQueue.data ?? []).filter((item) => item.status === 'WAITING').length
+  const todayWaitingCount = (todayQueue.data ?? []).filter((item) =>
+    item.status === 'WAITING' && item.registrationStatus !== 'CANCELLED').length
 
   return <>
     <PageHeader eyebrow="门诊医疗 · 窗口业务" title="门诊挂号"
@@ -1275,13 +1316,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                       <td>{item.serviceName} · {item.practitionerName || '普通门诊'}</td>
                       <td>{item.sdDayPartText || '当日'}</td>
                       <td>{clock(item.registeredAt)}</td>
-                      <td><StatusBadge tone={statusTone(item.status)}>{statusLabel(item.status)}</StatusBadge></td>
+                      <td><StatusBadge tone={statusTone(item)}>{statusLabel(item, receptionStatuses.data)}</StatusBadge></td>
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
                           <Button size="sm" variant="text" onClick={() => { setActiveReceiptItem(item); setShowReceiptModal(true) }}>
                             补打凭条
                           </Button>
-                          {item.status === 'WAITING' && (
+                          {item.registrationStatus !== 'CANCELLED' && ['WAITING', 'CALLED', 'MISSED'].includes(item.status) && (
                             <Button size="sm" variant="text" style={{ color: 'var(--color-danger)' }}
                               onClick={() => setCancellingItem(item)}>
                               退号

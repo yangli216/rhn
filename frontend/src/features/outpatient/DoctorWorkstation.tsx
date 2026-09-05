@@ -30,6 +30,7 @@ import type { Encounter, Resident } from '../../shared/model'
 import { age, formatTime, genderLabel } from '../../shared/format'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
+import { exceedsWarning, VITAL_HARD_LIMITS, vitalRule } from '../../shared/validation/businessValidation'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
   Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
@@ -45,6 +46,12 @@ import {
   clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, stableClinicalAiFingerprint,
   type ClinicalAiDraftRequest,
 } from './ai/aiDraftAdapter'
+import './waiting/waitingWorkspace.css'
+import { DedicatedWaitingWorkspace } from './waiting/DedicatedWaitingWorkspace'
+import { QueueCapsuleBar } from './waiting/QueueCapsuleBar'
+import { QueuePeekDrawer } from './waiting/QueuePeekDrawer'
+import { enhanceQueueList } from './waiting/queueDataEnhancer'
+import type { AiPreConsultation, EnhancedQueueItem, VitalsSummary } from './waiting/queueTypes'
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -59,6 +66,8 @@ interface PatientSelection {
   encounterId: string | null
   entryIntent: 'READ' | 'EDIT'
 }
+
+type QueueCommand = 'call' | 'recall' | 'miss' | 'requeue'
 
 export interface EncounterDraftState {
   recordChanged: boolean
@@ -88,6 +97,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   const linkedResidentId = params.get('residentId')
   const linkedEncounterId = params.get('encounterId')
   const [selected, setSelected] = useState<PatientSelection | null>(null)
+  const [peekDrawerOpen, setPeekDrawerOpen] = useState(false)
   const queryClient = useQueryClient()
   const queue = useQuery({
     queryKey: ['outpatient-reception-queue', businessDate(), clinicalContext.department.id],
@@ -106,42 +116,74 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     if (linkedResident.data) setSelected({ resident: linkedResident.data, encounterId: linkedEncounterId, entryIntent: 'READ' })
   }, [linkedEncounterId, linkedResident.data])
   const openPatient = useMutation({
-    mutationFn: async ({ item, entryIntent }: { item: ReceptionQueueItem; entryIntent: 'READ' | 'EDIT' }) => ({
+    mutationFn: async ({ item, entryIntent }: { item: ReceptionQueueItem | EnhancedQueueItem; entryIntent: 'READ' | 'EDIT' }) => ({
       resident: await api.residents.get(item.residentId), item, entryIntent,
     }),
     onSuccess: ({ resident, item, entryIntent }) => setSelected({ resident, encounterId: item.encounterId, entryIntent }),
   })
+  const queueAction = useMutation({
+    mutationFn: ({ item, action }: { item: ReceptionQueueItem | EnhancedQueueItem; action: QueueCommand }) => {
+      if (!item.ticketId) throw new Error('当前候诊记录缺少统一号票标识，请刷新后重试')
+      return api.queueing.action(item.ticketId, action, {
+        commandCode: commandCode(`QUEUE-${action.toUpperCase()}`, item.encounterId),
+        description: {
+          call: '门诊医生呼叫患者',
+          recall: '门诊医生重新呼叫患者',
+          miss: '患者未到并标记过号',
+          requeue: '过号患者到达后重新排队',
+        }[action],
+      })
+    },
+    onSuccess: () => refreshQueue(),
+  })
 
   const refreshQueue = () => queryClient.invalidateQueries({ queryKey: ['outpatient-reception-queue'] })
   const refreshInbox = () => queryClient.invalidateQueries({ queryKey: ['outpatient-referral-inbox'] })
+
+  const rawQueue = (queue.data ?? []).filter((item) =>
+    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED'].includes(item.status))
+  const enhancedItems = useMemo(() => {
+    return enhanceQueueList(rawQueue)
+  }, [rawQueue])
+
+  const handleQueueAction = (item: EnhancedQueueItem, action: QueueCommand) =>
+    queueAction.mutateAsync({ item, action })
+
   if (selected) return <PatientWorkspace resident={selected.resident} encounterId={selected.encounterId}
     entryIntent={selected.entryIntent} api={api}
-    clinicalContext={clinicalContext} canEdit={canEdit} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue} />
+    clinicalContext={clinicalContext} canEdit={canEdit} onBack={() => setSelected(null)} onQueueRefresh={refreshQueue}
+    enhancedQueueItems={enhancedItems}
+    onSwitchPatient={(targetItem) => openPatient.mutate({ item: targetItem, entryIntent: 'EDIT' })}
+    onQueueAction={handleQueueAction}
+    peekDrawerOpen={peekDrawerOpen}
+    setPeekDrawerOpen={setPeekDrawerOpen} />
 
-  const waiting = (queue.data ?? []).filter((item) => ['WAITING', 'IN_SERVICE', 'SUSPENDED'].includes(item.status))
   return <>
     <PageHeader eyebrow="门诊医疗 · 医生工作区" title="门诊医生站"
-      description="从本人科室候诊队列进入就诊；居民建档、挂号和排班在各自工作台完成。"
-      actions={<Button variant="secondary" onClick={() => void queue.refetch()}><Icon name="refresh" />刷新</Button>} />
-    {(queue.error || referralInbox.error || openPatient.error || linkedResident.error) && <Alert className="ui-page-feedback">
-      {errorMessage(queue.error || referralInbox.error || openPatient.error || linkedResident.error)}</Alert>}
-    <section className="doctor-queue-summary" aria-label="候诊概览">
-      <div><span>候诊</span><strong>{waiting.filter((item) => item.status === 'WAITING').length}</strong></div>
-      <div><span>接诊中</span><strong>{waiting.filter((item) => item.status === 'IN_SERVICE').length}</strong></div>
-      <div><span>暂挂</span><strong>{waiting.filter((item) => item.status === 'SUSPENDED').length}</strong></div>
-      <div><span>当前科室</span><strong>{clinicalContext.department.name}</strong></div>
-    </section>
+      description="新一代智能候诊工作台：多队列穿插调度、急危体征预警、检查检验就绪透视及AI预问诊画像领航。"
+      actions={<Button variant="secondary" onClick={() => void queue.refetch()}><Icon name="refresh" />刷新队列</Button>} />
+    {(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error) && <Alert className="ui-page-feedback">
+      {errorMessage(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error)}</Alert>}
+
     <ReferralInboxPanel requests={referralInbox.data ?? []} loading={referralInbox.isPending}
       api={api} onRefresh={async () => { await Promise.all([refreshInbox(), refreshQueue()]) }} />
-    <Panel className="doctor-queue-panel">
-      <PanelHead title="今日候诊队列" meta={`${waiting.length} 人待处理`} />
-      {queue.isPending || (Boolean(linkedResidentId) && linkedResident.isPending) ? <LoadingState label="正在加载候诊队列…" /> : waiting.length === 0
-        ? <EmptyState icon="clinical" title="当前没有候诊患者" copy="新挂号患者会自动进入本科室候诊队列。" />
-        : <div className="doctor-queue-list">{waiting.map((item) => <QueueRow key={item.registrationId}
-          item={item} busy={openPatient.isPending} canEdit={canEdit}
-          onEnter={() => openPatient.mutate({ item, entryIntent: 'EDIT' })}
-          onView={() => openPatient.mutate({ item, entryIntent: 'READ' })} />)}</div>}
-    </Panel>
+
+    {queue.isPending || (Boolean(linkedResidentId) && linkedResident.isPending) ? (
+      <LoadingState label="正在加载候诊队列…" />
+    ) : (
+      <DedicatedWaitingWorkspace
+        items={enhancedItems}
+        clinicalContext={clinicalContext}
+        canEdit={canEdit}
+        busy={openPatient.isPending || queueAction.isPending}
+        onEnter={(item) => openPatient.mutate({ item, entryIntent: 'EDIT' })}
+        onView={(item) => openPatient.mutate({ item, entryIntent: 'READ' })}
+        onRefresh={() => void queue.refetch()}
+        onCallItem={(item) => handleQueueAction(item, item.status === 'CALLED' ? 'recall' : 'call')}
+        onMissItem={(item) => handleQueueAction(item, 'miss')}
+        onRequeueItem={(item) => handleQueueAction(item, 'requeue')}
+      />
+    )}
   </>
 }
 
@@ -348,12 +390,12 @@ function ReferralCoordinationPanel({ encounter, clinicalContext, api, hasUnsaved
 }
 
 function queueEntryLabel(status: ReceptionQueueItem['status']) {
-  if (status === 'IN_SERVICE') return '继续接诊'
+  if (status === 'SERVING') return '继续接诊'
   if (status === 'SUSPENDED') return '恢复接诊'
   return '接诊'
 }
 
-function QueueRow({ item, busy, canEdit, onEnter, onView }: {
+export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
   item: ReceptionQueueItem; busy: boolean; canEdit: boolean; onEnter: () => void; onView: () => void
 }) {
   const entryLabel = queueEntryLabel(item.status)
@@ -362,8 +404,8 @@ function QueueRow({ item, busy, canEdit, onEnter, onView }: {
     <span className="doctor-queue-patient"><strong>{item.residentName}</strong><small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></span>
     <span className="doctor-queue-service"><strong>{item.serviceName || '普通门诊'}</strong><small>{item.practitionerName || '现场接诊'}{item.locationName ? ` · ${item.locationName}` : ''}</small></span>
     <span className="doctor-queue-time"><strong>{formatTime(item.registeredAt)}</strong><small>挂号时间</small></span>
-    <StatusBadge tone={item.status === 'IN_SERVICE' ? 'success' : 'warning'}>
-      {item.status === 'IN_SERVICE' ? '接诊中' : item.status === 'SUSPENDED' ? '已暂挂' : '候诊'}</StatusBadge>
+    <StatusBadge tone={item.status === 'SERVING' ? 'success' : 'warning'}>
+      {item.status === 'SERVING' ? '接诊中' : item.status === 'SUSPENDED' ? '已暂挂' : '候诊'}</StatusBadge>
     <span className="doctor-queue-actions">
       <Button size="sm" variant="text" disabled={busy} aria-label={`查看 ${item.residentName}`} onClick={onView}>查看</Button>
       <Button size="sm" busy={busy} disabled={!canEdit} title={canEdit ? `${entryLabel}${item.residentName}` : '当前账号没有病历编辑权限'}
@@ -387,9 +429,15 @@ interface HistoryCopyDraft {
   diagnoses?: DiagnosisInput[]
 }
 
-function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalContext, canEdit, onBack, onQueueRefresh }: {
+function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalContext, canEdit, onBack, onQueueRefresh,
+  enhancedQueueItems = [], onSwitchPatient, onQueueAction, peekDrawerOpen = false, setPeekDrawerOpen }: {
   resident: Resident; encounterId: string | null; api: RhnApi; clinicalContext: ClinicalContext
   entryIntent: 'READ' | 'EDIT'; canEdit: boolean; onBack: () => void; onQueueRefresh: () => Promise<unknown>
+  enhancedQueueItems?: EnhancedQueueItem[]
+  onSwitchPatient?: (item: EnhancedQueueItem) => void
+  onQueueAction?: (item: EnhancedQueueItem, action: QueueCommand) => Promise<unknown>
+  peekDrawerOpen?: boolean
+  setPeekDrawerOpen?: (open: boolean) => void
 }) {
   const navigate = useNavigate()
   const [activeTool, setActiveTool] = useState<WorkTool | null>(null)
@@ -414,6 +462,8 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const encounter = encounters.data?.find((item) => item.id === encounterId)
     ?? encounters.data?.find((item) => ['IN_PROGRESS', 'SUSPENDED', 'REGISTERED'].includes(item.status))
     ?? encounters.data?.[0]
+  const currentEnhancedItem = enhancedQueueItems.find((i) => i.residentId === resident.id || i.encounterId === encounter?.id)
+  const currentCalledItem = enhancedQueueItems.find((item) => item.status === 'CALLED')
   const documents = useQuery({
     queryKey: ['doctor-document', encounter?.id],
     queryFn: () => api.clinicalDocuments.byEncounter(encounter!.id),
@@ -515,6 +565,26 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
       actions={encounter && <div className="doctor-context-actions">
         <StatusBadge tone={encounterStatusPresentation(encounter.status).tone}>
           {encounterStatusPresentation(encounter.status).label}</StatusBadge>
+        {enhancedQueueItems.length > 0 && (
+          <QueueCapsuleBar
+            items={enhancedQueueItems}
+            currentEncounterId={encounter.id}
+            currentResidentName={resident.fullName}
+            canEdit={canEdit}
+            onCallAndEnterNext={(targetItem) => {
+              void (async () => {
+                await onQueueAction?.(targetItem, 'call')
+                onSwitchPatient?.(targetItem)
+              })()
+            }}
+            onRecallCurrent={currentCalledItem && onQueueAction
+              ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
+            onSkipAndPostpone={currentCalledItem && onQueueAction
+              ? () => { void onQueueAction(currentCalledItem, 'miss') } : undefined}
+            onSuspendCurrent={() => requestAction('suspend')}
+            onOpenPeekDrawer={() => setPeekDrawerOpen?.(true)}
+          />
+        )}
         <div className="doctor-context-actions__buttons">
           <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
             title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
@@ -542,7 +612,10 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
                 aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
-                onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh} />
+                onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
+                aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
+                triageVitals={currentEnhancedItem?.vitals}
+                historyEncounters={encounters.data ?? []} />
           </main>
           {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}`}
             aria-label={toolLabel(activeTool)}>
@@ -592,6 +665,19 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     </Dialog>}
     {guardedAction && <UnsavedPatientWorkDialog residentName={resident.fullName} action={guardedAction}
       labels={draftLabels} onClose={() => setGuardedAction(null)} onDiscard={() => runAction(guardedAction)} />}
+    {setPeekDrawerOpen && (
+      <QueuePeekDrawer
+        open={peekDrawerOpen}
+        onClose={() => setPeekDrawerOpen(false)}
+        items={enhancedQueueItems}
+        currentEncounterId={encounter?.id ?? null}
+        canEdit={canEdit}
+        onSelectPatient={(targetItem) => {
+          onSwitchPatient?.(targetItem)
+        }}
+        onSkipItem={onQueueAction ? (item) => { void onQueueAction(item, 'miss') } : undefined}
+      />
+    )}
   </section>
 }
 
@@ -913,14 +999,18 @@ const recordSchema = z.object({
   medicalHistory: z.string().trim().max(4000),
   physicalExam: z.string().trim().max(4000),
   treatmentPlan: z.string().trim().max(4000),
-  systolic: z.number().int().min(40).max(300),
-  diastolic: z.number().int().min(20).max(200),
-  temperature: z.number().min(30).max(45).optional(),
-  pulseRate: z.number().int().min(20).max(250).optional(),
-  respiratoryRate: z.number().int().min(5).max(80).optional(),
-  heightCm: z.number().min(30).max(250).optional(),
-  weightKg: z.number().min(1).max(500).optional(),
-  oxygenSaturation: z.number().int().min(50).max(100).optional(),
+  systolic: z.number().int().min(VITAL_HARD_LIMITS.systolicPressure.minimum).max(VITAL_HARD_LIMITS.systolicPressure.maximum),
+  diastolic: z.number().int().min(VITAL_HARD_LIMITS.diastolicPressure.minimum).max(VITAL_HARD_LIMITS.diastolicPressure.maximum),
+  temperature: z.number().min(VITAL_HARD_LIMITS.temperature.minimum).max(VITAL_HARD_LIMITS.temperature.maximum).optional(),
+  pulseRate: z.number().int().min(VITAL_HARD_LIMITS.pulse.minimum).max(VITAL_HARD_LIMITS.pulse.maximum).optional(),
+  respiratoryRate: z.number().int().min(VITAL_HARD_LIMITS.respiratoryRate.minimum).max(VITAL_HARD_LIMITS.respiratoryRate.maximum).optional(),
+  heightCm: z.number().min(VITAL_HARD_LIMITS.height.minimum).max(VITAL_HARD_LIMITS.height.maximum).optional(),
+  weightKg: z.number().min(VITAL_HARD_LIMITS.weight.minimum).max(VITAL_HARD_LIMITS.weight.maximum).optional(),
+  oxygenSaturation: z.number().int().min(VITAL_HARD_LIMITS.oxygenSaturation.minimum).max(VITAL_HARD_LIMITS.oxygenSaturation.maximum).optional(),
+}).superRefine((value, context) => {
+  if (value.systolic <= value.diastolic) {
+    context.addIssue({ code: 'custom', path: ['systolic'], message: '收缩压必须大于舒张压' })
+  }
 })
 type RecordForm = z.infer<typeof recordSchema>
 
@@ -1290,9 +1380,56 @@ export function diagnosisDraftSignature(values: DiagnosisInput[]) {
     .sort().join('\n')
 }
 
+function formatShortDate(value?: string) {
+  if (!value) return ''
+  try {
+    const d = new Date(value)
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  } catch {
+    return value
+  }
+}
+
+function formatShortTime(value?: string) {
+  if (!value) return ''
+  try {
+    const d = new Date(value)
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  } catch {
+    return value
+  }
+}
+
+function formatVitalsSummary(v: {
+  systolic?: number
+  diastolic?: number
+  temperature?: number
+  pulseRate?: number
+  respiratoryRate?: number
+  oxygenSaturation?: number
+  heightCm?: number
+  weightKg?: number
+}) {
+  const items: Array<{ key: string; label: string; text: string }> = []
+  if (v.systolic && v.diastolic) {
+    items.push({ key: 'bp', label: '血压', text: `${v.systolic}/${v.diastolic} mmHg` })
+  } else if (v.systolic) {
+    items.push({ key: 'sys', label: '收缩压', text: `${v.systolic} mmHg` })
+  } else if (v.diastolic) {
+    items.push({ key: 'dia', label: '舒张压', text: `${v.diastolic} mmHg` })
+  }
+  if (v.pulseRate != null) items.push({ key: 'pulse', label: '脉搏', text: `${v.pulseRate} 次/分` })
+  if (v.temperature != null) items.push({ key: 'temp', label: '体温', text: `${v.temperature} ℃` })
+  if (v.respiratoryRate != null) items.push({ key: 'resp', label: '呼吸', text: `${v.respiratoryRate} 次/分` })
+  if (v.oxygenSaturation != null) items.push({ key: 'spo2', label: '血氧', text: `${v.oxygenSaturation} %` })
+  if (v.heightCm != null) items.push({ key: 'height', label: '身高', text: `${v.heightCm} cm` })
+  if (v.weightKg != null) items.push({ key: 'weight', label: '体重', text: `${v.weightKg} kg` })
+  return items
+}
+
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, editing, canEdit, enteringEdit, onRequestEditing,
-  onRequestReading, onRefresh }: {
+  onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
@@ -1300,8 +1437,16 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   onHistoryCopyConsumed: () => void; onDraftStateChange: (value: EncounterDraftState) => void
   editing: boolean; canEdit: boolean; enteringEdit: boolean; onRequestEditing: () => void; onRequestReading: () => void
   onRefresh: () => Promise<unknown>
+  aiPreConsultation?: AiPreConsultation
+  triageVitals?: VitalsSummary
+  historyEncounters?: Encounter[]
 }) {
   const queryClient = useQueryClient()
+  const vitalRulesQuery = useQuery({
+    queryKey: ['clinical-safety-vital-rules'],
+    queryFn: api.clinicalSafety.vitalSignRules,
+    staleTime: 5 * 60 * 1000,
+  })
   const [diagnosisSearch, setDiagnosisSearch] = useState<ClinicalResourceOption<DiseaseConcept>>()
   const [diagnosisDomainFilter, setDiagnosisDomainFilter] = useState('')
   const [diagnosisType, setDiagnosisType] = useState<DiagnosisInput['type']>('SECONDARY')
@@ -1316,6 +1461,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const [structuredValues, setStructuredValues] = useState<Record<string, unknown>>({})
   const [structuredBaseline, setStructuredBaseline] = useState(structuredFormSignature('', {}))
   const [structuredErrors, setStructuredErrors] = useState<Record<string, string>>({})
+  const [selectedRefIdx, setSelectedRefIdx] = useState(0)
+  const [appliedRefFeedback, setAppliedRefFeedback] = useState(false)
   const pendingRecordCommand = useRef<{ fingerprint: string; commandCode: string } | null>(null)
   const processedAiDraft = useRef<string | null>(null)
   const serverStateInitialized = useRef(false)
@@ -1326,6 +1473,114 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       systolic: undefined, diastolic: undefined, temperature: undefined, pulseRate: undefined,
       respiratoryRate: undefined, heightCm: undefined, weightKg: undefined, oxygenSaturation: undefined },
   })
+  const pastEncounters = useMemo(() => {
+    return (historyEncounters ?? []).filter((item) => item.id !== encounter.id)
+  }, [historyEncounters, encounter.id])
+  const recentPastEncounter = pastEncounters[0]
+  const pastDocumentQuery = useQuery({
+    queryKey: ['doctor-recent-past-doc', recentPastEncounter?.id],
+    queryFn: () => api.clinicalDocuments.byEncounter(recentPastEncounter!.id),
+    enabled: Boolean(recentPastEncounter?.id),
+    staleTime: 5 * 60 * 1000,
+  })
+  const pastNote = pastDocumentQuery.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
+  const pastVitalsData = useMemo(() => {
+    if (!recentPastEncounter) return null
+    const noteVitals = pastNote?.content.vitalSigns
+    const systolic = recentPastEncounter.systolic ?? noteVitals?.systolic
+    const diastolic = recentPastEncounter.diastolic ?? noteVitals?.diastolic
+    const temperature = noteVitals?.temperature
+    const pulseRate = noteVitals?.pulseRate
+    const respiratoryRate = noteVitals?.respiratoryRate
+    const oxygenSaturation = noteVitals?.oxygenSaturation
+    const heightCm = noteVitals?.heightCm
+    const weightKg = noteVitals?.weightKg
+
+    const hasAny = [systolic, diastolic, temperature, pulseRate, respiratoryRate, oxygenSaturation, heightCm, weightKg]
+      .some((v) => v !== undefined && v !== null && !isNaN(Number(v)))
+
+    if (!hasAny) return null
+
+    const dateStr = recentPastEncounter.registeredAt ? formatShortDate(recentPastEncounter.registeredAt) : ''
+    return {
+      sourceType: 'PAST' as const,
+      label: `上次就诊 (${dateStr || '既往'})`,
+      vitals: {
+        systolic,
+        diastolic,
+        temperature,
+        pulseRate,
+        respiratoryRate,
+        oxygenSaturation,
+        heightCm,
+        weightKg,
+      },
+    }
+  }, [recentPastEncounter, pastNote])
+
+  const triageVitalsData = useMemo(() => {
+    if (!triageVitals) return null
+    const systolic = triageVitals.systolic
+    const diastolic = triageVitals.diastolic
+    const temperature = triageVitals.temperature
+    const pulseRate = triageVitals.pulseRate
+    const oxygenSaturation = triageVitals.spo2
+    const hasAny = [systolic, diastolic, temperature, pulseRate, oxygenSaturation]
+      .some((v) => v !== undefined && v !== null && !isNaN(Number(v)))
+
+    if (!hasAny) return null
+
+    const timeStr = triageVitals.measuredAt ? formatShortTime(triageVitals.measuredAt) : '分诊'
+    return {
+      sourceType: 'TRIAGE' as const,
+      label: `分诊测量 (${timeStr})`,
+      vitals: {
+        systolic,
+        diastolic,
+        temperature,
+        pulseRate,
+        oxygenSaturation,
+        respiratoryRate: undefined,
+        heightCm: undefined,
+        weightKg: undefined,
+      },
+    }
+  }, [triageVitals])
+
+  const availableSources = useMemo(() => {
+    const list = []
+    if (triageVitalsData) list.push(triageVitalsData)
+    if (pastVitalsData) list.push(pastVitalsData)
+    return list
+  }, [triageVitalsData, pastVitalsData])
+
+  const activeRef = availableSources[selectedRefIdx] ?? availableSources[0]
+
+  const handleApplyReferenceVitals = (refVitals: {
+    systolic?: number
+    diastolic?: number
+    temperature?: number
+    pulseRate?: number
+    respiratoryRate?: number
+    oxygenSaturation?: number
+    heightCm?: number
+    weightKg?: number
+  }) => {
+    const current = getValues()
+    reset({
+      ...current,
+      systolic: refVitals.systolic !== undefined ? refVitals.systolic : current.systolic,
+      diastolic: refVitals.diastolic !== undefined ? refVitals.diastolic : current.diastolic,
+      temperature: refVitals.temperature !== undefined ? refVitals.temperature : current.temperature,
+      pulseRate: refVitals.pulseRate !== undefined ? refVitals.pulseRate : current.pulseRate,
+      respiratoryRate: refVitals.respiratoryRate !== undefined ? refVitals.respiratoryRate : current.respiratoryRate,
+      oxygenSaturation: refVitals.oxygenSaturation !== undefined ? refVitals.oxygenSaturation : current.oxygenSaturation,
+      heightCm: refVitals.heightCm !== undefined ? refVitals.heightCm : current.heightCm,
+      weightKg: refVitals.weightKg !== undefined ? refVitals.weightKg : current.weightKg,
+    }, { keepDefaultValues: true })
+    setAppliedRefFeedback(true)
+    setTimeout(() => setAppliedRefFeedback(false), 2000)
+  }
   const documents = useQuery({ queryKey: ['doctor-document', encounter.id], queryFn: () => api.clinicalDocuments.byEncounter(encounter.id) })
   const noteForms = useQuery({ queryKey: ['outpatient-note-forms', 'GENERAL_PRACTICE'],
     queryFn: () => api.outpatientNoteForms.list('GENERAL_PRACTICE') })
@@ -1549,112 +1804,262 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
-          onApply={applyNoteTemplate} />}{document && signed && <Button size="sm" variant="secondary"
+          onApply={applyNoteTemplate} />}
+          {editing && !signed && (
+            <Button
+              form="doctor-record-form"
+              type="submit"
+              size="sm"
+              variant="secondary"
+              className="doctor-save-draft-btn"
+              busy={save.isPending}
+              disabled={signed}
+              title="保存门诊病历草稿"
+              onClick={handleSubmit((value) => save.mutate(value))}
+            >
+              <Icon name="check" />
+              保存草稿
+            </Button>
+          )}
+          {document && signed && <Button size="sm" variant="secondary"
           onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}</>} />
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
-      {editing ? <form className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
-        <FormField className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
-          <textarea {...register('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" />
-        </FormField>
-        <FormField className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
-          <textarea {...register('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" />
-        </FormField>
-        <FormField className="doctor-record-narrative" label="既往史" error={formState.errors.medicalHistory?.message}>
-          <textarea {...register('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" />
-        </FormField>
-        <div className="doctor-physical-exam" role="group" aria-labelledby="doctor-physical-exam-label">
-          <span id="doctor-physical-exam-label" className="doctor-physical-exam__label">体格检查</span>
-          <div className="doctor-vital-grid">
-            <div className="doctor-vital-cell">
-              <span>体温</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" step="0.1" disabled={signed} placeholder="36.5"
-                  {...register('temperature', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>℃</small>
+      {editing ? <form id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
+        {aiPreConsultation && !signed && (
+          <div className="ai-preconsultation-banner">
+            <div className="ai-banner-content">
+              <Icon name="sparkles" />
+              <div>
+                <strong>AI 预问诊已提炼主诉与现病史草稿</strong>
+                <span>一句话主诉：{aiPreConsultation.chiefComplaintSummary}</span>
               </div>
             </div>
-            <div className="doctor-vital-cell">
-              <span>脉搏</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" disabled={signed} placeholder="75"
-                  {...register('pulseRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>次/分</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell">
-              <span>呼吸</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" disabled={signed} placeholder="18"
-                  {...register('respiratoryRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>次/分</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell">
-              <span>血氧</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" disabled={signed} placeholder="98"
-                  {...register('oxygenSaturation', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>%</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell doctor-vital-cell--bp">
-              <span>血压</span>
-              <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
-                <input aria-label="收缩压" type="number" placeholder="120" {...register('systolic', { valueAsNumber: true })} disabled={signed} />
-                <b>/</b>
-                <input aria-label="舒张压" type="number" placeholder="80" {...register('diastolic', { valueAsNumber: true })} disabled={signed} />
-                <small>mmHg</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell">
-              <span>身高</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" step="0.1" disabled={signed} placeholder="170"
-                  {...register('heightCm', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>cm</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell">
-              <span>体重</span>
-              <div className="doctor-vital-input-wrap">
-                <input type="number" step="0.1" disabled={signed} placeholder="65"
-                  {...register('weightKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
-                <small>kg</small>
-              </div>
-            </div>
-            <div className="doctor-vital-cell doctor-vital-cell--bmi">
-              <span>BMI</span>
-              <div className="doctor-vital-input-wrap">
-                <span className="doctor-vital-bmi-value">{bmi ?? '—'}</span>
-                <small>kg/m²</small>
-              </div>
+            <div className="ai-banner-actions">
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                onClick={() => {
+                  const curChief = getValues('chiefComplaint')
+                  const curPresent = getValues('presentIllness')
+                  reset({
+                    ...getValues(),
+                    chiefComplaint: curChief || aiPreConsultation.chiefComplaintSummary,
+                    presentIllness: curPresent || aiPreConsultation.presentIllnessDraft,
+                  }, { keepDefaultValues: true })
+                }}
+              >
+                <Icon name="sparkles" />
+                一键采纳预问诊草稿
+              </Button>
             </div>
           </div>
-          {Object.values({ systolic: formState.errors.systolic, diastolic: formState.errors.diastolic,
-            temperature: formState.errors.temperature, pulseRate: formState.errors.pulseRate,
-            respiratoryRate: formState.errors.respiratoryRate, heightCm: formState.errors.heightCm,
-            weightKg: formState.errors.weightKg, oxygenSaturation: formState.errors.oxygenSaturation })
-            .find(Boolean)?.message && <small className="ui-field__message ui-field__error">请检查生命体征录入范围</small>}
-        </div>
-        <FormField className="doctor-record-narrative" label="查体所见" error={formState.errors.physicalExam?.message}>
-          <textarea {...register('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" />
+        )}
+        <FormField className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
+          <textarea {...register('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
         </FormField>
-        <FormField className="doctor-record-narrative" label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
-          <textarea {...register('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" />
+        <FormField className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
+          <textarea {...register('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
+        </FormField>
+        <FormField className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
+          <textarea {...register('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
+        </FormField>
+        {(() => {
+          const tempNum = recordValues.temperature ? Number(recordValues.temperature) : undefined
+          const isTempAbnormal = exceedsWarning(tempNum, vitalRule(vitalRulesQuery.data, 'temperature'))
+
+          const pulseNum = recordValues.pulseRate ? Number(recordValues.pulseRate) : undefined
+          const isPulseAbnormal = exceedsWarning(pulseNum, vitalRule(vitalRulesQuery.data, 'pulse'))
+
+          const respNum = recordValues.respiratoryRate ? Number(recordValues.respiratoryRate) : undefined
+          const isRespAbnormal = exceedsWarning(respNum, vitalRule(vitalRulesQuery.data, 'respiratory-rate'))
+
+          const spo2Num = recordValues.oxygenSaturation ? Number(recordValues.oxygenSaturation) : undefined
+          const isSpo2Abnormal = exceedsWarning(spo2Num, vitalRule(vitalRulesQuery.data, 'oxygen-saturation'))
+
+          const sysNum = recordValues.systolic ? Number(recordValues.systolic) : undefined
+          const diaNum = recordValues.diastolic ? Number(recordValues.diastolic) : undefined
+          const isBpAbnormal = exceedsWarning(sysNum, vitalRule(vitalRulesQuery.data, 'systolic-pressure'))
+            || exceedsWarning(diaNum, vitalRule(vitalRulesQuery.data, 'diastolic-pressure'))
+
+          const bmiNum = bmi ? Number(bmi) : undefined
+          const bmiStatus = bmiNum !== undefined && !isNaN(bmiNum)
+            ? bmiNum < 18.5 ? { label: '偏瘦', tone: 'info' as const }
+              : bmiNum < 24.0 ? { label: '正常', tone: 'normal' as const }
+                : bmiNum < 28.0 ? { label: '超重', tone: 'warning' as const }
+                  : { label: '肥胖', tone: 'danger' as const }
+            : null
+
+          return (
+            <div className="doctor-physical-exam" role="group" aria-labelledby="doctor-physical-exam-label">
+              <span id="doctor-physical-exam-label" className="doctor-physical-exam__label">体格检查</span>
+              <div className="doctor-physical-exam__body">
+                {activeRef && (
+                  <div className="doctor-recent-vitals-bar" aria-label="近期体格数据参考">
+                    <div className="doctor-recent-vitals-head">
+                      <Icon name="roadmap" />
+                      <span className="doctor-recent-vitals-title">近期参考</span>
+                      {availableSources.length > 1 ? (
+                        <div className="doctor-recent-vitals-tabs" role="tablist">
+                          {availableSources.map((src, idx) => (
+                            <button
+                              key={src.sourceType}
+                              type="button"
+                              className={`doctor-recent-vitals-tab ${selectedRefIdx === idx ? 'is-active' : ''}`}
+                              onClick={() => setSelectedRefIdx(idx)}
+                            >
+                              {src.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="doctor-recent-vitals-tag">{activeRef.label}</span>
+                      )}
+                    </div>
+                    <div className="doctor-recent-vitals-metrics">
+                      {formatVitalsSummary(activeRef.vitals).map((item) => (
+                        <span key={item.key} className="doctor-recent-vitals-metric">
+                          <span className="doctor-recent-vitals-metric__name">{item.label}</span>
+                          <strong className="doctor-recent-vitals-metric__val">{item.text}</strong>
+                        </span>
+                      ))}
+                    </div>
+                    {!signed && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className={`doctor-recent-vitals-apply-btn ${appliedRefFeedback ? 'is-applied' : ''}`}
+                        onClick={() => handleApplyReferenceVitals(activeRef.vitals)}
+                        title={`将${activeRef.label}的数据一键带入本次病历`}
+                      >
+                        <Icon name={appliedRefFeedback ? 'check' : 'roadmap'} />
+                        {appliedRefFeedback ? '已带入' : `引用${activeRef.sourceType === 'TRIAGE' ? '分诊数据' : '上次结果'}`}
+                      </Button>
+                    )}
+                  </div>
+                )}
+                <div className={`doctor-vital-grid ${appliedRefFeedback ? 'is-highlight' : ''}`}>
+                  <div className={`doctor-vital-cell ${isTempAbnormal ? 'is-abnormal' : ''}`}>
+                    <span className="doctor-vital-name">
+                      体温
+                      {isTempAbnormal && <span className="doctor-vital-alert-dot" title="体温异常" />}
+                    </span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" step="0.1" min={VITAL_HARD_LIMITS.temperature.minimum}
+                        max={VITAL_HARD_LIMITS.temperature.maximum} disabled={signed}
+                        {...register('temperature', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>℃</small>
+                    </div>
+                  </div>
+                  <div className={`doctor-vital-cell ${isPulseAbnormal ? 'is-abnormal' : ''}`}>
+                    <span className="doctor-vital-name">
+                      脉搏
+                      {isPulseAbnormal && <span className="doctor-vital-alert-dot" title="脉搏异常" />}
+                    </span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" min={VITAL_HARD_LIMITS.pulse.minimum}
+                        max={VITAL_HARD_LIMITS.pulse.maximum} disabled={signed}
+                        {...register('pulseRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>次/分</small>
+                    </div>
+                  </div>
+                  <div className={`doctor-vital-cell ${isRespAbnormal ? 'is-abnormal' : ''}`}>
+                    <span className="doctor-vital-name">
+                      呼吸
+                      {isRespAbnormal && <span className="doctor-vital-alert-dot" title="呼吸频率异常" />}
+                    </span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" min={VITAL_HARD_LIMITS.respiratoryRate.minimum}
+                        max={VITAL_HARD_LIMITS.respiratoryRate.maximum} disabled={signed}
+                        {...register('respiratoryRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>次/分</small>
+                    </div>
+                  </div>
+                  <div className={`doctor-vital-cell ${isSpo2Abnormal ? 'is-abnormal' : ''}`}>
+                    <span className="doctor-vital-name">
+                      血氧
+                      {isSpo2Abnormal && <span className="doctor-vital-alert-dot" title="血氧偏低" />}
+                    </span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" min={VITAL_HARD_LIMITS.oxygenSaturation.minimum}
+                        max={VITAL_HARD_LIMITS.oxygenSaturation.maximum} disabled={signed}
+                        {...register('oxygenSaturation', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>%</small>
+                    </div>
+                  </div>
+                  <div className={`doctor-vital-cell doctor-vital-cell--bp ${isBpAbnormal ? 'is-abnormal' : ''}`}>
+                    <span className="doctor-vital-name">
+                      血压
+                      {isBpAbnormal && <span className="doctor-vital-alert-dot" title="血压异常" />}
+                    </span>
+                    <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
+                      <input aria-label="收缩压" type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum}
+                        max={VITAL_HARD_LIMITS.systolicPressure.maximum}
+                        {...register('systolic', { valueAsNumber: true })} disabled={signed} />
+                      <b>/</b>
+                      <input aria-label="舒张压" type="number" min={VITAL_HARD_LIMITS.diastolicPressure.minimum}
+                        max={VITAL_HARD_LIMITS.diastolicPressure.maximum}
+                        {...register('diastolic', { valueAsNumber: true })} disabled={signed} />
+                      <small>mmHg</small>
+                    </div>
+                  </div>
+                  <div className="doctor-vital-cell">
+                    <span className="doctor-vital-name">身高</span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" step="0.1" min={VITAL_HARD_LIMITS.height.minimum}
+                        max={VITAL_HARD_LIMITS.height.maximum} disabled={signed}
+                        {...register('heightCm', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>cm</small>
+                    </div>
+                  </div>
+                  <div className="doctor-vital-cell">
+                    <span className="doctor-vital-name">体重</span>
+                    <div className="doctor-vital-input-wrap">
+                      <input type="number" step="0.1" min={VITAL_HARD_LIMITS.weight.minimum}
+                        max={VITAL_HARD_LIMITS.weight.maximum} disabled={signed}
+                        {...register('weightKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                      <small>kg</small>
+                    </div>
+                  </div>
+                  <div className="doctor-vital-cell doctor-vital-cell--bmi">
+                    <span className="doctor-vital-name">BMI</span>
+                    <div className="doctor-vital-bmi-content">
+                      <span className="doctor-vital-bmi-value">{bmi ?? '—'}</span>
+                      <small>kg/m²</small>
+                      {bmiStatus && <span className={`doctor-vital-bmi-badge doctor-vital-bmi-badge--${bmiStatus.tone}`}>{bmiStatus.label}</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {Object.values({ systolic: formState.errors.systolic, diastolic: formState.errors.diastolic,
+                temperature: formState.errors.temperature, pulseRate: formState.errors.pulseRate,
+                respiratoryRate: formState.errors.respiratoryRate, heightCm: formState.errors.heightCm,
+                weightKg: formState.errors.weightKg, oxygenSaturation: formState.errors.oxygenSaturation })
+                .find(Boolean)?.message && <small className="ui-field__message ui-field__error">请检查生命体征录入范围</small>}
+            </div>
+          )
+        })()}
+        <FormField className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
+          <textarea {...register('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
+        </FormField>
+        <FormField className="doctor-record-narrative doctor-record-field--plan" label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
+          <textarea {...register('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" rows={3} />
         </FormField>
         {selectedNoteForm && <StructuredNoteForm form={selectedNoteForm} values={structuredValues}
           errors={structuredErrors} disabled={signed} onChange={(code, value) => {
             setStructuredValues((current) => ({ ...current, [code]: value }))
             setStructuredErrors((current) => ({ ...current, [code]: '' }))
           }} />}
-        <div className="ui-form-actions doctor-record-actions">
-          {document && !signed && <Button type="button" variant="secondary" busy={sign.isPending}
-            disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending}
-            title={formState.isDirty || structuredChanged || diagnosesChanged ? '请先保存当前病历和诊断修改' : '签署当前已保存版本'}
-            onClick={() => sign.mutate()}>签署当前版本</Button>}
-          <Button type="submit" busy={save.isPending} disabled={signed}>保存病历草稿</Button>
-        </div>
+        {document && !signed && (
+          <div className="ui-form-actions doctor-record-actions">
+            <Button type="button" variant="secondary" busy={sign.isPending}
+              disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending}
+              title={formState.isDirty || structuredChanged || diagnosesChanged ? '请先保存当前病历和诊断修改' : '签署当前已保存版本'}
+              onClick={() => sign.mutate()}>签署当前版本</Button>
+          </div>
+        )}
       </form> : <ClinicalRecordReadView value={recordValues} bmi={bmi} structuredForm={selectedNoteForm}
         structuredValues={structuredValues} />}
     </Panel>

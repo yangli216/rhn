@@ -3367,40 +3367,74 @@ create table RHN_SC_PAT_REG (
     constraint UK_SC_PAT_REG_REGISTRATION_ENC unique (ID_TNT, ID_ENC)
 );
 
+create table RHN_SC_SVC_QUEUE (
+    ID_SVC_QUEUE number(19),
+    REVISION number(19) default 0 not null,
+    ID_TNT number(19) not null,
+    ID_ORG number(19) not null,
+    ID_DEPT number(19) not null,
+    ID_SVC_LOC_WAITING number(19),
+    CD_SVC_QUEUE varchar2(64 char) not null,
+    NA_SVC_QUEUE varchar2(100 char) not null,
+    SD_SCENE varchar2(32 char) not null,
+    CD_TICKET_PREFIX varchar2(8 char) not null,
+    FG_ACTIVE number(1) default 1 not null,
+    DT_CREATED timestamp with time zone not null,
+    ID_USER_CREATED number(19) not null,
+    DT_UPDATED timestamp with time zone not null,
+    ID_USER_UPDATED number(19) not null,
+    constraint PK_SC_SVC_QUEUE primary key (ID_SVC_QUEUE),
+    constraint UK_SC_SVC_QUEUE_ID unique (ID_TNT, ID_SVC_QUEUE),
+    constraint UK_SC_SVC_QUEUE_CODE unique (ID_TNT, CD_SVC_QUEUE),
+    constraint CK_SC_SVC_QUEUE_SCENE check (SD_SCENE in ('OUTPATIENT','PHARMACY','LAB_COLLECTION','EXAMINATION')),
+    constraint CK_SC_SVC_QUEUE_ACTIVE check (FG_ACTIVE in (0, 1))
+);
+
 create table RHN_SC_QUEUE_COUNT (
     ID_QUEUE_COUNT number(19),
     REVISION number(19) default 0 not null,
     ID_TNT number(19) not null,
-    CD_QUEUE varchar2(100 char) not null,
-    DA_QUEUE date not null,
+    ID_SVC_QUEUE number(19) not null,
+    DA_BUSINESS date not null,
     SN_NEXT number(10) default 1 not null,
-    constraint PK_SC_QUEUE_COUNT_PK primary key (ID_QUEUE_COUNT),
-    constraint UK_SC_QUEUE_COUNT_QUEUE_COUNTE unique (ID_TNT, CD_QUEUE, DA_QUEUE),
-    constraint CK_SC_QUEUE_COUNT_QUEUE_COUNTE check (SN_NEXT > 0)
+    constraint PK_SC_QUEUE_COUNT primary key (ID_QUEUE_COUNT),
+    constraint UK_SC_QUEUE_COUNT_BUSINESS unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS),
+    constraint CK_SC_QUEUE_COUNT_NEXT check (SN_NEXT > 0)
 );
 
 create table RHN_SC_QUEUE_TICKET (
     ID_QUEUE_TICKET number(19),
     REVISION number(19) default 0 not null,
     ID_TNT number(19) not null,
-    ID_PAT_REG number(19) not null,
+    ID_SVC_QUEUE number(19) not null,
+    ID_PAT number(19) not null,
+    ID_ENC number(19),
+    SD_SOURCE_TYPE varchar2(24 char) not null,
+    ID_SOURCE number(19) not null,
     CD_IDEMP varchar2(128 char) not null,
-    CD_QUEUE varchar2(100 char) not null,
-    DA_QUEUE date not null,
-    CD_TICKET_NO varchar2(32 char) not null,
+    DA_BUSINESS date not null,
+    CD_TICKET varchar2(32 char) not null,
     SN_SEQUENCE number(10) not null,
-    SD_PRIORITY number(10) default 0 not null,
+    SN_PRIORITY number(10) default 0 not null,
     SD_STATUS varchar2(24 char) not null,
-    DT_QUEUED timestamp with time zone not null,
+    DT_CHECKED_IN timestamp with time zone not null,
+    DT_READY timestamp with time zone,
     DT_CALLED timestamp with time zone,
+    DT_STARTED timestamp with time zone,
     DT_COMPLETED timestamp with time zone,
-    constraint PK_SC_QUEUE_TICKET_PK primary key (ID_QUEUE_TICKET),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICKET unique (ID_TNT, ID_QUEUE_TICKET),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_1 unique (ID_TNT, ID_PAT_REG),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_2 unique (ID_TNT, CD_IDEMP),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_3 unique (ID_TNT, CD_QUEUE, DA_QUEUE, SN_SEQUENCE),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_TICK_4 unique (ID_TNT, CD_QUEUE, DA_QUEUE, CD_TICKET_NO),
-    constraint CK_SC_QUEUE_TICKE_QUEUE_TICKET check (SD_PRIORITY >= 0)
+    QTY_CALL number(10) default 0 not null,
+    QTY_MISSED number(10) default 0 not null,
+    ID_SVC_LOC_CURRENT number(19),
+    constraint PK_SC_QUEUE_TICKET primary key (ID_QUEUE_TICKET),
+    constraint UK_SC_QUEUE_TICKET_ID unique (ID_TNT, ID_QUEUE_TICKET),
+    constraint UK_SC_QUEUE_TICKET_SOURCE unique (ID_TNT, SD_SOURCE_TYPE, ID_SOURCE),
+    constraint UK_SC_QUEUE_TICKET_IDEMP unique (ID_TNT, CD_IDEMP),
+    constraint UK_SC_QUEUE_TICKET_SEQ unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, SN_SEQUENCE),
+    constraint UK_SC_QUEUE_TICKET_CODE unique (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, CD_TICKET),
+    constraint CK_SC_QUEUE_TICKET_SOURCE check (SD_SOURCE_TYPE in ('PAT_REG','DISP_TASK','DIAG_TASK')),
+    constraint CK_SC_QUEUE_TICKET_STATUS check (SD_STATUS in ('WAITING','CALLED','SERVING','SUSPENDED','MISSED','COMPLETED','CANCELLED')),
+    constraint CK_SC_QUEUE_TICKET_PRIORITY check (SN_PRIORITY >= 0),
+    constraint CK_SC_QUEUE_TICKET_COUNTS check (QTY_CALL >= 0 and QTY_MISSED >= 0)
 );
 
 create table RHN_SC_QUEUE_TICKET_EVT (
@@ -3413,9 +3447,10 @@ create table RHN_SC_QUEUE_TICKET_EVT (
     CD_COMMAND varchar2(128 char) not null,
     DT_OCCURRED timestamp with time zone not null,
     ID_USER_OCCURRED number(19) not null,
+    ID_SVC_LOC number(19),
     DES_QUEUE_TICKET_EVT varchar2(500 char),
-    constraint PK_SC_QUEUE_TICKET_EVT_PK primary key (ID_QUEUE_TICKET_EVT),
-    constraint UK_SC_QUEUE_TICKE_QUEUE_EVENT_ unique (ID_TNT, ID_QUEUE_TICKET, CD_COMMAND)
+    constraint PK_SC_QUEUE_TICKET_EVT primary key (ID_QUEUE_TICKET_EVT),
+    constraint UK_SC_QUEUE_TICKET_EVT_CMD unique (ID_TNT, CD_COMMAND)
 );
 
 create table RHN_SC_SCHED_EXCEPT (
@@ -6794,7 +6829,7 @@ create table RHN_VIS_SVC_LOC (
     constraint PK_VIS_SVC_LOC_PK primary key (ID_SVC_LOC),
     constraint UK_VIS_SVC_LOC_SRV_LOC_TENANT_ unique (ID_TNT, ID_SVC_LOC),
     constraint UK_VIS_SVC_LOC_SRV_LOC_CODE unique (ID_TNT, ID_ORG, CD_SVC_LOC),
-    constraint CK_VIS_SVC_LOC_SRV_LOC_TYPE check (SD_LOC_TYPE in ('WARD','ROOM','BED')),
+    constraint CK_VIS_SVC_LOC_SRV_LOC_TYPE check (SD_LOC_TYPE in ('WARD','ROOM','BED','COUNTER')),
     constraint CK_VIS_SVC_LOC_SRV_LOC_STATUS check (SD_STATUS in ('ACTIVE','INACTIVE')),
     constraint CK_VIS_SVC_LOC_SRV_LOC_PERIOD check (DA_VALID_TO is null or DA_VALID_TO >= DA_VALID_FROM)
 );
@@ -7232,10 +7267,21 @@ alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_PI_PAT_REGISTRAT foreign
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_ORG_REGISTRA foreign key (ID_TNT, ID_ORG) references RHN_SYS_ORG(ID_TNT, ID_ORG);
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_DEPT_REGISTR foreign key (ID_TNT, ID_ORG, ID_DEPT) references RHN_SYS_DEPT(ID_TNT, ID_ORG, ID_DEPT);
 alter table RHN_SC_PAT_REG add constraint FK_SC_PAT_REG_SYS_USER_REGISTR foreign key (ID_TNT, ID_USER_REGISTERED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
-alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_SYS_TNT_QUEU foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
-alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKE_SC_PAT_R_QUE foreign key (ID_TNT, ID_PAT_REG) references RHN_SC_PAT_REG(ID_TNT, ID_PAT_REG);
-alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_TICKE_SC_QUEUE_QUE foreign key (ID_TNT, ID_QUEUE_TICKET) references RHN_SC_QUEUE_TICKET(ID_TNT, ID_QUEUE_TICKET);
-alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_TICKE_SYS_USER_QUE foreign key (ID_TNT, ID_USER_OCCURRED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_ORG foreign key (ID_TNT, ID_ORG) references RHN_SYS_ORG(ID_TNT, ID_ORG);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_DEPT foreign key (ID_TNT, ID_ORG, ID_DEPT) references RHN_SYS_DEPT(ID_TNT, ID_ORG, ID_DEPT);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_WAIT_LOC foreign key (ID_TNT, ID_SVC_LOC_WAITING) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_CREATED_BY foreign key (ID_TNT, ID_USER_CREATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_SVC_QUEUE add constraint FK_SC_SVC_QUEUE_UPDATED_BY foreign key (ID_TNT, ID_USER_UPDATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_TNT foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
+alter table RHN_SC_QUEUE_COUNT add constraint FK_SC_QUEUE_COUNT_QUEUE foreign key (ID_TNT, ID_SVC_QUEUE) references RHN_SC_SVC_QUEUE(ID_TNT, ID_SVC_QUEUE);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_QUEUE foreign key (ID_TNT, ID_SVC_QUEUE) references RHN_SC_SVC_QUEUE(ID_TNT, ID_SVC_QUEUE);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_PAT foreign key (ID_TNT, ID_PAT) references RHN_PI_PAT(ID_TNT, ID_PAT);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_ENC foreign key (ID_TNT, ID_PAT, ID_ENC) references RHN_VIS_ENC(ID_TNT, ID_PAT, ID_ENC);
+alter table RHN_SC_QUEUE_TICKET add constraint FK_SC_QUEUE_TICKET_CUR_LOC foreign key (ID_TNT, ID_SVC_LOC_CURRENT) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVT_TICKET foreign key (ID_TNT, ID_QUEUE_TICKET) references RHN_SC_QUEUE_TICKET(ID_TNT, ID_QUEUE_TICKET);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVT_USER foreign key (ID_TNT, ID_USER_OCCURRED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
+alter table RHN_SC_QUEUE_TICKET_EVT add constraint FK_SC_QUEUE_EVENT_LOC foreign key (ID_TNT, ID_SVC_LOC) references RHN_VIS_SVC_LOC(ID_TNT, ID_SVC_LOC);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SYS_TNT_SCHE foreign key (ID_TNT) references RHN_SYS_TNT(ID_TNT);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SC_SCHED_SCH foreign key (ID_TNT, ID_SCHED_TMPL) references RHN_SC_SCHED_TMPL(ID_TNT, ID_SCHED_TMPL);
 alter table RHN_SC_SCHED_EXCEPT add constraint FK_SC_SCHED_EXCEP_SYS_USER_SCH foreign key (ID_TNT, ID_USER_CREATED) references RHN_SYS_USER_ACCT(ID_TNT, ID_USER);
@@ -7807,7 +7853,7 @@ create index IDX_AI_SUGGEST_EVT_AI_EVENT_TI on RHN_AI_SUGGEST_EVT (ID_TNT, ID_AI
 create index IDX_AI_SUGGEST_EVT_AI_EVENT_TY on RHN_AI_SUGGEST_EVT (ID_TNT, SD_EVT_TYPE, DT_OCCURRED);
 create index IDX_AI_SUGGEST_EVT_AI_EVENT_PR on RHN_AI_SUGGEST_EVT (ID_TNT, ID_PRACT, DT_OCCURRED);
 create index IDX_AI_SUGGEST_EVT_AI_EVENT_US on RHN_AI_SUGGEST_EVT (ID_TNT, ID_USER, DT_OCCURRED);
-create unique index IDX_ANL_PRES_METRI_UK_PRESENCE on RHN_ANL_PRES_METRIC_SAMPLE (ID_TNT, CD_SCOPE_KEY, TO_CHAR(SYS_EXTRACT_UTC(BUCKET_AT),'YYYYMMDDHH24MISSFF6'));
+create unique index IDX_ANL_PRES_METRI_UK_PRESENCE on RHN_ANL_PRES_METRIC_SAMPLE (ID_TNT, CD_SCOPE_KEY, TO_CHAR(SYS_EXTRACT_UTC(DT_BUCKET),'YYYYMMDDHH24MISSFF6'));
 create index IDX_ANL_PRES_METRI_PRESENCE_ME on RHN_ANL_PRES_METRIC_SAMPLE (ID_TNT, CD_SCOPE_KEY, DT_BUCKET);
 create index IDX_ANL_PRES_METRI_PRESENCE__1 on RHN_ANL_PRES_METRIC_SAMPLE (DT_BUCKET);
 create index IDX_AUD_CRYPTO_EVI_CRYPTO_EVID on RHN_AUD_CRYPTO_EVID (ID_TNT, SD_TARGET_TYPE, ID_TARGET, DT_RECORDED, ID_CRYPTO_EVID);
@@ -7888,7 +7934,7 @@ create index IDX_BD_ORG_CATALOG_ORG_ITEM_RE on RHN_BD_ORG_CATALOG_ITEM (ID_TNT, 
 create index IDX_BD_ORG_CONCEPT_ORG_CONCEPT on RHN_BD_ORG_CONCEPT (ID_TNT, ID_ORG, SD_STATUS, FG_SELECTABLE, ID_CONCEPT);
 create index IDX_BD_SUPPLY_ITEM_SUPPLY_REGI on RHN_BD_SUPPLY_ITEM (ID_TNT, CD_REG);
 create index IDX_BD_SUPPLY_ITEM_SUPPLY_GENE on RHN_BD_SUPPLY_ITEM (ID_TNT, CD_GENERIC, NA_GENERIC);
-create unique index IDX_BD_SUPPLY_ITEM_UK_SUPPLY_U on RHN_BD_SUPPLY_ITEM (CASE when udi_di is not null then tenant_id end, CASE when udi_di is not null then udi_di end);
+create unique index IDX_BD_SUPPLY_ITEM_UK_SUPPLY_U on RHN_BD_SUPPLY_ITEM (CASE when CD_UDI_DI is not null then ID_TNT end, CASE when CD_UDI_DI is not null then CD_UDI_DI end);
 create index IDX_BD_SVC_ITEM_SERVICE_ITEM_T on RHN_BD_SVC_ITEM (ID_TNT, SD_SVC_TYPE, SD_SVC_SUBTYPE);
 create index IDX_BD_SVC_VAR_SERVICE_VARIANT on RHN_BD_SVC_VAR (ID_TNT, ID_CONCEPT_BODY_SITE, SD_METHOD_TYPE, SD_STATUS);
 create index IDX_BD_UNIT_CONV_UNIT_CONVERSI on RHN_BD_UNIT_CONV (ID_TNT, CD_SCOPE, ID_UNIT_DEF_FROM_UNIT, ID_UNIT_DEF_TO_UNIT, SD_STATUS, DA_VALID_FROM);
@@ -7901,15 +7947,15 @@ create index IDX_BIL_CHARGE_ITE_CHARGE_REQU on RHN_BIL_CHARGE_ITEM (ID_TNT, ID_C
 create index IDX_BIL_INVOICE_INVOICE_ACCOUN on RHN_BIL_INVOICE (ID_TNT, ID_PAT_ACCT, DT_ISSUED);
 create index IDX_BIL_LEDGER_ENT_LEDGER_ACCO on RHN_BIL_LEDGER_ENTRY (ID_TNT, ID_PAT_ACCT, DT_OCCURRED, ID_LEDGER_ENTRY);
 create index IDX_BIL_LEDGER_ENT_LEDGER_CLAI on RHN_BIL_LEDGER_ENTRY (ID_TNT, ID_CLAIM_RESP);
-create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_P on RHN_BIL_LEDGER_ENTRY (CASE when payment_id is not null then tenant_id end, CASE when payment_id is not null then payment_id end);
-create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_C on RHN_BIL_LEDGER_ENTRY (CASE when claim_response_id is not null then tenant_id end, CASE when claim_response_id is not null then claim_response_id end, CASE when claim_response_id is not null then entry_type end);
-create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_1 on RHN_BIL_LEDGER_ENTRY (CASE when charge_item_id is not null then tenant_id end, CASE when charge_item_id is not null then charge_item_id end);
+create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_P on RHN_BIL_LEDGER_ENTRY (CASE when ID_PAY is not null then ID_TNT end, CASE when ID_PAY is not null then ID_PAY end);
+create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_C on RHN_BIL_LEDGER_ENTRY (CASE when ID_CLAIM_RESP is not null then ID_TNT end, CASE when ID_CLAIM_RESP is not null then ID_CLAIM_RESP end, CASE when ID_CLAIM_RESP is not null then SD_ENTRY_TYPE end);
+create unique index IDX_BIL_LEDGER_ENT_UK_LEDGER_1 on RHN_BIL_LEDGER_ENTRY (CASE when ID_CHARGE_ITEM is not null then ID_TNT end, CASE when ID_CHARGE_ITEM is not null then ID_CHARGE_ITEM end);
 create index IDX_BIL_PAT_ACCT_PAT_ACCT_RESI on RHN_BIL_PAT_ACCT (ID_TNT, ID_PAT, SD_STATUS, DT_OPENED);
 create index IDX_BIL_PAT_ACCT_PAT_ACCT_ORG on RHN_BIL_PAT_ACCT (ID_TNT, ID_ORG, DT_OPENED);
-create unique index IDX_BIL_PAT_ACCT_UK_PAT_ACCT_E on RHN_BIL_PAT_ACCT (CASE when encounter_id is not null then tenant_id end, CASE when encounter_id is not null then encounter_id end, CASE when encounter_id is not null then currency_code end);
+create unique index IDX_BIL_PAT_ACCT_UK_PAT_ACCT_E on RHN_BIL_PAT_ACCT (CASE when ID_ENC is not null then ID_TNT end, CASE when ID_ENC is not null then ID_ENC end, CASE when ID_ENC is not null then CD_CURRENCY end);
 create index IDX_BIL_PAY_PAYMENT_ACCOUNT on RHN_BIL_PAY (ID_TNT, ID_PAT_ACCT, DT_PAID);
 create index IDX_BIL_PAY_PAYMENT_INVOICE on RHN_BIL_PAY (ID_TNT, ID_INVOICE, DT_PAID);
-create unique index IDX_BIL_PAY_UK_PAYMENT_ORDER_N on RHN_BIL_PAY (CASE when payment_order_id is not null then tenant_id end, CASE when payment_order_id is not null then payment_order_id end);
+create unique index IDX_BIL_PAY_UK_PAYMENT_ORDER_N on RHN_BIL_PAY (CASE when ID_PAY_ORDER is not null then ID_TNT end, CASE when ID_PAY_ORDER is not null then ID_PAY_ORDER end);
 create index IDX_BIL_PAY_EVT_PAY_EVENT_ORDE on RHN_BIL_PAY_EVT (ID_TNT, ID_PAY_ORDER, DT_OCCURRED, ID_PAY_EVT);
 create index IDX_BIL_PAY_EVT_PAY_EVENT_EXTE on RHN_BIL_PAY_EVT (ID_TNT, CD_EXT_TXN_NO);
 create index IDX_BIL_PAY_ORDER_PAY_ORDER_IN on RHN_BIL_PAY_ORDER (ID_TNT, ID_INVOICE, SD_STATUS, DT_CREATED);
@@ -7920,7 +7966,7 @@ create index IDX_BIL_RCPT_RECEIPT_SETTLEMEN on RHN_BIL_RCPT (ID_TNT, ID_STL, SD_
 create index IDX_BIL_RCPT_RECEIPT_WORKLIST on RHN_BIL_RCPT (ID_TNT, SD_STATUS, DT_UPDATED, ID_RCPT);
 create unique index IDX_BIL_RCPT_UK_RECEIPT_EXTERN on RHN_BIL_RCPT (ID_TNT, CD_FISCAL_AUTHORITY, CD_EXT_RCPT_NO);
 create unique index IDX_BIL_RCPT_UK_RECEIPT_SINGLE on RHN_BIL_RCPT (ID_TNT, ID_RCPT_REVERSES);
-create unique index IDX_BIL_RCPT_UK_RECEIPT_FISCAL on RHN_BIL_RCPT (CASE when fiscal_authority_code is not null and fiscal_code is not null and fiscal_number is not null then tenant_id end, CASE when fiscal_authority_code is not null and fiscal_code is not null and fiscal_number is not null then fiscal_authority_code end, CASE when fiscal_authority_code is not null and fiscal_code is not null and fiscal_number is not null then fiscal_code end, CASE when fiscal_authority_code is not null and fiscal_code is not null and fiscal_number is not null then fiscal_number end);
+create unique index IDX_BIL_RCPT_UK_RECEIPT_FISCAL on RHN_BIL_RCPT (CASE when CD_FISCAL_AUTHORITY is not null and CD_FISCAL is not null and CD_FISCAL_NUMBER is not null then ID_TNT end, CASE when CD_FISCAL_AUTHORITY is not null and CD_FISCAL is not null and CD_FISCAL_NUMBER is not null then CD_FISCAL_AUTHORITY end, CASE when CD_FISCAL_AUTHORITY is not null and CD_FISCAL is not null and CD_FISCAL_NUMBER is not null then CD_FISCAL end, CASE when CD_FISCAL_AUTHORITY is not null and CD_FISCAL is not null and CD_FISCAL_NUMBER is not null then CD_FISCAL_NUMBER end);
 create index IDX_BIL_RCPT_EVT_RECEIPT_EVENT on RHN_BIL_RCPT_EVT (ID_TNT, ID_RCPT, DT_OCCURRED, ID_RCPT_EVT);
 create index IDX_BIL_RCPT_EVT_RECEIPT_EVE_1 on RHN_BIL_RCPT_EVT (ID_TNT, ID_EXT_MSG);
 create index IDX_BIL_RECON_BATC_RECON_BATCH on RHN_BIL_RECON_BATCH (ID_TNT, ID_ORG, SD_STATUS, DA_BUSINESS, CD_SRC);
@@ -7934,11 +7980,11 @@ create index IDX_BIL_REG_BIL_IN_REG_BILL_AP on RHN_BIL_REG_BIL_INTENT (ID_TNT, I
 create index IDX_BIL_REG_BIL_IN_REG_BILL__1 on RHN_BIL_REG_BIL_INTENT (ID_TNT, ID_PAT_COVER, SD_STATUS, DT_CREATED);
 create index IDX_BIL_STL_SETTLEMENT_ACCOUNT on RHN_BIL_STL (ID_TNT, ID_PAT_ACCT, SD_STATUS, DT_CREATED);
 create index IDX_BIL_STL_SETTLEMENT_REVERSE on RHN_BIL_STL (ID_TNT, ID_STL_REVERSES);
-create unique index IDX_BIL_STL_UK_STL_INVOICE_NON on RHN_BIL_STL (CASE when legacy_invoice_id is not null then tenant_id end, CASE when legacy_invoice_id is not null then legacy_invoice_id end);
+create unique index IDX_BIL_STL_UK_STL_INVOICE_NON on RHN_BIL_STL (CASE when ID_INVOICE_LEGACY is not null then ID_TNT end, CASE when ID_INVOICE_LEGACY is not null then ID_INVOICE_LEGACY end);
 create index IDX_BIL_STL_EVT_STL_EVENT_TIME on RHN_BIL_STL_EVT (ID_TNT, ID_STL, DT_OCCURRED, ID_STL_EVT);
 create index IDX_BIL_STL_LINE_STL_LINE_CHAR on RHN_BIL_STL_LINE (ID_TNT, ID_CHARGE_ITEM);
 create index IDX_BIL_STL_TENDER_STL_TENDER_ on RHN_BIL_STL_TENDER (ID_TNT, ID_CLAIM_RESP);
-create unique index IDX_BIL_STL_TENDER_UK_STL_TEND on RHN_BIL_STL_TENDER (CASE when payment_id is not null then tenant_id end, CASE when payment_id is not null then payment_id end);
+create unique index IDX_BIL_STL_TENDER_UK_STL_TEND on RHN_BIL_STL_TENDER (CASE when ID_PAY is not null then ID_TNT end, CASE when ID_PAY is not null then ID_PAY end);
 create index IDX_EX_CARE_REQ_CARE_REQUEST_E on RHN_EX_CARE_REQ (ID_TNT, ID_ENC, SD_STATUS, DT_AUTHORED);
 create index IDX_EX_CARE_REQ_CARE_REQUEST_C on RHN_EX_CARE_REQ (ID_TNT, ID_CATALOG_ITEM, DA_BUSINESS);
 create index IDX_EX_CARE_REQ_CARE_REQUEST_G on RHN_EX_CARE_REQ (ID_TNT, ID_REQ_GRP, SD_STATUS);
@@ -7949,7 +7995,7 @@ create index IDX_EX_DIAG_REPORT_DIAGNOSTIC_ on RHN_EX_DIAG_REPORT (ID_TNT, ID_CA
 create index IDX_EX_DIAG_REPORT_DIAGNOSTI_1 on RHN_EX_DIAG_REPORT (ID_TNT, ID_ENC, DT_ISSUED);
 create index IDX_EX_EXAM_ATTACH_EXAM_ATTACH on RHN_EX_EXAM_ATTACH_ITEM (ID_TNT, ID_CATALOG_ITEM, SD_STATUS, SN_SORT);
 create index IDX_EX_INP_ORDER_E_IP_EVT_REQU on RHN_EX_INP_ORDER_EVT (ID_TNT, ID_CARE_REQ, DT_OCCURRED);
-create unique index IDX_EX_INP_ORDER_T_UK_IP_TASK_ on RHN_EX_INP_ORDER_TASK (ID_TNT, ID_CARE_REQ, SYS_EXTRACT_UTC(SCHEDULED_AT));
+create unique index IDX_EX_INP_ORDER_T_UK_IP_TASK_ on RHN_EX_INP_ORDER_TASK (ID_TNT, ID_CARE_REQ, SYS_EXTRACT_UTC(DT_SCHEDULED));
 create index IDX_EX_INP_ORDER_T_IP_TASK_WOR on RHN_EX_INP_ORDER_TASK (ID_TNT, SD_STATUS, DT_SCHEDULED);
 create index IDX_EX_INP_ORDER_W_IP_WF_EPISO on RHN_EX_INP_ORDER_WF (ID_TNT, ID_CARE_EPISODE, SD_WF_STATUS);
 create index IDX_EX_LAB_SVC_SPE_LAB_SPECIME on RHN_EX_LAB_SVC_SPEC (ID_TNT, ID_DICT_ITEM_SPEC, SD_STATUS);
@@ -8003,14 +8049,16 @@ create index IDX_PI_PAT_SRC_REC_SOURCE_RECO on RHN_PI_PAT_SRC_RECORD (ID_TNT, SD
 create index IDX_SC_APPT_APPOINTMENT_RESIDE on RHN_SC_APPT (ID_TNT, ID_PAT, DT_START, SD_STATUS);
 create index IDX_SC_APPT_APPOINTMENT_SCHEDU on RHN_SC_APPT (ID_TNT, ID_SVC_SCHED, SD_STATUS, DT_START);
 create index IDX_SC_APPT_APPT_SOURCE_STATUS on RHN_SC_APPT (ID_TNT, SD_BOOKING_SRC, SD_STATUS, DT_START);
-create unique index IDX_SC_APPT_UK_APPT_RESCHED_NO on RHN_SC_APPT (CASE when rescheduled_from_id is not null then tenant_id end, CASE when rescheduled_from_id is not null then rescheduled_from_id end);
-create unique index IDX_SC_APPT_UK_APPT_SLOT_HOLD_ on RHN_SC_APPT (CASE when slot_hold_id is not null then tenant_id end, CASE when slot_hold_id is not null then slot_hold_id end);
+create unique index IDX_SC_APPT_UK_APPT_RESCHED_NO on RHN_SC_APPT (CASE when ID_APPT_RESCHEDULED_FROM is not null then ID_TNT end, CASE when ID_APPT_RESCHEDULED_FROM is not null then ID_APPT_RESCHEDULED_FROM end);
+create unique index IDX_SC_APPT_UK_APPT_SLOT_HOLD_ on RHN_SC_APPT (CASE when ID_SCHED_SLOT_HOLD is not null then ID_TNT end, CASE when ID_SCHED_SLOT_HOLD is not null then ID_SCHED_SLOT_HOLD end);
 create index IDX_SC_APPT_EVT_APPT_EVT_TIME on RHN_SC_APPT_EVT (ID_TNT, ID_APPT, DT_OCCURRED);
 create index IDX_SC_PAT_REG_REGISTRATION_RE on RHN_SC_PAT_REG (ID_TNT, ID_PAT, DT_REGISTERED, SD_STATUS);
 create index IDX_SC_PAT_REG_REGISTRATION_CO on RHN_SC_PAT_REG (ID_TNT, ID_ORG, ID_DEPT, DT_REGISTERED, SD_STATUS);
-create unique index IDX_SC_PAT_REG_UK_REG_APPT_NON on RHN_SC_PAT_REG (CASE when appointment_id is not null then tenant_id end, CASE when appointment_id is not null then appointment_id end);
-create index IDX_SC_QUEUE_TICKE_QUEUE_TICKE on RHN_SC_QUEUE_TICKET (ID_TNT, CD_QUEUE, DA_QUEUE, SD_STATUS, SD_PRIORITY, SN_SEQUENCE);
-create index IDX_SC_QUEUE_TICKE_QUEUE_EVENT on RHN_SC_QUEUE_TICKET_EVT (ID_TNT, ID_QUEUE_TICKET, DT_OCCURRED);
+create unique index IDX_SC_PAT_REG_UK_REG_APPT_NON on RHN_SC_PAT_REG (CASE when ID_APPT is not null then ID_TNT end, CASE when ID_APPT is not null then ID_APPT end);
+create index IDX_SC_SVC_QUEUE_SCOPE on RHN_SC_SVC_QUEUE (ID_TNT, ID_ORG, ID_DEPT, SD_SCENE, FG_ACTIVE);
+create index IDX_SC_QUEUE_TICKET_WORK on RHN_SC_QUEUE_TICKET (ID_TNT, ID_SVC_QUEUE, DA_BUSINESS, SD_STATUS, DT_READY, SN_PRIORITY, SN_SEQUENCE);
+create index IDX_SC_QUEUE_TICKET_PAT on RHN_SC_QUEUE_TICKET (ID_TNT, ID_PAT, DA_BUSINESS);
+create index IDX_SC_QUEUE_EVT_TICKET on RHN_SC_QUEUE_TICKET_EVT (ID_TNT, ID_QUEUE_TICKET, DT_OCCURRED);
 create index IDX_SC_SCHED_GEN_R_SCHED_RUN_T on RHN_SC_SCHED_GEN_RUN (ID_TNT, ID_SCHED_TMPL, DT_STARTED);
 create index IDX_SC_SCHED_SLOT_SLOT_HOLD_PO on RHN_SC_SCHED_SLOT_HOLD (ID_TNT, ID_SCHED_SLOT_POOL, SD_STATUS, DT_EXPIRES);
 create index IDX_SC_SCHED_SLOT_SLOT_HOLD_RE on RHN_SC_SCHED_SLOT_HOLD (ID_TNT, ID_PAT, SD_STATUS, DT_CREATED);
@@ -8020,7 +8068,7 @@ create index IDX_SC_SCHED_SLOT_SCHED_POOL_S on RHN_SC_SCHED_SLOT_POOL (ID_TNT, S
 create index IDX_SC_SCHED_TMPL_SCHED_TEMPLA on RHN_SC_SCHED_TMPL (ID_TNT, ID_SVC_RSRC, SD_STATUS, DA_VALID_FROM);
 create index IDX_SC_SCHED_TMPL_SCHED_PERIOD on RHN_SC_SCHED_TMPL_PERIOD (ID_TNT, ID_SCHED_TMPL, FG_ACTIVE, SD_DAY_OF_WEEK);
 create index IDX_SC_SLOT_EVT_SLOT_EVENT_TIM on RHN_SC_SLOT_EVT (ID_TNT, ID_SCHED_SLOT_POOL, DT_OCCURRED);
-create unique index IDX_SC_SVC_SCHED_UK_SERVICE_SC on RHN_SC_SVC_SCHED (ID_TNT, ID_SVC_RSRC, SYS_EXTRACT_UTC(START_AT), SYS_EXTRACT_UTC(END_AT));
+create unique index IDX_SC_SVC_SCHED_UK_SERVICE_SC on RHN_SC_SVC_SCHED (ID_TNT, ID_SVC_RSRC, SYS_EXTRACT_UTC(DT_START), SYS_EXTRACT_UTC(DT_END));
 create index IDX_SC_SVC_SCHED_SERVICE_SCHED on RHN_SC_SVC_SCHED (ID_TNT, ID_ORG, ID_DEPT, DA_SVC, SD_STATUS, DT_START);
 create index IDX_SC_SVC_SCHED_SERVICE_SCH_1 on RHN_SC_SVC_SCHED (ID_TNT, ID_PRACT, DA_SVC, DT_START);
 create index IDX_SC_SVC_SCHED_SERVICE_SCH_2 on RHN_SC_SVC_SCHED (ID_TNT, ID_SCHED_GEN_RUN, DA_SVC, DT_START);
@@ -8046,9 +8094,9 @@ create index IDX_SUP_INV_BAL_INV_BAL_ITEM on RHN_SUP_INV_BAL (ID_TNT, ID_STOCK_S
 create index IDX_SUP_INV_DOC_EV_INV_DOC_EVE on RHN_SUP_INV_DOC_EVT (ID_TNT, SD_DOC_TYPE, ID_DOC, DT_OCCURRED);
 create index IDX_SUP_INV_OPEN_P_OPEN_PKG_DI on RHN_SUP_INV_OPEN_PKG (ID_TNT, ID_STOCK_SITE, ID_STOCK_BIN, ID_STOCK_ITEM, ID_STOCK_LOT, SD_STATUS, DT_OPENED);
 create index IDX_SUP_INV_PERIOD_INV_PERIOD_ on RHN_SUP_INV_PERIOD (ID_TNT, ID_STOCK_SITE, SD_STATUS);
-create unique index IDX_SUP_INV_PERIOD_UK_INV_PERI on RHN_SUP_INV_PERIOD (CASE when previous_period_id is not null then tenant_id end, CASE when previous_period_id is not null then stock_site_id end, CASE when previous_period_id is not null then previous_period_id end);
+create unique index IDX_SUP_INV_PERIOD_UK_INV_PERI on RHN_SUP_INV_PERIOD (CASE when ID_INV_PERIOD_PREVIOUS is not null then ID_TNT end, CASE when ID_INV_PERIOD_PREVIOUS is not null then ID_STOCK_SITE end, CASE when ID_INV_PERIOD_PREVIOUS is not null then ID_INV_PERIOD_PREVIOUS end);
 create index IDX_SUP_INV_PERIOD_INV_PERIO_1 on RHN_SUP_INV_PERIOD (ID_TNT, ID_STOCK_SITE, DA_PERIOD_FROM, DA_PERIOD_TO, SD_STATUS);
-create unique index IDX_SUP_INV_PERIOD_UK_INV_PE_1 on RHN_SUP_INV_PERIOD (CASE when closing_run_id is not null then tenant_id end, CASE when closing_run_id is not null then closing_run_id end);
+create unique index IDX_SUP_INV_PERIOD_UK_INV_PE_1 on RHN_SUP_INV_PERIOD (CASE when ID_INV_PERIOD_CLOSE_RUN_CLOSE is not null then ID_TNT end, CASE when ID_INV_PERIOD_CLOSE_RUN_CLOSE is not null then ID_INV_PERIOD_CLOSE_RUN_CLOSE end);
 create index IDX_SUP_INV_PERIOD_INV_SNAP_PE on RHN_SUP_INV_PERIOD_BAL_SNAP (ID_TNT, ID_INV_PERIOD, ID_STOCK_ITEM, ID_STOCK_BIN, ID_STOCK_LOT);
 create index IDX_SUP_INV_PERIOD_INV_SNAP_OP on RHN_SUP_INV_PERIOD_BAL_SNAP (ID_TNT, ID_INV_PERIOD_BAL_SNAP_OPENING);
 create index IDX_SUP_INV_PERIOD_INV_SNAP_VA on RHN_SUP_INV_PERIOD_BAL_VAL (ID_TNT, ID_INV_PERIOD_BAL_SNAP, SD_VALUAT_BASIS);
@@ -8057,7 +8105,7 @@ create index IDX_SUP_INV_PERIOD_INV_CLOSE_S on RHN_SUP_INV_PERIOD_CLOSE_RUN (ID_
 create index IDX_SUP_INV_PERIOD_INV_CLOSE_T on RHN_SUP_INV_PERIOD_CLOSE_TOTAL (ID_TNT, ID_INV_PERIOD_CLOSE_RUN, SD_VALUAT_BASIS);
 create index IDX_SUP_INV_PRICE_INV_PRICE_SI on RHN_SUP_INV_PRICE_ADJ (ID_TNT, ID_STOCK_SITE, DA_BUSINESS, SD_STATUS);
 create index IDX_SUP_INV_PRICE_INV_PRICE_PE on RHN_SUP_INV_PRICE_ADJ (ID_TNT, ID_INV_PERIOD, SD_STATUS, DT_POSTED);
-create unique index IDX_SUP_INV_PRICE_UK_INV_PRICE on RHN_SUP_INV_PRICE_ADJ_DETAIL (CASE when valuation_entry_id is not null then tenant_id end, CASE when valuation_entry_id is not null then valuation_entry_id end);
+create unique index IDX_SUP_INV_PRICE_UK_INV_PRICE on RHN_SUP_INV_PRICE_ADJ_DETAIL (CASE when ID_INV_VALUAT_ENTRY is not null then ID_TNT end, CASE when ID_INV_VALUAT_ENTRY is not null then ID_INV_VALUAT_ENTRY end);
 create index IDX_SUP_INV_PRICE_INV_PRICE_DE on RHN_SUP_INV_PRICE_ADJ_DETAIL (ID_TNT, ID_INV_BAL, ID_INV_PRICE_ADJ_LINE);
 create index IDX_SUP_INV_PRICE_INV_PRICE_LI on RHN_SUP_INV_PRICE_ADJ_LINE (ID_TNT, ID_STOCK_ITEM, ID_INV_PRICE_ADJ);
 create index IDX_SUP_INV_RECON_INV_REC_LINE on RHN_SUP_INV_RECON_LINE (ID_TNT, ID_INV_RECON_RUN, SD_SEVERITY, SD_ISSUE_TYPE);
@@ -8147,13 +8195,13 @@ create index IDX_SYS_PRACT_PRACTITIONER_IDE on RHN_SYS_PRACT (ID_TNT, HASH_IDENT
 create index IDX_SYS_PRINT_JOB_PRINT_JOB_OU on RHN_SYS_PRINT_JOB (ID_TNT, ID_PRINT_OUTPUT, DT_REQUESTED);
 create index IDX_SYS_PRINT_OUTP_PRINT_OUTPU on RHN_SYS_PRINT_OUTPUT (ID_TNT, SD_SRC_TYPE, ID_SRC, DT_GENERATED);
 create index IDX_SYS_PRINT_OUTP_PRINT_OUT_1 on RHN_SYS_PRINT_OUTPUT (ID_TNT, ID_ENC, DT_GENERATED);
-create unique index IDX_SYS_ROLE_PERM_UK_ROLE_PERM on RHN_SYS_ROLE_PERM_ASSIGN (ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, SYS_EXTRACT_UTC(VALID_FROM));
+create unique index IDX_SYS_ROLE_PERM_UK_ROLE_PERM on RHN_SYS_ROLE_PERM_ASSIGN (ID_TNT, ID_ACC_ROLE, ID_ACC_PERM, SYS_EXTRACT_UTC(DT_VALID_FROM));
 create index IDX_SYS_ROLE_PERM_ROLE_PERMISS on RHN_SYS_ROLE_PERM_ASSIGN (ID_TNT, ID_ACC_ROLE, DT_VALID_FROM, DT_VALID_TO);
 create index IDX_SYS_STAFF_ASSI_ASSIGNMENT_ on RHN_SYS_STAFF_ASSIGN (ID_TNT, ID_EMPL, SD_STATUS, FG_PRIMARY_ASSIGN);
 create index IDX_SYS_STAFF_ASSI_ASSIGNMEN_1 on RHN_SYS_STAFF_ASSIGN (ID_TNT, ID_ORG, SD_STATUS, FG_PRIMARY_ASSIGN);
 create index IDX_SYS_STAFF_ASSI_ASSIGNMEN_2 on RHN_SYS_STAFF_ASSIGN (ID_TNT, ID_DEPT, SD_STATUS, FG_PRIMARY_ASSIGN);
 create index IDX_SYS_SVC_RSRC_SCHED_RESOURC on RHN_SYS_SVC_RSRC (ID_TNT, ID_ORG, ID_DEPT, SD_STATUS, ID_PRACT);
-create unique index IDX_SYS_USER_ROLE_UK_USER_ROLE on RHN_SYS_USER_ROLE_ASSIGN (ID_TNT, ID_USER, ID_ACC_ROLE, ID_ORG, ID_DEPT, SYS_EXTRACT_UTC(VALID_FROM));
+create unique index IDX_SYS_USER_ROLE_UK_USER_ROLE on RHN_SYS_USER_ROLE_ASSIGN (ID_TNT, ID_USER, ID_ACC_ROLE, ID_ORG, ID_DEPT, SYS_EXTRACT_UTC(DT_VALID_FROM));
 create index IDX_SYS_USER_ROLE_USER_ROLE_CU on RHN_SYS_USER_ROLE_ASSIGN (ID_TNT, ID_USER, DT_VALID_FROM, DT_VALID_TO);
 create index IDX_SYS_WORK_TASK_WORK_TASK_QU on RHN_SYS_WORK_TASK (ID_TNT, ID_ORG, ID_DEPT, SD_STATUS, SD_PRIORITY, DT_DUE);
 create index IDX_SYS_WORK_TASK_WORK_TASK_AS on RHN_SYS_WORK_TASK (ID_TNT, SD_ASSIGNEE_TYPE, ID_USER_ASSIGNEE, SD_STATUS);
@@ -10548,38 +10596,63 @@ comment on column RHN_SC_PAT_REG.DT_REGISTERED is 'registered时间';
 comment on column RHN_SC_PAT_REG.ID_USER_REGISTERED is 'registered人标识';
 comment on column RHN_SC_PAT_REG.DT_STARTED is '开始时间';
 comment on column RHN_SC_PAT_REG.DT_COMPLETED is '完成时间';
-comment on table RHN_SC_QUEUE_COUNT is '队列计数器；一行代表一条队列计数器记录';
+comment on table RHN_SC_SVC_QUEUE is '服务队列；一行代表一个可独立编号和调度的服务队列';
+comment on column RHN_SC_SVC_QUEUE.ID_SVC_QUEUE is '服务队列主键';
+comment on column RHN_SC_SVC_QUEUE.REVISION is '乐观锁修订号';
+comment on column RHN_SC_SVC_QUEUE.ID_TNT is '租户标识';
+comment on column RHN_SC_SVC_QUEUE.ID_ORG is '机构标识';
+comment on column RHN_SC_SVC_QUEUE.ID_DEPT is '科室标识';
+comment on column RHN_SC_SVC_QUEUE.ID_SVC_LOC_WAITING is '候诊服务位置标识';
+comment on column RHN_SC_SVC_QUEUE.CD_SVC_QUEUE is '服务队列编码';
+comment on column RHN_SC_SVC_QUEUE.NA_SVC_QUEUE is '服务队列名称';
+comment on column RHN_SC_SVC_QUEUE.SD_SCENE is '排队业务场景';
+comment on column RHN_SC_SVC_QUEUE.CD_TICKET_PREFIX is '票号前缀';
+comment on column RHN_SC_SVC_QUEUE.FG_ACTIVE is '是否有效';
+comment on column RHN_SC_SVC_QUEUE.DT_CREATED is '创建时间';
+comment on column RHN_SC_SVC_QUEUE.ID_USER_CREATED is '创建人标识';
+comment on column RHN_SC_SVC_QUEUE.DT_UPDATED is '更新时间';
+comment on column RHN_SC_SVC_QUEUE.ID_USER_UPDATED is '更新人标识';
+comment on table RHN_SC_QUEUE_COUNT is '队列计数器；一行代表一个服务队列在一个业务日期的发号进度';
 comment on column RHN_SC_QUEUE_COUNT.ID_QUEUE_COUNT is '队列计数器主键';
 comment on column RHN_SC_QUEUE_COUNT.REVISION is '乐观锁修订号';
 comment on column RHN_SC_QUEUE_COUNT.ID_TNT is '租户标识';
-comment on column RHN_SC_QUEUE_COUNT.CD_QUEUE is '队列编码';
-comment on column RHN_SC_QUEUE_COUNT.DA_QUEUE is '队列日期';
+comment on column RHN_SC_QUEUE_COUNT.ID_SVC_QUEUE is '服务队列标识';
+comment on column RHN_SC_QUEUE_COUNT.DA_BUSINESS is '业务日期';
 comment on column RHN_SC_QUEUE_COUNT.SN_NEXT is '下一序号';
-comment on table RHN_SC_QUEUE_TICKET is '队列票号；一行代表一条队列票号记录';
+comment on table RHN_SC_QUEUE_TICKET is '排队号票；一行代表一名患者一次进入一个服务队列';
 comment on column RHN_SC_QUEUE_TICKET.ID_QUEUE_TICKET is '队列票号主键';
 comment on column RHN_SC_QUEUE_TICKET.REVISION is '乐观锁修订号';
 comment on column RHN_SC_QUEUE_TICKET.ID_TNT is '租户标识';
-comment on column RHN_SC_QUEUE_TICKET.ID_PAT_REG is '挂号标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_SVC_QUEUE is '服务队列标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_PAT is '患者标识';
+comment on column RHN_SC_QUEUE_TICKET.ID_ENC is '就诊标识';
+comment on column RHN_SC_QUEUE_TICKET.SD_SOURCE_TYPE is '来源业务类型';
+comment on column RHN_SC_QUEUE_TICKET.ID_SOURCE is '来源业务聚合标识';
 comment on column RHN_SC_QUEUE_TICKET.CD_IDEMP is '幂等编码';
-comment on column RHN_SC_QUEUE_TICKET.CD_QUEUE is '队列编码';
-comment on column RHN_SC_QUEUE_TICKET.DA_QUEUE is '队列日期';
-comment on column RHN_SC_QUEUE_TICKET.CD_TICKET_NO is '票号编号';
-comment on column RHN_SC_QUEUE_TICKET.SN_SEQUENCE is '序号编号';
-comment on column RHN_SC_QUEUE_TICKET.SD_PRIORITY is '优先级';
+comment on column RHN_SC_QUEUE_TICKET.DA_BUSINESS is '业务日期';
+comment on column RHN_SC_QUEUE_TICKET.CD_TICKET is '票号编码';
+comment on column RHN_SC_QUEUE_TICKET.SN_SEQUENCE is '队内原始序号';
+comment on column RHN_SC_QUEUE_TICKET.SN_PRIORITY is '调度优先级';
 comment on column RHN_SC_QUEUE_TICKET.SD_STATUS is '状态';
-comment on column RHN_SC_QUEUE_TICKET.DT_QUEUED is 'queued时间';
-comment on column RHN_SC_QUEUE_TICKET.DT_CALLED is 'called时间';
-comment on column RHN_SC_QUEUE_TICKET.DT_COMPLETED is '完成时间';
-comment on table RHN_SC_QUEUE_TICKET_EVT is '队列票号事件；一行代表一条队列票号事件记录';
+comment on column RHN_SC_QUEUE_TICKET.DT_CHECKED_IN is '签到时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_READY is '可呼叫时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_CALLED is '最近叫号时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_STARTED is '开始服务时间';
+comment on column RHN_SC_QUEUE_TICKET.DT_COMPLETED is '结束时间';
+comment on column RHN_SC_QUEUE_TICKET.QTY_CALL is '叫号次数';
+comment on column RHN_SC_QUEUE_TICKET.QTY_MISSED is '过号次数';
+comment on column RHN_SC_QUEUE_TICKET.ID_SVC_LOC_CURRENT is '当前服务位置标识';
+comment on table RHN_SC_QUEUE_TICKET_EVT is '排队号票事件；一行代表一次不可变的号票业务动作';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_QUEUE_TICKET_EVT is '队列票号事件主键';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_TNT is '租户标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_QUEUE_TICKET is '队列票号标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.SD_EVT_TYPE is '事件类型';
-comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_FROM is '状态原';
-comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_TO is '状态目标';
+comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_FROM is '变更前状态';
+comment on column RHN_SC_QUEUE_TICKET_EVT.SD_STATUS_TO is '变更后状态';
 comment on column RHN_SC_QUEUE_TICKET_EVT.CD_COMMAND is '命令编码';
 comment on column RHN_SC_QUEUE_TICKET_EVT.DT_OCCURRED is '发生时间';
 comment on column RHN_SC_QUEUE_TICKET_EVT.ID_USER_OCCURRED is '发生人标识';
+comment on column RHN_SC_QUEUE_TICKET_EVT.ID_SVC_LOC is '动作发生或目标服务位置标识';
 comment on column RHN_SC_QUEUE_TICKET_EVT.DES_QUEUE_TICKET_EVT is '说明';
 comment on table RHN_SC_SCHED_EXCEPT is '排班例外；一行代表一条排班例外记录';
 comment on column RHN_SC_SCHED_EXCEPT.ID_SCHED_EXCEPT is '排班例外主键';

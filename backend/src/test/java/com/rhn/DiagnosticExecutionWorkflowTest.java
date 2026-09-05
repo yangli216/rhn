@@ -111,7 +111,7 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
         String tail = ("0000" + digits).substring(("0000" + digits).length() - 4);
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"医技闭环测试居民","nationalId":"33010219920808%s",
+                                {"fullName":"医技闭环测试居民","identifiers":[{"system":"9","value":"DIAG-%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-08-08"}
                                 """.formatted(tail)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();

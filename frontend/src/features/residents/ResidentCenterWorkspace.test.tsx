@@ -200,7 +200,7 @@ describe('ResidentCenterWorkspace', () => {
     })
 
     const idInput = screen.getByPlaceholderText(/录入18位身份证/)
-    fireEvent.change(idInput, { target: { value: '330102199008151234' } })
+    fireEvent.change(idInput, { target: { value: '33010219900815123X' } })
 
     await waitFor(() => {
       const birthDateInput = screen.getByLabelText(/出生日期/) as HTMLInputElement
@@ -210,7 +210,7 @@ describe('ResidentCenterWorkspace', () => {
     // Also check that coverage is synced
     await waitFor(() => {
       const memberNoInput = screen.getByPlaceholderText(/自动关联社保卡或身份证/) as HTMLInputElement
-      expect(memberNoInput.value).toBe('330102199008151234')
+      expect(memberNoInput.value).toBe('33010219900815123X')
     })
   })
 })

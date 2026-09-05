@@ -19,6 +19,7 @@ import com.rhn.platform.masterdata.application.MasterDataApplicationService;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionInput;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceInput;
+import com.rhn.shared.api.PageResult;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
@@ -66,6 +67,16 @@ public class MasterDataController {
         return service.listServices(query, serviceType, status, organizationId);
     }
 
+    @GetMapping("/services/search")
+    PageResult<ServiceView> searchServices(@RequestParam(required = false) String query,
+                                           @RequestParam(required = false) String serviceType,
+                                           @RequestParam(required = false) String status,
+                                           @RequestParam(required = false) Long organizationId,
+                                           @RequestParam(defaultValue = "0") @Min(0) int page,
+                                           @RequestParam(defaultValue = "20") @Min(10) int size) {
+        return service.searchServices(query, serviceType, status, organizationId, page, size);
+    }
+
     @PostMapping("/services")
     @ResponseStatus(HttpStatus.CREATED)
     ServiceView createService(@Valid @RequestBody ServiceRequest request,
@@ -91,6 +102,16 @@ public class MasterDataController {
                                      @RequestParam(required = false) String status,
                                      @RequestParam(required = false) Long organizationId) {
         return service.listMedications(query, medicationType, status, organizationId);
+    }
+
+    @GetMapping("/medications/search")
+    PageResult<MedicationView> searchMedications(@RequestParam(required = false) String query,
+                                                  @RequestParam(required = false) String medicationType,
+                                                  @RequestParam(required = false) String status,
+                                                  @RequestParam(required = false) Long organizationId,
+                                                  @RequestParam(defaultValue = "0") @Min(0) int page,
+                                                  @RequestParam(defaultValue = "20") @Min(10) int size) {
+        return service.searchMedications(query, medicationType, status, organizationId, page, size);
     }
 
     @PostMapping("/medications")

@@ -37,7 +37,7 @@ const visitTypes = {
 const receptionStatuses = {
   code: 'SC_RECEPTION_STATUS', name: '门诊候诊状态', items: [
     { code: 'WAITING', name: '候诊中', sortOrder: 10 },
-    { code: 'IN_SERVICE', name: '接诊中', sortOrder: 20 },
+    { code: 'SERVING', name: '接诊中', sortOrder: 20 },
     { code: 'COMPLETED', name: '已诊毕', sortOrder: 30 },
     { code: 'CANCELLED', name: '已取消', sortOrder: 40 },
   ],

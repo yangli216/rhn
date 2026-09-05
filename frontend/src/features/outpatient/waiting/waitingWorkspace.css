@@ -1,0 +1,1518 @@
+/* ==========================================================================
+   新一代门诊智能候诊工作台 (Smart Waiting & Triage Workspace) 样式体系
+   包含：独立候诊全景大厅、全局叫号中枢条、高密度候诊卡片流、
+        接诊态微型胶囊栏 (Mini Pill)、悬浮展开操作岛 (Floating Action Pod)、
+        侧拉透视抽屉 (Queue Peek Drawer)、接诊前 30s 临床画像卡
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 独立候诊全景工作台 (DedicatedWaitingWorkspace)
+   -------------------------------------------------------------------------- */
+.dedicated-waiting-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* 头部全景状态栏 */
+.waiting-workspace-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.topbar-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.topbar-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.topbar-chip strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.doctor-status-toggle {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doctor-status-toggle.is-active {
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+  color: var(--color-success);
+}
+
+.doctor-status-toggle.is-paused {
+  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
+  color: var(--color-warning);
+}
+
+/* --------------------------------------------------------------------------
+   2. 全局叫号中枢条 (CallingControlHub)
+   -------------------------------------------------------------------------- */
+.calling-hub {
+  position: relative;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-surface)) 0%, var(--color-surface) 100%);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, var(--color-border));
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.calling-hub__main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.calling-hub__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.calling-hub__btn-primary {
+  min-width: 14rem;
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+.calling-hub__status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.calling-broadcast-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  border: 1px solid var(--color-border);
+}
+
+.calling-broadcast-indicator.is-calling {
+  background: color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-strong);
+}
+
+.calling-broadcast-indicator.is-inservice {
+  background: color-mix(in srgb, var(--color-success) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 35%, transparent);
+  color: var(--color-success);
+}
+
+.calling-broadcast-indicator.is-idle {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  box-shadow: 0 0 0 rgba(14, 116, 144, 0.4);
+  animation: pulse-ring 1.5s infinite;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.status-dot.tone-success {
+  background: var(--color-success);
+}
+
+.status-dot.tone-neutral {
+  background: var(--color-text-tertiary);
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-brand-primary) 70%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.calling-dispatch-hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.hint-pill {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: var(--color-surface-subtle);
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+.calling-settings-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem 0.6rem;
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calling-settings-trigger:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-primary);
+}
+
+/* 叫号规则设置 Popover */
+.calling-settings-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 16px;
+  width: 22rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 90;
+  padding: var(--space-4);
+  animation: popover-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes popover-fade-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.calling-settings-popover__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calling-settings-popover__header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.settings-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 2px;
+}
+
+.calling-settings-popover__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.settings-field label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-small);
+}
+
+.settings-field label small {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.ratio-selector {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.ratio-btn {
+  flex: 1;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ratio-btn.is-active {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-bold);
+}
+
+.settings-switch {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   3. 多队列分流 Tab 与搜索过滤栏
+   -------------------------------------------------------------------------- */
+.waiting-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.waiting-tabs {
+  display: flex;
+  gap: var(--space-1);
+  background: var(--color-surface);
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.waiting-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.waiting-tab-btn:hover {
+  color: var(--color-text-primary);
+  background: var(--color-surface-subtle);
+}
+
+.waiting-tab-btn.is-active {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-bold);
+}
+
+.waiting-tab-btn--return.is-active {
+  background: #f3e8ff;
+  color: #6b21a8;
+}
+
+.waiting-tab-btn--priority.is-active {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tab-badge {
+  display: inline-block;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-semibold);
+}
+
+.waiting-tab-btn.is-active .tab-badge {
+  background: var(--color-brand-primary);
+  color: white;
+}
+
+.tab-badge--purple {
+  background: #eedefc;
+  color: #7e22ce;
+}
+
+.waiting-tab-btn--return.is-active .tab-badge--purple {
+  background: #7e22ce;
+  color: white;
+}
+
+.tab-badge--gold {
+  background: #fde68a;
+  color: #b45309;
+}
+
+.waiting-tab-btn--priority.is-active .tab-badge--gold {
+  background: #b45309;
+  color: white;
+}
+
+.waiting-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 16rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+}
+
+.waiting-search-box .ui-icon {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.waiting-search-box input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.5rem var(--space-2);
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.clear-search-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   4. 高密度候诊卡片流 (Waiting Cards)
+   -------------------------------------------------------------------------- */
+.waiting-card-container {
+  width: 100%;
+}
+
+.waiting-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.waiting-card {
+  display: grid;
+  grid-template-columns: 5.5rem 1fr auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.waiting-card:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border));
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+}
+
+.waiting-card.is-calling {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.waiting-card.has-critical-vitals {
+  border-left: 4px solid var(--color-danger);
+}
+
+/* 票号列 */
+.waiting-card__ticket-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.waiting-card__ticket-badge {
+  display: inline-block;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-bold);
+  font-size: 1.1rem;
+  letter-spacing: 0.02em;
+  text-align: center;
+  width: 100%;
+}
+
+.waiting-card__seq {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.waiting-card__called-count {
+  font-size: 0.68rem;
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
+/* 卡片主内容 */
+.waiting-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.waiting-card__header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.patient-identity {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.patient-name {
+  font-size: 1.05rem;
+  color: var(--color-text-primary);
+}
+
+.patient-demographics {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.card-badge-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.clinical-pulse-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-bold);
+}
+
+.clinical-pulse-badge.is-critical {
+  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  color: var(--color-danger);
+  animation: pulse-danger 1.8s infinite;
+}
+
+.clinical-pulse-badge.is-urgent {
+  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  color: var(--color-warning);
+}
+
+@keyframes pulse-danger {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.category-pill {
+  display: inline-block;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+}
+
+.category-pill--return {
+  background: #f3e8ff;
+  color: #7e22ce;
+  border: 1px solid #d8b4fe;
+}
+
+.category-pill--priority {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
+}
+
+.category-pill--chronic {
+  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  color: var(--color-brand-strong);
+}
+
+/* 分诊生命体征行 */
+.waiting-card__vitals-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  flex-wrap: wrap;
+}
+
+.vitals-label {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.vital-val.is-danger {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}
+
+.vital-sep {
+  color: var(--color-border);
+}
+
+.vitals-alert-text {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-medium);
+}
+
+/* AI 摘要行 */
+.waiting-card__ai-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.82rem;
+}
+
+.ai-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #7c3aed;
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+}
+
+.ai-text {
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 报告就绪度行 */
+.waiting-card__reports-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+}
+
+.report-badge-pill {
+  color: #6b21a8;
+  font-weight: var(--font-weight-semibold);
+}
+
+.report-item-tag {
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+.report-item-tag.is-abnormal {
+  color: var(--color-danger);
+  background: color-mix(in srgb, var(--color-danger) 10%, transparent);
+}
+
+/* 底部元数据 */
+.waiting-card__footer-meta {
+  display: flex;
+  gap: var(--space-4);
+  font-size: 0.75rem;
+  color: var(--color-text-tertiary);
+}
+
+/* 卡片操作区 */
+.waiting-card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------------------
+   5. 接诊态微型胶囊栏 (QueueCapsuleBar) & 悬浮控制岛 (Floating Action Pod)
+   -------------------------------------------------------------------------- */
+.queue-capsule-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 微型胶囊药丸 (高度 26~28px，零空间侵占) */
+.queue-mini-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 0.5rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.queue-mini-pill:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-subtle);
+}
+
+.queue-mini-pill.is-active {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.queue-mini-pill.is-pulsing-critical {
+  border-color: var(--color-danger);
+  animation: pill-pulse 1.8s infinite;
+}
+
+@keyframes pill-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-danger) 60%, transparent); }
+  70% { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.pill-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0.4rem;
+  border-right: 1px solid var(--color-border);
+}
+
+.pill-segment:last-child {
+  border-right: none;
+  padding-right: 0;
+}
+
+.pill-segment strong {
+  font-weight: var(--font-weight-bold);
+}
+
+.pill-segment--return {
+  color: #7e22ce;
+}
+
+.pill-segment--critical {
+  color: var(--color-danger);
+}
+
+.pill-segment--action {
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.dot-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dot-indicator.tone-purple { background: #9333ea; }
+.dot-indicator.tone-danger { background: var(--color-danger); }
+
+.chevron {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s;
+}
+
+.chevron.is-expanded {
+  transform: rotate(180deg);
+}
+
+/* 悬浮展开控制岛 (Floating Action Pod) */
+.floating-action-pod {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 28rem;
+  background: color-mix(in srgb, var(--color-surface) 95%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  padding: var(--space-4);
+  animation: pod-slide-down 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pod-slide-down {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.pod-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.pod-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+}
+
+.pod-shortcut {
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  color: var(--color-text-secondary);
+}
+
+.pod-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+}
+
+.pod-distribution-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.4rem 0.6rem;
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-3);
+}
+
+.pod-distribution-bar .sep {
+  color: var(--color-border);
+}
+
+.pod-distribution-bar .color-purple { color: #7e22ce; font-weight: var(--font-weight-medium); }
+.pod-distribution-bar .color-gold { color: #b45309; font-weight: var(--font-weight-medium); }
+
+/* 下一位预备患者简报卡 */
+.pod-candidate-card {
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border));
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.candidate-badge {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.75rem;
+  margin-bottom: var(--space-2);
+}
+
+.badge-tag {
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-primary);
+}
+
+.badge-rule {
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+}
+
+.candidate-main-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.candidate-ticket {
+  padding: 0.15rem 0.4rem;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.9rem;
+}
+
+.candidate-name {
+  font-size: 1rem;
+}
+
+.candidate-demographics {
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+}
+
+.critical-tag {
+  font-size: 0.72rem;
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+}
+
+.return-tag {
+  font-size: 0.72rem;
+  color: #7e22ce;
+  font-weight: var(--font-weight-bold);
+}
+
+.candidate-vitals-line {
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+.candidate-vitals-line .sep {
+  margin: 0 0.25rem;
+}
+
+.color-danger {
+  color: var(--color-danger);
+}
+
+.candidate-ai-quote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.78rem;
+  color: #6b21a8;
+  background: #fdf4ff;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--radius-sm);
+}
+
+/* 控制操作组 */
+.pod-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.pod-btn-primary {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.pod-footer {
+  text-align: center;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.pod-drawer-trigger {
+  background: transparent;
+  border: none;
+  color: var(--color-brand-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.pod-drawer-trigger:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   6. 候诊透视抽屉 (QueuePeekDrawer)
+   -------------------------------------------------------------------------- */
+.peek-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(2px);
+  z-index: 200;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.peek-drawer {
+  width: 32rem;
+  max-width: 90vw;
+  height: 100%;
+  background: var(--color-surface);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  animation: drawer-slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes drawer-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.peek-drawer__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.drawer-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.drawer-title-group h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.drawer-title-group small {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.drawer-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 4px;
+}
+
+.peek-drawer__filter-section {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.drawer-search {
+  display: flex;
+  align-items: center;
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+}
+
+.drawer-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 0.4rem var(--space-2);
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.drawer-tabs {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+}
+
+.drawer-tab-btn {
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.drawer-tab-btn.is-active {
+  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-bold);
+}
+
+.drawer-tab-btn--return.is-active {
+  background: #f3e8ff;
+  border-color: #9333ea;
+  color: #6b21a8;
+}
+
+.drawer-tab-btn--priority.is-active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #92400e;
+}
+
+.peek-drawer__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.drawer-patient-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.drawer-patient-card {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.drawer-patient-card.is-current-active {
+  border-color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 4%, var(--color-surface));
+}
+
+.drawer-patient-card.has-critical-alert {
+  border-left: 3px solid var(--color-danger);
+}
+
+.drawer-card-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.drawer-card-ticket {
+  padding: 0.1rem 0.35rem;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-bold);
+  font-size: 0.82rem;
+}
+
+.drawer-card-name {
+  font-size: 0.95rem;
+}
+
+.drawer-card-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.current-badge {
+  font-size: 0.7rem;
+  background: color-mix(in srgb, var(--color-success) 15%, transparent);
+  color: var(--color-success);
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  font-weight: var(--font-weight-bold);
+}
+
+.pill-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+}
+
+.pill-tag--purple { background: #f3e8ff; color: #7e22ce; }
+.pill-tag--danger { background: color-mix(in srgb, var(--color-danger) 15%, transparent); color: var(--color-danger); font-weight: bold; }
+
+.drawer-card-vitals {
+  display: flex;
+  gap: var(--space-3);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.drawer-card-ai {
+  font-size: 0.78rem;
+  color: #6b21a8;
+  margin: 0;
+}
+
+.drawer-card-reports {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.drawer-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.current-label {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  font-weight: var(--font-weight-medium);
+}
+
+/* --------------------------------------------------------------------------
+   7. 接诊前 30 秒临床画像卡 (PreEncounterBriefingCard)
+   -------------------------------------------------------------------------- */
+.briefing-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.briefing-card {
+  width: 42rem;
+  max-width: 95vw;
+  max-height: 88vh;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: briefing-scale-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes briefing-scale-up {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.briefing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+.briefing-header__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.briefing-ticket {
+  display: grid;
+  place-items: center;
+  padding: 0.4rem 0.7rem;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-size: 1.2rem;
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+}
+
+.briefing-header__title h3 {
+  margin: 0 0 var(--space-1) 0;
+  font-size: 1.2rem;
+}
+
+.briefing-meta {
+  margin-left: var(--space-2);
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+  font-weight: normal;
+}
+
+.briefing-tags {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.briefing-tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: var(--radius-sm);
+}
+
+.briefing-tag--chronic { background: #e0f2fe; color: #0369a1; }
+.briefing-tag--return { background: #f3e8ff; color: #7e22ce; }
+
+.briefing-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  padding: 4px;
+}
+
+.briefing-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.briefing-section {
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.briefing-section__title {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.briefing-alert-text {
+  color: var(--color-danger);
+  font-weight: normal;
+}
+
+.briefing-vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+.vitals-item {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.vitals-item span {
+  font-size: 0.72rem;
+  color: var(--color-text-secondary);
+}
+
+.vitals-item strong {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+}
+
+.vitals-item.is-abnormal strong {
+  color: var(--color-danger);
+}
+
+.briefing-ai-summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.briefing-ai-quote {
+  font-size: 0.85rem;
+  color: #6b21a8;
+  background: #faf5ff;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid #9333ea;
+}
+
+.briefing-ai-draft {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.briefing-symptoms {
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.symptom-chip {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.briefing-alert-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.briefing-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.82rem;
+}
+
+.briefing-list--danger {
+  color: #b91c1c;
+}
+
+.briefing-risks {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.risk-badge {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+.briefing-two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.briefing-empty-text {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.briefing-report-items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.report-pill {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0.6rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+}
+
+.report-pill.is-abnormal {
+  border-left: 3px solid var(--color-danger);
+  background: #fef2f2;
+}
+
+.briefing-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+
+/* --------------------------------------------------------------------------
+   8. AI 预问诊一键采纳横幅 (AI Pre-Consultation Adoption Banner in Record)
+   -------------------------------------------------------------------------- */
+.ai-preconsultation-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+  border: 1px solid #c4b5fd;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  animation: banner-fade-in 0.25s ease;
+}
+
+@keyframes banner-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-banner-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.85rem;
+  color: #5b21b6;
+}
+
+.ai-banner-content .ui-icon {
+  font-size: 1.2rem;
+  color: #7c3aed;
+  flex-shrink: 0;
+}
+
+.ai-banner-content strong {
+  display: block;
+  font-size: 0.88rem;
+  color: #4c1d95;
+}
+
+.ai-banner-content span {
+  display: block;
+  font-size: 0.78rem;
+  color: #6d28d9;
+}
+
+.ai-banner-actions {
+  flex-shrink: 0;
+}

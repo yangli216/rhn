@@ -30,7 +30,7 @@ class OutpatientEncounterTerminationTest extends RhnIntegrationTestSupport {
         String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"门诊终止患者%s","nationalId":"33010219911212%s",
+                                {"fullName":"门诊终止患者%s","identifiers":[{"system":"9","value":"33010219911212%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1991-12-12"}
                                 """.formatted(suffix, digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
@@ -85,7 +85,7 @@ class OutpatientEncounterTerminationTest extends RhnIntegrationTestSupport {
                         .queryParam("date", LocalDate.now().toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.encounterId == '%s')].status".formatted(encounterId))
-                        .value("TERMINATED"));
+                        .value("COMPLETED"));
         mockMvc.perform(get("/api/outpatient-flow").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.visits[?(@.encounterId == '%s')].flowStatus".formatted(encounterId))

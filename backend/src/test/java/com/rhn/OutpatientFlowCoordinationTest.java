@@ -348,7 +348,7 @@ class OutpatientFlowCoordinationTest extends RhnIntegrationTestSupport {
         String digits = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
         return json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
-                                {"fullName":"门诊流转测试居民","nationalId":"33010219930808%s",
+                                {"fullName":"门诊流转测试居民","identifiers":[{"system":"9","value":"33010219930808%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1993-08-08"}
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
