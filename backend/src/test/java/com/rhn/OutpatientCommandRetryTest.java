@@ -44,9 +44,9 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
                             .contentType(MediaType.APPLICATION_JSON).content(start))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
         }
-        assertEquals(1, count("encounter_identity_checks", encounterId));
+        assertEquals(1, count("RHN_VIS_ENC_IDENT_CHECK", encounterId));
         assertEquals(1, statusEventCount(encounterId, "IN_PROGRESS"));
-        assertEquals(1, count("encounter_work_sessions", encounterId));
+        assertEquals(1, count("RHN_VIS_ENC_WORK_SESSION", encounterId));
 
         String suspend = """
                 {"commandCode":"RETRY-SUSPEND-%s","reason":"等待检查结果"}
@@ -66,7 +66,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
         }
         assertEquals(1, statusEventCount(encounterId, "SUSPENDED"));
         assertEquals(2, statusEventCount(encounterId, "IN_PROGRESS"));
-        assertEquals(2, count("encounter_work_sessions", encounterId));
+        assertEquals(2, count("RHN_VIS_ENC_WORK_SESSION", encounterId));
 
         String record = """
                 {"commandCode":"RETRY-RECORD-%s","chiefComplaint":"头晕三天",
@@ -88,8 +88,8 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
                 select count(*) from RHN_VIS_CLIN_DOC_VER v join RHN_VIS_CLIN_DOC d
                   on d.ID_TNT=v.ID_TNT and d.ID_CLIN_DOC=v.ID_CLIN_DOC where d.ID_ENC=?
                 """, Integer.class, Long.valueOf(encounterId)));
-        assertEquals(2, count("observations", encounterId));
-        assertEquals(1, count("encounter_diagnosis_revisions", encounterId));
+        assertEquals(2, count("RHN_VIS_OBS", encounterId));
+        assertEquals(1, count("RHN_VIS_ENC_DIAG_REV", encounterId));
 
         String documentId = json(mockMvc.perform(get("/api/clinical-documents").param("encounterId", encounterId)
                         .with(rhnWorkContext())).andExpect(status().isOk())
@@ -119,7 +119,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
     }
 
     private int count(String table, String encounterId) {
-        return jdbcTemplate.queryForObject("select count(*) from " + table + " where encounter_id=?",
+        return jdbcTemplate.queryForObject("select count(*) from " + table + " where ID_ENC=?",
                 Integer.class, Long.valueOf(encounterId));
     }
 

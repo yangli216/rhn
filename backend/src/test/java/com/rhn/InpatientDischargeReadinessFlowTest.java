@@ -209,17 +209,17 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.diagnoses.length()").value(1))
                 .andExpect(jsonPath("$.diagnoses[0].display").value("社区获得性肺炎"));
         org.junit.jupiter.api.Assertions.assertEquals(2, jdbcTemplate.queryForObject(
-                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select ID_ENC from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE' and SD_DIAG_STATUS='ACTIVE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select ID_ENC from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE' and SD_DIAG_STATUS='ACTIVE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(4, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_VIS_ENC_DIAG_REV where ID_ENC = "
-                        + "(select ID_ENC as id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and diagnosis_stage='DISCHARGE'",
+                        + "(select ID_ENC from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='DISCHARGE'",
                 Integer.class, Long.valueOf(episodeId)));
         org.junit.jupiter.api.Assertions.assertEquals(1, jdbcTemplate.queryForObject(
-                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select id from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='ADMISSION' and SD_DIAG_STATUS='ACTIVE'",
+                "select count(*) from RHN_VIS_ENC_DIAG where ID_ENC = (select ID_ENC from RHN_VIS_ENC where ID_CARE_EPISODE=?) and SD_DIAG_STAGE='ADMISSION' and SD_DIAG_STATUS='ACTIVE'",
                 Integer.class, Long.valueOf(episodeId)));
     }
 

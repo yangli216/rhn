@@ -17,7 +17,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                         .queryParam("query", "195501010000"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].healthRecordNo").value("RHN-LEGACY-0001"))
-                .andExpect(jsonPath("$[0].identifiers[0].system").value("NATIONAL_ID"));
+                .andExpect(jsonPath("$[0].identifiers[0].system").value("1"));
 
         String survivorId = createResident("陈晨", "330102196601011111", null);
         String duplicateId = createResident("陈晨", null, """

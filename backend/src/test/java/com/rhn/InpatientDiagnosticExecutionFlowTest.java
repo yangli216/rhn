@@ -52,9 +52,9 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                 command(1, "IP-DX-VERIFY"), 200);
         assertEquals(1, count("select count(*) from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?", requestId));
         assertEquals(1, count("select count(*) from RHN_INT_OUTBOX_EVT where ID_AGGREGATE = ? "
-                + "and event_type = 'INPATIENT_SERVICE_REQUEST_ACTIVATED'", requestId));
+                + "and SD_EVT_TYPE = 'INPATIENT_SERVICE_REQUEST_ACTIVATED'", requestId));
         assertEquals(jdbcTemplate.queryForObject("select ID_DEPT_DEFAULT as default_department_id from RHN_BD_ORG_CATALOG_ITEM "
-                        + "where tenant_id = ? and organization_id = ? and catalog_item_id = ? and status = 'ACTIVE'",
+                        + "where ID_TNT = ? and ID_ORG = ? and ID_CATALOG_ITEM = ? and SD_STATUS = 'ACTIVE'",
                 Long.class, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(SERVICE_ITEM)),
                 jdbcTemplate.queryForObject("select ID_DEPT_PERFORMER as performer_department_id from RHN_EX_CARE_REQ where ID_CARE_REQ = ?",
                         Long.class, Long.valueOf(requestId)));
@@ -117,9 +117,9 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-DX-EXECUTE"}
                 """, 200);
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'INPATIENT_ORDER_TASK'", requestId));
+                + "and SD_SRC_TYPE = 'INPATIENT_ORDER_TASK'", requestId));
         assertEquals(0, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'SERVICE_REQUEST'", requestId));
+                + "and SD_SRC_TYPE = 'SERVICE_REQUEST'", requestId));
 
         JsonNode treatmentOrder = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
@@ -158,9 +158,9 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-TR-EXECUTE"}
                 """, 200);
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'INPATIENT_ORDER_TASK'", treatmentRequestId));
+                + "and SD_SRC_TYPE = 'INPATIENT_ORDER_TASK'", treatmentRequestId));
         assertEquals(0, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'SERVICE_REQUEST'", treatmentRequestId));
+                + "and SD_SRC_TYPE = 'SERVICE_REQUEST'", treatmentRequestId));
     }
 
     @Test

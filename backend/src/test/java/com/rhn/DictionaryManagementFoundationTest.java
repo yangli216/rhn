@@ -25,7 +25,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     void dictionary_self_enums_are_read_only_complete_and_reserved_from_ordinary_dictionaries() throws Exception {
         mockMvc.perform(get("/api/platform/dictionaries/system-enums").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(35))
+                .andExpect(jsonPath("$.length()").value(36))
                 .andExpect(jsonPath("$[0].code").value("DICT_SCOPE_TYPE"))
                 .andExpect(jsonPath("$[0].items[0].code").value("PLATFORM"))
                 .andExpect(jsonPath("$[0].items[1].code").value("TENANT"))
@@ -39,12 +39,13 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[13].code").value("PARAM_VALUE_MODE"))
                 .andExpect(jsonPath("$[15].code").value("PARAM_CHANGE_TARGET_TYPE"))
                 .andExpect(jsonPath("$[24].code").value("SC_SCHEDULE_MANAGEMENT_MODE"))
-                .andExpect(jsonPath("$[25].code").value("SC_PRESCRIPTION_REVIEW_MODE"))
-                .andExpect(jsonPath("$[30].code").value("SC_QUOTA_MODE"))
-                .andExpect(jsonPath("$[31].code").value("SC_VISIT_TYPE"))
-                .andExpect(jsonPath("$[32].code").value("SC_RECEPTION_STATUS"))
-                .andExpect(jsonPath("$[33].code").value("SC_APPOINTMENT_STATUS"))
-                .andExpect(jsonPath("$[34].code").value("SC_APPOINTMENT_SOURCE"));
+                .andExpect(jsonPath("$[25].code").value("SC_REGISTRATION_SCOPE"))
+                .andExpect(jsonPath("$[26].code").value("SC_PRESCRIPTION_REVIEW_MODE"))
+                .andExpect(jsonPath("$[31].code").value("SC_QUOTA_MODE"))
+                .andExpect(jsonPath("$[32].code").value("SC_VISIT_TYPE"))
+                .andExpect(jsonPath("$[33].code").value("SC_RECEPTION_STATUS"))
+                .andExpect(jsonPath("$[34].code").value("SC_APPOINTMENT_STATUS"))
+                .andExpect(jsonPath("$[35].code").value("SC_APPOINTMENT_SOURCE"));
 
         mockMvc.perform(get("/api/platform/dictionaries/system-enums/DICT_CHANGE_TYPE").with(rhn()))
                 .andExpect(status().isOk())
@@ -323,7 +324,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[?(@.code == 'ORGANIZATION_GOVERNANCE')].dictionaryCount").value(13))
                 .andExpect(jsonPath("$[?(@.code == 'DEPARTMENT_GOVERNANCE')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'PERSONNEL_GOVERNANCE')].dictionaryCount").value(5))
-                .andExpect(jsonPath("$[?(@.code == 'MASTER_DATA_GOVERNANCE')].dictionaryCount").value(3))
+                .andExpect(jsonPath("$[?(@.code == 'MASTER_DATA_GOVERNANCE')].dictionaryCount").value(6))
                 .andExpect(jsonPath("$[?(@.code == 'CLINICAL_SERVICE')].dictionaryCount").value(4))
                 .andExpect(jsonPath("$[?(@.code == 'MEDICATION')].dictionaryCount").value(4))
                 .andExpect(jsonPath("$[?(@.code == 'PRODUCT_SUPPLY')].dictionaryCount").value(6))
@@ -354,7 +355,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", "362387869796000").with(rhn()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(22));
+                .andExpect(jsonPath("$.length()").value(25));
 
         mockMvc.perform(get("/api/platform/dictionaries/resolve/{code}", "COMMON_YES_NO").with(rhn()))
                 .andExpect(status().isOk())

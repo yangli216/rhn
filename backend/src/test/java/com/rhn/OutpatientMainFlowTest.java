@@ -333,6 +333,15 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(suffix, suffix, item.get("id").asText(), bin.get("id").asText(),
                                 lot.get("id").asText(), Instant.now())))
                 .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/pharmacy/dispense-routes").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "organizationId":"%s","code":"OPD-ROUTE-%s","name":"门诊发药路由%s",
+                                  "careSetting":"OUTPATIENT","sourceDepartmentId":"%s",
+                                  "targetStockSiteId":"%s","active":true,"validFrom":"2026-01-01"
+                                }
+                                """.formatted(ORGANIZATION, suffix, suffix, DEPARTMENT, site.get("id").asText())))
+                .andExpect(status().isCreated());
         return new PharmacyFixture(item.get("id").asText());
     }
 

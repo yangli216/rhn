@@ -5,6 +5,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.annotation.DirtiesContext;
 import tools.jackson.databind.JsonNode;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -106,8 +107,8 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"requestCode":"%s","sourceCode":"OPENING-%s","stockItemId":"%s",
                                  "stockBinId":"%s","stockLotId":"%s","operationQuantity":%d,"unitCost":10,
-                                 "occurredAt":"2026-08-28T08:00:00Z"}
-                                """.formatted(requestCode, requestCode, itemId, binId, lotId, quantity)))
+                                 "occurredAt":"%s"}
+                                """.formatted(requestCode, requestCode, itemId, binId, lotId, quantity, Instant.now())))
                 .andExpect(status().isCreated());
     }
 }

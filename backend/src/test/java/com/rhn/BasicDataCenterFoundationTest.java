@@ -895,7 +895,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdAntimicrobialLevelText").value("限制使用级"))
                 .andExpect(jsonPath("$.defaultDose").value(0.25))
                 .andExpect(jsonPath("$.defaultDoseUnit").value("g"))
-                .andExpect(jsonPath("$.defaultRoute").value("PO"))
+                .andExpect(jsonPath("$.defaultRoute").value("ORAL"))
                 .andExpect(jsonPath("$.defaultFrequency").value("BID"));
     }
 
@@ -949,7 +949,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
-                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"口服",
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
@@ -985,7 +985,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
-                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"口服",
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
@@ -1005,7 +1005,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                   "sdAntimicrobialLevel":null,"skinTestRequired":false,
-                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"煎服",
+                                  "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"口服",
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }

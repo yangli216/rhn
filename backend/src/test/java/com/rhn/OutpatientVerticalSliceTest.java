@@ -76,7 +76,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.quantity").value(14))
                 .andExpect(jsonPath("$.baseQuantity").value(14))
                 .andExpect(jsonPath("$.doseValue").value(10))
-                .andExpect(jsonPath("$.routeCode").value("PO"))
+                .andExpect(jsonPath("$.routeCode").value("ORAL"))
                 .andExpect(jsonPath("$.frequencyCode").value("QD"))
                 .andReturn().getResponse().getContentAsString());
 
@@ -211,7 +211,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.localCode").value("DRUG-" + suffix))
                 .andExpect(jsonPath("$.doseValue").value(0.5))
                 .andExpect(jsonPath("$.doseUnit").value("g"))
-                .andExpect(jsonPath("$.routeCode").value("PO"))
+                .andExpect(jsonPath("$.routeCode").value("ORAL"))
                 .andExpect(jsonPath("$.frequencyCode").value("BID"))
                 .andExpect(jsonPath("$.quantity").value(2))
                 .andExpect(jsonPath("$.quantityUnit").value("盒"))

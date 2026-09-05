@@ -24,7 +24,7 @@ public record ResidentResponse(
 ) {
     static ResidentResponse from(Resident resident, List<ResidentIdentifier> identifiers) {
         String nationalId = identifiers.stream()
-                .filter(identifier -> identifier.identifierSystem().equals("NATIONAL_ID"))
+                .filter(identifier -> identifier.identifierSystem().equals("NATIONAL_ID") || identifier.identifierSystem().equals("1"))
                 .map(ResidentIdentifier::identifierValue)
                 .findFirst().orElse(resident.nationalId());
         return new ResidentResponse(resident.id(), resident.healthRecordNo(), resident.fullName(),

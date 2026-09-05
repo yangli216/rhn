@@ -148,7 +148,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(0, eventCount(suggestionId, "ADOPTED"));
         assertEquals("GENERATED->EXPIRED", jdbcTemplate.queryForObject(
                 "select SD_STATUS_FROM || '->' || SD_STATUS_TO from RHN_AI_SUGGEST_EVT "
-                        + "where tenant_id=? and suggestion_id=? and event_type='EXPIRED'",
+                        + "where ID_TNT=? and ID_AI_SUGGEST=? and SD_EVT_TYPE='EXPIRED'",
                 String.class, Long.valueOf(TENANT), Long.valueOf(suggestionId)));
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "过期建议不得被采纳为诊断");
 

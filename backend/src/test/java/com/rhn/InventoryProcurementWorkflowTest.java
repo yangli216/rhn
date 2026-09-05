@@ -91,12 +91,12 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[2].eventType").value("POSTED"));
 
         assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
-                "where source_type = 'GOODS_RECEIPT' and source_code = ?", Integer.class,
+                "where SD_SRC_TYPE = 'GOODS_RECEIPT' and CD_SRC = ?", Integer.class,
                 receipt.get("receiptNo").asText()));
         assertEquals(24, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
-                "where stock_item_id = ?", Integer.class, Long.valueOf(fixture.item1Id())));
+                "where ID_STOCK_ITEM = ?", Integer.class, Long.valueOf(fixture.item1Id())));
         assertEquals(40, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
-                "where stock_item_id = ?", Integer.class, Long.valueOf(fixture.item2Id())));
+                "where ID_STOCK_ITEM = ?", Integer.class, Long.valueOf(fixture.item2Id())));
         mockMvc.perform(get("/api/pharmacy/inventory/trace-codes").with(rhnWorkContext())
                         .param("stockSiteId", fixture.siteId()).param("query", "TRACE-B"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
@@ -162,7 +162,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId).with(rhnWorkContext()))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STOCK_BIN_NOT_RECEIVABLE"));
         assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
-                "where source_type = 'GOODS_RECEIPT' and source_code = ?", Integer.class,
+                "where SD_SRC_TYPE = 'GOODS_RECEIPT' and CD_SRC = ?", Integer.class,
                 receipt.get("receiptNo").asText()));
         assertEquals("ACCEPTED", jdbcTemplate.queryForObject("select SD_STATUS as status from RHN_SUP_GOOD_RCPT where ID_GOOD_RCPT = ?",
                 String.class, Long.valueOf(receiptId)));

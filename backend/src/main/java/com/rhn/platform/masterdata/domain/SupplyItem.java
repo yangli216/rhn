@@ -16,7 +16,7 @@ import java.time.LocalDate;
 @Entity
 @Table(name = "RHN_BD_CATALOG_ITEM")
 @SecondaryTable(name = "RHN_BD_SUPPLY_ITEM", pkJoinColumns = @PrimaryKeyJoinColumn(name = "ID_CATALOG_ITEM"))
-@SQLRestriction("item_type = 'SUPPLY'")
+@SQLRestriction("SD_ITEM_TYPE = 'SUPPLY'")
 public class SupplyItem {
     @Id @Column(name = "ID_CATALOG_ITEM") private Long id;
     @Version @Column(name = "REVISION") private long revision;

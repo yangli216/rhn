@@ -66,8 +66,8 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.coverages[0].sdCoverageTypeText").value("城镇职工基本医疗保险"));
 
         LocalDate today = LocalDate.now();
-        jdbcTemplate.update("delete from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED in (select id from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
-        jdbcTemplate.update("delete from RHN_SC_APPT where ID_SVC_SCHED in (select id from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
+        jdbcTemplate.update("delete from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED in (select ID_SVC_SCHED from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
+        jdbcTemplate.update("delete from RHN_SC_APPT where ID_SVC_SCHED in (select ID_SVC_SCHED from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?)", today);
         jdbcTemplate.update("delete from RHN_SC_SVC_SCHED where ID_PRACT = 362387869790223 and DA_SVC = ?", today);
         JsonNode generated = json(mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

@@ -474,7 +474,7 @@ public class ResidentService implements ResidentDirectory {
         return switch (trimmed.toUpperCase(Locale.ROOT)) {
             case "NATIONAL_ID" -> "1";
             case "PASSPORT" -> "6";
-            case "SOCIAL_SECURITY_CARD", "HEALTH_CARD", "OTHER" -> "9";
+            case "SOCIAL_SECURITY_CARD", "HEALTH_CARD", "OTHER", "HOSPITAL_MRN", "BIRTH_CERTIFICATE" -> "9";
             default -> trimmed;
         };
     }

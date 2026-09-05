@@ -194,7 +194,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         long expiredTaskId = Math.max(Long.parseLong(firstDispenseTaskId), Long.parseLong(companionDispenseTaskId));
         jdbc.update("""
                 update RHN_SUP_INV_RESV set DT_EXPIRES = ?
-                 where ID_DISP_TASK_LINE = (select id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?)
+                 where ID_DISP_TASK_LINE = (select ID_DISP_TASK_LINE from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK = ?)
                    and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().minusSeconds(60), expiredTaskId);
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/dispense-deliveries",
@@ -214,7 +214,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
 
         jdbc.update("""
                 update RHN_SUP_INV_RESV set DT_EXPIRES = ?
-                 where ID_DISP_TASK_LINE in (select id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK in (?, ?))
+                 where ID_DISP_TASK_LINE in (select ID_DISP_TASK_LINE from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK in (?, ?))
                    and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().plusSeconds(1800), Long.valueOf(firstDispenseTaskId),
                 Long.valueOf(companionDispenseTaskId));

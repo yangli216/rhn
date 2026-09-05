@@ -179,7 +179,7 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
         int inventoryTransactionCount = countText(
                 "select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%");
         int returnChargeCount = countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'MEDICATION_RETURN'", requestId);
+                + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId);
         JsonNode receiveReplay = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
                 receiveBody, pharmacyContext(), 200);
         assertEquals("RECEIVED", received.get("status").asText());
@@ -193,12 +193,12 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 countText("select count(*) from RHN_SUP_INV_TXN where CD_REQ like ?", "WMR%"));
         assertEquals(1, returnChargeCount);
         assertEquals(returnChargeCount, countId("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
-                + "and source_type = 'MEDICATION_RETURN'", requestId));
+                + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId));
         assertDecimal("1", jdbc.queryForObject("select QTY_ACCEPTED as quantity_accepted from RHN_SUP_STOCK_RETURN_LINE "
-                + "where stock_return_id = ?", BigDecimal.class,
+                + "where ID_STOCK_RETURN = ?", BigDecimal.class,
                 received.at("/lines/0/stockReturnId").asLong()));
         assertEquals(1, countId("select count(*) from RHN_SUP_WARD_MED_RETURN_EVT where ID_WARD_MED_RETURN_REQ = ? "
-                + "and event_type = 'RECEIVED'", returnRequestId));
+                + "and SD_EVT_TYPE = 'RECEIVED'", returnRequestId));
     }
 
     private String createBody(String encounterId, String dispenseLineId, String commandCode) {

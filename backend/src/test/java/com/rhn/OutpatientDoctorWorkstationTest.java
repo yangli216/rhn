@@ -52,11 +52,11 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         saveRecord(encounterId, "反复头晕三天", "原发性高血压", false);
         saveRecord(encounterId, "反复头晕三天，晨起明显", "原发性高血压（确认）", true);
 
-        assertEquals(1, count("encounter_identity_checks", encounterId));
+        assertEquals(1, count("RHN_VIS_ENC_IDENT_CHECK", encounterId));
         assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_WORK_SESSION where ID_ENC=? and SD_STATUS='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
-        assertEquals(2, count("encounter_diagnoses", encounterId));
+        assertEquals(2, count("RHN_VIS_ENC_DIAG", encounterId));
         assertEquals(2, jdbcTemplate.queryForObject("select count(*) from RHN_VIS_ENC_DIAG where ID_ENC=? and SD_DIAG_STATUS='ACTIVE'", Integer.class, Long.valueOf(encounterId)));
-        assertEquals(3, count("encounter_diagnosis_revisions", encounterId));
+        assertEquals(3, count("RHN_VIS_ENC_DIAG_REV", encounterId));
         assertEquals(2, jdbcTemplate.queryForObject("select CD_BUSINESS_VER_NO as business_version_no from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'", Integer.class, Long.valueOf(encounterId)));
         assertEquals("WHO.BD.CS.ICD10", jdbcTemplate.queryForObject(
                 "select CD_CODE_SYS_SNAP as code_system_code_snapshot from RHN_VIS_ENC_DIAG where ID_ENC=? and CD_ENC_DIAG='I10'",
@@ -89,7 +89,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         assertEquals("诊毕检查通过；转归=FOLLOW_UP；说明=一周后复诊", jdbcTemplate.queryForObject(
                 "select DES_REASON as reason from RHN_VIS_ENC_STATUS_EVT where ID_ENC=? and SD_STATUS_TO='COMPLETED'",
                 String.class, Long.valueOf(encounterId)));
-        assertEquals(3, count("encounter_status_events", encounterId));
+        assertEquals(3, count("RHN_VIS_ENC_STATUS_EVT", encounterId));
     }
 
     @Test
@@ -192,7 +192,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
     }
 
     private int count(String table, String encounterId) {
-        return jdbcTemplate.queryForObject("select count(*) from " + table + " where encounter_id=?",
+        return jdbcTemplate.queryForObject("select count(*) from " + table + " where ID_ENC=?",
                 Integer.class, Long.valueOf(encounterId));
     }
 }

@@ -204,7 +204,7 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 Long.valueOf(TENANT)));
         assertEquals(2, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_AUD_CRYPTO_EVID where SD_TARGET_TYPE = 'InpatientShiftHandoff' "
-                        + "and protection_purpose = 'NON_REPUDIATION'", Integer.class));
+                        + "and SD_PROTECTION_PURPOSE = 'NON_REPUDIATION'", Integer.class));
     }
 
     private RequestPostProcessor wardContext() {

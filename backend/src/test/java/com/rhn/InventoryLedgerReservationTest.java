@@ -106,7 +106,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         JsonNode winner = json(results.stream().filter(value -> value.getResponse().getStatus() == 200)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
         jdbcTemplate.update("update RHN_SUP_INV_RESV set DT_EXPIRES = ? "
-                        + "where tenant_id = ? and request_id = ? and status = 'ACTIVE'",
+                        + "where ID_TNT = ? and ID_CARE_REQ = ? and SD_STATUS = 'ACTIVE'",
                 Instant.now().minusSeconds(60), Long.valueOf(TENANT), winner.at("/allocations/0/requestId").asLong());
         inventoryService.expireDueReservations();
         JsonNode expired = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/reservations",
@@ -197,14 +197,14 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.taskStatus").value("READY_TO_DISPENSE"));
 
         jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = true, SD_CONTROL_LEVEL = 'LEVEL_1' "
-                + "where tenant_id = ? and id = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
+                + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
         mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(dispenseBody("DSP-SPECIAL-" + suffix, "1", pharmacist)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("SPECIAL_MEDICATION_DUAL_CONFIRMATION_REQUIRED"));
         jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = false, SD_CONTROL_LEVEL = null "
-                + "where tenant_id = ? and id = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
+                + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
 
         String firstCode = "DSP-1-" + suffix;
         JsonNode first = dispense(task.get("id").asText(), firstCode, "1", pharmacist);

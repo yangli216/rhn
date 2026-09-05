@@ -76,7 +76,7 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/outpatient/plan-templates").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"scopeType":"DEPARTMENT","name":"无效诊断方案",
-                                 "diagnoses":[{"code":"R42","display":"头晕","type":"PRIMARY"}]}
+                                 "diagnoses":[{"code":"ZZ99","display":"无效诊断","type":"PRIMARY"}]}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PLAN_TEMPLATE_DIAGNOSIS_INVALID"));

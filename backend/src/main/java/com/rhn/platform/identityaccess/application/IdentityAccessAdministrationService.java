@@ -115,7 +115,7 @@ public class IdentityAccessAdministrationService {
             parameters.add(context.departmentId());
         }
         return jdbc.query("""
-                select assignment.ID_USER_ROLE_ASSIGN as id, assignment.ID_USER as user_id, account.CD_USERNAME, assignment.ID_ACC_ROLE as role_id,
+                select assignment.ID_USER_ROLE_ASSIGN as id, assignment.ID_USER as user_id, account.CD_USERNAME as username, assignment.ID_ACC_ROLE as role_id,
                        role.CD_ACC_ROLE as role_code, role.NA_ACC_ROLE as role_name,
                        assignment.ID_ORG as organization_id, organization.NA_ORG as organization_name,
                        assignment.ID_DEPT as department_id, department.NA_DEPT as department_name,
@@ -410,7 +410,7 @@ public class IdentityAccessAdministrationService {
     private void event(ExecutionContext context, String eventType, String targetType, Long targetId, String details) {
         jdbc.update("""
                 insert into RHN_AUD_IAM_AUTH_EVT
-                    (ID_IAM_AUTH_EVT, ID_TNT, SD_EVT_TYPE, SD_TARGET_TYPE, ID_TARGET, ID_ACTOR, JSON_DETAIL, DT_OCCURRED)
+                    (ID_IAM_AUTH_EVT, ID_TNT, SD_EVT_TYPE, SD_TARGET_TYPE, ID_TARGET, ID_USER_ACTOR, JSON_DETAIL, DT_OCCURRED)
                 values (?, ?, ?, ?, ?, ?, ?, ?)
                 """, GlobalIds.next(), context.tenantId(), eventType, targetType, targetId,
                 context.subjectId(), details, sqlTimestamp(Instant.now()));

@@ -58,17 +58,17 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(0, new BigDecimal("60").compareTo(posting.at("/account/postedChargeAmount").decimalValue()));
         assertEquals(3, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
         assertEquals(1, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ? "
-                + "and business_date = current_date and bed_location_id = 362387869898513", episodeId));
+                + "and DA_BUSINESS = current_date and ID_BED_LOC = 362387869898513", episodeId));
         assertEquals(3, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
-                + "and source_type = 'INPATIENT_BED_DAY' and unit_price = 20 "
-                + "and price_id = 362387869898522 and price_revision = 0", encounterId));
+                + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY' and PRICE_UNIT = 20 "
+                + "and ID_PRICE = 362387869898522 and SN_PRICE_VER = 0", encounterId));
 
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId + "/billing/bed-days/post",
                 postingBody, 200);
         assertEquals(0, replay.get("createdCount").asInt());
         assertEquals(3, replay.get("existingCount").asInt());
         assertEquals(3, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
-                + "and source_type = 'INPATIENT_BED_DAY'", encounterId));
+                + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY'", encounterId));
     }
 
     @Test
@@ -91,7 +91,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                     .andExpect(jsonPath("$.code").value("INPATIENT_BED_DAY_PRICE_MISSING"));
             assertEquals(0, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
             assertEquals(0, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_ENC = ? "
-                    + "and source_type = 'INPATIENT_BED_DAY'", encounterId));
+                    + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY'", encounterId));
         } finally {
             jdbcTemplate.update("update RHN_BD_CATALOG_PRICE set SD_STATUS = 'ACTIVE' where ID_CATALOG_PRICE = 362387869898522");
         }
@@ -183,7 +183,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "paymentMethodCode":"CASH","description":"入院预交金"}
                 """;
         jdbcTemplate.update("update RHN_SYS_ROLE_PERM_ASSIGN set DT_VALID_TO = current_timestamp - interval '1' day "
-                + "where tenant_id = ? and permission_id = 362387869896104", Long.valueOf(TENANT));
+                + "where ID_TNT = ? and ID_ACC_PERM = 362387869896104", Long.valueOf(TENANT));
         try {
             mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing", episodeId).with(rhnWorkContext()))
                     .andExpect(status().isOk());
@@ -192,7 +192,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                     .andExpect(status().isForbidden());
         } finally {
             jdbcTemplate.update("update RHN_SYS_ROLE_PERM_ASSIGN set DT_VALID_TO = null "
-                    + "where tenant_id = ? and permission_id = 362387869896104", Long.valueOf(TENANT));
+                    + "where ID_TNT = ? and ID_ACC_PERM = 362387869896104", Long.valueOf(TENANT));
         }
         JsonNode deposit = postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits",
                 depositBody, 201);
@@ -216,9 +216,9 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, count("select count(*) from RHN_BIL_PAT_ACCT where ID_PAT_ACCT = ? and SD_ACCT_TYPE = 'INPATIENT'",
                 accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? and ID_INVOICE is null "
-                + "and payment_scene_code = 'INPATIENT_PREPAYMENT'", accountId));
+                + "and CD_PAY_SCENE = 'INPATIENT_PREPAYMENT'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? "
-                + "and source_type = 'INPATIENT_ORDER_TASK'", accountId));
+                + "and SD_SRC_TYPE = 'INPATIENT_ORDER_TASK'", accountId));
         assertEquals(2, count("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ?", accountId));
         assertEquals(0, count("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", accountId));
 
@@ -273,10 +273,10 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(true, replaySettlement.get("duplicate").asBoolean());
         assertEquals(1, count("select count(*) from RHN_VIS_INP_BED_DAY_FACT where ID_CARE_EPISODE = ?", episodeId));
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_PAT_ACCT = ? "
-                + "and source_type = 'INPATIENT_BED_DAY'", accountId));
+                + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_STL_TENDER where ID_STL = ? "
-                + "and tender_type = 'PREPAYMENT'", settlement.get("settlementId").asText()));
+                + "and SD_TENDER_TYPE = 'PREPAYMENT'", settlement.get("settlementId").asText()));
 
         long settlementRevision = settlement.at("/account/financialSettlement/revision").asLong();
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/final-settlement/payments", episodeId)
@@ -301,7 +301,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 + "/billing/final-settlement/payments", paymentBody, 201);
         assertEquals(true, replayPayment.get("duplicate").asBoolean());
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and invoice_id is not null and payment_no = 'IP-PAY-0001'", accountId));
+                + "and ID_INVOICE is not null and CD_PAY_NO = 'IP-PAY-0001'", accountId));
     }
 
     @Test
@@ -348,9 +348,9 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(0, refund.at("/account/depositAmount").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(0, refund.at("/account/ledgerBalance").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and payment_type = 'REFUND' and payment_no = 'IP-REFUND-SURPLUS'", accountId));
+                + "and SD_PAY_TYPE = 'REFUND' and CD_PAY_NO = 'IP-REFUND-SURPLUS'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                + "and payment_type = 'REFUND' and reverses_payment_id is not null", accountId));
+                + "and SD_PAY_TYPE = 'REFUND' and ID_PAY_REVERSES is not null", accountId));
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/refunds", refundBody, 201);
         assertEquals(true, replay.get("duplicate").asBoolean());
@@ -389,10 +389,10 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ?",
                 settlement.at("/account/patientAccountId").asText()));
         assertEquals(0, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
-                        + "and payment_scene_code = 'CASHIER'",
+                        + "and CD_PAY_SCENE = 'CASHIER'",
                 settlement.at("/account/patientAccountId").asText()));
         assertEquals(1, count("select count(*) from RHN_BIL_STL_EVT where ID_STL = ? "
-                + "and event_type = 'FINALIZE'", settlement.get("settlementId").asText()));
+                + "and SD_EVT_TYPE = 'FINALIZE'", settlement.get("settlementId").asText()));
     }
 
     private String completeServiceOrder(String episodeId) throws Exception {

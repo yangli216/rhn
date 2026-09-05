@@ -33,10 +33,10 @@ public class DepartmentProfileStore {
                                 rs.getInt("sort_order"), rs.getObject("valid_from", LocalDate.class),
                                 rs.getObject("valid_to", LocalDate.class), rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select r.ID_DEPT_REL as id, r.ID_TARGET_DEPT as target_department_id, d.NA_DEPT target_name, r.SD_REL_TYPE as relation_type,
+                        select r.ID_DEPT_REL as id, r.ID_DEPT_TARGET as target_department_id, d.NA_DEPT target_name, r.SD_REL_TYPE as relation_type,
                                r.FG_PRIMARY_REL as primary_relation, r.DES_DEPT_REL as description, r.DA_VALID_FROM as valid_from, r.DA_VALID_TO as valid_to, r.SD_STATUS as status from RHN_SYS_DEPT_REL r
-                        join RHN_SYS_DEPT d on d.ID_TNT = r.ID_TNT and d.ID_DEPT = r.ID_TARGET_DEPT
-                        where r.ID_TNT = :tenantId and r.ID_SRC_DEPT = :departmentId
+                        join RHN_SYS_DEPT d on d.ID_TNT = r.ID_TNT and d.ID_DEPT = r.ID_DEPT_TARGET
+                        where r.ID_TNT = :tenantId and r.ID_DEPT_SRC = :departmentId
                         order by r.FG_PRIMARY_REL desc, r.SD_REL_TYPE, d.NA_DEPT
                         """).param("tenantId", tenantId).param("departmentId", departmentId)
                         .query((rs, row) -> new DepartmentProfileView.DepartmentRelation(
@@ -46,7 +46,7 @@ public class DepartmentProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select ID_DEPT_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIFICATION_BASIS as qualification_basis_code, SD_CAP_SCOPE,
+                        select ID_DEPT_CAP as id, SD_CAP_TYPE as capability_type, CD_QUALIFICATION_BASIS as qualification_basis_code, SD_CAP_SCOPE as capability_scope,
                                DA_VALID_FROM as valid_from, DA_VALID_TO as valid_to, SD_VERIFY_STATUS as verify_status, SD_STATUS as status from RHN_SYS_DEPT_CAP
                         where ID_TNT = :tenantId and ID_DEPT = :departmentId
                         order by SD_CAP_TYPE, DA_VALID_FROM desc
@@ -57,10 +57,10 @@ public class DepartmentProfileStore {
                                 rs.getObject("valid_from", LocalDate.class), rs.getObject("valid_to", LocalDate.class),
                                 rs.getString("verify_status"), rs.getString("status"))).list(),
                 jdbc.sql("""
-                        select r.ID_DEPT_RESP as id, r.ID_ASSIGN as assignment_id,
-                               case when r.ID_ASSIGN is null then r.NA_EXT_RESPONSIBLE else p.NA_FULL end responsible_name,
+                        select r.ID_DEPT_RESP as id, r.ID_STAFF_ASSIGN as assignment_id,
+                               case when r.ID_STAFF_ASSIGN is null then r.NA_EXT_RESPONSIBLE else p.NA_FULL end responsible_name,
                                r.SD_RESP_TYPE as responsibility_type, r.FG_PRIMARY_RESP as primary_responsibility, r.DA_VALID_FROM as valid_from, r.DA_VALID_TO as valid_to, r.SD_STATUS as status from RHN_SYS_DEPT_RESP r
-                        left join RHN_SYS_STAFF_ASSIGN a on a.ID_TNT = r.ID_TNT and a.ID_STAFF_ASSIGN = r.ID_ASSIGN
+                        left join RHN_SYS_STAFF_ASSIGN a on a.ID_TNT = r.ID_TNT and a.ID_STAFF_ASSIGN = r.ID_STAFF_ASSIGN
                         left join RHN_SYS_EMPL e on e.ID_TNT = a.ID_TNT and e.ID_EMPL = a.ID_EMPL
                         left join RHN_SYS_PRACT p on p.ID_TNT = e.ID_TNT and p.ID_PRACT = e.ID_PRACT
                         where r.ID_TNT = :tenantId and r.ID_DEPT = :departmentId
@@ -91,7 +91,7 @@ public class DepartmentProfileStore {
                             String description, LocalDate from, LocalDate to) {
         jdbc.sql("""
                 insert into RHN_SYS_DEPT_REL
-                    (ID_DEPT_REL, ID_TNT, ID_SRC_DEPT, ID_TARGET_DEPT, SD_REL_TYPE,
+                    (ID_DEPT_REL, ID_TNT, ID_DEPT_SRC, ID_DEPT_TARGET, SD_REL_TYPE,
                      FG_PRIMARY_REL, DES_DEPT_REL, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :sourceId, :targetId, :type,
                         :primary, :description, :validFrom, :validTo, :status)
@@ -119,7 +119,7 @@ public class DepartmentProfileStore {
                                   String type, boolean primary, LocalDate from, LocalDate to) {
         jdbc.sql("""
                 insert into RHN_SYS_DEPT_RESP
-                    (ID_DEPT_RESP, ID_TNT, ID_DEPT, ID_ASSIGN, NA_EXT_RESPONSIBLE,
+                    (ID_DEPT_RESP, ID_TNT, ID_DEPT, ID_STAFF_ASSIGN, NA_EXT_RESPONSIBLE,
                      SD_RESP_TYPE, FG_PRIMARY_RESP, DA_VALID_FROM, DA_VALID_TO, SD_STATUS)
                 values (:id, :tenantId, :departmentId, :assignmentId, :externalName,
                         :type, :primary, :validFrom, :validTo, :status)
