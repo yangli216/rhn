@@ -5,6 +5,7 @@ import com.rhn.platform.organization.api.DepartmentProfileView;
 import com.rhn.platform.organization.api.EmploymentView;
 import com.rhn.platform.organization.api.OrganizationView;
 import com.rhn.platform.organization.api.OrganizationProfileView;
+import com.rhn.platform.organization.api.OrganizationCatalogSourceView;
 import com.rhn.platform.organization.api.PositionView;
 import com.rhn.platform.organization.api.StaffAssignmentView;
 import com.rhn.platform.organization.api.StaffDetailView;
@@ -30,6 +31,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -128,6 +130,19 @@ public class OrganizationController {
         return service.listOrganizations(tenantId());
     }
 
+    @GetMapping("/organizations/{id}/catalog-source")
+    @PreAuthorize("hasAnyAuthority('ORG_CATALOG.ACCESS','ORG_CATALOG.MANAGE')")
+    OrganizationCatalogSourceView catalogSource(@PathVariable Long id) {
+        return service.catalogSource(tenantId(), id);
+    }
+
+    @PutMapping("/organizations/{id}/catalog-source")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
+    OrganizationCatalogSourceView changeCatalogSource(@PathVariable Long id,
+                                                       @Valid @RequestBody CatalogSourceRequest request) {
+        return service.changeCatalogSource(id, request.expectedRevision(), request.sourceOrganizationId());
+    }
+
     @PostMapping("/organizations")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationView createOrganization(@Valid @RequestBody LegacyOrganizationRequest request) {
@@ -135,6 +150,8 @@ public class OrganizationController {
                 null, null, OrganizationKind.LEGAL_ORGANIZATION, request.type(), null, false, 0,
                 null, null, request.validFrom(), request.validTo());
     }
+
+    record CatalogSourceRequest(@NotNull @Min(0) Long expectedRevision, Long sourceOrganizationId) {}
 
     @GetMapping("/departments")
     List<DepartmentView> departments(@RequestParam Long organizationId) {

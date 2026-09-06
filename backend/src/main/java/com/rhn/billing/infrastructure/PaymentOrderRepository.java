@@ -25,13 +25,11 @@ public interface PaymentOrderRepository extends JpaRepository<PaymentOrder, Long
                 on account.tenantId = value.tenantId and account.id = value.patientAccountId
              where value.tenantId = :tenantId
                and account.organizationId = :organizationId
-               and account.departmentId = :departmentId
                and value.status in ('PENDING', 'PROCESSING', 'REFUNDING', 'PARTIAL')
              order by value.updatedAt asc, value.id asc
             """)
     List<PaymentOrder> findRecoveryWorklist(@Param("tenantId") Long tenantId,
                                             @Param("organizationId") Long organizationId,
-                                            @Param("departmentId") Long departmentId,
                                             Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

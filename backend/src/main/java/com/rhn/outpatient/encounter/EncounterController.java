@@ -68,4 +68,11 @@ public class EncounterController {
     List<EncounterResponse> byResident(@RequestParam Long residentId) {
         return encounterService.byResident(residentId);
     }
+
+    @GetMapping("/{encounterId}/orderable-medications")
+    List<com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> orderableMedications(
+            @PathVariable Long encounterId,
+            @RequestParam(required = false) String query) {
+        return encounterService.searchOrderableMedications(encounterId, query);
+    }
 }

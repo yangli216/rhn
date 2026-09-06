@@ -22,12 +22,11 @@ public interface ReceiptRepository extends JpaRepository<Receipt, Long> {
              where receipt.tenantId = :tenantId and receipt.status in :statuses
                and settlement.id = receipt.settlementId and settlement.tenantId = receipt.tenantId
                and account.id = settlement.patientAccountId and account.tenantId = receipt.tenantId
-               and account.organizationId = :organizationId and account.departmentId = :departmentId
+               and account.organizationId = :organizationId
              order by receipt.updatedAt, receipt.id
             """)
     List<Receipt> findRecoveryWorklist(@Param("tenantId") Long tenantId,
                                        @Param("organizationId") Long organizationId,
-                                       @Param("departmentId") Long departmentId,
                                        @Param("statuses") List<String> statuses,
                                        Pageable pageable);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

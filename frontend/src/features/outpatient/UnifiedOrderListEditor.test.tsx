@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { UnifiedOrderListEditor, type ServicePlanDraft } from './UnifiedOrderListEditor'
+import { UnifiedOrderListEditor, calculatePackageQuantity, type ServicePlanDraft } from './UnifiedOrderListEditor'
 import type { MedicationPlanDraft } from './PrescriptionListEditor'
 import type { Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -112,7 +112,7 @@ describe('UnifiedOrderListEditor', () => {
     renderComponent()
 
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
-    expect(screen.getByText('搜索药品名称/拼音/编码')).toBeInTheDocument()
+    expect(screen.getByText('搜索药品名称/拼音')).toBeInTheDocument()
   })
 
   it('keeps reading mode focused on persisted order content', () => {
@@ -122,4 +122,104 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText('操作')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('加入医嘱')).not.toBeInTheDocument()
   })
+
+  it('renders embedded inline composer row with active status and keyboard continuous flow', () => {
+    renderComponent()
+
+    expect(screen.getByRole('table', { name: '本次医嘱连续录入列表' })).toBeInTheDocument()
+    expect(screen.getByText('录入中')).toBeInTheDocument()
+    expect(screen.getByLabelText('医嘱类型')).toBeInTheDocument()
+    expect(screen.getByLabelText('发药数量')).toBeInTheDocument()
+    expect(screen.getByTitle('加入待确认列表 (Enter / Ctrl+Enter)')).toBeInTheDocument()
+    // 剂量单位不允许编辑：不存在 doctor-unified-dose-unit 输入框
+    expect(screen.queryByLabelText('剂量单位')).not.toBeInTheDocument()
+  })
+
+  it('formats english unit code such as BOX to friendly chinese unit', () => {
+    const draftWithEnglishUnit: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      request: {
+        ...mockMedicationDraft.request,
+        quantityUnit: 'BOX',
+      },
+    }
+    renderComponent({ medicationDrafts: [draftWithEnglishUnit] })
+
+    // 'BOX' 自动转为 '盒'
+    expect(screen.getByText('盒')).toBeInTheDocument()
+    expect(screen.queryByText('BOX')).not.toBeInTheDocument()
+  })
+
+  it('calculates package quantity accurately based on dose, frequency and duration', () => {
+    // 场景 1：30mg * QD * 7天 = 210mg；制剂含量 30mg/片（7片）；包装系数 7片/盒 -> 1 盒
+    const res1 = calculatePackageQuantity({
+      medication: {
+        preparationSpec: '30mg',
+        preparationUnit: '片',
+      } as any,
+      doseValue: 30,
+      doseUnit: 'mg',
+      frequencyCode: 'QD',
+      durationValue: 7,
+      selectedPackage: {
+        packageFactor: 7,
+        unitName: '盒',
+        unitCode: 'BOX',
+      } as any,
+    })
+    expect(res1?.quantity).toBe(1)
+    expect(res1?.totalBaseUnits).toBe(7)
+
+    // 场景 2：20mg * BID * 5天 = 200mg；制剂含量 10mg/片（20片）；包装系数 10片/盒 -> 2 盒
+    const res2 = calculatePackageQuantity({
+      medication: {
+        preparationSpec: '10mg',
+        preparationUnit: '片',
+      } as any,
+      doseValue: 20,
+      doseUnit: 'mg',
+      frequencyCode: 'BID',
+      durationValue: 5,
+      selectedPackage: {
+        packageFactor: 10,
+        unitName: '盒',
+        unitCode: 'BOX',
+      } as any,
+    })
+    expect(res2?.quantity).toBe(2)
+    expect(res2?.totalBaseUnits).toBe(20)
+
+    // 场景 3：未整除向上取整：15片 / 10片每盒 -> 2 盒
+    const res3 = calculatePackageQuantity({
+      medication: {
+        preparationSpec: '10mg',
+        preparationUnit: '片',
+      } as any,
+      doseValue: 15,
+      doseUnit: 'mg',
+      frequencyCode: 'QD',
+      durationValue: 10, // 150mg = 15片
+      selectedPackage: {
+        packageFactor: 10,
+        unitName: '盒',
+        unitCode: 'BOX',
+      } as any,
+    })
+    expect(res3?.quantity).toBe(2)
+    expect(res3?.totalBaseUnits).toBe(15)
+  })
+
+  it('renders pharmacy information and available stock for medication draft row', () => {
+    const draftWithStock: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      stockSiteName: '门诊西药房',
+      availablePackageQuantity: 75,
+      packageUnitName: '盒',
+    }
+    renderComponent({ medicationDrafts: [draftWithStock] })
+
+    expect(screen.getByText(/门诊西药房/)).toBeInTheDocument()
+    expect(screen.getByText(/余量: 75盒/)).toBeInTheDocument()
+  })
 })
+

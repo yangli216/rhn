@@ -20,6 +20,7 @@ public class Organization {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_ORG_PARENT") private Long parentId;
     @Column(name = "ID_ORG_MERGED_TO") private Long mergedToId;
+    @Column(name = "ID_ORG_CATALOG_SRC") private Long catalogSourceOrganizationId;
     @Column(name = "CD_ORG", nullable = false) private String code;
     @Column(name = "NA_ORG", nullable = false) private String name;
     @Column(name = "NA_SHORT") private String shortName;
@@ -102,6 +103,12 @@ public class Organization {
         touch(actorId);
     }
 
+    public void changeCatalogSource(Long sourceOrganizationId, long expectedRevision, Long actorId) {
+        requireRevision(expectedRevision);
+        this.catalogSourceOrganizationId = sourceOrganizationId;
+        touch(actorId);
+    }
+
     private void touch(Long actorId) {
         this.updatedAt = Instant.now();
         this.updatedBy = actorId;
@@ -116,6 +123,7 @@ public class Organization {
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public Long parentId() { return parentId; }
+    public Long catalogSourceOrganizationId() { return catalogSourceOrganizationId; }
     public String code() { return code; }
     public String name() { return name; }
     public String shortName() { return shortName; }

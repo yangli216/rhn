@@ -25,14 +25,15 @@ const supplierEffective = (value: Awaited<ReturnType<RhnApi['pharmacy']['supplie
     && (!value.licenseValidTo || value.licenseValidTo >= date)
 }
 
-export function WarehouseOperations({ tab, api, site, sites, items, bins, onNavigate }: {
+export function WarehouseOperations({ tab, api, site, sites, items, bins, onNavigate, isOperator = true }: {
   tab: OperationTab; api: RhnApi; site: StockSite; sites: StockSite[]; items: StockItem[]; bins: StockBin[]
   onNavigate: (path: string) => void
+  isOperator?: boolean
 }) {
-  if (tab === 'purchase') return <PurchaseWorkbench api={api} site={site} items={items} bins={bins} onNavigate={onNavigate} />
-  if (tab === 'requisition') return <RequisitionWorkbench api={api} site={site} items={items} />
-  if (tab === 'transfer') return <TransferWorkbench api={api} site={site} sites={sites} items={items} bins={bins} />
-  return <CountWorkbench api={api} site={site} items={items} bins={bins} />
+  if (tab === 'purchase') return <PurchaseWorkbench api={api} site={site} items={items} bins={bins} onNavigate={onNavigate} isOperator={isOperator} />
+  if (tab === 'requisition') return <RequisitionWorkbench api={api} site={site} items={items} isOperator={isOperator} />
+  if (tab === 'transfer') return <TransferWorkbench api={api} site={site} sites={sites} items={items} bins={bins} isOperator={isOperator} />
+  return <CountWorkbench api={api} site={site} items={items} bins={bins} isOperator={isOperator} />
 }
 
 function Worklist({ title, action, loading, empty, children }: {
@@ -45,8 +46,9 @@ function Worklist({ title, action, loading, empty, children }: {
   </section>
 }
 
-function PurchaseWorkbench({ api, site, items, bins, onNavigate }: {
+function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperator = true }: {
   api: RhnApi; site: StockSite; items: StockItem[]; bins: StockBin[]; onNavigate: (path: string) => void
+  isOperator?: boolean
 }) {
   const queryClient = useQueryClient(); const [dialog, setDialog] = useState<'order' | 'receipt'>()
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder>()
@@ -64,10 +66,17 @@ function PurchaseWorkbench({ api, site, items, bins, onNavigate }: {
   const error = suppliers.error || orders.error || receipts.error || action.error
   return <>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
+    {site.siteType === 'PHARMACY' && <div className="warehouse-scenario-banner">
+      <span className="warehouse-scenario-banner__icon">💡</span>
+      <div>
+        <strong>药房业务指引</strong>
+        <span>门诊/住院等调剂药房日常药品补货主要通过【库间调拨】从中心药库调入；若有中药饮片、急救抢救药或特殊专病药品直采需求，亦可在此向供应商建单采购与到货验收。</span>
+      </div>
+    </div>}
     <Worklist title="采购与验收入库" copy="采购审批、到货逐批验收和整单原子入库" loading={orders.isPending || receipts.isPending}
       empty={!orders.data?.length && !receipts.data?.length} action={<div className="warehouse-operation-actions">
         <Button variant="secondary" size="sm" onClick={() => onNavigate('/settings/partners?tab=suppliers')}>供应商档案</Button>
-        <Button size="sm" onClick={() => setDialog('order')}>新建采购单</Button></div>}>
+        <Button size="sm" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => setDialog('order')}>新建采购单</Button></div>}>
       <div className="warehouse-document-groups">
         <section><header className="warehouse-subsection-title"><div><strong>采购单</strong><span>审批与到货进度</span></div>
           <StatusBadge tone="info">{orders.data?.length ?? 0} 单</StatusBadge></header>
@@ -81,9 +90,9 @@ function PurchaseWorkbench({ api, site, items, bins, onNavigate }: {
                 <td>{order.expectedDate ?? '未约定'}</td><td><strong>{formatMoney(amount)}</strong>
                   <small>已到 {formatQuantity(received)} / {formatQuantity(ordered)} 包装</small></td>
                 <td><StatusBadge tone={statusTone(order.status)}>{statusText[order.status] ?? order.status}</StatusBadge></td><td>
-                  {order.status === 'DRAFT' && <Button size="sm" variant="text" busy={action.isPending} onClick={() => action.mutate({ kind: 'submit', value: order })}>提交</Button>}
-                  {order.status === 'SUBMITTED' && <Button size="sm" variant="text" busy={action.isPending} onClick={() => action.mutate({ kind: 'approve', value: order })}>审核通过</Button>}
-                  {['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status) && <Button size="sm" variant="text" onClick={() => { setSelectedOrder(order); setDialog('receipt') }}>登记到货</Button>}
+                  {order.status === 'DRAFT' && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'submit', value: order })}>提交</Button>}
+                  {order.status === 'SUBMITTED' && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'approve', value: order })}>审核通过</Button>}
+                  {['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status) && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => { setSelectedOrder(order); setDialog('receipt') }}>登记到货</Button>}
                 </td></tr>
             })}
           </OperationTable></section>
@@ -95,11 +104,11 @@ function PurchaseWorkbench({ api, site, items, bins, onNavigate }: {
               <td>{orders.data?.find(v => v.id === receipt.purchaseOrderId)?.orderNo ?? receipt.purchaseOrderId}</td>
               <td>{receipt.lines.length} 批<small>到货 {formatQuantity(receipt.lines.reduce((sum, line) => sum + Number(line.deliveredQuantity), 0))}</small></td>
               <td><StatusBadge tone={statusTone(receipt.status)}>{statusText[receipt.status] ?? receipt.status}</StatusBadge></td><td>
-                {receipt.status === 'RECEIVED' && <Button size="sm" variant="text" onClick={() => setInspection(receipt)}>逐批验收</Button>}
+                {receipt.status === 'RECEIVED' && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => setInspection(receipt)}>逐批验收</Button>}
                 {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && receipt.lines.some(line =>
                   items.find(item => item.id === line.stockItemId)?.traceRequired && Number(line.acceptedQuantity) > 0)
-                  && <Button size="sm" variant="text" onClick={() => setTraceReceipt(receipt)}>登记追溯码</Button>}
-                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && <Button size="sm" variant="text" busy={action.isPending}
+                  && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => setTraceReceipt(receipt)}>登记追溯码</Button>}
+                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator}
                   onClick={() => action.mutate({ kind: 'post', value: receipt })}>批量入库</Button>}
               </td></tr>)}
           </OperationTable></section>
@@ -114,7 +123,7 @@ function PurchaseWorkbench({ api, site, items, bins, onNavigate }: {
   </>
 }
 
-function RequisitionWorkbench({ api, site, items }: { api: RhnApi; site: StockSite; items: StockItem[] }) {
+function RequisitionWorkbench({ api, site, items, isOperator = true }: { api: RhnApi; site: StockSite; items: StockItem[]; isOperator?: boolean }) {
   const client = useQueryClient(); const [open, setOpen] = useState(false); const [approving, setApproving] = useState<Requisition>()
   const values = useQuery({ queryKey: ['warehouse-requisitions', site.id], queryFn: () => api.pharmacy.requisitions(site.id) })
   const departments = useQuery({ queryKey: ['warehouse-departments', site.organizationId], queryFn: () => api.organization.departments(site.organizationId) })
@@ -127,15 +136,15 @@ function RequisitionWorkbench({ api, site, items }: { api: RhnApi; site: StockSi
   const departmentName = (id: string) => departments.data?.find(value => value.id === id)?.name ?? `科室 …${id.slice(-6)}`
   return <>{Boolean(values.error || departments.error || action.error) && <Alert>{errorMessage(values.error || departments.error || action.error)}</Alert>}
     <Worklist title="科室请领" copy="申请、审核、按效期自动拣货并出库" loading={values.isPending} empty={!values.data?.length}
-      action={<Button size="sm" onClick={() => setOpen(true)}>新建请领单</Button>}>
+      action={<Button size="sm" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => setOpen(true)}>新建请领单</Button>}>
       <OperationTable headers={['请领单', '申请科室', '用途 / 申请时间', '数量进度', '状态', '操作']}>{(values.data ?? []).map(value => <tr key={value.id}>
         <td><strong>{value.requisitionNo}</strong><small>{value.lines.length} 项</small></td><td>{departmentName(value.requestingDepartmentId)}</td>
         <td>{value.reason || '日常领用'}<small>{formatTime(value.requestedAt)}</small></td>
         <td><strong>申请 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.requestedQuantity), 0))}</strong>
           <small>批准 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.approvedQuantity ?? 0), 0))} · 实发 {formatQuantity(value.lines.reduce((n, row) => n + Number(row.issuedQuantity), 0))}</small></td>
         <td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
-          {value.status === 'SUBMITTED' && <Button variant="text" size="sm" onClick={() => setApproving(value)}>审核明细</Button>}
-          {['DRAFT', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending}
+          {value.status === 'SUBMITTED' && <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setApproving(value)}>审核明细</Button>}
+          {['DRAFT', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator}
             onClick={() => action.mutate({ id: value.id, status: value.status })}>{({ DRAFT: '提交', APPROVED: '开始拣货', PICKING: '确认出库' } as Record<string, string>)[value.status]}</Button>}
         </td></tr>)}</OperationTable>
     </Worklist>
@@ -146,7 +155,7 @@ function RequisitionWorkbench({ api, site, items }: { api: RhnApi; site: StockSi
   </>
 }
 
-function TransferWorkbench({ api, site, sites, items, bins }: { api: RhnApi; site: StockSite; sites: StockSite[]; items: StockItem[]; bins: StockBin[] }) {
+function TransferWorkbench({ api, site, sites, items, bins, isOperator = true }: { api: RhnApi; site: StockSite; sites: StockSite[]; items: StockItem[]; bins: StockBin[]; isOperator?: boolean }) {
   const client = useQueryClient(); const [open, setOpen] = useState(false); const [receiving, setReceiving] = useState<StockTransfer>()
   const source = useQuery({ queryKey: ['warehouse-transfers', site.id, 'SOURCE'], queryFn: () => api.pharmacy.transfers(site.id, 'SOURCE') })
   const incoming = useQuery({ queryKey: ['warehouse-transfers', site.id, 'DESTINATION'], queryFn: () => api.pharmacy.transfers(site.id, 'DESTINATION') })
@@ -160,8 +169,15 @@ function TransferWorkbench({ api, site, sites, items, bins }: { api: RhnApi; sit
   }, onSuccess: refresh })
   const rows = [...(source.data ?? []), ...(incoming.data ?? []).filter(v => !source.data?.some(s => s.id === v.id))]
   return <>{Boolean(source.error || incoming.error || action.error) && <Alert>{errorMessage(source.error || incoming.error || action.error)}</Alert>}
+    {site.siteType === 'PHARMACY' && <div className="warehouse-scenario-banner">
+      <span className="warehouse-scenario-banner__icon">💡</span>
+      <div>
+        <strong>药房调拨协同</strong>
+        <span>向中心药库申请调入补货（以当前药房为目标库）；在中心药库拣货发运后，可在途进行【调入确认】逐批核验入库。亦支持药房之间相互借调。</span>
+      </div>
+    </div>}
     <Worklist title="库间调拨" copy="调出记账、在途跟踪和调入确认分离" loading={source.isPending || incoming.isPending} empty={!rows.length}
-      action={<Button size="sm" onClick={() => setOpen(true)}>新建调拨单</Button>}>
+      action={<Button size="sm" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => setOpen(true)}>新建调拨单</Button>}>
       <OperationTable headers={['调拨单', '方向', '数量进度', '差异', '状态', '操作']}>{rows.map(value => { const inbound = value.destinationSiteId === site.id
         return <tr key={value.id}><td><strong>{value.transferNo}</strong><small>{formatTime(value.requestedAt)}</small></td>
           <td>{inbound ? `调入 · ${sites.find(v => v.id === value.sourceSiteId)?.name ?? '来源库'}` : `调出 · ${sites.find(v => v.id === value.destinationSiteId)?.name ?? '目标库'}`}</td>
@@ -169,8 +185,8 @@ function TransferWorkbench({ api, site, sites, items, bins }: { api: RhnApi; sit
             <small>已调出 {value.lines.filter(line => Number(line.dispatchedQuantity) > 0).length}/{value.lines.length} 项 · 已调入 {value.lines.filter(line => Number(line.receivedQuantity) > 0).length}/{value.lines.length} 项</small></td>
           <td>{value.lines.filter(line => Number(line.damagedQuantity) > 0).length} 项<small>破损 / 短少</small></td>
           <td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
-            {inbound && value.status === 'IN_TRANSIT' && <Button variant="text" size="sm" onClick={() => setReceiving(value)}>调入确认</Button>}
-            {!inbound && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} onClick={() => action.mutate(value)}>{({ DRAFT: '提交', SUBMITTED: '审核', APPROVED: '拣货', PICKING: '确认调出' } as Record<string, string>)[value.status]}</Button>}
+            {inbound && value.status === 'IN_TRANSIT' && <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setReceiving(value)}>调入确认</Button>}
+            {!inbound && ['DRAFT', 'SUBMITTED', 'APPROVED', 'PICKING'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate(value)}>{({ DRAFT: '提交', SUBMITTED: '审核', APPROVED: '拣货', PICKING: '确认调出' } as Record<string, string>)[value.status]}</Button>}
           </td></tr>})}</OperationTable>
     </Worklist>
     {open && <TransferDialog api={api} site={site} sites={sites} items={items} onClose={() => setOpen(false)} onDone={() => { void refresh(); setOpen(false) }} />}
@@ -178,7 +194,7 @@ function TransferWorkbench({ api, site, sites, items, bins }: { api: RhnApi; sit
   </>
 }
 
-function CountWorkbench({ api, site, items, bins }: { api: RhnApi; site: StockSite; items: StockItem[]; bins: StockBin[] }) {
+function CountWorkbench({ api, site, items, bins, isOperator = true }: { api: RhnApi; site: StockSite; items: StockItem[]; bins: StockBin[]; isOperator?: boolean }) {
   const client = useQueryClient(); const [recording, setRecording] = useState<StockCount>(); const [open, setOpen] = useState(false)
   const values = useQuery({ queryKey: ['warehouse-counts', site.id], queryFn: () => api.pharmacy.stockCounts(site.id) })
   const refresh = () => client.invalidateQueries({ queryKey: ['warehouse-counts', site.id] })
@@ -189,15 +205,15 @@ function CountWorkbench({ api, site, items, bins }: { api: RhnApi; site: StockSi
   }, onSuccess: refresh })
   return <>{Boolean(values.error || action.error) && <Alert>{errorMessage(values.error || action.error)}</Alert>}
     <Worklist title="库存盘点" copy="冻结快照、差异复核和盈亏调整记账" loading={values.isPending} empty={!values.data?.length}
-      action={<Button size="sm" onClick={() => setOpen(true)}>新建盘点</Button>}>
+      action={<Button size="sm" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => setOpen(true)}>新建盘点</Button>}>
       <OperationTable headers={['盘点单', '范围', '差异', '状态', '操作']}>{(values.data ?? []).map(value => <tr key={value.id}>
         <td><strong>{value.countNo}</strong><small>{formatTime(value.snapshotAt)}</small></td><td>{value.countType === 'BIN'
           ? bins.find(v => v.id === value.stockBinId)?.name ?? '指定货位'
           : value.countType === 'ITEM' ? `指定项目 · ${new Set(value.lines.map(line => line.stockItemId)).size} 项`
             : value.countType === 'CYCLE' ? `循环盘点 · ${new Set(value.lines.map(line => line.stockItemId)).size} 项` : '全库盘点'}</td>
         <td>{value.lines.filter(v => v.varianceQuantity).length} / {value.lines.length}</td><td><StatusBadge tone={statusTone(value.status)}>{statusText[value.status] ?? value.status}</StatusBadge></td><td>
-          {value.status === 'COUNTING' ? <Button variant="text" size="sm" onClick={() => setRecording(value)}>录入实盘</Button>
-            : ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} onClick={() => action.mutate(value)}>{({ DRAFT: '开始盘点', SUBMITTED: '审核通过', APPROVED: '盈亏调整' } as Record<string, string>)[value.status]}</Button>}
+          {value.status === 'COUNTING' ? <Button variant="text" size="sm" disabled={!isOperator} onClick={() => setRecording(value)}>录入实盘</Button>
+            : ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(value.status) && <Button variant="text" size="sm" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate(value)}>{({ DRAFT: '开始盘点', SUBMITTED: '审核通过', APPROVED: '盈亏调整' } as Record<string, string>)[value.status]}</Button>}
         </td></tr>)}</OperationTable>
     </Worklist>
     {open && <CountCreateDialog api={api} site={site} items={items} bins={bins} onClose={() => setOpen(false)} onDone={() => { void refresh(); setOpen(false) }} />}

@@ -208,7 +208,7 @@ public class BillingApplicationService {
         Set<Long> encounterIds = new HashSet<>(eventsByEncounter.keySet());
         encounterIds.addAll(accountByEncounter.keySet());
         Map<Long, EncounterSnapshot> accessibleEncounters = new LinkedHashMap<>();
-        for (EncounterSnapshot encounter : encounterDirectory.findAccessible(encounterIds)) {
+        for (EncounterSnapshot encounter : encounterDirectory.findOrganizationAccessible(encounterIds)) {
             accessibleEncounters.put(encounter.id(), encounter);
         }
         Map<Long, ResidentSnapshot> residents = new LinkedHashMap<>();
@@ -680,7 +680,7 @@ public class BillingApplicationService {
     }
 
     private EncounterSnapshot requireEncounter(ExecutionContext context, Long encounterId) {
-        EncounterSnapshot encounter = encounterDirectory.requireAccessible(encounterId);
+        EncounterSnapshot encounter = encounterDirectory.requireOrganizationAccessible(encounterId);
         if (!context.tenantId().equals(encounter.tenantId()) || !context.canAccessOrganization(encounter.organizationId())) {
             throw badRequest("BILLING_ENCOUNTER_SCOPE_INVALID", "当前工作上下文不能访问该就诊费用");
         }
@@ -689,7 +689,7 @@ public class BillingApplicationService {
 
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (!context.hasWorkContext()) throw badRequest("BILLING_WORK_CONTEXT_REQUIRED", "收费操作必须选择工作机构和科室");
+        if (!context.hasWorkContext()) throw badRequest("BILLING_WORK_CONTEXT_REQUIRED", "收费操作必须选择工作机构");
         return context;
     }
 

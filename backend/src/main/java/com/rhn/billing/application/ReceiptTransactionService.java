@@ -276,9 +276,9 @@ class ReceiptTransactionService {
     @Transactional(readOnly = true)
     List<ReceiptView> recoveryWorklist(int limit) {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (!context.hasWorkContext() || context.departmentId() == null) throw forbidden(
-                "BILLING_WORK_CONTEXT_REQUIRED", "票据恢复前必须选择工作机构和科室");
-        return receipts.findRecoveryWorklist(context.tenantId(), context.organizationId(), context.departmentId(),
+        if (!context.hasWorkContext()) throw forbidden(
+                "BILLING_WORK_CONTEXT_REQUIRED", "票据恢复前必须选择工作机构");
+        return receipts.findRecoveryWorklist(context.tenantId(), context.organizationId(),
                         List.of("REQUESTED", "FAILED"), PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
                 .stream().map(value -> view(context, value, false)).toList();
     }

@@ -102,12 +102,16 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
     public BookingSnapshot prepareRegistration(Long appointmentId, Long residentId,
                                                Long organizationId, Long departmentId) {
         ExecutionContext context = requireContext();
-        if (!context.organizationId().equals(organizationId) || !context.departmentId().equals(departmentId)) {
-            throw badRequest("APPOINTMENT_CONTEXT_MISMATCH", "预约挂号机构科室与当前工作上下文不一致");
+        if (!context.canAccessOrganization(organizationId)) {
+            throw badRequest("APPOINTMENT_CONTEXT_MISMATCH", "预约挂号机构与当前工作上下文不一致");
         }
         Appointment appointment = appointmentRepository.findWithLockByIdAndTenantId(appointmentId, context.tenantId())
                 .orElseThrow(() -> notFound("APPOINTMENT_NOT_FOUND", "未找到预约记录"));
-        ServiceSchedule schedule = requireScopedSchedule(context, appointment.scheduleId());
+        ServiceSchedule schedule = scheduleRepository.findByIdAndTenantId(appointment.scheduleId(), context.tenantId())
+                .orElseThrow(() -> notFound("SERVICE_SCHEDULE_NOT_FOUND", "未找到预约关联排班"));
+        if (!schedule.organizationId().equals(organizationId) || !schedule.departmentId().equals(departmentId)) {
+            throw badRequest("APPOINTMENT_CONTEXT_MISMATCH", "预约挂号机构科室与预约排班不一致");
+        }
         if (!appointment.residentId().equals(residentId)) {
             throw badRequest("APPOINTMENT_RESIDENT_MISMATCH", "预约居民与本次挂号居民不一致");
         }
@@ -117,7 +121,8 @@ class AppointmentApplicationService implements OutpatientAppointmentDirectory {
         if (!schedule.serviceDate().equals(LocalDate.now(BUSINESS_ZONE))) {
             throw conflict("APPOINTMENT_NOT_TODAY", "只能在预约就诊当日办理挂号");
         }
-        return new BookingSnapshot(appointment.id(), appointment.residentId(), schedule.id(),
+        return new BookingSnapshot(appointment.id(), appointment.residentId(), schedule.organizationId(),
+                schedule.departmentId(), schedule.id(),
                 schedule.catalogItemId(), appointment.serviceCode(), appointment.serviceName());
     }
 

@@ -9,7 +9,7 @@ import type { ReceptionQueueItem, ServiceSchedule } from '../../shared/api/sched
 import type { Encounter, Resident } from '../../shared/model'
 import type { RegistrationBillingIntent } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
-import { OutpatientRegistrationWorkspace, queueItemStatusLabel, queueItemStatusTone, registrationDayPart } from './RegistrationWorkspace'
+import { OutpatientRegistrationWorkspace, queueItemStatusLabel, queueItemStatusTone } from './RegistrationWorkspace'
 
 const resident: Resident = {
   id: 'resident-1', healthRecordNo: 'HR0001', fullName: '张三', maskedNationalId: '3301********1234',
@@ -21,12 +21,10 @@ const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
-const defaultDayPart = registrationDayPart()
-const otherDayPart = defaultDayPart === 'MORNING' ? 'AFTERNOON' : 'MORNING'
-
 const schedule: ServiceSchedule = {
-  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: businessDate(), sdDayPart: defaultDayPart,
-  sdDayPartText: defaultDayPart === 'MORNING' ? '上午' : '下午', startAt: `${businessDate()}T00:00:00Z`, endAt: `${businessDate()}T04:00:00Z`,
+  id: 'schedule-1', scheduleCode: 'SC001', serviceDate: businessDate(), sdDayPart: 'MORNING',
+  sdDayPartText: '上午', startAt: `${businessDate()}T00:00:00Z`, endAt: `${businessDate()}T04:00:00Z`,
+  departmentId: 'dept-1', departmentName: '全科门诊',
   practitionerId: 'doctor-1', practitionerName: '李医生', catalogItemId: 'service-1',
   serviceCode: 'GENERAL', serviceName: '全科门诊', totalCount: 20, heldCount: 0, occupiedCount: 2,
   frozenCount: 0, availableCount: 18, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
@@ -37,8 +35,9 @@ const schedule: ServiceSchedule = {
 }
 
 const internalSchedule: ServiceSchedule = {
-  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: businessDate(), sdDayPart: otherDayPart,
-  sdDayPartText: otherDayPart === 'MORNING' ? '上午' : '下午', startAt: `${businessDate()}T06:00:00Z`, endAt: `${businessDate()}T09:00:00Z`,
+  id: 'schedule-2', scheduleCode: 'SC002', serviceDate: businessDate(), sdDayPart: 'AFTERNOON',
+  sdDayPartText: '下午', startAt: `${businessDate()}T06:00:00Z`, endAt: `${businessDate()}T09:00:00Z`,
+  departmentId: 'dept-2', departmentName: '内科门诊',
   practitionerId: 'doctor-2', practitionerName: '王专家', catalogItemId: 'service-2',
   serviceCode: 'INTERNAL', serviceName: '内科门诊', totalCount: 15, heldCount: 0, occupiedCount: 13,
   frozenCount: 0, availableCount: 2, sdStatus: 'PUBLISHED', sdStatusText: '可预约',
@@ -72,11 +71,6 @@ const visitTypes = {
 } as SystemEnumDefinition
 
 describe('OutpatientRegistrationWorkspace', () => {
-  it('defaults to morning before noon and afternoon from noon in the business timezone', () => {
-    expect(registrationDayPart(new Date('2026-09-03T03:59:59Z'))).toBe('MORNING')
-    expect(registrationDayPart(new Date('2026-09-03T04:00:00Z'))).toBe('AFTERNOON')
-  })
-
   it('registers the deep-linked resident against an available schedule and shows the queue receipt', async () => {
     const registrationIntent = {
       id: 'intent-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
@@ -219,10 +213,9 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
-    expect(screen.getByRole('button', { name: defaultDayPart === 'MORNING' ? '上午' : '下午' })).toHaveClass('is-active')
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
+    expect(screen.getByRole('button', { name: '全天' })).toHaveClass('is-active')
 
-    // Both schedules are available after clearing the default day-part filter
+    // Registration desks see all departments and sessions by default.
     expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
@@ -276,7 +269,6 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     await screen.findByRole('button', { name: /全科门诊/ })
-    await userEvent.click(screen.getByRole('button', { name: '全天' }))
     const cardGeneral = screen.getByRole('button', { name: /全科门诊/ })
     const cardInternal = await screen.findByRole('button', { name: /王专家/ })
     const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)

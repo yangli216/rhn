@@ -229,7 +229,7 @@ class InsuranceClaimTransactionService {
     @Transactional(readOnly = true)
     List<InsuranceSettlementView> recoveryWorklist(int limit) {
         ExecutionContext context = requireContext();
-        return claims.findRecoveryWorklist(context.tenantId(), context.organizationId(), context.departmentId(),
+        return claims.findRecoveryWorklist(context.tenantId(), context.organizationId(),
                         List.of("PRE_SETTLEMENT_PENDING", "SETTLEMENT_PENDING", "REVERSAL_PENDING"),
                         PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
                 .stream().map(value -> view(value.id(), false)).toList();
@@ -304,8 +304,8 @@ class InsuranceClaimTransactionService {
     private BigDecimal money(BigDecimal value) { return value.setScale(6, RoundingMode.HALF_UP); }
     private ExecutionContext requireContext() {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (!context.hasWorkContext() || context.departmentId() == null) throw forbidden(
-                "BILLING_WORK_CONTEXT_REQUIRED", "医保结算前必须选择工作机构和科室");
+        if (!context.hasWorkContext()) throw forbidden(
+                "BILLING_WORK_CONTEXT_REQUIRED", "医保结算前必须选择工作机构");
         return context;
     }
 

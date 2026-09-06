@@ -23,13 +23,6 @@ const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
 
-export function registrationDayPart(at = new Date()): 'MORNING' | 'AFTERNOON' {
-  const hour = Number(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23',
-  }).format(at))
-  return hour < 12 ? 'MORNING' : 'AFTERNOON'
-}
-
 function clock(value: string) {
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
     .format(new Date(value))
@@ -267,6 +260,7 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
   onClose: () => void
 }) {
   const breakdown = feeBreakdown ?? { baseFee: 0, seniorDiscount: 0, insuranceDeduction: 0, payableAmount: 0 }
+  const validUntil = receipt.validUntil
 
   useEffect(() => {
     const handleModalKeyDown = (e: KeyboardEvent) => {
@@ -320,6 +314,9 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
             </>
           )}
           <dt>挂号时间</dt><dd>{clock(receipt.registeredAt)}</dd>
+          {validUntil ? (
+            <><dt>效期截止</dt><dd><strong>{clock(validUntil)}</strong></dd></>
+          ) : null}
         </dl>
 
         <div className="thermal-receipt-barcode-box">
@@ -331,7 +328,7 @@ function ThermalReceiptModal({ receipt, organizationName, departmentName, locati
 
         <footer className="thermal-receipt-guidance">
           <p>请凭本凭条前往候诊区，关注大屏幕叫号</p>
-          <p>当日当班有效 · 祝您早日康复</p>
+          <p>{validUntil ? `凭条效期截至 ${clock(validUntil)}` : '当日当班有效'} · 祝您早日康复</p>
         </footer>
       </article>
     </div>
@@ -387,7 +384,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [deptSearch, setDeptSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
-  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>(registrationDayPart)
+  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>('ALL')
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
   const [cashTendered, setCashTendered] = useState('')
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
@@ -428,7 +425,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   })
   const todayQueue = useQuery({
     queryKey: ['outpatient-reception-queue', clinicalContext.organization.id, clinicalContext.department.id, today],
-    queryFn: () => api.scheduling.receptionQueue(today),
+    queryFn: () => api.scheduling.receptionQueue(today, undefined, 'ORGANIZATION'),
   })
   const visitTypes = useQuery({
     queryKey: ['system-enum', SCHEDULING_SYSTEM_ENUM.visitType],
@@ -711,7 +708,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const finishRegistration = useCallback(async (value: RegistrationBillingIntent) => {
     if (!value.encounterId) return
     const [queue, encounters] = await Promise.all([
-      api.scheduling.receptionQueue(today), api.encounters.byResident(value.residentId),
+      api.scheduling.receptionQueue(today, undefined, 'ORGANIZATION'), api.encounters.byResident(value.residentId),
     ])
     const encounter = encounters.find((item) => item.id === value.encounterId)
     if (!encounter) return

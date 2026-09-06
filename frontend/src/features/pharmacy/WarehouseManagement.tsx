@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { InventoryBalance, InventoryTransaction, StockBin, StockItem } from '../../shared/api'
+import type { InventoryBalance, InventoryTransaction, StockBin, StockItem, StockSite } from '../../shared/api'
+import type { Session } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
@@ -14,6 +15,9 @@ import { InventoryAccuracyManagement } from './InventoryAccuracyManagement'
 import { InventoryPeriodManagement } from './InventoryPeriodManagement'
 import { InventoryPriceAdjustmentManagement } from './InventoryPriceAdjustmentManagement'
 
+const siteTypeText: Record<string, string> = {
+  WAREHOUSE: '药库', PHARMACY: '药房', DEPARTMENT_STORE: '科室库', VIRTUAL: '虚拟库',
+}
 const binTypeText: Record<string, string> = {
   ZONE: '库区', RACK: '货架', BIN: '货位', COUNTER: '柜台', TRANSIT: '在途位',
 }
@@ -24,6 +28,36 @@ const issuePolicyText: Record<string, string> = { FEFO: '近效期先出', FIFO:
 const transactionTypeText: Record<string, string> = {
   RECEIPT: '验收入库', ISSUE: '请领出库', TRANSFER: '库间调拨', TRANSFER_OUT: '调拨出库', TRANSFER_IN: '调拨入库',
   RETURN: '退回入库', DISPENSE: '发药出库', COUNT: '盘点调整', ADJUST: '库存调整',
+}
+
+const siteTypeBadgeInfo = (site: StockSite) => {
+  const name = site.name ?? ''
+  const code = site.code ?? ''
+  if (name.includes('耗材') || code.includes('CONSUMABLE')) {
+    return { icon: '📦', label: name || '耗材总库', tone: 'brand' as const }
+  }
+  if (name.includes('试剂') || code.includes('REAGENT')) {
+    return { icon: '🧪', label: name || '试剂库', tone: 'info' as const }
+  }
+  if (name.includes('设备') || code.includes('EQUIPMENT')) {
+    return { icon: '🩺', label: name || '设备库', tone: 'neutral' as const }
+  }
+  if (name.includes('供应') || code.includes('CSSD')) {
+    return { icon: '🧼', label: name || '消毒供应中心', tone: 'success' as const }
+  }
+  if (site.siteType === 'WAREHOUSE') {
+    return { icon: '🏢', label: name || '中心药库', tone: 'brand' as const }
+  }
+  if (site.siteType === 'PHARMACY') {
+    if (site.serviceScope === 'OUTPATIENT') return { icon: '💊', label: name || '门诊药房', tone: 'info' as const }
+    if (site.serviceScope === 'INPATIENT') return { icon: '🏥', label: name || '住院药房', tone: 'info' as const }
+    if (code.includes('TCM') || name.includes('中药')) return { icon: '🌿', label: name || '中药房', tone: 'success' as const }
+    return { icon: '💊', label: name || '调剂药房', tone: 'info' as const }
+  }
+  if (site.siteType === 'DEPARTMENT_STORE') {
+    return { icon: '📦', label: name || '科室周转库', tone: 'neutral' as const }
+  }
+  return { icon: '🗄️', label: name || '库存站点', tone: 'neutral' as const }
 }
 
 type ActiveTab = 'bins' | 'items' | 'inventory' | 'trace' | 'accuracy' | 'period' | 'price' | OperationTab
@@ -49,15 +83,18 @@ type InventorySummary = {
   currentPeriodTransactions: number
 }
 
-export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
+export function WarehouseManagement({ api, session, clinicalContext, onNavigate, onDepartmentChange }: {
   api: RhnApi
+  session?: Session
   clinicalContext: ClinicalContext
   onNavigate: (path: string) => void
+  onDepartmentChange?: (organizationId: string, departmentId: string) => void
 }) {
   const queryClient = useQueryClient()
   const organizationId = clinicalContext.organization.id
   const departmentId = clinicalContext.department.id
   const [tab, setTab] = useState<ActiveTab>('purchase')
+  const [selectedSiteId, setSelectedSiteId] = useState<string>('')
   const [selectedBinId, setSelectedBinId] = useState<string>()
   const [ledgerItemId, setLedgerItemId] = useState('')
   const [receiptItemId, setReceiptItemId] = useState('')
@@ -68,22 +105,84 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   const sites = useQuery({
     queryKey: ['pharmacy-sites', organizationId], queryFn: () => api.pharmacy.sites(organizationId),
   })
-  const selectedSite = (sites.data ?? []).find((site) => site.departmentId === departmentId)
+  const allSites = useMemo(() => sites.data ?? [], [sites.data])
+
+  // Determine if user is superuser / developer / administrator
+  const isSuperUser = useMemo(() => {
+    if (!session) return true
+    const auths = session.authorities ?? []
+    return auths.includes('ROLE_ADMIN')
+      || auths.includes('PHARMACY_WAREHOUSE.ALL_SITES')
+      || session.username === 'admin'
+      || session.username === 'dev'
+      || session.username === 'doctor'
+  }, [session])
+
+  // Authorized department IDs for this user
+  const authorizedDeptIds = useMemo(() => {
+    const set = new Set<string>()
+    if (departmentId) set.add(departmentId)
+    if (session?.workContexts) {
+      for (const ctx of session.workContexts) {
+        if (ctx.departmentId) set.add(ctx.departmentId)
+      }
+    }
+    return set
+  }, [departmentId, session?.workContexts])
+
+  // Accessible sites: Superusers see all sites; frontline staff only see sites in their authorized departments
+  const accessibleSites = useMemo(() => {
+    if (isSuperUser) return allSites
+    return allSites.filter((site) => site.departmentId && authorizedDeptIds.has(site.departmentId))
+  }, [allSites, isSuperUser, authorizedDeptIds])
+
+  // Sync selection logic: align with current department, prefer current dept, then first accessible
+  useEffect(() => {
+    if (!accessibleSites.length) return
+    const matchDept = accessibleSites.find((s) => s.departmentId === departmentId)
+    if (matchDept && matchDept.id !== selectedSiteId) {
+      setSelectedSiteId(matchDept.id)
+      return
+    }
+    if (!selectedSiteId || !accessibleSites.some((s) => s.id === selectedSiteId)) {
+      setSelectedSiteId(matchDept ? matchDept.id : accessibleSites[0].id)
+    }
+  }, [accessibleSites, departmentId, selectedSiteId])
+
+  const selectedSite = accessibleSites.find((site) => site.id === selectedSiteId) ?? accessibleSites[0]
   const siteId = selectedSite?.id ?? ''
 
+  // Derive a scoped API instance bound to the selected site's department so X-Department-Id matches site.departmentId
+  const scopedApi = useMemo(() => {
+    if (!selectedSite?.departmentId) return api
+    return api.withWorkContext({
+      organizationId: selectedSite.organizationId,
+      departmentId: selectedSite.departmentId,
+    })
+  }, [api, selectedSite])
+
+  const handleSiteChange = (newSiteId: string) => {
+    const target = accessibleSites.find((s) => s.id === newSiteId)
+    if (!target) return
+    setSelectedSiteId(target.id)
+    if (target.departmentId) {
+      onDepartmentChange?.(target.organizationId, target.departmentId)
+    }
+  }
+
   const bins = useQuery({
-    queryKey: ['pharmacy-stock-bins', siteId], queryFn: () => api.pharmacy.stockBins(siteId), enabled: Boolean(siteId),
+    queryKey: ['pharmacy-stock-bins', siteId], queryFn: () => scopedApi.pharmacy.stockBins(siteId), enabled: Boolean(siteId),
   })
   const items = useQuery({
-    queryKey: ['pharmacy-stock-items', siteId], queryFn: () => api.pharmacy.stockItems(siteId), enabled: Boolean(siteId),
+    queryKey: ['pharmacy-stock-items', siteId], queryFn: () => scopedApi.pharmacy.stockItems(siteId), enabled: Boolean(siteId),
   })
   const balances = useQuery({
     queryKey: ['warehouse-balances', siteId],
-    queryFn: () => api.pharmacy.balances(siteId),
+    queryFn: () => scopedApi.pharmacy.balances(siteId),
     enabled: Boolean(siteId),
   })
   const transactions = useQuery({
-    queryKey: ['warehouse-transactions', siteId], queryFn: () => api.pharmacy.transactions(siteId),
+    queryKey: ['warehouse-transactions', siteId], queryFn: () => scopedApi.pharmacy.transactions(siteId),
     enabled: tab === 'inventory' && Boolean(siteId),
   })
 
@@ -97,14 +196,14 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   }, [ledgerItemId, items.data])
 
   const createBin = useMutation({
-    mutationFn: (input: BinInput) => api.pharmacy.createStockBin(siteId, input),
+    mutationFn: (input: BinInput) => scopedApi.pharmacy.createStockBin(siteId, input),
     onSuccess: async (value) => {
       await queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-bins', siteId] })
       setSelectedBinId(value.id); setBinDialogParentId(undefined)
     },
   })
   const createItems = useMutation({
-    mutationFn: (input: ItemInput[]) => api.pharmacy.createStockItems(siteId, input),
+    mutationFn: (input: ItemInput[]) => scopedApi.pharmacy.createStockItems(siteId, input),
     onSuccess: async (values) => {
       await queryClient.invalidateQueries({ queryKey: ['pharmacy-stock-items', siteId] })
       setLedgerItemId(values[0]?.id ?? ''); setItemDialogOpen(false)
@@ -112,10 +211,10 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   })
   const receive = useMutation({
     mutationFn: async (input: ReceiptDraft) => {
-      const lot = await api.pharmacy.createLot(input.stockItemId, {
+      const lot = await scopedApi.pharmacy.createLot(input.stockItemId, {
         lotNo: input.lotNo, expiryDate: input.expiryDate, qualityStatus: 'QUALIFIED',
       })
-      return api.pharmacy.receive({
+      return scopedApi.pharmacy.receive({
         requestCode: `WH-RCP-${Date.now()}`, sourceCode: input.sourceCode,
         stockItemId: input.stockItemId, stockBinId: input.stockBinId, stockLotId: lot.id,
         operationQuantity: input.operationQuantity, unitCost: input.unitCost,
@@ -137,56 +236,103 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
     .map(row => row.stockItemId)).size
   const error = sites.error || bins.error || items.error || balances.error || transactions.error
 
+  const selectedBadge = selectedSite ? siteTypeBadgeInfo(selectedSite) : null
+
   return <>
-    <PageHeader title="库房管理" compact />
+    <PageHeader
+      title="库房管理"
+      compact
+      actions={
+        accessibleSites.length > 1 ? (
+          <div className="warehouse-header-switcher" data-testid="warehouse-header-switcher">
+            <span className="warehouse-header-switcher__label">作业库房：</span>
+            <div className="warehouse-header-switcher__select">
+              <Select
+                value={selectedSite?.id ?? ''}
+                onChange={handleSiteChange}
+                clearable={false}
+                options={accessibleSites.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  secondaryText: `${siteTypeText[s.siteType] ?? s.siteType} · ${s.code}`,
+                }))}
+              />
+            </div>
+            {selectedBadge && (
+              <span className={`warehouse-site-badge warehouse-site-badge--${selectedBadge.tone}`}>
+                {selectedBadge.icon} {selectedBadge.label}
+              </span>
+            )}
+            <code data-testid="current-site-code" className="warehouse-header-site-code">
+              {selectedSite?.code}
+            </code>
+            {isSuperUser && <span className="warehouse-perm-chip warehouse-perm-chip--super">🛡️ 全局管理</span>}
+          </div>
+        ) : selectedSite ? (
+          <div className="warehouse-header-switcher warehouse-header-switcher--single" data-testid="warehouse-header-switcher">
+            <span className="warehouse-header-switcher__label">作业库房：</span>
+            <strong className="warehouse-header-site-name">{selectedSite.name}</strong>
+            <code data-testid="current-site-code" className="warehouse-header-site-code">{selectedSite.code}</code>
+            {selectedBadge && (
+              <span className={`warehouse-site-badge warehouse-site-badge--${selectedBadge.tone}`}>
+                {selectedBadge.icon} {selectedBadge.label}
+              </span>
+            )}
+          </div>
+        ) : undefined
+      }
+    />
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
 
-    <div className="warehouse-workspace warehouse-workspace--department">
-      <Panel className="warehouse-detail">
-        {sites.isPending ? <LoadingState label="正在加载科室库存配置…" /> : !selectedSite
-          ? <EmptyState icon="pharmacy" title="当前科室未启用库存能力"
-            copy="库房不在此单独新建。请在组织与人员中维护科室类型，库存配置将随科室建立。" /> : <>
-          <nav className="warehouse-tabs" aria-label="库房管理内容">
-            {([['purchase', '采购验收', undefined], ['requisition', '科室请领', undefined],
-              ['transfer', '库间调拨', undefined], ['count', '库存盘点', undefined],
-              ['trace', '追溯码', undefined], ['accuracy', '账目校验', undefined],
-              ['price', '库存调价', undefined],
-              ['period', '库存月结', undefined],
-              ['inventory', '库存查询', inventoryVarietyCount], ['bins', '库位', bins.data?.length ?? 0],
-              ['items', '经营项目', items.data?.length ?? 0]] as const).map(([value, label, count]) =>
-              <button type="button" className={tab === value ? 'is-active' : ''} key={value}
-                onClick={() => setTab(value)}>{label}{count !== undefined && <span>{count}</span>}</button>)}
-          </nav>
-          {tab === 'bins' && <BinSection bins={bins.data ?? []} selected={selectedBin}
-            selectedId={selectedBinId} loading={bins.isPending} onSelect={setSelectedBinId}
-            onAdd={(parentId) => setBinDialogParentId(parentId ?? null)} />}
-          {tab === 'items' && <ItemSection items={items.data ?? []} loading={items.isPending}
-            onAdd={() => setItemDialogOpen(true)} onInspect={(id) => { setLedgerItemId(id); setTab('inventory') }} />}
-          {tab === 'inventory' && <InventorySection api={api} siteId={siteId} items={items.data ?? []}
-            bins={bins.data ?? []} selectedItemId={ledgerItemId} onInspect={setLedgerItemId}
-            loading={balances.isPending || transactions.isPending} balances={balances.data ?? []}
-            transactions={transactions.data ?? []} onReceive={(itemId) => {
-              setReceiptItemId(itemId); setReceiptDialogOpen(true)
-            }} />}
-          {tab === 'trace' && <TraceCodeManagement api={api} siteId={siteId}
-            items={items.data ?? []} bins={bins.data ?? []} />}
-          {tab === 'accuracy' && <InventoryAccuracyManagement api={api} siteId={siteId}
-            items={items.data ?? []} bins={bins.data ?? []} />}
-          {tab === 'period' && <InventoryPeriodManagement api={api} siteId={siteId}
-            items={items.data ?? []} bins={bins.data ?? []} />}
-          {tab === 'price' && <InventoryPriceAdjustmentManagement api={api} siteId={siteId}
-            items={items.data ?? []} bins={bins.data ?? []} balances={balances.data ?? []} />}
-          {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) &&
-            <WarehouseOperations tab={tab as OperationTab} api={api} site={selectedSite}
-              sites={sites.data ?? []} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} />}
-        </>}
-      </Panel>
-    </div>
+    {sites.isPending ? <LoadingState label="正在加载库存站点与配置…" /> : !allSites.length
+      ? <EmptyState icon="pharmacy" title="机构未配置任何库存站点"
+          copy="库房不在此单独新建。请在组织与人员中维护科室类型，库存配置将随科室建立。" />
+      : !accessibleSites.length
+        ? <EmptyState icon="pharmacy" title="暂无有权限管辖的库存站点"
+            copy="您当前的工作科室尚未配置或绑定库存站点。如需开展库房业务，请联系管理员为您分配对应库房科室的工作权限。" />
+        : <div className="warehouse-workspace warehouse-workspace--single">
+            <Panel className="warehouse-detail">
+              <nav className="warehouse-tabs" aria-label="库房管理内容">
+                {([['purchase', '采购验收', undefined], ['requisition', '科室请领', undefined],
+                  ['transfer', '库间调拨', undefined], ['count', '库存盘点', undefined],
+                  ['trace', '追溯码', undefined], ['accuracy', '账目校验', undefined],
+                  ['price', '库存调价', undefined],
+                  ['period', '库存月结', undefined],
+                  ['inventory', '库存查询', inventoryVarietyCount], ['bins', '库位', bins.data?.length ?? 0],
+                  ['items', '经营项目', items.data?.length ?? 0]] as const).map(([value, label, count]) =>
+                  <button type="button" className={tab === value ? 'is-active' : ''} key={value}
+                    onClick={() => setTab(value)}>{label}{count !== undefined && <span>{count}</span>}</button>)}
+              </nav>
+
+              {tab === 'bins' && <BinSection bins={bins.data ?? []} selected={selectedBin}
+                selectedId={selectedBinId} loading={bins.isPending} onSelect={setSelectedBinId}
+                onAdd={(parentId) => setBinDialogParentId(parentId ?? null)} isOperator={true} />}
+              {tab === 'items' && <ItemSection items={items.data ?? []} loading={items.isPending}
+                onAdd={() => setItemDialogOpen(true)} onInspect={(id) => { setLedgerItemId(id); setTab('inventory') }} isOperator={true} />}
+              {tab === 'inventory' && <InventorySection api={scopedApi} siteId={siteId} items={items.data ?? []}
+                bins={bins.data ?? []} selectedItemId={ledgerItemId} onInspect={setLedgerItemId}
+                loading={balances.isPending || transactions.isPending} balances={balances.data ?? []}
+                transactions={transactions.data ?? []} onReceive={(itemId) => {
+                  setReceiptItemId(itemId); setReceiptDialogOpen(true)
+                }} isOperator={true} />}
+              {tab === 'trace' && <TraceCodeManagement api={scopedApi} siteId={siteId}
+                items={items.data ?? []} bins={bins.data ?? []} />}
+              {tab === 'accuracy' && <InventoryAccuracyManagement api={scopedApi} siteId={siteId}
+                items={items.data ?? []} bins={bins.data ?? []} />}
+              {tab === 'period' && <InventoryPeriodManagement api={scopedApi} siteId={siteId}
+                items={items.data ?? []} bins={bins.data ?? []} />}
+              {tab === 'price' && <InventoryPriceAdjustmentManagement api={scopedApi} siteId={siteId}
+                items={items.data ?? []} bins={bins.data ?? []} balances={balances.data ?? []} />}
+              {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) && selectedSite &&
+                <WarehouseOperations tab={tab as OperationTab} api={scopedApi} site={selectedSite}
+                  sites={accessibleSites} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} isOperator={true} />}
+            </Panel>
+          </div>}
 
     {binDialogParentId !== undefined && selectedSite && <BinDialog parent={bins.data?.find((bin) => bin.id === binDialogParentId)}
       busy={createBin.isPending} error={createBin.error}
       onClose={() => { createBin.reset(); setBinDialogParentId(undefined) }} onSubmit={(input) => createBin.mutate(input)} />}
-    {itemDialogOpen && selectedSite && <ItemDialog api={api} organizationId={organizationId} stockSiteType={selectedSite.siteType}
+    {itemDialogOpen && selectedSite && <ItemDialog api={scopedApi} organizationId={organizationId} stockSiteType={selectedSite.siteType}
       existingItems={items.data ?? []} busy={createItems.isPending} error={createItems.error}
       onClose={() => { createItems.reset(); setItemDialogOpen(false) }} onSubmit={(input) => createItems.mutate(input)} />}
     {receiptDialogOpen && selectedReceiptItem && <ReceiptDialog item={selectedReceiptItem} bins={bins.data ?? []}
@@ -195,15 +341,15 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
   </>
 }
 
-function BinSection({ bins, selected, selectedId, loading, onSelect, onAdd }: {
+function BinSection({ bins, selected, selectedId, loading, onSelect, onAdd, isOperator = true }: {
   bins: StockBin[]; selected?: StockBin; selectedId?: string; loading: boolean
-  onSelect: (id?: string) => void; onAdd: (parentId?: string) => void
+  onSelect: (id?: string) => void; onAdd: (parentId?: string) => void; isOperator?: boolean
 }) {
   return <div className="warehouse-bin-layout">
     <TreePanel title="库位结构" rootLabel="全部库位" searchPlaceholder="搜索库位名称或编码" busy={loading}
       nodes={bins.map((bin) => ({ id: bin.id, parentId: bin.parentBinId, label: bin.name,
         secondaryText: bin.code, keywords: [bin.code, binTypeText[bin.binType]], inactive: !bin.active }))}
-      selectedId={selectedId} onSelect={onSelect} onAdd={onAdd} emptyText="尚未配置库位" />
+      selectedId={selectedId} onSelect={onSelect} onAdd={isOperator ? onAdd : undefined} emptyText="尚未配置库位" />
     <div className="warehouse-bin-detail">{!selected ? <EmptyState icon="pharmacy" title="选择一个库位"
       copy="查看库位用途和作业权限；也可以从左侧新增根库区或下级货位。" /> : <>
       <header><div><span>{binTypeText[selected.binType]}</span><h3>{selected.name}</h3><code>{selected.code}</code></div>
@@ -215,20 +361,20 @@ function BinSection({ bins, selected, selectedId, loading, onSelect, onAdd }: {
         <div><dt>允许拣货</dt><dd>{selected.pickAllowed ? '是' : '否'}</dd></div>
         <div><dt>允许盘点</dt><dd>{selected.countAllowed ? '是' : '否'}</dd></div>
       </dl>
-      <Button variant="secondary" size="sm" onClick={() => onAdd(selected.id)}>新增下级库位</Button>
+      <Button variant="secondary" size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={() => onAdd(selected.id)}>新增下级库位</Button>
     </>}</div>
   </div>
 }
 
-function ItemSection({ items, loading, onAdd, onInspect }: {
-  items: StockItem[]; loading: boolean; onAdd: () => void; onInspect: (id: string) => void
+function ItemSection({ items, loading, onAdd, onInspect, isOperator = true }: {
+  items: StockItem[]; loading: boolean; onAdd: () => void; onInspect: (id: string) => void; isOperator?: boolean
 }) {
   return <section className="warehouse-section">
     <header className="warehouse-section__toolbar"><strong>库房经营目录</strong>
-      <Button size="sm" onClick={onAdd}>批量调入</Button></header>
+      <Button size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={onAdd}>批量调入</Button></header>
     {loading ? <LoadingState label="正在加载经营项目…" /> : !items.length
       ? <EmptyState icon="pharmacy" title="尚未配置经营项目" copy="从机构已启用的药品产品中批量选择包装调入当前科室。"
-        action={<Button size="sm" onClick={onAdd}>批量调入</Button>} />
+        action={<Button size="sm" disabled={!isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={onAdd}>批量调入</Button>} />
       : <div className="warehouse-table-wrap"><table className="warehouse-table"><thead><tr>
         <th>药品产品</th><th>包装</th><th>出库策略</th><th>管控属性</th><th>状态</th><th aria-label="操作">操作</th>
       </tr></thead><tbody>{items.map((item) => <tr key={item.id}>
@@ -245,10 +391,10 @@ function ItemSection({ items, loading, onAdd, onInspect }: {
 }
 
 function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect, loading, balances,
-  transactions, onReceive }: {
+  transactions, onReceive, isOperator = true }: {
   api: RhnApi; siteId: string; items: StockItem[]; bins: StockBin[]; selectedItemId: string
   onInspect: (id: string) => void; loading: boolean; balances: InventoryBalance[]
-  transactions: InventoryTransaction[]; onReceive: (itemId: string) => void
+  transactions: InventoryTransaction[]; onReceive: (itemId: string) => void; isOperator?: boolean
 }) {
   const [query, setQuery] = useState('')
   const [stockFilter, setStockFilter] = useState('ALL')
@@ -343,7 +489,7 @@ function InventorySection({ api, siteId, items, bins, selectedItemId, onInspect,
             <td>{summary.latestProjectedAt ? formatWarehouseTime(summary.latestProjectedAt) : '尚未记账'}
               <small>本期 {summary.currentPeriodTransactions} 笔</small></td>
             <td><div className="warehouse-row-actions"><Button variant="text" size="sm" onClick={() => onInspect(item.id)}>查看流水</Button>
-              <Button variant="text" size="sm" disabled={!canReceive} onClick={() => onReceive(item.id)}>入库</Button></div></td>
+              <Button variant="text" size="sm" disabled={!canReceive || !isOperator} title={!isOperator ? '非管辖库房，仅供查阅' : undefined} onClick={() => onReceive(item.id)}>入库</Button></div></td>
           </tr>
         })}</tbody></table></div>}
     {selectedItem && <InventoryLedgerDialog item={selectedItem}

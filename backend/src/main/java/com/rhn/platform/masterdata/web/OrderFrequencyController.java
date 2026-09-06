@@ -8,6 +8,7 @@ import com.rhn.shared.context.ExecutionContextProvider;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -33,13 +34,13 @@ public class OrderFrequencyController {
             @RequestParam(required = false) LocalDate businessDate) {
         return service.active(contextProvider.requireCurrent().tenantId(), organizationId, departmentId, scene, orderType, businessDate);
     }
-    @PostMapping @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     FrequencyView create(@Valid @RequestBody FrequencyRequest request) { return service.create(request.command()); }
-    @PutMapping("/{id}")
+    @PutMapping("/{id}") @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     FrequencyView update(@PathVariable Long id, @Valid @RequestBody UpdateFrequencyRequest request) { return service.update(id, request.expectedRevision(), request.command()); }
-    @PostMapping("/{id}/configurations") @ResponseStatus(HttpStatus.CREATED)
+    @PostMapping("/{id}/configurations") @ResponseStatus(HttpStatus.CREATED) @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     FrequencyView createConfiguration(@PathVariable Long id, @Valid @RequestBody ConfigurationRequest request) { return service.createConfiguration(id, request.command()); }
-    @PutMapping("/{id}/configurations/{configurationId}")
+    @PutMapping("/{id}/configurations/{configurationId}") @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     FrequencyView updateConfiguration(@PathVariable Long id, @PathVariable Long configurationId,
             @Valid @RequestBody UpdateConfigurationRequest request) { return service.updateConfiguration(id, configurationId, request.expectedRevision(), request.command()); }
     @PostMapping("/preview")

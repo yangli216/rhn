@@ -87,11 +87,14 @@ class WorkContextService implements WorkContextDirectory {
 
         private WorkContextType workContextType(WorkContextProjectionRepository.Row value) {
             String departmentType = value.departmentType();
-            if ("MED_PHARMACY_WAREHOUSE".equals(departmentType)) return WorkContextType.INVENTORY;
-            if (departmentType != null && departmentType.startsWith("MED_PHARMACY")) {
+            String departmentProperty = value.departmentProperty();
+            if (departmentType != null && (departmentType.endsWith("_WAREHOUSE") || departmentType.contains("WAREHOUSE") || departmentType.endsWith("_STORE"))) {
+                return WorkContextType.INVENTORY;
+            }
+            if ((departmentType != null && departmentType.startsWith("MED_PHARMACY")) || "PHARMACY".equals(departmentProperty)) {
                 return WorkContextType.PHARMACY;
             }
-            if ("CLINICAL".equals(value.departmentProperty())) return WorkContextType.CLINICAL;
+            if ("CLINICAL".equals(departmentProperty)) return WorkContextType.CLINICAL;
             return WorkContextType.GENERAL;
         }
     }

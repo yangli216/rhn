@@ -57,6 +57,14 @@ export interface OrganizationUnit {
   updatedAt: string
 }
 
+export interface OrganizationCatalogSource {
+  organizationId: string
+  organizationName: string
+  organizationRevision: number
+  sourceOrganizationId?: string | null
+  sourceOrganizationName?: string | null
+}
+
 export interface Department {
   id: string
   revision: number
@@ -286,6 +294,15 @@ export function createOrganizationApi(client: ApiClient) {
       ? client.request<DepartmentProfile>(`/api/platform/departments/${unit.id}`)
       : client.request<OrganizationProfile>(`/api/platform/organization-units/${unit.id}`),
     list: () => client.request<OrganizationUnit[]>('/api/platform/organizations'),
+    catalogSource: (organizationId: string) => client.request<OrganizationCatalogSource>(
+      `/api/platform/organizations/${encodeURIComponent(organizationId)}/catalog-source`,
+    ),
+    changeCatalogSource: (organizationId: string, expectedRevision: number, sourceOrganizationId?: string) =>
+      client.request<OrganizationCatalogSource>(
+        `/api/platform/organizations/${encodeURIComponent(organizationId)}/catalog-source`, {
+          method: 'PUT', body: JSON.stringify({ expectedRevision, sourceOrganizationId: sourceOrganizationId || null }),
+        },
+      ),
     department: (departmentId: string) => client.request<DepartmentProfile>(
       `/api/platform/departments/${encodeURIComponent(departmentId)}`,
     ),

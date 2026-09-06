@@ -700,19 +700,7 @@ class SchedulingApplicationService {
             int available = pool.totalCount() - pool.heldCount() - pool.occupiedCount() - pool.frozenCount();
             FeeSnapshot fee = fees.computeIfAbsent(new FeeKey(schedule.organizationId(), schedule.catalogItemId(),
                     schedule.serviceDate()), key -> feeSnapshot(tenantId, key));
-            Long effectiveDeptId = schedule.departmentId();
-            if (schedule.practitionerId() == null) {
-                try {
-                    var catalogAdoption = catalogLifecycleDirectory.resolve(tenantId, schedule.catalogItemId(),
-                            schedule.organizationId(), null, "SALE", schedule.serviceDate());
-                    if (catalogAdoption != null && catalogAdoption.adoption() != null
-                            && catalogAdoption.adoption().defaultDepartmentId() != null) {
-                        effectiveDeptId = catalogAdoption.adoption().defaultDepartmentId();
-                    }
-                } catch (RuntimeException ignored) {}
-            }
-            final Long finalDeptId = effectiveDeptId;
-            String deptName = deptNames.computeIfAbsent(finalDeptId, did -> {
+            String deptName = deptNames.computeIfAbsent(schedule.departmentId(), did -> {
                 try {
                     return organizationDirectory.requireDepartment(tenantId, schedule.organizationId(), did).name();
                 } catch (RuntimeException ignored) {
@@ -721,7 +709,7 @@ class SchedulingApplicationService {
             });
             return new ScheduleView(schedule.id(), schedule.scheduleCode(), schedule.serviceDate(), schedule.dayPart(),
                     schedule.startAt(), schedule.endAt(), schedule.registrationScope(), schedule.practitionerId(),
-                    schedule.practitionerName(), finalDeptId, deptName,
+                    schedule.practitionerName(), schedule.departmentId(), deptName,
                     schedule.catalogItemId(), schedule.serviceCode(), schedule.serviceName(), schedule.locationName(),
                     pool.totalCount(), pool.heldCount(), pool.occupiedCount(), pool.frozenCount(), available,
                     schedule.status(), schedule.managementMode(), schedule.bookingPolicy(), pool.slotMode(),

@@ -20,12 +20,11 @@ public interface InsuranceClaimRepository extends JpaRepository<InsuranceClaim, 
             select value from InsuranceClaim value, PatientAccount account
              where value.tenantId = :tenantId and value.status in :statuses
                and account.id = value.patientAccountId and account.tenantId = value.tenantId
-               and account.organizationId = :organizationId and account.departmentId = :departmentId
+               and account.organizationId = :organizationId
              order by value.updatedAt, value.id
             """)
     List<InsuranceClaim> findRecoveryWorklist(@Param("tenantId") Long tenantId,
                                               @Param("organizationId") Long organizationId,
-                                              @Param("departmentId") Long departmentId,
                                               @Param("statuses") List<String> statuses,
                                               Pageable pageable);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

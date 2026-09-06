@@ -108,7 +108,7 @@ public class InsuranceClaimController {
         }
 
         String orgCode = context.hasWorkContext() ? "ORG-" + context.organizationId() : "ORG-DEFAULT";
-        String deptCode = context.hasWorkContext() ? "DEPT-" + context.departmentId() : "DEPT-DEFAULT";
+        String deptCode = "DEPT-" + account.departmentId();
         String practCode = context.hasWorkContext() ? "DR-" + context.subjectId() : "DR-DEFAULT";
         String digest = "MD5-" + settlement.settlementNo();
         String idempotencyKey = input != null && input.idempotencyKey() != null && !input.idempotencyKey().isBlank()

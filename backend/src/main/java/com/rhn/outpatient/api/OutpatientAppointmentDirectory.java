@@ -5,6 +5,6 @@ public interface OutpatientAppointmentDirectory {
     BookingSnapshot prepareRegistration(Long appointmentId, Long residentId,
                                         Long organizationId, Long departmentId);
 
-    record BookingSnapshot(Long appointmentId, Long residentId, Long scheduleId,
+    record BookingSnapshot(Long appointmentId, Long residentId, Long organizationId, Long departmentId, Long scheduleId,
                            Long catalogItemId, String serviceCode, String serviceName) {}
 }

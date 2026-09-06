@@ -90,7 +90,7 @@ class RegistrationBillingIntentTransactionService {
 
     @Transactional
     CreateResult create(CreateCommand input) {
-        ExecutionContext context = requireContext(input.organizationId(), input.departmentId());
+        ExecutionContext context = requireOrganizationContext(input.organizationId());
         String code = required(input.idempotencyCode(), "REGISTRATION_INTENT_IDEMPOTENCY_REQUIRED", "挂号意向必须提供幂等编码");
         String source = normalizeSource(input.registrationSource(), input.scheduleId() != null || input.appointmentId() != null);
         String visitType = normalizeVisit(input.visitType());
@@ -272,7 +272,7 @@ class RegistrationBillingIntentTransactionService {
         RegistrationBillingIntent value = intents.lockByTenantIdAndEncounterId(context.tenantId(), encounterId)
                 .orElse(null);
         if (value == null) return CancellationPlan.notApplicable();
-        requireContext(value.organizationId(), value.departmentId());
+        requireOrganizationContext(value.organizationId());
         if ("CANCELLED".equals(value.status())) {
             return new CancellationPlan(value.id(), value.status(), value.feeAmount(), value.currencyCode(),
                     null, true);
@@ -332,7 +332,7 @@ class RegistrationBillingIntentTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         RegistrationBillingIntent value = intents.lockByIdAndTenantId(intentId, context.tenantId())
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
-        requireContext(value.organizationId(), value.departmentId());
+        requireOrganizationContext(value.organizationId());
         value.cancel();
         if (value.slotHoldId() != null) {
             schedules.release(value.slotHoldId(), "CANCEL-REG-INTENT-" + value.id(), false);
@@ -350,7 +350,7 @@ class RegistrationBillingIntentTransactionService {
         ExecutionContext context = contextProvider.requireCurrent();
         RegistrationBillingIntent value = intents.findByIdAndTenantId(intentId, context.tenantId())
                 .orElseThrow(() -> notFound("REGISTRATION_INTENT_NOT_FOUND", "未找到挂号收费意向"));
-        requireContext(value.organizationId(), value.departmentId());
+        requireOrganizationContext(value.organizationId());
         return view(value, duplicate);
     }
 
@@ -378,7 +378,7 @@ class RegistrationBillingIntentTransactionService {
                 value.visitType(), value.encounterId(), execute);
     }
 
-    private ExecutionContext requireContext(Long organizationId, Long departmentId) {
+    private ExecutionContext requireOrganizationContext(Long organizationId) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext() || !context.canAccessOrganization(organizationId)) {
             throw badRequest("REGISTRATION_BILLING_CONTEXT_MISMATCH", "请在挂号机构工作上下文中办理");

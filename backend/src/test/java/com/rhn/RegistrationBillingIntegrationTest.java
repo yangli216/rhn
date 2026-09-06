@@ -36,6 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Tag("outpatient-main-flow")
 class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     private static final String REGISTRATION_SERVICE = "362387869795104";
+    private static final String INTERNAL_MEDICINE_DEPARTMENT = "362387869899001";
     @Autowired JdbcTemplate jdbc;
 
     @Test
@@ -234,6 +235,59 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/billing/cashier-closes/{closeId}", cashierClose.get("id").asText())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REVERSED"));
+    }
+
+    @Test
+    void central_registration_and_billing_can_process_another_department_without_changing_clinical_context() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10);
+        String residentId = createResident(suffix);
+        String scheduleId = createTodaySchedule(suffix, 2);
+        jdbc.update("update RHN_SC_SVC_SCHED set ID_DEPT = ? where ID_SVC_SCHED = ?",
+                Long.valueOf(INTERNAL_MEDICINE_DEPARTMENT), Long.valueOf(scheduleId));
+
+        JsonNode intent = createIntent(residentId, scheduleId, INTERNAL_MEDICINE_DEPARTMENT,
+                "REG-CROSS-DEPT-" + suffix);
+        assertEquals(INTERNAL_MEDICINE_DEPARTMENT, intent.get("departmentId").asText());
+
+        json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
+                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "idempotencyKey":"REG-CROSS-PAY-%s","businessScene":"REGISTRATION",
+                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":10.00,
+                                  "terminalCode":"CENTRAL-REGISTRATION"
+                                }
+                                """.formatted(suffix)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUCCEEDED"))
+                .andReturn().getResponse().getContentAsString());
+
+        JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
+                                intent.get("id").asText()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andReturn().getResponse().getContentAsString());
+        String encounterId = completed.get("encounterId").asText();
+        assertEquals(Long.valueOf(INTERNAL_MEDICINE_DEPARTMENT), jdbc.queryForObject(
+                "select ID_DEPT from RHN_VIS_ENC where ID_ENC = ?", Long.class, Long.valueOf(encounterId)));
+
+        mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())
+                        .queryParam("date", LocalDate.now().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.encounterId == '%s')]".formatted(encounterId)).doesNotExist());
+        mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())
+                        .queryParam("date", LocalDate.now().toString())
+                        .queryParam("scope", "ORGANIZATION"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.encounterId == '%s')]".formatted(encounterId)).exists());
+
+        mockMvc.perform(get("/api/billing/worklist").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.encounterId == '%s')]".formatted(encounterId)).exists());
+        mockMvc.perform(get("/api/billing/encounters/{encounterId}/statement", encounterId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.departmentId").value(Long.valueOf(INTERNAL_MEDICINE_DEPARTMENT)));
     }
 
     @Test
@@ -657,6 +711,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
     }
 
     private JsonNode createIntent(String residentId, String scheduleId, String code) throws Exception {
+        return createIntent(residentId, scheduleId, DEPARTMENT, code);
+    }
+
+    private JsonNode createIntent(String residentId, String scheduleId, String departmentId, String code) throws Exception {
         return json(mockMvc.perform(post("/api/billing/registration-intents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -664,7 +722,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                   "scheduleId":"%s","idempotencyCode":"%s",
                                   "registrationSource":"WINDOW","visitType":"GENERAL"
                                 }
-                                """.formatted(residentId, ORGANIZATION, DEPARTMENT, scheduleId, code)))
+                                """.formatted(residentId, ORGANIZATION, departmentId, scheduleId, code)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 

@@ -11,6 +11,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.outpatient.api.EncounterDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientNoteFormDirectory;
+import com.rhn.outpatient.api.RegistrationValidityPolicy;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.platform.terminology.api.DiseaseReferenceSnapshot;
 import com.rhn.platform.terminology.api.TerminologyDirectory;
@@ -70,6 +71,8 @@ public class EncounterService implements EncounterDirectory {
     private final IdempotencyService idempotencyService;
     private final ExecutionContextProvider executionContextProvider;
     private final JsonCodec jsonCodec;
+    private final com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory;
+    private final RegistrationValidityPolicy validityPolicy;
 
     public EncounterService(EncounterRepository encounterRepository,
                             EncounterDiagnosisRepository diagnosisRepository,
@@ -91,7 +94,9 @@ public class EncounterService implements EncounterDirectory {
                             DomainEventPublisher eventPublisher,
                             IdempotencyService idempotencyService,
                             ExecutionContextProvider executionContextProvider,
-                            JsonCodec jsonCodec) {
+                            JsonCodec jsonCodec,
+                            com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory inventoryDirectory,
+                            RegistrationValidityPolicy validityPolicy) {
         this.encounterRepository = encounterRepository;
         this.diagnosisRepository = diagnosisRepository;
         this.diagnosisRevisionRepository = diagnosisRevisionRepository;
@@ -113,6 +118,8 @@ public class EncounterService implements EncounterDirectory {
         this.idempotencyService = idempotencyService;
         this.executionContextProvider = executionContextProvider;
         this.jsonCodec = jsonCodec;
+        this.inventoryDirectory = inventoryDirectory;
+        this.validityPolicy = validityPolicy;
     }
 
     @Transactional
@@ -168,11 +175,16 @@ public class EncounterService implements EncounterDirectory {
             throw forbidden("ENCOUNTER_CONTEXT_FORBIDDEN", "不能在当前机构之外发起接诊");
         }
         organizationDirectory.requireDepartment(tenantId, organizationId, departmentId);
-        encounterRepository.findFirstByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
-                        tenantId, resident.id(), organizationId, departmentId,
-                        java.util.List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS,
-                                EncounterStatus.SUSPENDED))
-                .ifPresent(value -> { throw conflict("ENCOUNTER_ACTIVE_DUPLICATE", "该居民在当前科室已有进行中的就诊"); });
+        List<Encounter> activeEncounters = encounterRepository.findByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdAndStatusIn(
+                tenantId, resident.id(), organizationId, departmentId,
+                List.of(EncounterStatus.REGISTERED, EncounterStatus.IN_PROGRESS, EncounterStatus.SUSPENDED));
+        Instant now = Instant.now();
+        Long userId = context.hasWorkContext() ? context.subjectId() : null;
+        boolean hasUnexpiredActive = activeEncounters.stream()
+                .anyMatch(enc -> validityPolicy.isValid(enc.registeredAt(), now, tenantId, userId, organizationId, departmentId));
+        if (hasUnexpiredActive) {
+            throw conflict("ENCOUNTER_ACTIVE_DUPLICATE", "该居民在当前科室已有进行中的就诊");
+        }
         return resident.id();
     }
 
@@ -190,6 +202,9 @@ public class EncounterService implements EncounterDirectory {
     @Transactional
     public EncounterResponse start(Long encounterId, StartEncounterRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
+        if (encounter.status() == EncounterStatus.IN_PROGRESS) {
+            return toResponse(encounter);
+        }
         ExecutionContext context = executionContextProvider.requireCurrent();
         Map<String, Boolean> factors = Map.copyOf(request.factorResults());
         if (factors.isEmpty() || factors.values().stream().anyMatch(value -> !Boolean.TRUE.equals(value))) {
@@ -248,6 +263,9 @@ public class EncounterService implements EncounterDirectory {
     @Transactional
     public EncounterResponse resume(Long encounterId, ResumeEncounterRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
+        if (encounter.status() == EncounterStatus.IN_PROGRESS) {
+            return toResponse(encounter);
+        }
         ExecutionContext context = executionContextProvider.requireCurrent();
         long expectedRevision = encounter.version();
         String commandCode = clean(request.commandCode()) == null
@@ -525,6 +543,31 @@ public class EncounterService implements EncounterDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public EncounterSnapshot requireOrganizationAccessible(Long encounterId) {
+        Encounter encounter = encounterRepository.findByIdAndTenantId(encounterId, TenantContext.requireTenantId())
+                .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (!context.hasWorkContext() || !context.canAccessOrganization(encounter.organizationId())) {
+            throw forbidden("ENCOUNTER_FORBIDDEN", "无权访问当前机构之外的就诊");
+        }
+        return snapshot(encounter);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds) {
+        if (encounterIds == null || encounterIds.isEmpty()) return List.of();
+        Long tenantId = TenantContext.requireTenantId();
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (!context.hasWorkContext()) return List.of();
+        return encounterRepository.findByTenantIdAndIdIn(tenantId, encounterIds).stream()
+                .filter(encounter -> context.canAccessOrganization(encounter.organizationId()))
+                .map(this::snapshot)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId) {
         Encounter encounter = encounterRepository.findByIdAndTenantId(encounterId, tenantId)
                 .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
@@ -658,6 +701,18 @@ public class EncounterService implements EncounterDirectory {
         details.put("summary", summary);
         eventPublisher.publish(encounter.tenantId(), encounter.organizationId(), type, 1,
                 "Encounter", encounter.id(), encounter.version(), encounter.residentId(), Instant.now(), details);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.OrderableMedicationView> searchOrderableMedications(
+            Long encounterId, String query) {
+        var encounter = requireActiveForOrdering(encounterId);
+        return inventoryDirectory.findOrderableMedications(
+                encounter.tenantId(),
+                encounter.organizationId(),
+                encounter.departmentId(),
+                query
+        );
     }
 
     private String nextEncounterNo() {

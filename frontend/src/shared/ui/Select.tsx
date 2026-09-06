@@ -95,7 +95,11 @@ export function Select(props: SelectProps) {
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>()
   const positioned = Boolean(popoverPosition)
   const multiple = props.multiple === true
-  const values = multiple ? (props.value ?? []) : props.value ? [props.value] : []
+  const values = multiple
+    ? (props.value ?? [])
+    : props.value !== undefined && props.value !== null
+      ? (props.value === '' ? (options.some((option) => option.value === '') ? [''] : []) : [props.value])
+      : []
   const valueSet = useMemo(() => new Set(values), [values])
   const selectedOptions = options.filter((option) => valueSet.has(option.value))
   const filteredOptions = useMemo(() => filterSelectOptions(options, query, pinyinSearch), [options, pinyinSearch, query])

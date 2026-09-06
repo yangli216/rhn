@@ -228,6 +228,7 @@ class PatientRegistration {
     }
     Long id() { return id; } Long tenantId() { return tenantId; } Long appointmentId() { return appointmentId; }
     Long scheduleId() { return scheduleId; } Long residentId() { return residentId; }
+    Long organizationId() { return organizationId; } Long departmentId() { return departmentId; }
     Long encounterId() { return encounterId; } String registrationNo() { return registrationNo; }
     String registrationSource() { return registrationSource; } String visitType() { return visitType; }
     String status() { return status; } Instant registeredAt() { return registeredAt; }

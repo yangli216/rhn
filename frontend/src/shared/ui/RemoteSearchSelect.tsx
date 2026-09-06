@@ -33,6 +33,7 @@ export interface RemoteSearchSelectProps<T = unknown> {
   resultLimit?: number
   disabled?: boolean
   clearable?: boolean
+  showCode?: boolean
   emptyText?: string
   'aria-label'?: string
   'aria-describedby'?: string
@@ -63,6 +64,7 @@ export function RemoteSearchSelect<T>({
   resultLimit = 30,
   disabled = false,
   clearable = true,
+  showCode = true,
   emptyText = '未找到匹配结果',
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
@@ -249,7 +251,7 @@ export function RemoteSearchSelect<T>({
       }}
     >
       <span className="ui-remote-search__value">{value?.label ?? placeholder}</span>
-      {value && <code>{value.code}</code>}
+      {value && showCode && <code>{value.code}</code>}
       <Icon name="search" />
     </button>
     {open && popoverPosition && createPortal(<div
@@ -298,7 +300,7 @@ export function RemoteSearchSelect<T>({
               {option.tags?.map((tag) => <span key={tag}>{tag}</span>)}
             </small>}
           </span>
-          <span className="ui-remote-search__option-code"><code>{option.code}</code>
+          <span className="ui-remote-search__option-code">{showCode && <code>{option.code}</code>}
             {value?.value === option.value && <Icon name="check" />}</span>
         </button>)}
       </div>

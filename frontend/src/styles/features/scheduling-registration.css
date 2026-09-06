@@ -1,0 +1,840 @@
+/* Primary-care scheduling mode switcher in header actions */
+.scheduling-mode-switch { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); padding: 2px; gap: 2px; box-shadow: var(--shadow-sm); }
+.scheduling-mode-btn { height: var(--control-height-sm); padding: 0 var(--space-3); display: inline-flex; align-items: center; gap: var(--space-1-5); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); white-space: nowrap; }
+.scheduling-mode-btn:hover:not(:disabled) { color: var(--color-text-primary); background: var(--color-surface-subtle); }
+.scheduling-mode-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: var(--font-weight-bold); box-shadow: var(--shadow-sm); }
+.scheduling-mode-btn:disabled { color: var(--color-text-disabled); cursor: not-allowed; opacity: 0.6; }
+
+.quick-schedule-panel { flex: 0 0 auto; margin-bottom: var(--space-4); overflow: hidden; }
+.schedule-list-panel { flex: 1 1 0; min-height: 0; margin-bottom: var(--space-4); display: flex; flex-direction: column; overflow: hidden; }
+.quick-schedule-panel__head, .schedule-list-panel__head { min-height: 4.5rem; padding: var(--space-3) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.quick-schedule-panel__head h2, .schedule-list-panel__head h2 { margin: var(--space-1) 0; }
+.quick-schedule-panel__head p, .schedule-list-panel__head p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.quick-schedule-form { padding: var(--space-5); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
+.quick-schedule-form .ui-field { min-width: 0; margin: 0; }
+.quick-schedule-form input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.quick-schedule-form input:focus { outline: none; border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+.quick-schedule-field { min-width: 0; grid-column: span 2; }
+.quick-schedule-field > span { display: block; margin-bottom: var(--space-2); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.quick-schedule-field > div { display: flex; gap: var(--space-2); }
+.quick-schedule-field button { min-height: var(--control-height-md); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.quick-schedule-field button:hover { background: var(--color-surface-subtle); }
+.quick-schedule-field button.is-selected { border-color: var(--color-brand-primary); color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.quick-schedule-field--weekdays button { min-width: 3.5rem; padding: 0 var(--space-2); flex: 1; }
+.quick-schedule-field--sessions button { min-width: 9rem; padding: var(--space-2) var(--space-4); flex: 1; display: grid; gap: var(--space-1); text-align: left; }
+.quick-schedule-field--sessions small { color: var(--color-text-secondary); }
+.quick-schedule-actions { min-height: 3.75rem; padding: var(--space-2) var(--space-5); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.schedule-list-panel__head > strong { color: var(--color-brand-primary); font-size: var(--font-size-h1); font-variant-numeric: tabular-nums; }
+.schedule-list-panel__head > strong small { margin-left: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.schedule-list { min-width: 72rem; }
+.schedule-list-scroll { min-height: 0; flex: 1 1 auto; max-width: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.schedule-list-panel > .ui-empty-state, .schedule-list-panel > .ui-loading-state { min-height: 0; flex: 1 1 auto; }
+.schedule-list__head, .schedule-list article { min-height: 4.5rem; padding: 0 var(--space-5); display: grid; grid-template-columns: minmax(13rem, 1fr) minmax(16rem, 1.2fr) minmax(8rem, .65fr) minmax(7rem, .5fr) 5.5rem minmax(12rem, .8fr); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.schedule-list__head { min-height: 2.75rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.schedule-list article:last-child { border-bottom: 0; }
+.schedule-list article > div { min-width: 0; }
+.schedule-list article strong, .schedule-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-list article small, .schedule-list article > span { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.schedule-row-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-1); }
+.schedule-row-actions .ui-button { padding-right: var(--space-2); padding-left: var(--space-2); }
+.schedule-edit-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.schedule-edit-form .ui-field { margin: 0; }
+.schedule-edit-form__wide { grid-column: 1 / -1; }
+.schedule-capacity strong { color: var(--color-brand-primary); font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
+
+.professional-schedule-panel, .professional-template-panel { flex: 0 0 auto; margin-bottom: var(--space-4); overflow: hidden; }
+.professional-schedule-panel__head, .professional-template-panel__head { min-height: 5.75rem; padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.professional-schedule-panel__head h2, .professional-template-panel__head h2 { margin: var(--space-1) 0; }
+.professional-schedule-panel__head p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.professional-schedule-form { padding: var(--space-5); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: start; gap: var(--space-4); }
+.professional-schedule-form .ui-field { min-width: 0; margin: 0; }
+.professional-schedule-form input, .professional-exception-list input { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); }
+.professional-schedule-form input:focus, .professional-exception-list input:focus { outline: none; border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+.professional-schedule-weekdays { grid-column: span 2; }
+.professional-schedule-weekdays button { min-width: 2.75rem; padding: 0 var(--space-2); flex: 1; }
+.professional-exceptions { max-height: 36rem; margin: 0 var(--space-5) var(--space-5); border: 1px solid var(--color-border); border-radius: var(--radius-lg); overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable both-edges; }
+.professional-exceptions > header { position: sticky; z-index: 2; top: 0; min-width: 68rem; min-height: 4.25rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); background: var(--color-surface-subtle); }
+.professional-exceptions h3 { margin: 0; font-size: var(--font-size-body); }
+.professional-exceptions p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.professional-exceptions__empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.professional-exception-list { min-width: 68rem; display: grid; }
+.professional-exception-list > div { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: repeat(6, minmax(7rem, 1fr)) auto; align-items: end; gap: var(--space-3); border-top: 1px solid var(--color-border); }
+.professional-exception-list .ui-field { min-width: 0; margin: 0; }
+.professional-template-panel__head > strong { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
+.professional-template-panel__head > strong small { margin-left: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.professional-template-list-scroll { max-height: 30rem; max-width: 100%; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.professional-template-list { min-width: 64rem; }
+.professional-template-list article { min-height: 4.5rem; padding: 0 var(--space-5); display: grid; grid-template-columns: minmax(16rem, 1.2fr) minmax(13rem, 1fr) minmax(18rem, 1.2fr) auto; align-items: center; gap: var(--space-4); border-top: 1px solid var(--color-border); }
+.professional-template-list article > div { min-width: 0; }
+.professional-template-list strong, .professional-template-list small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.professional-template-list small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+/* Window registration focuses on resident lookup and schedule selection; the registration ledger has its own query page. */
+.registration-metrics { margin-bottom: var(--space-4); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.registration-metrics > div { min-width: 0; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-1) var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-panel); }
+.registration-metrics span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-metrics strong { grid-row: 1 / span 2; grid-column: 2; color: var(--color-brand-primary); font-size: var(--font-size-h2); font-variant-numeric: tabular-nums; }
+.registration-metrics small { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
+.registration-workspace { margin-bottom: var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: var(--space-3); }
+.registration-linked-appointment { margin: 0 var(--space-4) var(--space-4); }
+.registration-workspace-layout { display: grid; grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr); gap: var(--space-4); align-items: start; margin-bottom: var(--space-5); }
+@media (max-width: 68rem) { .registration-workspace-layout { grid-template-columns: 1fr; } }
+.registration-col-patient { min-width: 0; }
+.registration-col-schedules { min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.registration-intake-form-v2 { padding: var(--space-3) var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); }
+.registration-identity-section, .registration-params-section { min-width: 0; display: grid; gap: var(--space-1); }
+.registration-identity-section .registration-form-group-head,
+.registration-params-section .registration-form-group-head { min-height: 1.5rem; }
+.registration-patient-identity.registration-patient-identity--compact { min-height: 3.25rem; padding: var(--space-1) 0; grid-template-columns: 2.5rem minmax(0, 1fr) auto; border: 0; }
+.registration-patient-reset { align-self: center; padding-right: 0; padding-left: var(--space-1); white-space: nowrap; }
+.registration-intake-params-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); width: 100%; box-sizing: border-box; }
+.registration-intake-meta-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-2); padding: var(--space-1) var(--space-2); background: var(--color-surface-subtle); border-radius: var(--radius-md); border: 1px solid var(--color-border); font-size: var(--font-size-small); }
+.registration-intake-meta-item { display: flex; flex-direction: column; gap: 2px; }
+.registration-intake-meta-item span { color: var(--color-text-secondary); font-size: 0.6875rem; }
+.registration-intake-meta-item strong { color: var(--color-text-primary); font-size: 0.8125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registration-settlement-section { min-width: 0; padding-top: var(--space-2); display: grid; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.registration-settlement-total { display: inline-flex; align-items: baseline; gap: var(--space-1); color: var(--color-text-secondary); }
+.registration-settlement-total b { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
+.registration-settlement-options { min-height: 1.75rem; display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.registration-settlement-options label { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); cursor: pointer; }
+.registration-confirm-button { width: 100%; min-height: 2.625rem; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.registration-selection-hint { margin-top: var(--space-1); overflow: hidden; color: var(--color-text-secondary); font-size: .75rem; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+
+@media (min-width: 68.01rem) and (max-height: 50rem) {
+  .registration-col-patient > .ui-panel__head { min-height: 3rem; padding: var(--space-2) var(--space-4); }
+  .registration-intake-form-v2 { padding: var(--space-2) var(--space-4); gap: var(--space-2); }
+  .registration-patient-identity.registration-patient-identity--compact { min-height: 2.75rem; padding: 0; }
+  .registration-intake-params-grid .ui-field__control { height: 2.25rem; margin-top: var(--space-1); }
+  .registration-intake-meta-row { padding-top: 2px; padding-bottom: 2px; }
+  .registration-intake-meta-item { min-width: 0; flex-direction: row; align-items: baseline; gap: var(--space-1); }
+  .registration-intake-meta-item span { flex: none; }
+  .registration-settlement-section { padding-top: var(--space-1); gap: var(--space-1); }
+  .registration-payment-chip { height: 2rem; }
+  .registration-cash-calculator { padding: var(--space-1) var(--space-2); gap: var(--space-1); }
+  .registration-cash-change-box { min-height: 2rem; padding-top: 2px; padding-bottom: 2px; }
+  .registration-settlement-options { min-height: 1.5rem; }
+  .registration-confirm-button { min-height: 2.25rem; }
+  .registration-selection-hint { display: none; }
+}
+
+/* Schedule Card Compact for Registration Operators (Compressed Width & High Density) */
+.registration-schedule-grid-pro {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.registration-schedule-card-compact {
+  padding: 8px 12px;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 5px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: all var(--motion-fast) var(--ease-standard);
+  position: relative;
+  min-height: 4.5rem;
+}
+
+.registration-schedule-card-compact:hover:not(:disabled) {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+.registration-schedule-card-compact:focus-visible {
+  outline: 2px solid var(--color-brand-primary);
+  outline-offset: 2px;
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  box-shadow: 0 0 0 4px var(--color-focus-ring);
+}
+
+.registration-schedule-card-compact.is-selected {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 80%, white);
+  box-shadow: 0 0 0 2px var(--color-brand-primary);
+}
+
+.registration-schedule-card-compact:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Expert Clinic Card Accents */
+.registration-schedule-card-compact.is-expert {
+  border-left: 4px solid var(--color-warning);
+}
+
+.registration-schedule-card-compact.is-expert:hover:not(:disabled) {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning-soft) 45%, var(--color-surface));
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-warning) 16%, transparent);
+}
+
+.registration-schedule-card-compact.is-expert.is-selected {
+  border-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning-soft) 32%, var(--color-surface));
+  box-shadow: 0 0 0 2px var(--color-warning);
+}
+
+.schedule-card-compact__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.schedule-card-compact__title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.schedule-card-compact__badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.schedule-card-compact__sub {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: -2px;
+}
+
+.schedule-card-compact__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: auto;
+}
+
+.schedule-card-compact__time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-card-compact__time .ui-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.schedule-card-compact__metrics {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.schedule-card-compact__price {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.registration-schedule-card-compact.is-expert .schedule-card-compact__price {
+  color: var(--color-warning-strong);
+}
+
+.schedule-badge-slots {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.schedule-badge-slots.is-ample {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.schedule-badge-slots.is-urgent {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.schedule-card-compact__selected-marker {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 14px;
+  height: 14px;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  border-bottom-left-radius: var(--radius-sm);
+  border-top-right-radius: calc(var(--radius-md) - 1px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-small);
+}
+
+.registration-schedule-card-compact.is-expert .schedule-card-compact__selected-marker {
+  background: var(--color-warning);
+}
+
+.schedule-badge-daypart {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.schedule-badge-direct {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--color-info-soft);
+  color: var(--color-info);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.schedule-badge-clinic {
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  font-size: 0.6875rem;
+}
+
+.schedule-badge-clinic.is-regular {
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  font-weight: 500;
+}
+
+.schedule-badge-clinic.is-expert {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  font-weight: 700;
+}
+
+.schedule-badge-clinic.is-gold {
+  background: color-mix(in srgb, var(--color-warning-soft) 72%, var(--color-surface));
+  color: var(--color-warning-strong);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  font-weight: 800;
+}
+
+.registration-dept-filter-bar { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--color-border); display: flex; flex-direction: column; gap: var(--space-2); background: var(--color-surface-subtle); }
+.registration-filter-search-row { display: flex; align-items: center; gap: var(--space-3); }
+.registration-dept-search { flex: 1; min-width: 14rem; height: var(--control-height-sm); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; font-size: var(--font-size-small); background: var(--color-surface); color: var(--color-text-primary); }
+.registration-dept-search:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+
+.registration-type-segmented { display: inline-flex; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 2px; gap: 2px; flex-shrink: 0; }
+.registration-type-btn { display: inline-flex; align-items: center; gap: var(--space-1); padding: 4px 10px; border: 0; background: transparent; font-size: 0.8125rem; font-weight: 500; color: var(--color-text-secondary); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
+.registration-type-btn svg { width: 0.9375rem; height: 0.9375rem; }
+.registration-type-btn:hover { color: var(--color-text-primary); }
+.registration-type-btn.is-active { background: var(--color-brand-soft); color: var(--color-brand-strong); font-weight: 700; }
+
+.registration-dept-tabs { display: flex; align-items: center; gap: var(--space-1); overflow-x: auto; padding-bottom: 2px; }
+.registration-dept-pill { padding: 0.15rem 0.55rem; border: 1px solid var(--color-border); border-radius: var(--radius-round); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
+.registration-dept-pill:hover { border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
+.registration-dept-pill.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-primary); color: var(--color-text-inverse); font-weight: var(--font-weight-medium); }
+
+.registration-daypart-pills { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; border-left: 1px solid var(--color-border); padding-left: var(--space-2); flex-shrink: 0; }
+.registration-daypart-pill { padding: 0.15rem 0.5rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); font-size: 0.75rem; color: var(--color-text-secondary); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
+.registration-daypart-pill:hover { border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
+.registration-daypart-pill.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); color: var(--color-brand-primary); font-weight: 700; }
+
+.registration-patient-search .ui-patient-search__results > div { grid-template-columns: 1fr; max-height: 14rem; }
+
+.registration-fee-card { padding: var(--space-4); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.registration-fee-row { display: flex; align-items: center; justify-content: space-between; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.registration-fee-row.is-total { padding-top: var(--space-2); border-top: 1px dashed var(--color-border); font-size: var(--font-size-body); color: var(--color-text-primary); font-weight: var(--font-weight-bold); }
+.registration-fee-row.is-total strong { color: var(--color-brand-primary); font-size: var(--font-size-h2); }
+.registration-payment-methods,
+.payment-method-selector {
+  padding: 2px 0;
+  display: flex;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  align-items: center;
+  width: 100%;
+  position: relative;
+}
+.registration-payment-chip,
+.payment-method-chip {
+  flex: 1 1 0;
+  min-width: 4.5rem;
+  height: 2.125rem;
+  padding: 0 var(--space-1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: .75rem;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+.registration-payment-chip:hover,
+.registration-payment-chip:focus-visible,
+.payment-method-chip:hover,
+.payment-method-chip:focus-visible {
+  border-color: var(--color-brand-primary);
+  outline: 0;
+}
+.registration-payment-chip:focus-visible,
+.payment-method-chip:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+.registration-payment-chip.is-active,
+.payment-method-chip.is-active {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+}
+.registration-payment-chip kbd,
+.payment-method-chip kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  font-size: 0.6875rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-text-secondary);
+}
+.registration-payment-chip.is-active kbd,
+.payment-method-chip.is-active kbd {
+  background: var(--color-surface);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  font-weight: 700;
+}
+
+.payment-method-other-container {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 4.75rem;
+}
+.payment-method-other-trigger {
+  width: 100%;
+  height: 2.125rem;
+  justify-content: center;
+  user-select: none;
+}
+.payment-method-other-arrow {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  transition: transform var(--motion-fast) var(--ease-standard);
+  margin-left: 2px;
+  pointer-events: none;
+}
+.payment-method-other-arrow.is-open {
+  transform: rotate(180deg);
+}
+.payment-method-chip.is-active .payment-method-other-arrow {
+  color: var(--color-brand-strong);
+}
+.payment-method-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 100%;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.payment-method-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 1.875rem;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+.payment-method-dropdown-item:hover {
+  background: var(--color-surface-subtle);
+  color: var(--color-brand-primary);
+}
+.payment-method-dropdown-item.is-selected {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+}
+.payment-method-dropdown-check {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  margin-left: 0.5rem;
+}
+
+.registration-cash-calculator,
+.cash-payment-calc {
+  margin: 0;
+  padding: var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: var(--space-2);
+}
+.registration-cash-row,
+.cash-payment-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+  width: 100%;
+}
+.registration-cash-label,
+.cash-payment-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.registration-cash-input-wrap,
+.cash-payment-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  width: 5.25rem;
+  height: 2rem;
+  padding: 0 0.375rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-sizing: border-box;
+  flex-shrink: 0;
+  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+}
+.registration-cash-input-wrap:focus-within,
+.cash-payment-input-wrap:focus-within {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
+.registration-cash-symbol,
+.cash-payment-symbol {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  line-height: 1;
+  user-select: none;
+  pointer-events: none;
+  margin-right: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+}
+.registration-cash-input,
+.cash-payment-input {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  font-weight: 700;
+  font-family: inherit;
+  line-height: 1;
+  padding: 0;
+  margin: 0;
+}
+.registration-cash-input::-webkit-outer-spin-button,
+.registration-cash-input::-webkit-inner-spin-button,
+.cash-payment-input::-webkit-outer-spin-button,
+.cash-payment-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.registration-cash-input[type=number],
+.cash-payment-input[type=number] {
+  -moz-appearance: textfield;
+}
+.registration-cash-presets,
+.cash-payment-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+  margin-left: 2px;
+}
+.registration-cash-preset-btn,
+.cash-payment-preset-btn,
+.cash-payment-preset-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  padding: 0 4px;
+  font-size: 0.75rem;
+  font-family: inherit;
+  font-weight: var(--font-weight-medium);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-standard), text-decoration var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
+  white-space: nowrap;
+  text-decoration: none;
+  user-select: none;
+}
+.registration-cash-preset-btn:hover,
+.cash-payment-preset-btn:hover,
+.cash-payment-preset-link:hover {
+  color: var(--color-brand-strong);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.registration-cash-preset-btn:focus-visible,
+.cash-payment-preset-btn:focus-visible,
+.cash-payment-preset-link:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+.registration-cash-preset-btn.is-active,
+.cash-payment-preset-btn.is-active,
+.cash-payment-preset-link.is-active {
+  color: var(--color-brand-strong);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  background: var(--color-brand-soft);
+}
+.registration-cash-change-box,
+.cash-payment-change {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+}
+.registration-cash-change-box.is-sufficient,
+.cash-payment-change.is-sufficient {
+  background: var(--color-success-soft);
+  border: 1px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  color: var(--color-success);
+}
+.registration-cash-change-box.is-sufficient strong,
+.cash-payment-change.is-sufficient strong {
+  font-size: 1.125rem;
+  color: var(--color-success);
+}
+.registration-cash-change-box.is-short,
+.cash-payment-change.is-short {
+  background: var(--color-danger-soft);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  color: var(--color-danger);
+}
+.registration-cash-change-box.is-short strong,
+.cash-payment-change.is-short strong {
+  font-size: 1.125rem;
+  color: var(--color-danger);
+}
+.registration-cash-short-tip,
+.cash-payment-short-tip {
+  color: var(--color-danger);
+  font-size: 0.75rem;
+}
+.registration-cash-change-tip,
+.cash-payment-change-tip {
+  color: var(--color-success);
+  font-size: 0.75rem;
+}
+
+.registration-receipt-card { margin: var(--space-4); padding: var(--space-4); border: 1px dashed var(--color-brand-primary); border-radius: var(--radius-lg); background: var(--color-brand-soft); display: grid; gap: var(--space-2); }
+.registration-receipt-header { display: flex; align-items: center; justify-content: space-between; }
+.registration-receipt-ticket { font-size: 1.75rem; font-weight: var(--font-weight-bold); color: var(--color-brand-strong); }
+.quick-resident-form { display: grid; gap: var(--space-4); padding: var(--space-2) 0; }
+.thermal-receipt-container { max-width: 22rem; margin: 0 auto; padding: var(--space-3) 0; }
+.thermal-receipt-paper { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-md); box-shadow: var(--shadow-panel); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: var(--color-text-primary); display: flex; flex-direction: column; gap: var(--space-3); }
+.thermal-receipt-paper header { text-align: center; border-bottom: 1px dashed var(--color-border-strong); padding-bottom: var(--space-3); }
+.thermal-receipt-paper header h3 { font-size: 1.125rem; font-weight: 700; margin: 0; }
+.thermal-receipt-paper header p { margin: 2px 0 0; font-size: 0.75rem; color: var(--color-text-secondary); }
+.thermal-receipt-queue-section { text-align: center; padding: var(--space-2) 0; border-bottom: 1px dashed var(--color-border-strong); }
+.thermal-receipt-queue-section span { font-size: 0.8125rem; color: var(--color-text-secondary); }
+.thermal-receipt-queue-section strong { display: block; font-size: 2.5rem; font-weight: 900; color: var(--color-text-primary); letter-spacing: 2px; }
+.thermal-receipt-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px var(--space-3); font-size: 0.8125rem; margin: 0; padding: 0; }
+.thermal-receipt-dl dt { color: var(--color-text-secondary); }
+.thermal-receipt-dl dd { margin: 0; font-weight: 600; text-align: right; }
+.thermal-receipt-barcode-box { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--space-2) 0; border-top: 1px dashed var(--color-border-strong); border-bottom: 1px dashed var(--color-border-strong); }
+.thermal-receipt-barcode-bars { height: 2.25rem; width: 85%; display: flex; align-items: stretch; justify-content: space-between; }
+.thermal-receipt-barcode-bars span { background: var(--color-text-primary); width: 2px; }
+.thermal-receipt-barcode-bars span:nth-child(2n) { width: 3px; }
+.thermal-receipt-barcode-bars span:nth-child(3n) { width: 1px; }
+.thermal-receipt-barcode-bars span:nth-child(5n) { width: 4px; }
+.thermal-receipt-guidance { text-align: center; font-size: 0.75rem; color: var(--color-text-secondary); line-height: 1.4; padding-top: var(--space-1); }
+.registration-history-table { width: 100%; border-collapse: collapse; }
+.registration-history-table th, .registration-history-table td { padding: var(--space-2) var(--space-3); font-size: var(--font-size-small); border-bottom: 1px solid var(--color-border); text-align: left; }
+.registration-history-table th { background: var(--color-surface-subtle); color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); }
+.registration-history-table tr:hover td { background: var(--color-surface-subtle); }
+.registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.75rem; color: var(--color-text-secondary); }
+.registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.75rem; color: var(--color-text-primary); }
+.registration-workspace > .ui-panel { min-width: 0; overflow: hidden; }
+.registration-intake-form { padding: var(--space-3) var(--space-4) var(--space-4); display: grid; gap: var(--space-3); }
+.registration-intake-search { min-width: 0; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.registration-intake-search > header, .registration-form-group-head { min-height: 1.75rem; margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.registration-intake-search > header strong, .registration-form-group-head strong { font-size: var(--font-size-small); }
+.registration-intake-search > header span, .registration-form-group-head span { color: var(--color-text-secondary); font-size: .6875rem; white-space: nowrap; }
+.registration-intake-panel > .ui-alert { margin: 0 var(--space-3) var(--space-3); }
+.registration-intake-search .registration-patient-search { padding: 0; }
+.registration-intake-search .ui-patient-search__methods > span { display: none; }
+.registration-intake-search .ui-patient-search__methods > button { min-width: 7rem; }
+.registration-intake-search .ui-patient-search__results > div { max-height: 12rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.registration-intake-fields { min-width: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 var(--space-4); }
+.registration-form-group-head { grid-column: 1 / -1; margin: 0; padding-top: var(--space-1); border-bottom: 1px solid var(--color-border); }
+.registration-form-group-head + * { margin-top: var(--space-2); }
+.registration-form-group-actions { display: inline-flex; align-items: center; gap: var(--space-2); }
+.registration-form-group-actions > .ui-button { min-height: 1.5rem; padding: 0 var(--space-1); }
+.registration-patient-identity { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); align-content: center; align-items: center; gap: 0 var(--space-2); border-bottom: 1px solid var(--color-border); }
+.registration-patient-identity > div { min-width: 0; display: grid; gap: .125rem; }
+.registration-patient-identity > div strong, .registration-patient-identity > div span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registration-patient-identity > div span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-flat-field { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; align-content: center; gap: var(--space-1); border-bottom: 1px solid var(--color-border); }
+.registration-flat-field span { color: var(--color-text-secondary); font-size: .6875rem; }
+.registration-flat-field strong { overflow: hidden; font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.registration-form-empty { min-height: 4.5rem; grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-form-empty .ui-icon { color: var(--color-brand-primary); font-size: 1.25rem; }
+.registration-order-fields { min-width: 0; grid-column: 1 / -1; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0 var(--space-4); }
+.registration-selection-field { min-width: 0; min-height: 4.5rem; padding: var(--space-2) 0; display: grid; align-content: center; border-bottom: 1px solid var(--color-border); }
+.registration-selection-field .ui-field { margin: 0; }
+.registration-schedule-panel { overflow: hidden; }
+.registration-schedule-grid { padding: var(--space-3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
+.registration-schedule-card { min-width: 0; min-height: 9rem; padding: var(--space-3); display: grid; align-content: start; gap: var(--space-1); border: 1px solid var(--color-border); border-radius: var(--radius-lg); color: var(--color-text-primary); background: var(--color-surface); font: inherit; text-align: left; cursor: pointer; }
+.registration-schedule-card:hover:not(:disabled), .registration-schedule-card:focus-visible { border-color: var(--color-brand-primary); outline: 0; background: var(--color-brand-soft); box-shadow: 0 0 0 2px var(--color-focus-ring); }
+.registration-schedule-card.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); box-shadow: inset 3px 0 var(--color-brand-primary); }
+.registration-schedule-card:disabled { cursor: default; }
+.registration-schedule-card:disabled:not(.is-selected) { color: var(--color-text-disabled); background: var(--color-surface-muted); }
+.registration-schedule-card__top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.registration-schedule-card__top b { color: var(--color-brand-primary); }
+.registration-schedule-card__top small { padding: .125rem var(--space-1); border-radius: var(--radius-sm); color: var(--color-success); background: var(--color-success-soft); font-size: .6875rem; }
+.registration-schedule-card > strong { margin: var(--space-1) 0; font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
+.registration-schedule-card > span:not(.registration-schedule-card__top) { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.registration-schedule-card > footer { min-width: 0; margin-top: var(--space-2); padding-top: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-top: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-schedule-card > footer b { color: var(--color-brand-primary); font-size: var(--font-size-h3); }
+.registration-schedule-card > footer span:last-child { display: inline-flex; align-items: center; gap: var(--space-1); color: var(--color-brand-primary); font-weight: var(--font-weight-semibold); white-space: nowrap; }
+.registration-schedule-card.is-direct .registration-schedule-card__top small { color: var(--color-info); background: var(--color-info-soft); }
+.registration-search { margin: var(--space-3); display: grid; grid-template-columns: 1rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); }
+.registration-search > .ui-icon { color: var(--color-text-secondary); }
+.registration-search input { width: 100%; height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface-subtle); }
+.registration-search input:focus { border-color: var(--color-brand-primary); box-shadow: 0 0 0 3px var(--color-focus-ring); background: var(--color-surface); }
+.registration-patient-search { padding: var(--space-3); }
+.registration-resident-panel > .ui-alert { margin: 0 var(--space-3) var(--space-3); }
+.registration-resident-list { max-height: 20rem; overflow-y: auto; border-top: 1px solid var(--color-border); }
+.registration-resident-list > button { width: 100%; min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: 2.5rem minmax(0, 1fr) 1rem; align-items: center; gap: var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; }
+.registration-resident-list > button:hover { background: var(--color-surface-subtle); }
+.registration-resident-list > button.is-selected { box-shadow: inset 3px 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.registration-resident-list > button > span:nth-child(2) { min-width: 0; display: grid; gap: var(--space-1); }
+.registration-resident-list strong, .registration-resident-list small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registration-resident-list small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-resident-summary { min-height: 5.25rem; padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: 3rem minmax(0, 1fr) minmax(10rem, auto); align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.registration-resident-summary > div { min-width: 0; }
+.registration-resident-summary > div:nth-child(2) strong { font-size: var(--font-size-h3); }
+.registration-resident-summary p { margin: var(--space-1) 0 0; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.registration-resident-summary > div:last-child { display: grid; justify-items: end; gap: var(--space-1); }
+.registration-resident-summary > div:last-child span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-order-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(10rem, .7fr) minmax(20rem, 1.5fr); gap: var(--space-3); }
+.registration-order-form .ui-field { min-width: 0; margin: 0; }
+.registration-order-panel > .ui-alert { margin: 0 var(--space-4) var(--space-3); }
+.registration-schedule-summary { margin: 0 var(--space-4) var(--space-3); padding: var(--space-3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.registration-schedule-summary > div { min-width: 0; display: grid; gap: var(--space-1); }
+.registration-schedule-summary span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-schedule-summary strong { overflow: hidden; font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.registration-order-actions { min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.registration-order-actions > span { margin-right: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
+.registration-query-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(21rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
+.registration-query-filter-form .ui-field { min-width: 0; margin: 0; }
+.registration-query-filter-form > .ui-field > input, .registration-query-filter-form input:not(.ui-date-range-input) { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
+.registration-query-filter-form > .ui-field > input:focus, .registration-query-filter-form input:not(.ui-date-range-input):focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+.registration-query-list-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.registration-query-list-scroll { flex: 1; min-height: 0; overflow: auto; }
+.registration-today-list { min-width: 50rem; }
+.registration-today-list__head, .registration-today-list article { min-height: 4.25rem; padding: 0 var(--space-4); display: grid; grid-template-columns: 3.5rem minmax(9.5rem, 1fr) minmax(9.5rem, 1.05fr) minmax(10.5rem, .95fr) 5.5rem 6rem; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.registration-today-list__head { min-height: 2.5rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); position: sticky; top: 0; z-index: 1; }
+.registration-today-list__head > span:last-child { text-align: right; justify-self: end; }
+.registration-today-list article:last-child { border-bottom: 0; }
+.registration-today-list article > div { min-width: 0; }
+.registration-today-list article strong, .registration-today-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.registration-today-list article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-ticket { color: var(--color-brand-primary); font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
+
+/* Appointment management is a separate operational ledger built on the same scheduling inventory. */
+.appointment-filter-panel { margin-bottom: var(--space-4); flex: none; }
+.appointment-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(21rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
+.appointment-filter-form .ui-field { min-width: 0; margin: 0; }
+.appointment-filter-form > .ui-field > input, .appointment-filter-form input:not(.ui-date-range-input), .appointment-booking-form textarea { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
+.appointment-filter-form > .ui-field > input:focus, .appointment-filter-form input:not(.ui-date-range-input):focus, .appointment-booking-form textarea:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
+.appointment-list-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: auto; }
+.appointment-list { min-width: 76rem; }
+.appointment-list__head, .appointment-list article { min-height: 4.5rem; padding: 0 var(--space-4); display: grid; grid-template-columns: minmax(10rem, .8fr) minmax(14rem, 1.05fr) minmax(15rem, 1.1fr) minmax(12rem, .9fr) 6rem 6rem 7rem; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.appointment-list__head { min-height: 2.6rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.appointment-list__head > span:last-child { text-align: right; justify-self: end; }
+.appointment-list article:last-child { border-bottom: 0; }
+.appointment-list article > div { min-width: 0; }
+.appointment-list article strong, .appointment-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appointment-list article small, .appointment-list article > span { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.appointment-row-actions { display: flex; justify-content: flex-end; gap: var(--space-1); }
+.appointment-row-actions .ui-button { padding-right: var(--space-2); padding-left: var(--space-2); }
+.appointment-create-grid { min-height: 24rem; display: grid; grid-template-columns: minmax(18rem, .85fr) minmax(23rem, 1.15fr); gap: var(--space-4); }
+.appointment-create-grid > section { min-width: 0; overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); }
+.appointment-create-grid > section > strong { min-height: 3rem; padding: 0 var(--space-4); display: flex; align-items: center; border-bottom: 1px solid var(--color-border); }
+.appointment-resident-picker > .ui-alert { margin: var(--space-3); }
+.appointment-resident-picker > .ui-patient-search { margin: var(--space-3); }
+.appointment-resident-picker .registration-resident-list { max-height: 16rem; background: var(--color-surface); }
+.appointment-booking-form { padding-bottom: var(--space-4); }
+.appointment-booking-form .ui-field { margin: var(--space-4); }
+.appointment-booking-form textarea { min-height: 5.5rem; padding-top: var(--space-2); padding-bottom: var(--space-2); resize: vertical; }
+.appointment-selected-resident { margin: var(--space-4); padding: var(--space-3); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); border-radius: var(--radius-md); background: var(--color-brand-soft); }
+.appointment-selected-resident span, .appointment-selected-resident small { color: var(--color-text-secondary); font-size: var(--font-size-small); }

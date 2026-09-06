@@ -28,6 +28,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -78,6 +79,7 @@ public class MasterDataController {
     }
 
     @PostMapping("/services")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     ServiceView createService(@Valid @RequestBody ServiceRequest request,
                               @RequestParam(required = false) Long organizationId) {
@@ -85,12 +87,14 @@ public class MasterDataController {
     }
 
     @PutMapping("/services/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     ServiceView updateService(@PathVariable Long id, @Valid @RequestBody UpdateServiceRequest request,
                               @RequestParam(required = false) Long organizationId) {
         return service.updateService(id, revision(request.expectedRevision()), request.command(), organizationId);
     }
 
     @PostMapping("/services/{id}/status")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     ServiceView serviceStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request,
                               @RequestParam(required = false) Long organizationId) {
         return service.changeServiceStatus(id, revision(request.expectedRevision()), request.sdStatus(), organizationId);
@@ -115,6 +119,7 @@ public class MasterDataController {
     }
 
     @PostMapping("/medications")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     MedicationView createMedication(@Valid @RequestBody MedicationRequest request,
                                     @RequestParam(required = false) Long organizationId) {
@@ -122,12 +127,14 @@ public class MasterDataController {
     }
 
     @PutMapping("/medications/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     MedicationView updateMedication(@PathVariable Long id, @Valid @RequestBody UpdateMedicationRequest request,
                                     @RequestParam(required = false) Long organizationId) {
         return service.updateMedication(id, revision(request.expectedRevision()), request.command(), organizationId);
     }
 
     @PostMapping("/medications/{id}/status")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     MedicationView medicationStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request,
                                     @RequestParam(required = false) Long organizationId) {
         return service.changeMedicationStatus(id, revision(request.expectedRevision()), request.sdStatus(), organizationId);
@@ -139,22 +146,26 @@ public class MasterDataController {
     }
 
     @PostMapping("/manufacturers")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     ManufacturerView createManufacturer(@Valid @RequestBody ManufacturerRequest request) {
         return service.createManufacturer(request.command());
     }
 
     @PutMapping("/manufacturers/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     ManufacturerView updateManufacturer(@PathVariable Long id, @Valid @RequestBody UpdateManufacturerRequest request) {
         return service.updateManufacturer(id, revision(request.expectedRevision()), request.command());
     }
 
     @PostMapping("/manufacturers/{id}/status")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     ManufacturerView manufacturerStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
         return service.changeManufacturerStatus(id, revision(request.expectedRevision()), request.sdStatus());
     }
 
     @PostMapping("/medication-products")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     MedicationProductView createProduct(@Valid @RequestBody ProductRequest request,
                                         @RequestParam(required = false) Long organizationId) {
@@ -162,6 +173,7 @@ public class MasterDataController {
     }
 
     @PostMapping("/medication-products/setup")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     MedicationProductView createProductSetup(@Valid @RequestBody ProductSetupRequest request) {
         return service.createProductSetup(request.product().command(), request.packaging().command(),
@@ -170,29 +182,34 @@ public class MasterDataController {
     }
 
     @PutMapping("/medication-products/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     MedicationProductView updateProduct(@PathVariable Long id, @Valid @RequestBody UpdateProductRequest request,
                                         @RequestParam(required = false) Long organizationId) {
         return service.updateProduct(id, revision(request.expectedRevision()), request.command(), organizationId);
     }
 
     @PostMapping("/catalog-items/{id}/packages")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     PackageView createPackage(@PathVariable Long id, @Valid @RequestBody PackageRequest request) {
         return service.createPackage(id, request.command());
     }
 
     @PutMapping("/packages/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     PackageView updatePackage(@PathVariable Long id, @Valid @RequestBody PackageRequest request) {
         return service.updatePackage(id, request.command());
     }
 
     @PostMapping("/catalog-items/{id}/organization-adoptions")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     OrganizationAdoptionView adopt(@PathVariable Long id, @Valid @RequestBody AdoptionRequest request) {
         return lifecycleService.createAdoption(id, request.lifecycleInput()).currentAdoption();
     }
 
     @PostMapping("/catalog-items/{id}/prices")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     PriceView createPrice(@PathVariable Long id, @Valid @RequestBody PriceRequest request) {
         return lifecycleService.createPrice(id, request.lifecycleInput()).currentPrices().stream()

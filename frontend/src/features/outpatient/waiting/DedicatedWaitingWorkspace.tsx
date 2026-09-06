@@ -389,6 +389,7 @@ export function DedicatedWaitingWorkspace({
                       <span>就诊服务: <strong>{item.serviceName || '普通门诊'}</strong></span>
                       <span>接诊医生: {item.practitionerName || '现场接诊'}</span>
                       <span>挂号时间: {item.registeredAt ? new Date(item.registeredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                      {item.validUntil && <span>效期至: {new Date(item.validUntil).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
                   </div>
 

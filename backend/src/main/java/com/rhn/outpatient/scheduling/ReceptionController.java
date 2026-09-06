@@ -23,11 +23,13 @@ class ReceptionController {
     @PreAuthorize("hasAnyAuthority('OUTPATIENT_REGISTRATION.ACCESS','OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
     List<ReceptionQueueItem> queue(@RequestParam(required = false) LocalDate date,
                                   @RequestParam(required = false) LocalDate dateFrom,
-                                  @RequestParam(required = false) LocalDate dateTo) {
+                                  @RequestParam(required = false) LocalDate dateTo,
+                                  @RequestParam(defaultValue = "DEPARTMENT") String scope) {
+        boolean organizationScope = organizationScope(scope);
         if (dateFrom != null || dateTo != null) {
-            return service.queue(dateFrom, dateTo);
+            return service.queue(dateFrom, dateTo, organizationScope);
         }
-        return service.queue(date);
+        return service.queue(date, date, organizationScope);
     }
 
     @GetMapping("/page")
@@ -37,7 +39,12 @@ class ReceptionController {
                               @RequestParam(required = false) String status,
                               @RequestParam(required = false) String query,
                               @RequestParam(defaultValue = "0") int page,
-                              @RequestParam(defaultValue = "20") int size) {
-        return service.page(dateFrom, dateTo, status, query, page, size);
+                              @RequestParam(defaultValue = "20") int size,
+                              @RequestParam(defaultValue = "DEPARTMENT") String scope) {
+        return service.page(dateFrom, dateTo, status, query, page, size, organizationScope(scope));
+    }
+
+    private boolean organizationScope(String scope) {
+        return "ORGANIZATION".equalsIgnoreCase(scope);
     }
 }

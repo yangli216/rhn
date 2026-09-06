@@ -63,7 +63,19 @@ public class QueueingApplicationService implements QueueingDirectory {
     @Override
     @Transactional
     public TicketSnapshot checkIn(CheckInCommand input) {
-        ExecutionContext context = requireScope(input.organizationId(), input.departmentId());
+        return checkIn(input, true);
+    }
+
+    @Override
+    @Transactional
+    public TicketSnapshot checkInForOrganization(CheckInCommand input) {
+        return checkIn(input, false);
+    }
+
+    private TicketSnapshot checkIn(CheckInCommand input, boolean departmentScoped) {
+        ExecutionContext context = departmentScoped
+                ? requireScope(input.organizationId(), input.departmentId())
+                : requireOrganizationScope(input.organizationId());
         String commandCode = requireCode(input.commandCode(), "commandCode", 128);
         String sourceType = controlled(input.sourceType(), SOURCE_TYPES, "QUEUE_SOURCE_TYPE_INVALID", "不支持的排队来源类型");
         if (input.sourceId() == null || input.residentId() == null) {
@@ -73,7 +85,8 @@ public class QueueingApplicationService implements QueueingDirectory {
                 .or(() -> tickets.findByTenantIdAndSourceTypeAndSourceId(context.tenantId(), sourceType, input.sourceId()))
                 .orElse(null);
         if (replay != null) {
-            requireQueue(context, replay.serviceQueueId());
+            if (departmentScoped) requireQueue(context, replay.serviceQueueId());
+            else requireOrganizationQueue(context, replay.serviceQueueId());
             if (!replay.sourceType().equals(sourceType) || !replay.sourceId().equals(input.sourceId())) {
                 throw conflict("QUEUE_COMMAND_CONFLICT", "排队命令编码已经用于其他业务来源");
             }
@@ -344,6 +357,16 @@ public class QueueingApplicationService implements QueueingDirectory {
         return authorizeQueue(context, queue);
     }
 
+    private ServiceQueue requireOrganizationQueue(ExecutionContext context, Long queueId) {
+        ServiceQueue queue = queues.findByIdAndTenantId(queueId, context.tenantId())
+                .orElseThrow(() -> notFound("SERVICE_QUEUE_NOT_FOUND", "未找到服务队列"));
+        if (!context.canAccessOrganization(queue.organizationId())) {
+            throw forbidden("SERVICE_QUEUE_CONTEXT_FORBIDDEN", "当前工作上下文不能访问该服务队列");
+        }
+        requireSceneAccess(context, queue.scene());
+        return queue;
+    }
+
     private ServiceQueue requireQueueForSourceOperation(ExecutionContext context, Long queueId) {
         ServiceQueue queue = queues.findByIdAndTenantId(queueId, context.tenantId())
                 .orElseThrow(() -> notFound("SERVICE_QUEUE_NOT_FOUND", "未找到服务队列"));
@@ -394,6 +417,14 @@ public class QueueingApplicationService implements QueueingDirectory {
         ExecutionContext context = requireWorkContext();
         if (!context.canAccessOrganization(organizationId) || !context.canAccessDepartment(departmentId)) {
             throw forbidden("SERVICE_QUEUE_CONTEXT_FORBIDDEN", "不能在当前工作上下文之外办理排队业务");
+        }
+        return context;
+    }
+
+    private ExecutionContext requireOrganizationScope(Long organizationId) {
+        ExecutionContext context = contexts.requireCurrent();
+        if (!context.hasWorkContext() || !context.canAccessOrganization(organizationId)) {
+            throw forbidden("SERVICE_QUEUE_CONTEXT_FORBIDDEN", "不能在当前机构之外办理排队业务");
         }
         return context;
     }

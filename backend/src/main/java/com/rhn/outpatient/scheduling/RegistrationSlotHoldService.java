@@ -149,6 +149,9 @@ public class RegistrationSlotHoldService implements OutpatientScheduleDirectory 
         if (!value.organizationId().equals(organizationId)) {
             throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构");
         }
+        if (!value.departmentId().equals(departmentId)) {
+            throw badRequest("SERVICE_SCHEDULE_DEPARTMENT_MISMATCH", "挂号科室必须与所选排班的接诊科室一致");
+        }
         if (!"PUBLISHED".equals(value.status())) throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
     }
 

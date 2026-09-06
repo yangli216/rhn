@@ -12,6 +12,9 @@ public interface CatalogLifecycleDirectory {
 
     MedicationSnapshot requireMedication(Long tenantId, Long medicationId);
 
+    java.util.List<MasterDataViews.MedicationView> findMedicationsByProductCatalogItemIds(
+            Long tenantId, Long organizationId, java.util.Collection<Long> catalogItemIds);
+
     PriceView replacePriceVersion(PriceReplacement command);
 
     record PriceReplacement(Long tenantId, Long currentPriceId, long expectedRevision,

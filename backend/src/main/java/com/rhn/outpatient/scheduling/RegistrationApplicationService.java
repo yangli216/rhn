@@ -3,6 +3,7 @@ package com.rhn.outpatient.scheduling;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientScheduleDirectory;
+import com.rhn.outpatient.api.RegistrationValidityPolicy;
 import com.rhn.queueing.api.QueueingDirectory;
 import com.rhn.queueing.api.QueueingDirectory.TicketSnapshot;
 import com.rhn.shared.context.ExecutionContext;
@@ -40,6 +41,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final OutpatientScheduleDirectory slotHolds;
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
+    private final RegistrationValidityPolicy validityPolicy;
 
     public RegistrationApplicationService(PatientRegistrationRepository registrationRepository,
                                           AppointmentRepository appointmentRepository,
@@ -50,7 +52,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           SlotEventRepository slotEventRepository,
                                           OutpatientScheduleDirectory slotHolds,
                                           ResidentDirectory residentDirectory,
-                                          ExecutionContextProvider contextProvider) {
+                                          ExecutionContextProvider contextProvider,
+                                          RegistrationValidityPolicy validityPolicy) {
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
@@ -61,6 +64,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         this.slotHolds = slotHolds;
         this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider;
+        this.validityPolicy = validityPolicy;
     }
 
     @Override
@@ -75,7 +79,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     @Override
     @Transactional
     public RegistrationSnapshot register(RegisterCommand command) {
-        ExecutionContext context = requireContext(command.organizationId(), command.departmentId());
+        ExecutionContext context = requireOrganizationContext(command.organizationId());
         String idempotencyCode = requireCode(command.idempotencyCode());
         Optional<PatientRegistration> replay = registrationRepository
                 .findByTenantIdAndIdempotencyCode(context.tenantId(), idempotencyCode);
@@ -133,7 +137,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 normalizeSource(command.registrationSource(), schedule != null), normalizeVisitType(command.visitType()),
                 context.subjectId()));
         if (command.slotHoldId() != null) slotHolds.bindRegistration(command.slotHoldId(), registration.id());
-        TicketSnapshot ticket = queueing.checkIn(new QueueingDirectory.CheckInCommand(
+        TicketSnapshot ticket = queueing.checkInForOrganization(new QueueingDirectory.CheckInCommand(
                 command.organizationId(), command.departmentId(), null,
                 "OPD-" + command.organizationId() + "-" + command.departmentId(),
                 "门诊候诊", "OUTPATIENT", "A", command.residentId(), command.encounterId(),
@@ -270,19 +274,39 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     @Override
     @Transactional(readOnly = true)
     public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo) {
-        ExecutionContext context = requireContext(null, null);
-        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
-        LocalDate end = dateTo == null ? start : dateTo;
-        if (end.isBefore(start)) {
-            LocalDate tmp = start;
-            start = end;
-            end = tmp;
+        return queue(dateFrom, dateTo, false);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo, boolean organizationScope) {
+        ExecutionContext context = requireOrganizationContext(null);
+        requireDepartmentContextForDepartmentScope(context, organizationScope);
+        LocalDate resolvedStart = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
+        LocalDate resolvedEnd = dateTo == null ? resolvedStart : dateTo;
+        if (resolvedEnd.isBefore(resolvedStart)) {
+            LocalDate tmp = resolvedStart;
+            resolvedStart = resolvedEnd;
+            resolvedEnd = tmp;
         }
+        final LocalDate start = resolvedStart;
+        final LocalDate end = resolvedEnd;
         Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
-        List<PatientRegistration> registrations = registrationRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
-                        context.tenantId(), context.organizationId(), context.departmentId(), from, to);
+
+        int validityDays = validityPolicy.resolveValidityDays(context.tenantId(), context.subjectId(),
+                context.organizationId(), context.departmentId());
+        Instant queryFrom = start.minusDays(validityDays).atStartOfDay(BUSINESS_ZONE).toInstant();
+        if (queryFrom.isAfter(from)) {
+            queryFrom = from;
+        }
+
+        List<PatientRegistration> registrations = organizationScope
+                ? registrationRepository
+                    .findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                            context.tenantId(), context.organizationId(), queryFrom, to)
+                : registrationRepository
+                    .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                            context.tenantId(), context.organizationId(), context.departmentId(), queryFrom, to);
         if (registrations.isEmpty()) return List.of();
         Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
                 registrations.stream().map(PatientRegistration::id).toList());
@@ -290,26 +314,56 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .filter(java.util.Objects::nonNull).distinct()
                 .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
                 .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
-        return registrations.stream().map(registration -> {
+
+        Instant now = Instant.now();
+        return registrations.stream().filter(reg -> {
+            Instant validUntil = validityPolicy.calculateCutoffTime(reg.registeredAt(), context.tenantId(),
+                    context.subjectId(), reg.organizationId(), reg.departmentId());
+            boolean expired = now.isAfter(validUntil) || now.equals(validUntil);
+            TicketSnapshot ticket = tickets.get(reg.id());
+            String ticketStatus = ticket == null ? null : ticket.status();
+            boolean isCompleted = "COMPLETED".equalsIgnoreCase(ticketStatus)
+                    || "CANCELLED".equalsIgnoreCase(ticketStatus)
+                    || "CANCELLED".equalsIgnoreCase(reg.status());
+            if (expired && !isCompleted) {
+                return false;
+            }
+            if (expired) {
+                LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
+                return !regDate.isBefore(start) && !regDate.isAfter(end);
+            }
+            return true;
+        }).map(registration -> {
             TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
             ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
+            Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),
+                    context.subjectId(), registration.organizationId(), registration.departmentId());
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
-                    registration.encounterId(), ticket.id(), ticket.serviceQueueId(), resident.id(),
+                    registration.encounterId(), ticket == null ? null : ticket.id(),
+                    ticket == null ? null : ticket.serviceQueueId(), resident.id(),
                     resident.healthRecordNo(), resident.fullName(), resident.gender(), resident.birthDate(),
-                    registration.registrationNo(), ticket.ticketCode(),
-                    ticket.sequenceNo(), ticket.priority(), registration.registrationSource(), registration.visitType(),
-                    registration.status(), ticket.status(), schedule == null ? null : schedule.practitionerName(),
-                    schedule == null ? null : schedule.serviceName(), schedule == null ? null : schedule.locationName(),
-                    registration.registeredAt(), ticket.readyAt(), ticket.calledAt(), ticket.startedAt(),
-                    ticket.callCount(), ticket.missedCount(), ticket.currentLocationId());
+                    registration.registrationNo(), ticket == null ? null : ticket.ticketCode(),
+                    ticket == null ? 0 : ticket.sequenceNo(),
+                    ticket == null ? 0 : ticket.priority(),
+                    registration.registrationSource(), registration.visitType(),
+                    registration.status(), ticket == null ? null : ticket.status(),
+                    schedule == null ? null : schedule.practitionerName(),
+                    schedule == null ? null : schedule.serviceName(),
+                    schedule == null ? null : schedule.locationName(),
+                    registration.registeredAt(), ticket == null ? null : ticket.readyAt(),
+                    ticket == null ? null : ticket.calledAt(), ticket == null ? null : ticket.startedAt(),
+                    ticket == null ? 0 : ticket.callCount(), ticket == null ? 0 : ticket.missedCount(),
+                    ticket == null ? null : ticket.currentLocationId(), validUntil);
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
 
     @Transactional(readOnly = true)
-    public RegistrationPageView page(LocalDate dateFrom, LocalDate dateTo, String status, String query, int page, int size) {
-        ExecutionContext context = requireContext(null, null);
+    public RegistrationPageView page(LocalDate dateFrom, LocalDate dateTo, String status, String query, int page, int size,
+                                     boolean organizationScope) {
+        ExecutionContext context = requireOrganizationContext(null);
+        requireDepartmentContextForDepartmentScope(context, organizationScope);
         int safePage = Math.max(0, page);
         int safeSize = Math.min(100, Math.max(1, size));
 
@@ -322,9 +376,13 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         }
         Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
         Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
-        List<PatientRegistration> registrations = registrationRepository
-                .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
-                        context.tenantId(), context.organizationId(), context.departmentId(), from, to);
+        List<PatientRegistration> registrations = organizationScope
+                ? registrationRepository
+                    .findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                            context.tenantId(), context.organizationId(), from, to)
+                : registrationRepository
+                    .findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+                            context.tenantId(), context.organizationId(), context.departmentId(), from, to);
         if (registrations.isEmpty()) {
             return new RegistrationPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
         }
@@ -452,6 +510,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         if (!schedule.organizationId().equals(command.organizationId())) {
             throw badRequest("SERVICE_SCHEDULE_CONTEXT_MISMATCH", "所选排班不属于当前机构");
         }
+        if (!schedule.departmentId().equals(command.departmentId())) {
+            throw badRequest("SERVICE_SCHEDULE_DEPARTMENT_MISMATCH", "挂号科室必须与所选排班的接诊科室一致");
+        }
         if (!"PUBLISHED".equals(schedule.status())) {
             throw conflict("SERVICE_SCHEDULE_NOT_AVAILABLE", "所选排班当前不可挂号");
         }
@@ -472,19 +533,24 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 registration.status(), ticket.status(), appointment == null ? null : appointment.status());
     }
 
-    private ExecutionContext requireContext(Long organizationId, Long departmentId) {
+    private ExecutionContext requireOrganizationContext(Long organizationId) {
         ExecutionContext context = contextProvider.requireCurrent();
         if (context.subjectId() == null) {
             throw badRequest("RECEPTION_USER_REQUIRED", "挂号操作必须绑定当前用户");
         }
-        if (organizationId == null && (!context.hasWorkContext() || context.departmentId() == null)) {
-            throw badRequest("RECEPTION_WORK_CONTEXT_REQUIRED", "请先选择当前机构和科室");
+        if (!context.hasWorkContext()) {
+            throw badRequest("RECEPTION_WORK_CONTEXT_REQUIRED", "请先选择当前机构");
         }
-        if (organizationId != null && context.hasWorkContext()
-                && !context.organizationId().equals(organizationId)) {
+        if (organizationId != null && !context.canAccessOrganization(organizationId)) {
             throw badRequest("RECEPTION_CONTEXT_MISMATCH", "挂号机构必须与当前工作上下文一致");
         }
         return context;
+    }
+
+    private void requireDepartmentContextForDepartmentScope(ExecutionContext context, boolean organizationScope) {
+        if (!organizationScope && context.departmentId() == null) {
+            throw badRequest("RECEPTION_WORK_CONTEXT_REQUIRED", "按科室查看挂号队列前请先选择当前科室");
+        }
     }
 
     private String requireCode(String value) {

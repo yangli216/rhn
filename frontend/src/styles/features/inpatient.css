@@ -1,0 +1,1636 @@
+/* Inpatient: compact primary-care ward board and admission flow. */
+.inpatient-metrics { margin-bottom: var(--space-3); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+.inpatient-station-context { margin-bottom: var(--space-2); padding: var(--space-2) var(--space-4); }
+.inpatient-station-context__search { display: grid; grid-template-columns: minmax(20rem, 1fr) minmax(22rem, 1.2fr); align-items: center; gap: var(--space-4); }
+.inpatient-station-context__lookup { display: grid; grid-template-columns: minmax(14rem, 1fr) auto; align-items: center; gap: var(--space-2); }
+.inpatient-station-context__picker { display: grid; grid-template-columns: auto minmax(16rem, 1fr); align-items: center; gap: var(--space-2); }
+.inpatient-station-context__picker > span { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-station-context__summary { display: grid; grid-template-columns: minmax(10rem, 1.2fr) repeat(2, minmax(9rem, 1fr)) auto; align-items: center; gap: var(--space-4); margin-top: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--color-border); }
+.inpatient-station-context__summary > span { display: grid; gap: 2px; }
+.inpatient-station-context__summary small { color: var(--color-text-muted); }
+.inpatient-station-tabs { margin-bottom: var(--space-2); }
+.inpatient-station-tabs .ui-tabs__items { overflow-x: auto; }
+.inpatient-doctor-overview { display: grid; grid-template-columns: minmax(18rem, .7fr) minmax(30rem, 1.3fr); align-items: start; gap: var(--space-3); }
+.inpatient-doctor-overview > .inpatient-episode-detail { padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.inpatient-metrics > div {
+  min-height: 5rem;
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-content: center;
+  gap: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.inpatient-metrics > div:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 40%, var(--color-border));
+  box-shadow: var(--shadow-panel);
+}
+.inpatient-metrics span, .inpatient-metrics small { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.inpatient-metrics strong { grid-row: span 2; align-self: center; color: var(--color-brand-strong); font-size: 1.5rem; font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; }
+.inpatient-handover { margin-bottom: var(--space-3); overflow: hidden; }
+.inpatient-handover > .inpatient-section-head > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-handover__metrics { padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-muted); }
+.inpatient-handover__metrics > div { min-height: 2.75rem; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.inpatient-handover__metrics span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-handover__metrics strong { font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
+.inpatient-handover__metrics .is-warning strong { color: var(--color-warning-strong); }
+.inpatient-handover__metrics .is-danger strong { color: var(--color-danger); }
+.inpatient-handover__patients { max-height: 15rem; overflow-y: auto; }
+.inpatient-handover__patients > button { width: 100%; min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: minmax(13rem, .9fr) minmax(19rem, 1.8fr) minmax(9rem, .8fr) auto; align-items: center; gap: var(--space-3); border: 0; border-top: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
+.inpatient-handover__patients > button:first-child { border-top: 0; }
+.inpatient-handover__patients > button:hover, .inpatient-handover__patients > button.is-active { background: var(--color-brand-soft); box-shadow: inset .2rem 0 var(--color-brand-primary); }
+.inpatient-handover__identity { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.inpatient-handover__identity strong { min-width: 2.5rem; color: var(--color-brand-strong); font-size: var(--font-size-h3); }
+.inpatient-handover__identity b, .inpatient-handover__summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-handover__identity small, .inpatient-handover__summary, .inpatient-handover__counts small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-handover__counts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.inpatient-handover__counts small { padding: .15rem .4rem; border-radius: var(--radius-sm); background: var(--color-surface-muted); }
+.inpatient-toolbar { margin-bottom: var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.inpatient-toolbar form { min-width: min(28rem, 55%); display: flex; gap: var(--space-2); }
+.inpatient-toolbar form .ui-search-field { flex: 1; }
+.inpatient-toolbar nav { padding: .2rem; display: flex; border-radius: var(--radius-md); background: var(--color-surface-muted); }
+.inpatient-toolbar nav button { min-height: 2rem; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-sm); color: var(--color-text-secondary); background: transparent; cursor: pointer; }
+.inpatient-toolbar nav button.is-active { color: var(--color-brand-primary); background: var(--color-surface); box-shadow: var(--shadow-sm); font-weight: var(--font-weight-semibold); }
+.inpatient-layout { display: grid; grid-template-columns: minmax(0, 2fr) minmax(19rem, .82fr); align-items: start; gap: var(--space-3); }
+.inpatient-main-column { min-width: 0; display: grid; gap: var(--space-3); }
+.inpatient-section-head { min-height: 3.25rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--color-border); }
+.inpatient-section-head h2 { margin: 0; font-size: var(--font-size-h3); }
+.inpatient-section-head span { display: block; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-bed-board { overflow: hidden; }
+.inpatient-room { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); }
+.inpatient-room:first-of-type { border-top: 0; }
+.inpatient-room > h3 { margin: 0 0 var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-bed-grid { display: grid; grid-template-columns: repeat(4, minmax(8rem, 1fr)); gap: var(--space-2); }
+.inpatient-bed { min-width: 0; position: relative; overflow: hidden; border: 1px solid var(--color-border); border-left: .25rem solid var(--color-success); border-radius: var(--radius-md); background: var(--color-success-soft); }
+.inpatient-bed.is-active { border-color: var(--color-brand-primary); box-shadow: 0 0 0 2px var(--color-focus-ring); }
+.inpatient-bed--occupied { border-left-color: var(--color-info); background: var(--color-info-soft); }
+.inpatient-bed--cleaning { border-left-color: var(--color-warning); background: var(--color-warning-soft); }
+.inpatient-bed--blocked { border-left-color: var(--color-neutral); background: var(--color-neutral-soft); }
+.inpatient-bed--maintenance { border-left-color: var(--color-danger); background: var(--color-danger-soft); }
+.inpatient-bed__main { width: 100%; min-height: 6rem; padding: var(--space-2) var(--space-3); display: block; border: 0; color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
+.inpatient-bed__main:disabled { cursor: default; opacity: 1; }
+.inpatient-bed__main > span { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.inpatient-bed__main strong { font-size: var(--font-size-h3); }
+.inpatient-bed__main b, .inpatient-bed__main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-bed__main b { margin-top: var(--space-2); }
+.inpatient-bed__main small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: .7rem; }
+.inpatient-bed > .ui-button { position: absolute; right: var(--space-1); bottom: var(--space-1); min-height: 1.6rem; padding-inline: var(--space-2); }
+.inpatient-patient-panel, .inpatient-detail-panel { overflow: hidden; }
+.inpatient-patient-list { max-height: 21rem; overflow-y: auto; }
+.inpatient-patient-list > button { width: 100%; min-height: 4.25rem; padding: var(--space-2) var(--space-4); display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.35fr) minmax(13rem, 1.15fr) auto; align-items: center; gap: var(--space-3); border: 0; border-top: 1px solid var(--color-border); color: var(--color-text-primary); background: transparent; text-align: left; cursor: pointer; }
+.inpatient-patient-list > button:first-child { border-top: 0; }
+.inpatient-patient-list > button:hover, .inpatient-patient-list > button.is-active { background: var(--color-brand-soft); box-shadow: inset .2rem 0 var(--color-brand-primary); }
+.inpatient-patient-list > button > span, .inpatient-patient-list > button > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-patient-list > button > span:first-child { display: flex; align-items: center; gap: var(--space-3); }
+.inpatient-patient-list > button > span:first-child strong { min-width: 2.5rem; color: var(--color-brand-strong); }
+.inpatient-patient-list > button > span:nth-child(2), .inpatient-patient-list > button > small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-query-layout { grid-template-columns: minmax(31rem, 1.55fr) minmax(20rem, .75fr); }
+.inpatient-query-list .inpatient-patient-list > button { grid-template-columns: minmax(9rem, 1.1fr) minmax(0, 1fr) minmax(8rem, .9fr) auto; gap: var(--space-2); }
+.inpatient-detail-panel { min-height: 28rem; position: sticky; top: var(--space-3); }
+.inpatient-detail-panel > .ui-empty-state { padding-top: var(--space-12); }
+.inpatient-episode-detail { padding: var(--space-4); }
+.inpatient-episode-detail > header { display: flex; justify-content: space-between; gap: var(--space-3); }
+.inpatient-episode-detail > header span, .inpatient-episode-detail > header p { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-episode-detail > header h2 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
+.inpatient-episode-detail > header p { margin: 0; }
+.inpatient-episode-detail dl { margin: var(--space-4) 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.inpatient-episode-detail dt { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-episode-detail dd { margin: var(--space-1) 0 0; overflow-wrap: anywhere; }
+.inpatient-episode-detail > section { margin-top: var(--space-4); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
+.inpatient-episode-detail > section h3 { margin: 0; font-size: var(--font-size-h3); }
+.inpatient-episode-detail > section p { margin: var(--space-1) 0 0; }
+.inpatient-episode-detail > section small { color: var(--color-text-secondary); }
+.inpatient-next-slice { margin-top: var(--space-4); padding: var(--space-3); display: grid; gap: var(--space-1); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
+.inpatient-admission-grid { display: grid; grid-template-columns: minmax(17rem, .85fr) minmax(24rem, 1.15fr); gap: var(--space-5); }
+.inpatient-admission-grid > section > h3 { margin: 0 0 var(--space-3); font-size: var(--font-size-h3); }
+.inpatient-admission-form { max-width: 76rem; margin: 0 auto; display: grid; gap: var(--space-2); }
+.inpatient-admission-section { overflow: hidden; }
+.inpatient-admission-section > .inpatient-section-head { min-height: 2.75rem; padding: var(--space-1) var(--space-3); }
+.inpatient-admission-section__body { padding: var(--space-2) var(--space-3) var(--space-3); }
+.inpatient-admission-form .ui-field { min-width: 0; margin: 0; }
+.inpatient-admission-form .ui-field__control { margin-top: var(--space-1); }
+.inpatient-admission-form .inpatient-form-grid { gap: var(--space-2) var(--space-3); }
+.inpatient-admission-form textarea.ui-field__control { min-height: 4.25rem; padding-top: var(--space-2); padding-bottom: var(--space-2); }
+.inpatient-admission-submit { position: sticky; bottom: var(--space-2); z-index: 2; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-surface) 94%, transparent); box-shadow: var(--shadow-md); backdrop-filter: blur(8px); }
+.inpatient-admission-submit span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-admission-success { max-width: 44rem; margin: var(--space-8) auto 0; padding: var(--space-8); text-align: center; }
+.inpatient-admission-success h2 { margin: var(--space-3) 0 var(--space-2); }
+.inpatient-admission-success p { color: var(--color-text-secondary); }
+.inpatient-admission-success .ui-form-actions { justify-content: center; }
+.inpatient-resident-search { display: flex; gap: var(--space-2); }
+.inpatient-resident-search input { min-width: 0; flex: 1; }
+.inpatient-resident-results { max-height: 11rem; margin-top: var(--space-1); overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
+.inpatient-resident-results > button { padding: var(--space-1) var(--space-2); display: grid; gap: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); text-align: left; cursor: pointer; }
+.inpatient-resident-results > button:hover, .inpatient-resident-results > button.is-active { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.inpatient-resident-results > button:disabled { cursor: not-allowed; opacity: .6; }
+.inpatient-resident-results span, .inpatient-resident-results small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.inpatient-form-grid .is-wide { grid-column: 1 / -1; }
+.inpatient-form-grid textarea { width: 100%; resize: vertical; }
+
+.inpatient-billing { margin-top: var(--space-3); overflow: hidden; }
+.inpatient-billing > .ui-loading-state, .inpatient-billing > .ui-alert { margin: var(--space-3); }
+.inpatient-billing__summary { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: var(--space-3); }
+.inpatient-billing__summary.is-deposit-view { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.inpatient-billing__summary > div {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  align-content: space-between;
+  gap: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 28%, var(--color-surface)), var(--color-surface));
+  box-shadow: var(--shadow-sm);
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.inpatient-billing__summary > div:hover {
+  border-color: color-mix(in srgb, var(--color-brand-primary) 35%, var(--color-border));
+  box-shadow: var(--shadow-panel);
+  transform: translateY(-1px);
+}
+.inpatient-billing__summary span { color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
+.inpatient-billing__summary strong { font-size: 1.25rem; font-weight: var(--font-weight-bold); font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.inpatient-billing__summary .is-warning {
+  border-left: 3px solid var(--color-warning);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning-soft) 35%, var(--color-surface)), var(--color-surface));
+}
+.inpatient-billing__summary .is-warning strong { color: var(--color-warning-strong); }
+.inpatient-billing__summary .is-success {
+  border-left: 3px solid var(--color-success);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-success-soft) 35%, var(--color-surface)), var(--color-surface));
+}
+.inpatient-billing__summary .is-success strong { color: var(--color-success-strong); }
+.inpatient-deposit { padding: 0 var(--space-4) var(--space-3); display: grid; grid-template-columns: minmax(10rem, .6fr) minmax(10rem, .6fr) auto; align-items: end; gap: var(--space-2); }
+.inpatient-deposit-ledger { margin: 0 var(--space-4) var(--space-3); overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+.inpatient-deposit-ledger > header { min-height: 3rem; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.inpatient-deposit-ledger > header > div { display: grid; }
+.inpatient-deposit-ledger > header small, .inpatient-deposit-ledger > header > span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-deposit-ledger__empty { min-height: 5rem; display: grid; place-items: center; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-deposit-ledger__table { min-width: 0; overflow-x: auto; }
+.inpatient-deposit-ledger__head, .inpatient-deposit-ledger__table article { min-height: 3.25rem; padding: 0 var(--space-3); display: grid; grid-template-columns: minmax(12rem, 1.5fr) minmax(6rem, .7fr) repeat(4, minmax(7rem, .75fr)); align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.inpatient-deposit-ledger__head, .inpatient-deposit-ledger__table article { min-width: 52rem; }
+.inpatient-deposit-ledger__head { min-height: 2.25rem; color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
+.inpatient-deposit-ledger__table article:last-child { border-bottom: 0; }
+.inpatient-deposit-ledger__table article > span:first-child { min-width: 0; display: grid; }
+.inpatient-deposit-ledger__table article small { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.inpatient-deposit-ledger__table article > b, .inpatient-deposit-ledger__table article > strong { font-variant-numeric: tabular-nums; }
+.inpatient-deposit-ledger__table article > strong { color: var(--color-brand-primary); }
+.inpatient-billing__actions { padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.inpatient-billing__actions small { color: var(--color-text-secondary); }
+.inpatient-daily-statement { margin: 0 var(--space-4) var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.inpatient-daily-statement > header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.inpatient-daily-statement > header > div { display: grid; }
+.inpatient-daily-statement > header small, .inpatient-daily-statement > small { color: var(--color-text-secondary); }
+.inpatient-daily-statement > header input { width: auto; }
+.inpatient-daily-statement__summary { margin-top: var(--space-2); display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.inpatient-daily-statement__summary > span { padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-daily-statement__summary b { margin-left: var(--space-1); color: var(--color-text-primary); }
+.inpatient-daily-statement__lines { margin-top: var(--space-2); }
+.inpatient-daily-statement__lines article { min-height: 2.5rem; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(7rem, auto); align-items: center; gap: var(--space-3); border-top: 1px solid var(--color-border); }
+.inpatient-daily-statement__lines article > span:first-child { display: grid; }
+.inpatient-daily-statement__lines small { color: var(--color-text-secondary); }
+.inpatient-daily-statement__lines b { text-align: right; font-variant-numeric: tabular-nums; }
+.inpatient-cost-lines { margin: 0 var(--space-4) var(--space-3); border-top: 1px solid var(--color-border); }
+.inpatient-cost-lines summary { padding: var(--space-2) 0; color: var(--color-brand-strong); cursor: pointer; }
+.inpatient-cost-lines article { min-height: 2.75rem; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(7rem, auto); align-items: center; gap: var(--space-3); border-top: 1px solid var(--color-border); }
+.inpatient-cost-lines article > span:first-child { display: grid; }
+.inpatient-cost-lines small { color: var(--color-text-secondary); }
+.inpatient-cost-lines b { text-align: right; font-variant-numeric: tabular-nums; }
+
+.inpatient-discharge-readiness, .inpatient-discharge-diagnoses { margin-bottom: var(--space-4); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); }
+.inpatient-discharge-readiness.is-ready { border-color: var(--color-success); background: var(--color-success-soft); }
+.inpatient-discharge-readiness.is-blocked { border-color: var(--color-warning); background: var(--color-warning-soft); }
+.inpatient-discharge-readiness > header, .inpatient-discharge-diagnoses > header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.inpatient-discharge-readiness > header > div, .inpatient-discharge-diagnoses > header > div { display: grid; gap: var(--space-1); }
+.inpatient-discharge-readiness > header span, .inpatient-discharge-diagnoses > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-discharge-checks { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.inpatient-discharge-checks > span { padding: var(--space-2); display: grid; gap: var(--space-1); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-surface) 78%, transparent); }
+.inpatient-discharge-checks > span::before { content: '○'; color: var(--color-warning-strong); }
+.inpatient-discharge-checks > span.is-ready::before { content: '✓'; color: var(--color-success-strong); }
+.inpatient-discharge-checks small { color: var(--color-text-secondary); }
+.inpatient-discharge-readiness > ul { margin: var(--space-2) 0 0; padding-left: var(--space-5); color: var(--color-warning-strong); font-size: var(--font-size-small); }
+.inpatient-discharge-diagnoses > form { margin-top: var(--space-3); display: flex; gap: var(--space-2); }
+.inpatient-discharge-diagnoses > form input { min-width: 0; flex: 1; }
+.inpatient-disease-results { max-height: 10rem; margin-top: var(--space-2); overflow-y: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1); }
+.inpatient-disease-results > button { padding: var(--space-2); display: grid; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-primary); background: var(--color-surface); text-align: left; cursor: pointer; }
+.inpatient-disease-results > button:hover { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.inpatient-disease-results small { color: var(--color-text-secondary); }
+.inpatient-selected-diagnoses { margin-top: var(--space-2); display: grid; gap: var(--space-1); }
+.inpatient-selected-diagnoses article { min-height: 2.5rem; padding: var(--space-1) var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.inpatient-selected-diagnoses article > span { min-width: 0; display: flex; align-items: center; gap: var(--space-2); }
+.inpatient-selected-diagnoses article small { color: var(--color-text-secondary); }
+.inpatient-selected-diagnoses article > div { display: flex; }
+
+.inpatient-medical-records { overflow: hidden; border-top: 1px solid var(--color-border); background: var(--color-surface); }
+.inpatient-medical-records__head { min-height: 3.5rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.inpatient-medical-records__head > div { display: flex; align-items: center; gap: var(--space-2); }
+.inpatient-medical-records__head > div:first-child { min-width: 0; align-items: flex-start; flex-direction: column; gap: 0; }
+.inpatient-medical-records__head span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.inpatient-medical-records__tabs { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--color-border); background: var(--color-surface-muted); }
+.inpatient-medical-records__tabs.ui-tabs--cards .ui-tabs__items { gap: var(--space-2); }
+.inpatient-medical-records__tabs.ui-tabs--cards .ui-tabs__tab { min-height: 3.5rem; padding: var(--space-2) var(--space-3); }
+.inpatient-record-editor { position: relative; min-height: 34rem; background: var(--color-surface-muted); }
+.inpatient-record-editor > .ui-loading-state, .inpatient-record-editor > .ui-alert { margin: var(--space-4); }
+.inpatient-record-editor__viewport { max-height: 48rem; overflow: auto; padding: var(--space-4); }
+.inpatient-record-editor__canvas { width: 794px; min-height: 40rem; margin: 0 auto; background: var(--color-surface); box-shadow: var(--shadow-md); }
+.inpatient-record-editor.is-readonly .inpatient-record-editor__canvas { background: var(--color-surface-subtle); }
+
+@media (max-width: 68rem) {
+  .inpatient-layout { grid-template-columns: 1fr; }
+  .inpatient-query-layout { grid-template-columns: 1fr; }
+  .inpatient-detail-panel { min-height: auto; position: static; }
+  .inpatient-bed-grid { grid-template-columns: repeat(3, minmax(8rem, 1fr)); }
+  .inpatient-doctor-overview { grid-template-columns: 1fr; }
+  .inpatient-station-context__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 47.5rem) {
+  .inpatient-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inpatient-handover__metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inpatient-handover__patients > button { grid-template-columns: minmax(11rem, 1fr) auto; }
+  .inpatient-handover__summary, .inpatient-handover__counts { grid-column: 1 / -1; }
+  .inpatient-toolbar { align-items: stretch; flex-direction: column; }
+  .inpatient-toolbar form { min-width: 0; }
+  .inpatient-station-context__search { grid-template-columns: 1fr; }
+  .inpatient-station-context__picker { grid-template-columns: 1fr; }
+  .inpatient-station-context__summary { grid-template-columns: 1fr; }
+  .inpatient-bed-grid { grid-template-columns: repeat(2, minmax(7rem, 1fr)); }
+  .inpatient-patient-list > button { grid-template-columns: 1fr auto; }
+  .inpatient-patient-list > button > small { grid-column: 1; }
+  .inpatient-admission-grid, .inpatient-form-grid { grid-template-columns: 1fr; }
+  .inpatient-resident-results { grid-template-columns: 1fr; }
+  .inpatient-admission-submit { align-items: stretch; flex-direction: column; }
+  .inpatient-billing__summary, .inpatient-billing__summary.is-deposit-view { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inpatient-deposit, .inpatient-discharge-checks, .inpatient-disease-results { grid-template-columns: 1fr; }
+  .inpatient-billing__actions { align-items: stretch; flex-direction: column; }
+  .inpatient-form-grid .is-wide { grid-column: auto; }
+  .inpatient-medical-records__head { align-items: flex-start; flex-direction: column; }
+  .inpatient-record-editor__viewport { padding: var(--space-2); }
+}
+
+/* === 排班号源页面优化样式 === */
+.schedule-summary { display: flex; gap: var(--space-5); align-items: center; }
+.schedule-summary__item { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); }
+.schedule-summary__item strong { font-size: var(--font-size-h2); font-variant-numeric: tabular-nums; color: var(--color-text-primary); }
+.schedule-summary__item small { font-size: var(--font-size-tiny); color: var(--color-text-secondary); }
+.schedule-summary__item--available strong { color: var(--color-brand-primary); }
+.schedule-summary__item--warning strong { color: var(--color-warning); }
+.schedule-date-group__head { min-height: 2.5rem; padding: var(--space-2) var(--space-5); display: flex; align-items: center; gap: var(--space-3); background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); position: sticky; top: 0; z-index: 1; }
+.schedule-date-group__head strong { font-size: var(--font-size-body); }
+.schedule-date-group__head small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.capacity-bar { width: 100%; height: 4px; margin-top: var(--space-1); border-radius: 2px; background: var(--color-border); overflow: hidden; }
+.capacity-bar__fill { height: 100%; border-radius: 2px; background: var(--color-brand-primary); transition: width 0.3s ease; }
+.capacity-bar__fill[data-level="low"] { background: var(--color-warning); }
+.capacity-bar__fill[data-level="full"] { background: var(--color-danger); }
+.weekday-shortcut { font-size: var(--font-size-small) !important; color: var(--color-brand-primary) !important; border-color: transparent !important; background: transparent !important; text-decoration: underline; min-width: auto !important; padding: 0 var(--space-1) !important; }
+.weekday-shortcut:hover { text-decoration: none; }
+.quick-schedule-actions { position: sticky; bottom: 0; z-index: 1; }
+.action-danger { color: var(--color-danger) !important; }
+
+/* === 周排班矩阵工作台与详情抽屉样式 === */
+.schedule-matrix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+.schedule-matrix-panel__head {
+  padding: var(--space-3) var(--space-5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+  flex-wrap: wrap;
+}
+.schedule-matrix-title-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+.schedule-matrix-title-group h2 {
+  margin: var(--space-1) 0;
+}
+.schedule-matrix-title-group p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+.schedule-week-navigator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface-subtle);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+.schedule-week-label {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 矩阵网格容器与滚动 */
+.schedule-matrix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.schedule-matrix {
+  min-width: 78rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 矩阵表头（7天列头 + 1资源列） */
+.schedule-matrix__header-row {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1.2fr) repeat(7, minmax(8.5rem, 1fr));
+  background: var(--color-surface-subtle);
+  border-bottom: 2px solid var(--color-border-strong);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+.schedule-matrix__resource-header {
+  padding: var(--space-2) var(--space-4);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--color-border);
+}
+.schedule-matrix__day-header {
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border-right: 1px solid var(--color-border);
+  position: relative;
+}
+.schedule-matrix__day-header:last-child {
+  border-right: none;
+}
+.schedule-matrix__day-header.is-today {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+}
+.schedule-matrix__day-name {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-body);
+}
+.schedule-matrix__day-date {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.schedule-matrix__today-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 0.625rem;
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+/* 矩阵数据行 */
+.schedule-matrix__row {
+  display: grid;
+  grid-template-columns: minmax(13rem, 1.2fr) repeat(7, minmax(8.5rem, 1fr));
+  border-bottom: 1px solid var(--color-border);
+}
+.schedule-matrix__row:hover {
+  background: var(--color-surface-subtle);
+}
+.schedule-matrix__resource-cell {
+  padding: var(--space-3) var(--space-4);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+}
+.schedule-matrix__resource-cell strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+.schedule-matrix__resource-cell small {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+}
+
+/* 单元格 */
+.schedule-matrix__cell {
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 7.5rem;
+  background: var(--color-surface);
+  position: relative;
+}
+.schedule-matrix__cell:last-child {
+  border-right: none;
+}
+.schedule-matrix__cell.is-today-cell {
+  background: var(--color-brand-soft);
+}
+
+/* 班次卡片 */
+.schedule-card {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+.schedule-card:hover {
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.schedule-card--suspended {
+  opacity: 0.7;
+  background: var(--color-surface-subtle);
+  border-style: dashed;
+}
+.schedule-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+}
+.schedule-card__daypart {
+  font-size: var(--font-size-tiny);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.schedule-card__service {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-card__location {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-card__quota {
+  margin-top: 2px;
+}
+.schedule-card__quota-num {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.schedule-card__quota-num strong {
+  font-size: 0.8125rem;
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+}
+.schedule-card__quota-num small {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+}
+
+/* 单元格快捷排班按钮 */
+.schedule-cell-add-wrap {
+  margin-top: auto;
+  display: flex;
+  gap: var(--space-1);
+  opacity: 0.6;
+  transition: opacity var(--motion-fast);
+}
+.schedule-matrix__cell:hover .schedule-cell-add-wrap {
+  opacity: 1;
+}
+.schedule-cell-add-btn {
+  flex: 1;
+  height: 1.5rem;
+  padding: 0 4px;
+  font-size: 0.6875rem;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+.schedule-cell-add-btn:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  font-weight: 600;
+}
+
+/* 点位情境化快速排班弹窗表单 */
+.quick-cell-schedule-form {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+}
+.quick-cell-tab {
+  flex: 1;
+  height: 2.25rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+.quick-cell-tab:hover {
+  background: var(--color-surface-subtle);
+}
+.quick-cell-tab.is-selected {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  font-weight: 600;
+}
+
+/* 详情抽屉内容 */
+.schedule-detail-drawer-content {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-2) 0;
+}
+.schedule-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+.schedule-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.schedule-detail-item span {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+}
+.schedule-detail-item strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+.schedule-detail-quota-card {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  display: grid;
+  gap: var(--space-3);
+}
+.schedule-detail-quota-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.schedule-detail-quota-header h3 {
+  margin: 0;
+  font-size: var(--font-size-body);
+}
+.schedule-detail-quota-rate {
+  font-size: var(--font-size-small);
+  font-weight: 600;
+  color: var(--color-brand-primary);
+}
+.schedule-detail-quota-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  text-align: center;
+  padding-top: var(--space-2);
+}
+.schedule-detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.schedule-detail-stat strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+.schedule-detail-stat small {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+}
+.schedule-detail-stat--available strong {
+  color: var(--color-brand-primary);
+}
+.schedule-detail-stat--occupied strong {
+  color: var(--color-warning);
+}
+
+/* === 符合系统规范的高密度周排班矩阵工作台样式 === */
+.schedule-panelhead-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.schedule-dept-select-wrap {
+  width: 11rem;
+}
+.schedule-dept-select-wrap .ui-select__trigger {
+  min-height: var(--control-height-sm, 2rem);
+  height: var(--control-height-sm, 2rem);
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-small);
+}
+.schedule-week-navigator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.schedule-week-navigator .ui-button {
+  height: var(--control-height-sm, 2rem);
+  padding: 0 var(--space-2);
+}
+.schedule-week-label {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  padding: 0 var(--space-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 矩阵网格面板容器 */
+.schedule-matrix-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-bottom: var(--space-4);
+}
+.schedule-matrix-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.schedule-matrix {
+  min-width: 68rem;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 矩阵表头（7天列头 + 1资源列，高度 2.75rem，实体背景防止透光） */
+.schedule-matrix__header-row {
+  display: grid;
+  grid-template-columns: 10.5rem repeat(7, minmax(7.5rem, 1fr));
+  min-height: 2.75rem;
+  height: 2.75rem;
+  background: var(--color-surface);
+  border-bottom: 2px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.schedule-matrix__resource-header {
+  padding: 0 var(--space-3);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+}
+.schedule-matrix__day-header {
+  padding: 2px var(--space-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.schedule-matrix__day-header:last-child {
+  border-right: none;
+}
+.schedule-matrix__day-header.is-today {
+  background: var(--color-surface);
+}
+.schedule-matrix__day-name {
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  line-height: 1.1;
+}
+.schedule-matrix__day-header.is-today .schedule-matrix__day-name {
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-bold);
+}
+.schedule-matrix__day-date {
+  font-size: 0.75rem;
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  padding: 1px 4px;
+}
+.schedule-matrix__day-date.is-today-badge {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-bold);
+  box-shadow: var(--shadow-sm);
+}
+
+/* 矩阵数据行 */
+.schedule-matrix__row {
+  display: grid;
+  grid-template-columns: 10.5rem repeat(7, minmax(7.5rem, 1fr));
+  min-height: 4.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.schedule-matrix__row:hover {
+  background: var(--color-surface-subtle);
+}
+.schedule-matrix__resource-cell {
+  padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--color-border);
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+.schedule-matrix__resource-cell strong {
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.schedule-matrix__resource-cell small {
+  font-size: var(--font-size-tiny);
+  color: var(--color-text-secondary);
+}
+
+/* 矩阵单元格 (Cell) */
+.schedule-matrix__cell {
+  padding: 6px 4px;
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 4.5rem;
+  background: var(--color-surface);
+  position: relative;
+}
+.schedule-matrix__cell:last-child {
+  border-right: none;
+}
+.schedule-matrix__cell.is-today-cell {
+  background: var(--color-brand-soft);
+}
+
+/* 班次紧凑专业微型胶囊 (28px) */
+.schedule-chip {
+  position: relative;
+  height: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: all var(--motion-fast);
+}
+.schedule-chip:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-subtle);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.schedule-chip.is-suspended {
+  opacity: 0.6;
+  border-style: dashed;
+  background: var(--color-surface-subtle);
+}
+.chip-part-tag {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--color-text-inverse);
+  flex-shrink: 0;
+}
+.chip-part-tag--morning {
+  background: var(--color-brand-primary);
+}
+.chip-part-tag--afternoon {
+  background: var(--color-warning);
+}
+.chip-service-text {
+  flex: 1;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.chip-loc-sub {
+  font-size: 0.6875rem;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.chip-quota-text {
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--color-brand-primary);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.chip-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.chip-status-dot--warning { background: var(--color-warning); }
+.chip-status-dot--danger { background: var(--color-danger); }
+
+.chip-bottom-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: var(--color-brand-primary);
+  transition: width 0.3s ease;
+}
+.chip-bottom-progress[data-level="low"] { background: var(--color-warning); }
+.chip-bottom-progress[data-level="full"] { background: var(--color-danger); }
+
+/* 单元格微型加号排班入口 */
+.schedule-cell-hover-actions {
+  margin-top: auto;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  transition: opacity var(--motion-fast);
+}
+.schedule-matrix__cell:hover .schedule-cell-hover-actions {
+  opacity: 1;
+}
+.cell-mini-add-btn {
+  height: 1.25rem;
+  width: 100%;
+  font-size: 0.6875rem;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+.cell-mini-add-btn:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  font-weight: 600;
+}
+
+/* 弹窗内的排班表单 */
+.quick-schedule-form--in-dialog {
+  padding: var(--space-2) 0;
+}
+
+/* === 批量排班弹窗专业向导样式 === */
+.batch-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+}
+.batch-dialog-section {
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+}
+.batch-section-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 var(--space-3) 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.batch-required-mark {
+  color: var(--color-danger);
+}
+.batch-grid-row--3cols {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.batch-grid-row--2cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+.batch-grid-row--1col {
+  margin-top: var(--space-3);
+}
+
+.batch-section-head-with-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+.batch-section-head-with-actions .batch-section-title {
+  margin: 0;
+}
+.batch-weekday-presets {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.batch-preset-pill {
+  height: 1.625rem;
+  padding: 0 var(--space-2);
+  font-size: var(--font-size-tiny);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+  white-space: nowrap;
+}
+.batch-preset-pill:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+/* 7天按钮全幅平分横排，永不溢出错位 */
+.batch-weekday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.batch-weekday-btn {
+  height: 2.375rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--motion-fast);
+}
+.batch-weekday-btn:hover {
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border-strong);
+}
+.batch-weekday-btn.is-weekend {
+  color: var(--color-text-secondary);
+}
+.batch-weekday-btn.is-selected {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-bold);
+  box-shadow: var(--shadow-sm);
+}
+.batch-weekday-check {
+  font-size: 0.6875rem;
+  color: var(--color-brand-primary);
+  font-weight: bold;
+}
+
+/* 出诊时段卡片 */
+.batch-sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.batch-session-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  text-align: left;
+  transition: all var(--motion-fast);
+}
+.batch-session-card:hover {
+  border-color: var(--color-border-strong);
+}
+.batch-session-card.is-selected {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  box-shadow: var(--shadow-sm);
+}
+.batch-session-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.batch-session-card__head strong {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+.batch-session-card__head strong svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  color: var(--color-brand-primary);
+}
+.batch-session-card.is-selected .batch-session-card__head strong {
+  color: var(--color-brand-strong);
+}
+.batch-session-checkbox {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-strong);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-brand-primary);
+  font-weight: bold;
+}
+.batch-session-card.is-selected .batch-session-checkbox {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+}
+.batch-session-card__time {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 预估计算提示卡片 */
+.batch-estimate-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+.batch-estimate-banner strong {
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-body);
+  font-variant-numeric: tabular-nums;
+}
+.batch-estimate-text {
+  flex: 1;
+}
+
+/* 财政医疗收费电子票据 (Fiscal Receipt Modal & Paper Styles) */
+.fiscal-receipt-dialog .ui-dialog {
+  max-width: 58rem;
+}
+
+.fiscal-invoice-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-2) 0;
+  max-height: 72vh;
+  overflow-y: auto;
+}
+
+.fiscal-invoice-paper {
+  position: relative;
+  width: 100%;
+  max-width: 54rem;
+  background: var(--color-surface);
+  border: 2px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+  box-shadow: var(--shadow-md);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+}
+
+.fiscal-invoice-paper--red {
+  border-color: var(--color-danger);
+}
+
+.fiscal-invoice-paper--void {
+  border-color: var(--color-border-strong);
+  opacity: 0.85;
+}
+
+/* 发票防伪倾斜水印印章 */
+.fiscal-watermark-stamp {
+  position: absolute;
+  top: 35%;
+  left: 30%;
+  transform: rotate(-24deg);
+  font-size: 2.25rem;
+  font-weight: var(--font-weight-bold);
+  padding: var(--space-2) var(--space-6);
+  border: 4px dashed;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  z-index: 1;
+  letter-spacing: 0.2em;
+  opacity: 0.18;
+}
+
+.fiscal-watermark-stamp--valid {
+  color: var(--color-brand-primary);
+  border-color: var(--color-brand-primary);
+}
+
+.fiscal-watermark-stamp--red {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  opacity: 0.35;
+}
+
+.fiscal-watermark-stamp--void {
+  color: var(--color-text-secondary);
+  border-color: var(--color-text-secondary);
+  opacity: 0.3;
+}
+
+/* 票据版头 */
+.fiscal-header {
+  position: relative;
+  text-align: center;
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid var(--color-border-strong);
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-header__emblem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-1);
+}
+
+.fiscal-emblem-icon {
+  font-size: 1rem;
+}
+
+.fiscal-title {
+  margin: 0;
+  font-size: 1.625rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  color: var(--color-text-primary);
+}
+
+.fiscal-subtitle {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* 右上角四要素 */
+.fiscal-four-elements {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  text-align: left;
+  background: var(--color-surface-subtle);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  font-size: 0.75rem;
+}
+
+.fiscal-element-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.fiscal-element-label {
+  color: var(--color-text-secondary);
+}
+
+.fiscal-element-value {
+  font-family: var(--font-mono, monospace);
+  font-weight: var(--font-weight-medium);
+}
+
+.fiscal-element-value--highlight {
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.fiscal-element-value--code {
+  color: var(--color-danger);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+}
+
+/* 业务与患者信息栅格 */
+.fiscal-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-small);
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.fiscal-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+}
+
+.fiscal-meta-label {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.fiscal-meta-text {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+/* 费用明细表格 */
+.fiscal-details-section {
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+  border: 1px solid var(--color-border);
+}
+
+.fiscal-table th,
+.fiscal-table td {
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+}
+
+.fiscal-table th {
+  background: var(--color-surface-subtle);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+/* 费用合计 */
+.fiscal-totals-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-body);
+  margin-bottom: var(--space-4);
+}
+
+.fiscal-label-bold {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-words-value {
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+  color: var(--color-text-primary);
+}
+
+.fiscal-figure-amount {
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--space-2);
+}
+
+/* 医保分解 3 格卡片 */
+.fiscal-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+}
+
+.fiscal-breakdown-card {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  background: var(--color-surface);
+}
+
+.fiscal-breakdown-card--primary {
+  border-color: var(--color-brand-border);
+  background: var(--color-brand-soft);
+}
+
+.fiscal-breakdown-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-breakdown-num {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.fiscal-breakdown-card--primary .fiscal-breakdown-num {
+  color: var(--color-brand-primary);
+}
+
+/* 底部防伪查验与印章 */
+.fiscal-footer-grid {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-4);
+}
+
+.fiscal-qr-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.fiscal-qr-svg {
+  padding: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.fiscal-qr-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 22rem;
+}
+
+.fiscal-qr-title {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.fiscal-qr-hint {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.fiscal-verify-link {
+  font-size: 0.7rem;
+  font-family: var(--font-mono, monospace);
+  color: var(--color-brand-primary);
+  word-break: break-all;
+  max-height: 2.2rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 印章区域 */
+.fiscal-stamps-box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.fiscal-official-seal {
+  width: 5.5rem;
+  height: 5.5rem;
+  border-radius: 50%;
+  border: 2px solid var(--color-danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-danger);
+  transform: rotate(-12deg);
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-danger-soft);
+}
+
+.fiscal-seal-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.fiscal-seal-star {
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.fiscal-seal-text {
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+}
+
+.fiscal-seal-sub {
+  font-size: 0.55rem;
+  letter-spacing: 0.02em;
+}
+
+.fiscal-cashier-sign {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* 操作栏 */
+.fiscal-receipt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-4);
+}
+
+.fiscal-receipt-actions__info {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.fiscal-receipt-actions__buttons {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* 打印支持 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #fiscal-printable-area,
+  #fiscal-printable-area * {
+    visibility: visible;
+  }
+  #fiscal-printable-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    padding: var(--space-4);
+    box-shadow: none;
+    border: none;
+  }
+}
+
+/* 电子发票快捷入口横幅与时间线操作按钮 */
+.fiscal-receipt-entry-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-md);
+}
+
+.fiscal-receipt-entry-banner__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.fiscal-receipt-entry-icon {
+  font-size: 1.5rem;
+  color: var(--color-brand-primary);
+}
+
+.fiscal-receipt-entry-banner__left strong {
+  display: block;
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
+.fiscal-receipt-entry-banner__left p {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.fiscal-receipt-entry-banner__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.billing-timeline__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.billing-timeline__view-btn {
+  font-size: 0.75rem;
+  color: var(--color-brand-primary);
+  background: transparent;
+  border: 1px solid var(--color-brand-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.billing-timeline__view-btn:hover {
+  background: var(--color-brand-soft);
+}

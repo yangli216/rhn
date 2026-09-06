@@ -69,6 +69,20 @@ public class InventoryBalance {
         quantityReserved = quantityReserved.subtract(quantity); recalculate();
     }
 
+    public void freeze(BigDecimal quantity) {
+        if (quantity.signum() <= 0 || quantityAvailable.compareTo(quantity) < 0) {
+            throw invalid("INVENTORY_FREEZE_INSUFFICIENT", "可用库存不足，不能完成冻结");
+        }
+        quantityFrozen = quantityFrozen.add(quantity); recalculate();
+    }
+
+    public void unfreeze(BigDecimal quantity) {
+        if (quantity.signum() <= 0 || quantityFrozen.compareTo(quantity) < 0) {
+            throw invalid("INVENTORY_UNFREEZE_INVALID", "释放数量超过当前冻结数量");
+        }
+        quantityFrozen = quantityFrozen.subtract(quantity); recalculate();
+    }
+
     public void dispenseReserved(BigDecimal quantity) {
         if (quantity == null || quantity.signum() <= 0 || quantityReserved.compareTo(quantity) < 0
                 || quantityOnHand.compareTo(quantity) < 0) {

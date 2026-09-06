@@ -2,6 +2,7 @@ package com.rhn.platform.masterdata.web;
 
 import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogChangeBatchView;
 import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogLifecycleView;
+import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogAdoptionCandidateView;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionInput;
 import com.rhn.platform.masterdata.application.CatalogLifecycleService.AdoptionTemplate;
@@ -16,6 +17,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,9 +31,11 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDate;
 import java.util.List;
+import com.rhn.shared.api.PageResult;
 
 @RestController
 @RequestMapping("/api/platform/master-data/catalog-lifecycle")
+@PreAuthorize("hasAnyAuthority('ORG_CATALOG.ACCESS','ORG_CATALOG.MANAGE')")
 public class CatalogLifecycleController {
     private final CatalogLifecycleService service;
 
@@ -44,7 +48,18 @@ public class CatalogLifecycleController {
         return service.maintenance(catalogItemId, organizationId, businessDate);
     }
 
+    @GetMapping("/adoption-candidates")
+    PageResult<CatalogAdoptionCandidateView> adoptionCandidates(
+            @RequestParam Long organizationId,
+            @RequestParam @Pattern(regexp = "SERVICE|MED_PRODUCT") String itemType,
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) int size) {
+        return service.searchAdoptionCandidates(organizationId, itemType, query, page, size);
+    }
+
     @PostMapping("/catalog-items/{catalogItemId}/adoptions")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogLifecycleView createAdoption(@PathVariable Long catalogItemId,
                                         @Valid @RequestBody AdoptionRequest request) {
@@ -52,12 +67,14 @@ public class CatalogLifecycleController {
     }
 
     @PostMapping("/adoptions/{adoptionId}/replace")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     CatalogLifecycleView replaceAdoption(@PathVariable Long adoptionId,
                                          @Valid @RequestBody ReplaceAdoptionRequest request) {
         return service.replaceAdoption(adoptionId, revision(request.expectedRevision()), request.input());
     }
 
     @PostMapping("/adoptions/{adoptionId}/status")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     CatalogLifecycleView adoptionStatus(@PathVariable Long adoptionId,
                                         @Valid @RequestBody LifecycleStatusRequest request) {
         return service.changeAdoptionStatus(adoptionId, revision(request.expectedRevision()),
@@ -65,6 +82,7 @@ public class CatalogLifecycleController {
     }
 
     @PostMapping("/catalog-items/{catalogItemId}/prices")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogLifecycleView createPrice(@PathVariable Long catalogItemId,
                                      @Valid @RequestBody PriceRequest request) {
@@ -72,12 +90,14 @@ public class CatalogLifecycleController {
     }
 
     @PostMapping("/prices/{priceId}/replace")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     CatalogLifecycleView replacePrice(@PathVariable Long priceId,
                                       @Valid @RequestBody ReplacePriceRequest request) {
         return service.replacePrice(priceId, revision(request.expectedRevision()), request.input());
     }
 
     @PostMapping("/prices/{priceId}/status")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     CatalogLifecycleView priceStatus(@PathVariable Long priceId,
                                      @Valid @RequestBody LifecycleStatusRequest request) {
         return service.changePriceStatus(priceId, revision(request.expectedRevision()),
@@ -85,6 +105,7 @@ public class CatalogLifecycleController {
     }
 
     @PostMapping("/adoption-batches")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogChangeBatchView adoptionBatch(@Valid @RequestBody AdoptionBatchRequest request) {
         return service.adoptionBatch(clean(request.requestCode()), request.operationType(), request.organizationId(),
@@ -92,6 +113,7 @@ public class CatalogLifecycleController {
     }
 
     @PostMapping("/price-batches")
+    @PreAuthorize("hasAuthority('ORG_CATALOG.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     CatalogChangeBatchView priceBatch(@Valid @RequestBody PriceBatchRequest request) {
         return service.priceBatch(clean(request.requestCode()), request.organizationId(), request.businessDate(),

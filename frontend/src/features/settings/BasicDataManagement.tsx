@@ -13,8 +13,8 @@ import {
   type ItemAttributeSubjectType, type ItemAttributeValue, type MasterDataImportBatch,
   type MasterDataImportRow, type MasterDataImportType, type ItemTermMapping,
   type StandardEquivalence, type StandardMappingType,
-  type CatalogLifecycle, type CatalogChangeBatch, type LifecycleAdoptionInput, type LifecyclePriceInput,
-  type OrganizationAdoption,
+  type CatalogLifecycle, type LifecycleAdoptionInput, type LifecyclePriceInput,
+  type CatalogAdoptionCandidate, type OrganizationAdoption,
   type ActiveOrderFrequency,
   type MedicationRoute,
 } from '../../shared/rhnApi'
@@ -27,7 +27,7 @@ import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from '
 
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
 type DiseaseMode = 'terms' | 'management'
-type DictionaryMap = Record<string, DictionaryValue[]>
+export type DictionaryMap = Record<string, DictionaryValue[]>
 
 const dictionaryCodes = [
   'BD_MASTER_STATUS', 'BD_CONCEPT_TYPE', 'BD_SERVICE_TYPE', 'BD_SERVICE_USE',
@@ -129,17 +129,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const pagination = <Pagination page={safePage} totalPages={totalPages} total={count} pageSize={pageSize}
     onPageSizeChange={setPageSize} onChange={setPage} label={`${tabLabel(tab)}列表分页`} />
   useEffect(() => { if (pageDataReady && page !== safePage) setPage(safePage) }, [page, pageDataReady, safePage])
-  const lifecycleCandidates = useMemo(() => tab === 'service' ? (services.data?.content ?? []).map((value) => ({
-    id: value.id, code: value.code, name: value.name,
-  })) : (medications.data?.content ?? []).flatMap((value) => value.products.map((product) => ({
-    id: product.id, code: product.code, name: `${value.name} · ${product.name}`,
-  }))), [medications.data, services.data, tab])
   const pageActions = tab === 'attribute' || tab === 'operations' ? undefined : <>
     {tab !== 'disease' && <>
-      <Button variant="secondary" disabled={!dictionaries.data || !lifecycleCandidates.length}
-        onClick={() => setDialog(<BatchLifecycleDialog api={api} organization={organization}
-          candidates={lifecycleCandidates} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
-          onCompleted={() => invalidate('机构目录批量操作已完成')} />)}>批量机构目录 / 调价</Button>
       <Button variant="secondary" onClick={() => setDialog(
         <MasterDataImportDialog api={api} importType={tab === 'service' ? 'SERVICE' : 'MEDICATION'}
           onClose={() => setDialog(undefined)} onCompleted={() => invalidate(`${tabLabel(tab)}批量导入已完成`)} />
@@ -235,12 +226,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           onClose={() => setDialog(undefined)} />)}
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
           targetId={value.id} itemName={value.name} systemType="SERVICE"
-          onClose={() => setDialog(undefined)} />)}
-        onLifecycle={(value) => setDialog(<CatalogLifecycleDialog api={api} catalogItemId={value.id}
-          itemName={value.name} organization={organization} dictionaries={dictionaries.data!}
-          defaults={{ orderable: value.orderable, executable: true, chargeable: value.chargeable,
-            purchasable: false, stocked: false, dispensable: false, returnable: false }}
-          onClose={() => setDialog(undefined)} onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
+          onClose={() => setDialog(undefined)} />)} />}
       {tab === 'medication' && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
@@ -272,13 +258,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onEditPackage={(item, product, medication) => setDialog(<PackageDialog product={product} medication={medication}
           dictionaries={dictionaries.data!} editing={item} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updatePackage(item.id, input)
-            .then(() => invalidate('产品包装已更新')).catch(fail)} />)}
-        onLifecycle={(product) => setDialog(<CatalogLifecycleDialog api={api} catalogItemId={product.id}
-          itemName={product.name} organization={organization} packages={product.packages}
-          dictionaries={dictionaries.data!} defaults={{ orderable: product.orderable, executable: false,
-            chargeable: product.chargeable, purchasable: true, stocked: product.stocked,
-            dispensable: true, returnable: true }} onClose={() => setDialog(undefined)}
-          onChanged={() => queryClient.invalidateQueries({ queryKey: ['master-data'] })} />)} />}
+            .then(() => invalidate('产品包装已更新')).catch(fail)} />)} />}
         {tab === 'attribute' && <ItemAttributeConfigurationPanel api={api} />}
         {tab === 'operations' && dictionaries.data && <OperationalMasterDataPanel api={api}
           organization={organization} manufacturers={manufacturers.data ?? []} />}
@@ -336,15 +316,14 @@ function DiseaseManagementTable({ values, loading, pagination, onEdit, onMembers
   </Table>
 }
 
-function ServiceTable({ values, loading, pagination, onConfigure, onEdit, onAttributes, onMappings, onLifecycle }: { values?: ServiceCatalogItem[]; loading: boolean;
+function ServiceTable({ values, loading, pagination, onConfigure, onEdit, onAttributes, onMappings }: { values?: ServiceCatalogItem[]; loading: boolean;
   pagination: ReactNode;
   onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
-  onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void;
-  onLifecycle: (value: ServiceCatalogItem) => void }) {
+  onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void }) {
   if (loading) return <LoadingState label="正在加载诊疗项目…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到诊疗项目" copy="请调整筛选条件或新增项目。" />
-  return <Table headers={['项目', '临床语义', '中心能力', '机构目录', '当前价格', '操作']} footer={pagination}>
+  return <Table headers={['项目', '临床语义', '中心能力', '状态', '操作']} footer={pagination}>
     {values.map((value) => <tr key={value.id}><td><strong>{value.name}</strong><code>{value.code}</code></td>
       <td>{value.sdServiceTypeText}<small>{value.sdUsageTypeText}{value.serviceSubtype ? ` · ${value.serviceSubtype}` : ''}</small>
         <small>{[value.sdDuplicateRuleText, value.mutualRecognitionCode && `互认 ${value.mutualRecognitionCode}`]
@@ -358,19 +337,16 @@ function ServiceTable({ values, loading, pagination, onConfigure, onEdit, onAttr
       </td>
       <td><Flag value={value.orderable} label="可开立" /> <Flag value={value.chargeable} label="可收费" />
         <small>{value.singleOrder ? '允许单开' : '仅组合使用'}</small></td>
-      <td>{value.organizationAdoption ? <><DataStatus value={value.organizationAdoption.sdStatus}
-        text={value.organizationAdoption.sdStatusText} /><small>{value.organizationAdoption.localName || value.organizationAdoption.localCode || '沿用中心名称'}</small></> : <StatusBadge>未采用</StatusBadge>}</td>
-      <td>{activePrice(value.prices)}</td>
+      <td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
       <td><RowActions>{['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType)
         && <Button size="sm" variant="text" onClick={() => onConfigure(value)}>项目配置</Button>}
         <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
         <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
-        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button>
-        <Button size="sm" variant="text" onClick={() => onLifecycle(value)}>机构目录与价格</Button></RowActions></td></tr>)}
+        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button></RowActions></td></tr>)}
   </Table>
 }
 
-function MedicationTable({ values, loading, pagination, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onLifecycle }: {
+function MedicationTable({ values, loading, pagination, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage }: {
   values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
@@ -378,8 +354,7 @@ function MedicationTable({ values, loading, pagination, routes, frequencies, onE
   onProduct: (value: MedicationKnowledge) => void;
   onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
-  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void;
-  onLifecycle: (value: MedicationProduct) => void }) {
+  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void }) {
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
   return <TableShell className="master-data-list-shell" scrollClassName="medication-list" footer={pagination}>
@@ -396,16 +371,14 @@ function MedicationTable({ values, loading, pagination, routes, frequencies, onE
         <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
         <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>新增厂家产品</Button></RowActions></header>
     {!value.products.length ? <div className="medication-empty">暂无厂家产品，通用药品知识已建立，可通过右上角“新增厂家产品”建档。</div>
-      : <Table compact headers={['产品 / 厂家', '批准文号', '包装规格', '机构状态', '价格', '操作']}>
+      : <Table compact headers={['产品 / 厂家', '批准文号', '包装规格', '中心状态', '操作']}>
         {value.products.map((product) => <tr key={product.id}><td className="medication-product"><strong>{product.name}</strong>
           {product.manufacturerName && <small>{product.manufacturerName}</small>}</td>
           <td>{product.approvalCode || '—'}</td>
           <td><PackageChips product={product} onEdit={(item) => onEditPackage(item, product, value)} /></td>
-          <td>{product.organizationAdoption ? <DataStatus value={product.organizationAdoption.sdStatus} text={product.organizationAdoption.sdStatusText} /> : <StatusBadge>未采用</StatusBadge>}</td>
-          <td>{productPrices(product.prices)}</td><td><RowActions>
+          <td><DataStatus value={product.sdStatus} text={product.sdStatusText} /></td><td><RowActions>
             <Button size="sm" variant="text" onClick={() => onEditProduct(product, value)}>编辑</Button>
             <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
-            <Button size="sm" variant="text" onClick={() => onLifecycle(product)}>目录价格</Button>
           </RowActions></td></tr>)}</Table>}
   </article>)}</TableShell>
 }
@@ -444,21 +417,6 @@ function PackageChips({ product, onEdit }: { product: MedicationProduct; onEdit?
       onClick={() => onEdit(item)}>{label}{marks && <small>{marks}</small>}</button>
       : <span className="medication-package" key={item.id} title={hint}>{label}{marks && <small>{marks}</small>}</span>
   })}</div>
-}
-
-function activePriceOf(values: CatalogPrice[], type: string) {
-  const at = today()
-  return values.find((item) => item.sdPriceType === type && item.sdStatus === 'ACTIVE'
-    && item.validFrom <= at && (!item.validTo || item.validTo >= at))
-}
-
-function productPrices(values: CatalogPrice[]) {
-  const sale = activePriceOf(values, 'SALE')
-  const purchase = activePriceOf(values, 'PURCHASE')
-  if (!sale && !purchase) return '未维护'
-  return <>{sale && <strong>¥ {Number(sale.price).toFixed(2)}</strong>}
-    <small>{[purchase && `进货 ¥${Number(purchase.price).toFixed(2)}`,
-      (sale || purchase) && `自 ${(sale || purchase)!.validFrom}`].filter(Boolean).join(' · ')}</small></>
 }
 
 function MasterDataImportDialog({ api, importType, onClose, onCompleted }: {
@@ -739,7 +697,7 @@ function StandardMappingDialog({ api, subjectType, targetId, itemName, systemTyp
 type AdoptionDefaults = Pick<LifecycleAdoptionInput, 'orderable' | 'executable' | 'chargeable' | 'purchasable' |
   'stocked' | 'dispensable' | 'returnable'>
 
-function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, packages = [], dictionaries,
+export function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, packages = [], dictionaries,
   defaults, onClose, onChanged }: { api: RhnApi; catalogItemId: string; itemName: string; organization: Organization;
   packages?: Array<{ id: string; packageSpec?: string; unitName: string }>; dictionaries: DictionaryMap;
   defaults: AdoptionDefaults; onClose: () => void; onChanged: () => Promise<unknown> }) {
@@ -752,6 +710,10 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
   const maintenance = useQuery({
     queryKey: ['catalog-lifecycle', catalogItemId, organization.id, businessDate],
     queryFn: () => api.masterData.catalogLifecycle(catalogItemId, organization.id, businessDate),
+  })
+  const departments = useQuery({
+    queryKey: ['organization-catalog-departments', organization.id],
+    queryFn: () => api.organization.departments(organization.id),
   })
   const refresh = async () => { await maintenance.refetch(); await onChanged() }
   const execute = async (key: string, task: () => Promise<CatalogLifecycle>) => {
@@ -814,7 +776,7 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
         <form key={`adoption-${adoptionSeed?.id ?? 'new'}-${adoptionSeed?.revision ?? 0}`}
           className="master-data-lifecycle-form" onSubmit={(event) => { event.preventDefault(); const form = new FormData(event.currentTarget)
             const input: LifecycleAdoptionInput = { organizationId: organization.id,
-              defaultDepartmentId: adoptionSeed?.defaultDepartmentId, localCode: optionalText(form, 'localCode'),
+              defaultDepartmentId: optionalText(form, 'defaultDepartmentId'), localCode: optionalText(form, 'localCode'),
               localName: optionalText(form, 'localName'), orderable: checked(form, 'orderable'),
               executable: checked(form, 'executable'), chargeable: checked(form, 'chargeable'),
               purchasable: checked(form, 'purchasable'), stocked: checked(form, 'stocked'),
@@ -827,6 +789,10 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
             <Button size="sm" variant="text" onClick={() => setReplacementAdoption(undefined)}>取消</Button></Alert>}
           <FormField label="机构本地编码"><input name="localCode" defaultValue={adoptionSeed?.localCode} /></FormField>
           <FormField label="机构显示名称"><input name="localName" defaultValue={adoptionSeed?.localName} /></FormField>
+          <StaticSelectField name="defaultDepartmentId" label="默认科室" required={false}
+            defaultValue={adoptionSeed?.defaultDepartmentId} options={(departments.data ?? []).map((value) => ({
+              value: value.id, label: `${value.name}（${value.code}）`,
+            }))} />
           <DateRangeFields fromName="validFrom" toName="validTo" fromLabel="生效日期" toLabel="失效日期"
             fromDefault={replacementAdoption ? nextDate(replacementAdoption.validFrom) : today()} />
           <Checkboxes title="机构可用能力">
@@ -903,74 +869,94 @@ function CatalogLifecycleDialog({ api, catalogItemId, itemName, organization, pa
   </Dialog>
 }
 
-function BatchLifecycleDialog({ api, organization, candidates, dictionaries, onClose, onCompleted }: {
-  api: RhnApi; organization: Organization; candidates: Array<{ id: string; code: string; name: string }>;
-  dictionaries: DictionaryMap; onClose: () => void; onCompleted: () => Promise<void>
+export function OrganizationCatalogImportDialog({ api, organization, initialItemType, onClose, onCompleted }: {
+  api: RhnApi; organization: Organization; initialItemType: 'SERVICE' | 'MED_PRODUCT'
+  onClose: () => void; onCompleted: () => Promise<void>
 }) {
-  const [mode, setMode] = useState<'ADOPTION' | 'PRICE'>('ADOPTION')
-  const [operation, setOperation] = useState<'ADOPT' | 'RETIRE'>('ADOPT')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
-  const [batch, setBatch] = useState<CatalogChangeBatch>()
+  const queryClient = useQueryClient()
+  const [itemType, setItemType] = useState<'SERVICE' | 'MED_PRODUCT'>(initialItemType)
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+  const [selected, setSelected] = useState<Map<string, CatalogAdoptionCandidate>>(new Map())
   const [pending, setPending] = useState(false)
   const [operationError, setOperationError] = useState('')
-  const toggle = (id: string) => setSelected((current) => { const next = new Set(current)
-    if (next.has(id)) next.delete(id); else next.add(id); return next })
+  const [feedback, setFeedback] = useState('')
+  const candidates = useQuery({
+    queryKey: ['master-data-adoption-candidates', organization.id, itemType, query, page, pageSize],
+    queryFn: () => api.masterData.adoptionCandidates(organization.id, itemType, query, page, pageSize),
+  })
+  useEffect(() => { setPage(0); setSelected(new Map()) }, [itemType, query, pageSize])
+  const values = candidates.data?.content ?? []
+  const totalPages = Math.max(1, candidates.data?.totalPages ?? 1)
+  const toggle = (value: CatalogAdoptionCandidate) => setSelected((current) => {
+    const next = new Map(current)
+    if (next.has(value.id)) next.delete(value.id); else next.set(value.id, value)
+    return next
+  })
+  const selectable = values.filter((value) => value.adoptionSourceType !== 'LOCAL')
   const submit = async (form: FormData) => {
-    if (!selected.size) { setOperationError('请至少选择一个目录项目'); return }
-    setPending(true); setOperationError('')
+    if (!selected.size) { setOperationError('请至少选择一个待调入项目'); return }
+    setPending(true); setOperationError(''); setFeedback('')
     try {
-      const businessDate = text(form, 'businessDate'); const ids = [...selected]
-      const value = mode === 'ADOPTION' ? await api.masterData.adoptionBatch({ requestCode: crypto.randomUUID(),
-        operationType: operation, organizationId: organization.id, businessDate, catalogItemIds: ids,
-        template: operation === 'ADOPT' ? { localCode: undefined, localName: undefined,
+      await api.masterData.adoptionBatch({ requestCode: crypto.randomUUID(), operationType: 'ADOPT',
+        organizationId: organization.id, businessDate: text(form, 'businessDate'),
+        catalogItemIds: [...selected.keys()], template: { localCode: undefined, localName: undefined,
           orderable: checked(form, 'orderable'), executable: checked(form, 'executable'),
           chargeable: checked(form, 'chargeable'), purchasable: checked(form, 'purchasable'),
           stocked: checked(form, 'stocked'), dispensable: checked(form, 'dispensable'),
-          returnable: checked(form, 'returnable'), status: 'ACTIVE', validTo: optionalText(form, 'validTo') } : undefined,
-      }) : await api.masterData.priceBatch({ requestCode: crypto.randomUUID(), organizationId: organization.id,
-        businessDate, entries: ids.map((catalogItemId) => ({ catalogItemId,
-          priceType: text(form, 'priceType'), price: Number(text(form, 'price')),
-          currencyCode: text(form, 'currencyCode'), priceDocumentCode: optionalText(form, 'priceDocumentCode'),
-          priceReason: optionalText(form, 'priceReason'), validTo: optionalText(form, 'validTo'), status: 'ACTIVE' })) })
-      setBatch(value); await onCompleted()
+          returnable: checked(form, 'returnable'), status: 'ACTIVE' } })
+      setSelected(new Map()); setFeedback(`已调入 ${selected.size} 个项目`)
+      await queryClient.invalidateQueries({ queryKey: ['master-data-adoption-candidates'] })
+      await onCompleted()
     } catch (error) { setOperationError(errorMessage(error)) } finally { setPending(false) }
   }
-  return <Dialog title="机构目录与价格批量工作台" eyebrow={organization.name} size="xwide" onClose={onClose}
-    description="一次选择多个目录项目，统一采用、停用或按默认单位调价；逐条结果写入批次审计。">
-    <form className="master-data-batch-lifecycle" onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)) }}>
+  return <Dialog title="机构项目调入" eyebrow={organization.name} size="xwide" onClose={onClose}>
+    <div className="master-data-catalog-import">
       {operationError && <Alert>{operationError}</Alert>}
-      <section className="master-data-batch-picker"><header><div><h3>选择目录项目</h3><p>已选择 {selected.size} / {candidates.length} 项</p></div>
-        <Button size="sm" variant="text" onClick={() => setSelected(selected.size === candidates.length
-          ? new Set() : new Set(candidates.map((value) => value.id)))}>{selected.size === candidates.length ? '清空' : '全选'}</Button></header>
-        <div>{candidates.map((value) => <label key={value.id}><input type="checkbox" checked={selected.has(value.id)}
-          onChange={() => toggle(value.id)} /><span><strong>{value.name}</strong><code>{value.code}</code></span></label>)}</div></section>
-      <section className="master-data-batch-config"><header><h3>批量配置</h3><div className="master-data-lifecycle-switch">
-        <button type="button" className={mode === 'ADOPTION' ? 'is-active' : ''} onClick={() => setMode('ADOPTION')}>机构目录</button>
-        <button type="button" className={mode === 'PRICE' ? 'is-active' : ''} onClick={() => setMode('PRICE')}>批量调价</button></div></header>
-        <div className="master-data-lifecycle-form"><FormField label="业务生效日期" required><input name="businessDate" type="date" defaultValue={today()} required /></FormField>
-          <FormField label="统一失效日期"><input name="validTo" type="date" /></FormField>
-          {mode === 'ADOPTION' ? <><FormField label="操作类型" required><Select value={operation} onChange={(value) => setOperation(value as 'ADOPT' | 'RETIRE')}
-            options={[{ value: 'ADOPT', label: '采用 / 建立新版本' }, { value: 'RETIRE', label: '批量停用' }]} /></FormField>
-            {operation === 'ADOPT' && <Checkboxes title="统一机构能力">
-              <Checkbox name="orderable" label="允许开立" defaultChecked /><Checkbox name="executable" label="允许执行" defaultChecked />
-              <Checkbox name="chargeable" label="允许收费" defaultChecked /><Checkbox name="purchasable" label="允许采购" />
-              <Checkbox name="stocked" label="允许入库" /><Checkbox name="dispensable" label="允许发放" />
-              <Checkbox name="returnable" label="允许退药/退库" />
-            </Checkboxes>}</> : <><SelectField name="priceType" label="价格类型" values={dictionaries.BD_PRICE_TYPE} defaultValue="SALE" />
-            <FormField label="统一金额" required><input name="price" type="number" min="0" step="0.000001" required /></FormField>
-            <FormField label="币种" required><input name="currencyCode" defaultValue="CNY" required /></FormField>
-            <FormField label="价格文件号"><input name="priceDocumentCode" /></FormField>
-            <FormField label="调价依据" className="span-2"><textarea name="priceReason" rows={2} /></FormField></>}
-        </div><div className="master-data-lifecycle-editor-actions"><Button type="submit" disabled={!selected.size} busy={pending}>执行批量操作</Button></div>
-      </section>
-      {batch && <section className="master-data-batch-result"><header><h3>批次结果</h3><p>批次 {batch.id} · {batch.status}</p></header>
-        <div className="master-data-import-summary"><div><span>总数</span><strong>{batch.totalRows}</strong></div>
-          <div><span>成功</span><strong>{batch.succeededRows}</strong></div><div><span>失败</span><strong className="is-error">{batch.failedRows}</strong></div></div>
-        <Table compact headers={['序号', '目录项目', '结果', '目标版本 / 错误']}>{batch.rows.map((row) => <tr key={row.id}>
-          <td>{row.rowNumber}</td><td><code>{row.catalogItemId}</code></td><td><StatusBadge tone={row.status === 'SUCCEEDED' ? 'success' : 'danger'}>
-            {row.status === 'SUCCEEDED' ? '成功' : '失败'}</StatusBadge></td><td>{row.targetId || row.errorMessage || '—'}</td></tr>)}</Table></section>}
+      {feedback && <Alert tone="success">{feedback}</Alert>}
+      <form className="master-data-batch-lifecycle" onSubmit={(event) => { event.preventDefault(); void submit(new FormData(event.currentTarget)) }}>
+        <section className="master-data-batch-picker"><header><div><h3>中心目录</h3><p>已选择 {selected.size} 项</p></div>
+          <Button size="sm" variant="text" disabled={!selectable.length} onClick={() => setSelected((current) => {
+            const next = new Map(current); selectable.forEach((value) => next.set(value.id, value)); return next
+          })}>选择本页待调入项</Button></header>
+          <Tabs value={itemType} onChange={(value) => setItemType(value as 'SERVICE' | 'MED_PRODUCT')}
+            label="目录类型" variant="line" items={[{ value: 'SERVICE', label: '诊疗项目' }, { value: 'MED_PRODUCT', label: '药品产品' }]} />
+          <SearchField label="搜索中心目录" value={query} onChange={setQuery} placeholder="项目名称或编码" />
+          {candidates.isPending ? <LoadingState label="正在读取中心目录…" /> : !values.length
+            ? <EmptyState icon="clinical" title="没有匹配项目" copy="请调整搜索条件。" />
+            : <div className="master-data-catalog-candidates">{values.map((value) => {
+              const local = value.adoptionSourceType === 'LOCAL'
+              return <label key={value.id} className={local ? 'is-disabled' : ''}><input type="checkbox"
+                disabled={local} checked={selected.has(value.id)} onChange={() => toggle(value)} />
+                <span><strong>{value.name}</strong><code>{value.code}</code></span>
+                <StatusBadge tone={value.adoptionSourceType === 'LOCAL' ? 'success'
+                  : value.adoptionSourceType === 'SHARED' ? 'warning' : 'neutral'}>
+                  {value.adoptionSourceType === 'LOCAL' ? '本机构' : value.adoptionSourceType === 'SHARED' ? '共享' : '未调入'}
+                </StatusBadge></label>
+            })}</div>}
+          <Pagination page={candidates.data?.page ?? page} totalPages={totalPages}
+            total={candidates.data?.totalElements ?? 0} pageSize={pageSize} onPageSizeChange={setPageSize}
+            onChange={setPage} label="中心目录分页" />
+        </section>
+        <section className="master-data-batch-config"><header><h3>本机构能力</h3></header>
+          <div className="master-data-lifecycle-form"><FormField label="生效日期" required>
+            <input name="businessDate" type="date" defaultValue={today()} required /></FormField>
+            <Checkboxes key={itemType} title="允许的业务范围">
+              <Checkbox name="orderable" label="允许开立" defaultChecked />
+              <Checkbox name="executable" label="允许执行" defaultChecked={itemType === 'SERVICE'} />
+              <Checkbox name="chargeable" label="允许收费" defaultChecked />
+              <Checkbox name="purchasable" label="允许采购" defaultChecked={itemType === 'MED_PRODUCT'} />
+              <Checkbox name="stocked" label="允许入库" defaultChecked={itemType === 'MED_PRODUCT'} />
+              <Checkbox name="dispensable" label="允许发放" defaultChecked={itemType === 'MED_PRODUCT'} />
+              <Checkbox name="returnable" label="允许退药/退库" defaultChecked={itemType === 'MED_PRODUCT'} />
+            </Checkboxes>
+          </div><div className="master-data-lifecycle-editor-actions"><Button type="submit"
+            disabled={!selected.size} busy={pending}>调入所选项目</Button></div>
+        </section>
+      </form>
       <div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>关闭</Button></div>
-    </form>
+    </div>
   </Dialog>
 }
 
@@ -1614,6 +1600,9 @@ function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, o
 function medicationPackageSpec(preparationSpec: string | undefined, factor: string,
   itemUnit: string | undefined, packageUnit: string) {
   if (!factor || !packageUnit) return ''
+  if (Number(factor) === 1 && itemUnit?.trim() === packageUnit.trim()) {
+    return preparationSpec?.trim() ? `${preparationSpec.trim()}/${packageUnit}` : packageUnit
+  }
   const quantitySpec = `${factor}${itemUnit || '最小单位'}/${packageUnit}`
   return preparationSpec?.trim() ? `${preparationSpec.trim()}*${quantitySpec}` : quantitySpec
 }
@@ -1956,12 +1945,6 @@ function DataStatus({ value, text }: { value: MasterDataStatus; text: string }) 
   return <StatusBadge tone={value === 'ACTIVE' ? 'success' : value === 'SUSPENDED' ? 'warning' : 'neutral'}>{text}</StatusBadge>
 }
 function Flag({ value, label }: { value: boolean; label: string }) { return <StatusBadge tone={value ? 'success' : 'neutral'}>{value ? label : `不可${label.slice(1)}`}</StatusBadge> }
-function activePrice(values: CatalogPrice[]) {
-  const at = today()
-  const value = values.find((item) => item.sdStatus === 'ACTIVE' && item.validFrom <= at
-    && (!item.validTo || item.validTo >= at))
-  return value ? <><strong>¥ {Number(value.price).toFixed(2)}</strong><small>{value.sdPriceTypeText} · {value.validFrom}</small></> : '未维护'
-}
 function options(values: DictionaryMap | undefined, code: string) {
   return (values?.[code] ?? []).map((item) => ({ value: item.code, label: item.name }))
 }

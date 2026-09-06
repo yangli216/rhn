@@ -10,6 +10,7 @@ import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,6 +31,7 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 
 @RestController
 @RequestMapping("/api/platform/master-data/imports")
+@PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
 public class MasterDataImportController {
     private final MasterDataImportService service;
 

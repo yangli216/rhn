@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkContextOption } from '../shared/rhnApi'
-import { selectableWorkContexts, workContextTypeForPath } from './AppShell'
+import { selectableWarehouseContexts, selectableWorkContexts, workContextTypeForPath } from './AppShell'
 
 describe('AppShell work context routing', () => {
   it('routes inpatient workspaces to the ward context independently from outpatient clinics', () => {
@@ -41,5 +41,41 @@ describe('AppShell work context routing', () => {
     ] as unknown as WorkContextOption[]
 
     expect(selectableWorkContexts(contexts, 'GENERAL')).toEqual([contexts[1]])
+  })
+
+  it('allows selecting both INVENTORY and PHARMACY departments in warehouse management', () => {
+    const contexts = [
+      {
+        organizationId: 'org-1',
+        departmentId: 'wh-1',
+        departmentName: '中心药库',
+        workContextType: 'INVENTORY',
+      },
+      {
+        organizationId: 'org-1',
+        departmentId: 'ph-1',
+        departmentName: '门诊药房',
+        workContextType: 'PHARMACY',
+      },
+      {
+        organizationId: 'org-1',
+        departmentId: 'ph-2',
+        departmentName: '住院药房',
+        workContextType: 'PHARMACY',
+      },
+      {
+        organizationId: 'org-1',
+        departmentId: 'clinic-1',
+        departmentName: '全科门诊',
+        workContextType: 'CLINICAL',
+      },
+    ] as unknown as WorkContextOption[]
+
+    const warehouseContexts = selectableWarehouseContexts(contexts)
+    expect(warehouseContexts.map((c) => c.departmentName)).toEqual([
+      '中心药库',
+      '门诊药房',
+      '住院药房',
+    ])
   })
 })

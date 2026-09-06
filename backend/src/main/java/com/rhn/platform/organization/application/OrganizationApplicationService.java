@@ -8,6 +8,7 @@ import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.organization.api.OrganizationDictionaryCodes;
 import com.rhn.platform.organization.api.OrganizationProfileView;
 import com.rhn.platform.organization.api.OrganizationView;
+import com.rhn.platform.organization.api.OrganizationCatalogSourceView;
 import com.rhn.platform.organization.api.PositionView;
 import com.rhn.platform.organization.api.StaffAssignmentView;
 import com.rhn.platform.organization.api.StaffDetailView;
@@ -55,6 +56,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -480,6 +482,46 @@ public class OrganizationApplicationService implements OrganizationDirectory {
     }
 
     @Transactional(readOnly = true)
+    public OrganizationCatalogSourceView catalogSource(Long tenantId, Long organizationId) {
+        requireCatalogOrganizationScope(current(), organizationId);
+        Organization organization = requireEntity(tenantId, organizationId);
+        requireKind(organization, OrganizationKind.LEGAL_ORGANIZATION,
+                "ORGANIZATION_NOT_FOUND", "未找到机构");
+        Long sourceId = organization.catalogSourceOrganizationId();
+        String sourceName = sourceId == null ? null : requireEntity(tenantId, sourceId).name();
+        return new OrganizationCatalogSourceView(organization.id(), organization.name(), organization.revision(),
+                sourceId, sourceName);
+    }
+
+    @Transactional
+    public OrganizationCatalogSourceView changeCatalogSource(Long organizationId, long expectedRevision,
+                                                              Long sourceOrganizationId) {
+        ExecutionContext context = current();
+        requireCatalogOrganizationScope(context, organizationId);
+        Organization organization = requireEntity(context.tenantId(), organizationId);
+        requireKind(organization, OrganizationKind.LEGAL_ORGANIZATION,
+                "ORGANIZATION_NOT_FOUND", "未找到机构");
+        if (sourceOrganizationId != null) {
+            if (organizationId.equals(sourceOrganizationId)) {
+                throw badRequest("CATALOG_SOURCE_SELF_REFERENCE", "机构不能共享自身目录");
+            }
+            Organization source = requireEntity(context.tenantId(), sourceOrganizationId);
+            requireKind(source, OrganizationKind.LEGAL_ORGANIZATION,
+                    "CATALOG_SOURCE_NOT_FOUND", "未找到目录来源机构");
+            if (source.catalogSourceOrganizationId() != null) {
+                throw conflict("CATALOG_SOURCE_CHAIN_NOT_ALLOWED", "目录来源机构不能再共享其他机构目录");
+            }
+            if (organizationRepository.existsByTenantIdAndCatalogSourceOrganizationId(
+                    context.tenantId(), organizationId)) {
+                throw conflict("CATALOG_SOURCE_CHAIN_NOT_ALLOWED", "已被其他机构共享的目录不能再共享其他机构目录");
+            }
+        }
+        organization.changeCatalogSource(sourceOrganizationId, expectedRevision, actorId());
+        organizationRepository.save(organization);
+        return catalogSource(context.tenantId(), organizationId);
+    }
+
+    @Transactional(readOnly = true)
     public List<DepartmentView> listDepartments(Long tenantId, Long organizationId) {
         requireOrganization(tenantId, organizationId);
         return departmentRepository.findByTenantIdAndOrganizationIdOrderBySortOrderAscCodeAsc(tenantId, organizationId)
@@ -500,6 +542,15 @@ public class OrganizationApplicationService implements OrganizationDirectory {
         requireKind(organization, OrganizationKind.LEGAL_ORGANIZATION,
                 "ORGANIZATION_NOT_FOUND", "未找到机构");
         return organization.toView();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Long catalogSourceOrganizationId(Long tenantId, Long organizationId) {
+        Organization organization = requireEntity(tenantId, organizationId);
+        requireKind(organization, OrganizationKind.LEGAL_ORGANIZATION,
+                "ORGANIZATION_NOT_FOUND", "未找到机构");
+        return organization.catalogSourceOrganizationId();
     }
 
     @Override
@@ -728,6 +779,14 @@ public class OrganizationApplicationService implements OrganizationDirectory {
 
     private ExecutionContext current() {
         return contextProvider.requireCurrent();
+    }
+
+    private void requireCatalogOrganizationScope(ExecutionContext context, Long organizationId) {
+        if (!context.hasAuthority("MASTER_DATA.MANAGE")
+                && !Objects.equals(context.organizationId(), organizationId)) {
+            throw new BusinessException("ORG_CATALOG_SCOPE_FORBIDDEN",
+                    "不能维护当前工作机构以外的项目目录", HttpStatus.FORBIDDEN);
+        }
     }
 
     private Long actorId() {

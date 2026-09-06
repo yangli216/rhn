@@ -16,6 +16,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -73,6 +74,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/diseases")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DiseaseConceptView createDisease(@Valid @RequestBody DiseaseRequest request) {
         return service.createDisease(TenantContext.requireTenantId(), request.codeSystemId(), request.code().trim(),
@@ -83,6 +85,7 @@ public class TerminologyController {
     }
 
     @PutMapping("/diseases/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseConceptView updateDisease(@PathVariable Long id, @Valid @RequestBody UpdateDiseaseRequest request) {
         return service.updateDisease(TenantContext.requireTenantId(), id, revision(request.expectedRevision()),
                 request.display().trim(), trimToNull(request.shortDisplay()), request.sdConceptType(),
@@ -91,6 +94,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/diseases/{id}/status")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseConceptView changeDiseaseStatus(@PathVariable Long id, @Valid @RequestBody DiseaseStatusRequest request) {
         return service.changeDiseaseStatus(TenantContext.requireTenantId(), id, revision(request.expectedRevision()),
                 request.sdStatus(), request.replacementConceptId());
@@ -114,6 +118,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/disease-management-programs")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     DiseaseManagementProgramView createDiseaseManagementProgram(
             @Valid @RequestBody DiseaseManagementProgramRequest request) {
@@ -124,6 +129,7 @@ public class TerminologyController {
     }
 
     @PutMapping("/disease-management-programs/{id}")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseManagementProgramView updateDiseaseManagementProgram(@PathVariable Long id,
             @Valid @RequestBody UpdateDiseaseManagementProgramRequest request) {
         return service.updateDiseaseManagementProgram(TenantContext.requireTenantId(), id,
@@ -133,6 +139,7 @@ public class TerminologyController {
     }
 
     @PutMapping("/disease-management-programs/{id}/members")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseManagementProgramView replaceDiseaseManagementMembers(@PathVariable Long id,
             @Valid @RequestBody DiseaseManagementMembersRequest request) {
         return service.replaceDiseaseManagementMembers(TenantContext.requireTenantId(), id,
@@ -140,6 +147,7 @@ public class TerminologyController {
     }
 
     @PutMapping("/disease-management-programs/{id}/scope")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseManagementProgramView replaceDiseaseManagementScope(@PathVariable Long id,
             @Valid @RequestBody DiseaseManagementScopeRequest request) {
         return service.replaceDiseaseManagementScope(TenantContext.requireTenantId(), id,
@@ -154,6 +162,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/disease-management-programs/{id}/status")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     DiseaseManagementProgramView changeDiseaseManagementProgramStatus(@PathVariable Long id,
             @Valid @RequestBody DiseaseManagementStatusRequest request) {
         return service.changeDiseaseManagementProgramStatus(TenantContext.requireTenantId(), id,
@@ -161,6 +170,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/code-systems")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> createCodeSystem(@Valid @RequestBody CreateCodeSystemRequest request) {
         Long id = service.createCodeSystem(TenantContext.requireTenantId(), request.productScope(),
@@ -175,6 +185,7 @@ public class TerminologyController {
     }
 
     @PostMapping("/code-systems/{id}/concepts")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     ConceptView addConcept(@PathVariable Long id, @Valid @RequestBody AddConceptRequest request) {
         return service.addConcept(id, request.code().trim(), request.display().trim(),
@@ -182,14 +193,17 @@ public class TerminologyController {
     }
 
     @PostMapping("/code-systems/{id}/activate")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void activateCodeSystem(@PathVariable Long id) { service.activateCodeSystem(id); }
 
     @PostMapping("/concepts/{id}/activate")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void activateConcept(@PathVariable Long id) { service.activateConcept(id); }
 
     @PostMapping("/value-sets")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.CREATED)
     Map<String, Long> createValueSet(@Valid @RequestBody CreateValueSetRequest request) {
         Long id = service.createValueSet(TenantContext.requireTenantId(), request.productScope(),
@@ -199,12 +213,14 @@ public class TerminologyController {
     }
 
     @PostMapping("/value-sets/{id}/members")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void addMember(@PathVariable Long id, @Valid @RequestBody AddMemberRequest request) {
         service.addValueSetMember(id, request.conceptId(), request.sortOrder());
     }
 
     @PostMapping("/value-sets/{id}/activate")
+    @PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     void activateValueSet(@PathVariable Long id) { service.activateValueSet(id); }
 

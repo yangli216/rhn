@@ -20,6 +20,11 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
+import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory;
+import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.PrescriptionFreezeCommand;
+import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.PrescriptionItemFreezeRequest;
+import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory.PrescriptionReleaseCommand;
+
 @Service
 class PrescriptionService {
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
@@ -32,15 +37,21 @@ class PrescriptionService {
     private final OrganizationDirectory organizationDirectory;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
+    private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
+    private final PrescriptionInventoryFreezePolicy freezePolicy;
 
     PrescriptionService(PrescriptionRepository repository, MedicationRequestRepository medicationRepository,
                         MedicationRequestService medicationService, EncounterDirectory encounterDirectory,
                         OrganizationDirectory organizationDirectory, DomainEventPublisher eventPublisher,
-                        ExecutionContextProvider contextProvider) {
+                        ExecutionContextProvider contextProvider,
+                        OutpatientPrescriptionInventoryDirectory inventoryDirectory,
+                        PrescriptionInventoryFreezePolicy freezePolicy) {
         this.repository = repository; this.medicationRepository = medicationRepository;
         this.medicationService = medicationService; this.encounterDirectory = encounterDirectory;
         this.organizationDirectory = organizationDirectory; this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider;
+        this.inventoryDirectory = inventoryDirectory;
+        this.freezePolicy = freezePolicy;
     }
 
     @Transactional
@@ -75,6 +86,27 @@ class PrescriptionService {
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
         List<MedicationRequest> drafts = requests.stream().filter(request -> "DRAFT".equals(request.status())).toList();
         if (drafts.isEmpty()) throw conflict("PRESCRIPTION_EMPTY", "处方至少需要一条有效药品请求才能提交");
+
+        // 检查系统参数并执行库存冻结
+        if (freezePolicy.isInventoryFreezeEnabled(context, encounter.organizationId(), encounter.departmentId())) {
+            List<PrescriptionItemFreezeRequest> freezeItems = drafts.stream().map(req -> new PrescriptionItemFreezeRequest(
+                    req.id(),
+                    req.catalogItemId(),
+                    req.packageId(),
+                    req.quantity(),
+                    req.quantityUnit()
+            )).toList();
+            inventoryDirectory.freezePrescription(new PrescriptionFreezeCommand(
+                    encounter.tenantId(),
+                    encounter.organizationId(),
+                    encounter.departmentId(),
+                    encounterId,
+                    prescriptionId,
+                    freezeItems,
+                    context.subjectId()
+            ));
+        }
+
         drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));
         value.submit(action.expectedRevision(), context.subjectId());
         medicationRepository.flush(); repository.flush();
@@ -90,6 +122,16 @@ class PrescriptionService {
         if (reason == null) throw badRequest("PRESCRIPTION_CANCEL_REASON_REQUIRED", "撤销处方必须填写原因");
         Prescription value = requirePrescription(encounter.tenantId(), encounterId, prescriptionId);
         List<MedicationRequest> requests = medicationService.prescriptionRequests(encounter.tenantId(), prescriptionId);
+
+        // 释放可能已冻结的库存
+        inventoryDirectory.releasePrescription(new PrescriptionReleaseCommand(
+                encounter.tenantId(),
+                encounterId,
+                prescriptionId,
+                reason,
+                context.subjectId()
+        ));
+
         requests.forEach(request -> medicationService.cancelFromPrescription(
                 request, reason, context.subjectId()));
         value.cancel(action.expectedRevision(), context.subjectId(), reason);

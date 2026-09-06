@@ -24,4 +24,11 @@ public final class CatalogLifecycleViews {
     public record CatalogChangeBatchRowView(
             Long id, int rowNumber, Long catalogItemId, Long packageId, String status,
             String targetResourceType, Long targetId, String errorCode, String errorMessage) {}
+
+    public record CatalogAdoptionCandidateView(
+            Long id, String code, String name, String itemType, String centerStatus,
+            OrganizationAdoptionView adoption, String adoptionSourceType,
+            List<CatalogPackageOptionView> packages) {}
+
+    public record CatalogPackageOptionView(Long id, String unitCode, String unitName, String packageSpec) {}
 }

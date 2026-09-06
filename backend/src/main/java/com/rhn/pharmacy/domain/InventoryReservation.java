@@ -45,11 +45,19 @@ public class InventoryReservation {
                                 Long stockLotId, Long requestId, Long dispenseTaskLineId,
                                 String reservationGroupCode, BigDecimal quantityReserved,
                                 String baseUnitCode, Long actorId, Instant expiresAt) {
+        this(tenantId, stockSiteId, stockBinId, stockItemId, stockLotId, requestId, dispenseTaskLineId,
+                reservationGroupCode, "DISPENSE", quantityReserved, baseUnitCode, actorId, expiresAt);
+    }
+
+    public InventoryReservation(Long tenantId, Long stockSiteId, Long stockBinId, Long stockItemId,
+                                Long stockLotId, Long requestId, Long dispenseTaskLineId,
+                                String reservationGroupCode, String reservationType, BigDecimal quantityReserved,
+                                String baseUnitCode, Long actorId, Instant expiresAt) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.stockSiteId = stockSiteId;
         this.stockBinId = stockBinId; this.stockItemId = stockItemId; this.stockLotId = stockLotId;
         this.requestId = requestId; this.dispenseTaskLineId = dispenseTaskLineId;
         this.reservationGroupCode = reservationGroupCode;
-        this.reservationType = "DISPENSE"; this.status = "ACTIVE";
+        this.reservationType = reservationType == null ? "ORDER" : reservationType; this.status = "ACTIVE";
         this.quantityReserved = quantityReserved; this.quantityConsumed = BigDecimal.ZERO;
         this.baseUnitCode = baseUnitCode; this.createdAt = Instant.now(); this.createdBy = actorId;
         this.expiresAt = expiresAt;

@@ -44,4 +44,6 @@ interface PatientRegistrationRepository extends JpaRepository<PatientRegistratio
     boolean existsByTenantIdAndAppointmentId(Long tenantId, Long appointmentId);
     List<PatientRegistration> findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
             Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive);
+    List<PatientRegistration> findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAt(
+            Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive);
 }

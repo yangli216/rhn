@@ -204,6 +204,7 @@ export interface ReceptionQueueItem {
   callCount?: number
   missedCount?: number
   currentLocationId?: string
+  validUntil?: string
 }
 
 export interface RegistrationPageView {
@@ -227,7 +228,7 @@ export function createSchedulingApi(client: ApiClient) {
     schedules: (dateFrom: string, dateTo: string) => client.request<ServiceSchedule[]>(
       `/api/outpatient/scheduling/schedules?${dates(dateFrom, dateTo)}`,
     ),
-    receptionQueue: (dateOrFrom?: string, dateTo?: string) => {
+    receptionQueue: (dateOrFrom?: string, dateTo?: string, scope?: 'DEPARTMENT' | 'ORGANIZATION') => {
       const params = new URLSearchParams()
       if (dateOrFrom && dateTo) {
         params.set('dateFrom', dateOrFrom)
@@ -235,6 +236,7 @@ export function createSchedulingApi(client: ApiClient) {
       } else if (dateOrFrom) {
         params.set('date', dateOrFrom)
       }
+      if (scope) params.set('scope', scope)
       const queryStr = params.toString()
       return client.request<ReceptionQueueItem[]>(
         `/api/outpatient/reception/queue${queryStr ? `?${queryStr}` : ''}`,
@@ -247,6 +249,7 @@ export function createSchedulingApi(client: ApiClient) {
       query?: string
       page?: number
       size?: number
+      scope?: 'DEPARTMENT' | 'ORGANIZATION'
     } = {}) => {
       const query = new URLSearchParams()
       if (params.dateFrom) query.set('dateFrom', params.dateFrom)
@@ -255,6 +258,7 @@ export function createSchedulingApi(client: ApiClient) {
       if (params.query) query.set('query', params.query)
       if (params.page !== undefined) query.set('page', String(params.page))
       if (params.size !== undefined) query.set('size', String(params.size))
+      if (params.scope) query.set('scope', params.scope)
       const queryStr = query.toString()
       try {
         return await client.request<RegistrationPageView>(
@@ -269,6 +273,7 @@ export function createSchedulingApi(client: ApiClient) {
         } else if (params.dateFrom) {
           fallbackParams.set('date', params.dateFrom)
         }
+        if (params.scope) fallbackParams.set('scope', params.scope)
         const fallbackQueryStr = fallbackParams.toString()
         const items = await client.request<ReceptionQueueItem[]>(
           `/api/outpatient/reception/queue${fallbackQueryStr ? `?${fallbackQueryStr}` : ''}`,

@@ -7,6 +7,9 @@ import java.util.Map;
 public interface QueueingDirectory {
     TicketSnapshot checkIn(CheckInCommand command);
 
+    /** Used by centralized service desks that may create a ticket for any department in their organization. */
+    TicketSnapshot checkInForOrganization(CheckInCommand command);
+
     TicketSnapshot requireBySource(String sourceType, Long sourceId);
 
     Map<Long, TicketSnapshot> findBySources(String sourceType, Iterable<Long> sourceIds);

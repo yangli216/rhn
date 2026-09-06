@@ -6,6 +6,7 @@ import java.util.List;
 public interface OrganizationDirectory {
     TenantView requireTenant(Long tenantId);
     OrganizationView requireOrganization(Long tenantId, Long organizationId);
+    Long catalogSourceOrganizationId(Long tenantId, Long organizationId);
     DepartmentView requireDepartment(Long tenantId, Long organizationId, Long departmentId);
     StaffDetailView requireStaff(Long tenantId, Long practitionerId);
     List<StaffView> listStaff(Long tenantId);

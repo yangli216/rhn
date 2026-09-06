@@ -4,12 +4,15 @@ import com.rhn.platform.dictionary.api.DictionaryDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogChangeBatchRowView;
 import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogChangeBatchView;
 import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogLifecycleView;
+import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogAdoptionCandidateView;
+import com.rhn.platform.masterdata.api.CatalogLifecycleViews.CatalogPackageOptionView;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogOperationalSnapshot;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.CatalogItemSnapshot;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.PackageSnapshot;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.MedicationSnapshot;
 import com.rhn.platform.masterdata.api.MasterDataDictionaryCodes;
+import com.rhn.platform.masterdata.api.MasterDataViews;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 import com.rhn.platform.masterdata.domain.CatalogChangeBatch;
@@ -32,6 +35,10 @@ import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.shared.api.PageResult;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,12 +50,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.HexFormat;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
@@ -69,6 +78,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private final OrganizationDirectory organizationDirectory;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final MasterDataApplicationService masterDataApplicationService;
 
     public CatalogLifecycleService(OrganizationCatalogItemRepository adoptionRepository,
                                    CatalogPriceRepository priceRepository,
@@ -82,7 +92,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                    ItemPackageRepository packageRepository,
                                    DictionaryDirectory dictionaryDirectory,
                                    OrganizationDirectory organizationDirectory,
-                                   ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
+                                   ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
+                                   MasterDataApplicationService masterDataApplicationService) {
         this.adoptionRepository = adoptionRepository; this.priceRepository = priceRepository;
         this.batchRepository = batchRepository; this.batchRowRepository = batchRowRepository;
         this.serviceRepository = serviceRepository; this.productRepository = productRepository;
@@ -92,13 +103,17 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         this.packageRepository = packageRepository; this.dictionaryDirectory = dictionaryDirectory;
         this.organizationDirectory = organizationDirectory; this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
+        this.masterDataApplicationService = masterDataApplicationService;
     }
 
     @Transactional(readOnly = true)
     public CatalogLifecycleView maintenance(Long catalogItemId, Long organizationId, LocalDate businessDate) {
         ExecutionContext context = current();
         requireCatalogItem(context.tenantId(), catalogItemId);
-        if (organizationId != null) organizationDirectory.requireOrganization(context.tenantId(), organizationId);
+        if (organizationId != null) {
+            requireOrganizationScope(context, organizationId);
+            organizationDirectory.requireOrganization(context.tenantId(), organizationId);
+        }
         LocalDate at = businessDate == null ? LocalDate.now() : businessDate;
         List<OrganizationCatalogItem> adoptions = organizationId == null ? List.of() : adoptionRepository
                 .findByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
@@ -107,12 +122,67 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 .findByTenantIdAndCatalogItemIdOrderByValidFromDesc(context.tenantId(), catalogItemId).stream()
                 .filter(value -> value.organizationId() == null || Objects.equals(value.organizationId(), organizationId))
                 .toList();
-        OrganizationCatalogItem currentAdoption = adoptions.stream().filter(value -> value.effectiveAt(at))
-                .max(Comparator.comparing(OrganizationCatalogItem::validFrom)).orElse(null);
-        return new CatalogLifecycleView(catalogItemId, organizationId, at, adoptionView(currentAdoption),
+        OrganizationCatalogItem currentAdoption = organizationId == null ? null
+                : resolvedAdoption(context.tenantId(), organizationId, catalogItemId, at);
+        return new CatalogLifecycleView(catalogItemId, organizationId, at,
+                adoptionView(currentAdoption, organizationId),
                 adoptions.stream().map(this::adoptionView).toList(),
                 prices.stream().filter(value -> value.effectiveAt(at)).map(this::priceView).toList(),
                 prices.stream().map(this::priceView).toList());
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<CatalogAdoptionCandidateView> searchAdoptionCandidates(
+            Long organizationId, String itemType, String query, int page, int size) {
+        ExecutionContext context = current();
+        requireOrganizationScope(context, organizationId);
+        organizationDirectory.requireOrganization(context.tenantId(), organizationId);
+        if (!Set.of("SERVICE", "MED_PRODUCT").contains(itemType)) {
+            throw badRequest("CATALOG_CANDIDATE_TYPE_INVALID", "机构项目调入仅支持诊疗项目或药品产品");
+        }
+        int normalizedPage = Math.max(0, page);
+        int normalizedSize = Math.min(Math.max(size, 10), 100);
+        var pageable = PageRequest.of(normalizedPage, normalizedSize,
+                Sort.by("name").ascending().and(Sort.by("id").ascending()));
+        LocalDate today = LocalDate.now();
+        if ("SERVICE".equals(itemType)) {
+            Page<com.rhn.platform.masterdata.domain.ServiceCatalogItem> result = serviceRepository.search(
+                    context.tenantId(), query, "", "ACTIVE", pageable);
+            List<CatalogAdoptionCandidateView> values = result.getContent().stream().map(value -> candidate(
+                    context.tenantId(), organizationId, value.id(), value.code(), value.name(), "SERVICE",
+                    value.status(), today)).toList();
+            return new PageResult<>(values, result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
+        }
+        Page<com.rhn.platform.masterdata.domain.MedicationProduct> result = productRepository.search(
+                context.tenantId(), query, "ACTIVE", pageable);
+        List<Long> productIds = result.getContent().stream().map(value -> value.id()).toList();
+        Map<Long, List<CatalogPackageOptionView>> packages = (productIds.isEmpty() ? List.<ItemPackage>of()
+                : packageRepository.findByTenantIdAndCatalogItemIdInOrderByCatalogItemIdAscQuantityFactorAsc(
+                        context.tenantId(), productIds))
+                .stream().filter(value -> "ACTIVE".equals(value.status()))
+                .collect(java.util.stream.Collectors.groupingBy(ItemPackage::catalogItemId,
+                        java.util.stream.Collectors.mapping(value -> new CatalogPackageOptionView(
+                                value.id(), value.unitCode(), value.unitName(), value.packageSpec()),
+                                java.util.stream.Collectors.toList())));
+        List<CatalogAdoptionCandidateView> values = result.getContent().stream().map(value -> candidate(
+                context.tenantId(), organizationId, value.id(), value.code(), value.name(), "MED_PRODUCT",
+                value.status(), today, packages.getOrDefault(value.id(), List.of()))).toList();
+        return new PageResult<>(values, result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
+    }
+
+    private CatalogAdoptionCandidateView candidate(Long tenantId, Long organizationId, Long id, String code,
+                                                    String name, String itemType, String centerStatus, LocalDate at) {
+        return candidate(tenantId, organizationId, id, code, name, itemType, centerStatus, at, List.of());
+    }
+
+    private CatalogAdoptionCandidateView candidate(Long tenantId, Long organizationId, Long id, String code,
+                                                    String name, String itemType, String centerStatus, LocalDate at,
+                                                    List<CatalogPackageOptionView> packages) {
+        OrganizationCatalogItem adoption = resolvedAdoption(tenantId, organizationId, id, at);
+        String sourceType = adoption == null ? "NONE"
+                : organizationId.equals(adoption.organizationId()) ? "LOCAL" : "SHARED";
+        return new CatalogAdoptionCandidateView(id, code, name, itemType, centerStatus,
+                adoptionView(adoption, organizationId), sourceType, packages);
     }
 
     @Override
@@ -124,7 +194,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         PackageSnapshot itemPackage = packageId == null ? null : packageSnapshot(tenantId, catalogItemId, packageId);
         MedicationSnapshot medication = item.medicationId() == null ? null : medicationSnapshot(tenantId, item.medicationId());
         OrganizationCatalogItem adoption = organizationId == null ? null
-                : currentAdoption(tenantId, organizationId, catalogItemId, at);
+                : resolvedAdoption(tenantId, organizationId, catalogItemId, at);
         CatalogPrice price = priceRepository.findByTenantIdAndCatalogItemIdOrderByValidFromDesc(
                         tenantId, catalogItemId).stream()
                 .filter(value -> value.effectiveAt(at) && value.priceType().equals(priceType))
@@ -135,7 +205,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                         .thenComparing(CatalogPrice::validFrom, Comparator.reverseOrder()))
                 .findFirst().orElse(null);
         return new CatalogOperationalSnapshot(catalogItemId, organizationId, packageId, priceType, at,
-                item, itemPackage, medication, adoptionView(adoption), price == null ? null : priceView(price));
+                item, itemPackage, medication, adoptionView(adoption, organizationId),
+                price == null ? null : priceView(price));
     }
 
     private CatalogItemSnapshot catalogItemSnapshot(Long tenantId, Long catalogItemId) {
@@ -183,6 +254,13 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         return medicationSnapshot(tenantId, medicationId);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<MasterDataViews.MedicationView> findMedicationsByProductCatalogItemIds(
+            Long tenantId, Long organizationId, java.util.Collection<Long> catalogItemIds) {
+        return masterDataApplicationService.findMedicationsByProductCatalogItemIds(tenantId, organizationId, catalogItemIds);
+    }
+
     private MedicationSnapshot medicationSnapshot(Long tenantId, Long medicationId) {
         var value = medicationRepository.findByIdAndTenantId(medicationId, tenantId)
                 .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到药品知识"));
@@ -197,6 +275,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     @Transactional
     public CatalogLifecycleView createAdoption(Long catalogItemId, AdoptionInput input) {
         ExecutionContext context = current();
+        requireOrganizationScope(context, input.organizationId());
         createAdoptionValue(context, catalogItemId, input, null, null);
         return maintenance(catalogItemId, input.organizationId(), input.validFrom());
     }
@@ -205,6 +284,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     public CatalogLifecycleView replaceAdoption(Long adoptionId, long expectedRevision, AdoptionInput input) {
         ExecutionContext context = current();
         OrganizationCatalogItem replaced = requireAdoption(context.tenantId(), adoptionId);
+        requireOrganizationScope(context, replaced.organizationId());
         if (!replaced.organizationId().equals(input.organizationId())) {
             throw badRequest("ADOPTION_REPLACEMENT_SCOPE_INVALID", "替代版本必须属于同一机构");
         }
@@ -217,6 +297,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                                       String status, LocalDate validTo) {
         ExecutionContext context = current();
         OrganizationCatalogItem value = requireAdoption(context.tenantId(), adoptionId);
+        requireOrganizationScope(context, value.organizationId());
         requireLifecycleStatus(status);
         value.changeStatus(expectedRevision, status, validTo, actor(context));
         return maintenance(value.catalogItemId(), value.organizationId(), LocalDate.now());
@@ -225,6 +306,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     @Transactional
     public CatalogLifecycleView createPrice(Long catalogItemId, PriceInput input) {
         ExecutionContext context = current();
+        requireOrganizationScope(context, input.organizationId());
         createPriceValue(context, catalogItemId, input, null, null);
         return maintenance(catalogItemId, input.organizationId(), input.validFrom());
     }
@@ -233,6 +315,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     public CatalogLifecycleView replacePrice(Long priceId, long expectedRevision, PriceInput input) {
         ExecutionContext context = current();
         CatalogPrice replaced = requirePrice(context.tenantId(), priceId);
+        requireOrganizationScope(context, replaced.organizationId());
         if (!replaced.sameScope(input.organizationId(), input.packageId(), input.priceType())) {
             throw badRequest("PRICE_REPLACEMENT_SCOPE_INVALID", "调价版本必须保持机构、包装和价格类型不变");
         }
@@ -264,6 +347,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                                    String status, LocalDate validTo) {
         ExecutionContext context = current();
         CatalogPrice value = requirePrice(context.tenantId(), priceId);
+        requireOrganizationScope(context, value.organizationId());
         requireLifecycleStatus(status);
         value.changeStatus(expectedRevision, status, validTo, actor(context));
         return maintenance(value.catalogItemId(), value.organizationId(), LocalDate.now());
@@ -274,6 +358,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                                  LocalDate businessDate, List<Long> catalogItemIds,
                                                  AdoptionTemplate template) {
         ExecutionContext context = current();
+        requireOrganizationScope(context, organizationId);
         if (!Set.of("ADOPT", "RETIRE").contains(operationType)) {
             throw badRequest("ADOPTION_BATCH_OPERATION_INVALID", "机构目录批量操作仅支持采用或停用");
         }
@@ -323,6 +408,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     public CatalogChangeBatchView priceBatch(String requestCode, Long organizationId, LocalDate businessDate,
                                               List<PriceBatchEntry> entries) {
         ExecutionContext context = current();
+        requireOrganizationScope(context, organizationId);
         if (organizationId != null) organizationDirectory.requireOrganization(context.tenantId(), organizationId);
         if (entries == null || entries.isEmpty() || entries.size() > 500) {
             throw badRequest("PRICE_BATCH_SIZE_INVALID", "批量调价必须包含1至500条数据");
@@ -363,6 +449,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         ExecutionContext context = current();
         CatalogChangeBatch value = batchRepository.findByIdAndTenantId(batchId, context.tenantId())
                 .orElseThrow(() -> notFound("CATALOG_CHANGE_BATCH_NOT_FOUND", "未找到目录批量操作记录"));
+        if (value.organizationId() != null) requireOrganizationScope(context, value.organizationId());
         return batchView(value);
     }
 
@@ -431,6 +518,19 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 .findFirst().orElse(null);
     }
 
+    private OrganizationCatalogItem resolvedAdoption(Long tenantId, Long organizationId, Long catalogItemId,
+                                                       LocalDate at) {
+        List<OrganizationCatalogItem> localHistory = adoptionRepository
+                .findByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
+                        tenantId, organizationId, catalogItemId);
+        OrganizationCatalogItem localRule = localHistory.stream()
+                .filter(value -> value.overlaps(at, at)).findFirst().orElse(null);
+        if (localRule != null) return localRule.effectiveAt(at) ? localRule : null;
+        Long sourceOrganizationId = organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        return sourceOrganizationId == null ? null
+                : currentAdoption(tenantId, sourceOrganizationId, catalogItemId, at);
+    }
+
     private CatalogPrice currentPrice(Long tenantId, Long catalogItemId, PriceInput input, LocalDate at) {
         return priceRepository.findByTenantIdAndCatalogItemIdOrderByValidFromDesc(tenantId, catalogItemId).stream()
                 .filter(value -> value.sameScope(input.organizationId(), input.packageId(), input.priceType()))
@@ -461,9 +561,15 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     }
 
     private OrganizationAdoptionView adoptionView(OrganizationCatalogItem value) {
+        return adoptionView(value, null);
+    }
+
+    private OrganizationAdoptionView adoptionView(OrganizationCatalogItem value, Long requestingOrganizationId) {
         if (value == null) return null;
+        Long defaultDepartmentId = requestingOrganizationId != null
+                && !requestingOrganizationId.equals(value.organizationId()) ? null : value.defaultDepartmentId();
         return new OrganizationAdoptionView(value.id(), value.revision(), value.organizationId(), value.catalogItemId(),
-                value.defaultDepartmentId(), value.localCode(), value.localName(), value.orderable(), value.executable(),
+                defaultDepartmentId, value.localCode(), value.localName(), value.orderable(), value.executable(),
                 value.chargeable(), value.purchasable(), value.stocked(), value.dispensable(), value.returnable(),
                 value.status(), value.validFrom(), value.validTo(), value.replacesAdoptionId());
     }
@@ -528,6 +634,19 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                 .digest(value.getBytes(StandardCharsets.UTF_8))); }
         catch (NoSuchAlgorithmException exception) { throw new IllegalStateException("SHA-256 is unavailable", exception); }
     }
+    private void requireOrganizationScope(ExecutionContext context, Long organizationId) {
+        if (organizationId == null) {
+            if (!context.hasAuthority("MASTER_DATA.MANAGE")) {
+                throw forbidden("ORG_CATALOG_SCOPE_FORBIDDEN", "机构项目管理必须指定当前工作机构");
+            }
+            return;
+        }
+        if (!context.hasAuthority("MASTER_DATA.MANAGE")
+                && !Objects.equals(context.organizationId(), organizationId)) {
+            throw forbidden("ORG_CATALOG_SCOPE_FORBIDDEN", "不能维护当前工作机构以外的项目目录");
+        }
+    }
+
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
 
     public record AdoptionInput(

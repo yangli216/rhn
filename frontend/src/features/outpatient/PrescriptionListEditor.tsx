@@ -42,6 +42,9 @@ export interface MedicationPlanDraft {
   productName: string
   routeName?: string
   routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+  stockSiteName?: string
+  availablePackageQuantity?: number
+  packageUnitName?: string
   request: Omit<CreateMedicationRequestInput, 'prescriptionId' | 'parentRequestId'>
 }
 

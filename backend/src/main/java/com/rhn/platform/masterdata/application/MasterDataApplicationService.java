@@ -210,17 +210,29 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                     "门诊排班只能选择门诊诊查类服务，不能选择检查、检验、治疗或其他收费项目");
         }
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;
-        OrganizationCatalogItem adoption = adoptionRepository
-                .findByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
-                        tenantId, organizationId, catalogItemId).stream()
-                .filter(value -> "ACTIVE".equals(value.status()) && value.effectiveAt(date))
-                .findFirst().orElseThrow(() -> badRequest("SCHEDULE_SERVICE_NOT_ADOPTED",
-                        "所选门诊诊查服务尚未在当前机构生效"));
+        OrganizationCatalogItem adoption = resolvedAdoption(tenantId, organizationId, catalogItemId, date);
+        if (adoption == null) throw badRequest("SCHEDULE_SERVICE_NOT_ADOPTED",
+                "所选门诊诊查服务尚未在当前机构生效");
         if (!adoption.orderable() || !adoption.executable()) {
             throw badRequest("SCHEDULE_SERVICE_NOT_AVAILABLE",
                     "所选门诊诊查服务未开放机构开立或执行权限");
         }
         return snapshot;
+    }
+
+    private OrganizationCatalogItem resolvedAdoption(Long tenantId, Long organizationId, Long catalogItemId,
+                                                       LocalDate businessDate) {
+        List<OrganizationCatalogItem> localHistory = adoptionRepository
+                .findByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
+                        tenantId, organizationId, catalogItemId);
+        OrganizationCatalogItem localRule = localHistory.stream()
+                .filter(value -> value.overlaps(businessDate, businessDate)).findFirst().orElse(null);
+        if (localRule != null) return localRule.effectiveAt(businessDate) ? localRule : null;
+        Long sourceOrganizationId = organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        if (sourceOrganizationId == null) return null;
+        return adoptionRepository.findByTenantIdAndOrganizationIdAndCatalogItemIdOrderByValidFromDesc(
+                        tenantId, sourceOrganizationId, catalogItemId).stream()
+                .filter(value -> value.effectiveAt(businessDate)).findFirst().orElse(null);
     }
 
     @Transactional
@@ -296,6 +308,17 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                         value.preparationSpec()))
                 .limit(500).toList();
         return medicationViews(context.tenantId(), items, organizationId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MedicationView> findMedicationsByProductCatalogItemIds(Long tenantId, Long organizationId,
+                                                                      Collection<Long> catalogItemIds) {
+        if (catalogItemIds == null || catalogItemIds.isEmpty()) return List.of();
+        List<MedicationProduct> products = productRepository.findByTenantIdAndIdIn(tenantId, catalogItemIds);
+        List<Long> medIds = products.stream().map(MedicationProduct::medicationId).distinct().toList();
+        if (medIds.isEmpty()) return List.of();
+        List<Medication> items = medicationRepository.findByTenantIdAndIdIn(tenantId, medIds);
+        return medicationViews(tenantId, items, organizationId);
     }
 
     @Transactional(readOnly = true)
@@ -616,7 +639,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.attention(), value.examinationNotes(), laboratoryView(laboratories.get(value.id()),
                         specimens.getOrDefault(value.id(), List.of())),
                 examinationView(examinations.get(value.id()), variants.getOrDefault(value.id(), List.of())),
-                adoptionView(adoptions.get(value.id())), priceViews(prices.get(value.id())))).toList();
+                adoptionView(adoptions.get(value.id()), organizationId), priceViews(prices.get(value.id())))).toList();
     }
 
     private LaboratoryServiceView laboratoryView(LaboratoryService value,
@@ -707,15 +730,29 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.orderable(), value.chargeable(), value.stocked(), value.shelfLifeValue(), value.shelfLifeUnit(),
                 value.status(), value.validFrom(), value.validTo(), value.indication(), value.instruction(),
                 packages.getOrDefault(value.id(), List.of()).stream().map(this::packageView).toList(),
-                adoptionView(adoptions.get(value.id())), priceViews(prices.get(value.id())))).toList();
+                adoptionView(adoptions.get(value.id()), organizationId), priceViews(prices.get(value.id())))).toList();
     }
 
     private Map<Long, OrganizationCatalogItem> adoptionMap(Long tenantId, Long organizationId, Collection<Long> itemIds) {
         if (organizationId == null || itemIds.isEmpty()) return Map.of();
-        return adoptionRepository.findByTenantIdAndOrganizationIdAndCatalogItemIdIn(tenantId, organizationId, itemIds)
-                .stream().filter(value -> value.effectiveAt(java.time.LocalDate.now()))
+        java.time.LocalDate today = java.time.LocalDate.now();
+        Map<Long, OrganizationCatalogItem> localRules = adoptionRepository
+                .findByTenantIdAndOrganizationIdAndCatalogItemIdIn(tenantId, organizationId, itemIds).stream()
+                .filter(value -> value.overlaps(today, today))
                 .collect(Collectors.toMap(OrganizationCatalogItem::catalogItemId, Function.identity(),
                         (left, right) -> left.validFrom().isAfter(right.validFrom()) ? left : right));
+        Map<Long, OrganizationCatalogItem> resolved = localRules.values().stream()
+                .filter(value -> value.effectiveAt(today))
+                .collect(Collectors.toMap(OrganizationCatalogItem::catalogItemId, Function.identity()));
+        Long sourceOrganizationId = organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        if (sourceOrganizationId == null) return resolved;
+        adoptionRepository.findByTenantIdAndOrganizationIdAndCatalogItemIdIn(
+                        tenantId, sourceOrganizationId, itemIds).stream()
+                .filter(value -> !localRules.containsKey(value.catalogItemId()))
+                .filter(value -> value.effectiveAt(today))
+                .forEach(value -> resolved.merge(value.catalogItemId(), value,
+                        (left, right) -> left.validFrom().isAfter(right.validFrom()) ? left : right));
+        return resolved;
     }
 
     private Map<Long, List<CatalogPrice>> priceMap(Long tenantId, Collection<Long> itemIds) {
@@ -736,9 +773,15 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private OrganizationAdoptionView adoptionView(OrganizationCatalogItem value) {
+        return adoptionView(value, null);
+    }
+
+    private OrganizationAdoptionView adoptionView(OrganizationCatalogItem value, Long requestingOrganizationId) {
         if (value == null) return null;
+        Long defaultDepartmentId = requestingOrganizationId != null
+                && !requestingOrganizationId.equals(value.organizationId()) ? null : value.defaultDepartmentId();
         return new OrganizationAdoptionView(value.id(), value.revision(), value.organizationId(), value.catalogItemId(),
-                value.defaultDepartmentId(), value.localCode(), value.localName(), value.orderable(), value.executable(),
+                defaultDepartmentId, value.localCode(), value.localName(), value.orderable(), value.executable(),
                 value.chargeable(), value.purchasable(), value.stocked(), value.dispensable(), value.returnable(),
                 value.status(), value.validFrom(), value.validTo(), value.replacesAdoptionId());
     }

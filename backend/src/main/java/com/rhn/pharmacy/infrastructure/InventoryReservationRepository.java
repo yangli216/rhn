@@ -20,6 +20,17 @@ public interface InventoryReservationRepository extends JpaRepository<InventoryR
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select r from InventoryReservation r
+            where r.tenantId = :tenantId and r.reservationGroupCode = :reservationGroupCode
+              and r.status in ('ACTIVE', 'PARTIAL')
+            order by r.createdAt, r.id
+            """)
+    List<InventoryReservation> lockActiveByReservationGroup(
+            @Param("tenantId") Long tenantId,
+            @Param("reservationGroupCode") String reservationGroupCode);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from InventoryReservation r
             where r.tenantId = :tenantId and r.dispenseTaskLineId = :dispenseTaskLineId
               and r.status in ('ACTIVE', 'PARTIAL')
             order by r.createdAt, r.id

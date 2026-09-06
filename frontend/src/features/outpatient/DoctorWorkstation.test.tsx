@@ -7,7 +7,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
-import { DoctorWorkstation } from './DoctorWorkstation'
+import { DoctorWorkstation, persistOrderDrafts } from './DoctorWorkstation'
 
 const mockResident: Resident = {
   id: 'resident-1',
@@ -123,10 +123,30 @@ function createMockApi({
         Promise.resolve([encounterStatus === 'REGISTERED' ? mockRegisteredEncounter
           : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter : mockInProgressEncounter])
       ),
+      recordClinicalData: vi.fn().mockImplementation((id: string, input: any) => Promise.resolve({
+        ...mockInProgressEncounter,
+        id,
+        chiefComplaint: input.chiefComplaint,
+        systolic: input.systolic,
+        diastolic: input.diastolic,
+        diagnoses: (input.diagnoses ?? []).map((d: any, idx: number) => ({
+          id: `diag-${idx}`,
+          conceptId: d.conceptId,
+          diagnosisDomain: d.diagnosisDomain,
+          diagnosisGroupId: d.diagnosisGroupId,
+          code: d.code,
+          display: d.display,
+          type: d.type,
+          managementPrograms: [],
+        })),
+      })),
       start: startMock,
       complete: vi.fn(),
       suspend: vi.fn(),
       resume: resumeMock,
+      prescriptions: vi.fn().mockResolvedValue([]),
+      serviceRequests: vi.fn().mockResolvedValue([]),
+      medicationRequests: vi.fn().mockResolvedValue([]),
     },
     clinicalDocuments: {
       byEncounter: vi.fn().mockResolvedValue([]),
@@ -170,6 +190,52 @@ function createMockApi({
     },
     dictionaries: {
       systemEnum: vi.fn().mockResolvedValue({ code: 'TEST', name: '测试', items: [] }),
+      applicable: vi.fn().mockResolvedValue([]),
+    },
+    billing: {
+      statement: vi.fn().mockResolvedValue({
+        accountId: 'acc-1',
+        encounterId: 'encounter-101',
+        chargeAmount: 10.0,
+        paymentAmount: 10.0,
+        uninvoicedAmount: 0.0,
+        currencyCode: 'CNY',
+        settlements: [],
+        charges: [],
+      }),
+      paymentOrders: vi.fn().mockResolvedValue([]),
+      createPaymentOrder: vi.fn(),
+      issueInvoice: vi.fn(),
+    },
+    masterData: {
+      diseases: vi.fn().mockResolvedValue([
+        {
+          id: 'concept-hyp-1',
+          revision: 1,
+          codeSystemId: 'cs-1',
+          systemCode: 'ICD10',
+          systemName: '国际疾病分类第十次修订版',
+          systemVersion: '2019',
+          sdDiagnosisDomain: 'WESTERN_MEDICINE',
+          sdDiagnosisDomainText: '西医诊断',
+          code: 'I10',
+          display: '原发性高血压',
+          sdConceptType: 'DISEASE',
+          sdConceptTypeText: '疾病',
+          sdStatus: 'ACTIVE',
+          sdStatusText: '启用',
+          effectiveFrom: '2020-01-01',
+          aliases: [],
+          managementPrograms: [],
+        },
+      ]),
+      medications: vi.fn().mockResolvedValue([]),
+      services: vi.fn().mockResolvedValue([]),
+      activeOrderFrequencies: vi.fn().mockResolvedValue([]),
+      activeMedicationRoutes: vi.fn().mockResolvedValue([]),
+    },
+    treatments: {
+      skinTestWorklist: vi.fn().mockResolvedValue([]),
     },
   } as unknown as RhnApi
 }
@@ -194,6 +260,7 @@ describe('DoctorWorkstation reception flow', () => {
 
     // Patient appears in the today reception queue
     expect(await screen.findByText('张建国')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: '刷新队列' })).toHaveLength(1)
 
     await user.click(screen.getByRole('button', { name: '查看 张建国' }))
 
@@ -406,4 +473,224 @@ describe('DoctorWorkstation reception flow', () => {
     expect(diaInput.value).toBe('85')
     expect(await screen.findByText('已带入')).toBeInTheDocument()
   })
+
+  it('preserves chief complaint, diagnoses, and physical exam data without clearing after saving draft', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const recordSpy = vi.fn().mockImplementation((id: string, input: any) => Promise.resolve({
+      ...mockInProgressEncounter,
+      id,
+      chiefComplaint: input.chiefComplaint,
+      systolic: input.systolic,
+      diastolic: input.diastolic,
+      diagnoses: (input.diagnoses ?? []).map((d: any, idx: number) => ({
+        id: `diag-${idx}`,
+        conceptId: d.conceptId,
+        diagnosisDomain: d.diagnosisDomain,
+        diagnosisGroupId: d.diagnosisGroupId,
+        code: d.code,
+        display: d.display,
+        type: d.type,
+        managementPrograms: [],
+      })),
+    }))
+    api.encounters.recordClinicalData = recordSpy
+
+    let currentDocs: any[] = []
+    api.clinicalDocuments.byEncounter = vi.fn().mockImplementation(() => Promise.resolve(currentDocs))
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // 1. 进入接诊编辑
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
+
+    // 2. 录入主诉、现病史、体格检查与生命体征
+    const complaintInput = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.clear(complaintInput)
+    await user.type(complaintInput, '持续性头痛3天，伴恶心')
+
+    const presentIllnessInput = screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')
+    await user.type(presentIllnessInput, '患者3天前无明显诱因下出现头痛')
+
+    const examInput = screen.getByPlaceholderText('阳性体征及必要的阴性体征')
+    await user.type(examInput, '心肺听诊未见异常，双下肢无水肿')
+
+    const sysInput = screen.getByLabelText('收缩压')
+    await user.type(sysInput, '140')
+
+    const diaInput = screen.getByLabelText('舒张压')
+    await user.type(diaInput, '90')
+
+    const tempInput = screen.getByLabelText('体温')
+    await user.type(tempInput, '36.8')
+
+    // 3. 录入主要诊断
+    const diagTrigger = screen.getByText(/检索并选择主要诊断/)
+    await user.click(diagTrigger)
+    const searchInput = await screen.findByPlaceholderText('输入诊断名称、编码或拼音码')
+    await user.type(searchInput, '高血压')
+    const option = await screen.findByRole('option', { name: /原发性高血压/ })
+    await user.click(option)
+
+    expect(await screen.findByText('原发性高血压')).toBeInTheDocument()
+
+    // 模拟服务端保存后返回的 document 草稿
+    currentDocs = [{
+      id: 'doc-note-1',
+      documentType: 'OUTPATIENT_NOTE',
+      title: '门诊病历',
+      currentVersion: 1,
+      status: 'DRAFT',
+      content: {
+        chiefComplaint: '持续性头痛3天，伴恶心',
+        presentIllness: '患者3天前无明显诱因下出现头痛',
+        physicalExam: '心肺听诊未见异常，双下肢无水肿',
+        vitalSigns: {
+          systolic: 140,
+          diastolic: 90,
+          temperature: 36.8,
+        },
+        diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }],
+      },
+    }]
+
+    // 4. 点击保存草稿
+    const saveDraftBtn = screen.getByRole('button', { name: '保存草稿' })
+    await user.click(saveDraftBtn)
+
+    // 5. 验证后端接口被正确调用
+    await waitFor(() => {
+      expect(recordSpy).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+        chiefComplaint: '持续性头痛3天，伴恶心',
+        presentIllness: '患者3天前无明显诱因下出现头痛',
+        physicalExam: '心肺听诊未见异常，双下肢无水肿',
+        systolic: 140,
+        diastolic: 90,
+        temperature: 36.8,
+        diagnoses: [expect.objectContaining({ code: 'I10', display: '原发性高血压', type: 'PRIMARY' })],
+      }))
+    })
+
+    // 6. 验证保存草稿后，主诉、体格检查数据和诊断依然完整保留在界面中，未被清空
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('持续性头痛3天，伴恶心')
+      expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('患者3天前无明显诱因下出现头痛')
+      expect(screen.getByPlaceholderText('阳性体征及必要的阴性体征')).toHaveValue('心肺听诊未见异常，双下肢无水肿')
+      expect(screen.getByLabelText('收缩压')).toHaveValue(140)
+      expect(screen.getByLabelText('舒张压')).toHaveValue(90)
+      expect(screen.getByLabelText('体温')).toHaveValue(36.8)
+      expect(screen.getByText('原发性高血压')).toBeInTheDocument()
+    })
+    expect(await screen.findByText(/草稿 V1/)).toBeInTheDocument()
+  })
+
+  it('persists medication and service drafts to backend DRAFT prescriptions and requests', async () => {
+    const api = createMockApi()
+    const mockPrescription = {
+      id: 'rx-draft-1',
+      categoryCode: 'WESTERN',
+      status: 'DRAFT',
+      medicationRequests: [],
+    }
+    const createPrescriptionSpy = vi.fn().mockResolvedValue(mockPrescription)
+    const createMedReqSpy = vi.fn().mockResolvedValue({ id: 'med-req-1', status: 'DRAFT' })
+    const createSvcReqSpy = vi.fn().mockResolvedValue({ id: 'svc-req-1', status: 'DRAFT' })
+    api.encounters.createPrescription = createPrescriptionSpy
+    api.encounters.createMedicationRequest = createMedReqSpy
+    api.encounters.createServiceRequest = createSvcReqSpy
+
+    const mockDraft: any = {
+      id: 'draft-1',
+      categoryCode: 'WESTERN',
+      request: {
+        medicationId: 'm-1',
+        doseValue: 10,
+        doseUnit: 'mg',
+        routeCode: 'ORAL',
+        frequencyCode: 'QD',
+        durationValue: 7,
+        quantity: 1,
+      },
+    }
+
+    const mockSvcDraft: any = {
+      id: 'svc-1',
+      catalogItemId: 'cat-1',
+      quantity: 2,
+      unitCode: '次',
+      clinicalDescription: '抽血检验',
+    }
+
+    await persistOrderDrafts('enc-1' as any, [mockDraft], [mockSvcDraft], api, [])
+
+    expect(createPrescriptionSpy).toHaveBeenCalledWith('enc-1', 'WESTERN', '门诊西药/中成药处方')
+    expect(createMedReqSpy).toHaveBeenCalledWith('enc-1', expect.objectContaining({
+      prescriptionId: 'rx-draft-1',
+      medicationId: 'm-1',
+      quantity: 1,
+    }))
+    expect(createSvcReqSpy).toHaveBeenCalledWith('enc-1', expect.objectContaining({
+      catalogItemId: 'cat-1',
+      quantity: 2,
+    }))
+  })
+
+  it('renders friendly completion dialog with 4-metric fee card, quick phrase chips, and standardized checklist icons', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/outpatient/reception']}>
+          <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </StrictMode>)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(await screen.findByRole('button', { name: '诊毕' })).toBeInTheDocument()
+
+    // Click '诊毕' button to open completion dialog
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+
+    // Completion modal title and eyebrow
+    await waitFor(() => {
+      expect(screen.getByText('本次就诊收口')).toBeInTheDocument()
+      expect(screen.getByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
+    })
+
+    // Verify 4-metric fee totals grid
+    expect(screen.getByText('费用合计')).toBeInTheDocument()
+    expect(screen.getByText('已支付')).toBeInTheDocument()
+    expect(screen.getByText('未开票')).toBeInTheDocument()
+    expect(screen.getByText('待支付')).toBeInTheDocument()
+
+    // Verify quick phrase chips
+    const followUpChip = screen.getByRole('button', { name: '一周后门诊复查' })
+    expect(followUpChip).toBeInTheDocument()
+
+    // Click quick phrase chip to auto-populate textarea
+    await user.click(followUpChip)
+    const textarea = screen.getByPlaceholderText('复诊时间、注意事项、转诊去向等') as HTMLTextAreaElement
+    expect(textarea.value).toBe('一周后门诊复查')
+
+    // Verify standardized checklist
+    const checklist = screen.getByLabelText('诊毕准入核对')
+    expect(checklist).toHaveTextContent('主诉已保存')
+    expect(checklist).toHaveTextContent('主要诊断')
+    expect(checklist).toHaveTextContent('病历签署')
+
+    // Ensure raw Unicode check/circle characters are completely absent
+    expect(checklist.textContent).not.toContain('✓')
+    expect(checklist.textContent).not.toContain('○')
+  })
 })
+

@@ -1,6 +1,18 @@
 import type { Encounter } from '../model'
 import type { components } from './generated'
 import type { ApiClient } from './httpClient'
+import type { MedicationKnowledge } from './masterDataApi'
+
+export interface OrderableMedicationKnowledge extends MedicationKnowledge {
+  stockSiteId: string
+  stockSiteName: string
+  stockItemId: string
+  availableBaseQuantity: number
+  availablePackageQuantity: number
+  baseUnitCode: string
+  packageUnitName?: string
+  packageFactor?: number
+}
 
 type DiagnosisInputContract = components['schemas']['DiagnosisInput']
 type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
@@ -314,5 +326,8 @@ export function createEncountersApi(client: ApiClient) {
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/cancel`, {
         method: 'POST', body: JSON.stringify({ expectedRevision, reason }),
       }),
+    orderableMedications: (encounterId: string, query?: string) => client.request<OrderableMedicationKnowledge[]>(
+      `/api/encounters/${encounterId}/orderable-medications${query ? `?query=${encodeURIComponent(query)}` : ''}`,
+    ),
   }
 }

@@ -13,4 +13,5 @@ public interface OrganizationRepository extends JpaRepository<Organization, Long
     List<Organization> findByTenantIdOrderBySortOrderAscCodeAsc(Long tenantId);
     List<Organization> findByTenantIdAndOrganizationKindOrderByCode(Long tenantId, OrganizationKind kind);
     boolean existsByTenantIdAndParentId(Long tenantId, Long parentId);
+    boolean existsByTenantIdAndCatalogSourceOrganizationId(Long tenantId, Long sourceOrganizationId);
 }

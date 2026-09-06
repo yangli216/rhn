@@ -30,6 +30,14 @@ class RepresentativeMasterDataSeedTest extends RhnIntegrationTestSupport {
                 FIRST_CATALOG_ITEM_ID, LAST_CATALOG_ITEM_ID));
 
         assertEquals(6, count("RHN_BD_ITEM_PKG", "ID_ITEM_PKG", 362387871000601L, 362387871000606L));
+        assertEquals(0, jdbc.queryForObject("""
+                select count(*)
+                from RHN_BD_MED medication
+                join RHN_BD_MED_PRODUCT product on product.ID_MED = medication.ID_MED
+                join RHN_BD_ITEM_PKG pkg on pkg.ID_CATALOG_ITEM = product.ID_CATALOG_ITEM
+                where medication.SD_MED_TYPE = 'WESTERN'
+                  and pkg.PACKAGE_SPEC not like concat(medication.PREPARATION_SPEC, '%')
+                """, Integer.class));
         assertEquals(6, count("RHN_SUP_STOCK_ITEM", "ID_STOCK_ITEM", 362387871001201L, 362387871001206L));
         assertEquals(6, count("RHN_SUP_INV_BAL", "ID_INV_BAL", 362387871001221L, 362387871001226L));
         assertEquals(0, jdbc.queryForObject("""

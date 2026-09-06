@@ -312,7 +312,7 @@ class PaymentOrderTransactionService {
     List<PaymentOrderView> recoveryWorklist(int limit) {
         ExecutionContext context = requireWorkContext();
         return orderRepository.findRecoveryWorklist(context.tenantId(), context.organizationId(),
-                        context.departmentId(), PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
+                        PageRequest.of(0, Math.max(1, Math.min(limit, 100))))
                 .stream().map(value -> view(value.id(), false)).toList();
     }
 
@@ -362,8 +362,8 @@ class PaymentOrderTransactionService {
 
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (!context.hasWorkContext() || context.departmentId() == null) {
-            throw forbidden("BILLING_WORK_CONTEXT_REQUIRED", "收费支付操作前必须选择工作机构和科室");
+        if (!context.hasWorkContext()) {
+            throw forbidden("BILLING_WORK_CONTEXT_REQUIRED", "收费支付操作前必须选择工作机构");
         }
         return context;
     }

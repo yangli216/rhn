@@ -73,6 +73,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
       query: submittedQuery || undefined,
       page: pageIndex,
       size: pageSize,
+      scope: 'ORGANIZATION',
     }),
     enabled: Boolean(dateRange.from && dateRange.to),
   })

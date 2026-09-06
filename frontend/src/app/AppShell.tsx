@@ -28,6 +28,8 @@ const OrganizationPersonnelManagement = lazy(() => import('../features/settings/
   .then((module) => ({ default: module.OrganizationPersonnelManagement })))
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
   .then((module) => ({ default: module.BasicDataManagement })))
+const OrganizationCatalogManagement = lazy(() => import('../features/settings/OrganizationCatalogManagement')
+  .then((module) => ({ default: module.OrganizationCatalogManagement })))
 const GridAddressManagement = lazy(() => import('../features/settings/GridAddressManagement')
   .then((module) => ({ default: module.GridAddressManagement })))
 const BusinessPartnerManagement = lazy(() => import('../features/settings/BusinessPartnerManagement')
@@ -166,6 +168,17 @@ export function selectableWorkContexts(contexts: WorkContextOption[], contextTyp
     && Boolean(context.organizationId) && Boolean(context.departmentId))
 }
 
+export function selectableWarehouseContexts(contexts: WorkContextOption[]) {
+  const warehouseContexts = contexts.filter((context) =>
+    (context.workContextType === 'INVENTORY' || context.workContextType === 'PHARMACY')
+    && Boolean(context.organizationId) && Boolean(context.departmentId))
+  return warehouseContexts.sort((a, b) => {
+    if (a.workContextType === 'INVENTORY' && b.workContextType !== 'INVENTORY') return -1
+    if (b.workContextType === 'INVENTORY' && a.workContextType !== 'INVENTORY') return 1
+    return 0
+  })
+}
+
 function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'departmentId'>) {
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
@@ -223,7 +236,8 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'operations-config', label: '运营配置', icon: 'roadmap', children: [
-      { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.ACCESS' },
+      { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'organization-catalog', label: '机构项目管理', icon: 'clinical', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
       { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
       { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
@@ -329,6 +343,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/inpatient/deposits') return { id: pathname, path: pathname, title: '预交金管理', icon: 'billing', closeable: true }
   if (pathname === '/inpatient/billing') return { id: pathname, path: pathname, title: '住院费用', icon: 'billing', closeable: true }
   if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'clinical', closeable: true }
   if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
@@ -357,7 +372,9 @@ async function loadAuthenticatedState(api: RhnApi, session: Session): Promise<Au
   const departmentCache = new Map<string, Department[]>()
   const activeContexts: Partial<Record<WorkContextType, WorkContextSlot>> = {}
   for (const contextType of Object.keys(WORK_CONTEXT_LABELS) as WorkContextType[]) {
-    const available = selectableWorkContexts(session.workContexts, contextType)
+    const available = contextType === 'INVENTORY'
+      ? selectableWarehouseContexts(session.workContexts)
+      : selectableWorkContexts(session.workContexts, contextType)
     if (!available.length) continue
     const storedKey = localStorage.getItem(`rhn.work-context.${contextType}`)
     const selected = available.find((context) => workContextKey(context) === storedKey) ?? available[0]
@@ -592,7 +609,10 @@ export function AppShell() {
   async function switchWorkContext(contextType: WorkContextType, contextKey: string) {
     if (!authenticated) return
     const selected = authenticated.session.workContexts.find((context) =>
-      context.workContextType === contextType && workContextKey(context) === contextKey)
+      (contextType === 'INVENTORY'
+        ? (context.workContextType === 'INVENTORY' || context.workContextType === 'PHARMACY')
+        : context.workContextType === contextType)
+      && workContextKey(context) === contextKey)
     if (!selected) return
     const organizations = await authenticated.api.organization.list()
     const organization = organizations.find((item) => item.id === selected.organizationId)
@@ -725,7 +745,9 @@ export function AppShell() {
   if (!fallbackSlot) return <LoginScreen onLogin={login} error="当前账号没有可用工作上下文" />
   const activeContextType = workContextTypeForPath(location.pathname)
   const activeSlot = activeContexts[activeContextType] ?? fallbackSlot
-  const availableForActiveType = selectableWorkContexts(session.workContexts, activeSlot.option.workContextType)
+  const availableForActiveType = activeContextType === 'INVENTORY'
+    ? selectableWarehouseContexts(session.workContexts)
+    : selectableWorkContexts(session.workContexts, activeSlot.option.workContextType)
   const collapsedNavigation = sidebarCollapsed && !mobileLayout
   const activeAuthorities = new Set([...session.authorities, ...(activeSlot.option.authorities ?? [])])
   const visibleNavigation = filterNavigation(NAVIGATION_NODES, activeAuthorities)
@@ -787,7 +809,7 @@ export function AppShell() {
           <WorkContextSwitcher
             activeOption={activeSlot.option}
             availableContexts={availableForActiveType}
-            onSwitch={(type, key) => void switchWorkContext(type, key)}
+            onSwitch={(type, key) => void switchWorkContext(activeContextType === 'INVENTORY' ? 'INVENTORY' : type, key)}
           />
           <WorkspaceTabs tabs={tabs} activeTabId={activeTabId} onActivate={(path) => navigate(path)}
             onClose={closeTab} onManage={manageTabs} />
@@ -838,7 +860,13 @@ export function AppShell() {
                   <Route path="/pharmacy/ward-delivery" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} mode="ward" />} />
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
-                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                    session={session}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)}
+                    onDepartmentChange={(organizationId, departmentId) => {
+                      const selected = session.workContexts.find((context) =>
+                        context.organizationId === organizationId && context.departmentId === departmentId)
+                      if (selected) void switchWorkContext('INVENTORY', workContextKey(selected))
+                    }} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
@@ -893,6 +921,9 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/settings/master-data" element={<BasicDataManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/settings/organization-catalog" element={<OrganizationCatalogManagement
+                    api={tabSlot.api} organization={tabSlot.clinicalContext.organization}
+                    canManage={tabAuthorities.has('ORG_CATALOG.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/partners" element={<BusinessPartnerManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
                   <Route path="/settings/parameters" element={<ParameterManagement api={tabSlot.api} context={{

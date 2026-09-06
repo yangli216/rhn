@@ -228,6 +228,17 @@ export interface CatalogChangeBatch {
   rows: CatalogChangeBatchRow[]
 }
 
+export interface CatalogAdoptionCandidate {
+  id: string
+  code: string
+  name: string
+  itemType: 'SERVICE' | 'MED_PRODUCT'
+  centerStatus: MasterDataStatus
+  adoption?: OrganizationAdoption
+  adoptionSourceType: 'LOCAL' | 'SHARED' | 'NONE'
+  packages: Array<{ id: string; unitCode: string; unitName: string; packageSpec?: string }>
+}
+
 export interface ServiceCatalogItem {
   id: string
   revision: number
@@ -1390,6 +1401,12 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<CatalogLifecycle>(
         `/api/platform/master-data/catalog-lifecycle/catalog-items/${catalogItemId}${queryString({
           organizationId, businessDate,
+        })}`,
+      ),
+    adoptionCandidates: (organizationId: string, itemType: 'SERVICE' | 'MED_PRODUCT', query = '', page = 0, size = 20) =>
+      client.request<MasterDataPage<CatalogAdoptionCandidate>>(
+        `/api/platform/master-data/catalog-lifecycle/adoption-candidates${queryString({
+          organizationId, itemType, query, page: String(page), size: String(size),
         })}`,
       ),
     createLifecycleAdoption: (catalogItemId: string, input: LifecycleAdoptionInput) =>

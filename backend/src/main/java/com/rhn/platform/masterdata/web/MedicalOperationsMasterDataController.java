@@ -1,5 +1,7 @@
 package com.rhn.platform.masterdata.web;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 import com.rhn.platform.masterdata.api.MedicalOperationsCommands.*;
 import com.rhn.platform.masterdata.api.MedicalOperationsViews.*;
 import com.rhn.platform.masterdata.application.MedicalOperationsMasterDataService;
@@ -15,6 +17,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/platform/master-data/operations")
+@PreAuthorize("hasAuthority('MASTER_DATA.MANAGE')")
 public class MedicalOperationsMasterDataController {
     private static final String CODE_PATTERN = "[A-Za-z][A-Za-z0-9_.-]{0,63}";
     private final MedicalOperationsMasterDataService service;

@@ -6,8 +6,10 @@ import java.util.List;
 /** Public outpatient encounter contract used by sibling clinical request modules. */
 public interface EncounterDirectory {
     EncounterSnapshot requireAccessible(Long encounterId);
+    EncounterSnapshot requireOrganizationAccessible(Long encounterId);
     EncounterSnapshot requireActiveForOrdering(Long encounterId);
     List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds);
+    List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds);
     PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId);
 
     void validateRegistration(RegistrationEligibilityCommand command);
