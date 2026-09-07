@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import { useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
 import type { MedicationRequest, Prescription, ServiceRequest } from '../../shared/api/encountersApi'
 import type { ActiveOrderFrequency, MedicationKnowledge, ServiceCatalogItem } from '../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
@@ -47,6 +47,8 @@ export interface ServicePlanDraft {
   quantity: number
   unitCode?: string
   clinicalDescription?: string
+  unitPrice?: number
+  currencyCode?: string
 }
 
 interface MedicationEntry {
@@ -54,12 +56,14 @@ interface MedicationEntry {
   doseValue: number | ''
   doseUnit: string
   routeCode: string
+  routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+  administrationGroupKey?: string
   frequencyCode: string
   durationValue: number | ''
   quantity: number | ''
   dispenseOptionKey: string
   instruction: string
-  herbalDoseCount: number
+  herbalDoseCount: number | ''
   herbalMethod: string
   safetyReviewed: boolean
   allergyOverrideReason: string
@@ -150,6 +154,41 @@ const emptyMedicationEntry = (): MedicationEntry => ({
   stockSiteId: undefined, stockSiteName: undefined, availablePackageQuantity: undefined, packageUnitName: undefined,
 })
 
+function newAdministrationGroupKey() {
+  return `draft:${globalThis.crypto.randomUUID()}`
+}
+
+function buildAdministrationGroups(medications: MedicationRequest[], drafts: MedicationPlanDraft[], currentKey?: string) {
+  const labels = new Map<string, string>()
+  const requestLabels = new Map<string, string>()
+  const draftLabels = new Map<string, string>()
+  let sequence = 0
+  const labelFor = (key: string) => {
+    let label = labels.get(key)
+    if (!label) {
+      label = `IV-${String(++sequence).padStart(2, '0')}`
+      labels.set(key, label)
+    }
+    return label
+  }
+  medications.filter((value) => value.status !== 'CANCELLED'
+    && value.routeExecutionType === 'INFUSION').forEach((value) => {
+    const key = `request:${value.parentRequestId || value.id}`
+    requestLabels.set(value.id, labelFor(key))
+  })
+  drafts.filter((value) => value.routeExecutionType === 'INFUSION' && value.administrationGroupKey)
+    .forEach((value) => draftLabels.set(value.id, labelFor(value.administrationGroupKey!)))
+  if (currentKey) labelFor(currentKey)
+  return {
+    requestLabels,
+    draftLabels,
+    options: [...labels.entries()].map(([value, label]) => ({
+      value, label, secondaryText: value.startsWith('request:') ? '已开立组' : '本次待确认组', searchKeywords: [label],
+    })),
+    currentLabel: currentKey ? labels.get(currentKey) : undefined,
+  }
+}
+
 export function UnifiedOrderListEditor({
   encounter, allergies = [], prescriptions = [], medications = [], services = [],
   medicationDrafts = [], setMedicationDrafts,
@@ -179,6 +218,9 @@ export function UnifiedOrderListEditor({
   const [serviceQuantity, setServiceQuantity] = useState(1)
   const [serviceDescription, setServiceDescription] = useState('')
   const [validationError, setValidationError] = useState('')
+  const [composerOpen, setComposerOpen] = useState(false)
+  const composerRef = useRef<HTMLDivElement>(null)
+  const [editingDraft, setEditingDraft] = useState<{ kind: 'medication' | 'service'; id: string } | null>(null)
   const frequencies = useQuery({
     queryKey: ['outpatient-order-frequencies', encounter.organizationId, encounter.departmentId],
     queryFn: () => api.masterData.activeOrderFrequencies(
@@ -211,6 +253,12 @@ export function UnifiedOrderListEditor({
     ? resolveDispensableOptions(currentMedication, encounter.organizationId) : []
   const selectedProduct = dispensableOptions.find((value) => value.key === medicationEntry.dispenseOptionKey)
     ?? dispensableOptions[0]
+  const currentRouteExecutionType = medicationEntry.routeExecutionType
+    ?? routes.data?.find((value) => value.code === medicationEntry.routeCode)?.executionType
+  const currentIsInfusion = currentRouteExecutionType === 'INFUSION'
+  const administrationGroups = useMemo(() => buildAdministrationGroups(
+    medications, medicationDrafts, currentIsInfusion ? medicationEntry.administrationGroupKey : undefined,
+  ), [currentIsInfusion, medicationEntry.administrationGroupKey, medicationDrafts, medications])
   const calcResult = useMemo(() => calculatePackageQuantity({
     medication: currentMedication,
     doseValue: medicationEntry.doseValue,
@@ -259,16 +307,60 @@ export function UnifiedOrderListEditor({
     setValidationError('')
   }
 
+  function openComposer() {
+    setEditingDraft(null)
+    setComposerOpen(true)
+  }
+
+  function closeComposer() {
+    changeType(entryType)
+    setComposerOpen(false)
+  }
+
+  const hasEnteredOrder = isMedication ? Boolean(medicationEntry.medication) : Boolean(service)
+
+  useEffect(() => {
+    if (!composerOpen) return
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node
+      const isInsideRow = composerRef.current?.contains(target)
+      const isInsidePopover = Boolean(
+        (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
+      )
+      if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
+        closeComposer()
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    return () => document.removeEventListener('pointerdown', handlePointerDown)
+  }, [composerOpen, hasEnteredOrder])
+
   function selectMedication(option?: ClinicalResourceOption<MedicationKnowledge>) {
-    const value = option?.raw
+    if (!option) {
+      setMedicationEntry(entryType === 'HERBAL' ? {
+        ...emptyMedicationEntry(),
+        routeCode: 'ORAL', routeExecutionType: 'NONE',
+        frequencyCode: medicationEntry.frequencyCode,
+        herbalDoseCount: medicationEntry.herbalDoseCount,
+        herbalMethod: medicationEntry.herbalMethod,
+        durationValue: Number(medicationEntry.herbalDoseCount),
+      } : emptyMedicationEntry())
+      setValidationError('')
+      return
+    }
+    const value = option.raw
     const rawOrderable = value as (MedicationKnowledge & { stockSiteId?: string, stockSiteName?: string, availablePackageQuantity?: number, packageUnitName?: string }) | undefined
     const defaultDispenseOption = value
       ? resolveDispensableOptions(value, encounter.organizationId)[0] : undefined
     const initialDose = value?.defaultDose ?? ''
     const initialDoseUnit = value?.defaultDoseUnit ?? value?.preparationUnit ?? ''
     const initialRoute = entryType === 'HERBAL' ? 'ORAL' : value?.defaultRoute ?? 'ORAL'
-    const initialFrequency = value?.defaultFrequency ?? (entryType === 'HERBAL' ? 'BID' : 'QD')
-    const initialDuration = entryType === 'HERBAL' ? 7 : (medicationEntry.durationValue || 7)
+    const initialRouteExecutionType = entryType === 'HERBAL' ? 'NONE'
+      : routes.data?.find((route) => route.code === initialRoute)?.executionType
+    const initialFrequency = entryType === 'HERBAL'
+      ? medicationEntry.frequencyCode || value?.defaultFrequency || 'BID'
+      : value?.defaultFrequency ?? 'QD'
+    const initialDuration = entryType === 'HERBAL' ? Number(medicationEntry.herbalDoseCount) || 7 : (medicationEntry.durationValue || 7)
 
     const calc = calculatePackageQuantity({
       medication: value,
@@ -285,13 +377,15 @@ export function UnifiedOrderListEditor({
       doseValue: initialDose,
       doseUnit: initialDoseUnit,
       routeCode: initialRoute,
+      routeExecutionType: initialRouteExecutionType,
+      administrationGroupKey: initialRouteExecutionType === 'INFUSION' ? newAdministrationGroupKey() : undefined,
       frequencyCode: initialFrequency,
       durationValue: initialDuration,
       quantity: calc?.quantity ?? 1,
       dispenseOptionKey: defaultDispenseOption?.key ?? '',
       instruction: '',
-      herbalDoseCount: 7,
-      herbalMethod: '水煎服',
+      herbalDoseCount: entryType === 'HERBAL' ? medicationEntry.herbalDoseCount : 7,
+      herbalMethod: entryType === 'HERBAL' ? medicationEntry.herbalMethod : '水煎服',
       safetyReviewed: false,
       allergyOverrideReason: '',
       isManualQuantity: false,
@@ -301,7 +395,7 @@ export function UnifiedOrderListEditor({
       packageUnitName: rawOrderable?.packageUnitName,
     })
     setValidationError('')
-    if (option) focusControl('doctor-unified-dose')
+    if (option) focusControlAfterSelection('doctor-unified-package')
   }
 
   function updateMedication<K extends keyof MedicationEntry>(field: K, value: MedicationEntry[K]) {
@@ -333,15 +427,32 @@ export function UnifiedOrderListEditor({
     setValidationError('')
   }
 
+  function updateRoute(routeCode: string) {
+    const executionType = routes.data?.find((value) => value.code === routeCode)?.executionType
+    setMedicationEntry((current) => ({
+      ...current,
+      routeCode,
+      routeExecutionType: executionType,
+      administrationGroupKey: executionType === 'INFUSION'
+        ? (current.routeExecutionType === 'INFUSION' && current.administrationGroupKey
+            ? current.administrationGroupKey : newAdministrationGroupKey())
+        : undefined,
+    }))
+    setValidationError('')
+  }
+
   function addCurrentEntry() {
     if (!isMedication) {
       const selected = service?.raw
       if (!selected || serviceQuantity <= 0) { setValidationError('请选择诊疗项目并填写数量'); return }
+      const activePrice = selected.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? selected.prices?.[0]
       setServiceDrafts((current) => [...current, {
         id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: selected.sdServiceType,
         catalogItemId: selected.id, itemCode: selected.code, itemName: selected.name,
         quantity: serviceQuantity, unitCode: selected.unitCode,
         clinicalDescription: serviceDescription.trim() || undefined,
+        unitPrice: activePrice?.price,
+        currencyCode: activePrice?.currencyCode,
       }])
       setService(undefined)
       setServiceQuantity(1)
@@ -363,7 +474,8 @@ export function UnifiedOrderListEditor({
       || !medicationEntry.frequencyCode.trim() || medicationEntry.quantity === '' || Number(medicationEntry.quantity) <= 0)) {
       setValidationError('请完整填写途径、频次和发药量'); return
     }
-    if (entryType === 'HERBAL' && (!medicationEntry.herbalMethod.trim() || !medicationEntry.frequencyCode.trim())) {
+    if (entryType === 'HERBAL' && (Number(medicationEntry.herbalDoseCount) <= 0
+      || !medicationEntry.herbalMethod.trim() || !medicationEntry.frequencyCode.trim())) {
       setValidationError('请填写剂数、服法和频次'); return
     }
     if (isAllergyHit && !medicationEntry.allergyOverrideReason.trim()) {
@@ -384,10 +496,15 @@ export function UnifiedOrderListEditor({
       id: globalThis.crypto.randomUUID(), sequence: Date.now(), editorMode: herbal ? 'herbal' : 'regular',
       categoryCode: medication.sdMedicationType, medicationName: medication.name, medicationCode: medication.code,
       preparationSpec: medication.preparationSpec, productName: product.product.name,
+      productSpec: product.itemPackage?.packageSpec || product.label,
+      manufacturerName: product.product.manufacturerName,
+      unitPrice: product.price, currencyCode: product.currencyCode,
       routeName: herbal ? '口服'
         : routes.data?.find((value) => value.code === medicationEntry.routeCode)?.name,
       routeExecutionType: herbal ? 'NONE'
         : routes.data?.find((value) => value.code === medicationEntry.routeCode)?.executionType,
+      administrationGroupKey: herbal || !currentIsInfusion ? undefined
+        : medicationEntry.administrationGroupKey || newAdministrationGroupKey(),
       stockSiteName: medicationEntry.stockSiteName,
       availablePackageQuantity: medicationEntry.availablePackageQuantity,
       packageUnitName: medicationEntry.packageUnitName,
@@ -396,11 +513,11 @@ export function UnifiedOrderListEditor({
         doseValue, doseUnit: medicationEntry.doseUnit.trim(),
         routeCode: herbal ? 'ORAL' : medicationEntry.routeCode.trim(),
         frequencyCode: medicationEntry.frequencyCode.trim(),
-        durationValue: herbal ? medicationEntry.herbalDoseCount
+        durationValue: herbal ? Number(medicationEntry.herbalDoseCount)
           : medicationEntry.durationValue === '' ? undefined : Number(medicationEntry.durationValue),
         durationUnit: herbal ? '剂' : medicationEntry.durationValue === '' ? undefined : '天',
-        quantity: herbal ? doseValue * medicationEntry.herbalDoseCount : Number(medicationEntry.quantity),
-        quantityUnit: formatPackageUnit(product.unitName, product.unitCode), substitutionAllowed: true, selfProvided: false,
+        quantity: herbal ? doseValue * Number(medicationEntry.herbalDoseCount) : Number(medicationEntry.quantity),
+        quantityUnit: product.unitCode, substitutionAllowed: true, selfProvided: false,
         medicationInstruction: herbal
           ? [medicationEntry.herbalMethod, medicationEntry.instruction.trim()].filter(Boolean).join('；')
           : medicationEntry.instruction.trim(),
@@ -410,7 +527,14 @@ export function UnifiedOrderListEditor({
         reason: herbal ? '门诊草药处方' : '门诊处方',
       },
     }])
-    setMedicationEntry(emptyMedicationEntry())
+    setMedicationEntry(herbal ? {
+      ...emptyMedicationEntry(),
+      routeCode: 'ORAL', routeExecutionType: 'NONE',
+      frequencyCode: medicationEntry.frequencyCode,
+      herbalDoseCount: medicationEntry.herbalDoseCount,
+      herbalMethod: medicationEntry.herbalMethod,
+      durationValue: Number(medicationEntry.herbalDoseCount),
+    } : emptyMedicationEntry())
     setValidationError('')
     focusResource(entryType)
   }
@@ -418,12 +542,17 @@ export function UnifiedOrderListEditor({
   function continueOnEnter(event: KeyboardEvent<HTMLInputElement>, nextControlId?: string) {
     if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
     event.preventDefault()
+    event.stopPropagation()
+    if (event.ctrlKey || event.metaKey) {
+      addCurrentEntry()
+      return
+    }
     if (nextControlId) focusControl(nextControlId)
     else addCurrentEntry()
   }
 
   function handleEntryBoxKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    if (composerOpen && (event.ctrlKey || event.metaKey) && event.key === 'Enter') {
       event.preventDefault()
       addCurrentEntry()
     }
@@ -433,9 +562,16 @@ export function UnifiedOrderListEditor({
     <div className="doctor-unified-order-list" role="table" aria-label="本次医嘱连续录入列表">
       <div className="doctor-unified-order-head" role="row">
         <span className="doctor-unified-cell-type">类型</span>
-        <span className="doctor-unified-cell-name">项目与规格</span>
-        <span className="doctor-unified-cell-detail">用法用量 / 说明</span>
-        <span className="doctor-unified-cell-qty">包装数量</span>
+        <span className="doctor-unified-cell-name">药品 / 项目</span>
+        <span>产品规格</span>
+        <span>生产厂家</span>
+        <span>单价</span>
+        <span>单次剂量</span>
+        <span>途径</span>
+        <span>频次</span>
+        <span>疗程</span>
+        <span>嘱托 / 说明</span>
+        <span className="doctor-unified-cell-qty">总量</span>
         <span className="doctor-unified-cell-status">状态</span>
         {!readOnly && <span className="doctor-unified-cell-actions">操作</span>}
       </div>
@@ -452,6 +588,7 @@ export function UnifiedOrderListEditor({
         const prescription = prescriptions.find((value) => value.id === entry.value.prescriptionId)
         const firstLine = prescription?.medicationRequests.find((value) => value.status === 'ACTIVE')?.id === entry.value.id
         return <MedicationReadRow key={`medication-${entry.value.id}`} value={entry.value} busy={busy}
+          administrationGroupLabel={administrationGroups.requestLabels.get(entry.value.id)}
           readOnly={readOnly}
           skinTest={skinTestByRequest.get(entry.value.id)}
           onCancel={() => onCancelMedication(entry.value)}
@@ -459,17 +596,78 @@ export function UnifiedOrderListEditor({
       })}
 
       {!readOnly && draftEntries.map((entry) => entry.kind === 'service'
-        ? <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
-            onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
-        : <MedicationDraftRow key={`draft-medication-${entry.value.id}`} value={entry.value}
-            onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />)}
+        ? editingDraft?.kind === 'service' && editingDraft.id === entry.value.id
+          ? <ServiceDraftEditRow key={`draft-service-edit-${entry.value.id}`} value={entry.value}
+              onCancel={() => setEditingDraft(null)} onSave={(next) => {
+                setServiceDrafts((current) => current.map((value) => value.id === next.id ? next : value))
+                setEditingDraft(null)
+              }} />
+          : <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
+              onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'service', id: entry.value.id }) }}
+              onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
+        : editingDraft?.kind === 'medication' && editingDraft.id === entry.value.id
+          ? <MedicationDraftEditRow key={`draft-medication-edit-${entry.value.id}`} value={entry.value}
+              routeOptions={routeOptions} frequencyOptions={frequencyOptions}
+              routeExecutionTypes={new Map((routes.data ?? []).map((value) => [value.code, value.executionType]))}
+              administrationGroupOptions={administrationGroups.options}
+              onCancel={() => setEditingDraft(null)} onSave={(next) => {
+                setMedicationDrafts((current) => current.map((value) => value.id === next.id ? next : value))
+                setEditingDraft(null)
+              }} />
+          : <MedicationDraftRow key={`draft-medication-${entry.value.id}`} value={entry.value}
+              administrationGroupLabel={administrationGroups.draftLabels.get(entry.value.id)}
+              onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'medication', id: entry.value.id }) }}
+              onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />)}
 
-      {!readOnly && (
+      {!readOnly && !composerOpen && !editingDraft && (
+        <div className="doctor-unified-order-row is-launcher" role="row" onClick={openComposer}>
+          <span className="doctor-unified-cell-type" />
+          <div className="doctor-unified-launcher-cell">
+            <button type="button" className="doctor-table-launcher-btn" aria-label="新增医嘱" onClick={(e) => {
+              e.stopPropagation()
+              openComposer()
+            }}>
+              <Icon name="add" />
+              <span><strong>新增医嘱</strong><small>按医嘱类型连续录入</small></span>
+            </button>
+          </div>
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+      )}
+
+      {!readOnly && composerOpen && (
         <>
-          <div className={`doctor-unified-order-row is-active-composer is-${entryType.toLowerCase()}`} role="row">
-            <span className="doctor-unified-cell-type">
+          <div ref={composerRef} className={`doctor-unified-inline-composer is-${entryType.toLowerCase()}`} role="row"
+            onBlur={(event) => {
+              const next = event.relatedTarget as Node | null
+              if (!next) return
+              const isInsideRow = composerRef.current?.contains(next)
+              const isInsidePopover = Boolean(
+                (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
+              )
+              if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
+                closeComposer()
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape' && !hasEnteredOrder) {
+                e.preventDefault()
+                closeComposer()
+              }
+            }}>
+            <div className="doctor-inline-order-field doctor-inline-order-type">
               <div className="doctor-composer-type-wrap">
-                <Select aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
+                <Select id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
                   options={[
                     { value: 'MEDICATION', label: '西药/中成药' },
                     { value: 'HERBAL', label: '草药' },
@@ -477,54 +675,76 @@ export function UnifiedOrderListEditor({
                     { value: 'EXAMINATION', label: '检查' },
                     { value: 'TREATMENT', label: '治疗' },
                   ]}
-                  onChange={(value) => changeType(value as OrderEntryType)} />
+                  onChange={(value) => {
+                    const nextType = value as OrderEntryType
+                    changeType(nextType)
+                    globalThis.setTimeout(() => focusResource(nextType), 0)
+                  }} />
               </div>
-            </span>
+            </div>
 
-            <span className="doctor-unified-cell-name">
-              <div className="doctor-composer-resource-wrap">
+            <div className="doctor-inline-order-field doctor-inline-order-resource">
                 {isMedication ? (
-                  <ClinicalResourceSearch<MedicationKnowledge> id={`doctor-unified-${entryType}-resource`} api={api}
+                  <ClinicalResourceSearch<MedicationKnowledge> key={entryType} id={`doctor-unified-${entryType}-resource`} api={api}
+                    defaultOpen
                     resource="medication" organizationId={encounter.organizationId} encounterId={encounter.id} value={medicationEntry.medication}
+                    aria-label={entryType === 'HERBAL' ? '搜索中草药名称/拼音' : '搜索药品名称/拼音'}
                     filterResult={(item) => entryType === 'HERBAL' ? item.sdMedicationType === 'HERBAL'
                       : ['WESTERN', 'CHINESE_PATENT'].includes(item.sdMedicationType)}
                     placeholder={entryType === 'HERBAL' ? '搜索中草药名称/拼音' : '搜索药品名称/拼音'} onChange={selectMedication} />
                 ) : (
-                  <ClinicalResourceSearch<ServiceCatalogItem> id={`doctor-unified-${entryType}-resource`} api={api}
+                  <ClinicalResourceSearch<ServiceCatalogItem> key={entryType} id={`doctor-unified-${entryType}-resource`} api={api}
+                    defaultOpen
                     resource="service" organizationId={encounter.organizationId} value={service}
+                    aria-label={`搜索${orderTypeLabel(entryType)}项目名称/拼音`}
                     filterResult={(item) => item.sdServiceType === entryType}
                     placeholder={`搜索${orderTypeLabel(entryType)}项目名称/拼音`} onChange={(value) => {
-                      setService(value); setValidationError(''); if (value) focusControl('doctor-unified-service-note')
+                      setService(value); setValidationError(''); if (value) focusControlAfterSelection('doctor-unified-service-note')
                     }} />
                 )}
-                {isMedication && dispensableOptions.length > 0 && (
-                  <div className="doctor-composer-dispense-wrap">
-                    <Select aria-label="发药包装与单位" value={selectedProduct ? selectedProduct.key : ''}
-                      onChange={(value) => updateMedication('dispenseOptionKey', value)} clearable={false} showValue
-                      placeholder="发药包装"
-                      options={dispensableOptions.map((value) => ({
-                        value: value.key, label: value.label, secondaryText: value.secondaryText,
-                        searchKeywords: [value.unitCode, value.unitName],
-                      }))} />
-                  </div>
-                )}
-                {isMedication && medicationEntry.stockSiteName && (
-                  <div className={`doctor-composer-stock-pill ${isStockInsufficient ? 'is-danger' : 'is-success'}`}>
-                    <span className="doctor-stock-site"><Icon name="hospital" className="ui-icon-inline" /> {medicationEntry.stockSiteName}</span>
-                    <span className="doctor-stock-qty">可用: <strong>{medicationEntry.availablePackageQuantity}</strong> {medicationEntry.packageUnitName || '包装'}</span>
-                    {isStockInsufficient && <span className="doctor-stock-warning-text"><Icon name="warning" className="ui-icon-inline" /> 超过可用库存</span>}
-                  </div>
-                )}
-              </div>
-            </span>
+            </div>
 
-            <span className="doctor-unified-cell-detail">
+            {isMedication ? (
+              <div className={`doctor-inline-order-field doctor-inline-order-package${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                {dispensableOptions.length > 0 ? (
+                  <Select id="doctor-unified-package" aria-label="产品规格" value={selectedProduct ? selectedProduct.key : ''}
+                    disabled={!hasEnteredOrder}
+                    onChange={(value) => updateMedication('dispenseOptionKey', value)}
+                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-dose')} clearable={false} showValue
+                    placeholder="发药包装"
+                    options={dispensableOptions.map((value) => ({
+                      value: value.key, label: value.label, secondaryText: value.secondaryText,
+                      searchKeywords: [value.unitCode, value.unitName],
+                    }))} />
+                ) : <span className="doctor-inline-order-placeholder">{hasEnteredOrder ? '选择药品后显示包装' : '调入药品后显示包装'}</span>}
+              </div>
+            ) : <div className="doctor-inline-order-static doctor-inline-order-package">—</div>}
+
+            {isMedication ? <div className="doctor-inline-order-static doctor-inline-order-manufacturer"
+              title={selectedProduct?.product.manufacturerName || undefined}>
+              {selectedProduct?.product.manufacturerName || '—'}
+            </div> : <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>}
+
+            {isMedication ? (
+              <div className="doctor-inline-order-static doctor-inline-order-price">
+                {selectedProduct ? formatUnitPrice(selectedProduct.price, selectedProduct.currencyCode) : '—'}
+              </div>
+            ) : (
+              <div className="doctor-inline-order-static doctor-inline-order-price">
+                {(() => {
+                  const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
+                  return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
+                })()}
+              </div>
+            )}
+
               {entryType === 'MEDICATION' && (
-                <div className="doctor-composer-dosage-strip">
-                  <div className="doctor-entry-pill-field" title="单次剂量">
+                <>
+                  <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="单次剂量">
                     <label htmlFor="doctor-unified-dose">每次</label>
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-dose" aria-label="单次剂量" type="number" min="0" step="0.01"
+                        disabled={!hasEnteredOrder}
                         value={medicationEntry.doseValue} placeholder="0"
                         onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
                         onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-route')} />
@@ -532,23 +752,30 @@ export function UnifiedOrderListEditor({
                     </div>
                   </div>
 
-                  <div className="doctor-entry-pill-field" title="给药途径">
+                  <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="给药途径">
                     <Select id="doctor-unified-route" aria-label="给药途径" value={medicationEntry.routeCode}
-                      onChange={(value) => { updateMedication('routeCode', value); focusControl('doctor-unified-frequency') }}
+                      disabled={!hasEnteredOrder}
+                      onChange={updateRoute}
+                      onSelectionCommit={(option) => focusControlAfterSelection(
+                        routes.data?.find((value) => value.code === option?.value)?.executionType === 'INFUSION'
+                          ? 'doctor-unified-administration-group' : 'doctor-unified-frequency')}
                       showValue loading={routes.isPending} popoverMinWidth={220}
                       placeholder="途径" options={routeOptions} />
                   </div>
 
-                  <div className="doctor-entry-pill-field doctor-entry-pill-field--freq" title="执行频次">
+                  <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="执行频次">
                     <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
-                      onChange={(value) => { updateMedication('frequencyCode', value); focusControl('doctor-unified-duration') }}
+                      disabled={!hasEnteredOrder}
+                      onChange={(value) => updateMedication('frequencyCode', value)}
+                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-duration')}
                       showValue loading={frequencies.isPending} popoverMinWidth={260}
                       placeholder="频次" options={frequencyOptions} />
                   </div>
 
-                  <div className="doctor-entry-pill-field doctor-entry-pill-field--duration" title="疗程">
+                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="疗程">
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-duration" aria-label="疗程" type="number" min="1"
+                        disabled={!hasEnteredOrder}
                         value={medicationEntry.durationValue} placeholder="天数"
                         onChange={(event) => updateMedication('durationValue', numberValue(event.target.value))}
                         onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
@@ -556,20 +783,34 @@ export function UnifiedOrderListEditor({
                     </div>
                   </div>
 
-                  <div className="doctor-entry-pill-field doctor-entry-pill-field--instruction" title="用药嘱托">
+                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="用药嘱托">
                     <input id="doctor-unified-instruction" aria-label="用药嘱托" value={medicationEntry.instruction}
+                      disabled={!hasEnteredOrder}
                       placeholder="嘱托 (如: 饭后)" onChange={(event) => updateMedication('instruction', event.target.value)}
                       onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
                   </div>
-                </div>
+
+                  <div className={`doctor-inline-order-field doctor-inline-order-quantity ${isStockInsufficient ? 'is-danger' : ''}${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                    <div className="doctor-entry-input-unit">
+                      <input id="doctor-unified-quantity" aria-label="总量" type="number" min="0.01" step="0.01"
+                        disabled={!hasEnteredOrder}
+                        title={isStockInsufficient ? `开立数量超过当前可用库存` : (calcResult?.calculationText ? `根据剂量频次自动计算: ${calcResult.calculationText}` : undefined)}
+                        value={medicationEntry.quantity} placeholder="数量"
+                        onChange={(event) => updateMedication('quantity', numberValue(event.target.value))}
+                        onKeyDown={(event) => continueOnEnter(event)} />
+                      <small>{formatPackageUnit(selectedProduct?.unitName, selectedProduct?.unitCode)}</small>
+                    </div>
+                  </div>
+                </>
               )}
 
               {entryType === 'HERBAL' && (
-                <div className="doctor-composer-dosage-strip">
-                  <div className="doctor-entry-pill-field" title="每付剂量">
+                <>
+                  <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="每付剂量">
                     <label htmlFor="doctor-unified-dose">每付</label>
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.01"
+                        disabled={!hasEnteredOrder}
                         value={medicationEntry.doseValue} placeholder="0"
                         onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
                         onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-count')} />
@@ -577,77 +818,111 @@ export function UnifiedOrderListEditor({
                     </div>
                   </div>
 
-                  <div className="doctor-entry-pill-field" title="剂数">
+                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
+                        disabled={!hasEnteredOrder}
                         value={medicationEntry.herbalDoseCount}
-                        onChange={(event) => updateMedication('herbalDoseCount', Math.max(1, Number(event.target.value)))}
+                        onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
                         onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-method')} />
                       <small>剂</small>
                     </div>
                   </div>
 
-                  <div className="doctor-entry-pill-field" title="煎服法">
+                  <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="煎服法">
                     <input id="doctor-unified-herbal-method" aria-label="服法" value={medicationEntry.herbalMethod} placeholder="水煎服"
+                      disabled={!hasEnteredOrder}
                       onChange={(event) => updateMedication('herbalMethod', event.target.value)}
                       onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-frequency')} />
                   </div>
 
-                  <div className="doctor-entry-pill-field doctor-entry-pill-field--freq" title="频次">
+                  <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="频次">
                     <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
-                      onChange={(value) => { updateMedication('frequencyCode', value); focusControl('doctor-unified-instruction') }}
+                      disabled={!hasEnteredOrder}
+                      onChange={(value) => updateMedication('frequencyCode', value)}
+                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-instruction')}
                       showValue loading={frequencies.isPending} popoverMinWidth={260}
                       placeholder="频次" options={frequencyOptions} />
                   </div>
 
-                  <div className="doctor-entry-pill-field doctor-entry-pill-field--instruction" title="特殊煎法/嘱托">
+                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
                     <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
+                      disabled={!hasEnteredOrder}
+                      list="doctor-herbal-instruction-options"
                       placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
                       onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
+                    <datalist id="doctor-herbal-instruction-options">
+                      {['先煎', '后下', '包煎', '烊化', '冲服', '另煎', '生用'].map((value) => <option key={value} value={value} />)}
+                    </datalist>
                   </div>
-                </div>
+
+                  <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                    <div className="doctor-entry-input-unit">
+                      <input id="doctor-unified-quantity" aria-label="总量" type="number"
+                        disabled={!hasEnteredOrder}
+                        value={medicationEntry.doseValue === '' || medicationEntry.herbalDoseCount === '' ? ''
+                          : Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount)}
+                        onKeyDown={(event) => continueOnEnter(event)} readOnly />
+                      <small>g</small>
+                    </div>
+                  </div>
+                </>
               )}
 
               {!isMedication && (
-                <div className="doctor-entry-pill-field doctor-entry-pill-field--service">
+                <div className={`doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note${!hasEnteredOrder ? ' is-disabled' : ''}`}>
                   <input id="doctor-unified-service-note" className="doctor-unified-service-note" aria-label="临床说明"
+                    disabled={!hasEnteredOrder}
                     value={serviceDescription} placeholder={entryType === 'LABORATORY' ? '标本种类或检验目的 (回车跳至数量)' : entryType === 'EXAMINATION' ? '检查部位及检查目的 (回车跳至数量)' : '治疗部位或临床说明 (回车跳至数量)'}
                     onChange={(event) => setServiceDescription(event.target.value)}
                     onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
                 </div>
               )}
-            </span>
 
-            <span className="doctor-unified-cell-qty">
-              <div className={`doctor-entry-qty-input ${isStockInsufficient ? 'is-danger' : ''}`}>
-                <input id="doctor-unified-quantity" aria-label="发药数量" type="number" min="0.01" step="0.01"
-                  title={entryType === 'HERBAL' ? '按每付剂量和剂数自动计算' : (isStockInsufficient ? `可用库存不足！当前仅剩 ${medicationEntry.availablePackageQuantity} 包装` : (calcResult?.calculationText ? `根据剂量频次自动计算: ${calcResult.calculationText}` : undefined))}
-                  value={entryType === 'HERBAL'
-                    ? medicationEntry.doseValue === '' ? '' : Number(medicationEntry.doseValue) * medicationEntry.herbalDoseCount
-                    : isMedication ? medicationEntry.quantity : serviceQuantity}
-                  disabled={entryType === 'HERBAL'}
-                  placeholder="数量"
-                  onChange={(event) => isMedication
-                    ? updateMedication('quantity', numberValue(event.target.value)) : setServiceQuantity(Number(event.target.value))}
+            {!isMedication && (
+              <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
+                  disabled={!hasEnteredOrder}
+                  value={serviceQuantity} placeholder="数量"
+                  onChange={(event) => setServiceQuantity(Number(event.target.value))}
                   onKeyDown={(event) => continueOnEnter(event)} />
-                <small>{entryType === 'HERBAL' ? '总付' : isMedication ? formatPackageUnit(selectedProduct?.unitName, selectedProduct?.unitCode) : (service?.raw?.unitCode ?? '项')}</small>
+                <small>{service?.raw?.unitCode ?? '项'}</small>
               </div>
-              {isStockInsufficient && (
-                <div className="doctor-entry-stock-error" style={{ color: 'var(--color-danger, #d32f2f)', fontSize: '0.75rem', marginTop: '2px', fontWeight: 600 }}>
-                  超量(限{medicationEntry.availablePackageQuantity})
-                </div>
-              )}
-            </span>
+            )}
 
-            <span className="doctor-unified-cell-status">
-              <span className="doctor-composer-status-badge">录入中</span>
-            </span>
-
-            <span className="doctor-unified-cell-actions">
+            <div className="doctor-inline-order-status"><StatusBadge tone="info">录入中</StatusBadge></div>
+            <div className="doctor-inline-order-actions">
               <Button size="sm" variant="primary" className="doctor-unified-entry-add-btn" onClick={addCurrentEntry}
+                disabled={!hasEnteredOrder}
                 title="加入待确认列表 (Enter / Ctrl+Enter)" aria-label="加入医嘱"><Icon name="add" /></Button>
-            </span>
+              <Button size="sm" variant="text" className="doctor-unified-entry-close-btn" onClick={closeComposer}
+                title="退出录入" aria-label="退出医嘱录入"><Icon name="close" /></Button>
+            </div>
           </div>
+
+          {entryType === 'MEDICATION' && currentIsInfusion && (
+            <div className="doctor-unified-order-subrow doctor-administration-group-editor" role="row">
+              <strong>输液分组</strong>
+              <Select id="doctor-unified-administration-group" aria-label="输液分组"
+                value={medicationEntry.administrationGroupKey || ''} clearable={false} searchable={false}
+                options={[
+                  { value: '__NEW__', label: '新输液组', secondaryText: '单独一袋/瓶' },
+                  ...administrationGroups.options,
+                ]}
+                onChange={(value) => updateMedication('administrationGroupKey',
+                  value === '__NEW__' ? newAdministrationGroupKey() : value)}
+                onSelectionCommit={() => focusControlAfterSelection('doctor-unified-frequency')} />
+              <span>当前 {administrationGroups.currentLabel || '新组'}；同组药品将混合在同一袋/瓶，途径、频次和疗程须一致。</span>
+            </div>
+          )}
+
+          {entryType === 'HERBAL' && (
+            <div className="doctor-unified-order-subrow doctor-herbal-formula-summary" role="row">
+              <strong>方剂设置</strong>
+              <span>{medicationEntry.herbalDoseCount || '未填'}剂 · {medicationEntry.herbalMethod || '未填写服法'} · {medicationEntry.frequencyCode || '未填写频次'}</span>
+              <small>连续录入下一味时自动保留</small>
+            </div>
+          )}
 
           {hasSafetyAlert && (
             <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning" role="row">
@@ -699,20 +974,26 @@ export function UnifiedOrderListEditor({
   </div>
 }
 
-function MedicationReadRow({ value, skinTest, busy, readOnly, onCancel, onPrint }: {
+function MedicationReadRow({ value, skinTest, busy, readOnly, administrationGroupLabel, onCancel, onPrint }: {
   value: MedicationRequest; skinTest?: SkinTestWorkItem; busy: boolean; readOnly: boolean
+  administrationGroupLabel?: string
   onCancel: () => void; onPrint?: () => void
 }) {
   return <div className="doctor-unified-order-row" role="row">
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.medicationType === 'HERBAL' ? 'HERBAL'
-      : value.medicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT' : 'MEDICATION'} /></span>
+      : value.medicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT' : 'MEDICATION'} />
+      {administrationGroupLabel && <AdministrationGroupBadge label={administrationGroupLabel} />}</span>
     <span className="doctor-unified-order-name">
-      <strong>{value.medicationName}</strong>
-      <small className="doctor-order-spec-tag">{value.preparationSpec || value.medicationCode}</small>
+      <strong>{value.itemName || value.medicationName}</strong>
     </span>
-    <span className="doctor-unified-order-detail">
-      <span className="doctor-order-usage-pill">{medicationDetail(value)}</span>
-    </span>
+    <span className="doctor-unified-product-spec">{value.packageSpec || value.preparationSpec || '—'}</span>
+    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>{value.doseValue ? `${value.doseValue}${value.doseUnit || ''}` : '—'}</span>
+    <span>{value.routeName || value.routeCode || '—'}</span>
+    <span>{value.frequencyName || value.frequencyCode || '—'}</span>
+    <span>{value.durationValue ? `${value.durationValue}${value.durationUnit || '天'}` : '—'}</span>
+    <span className="doctor-unified-order-detail">{value.medicationInstruction || '—'}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{formatPackageUnit(undefined, value.quantityUnit)}</small>
     </span>
@@ -748,11 +1029,15 @@ function ServiceReadRow({ value, busy, readOnly, onCancel }: {
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.serviceType} /></span>
     <span className="doctor-unified-order-name">
       <strong>{value.itemName}</strong>
-      <small className="doctor-order-spec-tag">{value.itemCode}</small>
     </span>
-    <span className="doctor-unified-order-detail">
-      <span className="doctor-order-usage-pill">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
-    </span>
+    <span>—</span>
+    <span>—</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>—</span>
+    <span>—</span>
+    <span>—</span>
+    <span>—</span>
+    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
     </span>
@@ -765,21 +1050,142 @@ function ServiceReadRow({ value, busy, readOnly, onCancel }: {
   </div>
 }
 
-function MedicationDraftRow({ value, onRemove }: { value: MedicationPlanDraft; onRemove: () => void }) {
-  return <div className="doctor-unified-order-row is-draft" role="row">
-    <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} /></span>
+function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeExecutionTypes,
+  administrationGroupOptions, onSave, onCancel }: {
+  value: MedicationPlanDraft
+  routeOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
+  frequencyOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
+  routeExecutionTypes: Map<string, 'NONE' | 'ADMINISTRATION' | 'INFUSION'>
+  administrationGroupOptions: Array<{ value: string; label: string; secondaryText: string; searchKeywords: string[] }>
+  onSave: (value: MedicationPlanDraft) => void
+  onCancel: () => void
+}) {
+  const [doseValue, setDoseValue] = useState<number | ''>(value.request.doseValue ?? '')
+  const [routeCode, setRouteCode] = useState(value.request.routeCode)
+  const [frequencyCode, setFrequencyCode] = useState(value.request.frequencyCode)
+  const [durationValue, setDurationValue] = useState<number | ''>(value.request.durationValue ?? '')
+  const [quantity, setQuantity] = useState(value.request.quantity)
+  const [instruction, setInstruction] = useState(value.request.medicationInstruction ?? '')
+  const [administrationGroupKey, setAdministrationGroupKey] = useState(value.administrationGroupKey)
+  const executionType = routeExecutionTypes.get(routeCode || '')
+  const valid = Number(doseValue) > 0 && Boolean(routeCode) && Boolean(frequencyCode) && Number(quantity) > 0
+  const save = () => valid && onSave({ ...value, routeExecutionType: executionType,
+    administrationGroupKey: executionType === 'INFUSION'
+      ? administrationGroupKey || newAdministrationGroupKey() : undefined,
+    routeName: routeOptions.find((option) => option.value === routeCode)?.label || value.routeName,
+    request: { ...value.request, doseValue: Number(doseValue), routeCode, frequencyCode,
+      durationValue: durationValue === '' ? undefined : Number(durationValue), quantity: Number(quantity),
+      medicationInstruction: instruction.trim() || undefined },
+  })
+
+  return <div className="doctor-unified-inline-composer is-draft-editor" role="row" aria-label={`编辑待确认医嘱 ${value.medicationName}`}>
+      <div className="doctor-inline-order-static-type"><OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} />
+        {executionType === 'INFUSION' && <Select id={`draft-group-${value.id}`} aria-label="编辑输液分组" value={administrationGroupKey || ''}
+          clearable={false} searchable={false}
+          options={[{ value: '__NEW__', label: '新组' }, ...administrationGroupOptions]}
+          onChange={(next) => setAdministrationGroupKey(next === '__NEW__' ? newAdministrationGroupKey() : next)}
+          onSelectionCommit={() => focusControlAfterSelection(`draft-frequency-${value.id}`)} />}
+      </div>
+      <div className="doctor-inline-order-static-resource">
+        <strong>{value.productName || value.medicationName}</strong>
+      </div>
+      <div className="doctor-inline-order-static doctor-inline-order-package">{value.productSpec || value.preparationSpec || '—'}</div>
+      <div className="doctor-inline-order-static doctor-inline-order-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</div>
+      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
+      <div className="doctor-inline-order-field doctor-inline-order-dose">
+        <label htmlFor={`draft-dose-${value.id}`}>{value.editorMode === 'herbal' ? '每付' : '每次'}</label>
+        <div className="doctor-entry-input-unit"><input id={`draft-dose-${value.id}`} aria-label="编辑单次剂量" type="number" min="0" step="0.01"
+          value={doseValue} onChange={(event) => setDoseValue(numberValue(event.target.value))}
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-route-${value.id}`)} /><small>{value.request.doseUnit}</small></div>
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-route">
+        <Select id={`draft-route-${value.id}`} aria-label="编辑给药途径" value={routeCode}
+          onChange={(next) => { setRouteCode(next); if (routeExecutionTypes.get(next) === 'INFUSION' && !administrationGroupKey) setAdministrationGroupKey(newAdministrationGroupKey()) }}
+          onSelectionCommit={(option) => focusControlAfterSelection(
+            routeExecutionTypes.get(option?.value || '') === 'INFUSION'
+              ? `draft-group-${value.id}` : `draft-frequency-${value.id}`)}
+          showValue placeholder="途径" options={routeOptions} />
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-frequency">
+        <Select id={`draft-frequency-${value.id}`} aria-label="编辑频次" value={frequencyCode}
+          onChange={setFrequencyCode} onSelectionCommit={() => focusControlAfterSelection(`draft-duration-${value.id}`)}
+          showValue placeholder="频次" options={frequencyOptions} />
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-duration">
+        <div className="doctor-entry-input-unit"><input id={`draft-duration-${value.id}`} aria-label="编辑疗程" type="number" min="1" value={durationValue}
+          onChange={(event) => setDurationValue(numberValue(event.target.value))}
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-instruction-${value.id}`)} /><small>{value.request.durationUnit || '天'}</small></div>
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-instruction">
+        <input id={`draft-instruction-${value.id}`} aria-label="编辑用药嘱托" value={instruction} placeholder="用药嘱托"
+          onChange={(event) => setInstruction(event.target.value)}
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-quantity-${value.id}`)} />
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-quantity">
+        <div className="doctor-entry-input-unit"><input id={`draft-quantity-${value.id}`} aria-label="编辑总量" type="number" min="0.01" step="0.01" value={quantity}
+          onChange={(event) => setQuantity(Number(event.target.value))}
+          onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} />
+          <small>{formatPackageUnit(undefined, value.request.quantityUnit)}</small></div>
+      </div>
+      <div className="doctor-inline-order-status"><StatusBadge tone="warning">编辑中</StatusBadge></div>
+      <div className="doctor-inline-order-actions">
+        <Button size="sm" disabled={!valid} onClick={save} title="保存修改" aria-label="保存医嘱修改"><Icon name="check" /></Button>
+        <Button size="sm" variant="text" onClick={onCancel} title="取消修改" aria-label="取消医嘱修改"><Icon name="close" /></Button>
+      </div>
+  </div>
+}
+
+function ServiceDraftEditRow({ value, onSave, onCancel }: {
+  value: ServicePlanDraft; onSave: (value: ServicePlanDraft) => void; onCancel: () => void
+}) {
+  const [description, setDescription] = useState(value.clinicalDescription ?? '')
+  const [quantity, setQuantity] = useState(value.quantity)
+  const save = () => quantity > 0 && onSave({ ...value, quantity,
+    clinicalDescription: description.trim() || undefined })
+
+  return <div className="doctor-unified-inline-composer is-service-draft-editor" role="row" aria-label={`编辑待确认医嘱 ${value.itemName}`}>
+      <div className="doctor-inline-order-static-type"><OrderTypeBadge type={value.serviceType || 'OTHER'} /></div>
+      <div className="doctor-inline-order-static-resource"><strong>{value.itemName}</strong></div>
+      <div className="doctor-inline-order-static doctor-inline-order-package">—</div>
+      <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>
+      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
+      <div className="doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note">
+        <input id={`draft-service-note-${value.id}`} aria-label="编辑临床说明" value={description} placeholder="临床说明"
+          onChange={(event) => setDescription(event.target.value)}
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-service-quantity-${value.id}`)} />
+      </div>
+      <div className="doctor-inline-order-field doctor-inline-order-quantity">
+        <div className="doctor-entry-input-unit"><input id={`draft-service-quantity-${value.id}`} aria-label="编辑项目数量" type="number" min="0.01" step="0.01" value={quantity}
+          onChange={(event) => setQuantity(Number(event.target.value))}
+          onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} /><small>{value.unitCode || '项'}</small></div>
+      </div>
+      <div className="doctor-inline-order-status"><StatusBadge tone="warning">编辑中</StatusBadge></div>
+      <div className="doctor-inline-order-actions">
+        <Button size="sm" disabled={quantity <= 0} onClick={save} title="保存修改" aria-label="保存医嘱修改"><Icon name="check" /></Button>
+        <Button size="sm" variant="text" onClick={onCancel} title="取消修改" aria-label="取消医嘱修改"><Icon name="close" /></Button>
+      </div>
+  </div>
+}
+
+function MedicationDraftRow({ value, administrationGroupLabel, onEdit, onRemove }: {
+  value: MedicationPlanDraft; administrationGroupLabel?: string; onEdit: () => void; onRemove: () => void
+}) {
+  return <div className="doctor-unified-order-row is-draft is-editable" role="row" tabIndex={0}
+    aria-label={`编辑待确认医嘱 ${value.medicationName}`} title="单击编辑医嘱" onClick={onEdit}
+    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit() } }}>
+    <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} />
+      {administrationGroupLabel && <AdministrationGroupBadge label={administrationGroupLabel} />}</span>
     <span className="doctor-unified-order-name">
-      <strong>{value.medicationName}</strong>
-      <small className="doctor-order-spec-tag">{value.preparationSpec || value.medicationCode}</small>
-      {value.stockSiteName && (
-        <small className="doctor-order-site-tag" title={`发药药房: ${value.stockSiteName}`} style={{ color: 'var(--color-text-secondary, #666)', marginLeft: '6px' }}>
-          <Icon name="hospital" className="ui-icon-inline" /> {value.stockSiteName} (余量: {value.availablePackageQuantity ?? '-'}{value.packageUnitName || ''})
-        </small>
-      )}
+      <strong>{value.productName || value.medicationName}</strong>
     </span>
-    <span className="doctor-unified-order-detail">
-      <span className="doctor-order-usage-pill">{medicationDraftDetail(value)}</span>
-    </span>
+    <span className="doctor-unified-product-spec">{value.productSpec || value.preparationSpec || '—'}</span>
+    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>{value.request.doseValue ? `${value.request.doseValue}${value.request.doseUnit || ''}` : '—'}</span>
+    <span>{value.routeName || value.request.routeCode || '—'}</span>
+    <span>{value.request.frequencyCode || '—'}</span>
+    <span>{value.request.durationValue ? `${value.request.durationValue}${value.request.durationUnit || '天'}` : '—'}</span>
+    <span className="doctor-unified-order-detail">{value.request.medicationInstruction || '—'}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.request.quantity}</strong> <small>{formatPackageUnit(undefined, value.request.quantityUnit)}</small>
     </span>
@@ -787,21 +1193,27 @@ function MedicationDraftRow({ value, onRemove }: { value: MedicationPlanDraft; o
       <StatusBadge tone="warning">待确认</StatusBadge>
     </span>
     <span className="doctor-unified-order-actions">
-      <Button size="sm" variant="text" onClick={onRemove}>移除</Button>
+      <Button size="sm" variant="text" onClick={(event) => { event.stopPropagation(); onRemove() }}>移除</Button>
     </span>
   </div>
 }
 
-function ServiceDraftRow({ value, onRemove }: { value: ServicePlanDraft; onRemove: () => void }) {
-  return <div className="doctor-unified-order-row is-draft" role="row">
+function ServiceDraftRow({ value, onEdit, onRemove }: { value: ServicePlanDraft; onEdit: () => void; onRemove: () => void }) {
+  return <div className="doctor-unified-order-row is-draft is-editable" role="row" tabIndex={0}
+    aria-label={`编辑待确认医嘱 ${value.itemName}`} title="单击编辑医嘱" onClick={onEdit}
+    onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit() } }}>
     <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.serviceType || 'OTHER'} /></span>
     <span className="doctor-unified-order-name">
       <strong>{value.itemName}</strong>
-      <small className="doctor-order-spec-tag">{value.itemCode}</small>
     </span>
-    <span className="doctor-unified-order-detail">
-      <span className="doctor-order-usage-pill">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
-    </span>
+    <span>—</span>
+    <span>—</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>—</span>
+    <span>—</span>
+    <span>—</span>
+    <span>—</span>
+    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
     </span>
@@ -809,7 +1221,7 @@ function ServiceDraftRow({ value, onRemove }: { value: ServicePlanDraft; onRemov
       <StatusBadge tone="warning">待确认</StatusBadge>
     </span>
     <span className="doctor-unified-order-actions">
-      <Button size="sm" variant="text" onClick={onRemove}>移除</Button>
+      <Button size="sm" variant="text" onClick={(event) => { event.stopPropagation(); onRemove() }}>移除</Button>
     </span>
   </div>
 }
@@ -823,17 +1235,8 @@ function OrderTypeBadge({ type }: { type: string }) {
   return <span className={`doctor-unified-order-kind ${className}`}>{label}</span>
 }
 
-function medicationDetail(value: MedicationRequest) {
-  return [value.doseValue && `${value.doseValue}${value.doseUnit || ''}`, value.routeName || value.routeCode, value.frequencyCode,
-    value.durationValue && `${value.durationValue}${value.durationUnit || '天'}`, value.medicationInstruction]
-    .filter(Boolean).join(' · ') || '—'
-}
-
-function medicationDraftDetail(value: MedicationPlanDraft) {
-  const request = value.request
-  return [request.doseValue && `${request.doseValue}${request.doseUnit || ''}`, value.routeName || request.routeCode,
-    request.frequencyCode, request.durationValue && `${request.durationValue}${request.durationUnit || '天'}`,
-    request.medicationInstruction].filter(Boolean).join(' · ') || '—'
+function AdministrationGroupBadge({ label }: { label: string }) {
+  return <span className="doctor-administration-group-badge" title="输液组">{label}</span>
 }
 
 function serviceTypeLabel(value?: string) {
@@ -853,6 +1256,19 @@ function numberValue(value: string): number | '' {
   return value === '' ? '' : Number(value)
 }
 
+function formatUnitPrice(value?: number, currencyCode = 'CNY') {
+  if (value == null || !Number.isFinite(Number(value))) return '—'
+  return new Intl.NumberFormat('zh-CN', {
+    style: 'currency', currency: currencyCode || 'CNY', minimumFractionDigits: 2, maximumFractionDigits: 4,
+  }).format(Number(value))
+}
+
+function continueDraftOnEnter(event: KeyboardEvent<HTMLInputElement>, nextControlId: string) {
+  if (event.key !== 'Enter' || event.nativeEvent.isComposing) return
+  event.preventDefault()
+  focusControl(nextControlId)
+}
+
 function byAuthoredAt(left: { authoredAt: string }, right: { authoredAt: string }) {
   return left.authoredAt.localeCompare(right.authoredAt)
 }
@@ -867,4 +1283,8 @@ function focusResource(type: OrderEntryType) {
 
 function focusControl(id: string) {
   window.requestAnimationFrame(() => document.getElementById(id)?.focus())
+}
+
+function focusControlAfterSelection(id: string) {
+  globalThis.setTimeout(() => focusControl(id), 0)
 }

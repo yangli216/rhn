@@ -471,6 +471,16 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const outpatientNote = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
   const readyToComplete = Boolean(encounter?.chiefComplaint
     && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote?.status === 'SIGNED')
+  const signNoteMutation = useMutation({
+    mutationFn: () => api.clinicalDocuments.sign(outpatientNote!.id, outpatientNote!.currentVersion),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter?.id] }),
+        queryClient.invalidateQueries({ queryKey: ['doctor-encounters', resident.id] }),
+        queryClient.invalidateQueries({ queryKey: ['encounters'] }),
+      ])
+    },
+  })
   const draftLabels = draftStateLabels(draftState)
   const hasUnsavedDraft = draftLabels.length > 0
   useEffect(() => {
@@ -648,7 +658,10 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
       signed={outpatientNote?.status === 'SIGNED'} ready={readyToComplete} busy={complete.isPending}
-      error={complete.error} onClose={() => setCompletionOpen(false)} onComplete={(input) => complete.mutate(input)} />}
+      error={complete.error || signNoteMutation.error} onClose={() => setCompletionOpen(false)}
+      onComplete={(input) => complete.mutate(input)}
+      onSignNote={outpatientNote ? () => signNoteMutation.mutate() : undefined}
+      signing={signNoteMutation.isPending} />}
     {suspensionOpen && encounter && <EncounterSuspendDialog encounterId={encounter.id}
       busy={suspend.isPending} error={suspend.error}
       onClose={() => setSuspensionOpen(false)} onConfirm={(input) => suspend.mutate(input)} />}
@@ -812,9 +825,10 @@ const quickDispositionPhrases = [
   '建议转专科进一步系统检查与治疗',
 ]
 
-function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, onClose, onComplete }: {
+function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, onClose, onComplete, onSignNote, signing }: {
   encounter: Encounter; api: RhnApi; signed: boolean; ready: boolean; busy: boolean; error: unknown
   onClose: () => void; onComplete: (input: CompleteEncounterInput) => void
+  onSignNote?: () => void; signing?: boolean
 }) {
   const [dispositionCode, setDispositionCode] = useState<CompleteEncounterInput['dispositionCode']>('HOME')
   const [dispositionNote, setDispositionNote] = useState('按医嘱用药，如症状加重及时复诊')
@@ -859,8 +873,10 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
   const primaryDiag = encounter.diagnoses.find((value) => value.type === 'PRIMARY')?.display || '未录入'
   const hasChiefComplaint = Boolean(encounter.chiefComplaint?.trim())
   const hasPrimaryDiagnosis = encounter.diagnoses.some((value) => value.type === 'PRIMARY')
+  const completedRequirementCount = [hasChiefComplaint, hasPrimaryDiagnosis, signed].filter(Boolean).length
 
-  return <Dialog title="诊毕确认" eyebrow="本次就诊收口" size="xwide" closeOnBackdrop={false} onClose={onClose}
+  return <Dialog title="诊毕确认" eyebrow="本次就诊收口" size="xwide" className="doctor-completion-modal"
+    closeOnBackdrop={false} onClose={onClose}
     description="集中核对病历、诊断、医嘱、费用与患者转归；确认后当前就诊将结束。"
     footer={<><Button variant="secondary" onClick={onClose}>继续诊疗</Button>
       <Button busy={busy} disabled={!ready || !dispositionCode || outstanding > 0}
@@ -871,136 +887,163 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
       {(error || createPayment.error || issueInvoice.error)
         && <Alert>{errorMessage(error || createPayment.error || issueInvoice.error)}</Alert>}
       <section className="doctor-completion-overview" aria-label="诊毕状态汇总">
-        <div className="doctor-overview-stat">
+        <div className="doctor-overview-stat doctor-overview-stat--diagnosis">
           <div className="doctor-overview-stat__header">
             <Icon name="clinical" className="ui-icon-inline" />
             <span>主要诊断</span>
           </div>
           <strong title={primaryDiag} className={hasPrimaryDiagnosis ? '' : 'is-warning'}>{primaryDiag}</strong>
         </div>
-        <div className="doctor-overview-stat">
+        <div className="doctor-overview-stat doctor-overview-stat--note">
           <div className="doctor-overview-stat__header">
             <Icon name={signed ? 'check' : 'warning'} className="ui-icon-inline" />
             <span>病历状态</span>
           </div>
           <strong className={signed ? 'is-success' : 'is-warning'}>{signed ? '已签署' : '待签署'}</strong>
         </div>
-        <div className="doctor-overview-stat">
+        <div className="doctor-overview-stat doctor-overview-stat--orders">
           <div className="doctor-overview-stat__header">
             <Icon name="tasks" className="ui-icon-inline" />
             <span>本次医嘱</span>
           </div>
           <strong>{orderCount} 项</strong>
         </div>
-        <div className="doctor-overview-stat">
+        <div className="doctor-overview-stat doctor-overview-stat--fee">
           <div className="doctor-overview-stat__header">
-            <Icon name="billing" className="ui-icon-inline" />
-            <span>待收金额</span>
+            <div className="doctor-overview-stat__header-title">
+              <Icon name="billing" className="ui-icon-inline" />
+              <span>待收金额</span>
+            </div>
+            {statement.data && statement.data.uninvoicedAmount > 0 && (
+              <button type="button" className="doctor-fee-quick-invoice-btn" disabled={issueInvoice.isPending}
+                onClick={() => issueInvoice.mutate()}>
+                {issueInvoice.isPending ? '生成中…' : '生成结算单'}
+              </button>
+            )}
           </div>
-          <strong className={outstanding > 0 ? 'is-warning' : 'is-success'}>
-            {statement.data ? (outstanding > 0 ? money(outstanding, statement.data.currencyCode) : '已结清 (¥0.00)') : '暂无费用'}
-          </strong>
+          <div className="doctor-fee-stat-content">
+            <strong className={outstanding > 0 ? 'is-warning' : 'is-success'}>
+              {statement.data ? (outstanding > 0 ? money(outstanding, statement.data.currencyCode) : '已结清 (¥0.00)') : '暂无费用'}
+            </strong>
+            {statement.data ? (
+              <div className="doctor-fee-stat-metrics">
+                <span>费用合计 <strong>{money(statement.data.chargeAmount, statement.data.currencyCode)}</strong></span>
+                <span>已支付 <strong>{money(statement.data.paymentAmount, statement.data.currencyCode)}</strong></span>
+                <span>未开票 <strong>{money(statement.data.uninvoicedAmount, statement.data.currencyCode)}</strong></span>
+                <span>待支付 <strong>{money(outstanding, statement.data.currencyCode)}</strong></span>
+              </div>
+            ) : statement.isPending ? (
+              <small className="doctor-fee-stat__hint">读取中…</small>
+            ) : null}
+          </div>
         </div>
       </section>
-      <section className="doctor-completion-section">
-        <header>
-          <div className="doctor-section-header">
-            <div className="doctor-section-header__tag">
-              <Icon name="billing" className="ui-icon-inline" />
-              <span>费用核对</span>
-            </div>
-            <strong>{statement.data ? `本次就诊发生费用合计 ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : '本次就诊尚未形成费用'}</strong>
+      {payable.length > 0 && (
+        <section className="doctor-completion-payment-section">
+          <header className="doctor-disposition-section__head">
+            <Icon name="billing" className="ui-icon-inline" />
+            <strong>诊间收款（待结算 {payable.length} 笔）</strong>
+          </header>
+          <div className="doctor-completion-payment">
+            <SettlementPaymentPanel settlements={payable.map((value) => ({
+              id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
+            }))} methods={(methods.data ?? []).map((value) => ({ code: value.code, name: value.name }))}
+            orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
+            onSubmit={(command) => createPayment.mutateAsync(command)} />
           </div>
-          {statement.isPending ? <StatusBadge tone="neutral">读取中</StatusBadge>
-            : statement.data && statement.data.uninvoicedAmount > 0
-              ? <Button size="sm" variant="secondary" busy={issueInvoice.isPending}
-                onClick={() => issueInvoice.mutate()}>确认费用并生成结算单</Button> : null}
-        </header>
-        {statement.data && <EncounterFeeSummary statement={statement.data} />}
-        {statement.error && <p className="doctor-completion-note">暂无可结算费用；后续执行计费仍可在收费工作台处理。</p>}
-        {payable.length > 0 && <div className="doctor-completion-payment"><SettlementPaymentPanel settlements={payable.map((value) => ({
-          id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
-        }))} methods={(methods.data ?? []).map((value) => ({ code: value.code, name: value.name }))}
-        orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
-        onSubmit={(command) => createPayment.mutateAsync(command)} /></div>}
-      </section>
-      <section className="doctor-completion-section">
-        <header>
-          <div className="doctor-section-header">
-            <div className="doctor-section-header__tag">
-              <Icon name="roadmap" className="ui-icon-inline" />
-              <span>转归信息</span>
-            </div>
-            <strong>明确患者本次就诊去向与随访指导</strong>
+        </section>
+      )}
+      <div className="doctor-completion-workflow">
+        <section className="doctor-disposition-section">
+          <div className="doctor-disposition-section__head">
+            <Icon name="roadmap" className="ui-icon-inline" />
+            <strong>就诊转归与随访指导</strong>
           </div>
-        </header>
-        <div className="doctor-disposition-form">
-          <FormField label="就诊转归" required>
-            <select className="ui-field__control" value={dispositionCode}
-              onChange={(event) => {
-                const code = event.target.value as CompleteEncounterInput['dispositionCode']
-                setDispositionCode(code)
-                setRequestCommand(commandCode('COMPLETE', encounter.id))
-                if (code === 'FOLLOW_UP' && dispositionNote.includes('按医嘱用药')) {
-                  setDispositionNote('预约 1 周后门诊复查，带齐既往检查检验结果')
-                } else if (code === 'REFERRAL') {
-                  setDispositionNote('建议转上级医院专科进一步确诊与系统治疗')
-                } else if (code === 'ADMISSION') {
-                  setDispositionNote('病情需收治住院进一步系统诊疗，已开具入院证')
-                }
-              }}>
-              <option value="HOME">门诊离院</option>
-              <option value="FOLLOW_UP">预约复诊</option>
-              <option value="OBSERVATION">留观</option>
-              <option value="REFERRAL">转诊 / 转科</option>
-              <option value="ADMISSION">收治住院</option>
-            </select>
-          </FormField>
-          <div className="doctor-disposition-note-wrap">
-            <FormField label="转归及随访说明">
-              <textarea className="ui-field__control" maxLength={800} value={dispositionNote}
-                onChange={(event) => { setDispositionNote(event.target.value)
-                  setRequestCommand(commandCode('COMPLETE', encounter.id)) }}
-                placeholder="复诊时间、注意事项、转诊去向等" />
+          <div className="doctor-disposition-form">
+            <FormField label="就诊转归" required>
+              <select className="ui-field__control" value={dispositionCode}
+                onChange={(event) => {
+                  const code = event.target.value as CompleteEncounterInput['dispositionCode']
+                  setDispositionCode(code)
+                  setRequestCommand(commandCode('COMPLETE', encounter.id))
+                  if (code === 'FOLLOW_UP' && dispositionNote.includes('按医嘱用药')) {
+                    setDispositionNote('预约 1 周后门诊复查，带齐既往检查检验结果')
+                  } else if (code === 'REFERRAL') {
+                    setDispositionNote('建议转上级医院专科进一步确诊与系统治疗')
+                  } else if (code === 'ADMISSION') {
+                    setDispositionNote('病情需收治住院进一步系统诊疗，已开具入院证')
+                  }
+                }}>
+                <option value="HOME">门诊离院</option>
+                <option value="FOLLOW_UP">预约复诊</option>
+                <option value="OBSERVATION">留观</option>
+                <option value="REFERRAL">转诊 / 转科</option>
+                <option value="ADMISSION">收治住院</option>
+              </select>
             </FormField>
-            <div className="doctor-quick-phrases" aria-label="常用随访短语">
-              <span className="doctor-quick-phrases__label">快捷短语：</span>
-              <div className="doctor-quick-phrases__chips">
-                {quickDispositionPhrases.map((phrase) => (
-                  <button
-                    type="button"
-                    key={phrase}
-                    className="doctor-quick-phrase-chip"
-                    onClick={() => {
-                      setDispositionNote(phrase)
-                      setRequestCommand(commandCode('COMPLETE', encounter.id))
-                    }}>
-                    {phrase}
-                  </button>
-                ))}
+            <div className="doctor-disposition-note-wrap">
+              <FormField label="转归及随访说明">
+                <textarea className="ui-field__control" maxLength={800} value={dispositionNote}
+                  onChange={(event) => { setDispositionNote(event.target.value)
+                    setRequestCommand(commandCode('COMPLETE', encounter.id)) }}
+                  placeholder="复诊时间、注意事项、转诊去向等" />
+              </FormField>
+              <div className="doctor-quick-phrases" aria-label="常用随访短语">
+                <span className="doctor-quick-phrases__label">常用语</span>
+                <div className="doctor-quick-phrases__chips">
+                  {quickDispositionPhrases.map((phrase) => (
+                    <button
+                      type="button"
+                      key={phrase}
+                      className="doctor-quick-phrase-chip"
+                      onClick={() => {
+                        setDispositionNote(phrase)
+                        setRequestCommand(commandCode('COMPLETE', encounter.id))
+                      }}>
+                      {phrase}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-      <div className={`doctor-completion-checklist doctor-completion-checklist--dialog ${ready ? 'is-ready-group' : 'is-pending-group'}`} aria-label="诊毕准入核对">
-        <div className="doctor-completion-checklist__header">
-          <Icon name={ready ? 'check' : 'warning'} className="ui-icon-inline" />
-          <span>{ready ? '就诊收口准入核对已全部通过，可确认诊毕' : '诊毕前置要求核对（需全部满足后方可确认诊毕）'}</span>
-        </div>
-        <div className="doctor-completion-checklist__items">
-          <span className={`doctor-checklist-chip ${hasChiefComplaint ? 'is-ready' : 'is-missing'}`}>
-            <Icon name={hasChiefComplaint ? 'check' : 'warning'} className="ui-icon-inline" />
-            <span>主诉已保存</span>
-          </span>
-          <span className={`doctor-checklist-chip ${hasPrimaryDiagnosis ? 'is-ready' : 'is-missing'}`}>
-            <Icon name={hasPrimaryDiagnosis ? 'check' : 'warning'} className="ui-icon-inline" />
-            <span>主要诊断</span>
-          </span>
-          <span className={`doctor-checklist-chip ${signed ? 'is-ready' : 'is-missing'}`}>
-            <Icon name={signed ? 'check' : 'warning'} className="ui-icon-inline" />
-            <span>病历签署</span>
-          </span>
+        </section>
+        <div className={`doctor-completion-checklist doctor-completion-checklist--dialog ${ready ? 'is-ready-group' : 'is-pending-group'}`} aria-label="诊毕准入核对">
+          <div className="doctor-completion-checklist__header">
+            <span className="doctor-completion-checklist__title">
+              <Icon name={ready ? 'check' : 'warning'} className="ui-icon-inline" />
+              <span>诊毕前置核对</span>
+            </span>
+            <strong>{ready ? '已全部通过' : `${completedRequirementCount}/3 已完成`}</strong>
+          </div>
+          <div className="doctor-completion-checklist__items">
+            <span className={`doctor-checklist-chip ${hasChiefComplaint ? 'is-ready' : 'is-missing'}`}>
+              <Icon name={hasChiefComplaint ? 'check' : 'warning'} className="ui-icon-inline" />
+              <span>主诉已保存</span>
+            </span>
+            <span className={`doctor-checklist-chip ${hasPrimaryDiagnosis ? 'is-ready' : 'is-missing'}`}>
+              <Icon name={hasPrimaryDiagnosis ? 'check' : 'warning'} className="ui-icon-inline" />
+              <span>主要诊断</span>
+            </span>
+            <span className={`doctor-checklist-chip ${signed ? 'is-ready' : 'is-missing'}`}>
+              <Icon name={signed ? 'check' : 'warning'} className="ui-icon-inline" />
+              <span>{signed ? '病历已签署' : '病历签署'}</span>
+              {!signed && onSignNote && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  className="doctor-checklist-action-btn"
+                  busy={signing}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onSignNote()
+                  }}
+                >
+                  立即签署
+                </Button>
+              )}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -1483,7 +1526,28 @@ function NoteTemplateBar({ api, disabled, currentContent, onApply }: {
 
 export function diagnosisDraftSignature(values: DiagnosisInput[]) {
   return values.map((value) => `${value.conceptId ?? ''}|${value.diagnosisDomain ?? ''}|${value.code}|${value.display}|${value.type}`)
-    .sort().join('\n')
+    .join('\n')
+}
+
+function diagnosisKey(value: DiagnosisInput) {
+  return String(value.conceptId || `${value.diagnosisDomain}|${value.code}`)
+}
+
+export function normalizeDiagnosisOrder(values: DiagnosisInput[]) {
+  return values.map((value, index) => ({
+    ...value,
+    type: index === 0 ? 'PRIMARY' as const : 'SECONDARY' as const,
+  }))
+}
+
+export function moveDiagnosis(values: DiagnosisInput[], sourceKey: string, targetKey: string) {
+  const sourceIndex = values.findIndex((value) => diagnosisKey(value) === sourceKey)
+  const targetIndex = values.findIndex((value) => diagnosisKey(value) === targetKey)
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) return normalizeDiagnosisOrder(values)
+  const next = [...values]
+  const [moved] = next.splice(sourceIndex, 1)
+  next.splice(targetIndex, 0, moved)
+  return normalizeDiagnosisOrder(next)
 }
 
 function formatShortDate(value?: string) {
@@ -1533,16 +1597,25 @@ function formatVitalsSummary(v: {
   return items
 }
 
-function resolveMedicationPlanParent(values: MedicationRequest[], draft: MedicationPlanDraft) {
-  if (!isInfusionRoute(draft.request.routeCode, draft.routeExecutionType)) return undefined
-  const previous = values.filter((item) => item.status !== 'CANCELLED').at(-1)
-  if (previous && isInfusionRoute(previous.routeCode, previous.routeExecutionType)
-    && previous.routeCode?.trim().toUpperCase() === draft.request.routeCode?.trim().toUpperCase()
-    && previous.frequencyCode === draft.request.frequencyCode
-    && String(previous.durationValue ?? '') === String(draft.request.durationValue ?? '')) {
-    return previous.parentRequestId || previous.id
+function infusionGroupSignature(value: Pick<MedicationRequest, 'routeCode' | 'frequencyCode' | 'durationValue'>
+  | Pick<MedicationPlanDraft, 'request'>) {
+  const request = 'request' in value ? value.request : value
+  return [request.routeCode?.trim().toUpperCase(), request.frequencyCode,
+    String(request.durationValue ?? '')].join('|')
+}
+
+export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existingPrescriptions: Prescription[] = []) {
+  const totals = new Map<string, number>()
+  for (const prescription of existingPrescriptions.filter((value) => value.status === 'DRAFT')) {
+    totals.set(prescription.categoryCode, (totals.get(prescription.categoryCode) ?? 0)
+      + prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED').length)
   }
-  return undefined
+  for (const draft of drafts) totals.set(draft.categoryCode, (totals.get(draft.categoryCode) ?? 0) + 1)
+  return [...totals.entries()].map(([categoryCode, count]) => ({
+    categoryCode,
+    medicationCount: count,
+    prescriptionCount: categoryCode === 'HERBAL' ? (count > 0 ? 1 : 0) : Math.ceil(count / 5),
+  }))
 }
 
 export async function persistOrderDrafts(
@@ -1555,30 +1628,64 @@ export async function persistOrderDrafts(
   if (medDrafts.length === 0 && svcDrafts.length === 0) return
   const encId = String(encounterId)
 
-  const prescriptionByCategory = new Map<string, Prescription>()
+  const prescriptionsByCategory = new Map<string, Prescription[]>()
   const requestsByPrescription = new Map<string, MedicationRequest[]>()
   for (const value of existingPrescriptions) {
-    if (value.status === 'DRAFT') prescriptionByCategory.set(value.categoryCode, value)
+    if (value.status === 'DRAFT') {
+      const values = prescriptionsByCategory.get(value.categoryCode) ?? []
+      values.push(value)
+      prescriptionsByCategory.set(value.categoryCode, values)
+    }
     requestsByPrescription.set(value.id, [...value.medicationRequests])
   }
 
+  const infusionRoots = new Map<string, string>()
+  const infusionSignatures = new Map<string, string>()
+  for (const prescription of existingPrescriptions) {
+    for (const request of prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED'
+      && isInfusionRoute(value.routeCode, value.routeExecutionType))) {
+      const rootId = request.parentRequestId || request.id
+      infusionRoots.set(`request:${rootId}`, rootId)
+      infusionSignatures.set(`request:${rootId}`, infusionGroupSignature(request))
+    }
+  }
+
   for (const draft of medDrafts) {
-    let prescription = prescriptionByCategory.get(draft.categoryCode)
+    const categoryPrescriptions = prescriptionsByCategory.get(draft.categoryCode) ?? []
+    let prescription = draft.categoryCode === 'HERBAL'
+      ? categoryPrescriptions[0]
+      : categoryPrescriptions.find((value) => (requestsByPrescription.get(value.id) ?? [])
+          .filter((request) => request.status !== 'CANCELLED').length < 5)
     if (!prescription) {
       prescription = await api.encounters.createPrescription(
         encId,
         draft.categoryCode,
         draft.categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方'
       )
-      prescriptionByCategory.set(draft.categoryCode, prescription)
+      categoryPrescriptions.push(prescription)
+      prescriptionsByCategory.set(draft.categoryCode, categoryPrescriptions)
       requestsByPrescription.set(prescription.id, [])
     }
     const existingRequests = requestsByPrescription.get(prescription.id) ?? []
+    let parentRequestId: string | undefined
+    if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey) {
+      const signature = infusionGroupSignature(draft)
+      const existingSignature = infusionSignatures.get(draft.administrationGroupKey)
+      if (existingSignature && existingSignature !== signature) {
+        throw new Error('同一输液组的给药途径、频次和疗程必须一致')
+      }
+      parentRequestId = infusionRoots.get(draft.administrationGroupKey)
+      infusionSignatures.set(draft.administrationGroupKey, signature)
+    }
     const created = await api.encounters.createMedicationRequest(encId, {
       ...draft.request,
       prescriptionId: prescription.id,
-      parentRequestId: resolveMedicationPlanParent(existingRequests, draft),
+      parentRequestId,
     })
+    if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey
+      && !infusionRoots.has(draft.administrationGroupKey)) {
+      infusionRoots.set(draft.administrationGroupKey, created.id)
+    }
     existingRequests.push(created)
     requestsByPrescription.set(prescription.id, existingRequests)
   }
@@ -1618,9 +1725,29 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   })
   const [diagnosisSearch, setDiagnosisSearch] = useState<ClinicalResourceOption<DiseaseConcept>>()
   const [diagnosisDomainFilter, setDiagnosisDomainFilter] = useState('')
-  const [diagnosisType, setDiagnosisType] = useState<DiagnosisInput['type']>('SECONDARY')
   const [diagnoses, setDiagnoses] = useState<DiagnosisInput[]>([])
+  const [diagnosisComposerOpen, setDiagnosisComposerOpen] = useState(false)
+  const diagnosisComposerRef = useRef<HTMLDivElement>(null)
+  const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
   const [medicationDrafts, setMedicationDrafts] = useState<MedicationPlanDraft[]>([])
+
+  useEffect(() => {
+    if (!diagnosisComposerOpen) return
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node
+      const isInsideRow = diagnosisComposerRef.current?.contains(target)
+      const isInsidePopover = Boolean(
+        (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
+      )
+      if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
+        setDiagnosisComposerOpen(false)
+        setDiagnosisSearch(undefined)
+        setDiagnosisError('')
+      }
+    }
+    window.document.addEventListener('pointerdown', handlePointerDown)
+    return () => window.document.removeEventListener('pointerdown', handlePointerDown)
+  }, [diagnosisComposerOpen, diagnosisSearch])
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
   const [diagnosisError, setDiagnosisError] = useState('')
@@ -1823,9 +1950,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       })
 
       if (savedEncounter?.diagnoses?.length) {
-        setDiagnoses(savedEncounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms }) => ({
+        setDiagnoses(normalizeDiagnosisOrder(savedEncounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms }) => ({
           conceptId, diagnosisDomain, diagnosisGroupId, code, display, type, managementPrograms,
-        })))
+        }))))
       }
 
       setStructuredBaseline(structuredFormSignature(selectedNoteFormId, structuredValues))
@@ -1866,9 +1993,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       temperature: document?.content.vitalSigns?.temperature, pulseRate: document?.content.vitalSigns?.pulseRate,
       respiratoryRate: document?.content.vitalSigns?.respiratoryRate, heightCm: document?.content.vitalSigns?.heightCm,
       weightKg: document?.content.vitalSigns?.weightKg, oxygenSaturation: document?.content.vitalSigns?.oxygenSaturation })
-    setDiagnoses(encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
+    setDiagnoses(normalizeDiagnosisOrder(encounter.diagnoses.map(({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
       managementPrograms }) => ({ conceptId, diagnosisDomain, diagnosisGroupId, code, display, type,
-      managementPrograms })))
+      managementPrograms }))))
     const savedFormId = document?.content.structuredForm?.versionId ?? ''
     const savedValues = document?.content.structuredData ?? {}
     setSelectedNoteFormId(savedFormId)
@@ -1889,9 +2016,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       setDiagnoses((current) => {
         const currentCodes = new Set(current.map((item) => item.code))
         const hasPrimary = current.some((item) => item.type === 'PRIMARY')
-        return [...current, ...historyCopy.diagnoses!.filter((item) => !currentCodes.has(item.code)).map((item) => ({
+        return normalizeDiagnosisOrder([...current, ...historyCopy.diagnoses!.filter((item) => !currentCodes.has(item.code)).map((item) => ({
           ...item, type: hasPrimary && item.type === 'PRIMARY' ? 'SECONDARY' as const : item.type,
-        }))]
+        }))])
       })
     }
     setCopyNotice(`已从 ${formatTime(historyCopy.sourceRegisteredAt)}（${historyCopy.sourceEncounterNo}）带入所选内容，请核对后保存。`)
@@ -1945,7 +2072,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     }
     const diagnosesWithAi = aiDraft.diagnoses?.length
       ? mergeAiDiagnoses(diagnoses, aiDraft.diagnoses) : diagnoses
-    if (aiDraft.diagnoses?.length) setDiagnoses(diagnosesWithAi)
+    if (aiDraft.diagnoses?.length) setDiagnoses(normalizeDiagnosisOrder(diagnosesWithAi))
     if (aiDraft.planTemplate) {
       stageTemplate(aiDraft.planTemplate, diagnosesWithAi, setDiagnoses, medicationDrafts, setMedicationDrafts,
         serviceDrafts, setServiceDrafts, aiDraft.allergyOverrideReason, aiDraft.allergyReviewConfirmed === true)
@@ -1969,20 +2096,17 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       || (item.diagnosisDomain === selected.sdDiagnosisDomain && item.code === selected.code))) {
       setDiagnosisError('该诊断已经录入'); return
     }
-    const hasPrimary = diagnoses.some((d) => d.type === 'PRIMARY')
-    const targetType = (!hasPrimary || diagnosisType === 'PRIMARY') ? 'PRIMARY' : 'SECONDARY'
     const diagnosisGroupId = selected.sdDiagnosisDomain === 'WESTERN_MEDICINE'
       ? undefined : `TCM-${encounter.id}`
-    setDiagnoses((current) => [
-      ...current.map((item) => targetType === 'PRIMARY' ? { ...item, type: 'SECONDARY' as const } : item),
+    setDiagnoses((current) => normalizeDiagnosisOrder([
+      ...current,
       { conceptId: selected.id, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
-        code: selected.code, display: selected.display, type: targetType,
+        code: selected.code, display: selected.display, type: 'SECONDARY',
         managementPrograms: selected.managementPrograms.map((program) => ({ id: program.id, code: program.code,
           name: program.name, managementType: program.sdManagementType, triggerAction: program.sdTriggerAction,
           reportCardType: program.reportCardType, reportDeadlineHours: program.reportDeadlineHours })) },
-    ])
+    ]))
     setDiagnosisSearch(undefined)
-    setDiagnosisType('SECONDARY')
     setDiagnosisError('')
     window.requestAnimationFrame(() => {
       window.document.getElementById('doctor-diagnosis-composer-search')?.focus()
@@ -1993,16 +2117,17 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const weight = recordValues.weightKg
   const bmi = height && weight && Number(height) > 0 ? (Number(weight) / ((Number(height) / 100) ** 2)).toFixed(1) : undefined
 
-  useEffect(() => {
-    const hasPrimary = diagnoses.some((d) => d.type === 'PRIMARY')
-    setDiagnosisType(hasPrimary ? 'SECONDARY' : 'PRIMARY')
-  }, [diagnoses])
-
-  const makePrimary = (key: string) => setDiagnoses((current) => current.map((item) => ({
-    ...item, type: (item.conceptId || `${item.diagnosisDomain}|${item.code}`) === key ? 'PRIMARY' : 'SECONDARY',
-  })))
-  const removeDiagnosis = (key: string) => setDiagnoses((current) => current.filter((item) =>
-    (item.conceptId || `${item.diagnosisDomain}|${item.code}`) !== key))
+  const moveDiagnosisByOffset = (key: string, offset: number) => setDiagnoses((current) => {
+    const sourceIndex = current.findIndex((item) => diagnosisKey(item) === key)
+    const target = current[sourceIndex + offset]
+    return target ? moveDiagnosis(current, key, diagnosisKey(target)) : normalizeDiagnosisOrder(current)
+  })
+  const makePrimary = (key: string) => setDiagnoses((current) => {
+    const first = current[0]
+    return first ? moveDiagnosis(current, key, diagnosisKey(first)) : current
+  })
+  const removeDiagnosis = (key: string) => setDiagnoses((current) => normalizeDiagnosisOrder(current.filter((item) =>
+    diagnosisKey(item) !== key)))
   const currentNoteContent = (): OutpatientNoteTemplateContent => {
     const value = getValues()
     return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
@@ -2307,7 +2432,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             <div className="doctor-diagnosis-head" role="row">
               <span className="doctor-diag-col-type">类型</span>
               <span className="doctor-diag-col-main">诊断名称与ICD编码</span>
-              <span className="doctor-diag-col-domain">所属体系</span>
+              <span className="doctor-diag-col-domain">主次</span>
               <span className="doctor-diag-col-management">公共卫生管理 / 临床提示</span>
               {editing && !signed && <span className="doctor-diag-col-actions">操作</span>}
             </div>
@@ -2321,10 +2446,21 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             {diagnoses.map((item, index) => {
               const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
               const isPrimary = item.type === 'PRIMARY'
-              return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}`} role="row">
+              return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}${draggedDiagnosisKey === key ? ' is-dragging' : ''}`}
+                role="row" draggable={editing && !signed}
+                onDragStart={(event) => { setDraggedDiagnosisKey(String(key)); event.dataTransfer.effectAllowed = 'move' }}
+                onDragOver={(event) => { if (editing && !signed) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  if (draggedDiagnosisKey) setDiagnoses((current) => moveDiagnosis(current, draggedDiagnosisKey, String(key)))
+                  setDraggedDiagnosisKey(undefined)
+                }}
+                onDragEnd={() => setDraggedDiagnosisKey(undefined)}>
                 <span className="doctor-diag-col-type">
-                  <span className={`doctor-diag-badge ${isPrimary ? 'is-primary' : 'is-secondary'}`}>
-                    {isPrimary ? '主要诊断' : `次要 #${index + 1}`}
+                  {editing && !signed && <span className="doctor-diag-drag-handle" title="拖动调整诊断顺序"><Icon name="drag" /></span>}
+                  <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
+                    {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
+                      : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
                   </span>
                 </span>
                 <span className="doctor-diag-col-main">
@@ -2334,9 +2470,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                   </div>
                 </span>
                 <span className="doctor-diag-col-domain">
-                  <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
-                    {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
-                      : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
+                  <span className={`doctor-diag-badge ${isPrimary ? 'is-primary' : 'is-secondary'}`}>
+                    {isPrimary ? '主要诊断' : `次要 #${index}`}
                   </span>
                 </span>
                 <span className="doctor-diag-col-management">
@@ -2352,6 +2487,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                 </span>
                 {editing && !signed && (
                   <span className="doctor-diag-col-actions">
+                    <Button type="button" size="sm" variant="text" disabled={index === 0}
+                      onClick={() => moveDiagnosisByOffset(String(key), -1)} title="上移" aria-label={`上移诊断 ${item.display}`}><Icon name="chevron-up" /></Button>
+                    <Button type="button" size="sm" variant="text" disabled={index === diagnoses.length - 1}
+                      onClick={() => moveDiagnosisByOffset(String(key), 1)} title="下移" aria-label={`下移诊断 ${item.display}`}><Icon name="chevron-down" /></Button>
                     {!isPrimary && <Button type="button" size="sm" variant="text" disabled={signed}
                       onClick={() => makePrimary(key)}>设为主要</Button>}
                     <Button type="button" size="sm" variant="text" disabled={signed}
@@ -2361,68 +2500,94 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
               </div>
             })}
 
-            {editing && !signed && (
-              <div className="doctor-diagnosis-row is-active-composer" role="row"
+            {editing && !signed && !diagnosisComposerOpen && (
+              <div className="doctor-diagnosis-row is-launcher" role="row" onClick={() => {
+                setDiagnosisComposerOpen(true)
+              }}>
+                <span className="doctor-diag-col-type" />
+                <div className="doctor-diag-launcher-cell">
+                  <button type="button" className="doctor-table-launcher-btn" aria-label="新增诊断" onClick={(e) => {
+                    e.stopPropagation()
+                    setDiagnosisComposerOpen(true)
+                  }}>
+                    <Icon name="add" />
+                    <span><strong>新增诊断</strong><small>按诊断顺序连续录入</small></span>
+                  </button>
+                </div>
+                <span />
+                <span />
+                <span />
+              </div>
+            )}
+
+            {editing && !signed && diagnosisComposerOpen && (
+              <div ref={diagnosisComposerRef} className="doctor-diagnosis-row is-active-composer" role="row"
+                onBlur={(event) => {
+                  const next = event.relatedTarget as Node | null
+                  if (!next) return
+                  const isInsideRow = diagnosisComposerRef.current?.contains(next)
+                  const isInsidePopover = Boolean(
+                    (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
+                  )
+                  if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
+                    setDiagnosisComposerOpen(false)
+                    setDiagnosisSearch(undefined)
+                    setDiagnosisError('')
+                  }
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
+                  if (e.key === 'Escape' && !diagnosisSearch) {
+                    e.preventDefault()
+                    setDiagnosisSearch(undefined)
+                    setDiagnosisComposerOpen(false)
+                    setDiagnosisError('')
+                  } else if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
                     e.preventDefault()
                     addDiagnosis()
                   }
                 }}>
                 <span className="doctor-diag-col-type">
-                  <div className="doctor-diag-composer-type">
-                    <Select aria-label="诊断类型" value={diagnosisType} clearable={false} searchable={false}
+                  <div className="doctor-diag-composer-domain">
+                    <Select aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
                       disabled={signed}
+                      placeholder="全部类型"
                       options={[
-                        { value: 'PRIMARY', label: '主要诊断' },
-                        { value: 'SECONDARY', label: '次要诊断' },
+                        { value: '', label: '全部类型' },
+                        { value: 'WESTERN_MEDICINE', label: '西医诊断' },
+                        { value: 'TCM_DISEASE', label: '中医病名' },
+                        { value: 'TCM_SYNDROME', label: '中医证候' },
                       ]}
-                      onChange={(val) => setDiagnosisType(val as DiagnosisInput['type'])} />
+                      onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
                   </div>
                 </span>
                 <span className="doctor-diag-col-composer-main">
-                  <div className="doctor-diag-composer-inputs">
-                    <div className="doctor-diag-composer-domain">
-                      <Select aria-label="诊断体系" value={diagnosisDomainFilter} clearable={false} searchable={false}
-                        disabled={signed}
-                        placeholder="全部类型"
-                        options={[
-                          { value: '', label: '全部类型' },
-                          { value: 'WESTERN_MEDICINE', label: '西医诊断' },
-                          { value: 'TCM_DISEASE', label: '中医病名' },
-                          { value: 'TCM_SYNDROME', label: '中医证候' },
-                        ]}
-                        onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
-                    </div>
-                    <div className="doctor-diag-composer-search">
-                      <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
-                        resource="diagnosis" value={diagnosisSearch}
-                        filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
-                        disabled={signed}
-                        placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
-                        onChange={(option) => {
-                          if (option) {
-                            addDiagnosis(option)
-                          } else {
-                            setDiagnosisSearch(undefined)
-                            setDiagnosisError('')
-                          }
-                        }} />
-                    </div>
+                  <div className="doctor-diag-composer-search">
+                    <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
+                      resource="diagnosis" value={diagnosisSearch}
+                      defaultOpen
+                      filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
+                      disabled={signed}
+                      placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
+                      onChange={(option) => {
+                        if (option) {
+                          addDiagnosis(option)
+                        } else {
+                          setDiagnosisSearch(undefined)
+                          setDiagnosisError('')
+                        }
+                      }} />
                   </div>
                 </span>
                 <span className="doctor-diag-col-composer-hint">
+                  <span className="doctor-diag-badge is-composer">新增</span>
                   {diagnoses.length === 0 ? (
                     <span className="doctor-diag-hint is-required">接诊需至少录入一项主要诊断</span>
                   ) : (
                     <span className="doctor-diag-hint">已开立 {diagnoses.length} 项，支持连续盲打</span>
                   )}
-                </span>
-                <span className="doctor-diag-col-actions">
-                  <Button type="button" size="sm" variant="secondary" className="doctor-diag-add-btn"
-                    disabled={signed || !diagnosisSearch} onClick={() => addDiagnosis()} title="回车或点击加入诊断">
-                    加入诊断
-                  </Button>
+                  <Button type="button" size="sm" variant="text" onClick={() => {
+                    setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
+                  }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
                 </span>
               </div>
             )}
@@ -2614,9 +2779,9 @@ function stageTemplate(value: OutpatientPlanTemplate, currentDiagnoses: Diagnosi
   allergyReviewConfirmed = true) {
   const diagnosisCodes = new Set(currentDiagnoses.map((item) => item.code.toUpperCase()))
   const hasPrimary = currentDiagnoses.some((item) => item.type === 'PRIMARY')
-  setDiagnoses((current) => [...current, ...value.diagnoses
+  setDiagnoses((current) => normalizeDiagnosisOrder([...current, ...value.diagnoses
     .filter((item) => !diagnosisCodes.has(item.code.toUpperCase()))
-    .map((item) => ({ ...item, type: hasPrimary && item.type === 'PRIMARY' ? 'SECONDARY' as const : item.type }))])
+    .map((item) => ({ ...item, type: hasPrimary && item.type === 'PRIMARY' ? 'SECONDARY' as const : item.type }))]))
   const medicationKeys = new Set(currentMedications.map(medicationDraftKey))
   setMedications((current) => [...current, ...value.medications.filter((item) => !medicationKeys.has([
     item.medicationId, item.catalogItemId ?? '', item.routeCode ?? '', item.frequencyCode ?? '',
@@ -2625,6 +2790,8 @@ function stageTemplate(value: OutpatientPlanTemplate, currentDiagnoses: Diagnosi
     medicationName: item.medicationName, medicationCode: item.medicationCode,
     preparationSpec: item.preparationSpec, productName: item.productName || item.medicationName,
     routeName: item.routeName, routeExecutionType: item.routeExecutionType,
+    administrationGroupKey: item.routeExecutionType === 'INFUSION'
+      ? `draft:${globalThis.crypto.randomUUID()}` : undefined,
     request: {
       medicationId: item.medicationId, catalogItemId: item.catalogItemId, packageId: item.packageId,
       doseValue: item.doseValue, doseUnit: item.doseUnit, routeCode: item.routeCode,
@@ -2716,6 +2883,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
   const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
+  const splitSummary = prescriptionSplitSummary(medicationDrafts, prescriptions.data ?? [])
   const error = prescriptions.error || services.error || medications.error
     || cancelService.error || cancelMedication.error || confirmPlan.error || saveDraftOrders.error
 
@@ -2752,6 +2920,9 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
         <div><span>西药 / 中成药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'regular').length} 条</strong></div>
         <div><span>草药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'herbal').length} 条</strong></div>
         <div><span>检验检查与治疗</span><strong>{serviceDrafts.length} 条</strong></div>
+        {splitSummary.length > 0 && <p className="doctor-prescription-split-summary">
+          预计处方：{splitSummary.map((item) => `${prescriptionCategoryLabel(item.categoryCode)} ${item.medicationCount} 种 / ${item.prescriptionCount} 张`).join('；')}
+        </p>}
         {persistedDraftCount > 0 && <p>已有待提交医嘱 {persistedDraftCount} 条</p>}
       </div>
     </Dialog>}
@@ -2886,43 +3057,6 @@ function HistoricalReprintDialog({ api, record, onReprinted, onClose }: {
   </Dialog>
 }
 
-function EncounterFeeSummary({ statement, showCharges = false }: {
-  statement: import('../../shared/api/billingApi').AccountStatement; showCharges?: boolean
-}) {
-  const outstanding = statement.settlements.reduce((sum, value) => sum + Math.max(0, value.outstandingAmount), 0)
-  return <div className="doctor-fee-summary">
-    <div className="doctor-fee-summary__totals">
-      <div className="doctor-fee-stat">
-        <span className="doctor-fee-stat__label">费用合计</span>
-        <strong className="doctor-fee-stat__value">{money(statement.chargeAmount, statement.currencyCode)}</strong>
-        <small className="doctor-fee-stat__hint">本次发生全部费用</small>
-      </div>
-      <div className="doctor-fee-stat is-paid">
-        <span className="doctor-fee-stat__label">已支付</span>
-        <strong className="doctor-fee-stat__value">{money(statement.paymentAmount, statement.currencyCode)}</strong>
-        <small className="doctor-fee-stat__hint">已成功缴费结算</small>
-      </div>
-      <div className="doctor-fee-stat">
-        <span className="doctor-fee-stat__label">未开票</span>
-        <strong className="doctor-fee-stat__value">{money(statement.uninvoicedAmount, statement.currencyCode)}</strong>
-        <small className="doctor-fee-stat__hint">待开发票明细</small>
-      </div>
-      <div className={`doctor-fee-stat ${outstanding > 0 ? 'is-warning' : 'is-settled'}`}>
-        <span className="doctor-fee-stat__label">待支付</span>
-        <strong className="doctor-fee-stat__value">
-          {money(outstanding, statement.currencyCode)}
-        </strong>
-        <small className="doctor-fee-stat__hint">{outstanding > 0 ? '待收银结算' : '已全部结清'}</small>
-      </div>
-    </div>
-    {showCharges && <div className="doctor-fee-lines">
-      {statement.charges.length === 0 ? <p>尚无费用项目</p> : statement.charges.map((value) => <div key={value.id}>
-        <span><strong>{value.itemName}</strong><small>{value.itemCode} · {value.quantity} {value.unitCode}</small></span>
-        <strong>{money(value.totalAmount, statement.currencyCode)}</strong>
-      </div>)}
-    </div>}
-  </div>
-}
 
 function money(value: number, currencyCode = 'CNY') {
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: currencyCode,

@@ -16,6 +16,7 @@ export type IconName =
   | 'close'
   | 'error'
   | 'credential'
+  | 'drag'
   | 'face'
   | 'fullscreen'
   | 'home'
@@ -67,6 +68,7 @@ function iconPath(name: IconName) {
     case 'close': return <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>
     case 'error': return <><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>
     case 'credential': return <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M9 6h6M8 17h8" /><path d="m9 13 2 2 4-4" /></>
+    case 'drag': return <><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" /></>
     case 'face': return <><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="9" cy="10" r=".5" /><circle cx="15" cy="10" r=".5" /><path d="M8.5 14a5 5 0 0 0 7 0" /></>
     case 'fullscreen': return <><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></>
     case 'home': return <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>

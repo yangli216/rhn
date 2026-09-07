@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { diagnosisDraftSignature, draftStateLabels, mergeNoteTemplateContent,
-  prescriptionCategoryLabel, printPurposeLabel, structuredFormSignature, validateStructuredForm,
+  moveDiagnosis, normalizeDiagnosisOrder, prescriptionCategoryLabel, printPurposeLabel, structuredFormSignature, validateStructuredForm,
   type NoteTemplateField } from './DoctorWorkstation'
 import { canPrintPrescription } from './PrescriptionListEditor'
 import type { OutpatientNoteForm } from '../../shared/api/outpatientNoteFormsApi'
@@ -40,12 +40,24 @@ describe('患者切换草稿保护', () => {
     ])
   })
 
-  it('诊断比较不受展示顺序影响，但能识别类型和名称调整', () => {
+  it('诊断比较能识别排序、类型和名称调整', () => {
     const baseline = [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' as const },
       { code: 'R42', display: '头晕', type: 'SECONDARY' as const }]
-    expect(diagnosisDraftSignature([...baseline].reverse())).toBe(diagnosisDraftSignature(baseline))
+    expect(diagnosisDraftSignature([...baseline].reverse())).not.toBe(diagnosisDraftSignature(baseline))
     expect(diagnosisDraftSignature([{ ...baseline[0], type: 'SECONDARY' }]))
       .not.toBe(diagnosisDraftSignature([baseline[0]]))
+  })
+
+  it('首项始终归一化为主要诊断，拖动后同步更新诊断类型', () => {
+    const baseline = normalizeDiagnosisOrder([
+      { code: 'I10', display: '原发性高血压', type: 'SECONDARY' as const },
+      { code: 'R42', display: '头晕', type: 'PRIMARY' as const },
+    ])
+    expect(baseline.map((item) => item.type)).toEqual(['PRIMARY', 'SECONDARY'])
+    const moved = moveDiagnosis(baseline, 'undefined|R42', 'undefined|I10')
+    expect(moved.map((item) => [item.code, item.type])).toEqual([
+      ['R42', 'PRIMARY'], ['I10', 'SECONDARY'],
+    ])
   })
 })
 

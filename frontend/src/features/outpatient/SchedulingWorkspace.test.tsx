@@ -121,6 +121,7 @@ describe('SchedulingWorkspace', () => {
 })
 
   it('renders weekly matrix grid and handles week navigation correctly', async () => {
+    const todayIso = new Date().toISOString().slice(0, 10)
     const api = {
       scheduling: {
         bootstrap: vi.fn().mockResolvedValue({
@@ -136,11 +137,11 @@ describe('SchedulingWorkspace', () => {
           {
             id: 'schedule-1',
             scheduleCode: 'SCH001',
-            serviceDate: '2026-09-03',
+            serviceDate: todayIso,
             sdDayPart: 'MORNING',
             sdDayPartText: '上午',
-            startAt: '2026-09-03T08:00:00',
-            endAt: '2026-09-03T12:00:00',
+            startAt: `${todayIso}T08:00:00`,
+            endAt: `${todayIso}T12:00:00`,
             sdRegistrationScope: 'PRACTITIONER',
             sdRegistrationScopeText: '医生号',
             practitionerId: 'doctor-1',

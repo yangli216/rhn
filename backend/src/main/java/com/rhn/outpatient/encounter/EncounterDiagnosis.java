@@ -39,6 +39,8 @@ class EncounterDiagnosis {
     private String diagnosisDomain;
     @Column(name = "ID_DIAG_GRP")
     private String diagnosisGroupId;
+    @Column(name = "SN_SORT", nullable = false)
+    private int sortOrder;
     @Column(name = "JSON_MGMT_SNAP")
     private String managementSnapshotJson;
     @Enumerated(EnumType.STRING)
@@ -82,6 +84,15 @@ class EncounterDiagnosis {
                        String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
                        String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
                        String verificationStatus, String managementSnapshotJson, Long updatedBy) {
+        this(tenantId, encounterId, diagnosisStage, conceptId, codeSystemCode, codeSystemVersion,
+                diagnosisDomain, diagnosisGroupId, code, display, diagnosisType, verificationStatus,
+                managementSnapshotJson, 1, updatedBy);
+    }
+
+    EncounterDiagnosis(Long tenantId, Long encounterId, String diagnosisStage, Long conceptId,
+                       String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
+                       String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
+                       String verificationStatus, String managementSnapshotJson, int sortOrder, Long updatedBy) {
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
         this.encounterId = encounterId;
@@ -91,6 +102,7 @@ class EncounterDiagnosis {
         this.codeSystemVersionSnapshot = codeSystemVersion;
         this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
         this.diagnosisGroupId = diagnosisGroupId;
+        this.sortOrder = sortOrder;
         this.code = code;
         this.display = display;
         this.managementSnapshotJson = managementSnapshotJson;
@@ -115,11 +127,19 @@ class EncounterDiagnosis {
     void revise(Long conceptId, String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
                 String diagnosisGroupId, String display, DiagnosisType type, String verificationStatus,
                 String managementSnapshotJson, Long actor) {
+        revise(conceptId, codeSystemCode, codeSystemVersion, diagnosisDomain, diagnosisGroupId, display,
+                type, verificationStatus, managementSnapshotJson, sortOrder, actor);
+    }
+
+    void revise(Long conceptId, String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
+                String diagnosisGroupId, String display, DiagnosisType type, String verificationStatus,
+                String managementSnapshotJson, int sortOrder, Long actor) {
         this.conceptId = conceptId;
         this.codeSystemCodeSnapshot = codeSystemCode;
         this.codeSystemVersionSnapshot = codeSystemVersion;
         this.diagnosisDomain = diagnosisDomain == null ? "WESTERN_MEDICINE" : diagnosisDomain;
         this.diagnosisGroupId = diagnosisGroupId;
+        this.sortOrder = sortOrder;
         this.display = display;
         this.diagnosisType = type;
         this.verificationStatus = verificationStatus;
@@ -148,6 +168,7 @@ class EncounterDiagnosis {
     String codeSystemVersionSnapshot() { return codeSystemVersionSnapshot; }
     String diagnosisDomain() { return diagnosisDomain; }
     String diagnosisGroupId() { return diagnosisGroupId; }
+    int sortOrder() { return sortOrder; }
     String managementSnapshotJson() { return managementSnapshotJson; }
     String terminologyKey() { return (codeSystemCodeSnapshot == null ? "LEGACY" : codeSystemCodeSnapshot) + "|" + code; }
     DiagnosisType diagnosisType() { return diagnosisType; }

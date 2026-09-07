@@ -532,7 +532,9 @@ describe('DoctorWorkstation reception flow', () => {
     await user.type(tempInput, '36.8')
 
     // 3. 录入主要诊断
-    const diagTrigger = screen.getByText(/检索并选择主要诊断/)
+    const addDiagBtn = screen.getByRole('button', { name: /新增诊断/ })
+    await user.click(addDiagBtn)
+    const diagTrigger = await screen.findByText(/检索并选择主要诊断/)
     await user.click(diagTrigger)
     const searchInput = await screen.findByPlaceholderText('输入诊断名称、编码或拼音码')
     await user.type(searchInput, '高血压')
@@ -642,6 +644,80 @@ describe('DoctorWorkstation reception flow', () => {
     }))
   })
 
+  it('automatically splits the sixth regular medication into a second prescription', async () => {
+    const api = createMockApi()
+    let prescriptionSequence = 0
+    const createPrescription = vi.fn().mockImplementation(async (_encounterId, categoryCode) => ({
+      id: `rx-${++prescriptionSequence}`, categoryCode, status: 'DRAFT', medicationRequests: [],
+    }))
+    const createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
+      ...input, id: `mr-${createMedicationRequest.mock.calls.length}`, status: 'DRAFT',
+    }))
+    api.encounters.createPrescription = createPrescription
+    api.encounters.createMedicationRequest = createMedicationRequest
+    const drafts = Array.from({ length: 6 }, (_, index) => ({
+      id: `draft-${index}`, categoryCode: 'WESTERN', routeExecutionType: 'NONE',
+      request: { medicationId: `m-${index}`, routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 3,
+        quantity: 1, substitutionAllowed: true, selfProvided: false },
+    })) as any
+
+    await persistOrderDrafts('enc-1', drafts, [], api, [])
+
+    expect(createPrescription).toHaveBeenCalledTimes(2)
+    expect(createMedicationRequest.mock.calls.slice(0, 5).every(([, input]) => input.prescriptionId === 'rx-1')).toBe(true)
+    expect(createMedicationRequest.mock.calls[5][1].prescriptionId).toBe('rx-2')
+  })
+
+  it('keeps more than five herbal ingredients in one separate herbal prescription', async () => {
+    const api = createMockApi()
+    let prescriptionSequence = 0
+    const createPrescription = vi.fn().mockImplementation(async (_encounterId, categoryCode) => ({
+      id: `rx-${++prescriptionSequence}`, categoryCode, status: 'DRAFT', medicationRequests: [],
+    }))
+    api.encounters.createPrescription = createPrescription
+    api.encounters.createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
+      ...input, id: globalThis.crypto.randomUUID(), status: 'DRAFT',
+    }))
+    const drafts = [
+      ...Array.from({ length: 2 }, (_, index) => ({ id: `western-${index}`, categoryCode: 'WESTERN' })),
+      ...Array.from({ length: 6 }, (_, index) => ({ id: `herbal-${index}`, categoryCode: 'HERBAL' })),
+    ].map((draft) => ({ ...draft, routeExecutionType: 'NONE', request: {
+      medicationId: draft.id, routeCode: 'ORAL', frequencyCode: 'BID', durationValue: 7,
+      quantity: 1, substitutionAllowed: true, selfProvided: false,
+    } })) as any
+
+    await persistOrderDrafts('enc-1', drafts, [], api, [])
+
+    expect(createPrescription.mock.calls.map((call) => call[1])).toEqual(['WESTERN', 'HERBAL'])
+  })
+
+  it('persists explicit infusion group roots and rejects incompatible same-group usage', async () => {
+    const api = createMockApi()
+    api.encounters.createPrescription = vi.fn().mockResolvedValue({
+      id: 'rx-iv', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [],
+    })
+    const createMedicationRequest = vi.fn().mockImplementation(async (_encounterId, input) => ({
+      ...input, id: `mr-${createMedicationRequest.mock.calls.length}`, status: 'DRAFT',
+    }))
+    api.encounters.createMedicationRequest = createMedicationRequest
+    const infusion = (id: string, group: string, frequencyCode = 'QD') => ({
+      id, categoryCode: 'WESTERN', routeExecutionType: 'INFUSION', administrationGroupKey: group,
+      request: { medicationId: id, routeCode: 'IV', frequencyCode, durationValue: 1,
+        quantity: 1, substitutionAllowed: true, selfProvided: false },
+    }) as any
+
+    await persistOrderDrafts('enc-1', [infusion('m-1', 'draft:one'), infusion('m-2', 'draft:one'),
+      infusion('m-3', 'draft:two')], [], api, [])
+
+    expect(createMedicationRequest.mock.calls[0][1].parentRequestId).toBeUndefined()
+    expect(createMedicationRequest.mock.calls[1][1].parentRequestId).toBe('mr-1')
+    expect(createMedicationRequest.mock.calls[2][1].parentRequestId).toBeUndefined()
+
+    await expect(persistOrderDrafts('enc-2', [infusion('m-4', 'draft:conflict'),
+      infusion('m-5', 'draft:conflict', 'BID')], [], api, [])).rejects
+      .toThrow('同一输液组的给药途径、频次和疗程必须一致')
+  })
+
   it('renders friendly completion dialog with 4-metric fee card, quick phrase chips, and standardized checklist icons', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
@@ -693,4 +769,3 @@ describe('DoctorWorkstation reception flow', () => {
     expect(checklist.textContent).not.toContain('○')
   })
 })
-

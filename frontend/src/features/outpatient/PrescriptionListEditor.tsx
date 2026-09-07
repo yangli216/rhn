@@ -40,8 +40,13 @@ export interface MedicationPlanDraft {
   medicationCode: string
   preparationSpec?: string
   productName: string
+  productSpec?: string
+  manufacturerName?: string
+  unitPrice?: number
+  currencyCode?: string
   routeName?: string
   routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+  administrationGroupKey?: string
   stockSiteName?: string
   availablePackageQuantity?: number
   packageUnitName?: string

@@ -52,6 +52,7 @@ export interface Diagnosis extends RequiredFields<Contract['DiagnosisResponse'],
   code: string
   display: string
   type: 'PRIMARY' | 'SECONDARY'
+  sortOrder?: number
   managementPrograms?: Array<{
     id: string
     code: string

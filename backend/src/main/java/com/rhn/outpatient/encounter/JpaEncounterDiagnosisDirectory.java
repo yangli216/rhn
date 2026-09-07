@@ -26,7 +26,7 @@ public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirecto
     @Override
     @Transactional(readOnly = true)
     public List<DiagnosisSnapshot> findActiveDiagnoses(Long tenantId, Long encounterId, String diagnosisStage) {
-        return diagnoses.findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+        return diagnoses.findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         tenantId, encounterId, diagnosisStage, "ACTIVE").stream()
                 .map(value -> new DiagnosisSnapshot(value.id(), value.encounterId(), value.diagnosisStage(),
                         value.code(), value.display(), value.diagnosisType().name(),
@@ -38,29 +38,36 @@ public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirecto
     @Transactional
     public List<DiagnosisSnapshot> replaceActiveDiagnoses(ReplaceDiagnosesCommand command) {
         List<EncounterDiagnosis> existing = diagnoses
-                .findByTenantIdAndEncounterIdAndDiagnosisStageOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
                         command.tenantId(), command.encounterId(), command.diagnosisStage());
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
                 EncounterDiagnosis::code, Function.identity(), (left, right) -> left, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
         List<EncounterDiagnosisRevision> changes = new java.util.ArrayList<>();
-        for (DiagnosisInput input : command.diagnoses()) {
+        for (int index = 0; index < command.diagnoses().size(); index++) {
+            DiagnosisInput input = command.diagnoses().get(index);
+            int sortOrder = index + 1;
             incomingCodes.add(input.code());
             EncounterDiagnosis diagnosis = byCode.get(input.code());
             EncounterDiagnosis.DiagnosisType type = EncounterDiagnosis.DiagnosisType.valueOf(input.diagnosisType());
             String changeType;
             if (diagnosis == null) {
                 diagnosis = diagnoses.save(new EncounterDiagnosis(command.tenantId(), command.encounterId(),
-                        command.diagnosisStage(), input.code(), input.display(), type,
-                        input.verificationStatus(), command.userId()));
+                        command.diagnosisStage(), null, null, null, "WESTERN_MEDICINE", null,
+                        input.code(), input.display(), type, input.verificationStatus(), null,
+                        sortOrder, command.userId()));
                 changeType = "ADDED";
             } else if ("ACTIVE".equals(diagnosis.diagnosisStatus())
                     && input.display().equals(diagnosis.display()) && type == diagnosis.diagnosisType()
-                    && input.verificationStatus().equals(diagnosis.verificationStatus())) {
+                    && input.verificationStatus().equals(diagnosis.verificationStatus())
+                    && sortOrder == diagnosis.sortOrder()) {
                 continue;
             } else {
                 changeType = "ACTIVE".equals(diagnosis.diagnosisStatus()) ? "UPDATED" : "RESTORED";
-                diagnosis.revise(input.display(), type, input.verificationStatus(), command.userId());
+                diagnosis.revise(diagnosis.conceptId(), diagnosis.codeSystemCodeSnapshot(),
+                        diagnosis.codeSystemVersionSnapshot(), diagnosis.diagnosisDomain(),
+                        diagnosis.diagnosisGroupId(), input.display(), type, input.verificationStatus(),
+                        diagnosis.managementSnapshotJson(), sortOrder, command.userId());
             }
             changes.add(new EncounterDiagnosisRevision(diagnosis, changeType, command.changeReason(),
                     command.practitionerId(), command.userId()));
@@ -75,7 +82,7 @@ public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirecto
         diagnoses.flush();
         revisions.saveAll(changes);
         revisions.flush();
-        return diagnoses.findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+        return diagnoses.findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         command.tenantId(), command.encounterId(), command.diagnosisStage(), "ACTIVE").stream()
                 .map(value -> new DiagnosisSnapshot(value.id(), value.encounterId(), value.diagnosisStage(),
                         value.code(), value.display(), value.diagnosisType().name(),

@@ -666,6 +666,7 @@ input[type="checkbox"]:disabled {
 .ui-remote-search__option {
   width: 100%;
   min-height: 3.25rem;
+  height: auto;
   padding: var(--space-2) var(--space-3);
   display: flex;
   align-items: center;
@@ -700,7 +701,7 @@ input[type="checkbox"]:disabled {
 }
 .ui-remote-search__option-main { min-width: 0; flex: 1 1 auto; display: grid; gap: .1875rem; overflow: hidden; }
 .ui-remote-search__option-main strong { overflow: hidden; font-weight: var(--font-weight-semibold); text-overflow: ellipsis; white-space: nowrap; }
-.ui-remote-search__option-main small { min-width: 0; display: flex; align-items: center; gap: var(--space-2); overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.ui-remote-search__option-main small { min-width: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; line-height: 1.4; color: var(--color-text-secondary); font-size: var(--font-size-small); word-break: break-word; }
 .ui-remote-search__option-main small > span { flex: 0 0 auto; padding: 0 var(--space-1); border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .ui-remote-search__option-code { min-width: 6rem; max-width: 40%; flex: 0 1 auto; display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); overflow: hidden; color: var(--color-text-disabled); }
 .ui-remote-search__option-code code { min-width: 0; overflow: hidden; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); font-weight: var(--font-weight-regular); text-align: right; text-overflow: ellipsis; white-space: nowrap; }

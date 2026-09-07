@@ -39,6 +39,7 @@ interface SelectBaseProps {
   pinyinSearch?: boolean
   showValue?: boolean
   popoverMinWidth?: number
+  onSelectionCommit?: (option?: SelectOption) => void
   'aria-label'?: string
   'aria-describedby'?: string
   'aria-invalid'?: boolean | 'false' | 'true'
@@ -76,6 +77,7 @@ export function Select(props: SelectProps) {
     noResultsText = '未找到匹配的选项',
     pinyinSearch = true,
     showValue = false,
+    onSelectionCommit,
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedBy,
     'aria-invalid': ariaInvalid,
@@ -201,6 +203,7 @@ export function Select(props: SelectProps) {
     props.onChange?.(option.value, option)
     setOpen(false)
     triggerRef.current?.focus()
+    onSelectionCommit?.(option)
   }
 
   function clearSelection() {

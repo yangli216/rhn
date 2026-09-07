@@ -167,6 +167,7 @@ export interface MedicationRequest {
   medicationCode: string
   medicationName: string
   medicationType: string
+  manufacturerName?: string
   doseForm?: string
   preparationSpec?: string
   preparationUnit?: string

@@ -41,7 +41,7 @@ public record EncounterResponse(
 
     public record DiagnosisResponse(Long conceptId, String systemCode, String systemVersion,
                                     String diagnosisDomain, String diagnosisGroupId,
-                                    String code, String display, String type,
+                                    String code, String display, String type, int sortOrder,
                                     List<ManagementProgramResponse> managementPrograms) {}
 
     public record ManagementProgramResponse(Long id, String code, String name, String managementType,

@@ -958,10 +958,18 @@ const attachmentQuantityLabel = (value: ExaminationAttachmentConfiguration['quan
 const tubeSharingModeLabel = (value: SpecimenConfiguration['tubeSharingMode']) => ({ SEPARATE: '独立分管', SHARE: '同组共管', BY_TEST_COUNT: '按项目数拆管' }[value])
 const chargeSourceLabel = (value: string) => ({ BASE_SERVICE: '主项目', MULTI_SITE_FIXED: '多部位固定加收', MULTI_SITE_ITEM: '多部位加收项目', ATTACHMENT: '附加收费规则', TUBE_SURCHARGE: '试管加收' }[value] ?? value)
 
-function FormDialog({ title, description, onClose, onSubmit, children }: { title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void; children: ReactNode }) {
-  return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size="wide" onClose={onClose}>
-    <form className="master-data-dialog-form" onSubmit={onSubmit}><div className="master-data-form-grid master-data-form-grid--2">{children}</div>
-      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div></form>
+function FormDialog({
+  title, description, onClose, onSubmit, size = 'wide', className = '',
+  gridClassName = 'master-data-form-grid--2', children,
+}: {
+  title: string; description: string; onClose: () => void; onSubmit: (e: FormEvent) => void
+  size?: 'default' | 'wide' | 'xwide'; className?: string; gridClassName?: string; children: ReactNode
+}) {
+  return <Dialog title={title} eyebrow="基础数据 · 运营配置" description={description} size={size} className={className} onClose={onClose}>
+    <form className="master-data-dialog-form" onSubmit={onSubmit}>
+      <div className={`master-data-form-grid ${gridClassName}`}>{children}</div>
+      <div className="ui-form-actions"><Button variant="secondary" onClick={onClose} type="button">取消</Button><Button type="submit">保存</Button></div>
+    </form>
   </Dialog>
 }
 function Check({ label, checked, disabled = false, onChange }: { label: string; checked: boolean; disabled?: boolean; onChange: (v: boolean) => void }) {
@@ -2153,6 +2161,14 @@ function SupplyDialog({ value, units, manufacturers, onClose, onSave }: {
   </FormDialog>
 }
 
+const USAGE_TYPE_OPTIONS = [
+  { value: '', label: '全院通用（不限场景）' },
+  { value: 'OUTPATIENT', label: '门诊业务 (OUTPATIENT)' },
+  { value: 'INPATIENT', label: '住院业务 (INPATIENT)' },
+  { value: 'EMERGENCY', label: '急诊业务 (EMERGENCY)' },
+  { value: 'HEALTH_CHECK', label: '体检业务 (HEALTH_CHECK)' },
+]
+
 function GroupDialog({ api, value, services, organization, units, onClose, onSave }: {
   api?: RhnApi; value?: ItemGroup; services: ServiceCatalogItem[]
   organization: Organization; units: UnitDefinition[]; onClose: () => void
@@ -2175,6 +2191,12 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
   const [search, setSearch] = useState('')
   const [tubePlan, setTubePlan] = useState<LaboratoryTubePlan>()
   const [loadingTubePlan, setLoadingTubePlan] = useState(false)
+
+  const usageOptions = useMemo(() => {
+    const exists = USAGE_TYPE_OPTIONS.some((opt) => opt.value === usageType)
+    if (!usageType || exists) return USAGE_TYPE_OPTIONS
+    return [...USAGE_TYPE_OPTIONS, { value: usageType, label: `${usageType} (自定义)` }]
+  }, [usageType])
 
   const available = services.filter((v) =>
     type === 'LIS' ? v.sdServiceType === 'LABORATORY' : type === 'PACS' ? v.sdServiceType === 'EXAMINATION' : true)
@@ -2220,16 +2242,19 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
 
   const tubeColor = (group: LaboratoryTubePlan['groups'][number]) => {
     const text = `${group.containerName || ''} ${group.groupCode || ''}`.toUpperCase()
-    if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return '#eab308'
-    if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return '#a855f7'
-    if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return '#0ea5e9'
-    if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return '#64748b'
-    if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return '#ef4444'
-    return '#3b82f6'
+    if (text.includes('促凝') || text.includes('BIOCHEM') || text.includes('黄')) return 'var(--color-warning)'
+    if (text.includes('EDTA') || text.includes('HEMATOLOGY') || text.includes('紫')) return 'var(--color-violet)'
+    if (text.includes('枸橼酸') || text.includes('COAGULATION') || text.includes('蓝')) return 'var(--color-info)'
+    if (text.includes('氟化钠') || text.includes('GLUCOSE') || text.includes('灰')) return 'var(--color-neutral)'
+    if (text.includes('干燥') || text.includes('IMMUNO') || text.includes('红')) return 'var(--color-danger)'
+    return 'var(--color-brand-primary)'
   }
 
   return <FormDialog title={value ? '编辑项目组套' : '新增项目组套'}
     description="专业维护检验/检查组合项目与组套；支持双栏智能穿梭选择，并提供实时采血分管与加收透视。"
+    size="xwide"
+    className="group-dialog-modal"
+    gridClassName="master-data-form-grid--4"
     onClose={onClose} onSubmit={(e) => {
       e.preventDefault()
       onSave({
@@ -2258,16 +2283,17 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
         { value: 'ORDER_SET', label: '常用组合项目' }, { value: 'PACKAGE', label: '项目包' },
       ]} />
     </FormField>
+    <FormField label="状态">
+      <Select value={status} onChange={(v) => setStatus(v as 'ACTIVE' | 'INACTIVE')} options={activeStatus} />
+    </FormField>
+
     <FormField label="适用范围">
       <Select value={scope} onChange={setScope} options={[
         { value: 'TENANT', label: '租户通用' }, { value: 'ORGANIZATION', label: organization.name },
       ]} />
     </FormField>
     <FormField label="使用场景">
-      <input value={usageType} onChange={(e) => setUsageType(e.target.value)} placeholder="例如：门诊、住院、体检" />
-    </FormField>
-    <FormField label="状态">
-      <Select value={status} onChange={(v) => setStatus(v as 'ACTIVE' | 'INACTIVE')} options={activeStatus} />
+      <Select value={usageType} onChange={setUsageType} options={usageOptions} />
     </FormField>
     <FormField label="生效日期" required>
       <input type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} />
@@ -2275,19 +2301,30 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
     <FormField label="失效日期">
       <input type="date" min={validFrom} value={validTo} onChange={(e) => setValidTo(e.target.value)} />
     </FormField>
-    <Check label="院内快速检测组套（POCT）" checked={pointOfCare} onChange={setPointOfCare} />
 
-    {/* 双栏穿梭选择器 */}
-    <div className="span-2 group-transfer-wrap">
+    <div className="span-4 group-meta-options">
+      <Check label="院内快速检测组套（POCT / 床旁即时检验）" checked={pointOfCare} onChange={setPointOfCare} />
+      <span className="group-meta-hint">勾选后标记为 POCT 床旁快检，在临床开立时将自动匹配即时检验路径</span>
+    </div>
+
+    {/* 双栏智能穿梭选择器 */}
+    <div className="span-4 group-transfer-wrap">
       {/* 左栏：备选库 */}
-      <div className="group-transfer-pane">
+      <div className="group-transfer-pane group-transfer-pane--source">
         <div className="group-transfer-pane__header">
           <div className="group-transfer-pane__title">
-            <span>备选项目库（{filtered.length}/{available.length}）</span>
-            <small>{type === 'LIS' ? '仅显示检验项目' : type === 'PACS' ? '仅显示检查项目' : '诊疗目录'}</small>
+            <div className="group-transfer-pane__label">
+              <span>备选项目库</span>
+              <span className="group-count-badge">{filtered.length}/{available.length}</span>
+            </div>
+            <span className="group-type-tag">{type === 'LIS' ? '仅显示检验项目' : type === 'PACS' ? '仅显示检查项目' : '诊疗目录'}</span>
           </div>
-          <input className="group-transfer-pane__search" placeholder="输入项目名称或编码过滤…"
-            value={search} onChange={(e) => setSearch(e.target.value)} />
+          <div className="group-transfer-search-box">
+            <Icon name="search" className="group-search-icon" />
+            <input className="group-transfer-pane__search" placeholder="输入项目名称或编码过滤…"
+              value={search} onChange={(e) => setSearch(e.target.value)} />
+            {search && <button type="button" className="group-search-clear" aria-label="清空搜索" onClick={() => setSearch('')}>×</button>}
+          </div>
         </div>
         <div className="group-transfer-catalog">
           {filtered.map((service) => {
@@ -2296,45 +2333,59 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
               <div key={service.id}
                 className={`group-transfer-catalog__item${isSelected ? ' is-selected' : ''}`}
                 onClick={() => toggle(service.id)}>
-                <div>
-                  <strong>{service.name}</strong>
-                  <code>{service.code} {service.chargeable ? '· 收费' : '· 不收费'}</code>
+                <div className="group-catalog-info">
+                  <strong className="group-catalog-name" title={service.name}>{service.name}</strong>
+                  <div className="group-catalog-meta">
+                    <code>{service.code}</code>
+                    <span className={`item-charge-tag ${service.chargeable ? 'item-charge-tag--charge' : ''}`}>
+                      {service.chargeable ? '收费' : '不收费'}
+                    </span>
+                  </div>
                 </div>
-                <Button size="sm" variant={isSelected ? 'secondary' : 'primary'} type="button">
+                <Button size="sm" variant={isSelected ? 'secondary' : 'primary'} type="button" className="group-catalog-btn">
                   {isSelected ? '移出' : '加入'}
                 </Button>
               </div>
             )
           })}
-          {!filtered.length && <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>未找到匹配项目</div>}
+          {!filtered.length && <div className="group-transfer-empty">未找到匹配项目</div>}
         </div>
       </div>
 
       {/* 右栏：已选成员与执行参数 */}
-      <div className="group-transfer-pane">
+      <div className="group-transfer-pane group-transfer-pane--target">
         <div className="group-transfer-pane__header">
           <div className="group-transfer-pane__title">
-            <span>已选组套成员（{selected.length} 项）</span>
-            {selected.length > 0 && <Button size="sm" variant="text" type="button" onClick={() => setSelected([])}>清空已选</Button>}
+            <div className="group-transfer-pane__label">
+              <span>已选组套成员</span>
+              <span className="group-count-badge group-count-badge--primary">{selected.length} 项</span>
+            </div>
+            {selected.length > 0 && (
+              <Button size="sm" variant="text" type="button" className="group-clear-btn" onClick={() => setSelected([])}>
+                清空已选
+              </Button>
+            )}
           </div>
-          <small>配置各成员在开立时的默认数量、单位及必选约束</small>
+          <small className="group-transfer-pane__subtitle">配置各成员在开立时的默认数量、开立单位、必选约束及开嘱备注</small>
         </div>
         <div className="group-transfer-members">
           {selected.length === 0 ? (
-            <div style={{ padding: 'var(--space-6)', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-              请在左侧点击“加入”选定组套明细项目
+            <div className="group-transfer-empty-prompt">
+              <Icon name="clinical" className="empty-prompt-icon" />
+              <p>请在左侧点击“加入”选定组套明细项目</p>
+              <small>支持多项目合并开立，配置默认执行数量与单位约束</small>
             </div>
           ) : (
             <div className="group-member-table-wrap">
               <table className="group-member-table">
                 <thead>
                   <tr>
-                    <th>项目信息</th>
-                    <th style={{ width: '5.5rem' }}>默认数量</th>
-                    <th style={{ width: '7.5rem' }}>开立单位</th>
-                    <th style={{ width: '4.5rem' }}>必选</th>
-                    <th>说明备注</th>
-                    <th style={{ width: '3.5rem' }}>操作</th>
+                    <th className="th-item-info">项目信息</th>
+                    <th className="th-quantity">默认数量</th>
+                    <th className="th-unit">开立单位</th>
+                    <th className="th-required">必选</th>
+                    <th className="th-desc">说明备注</th>
+                    <th className="th-actions">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2343,27 +2394,36 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
                     const config = memberConfig[id] ?? { quantity: '1', unitCode: '', requiredMember: true, memberDescription: '' }
                     return (
                       <tr key={id}>
-                        <td>
-                          <strong>{service?.name || id}</strong>
-                          <code>{service?.code}</code>
+                        <td className="td-item-info">
+                          <div className="group-member-item-title" title={service?.name || id}>
+                            {service?.name || id}
+                          </div>
+                          <div className="group-member-item-meta">
+                            <code>{service?.code}</code>
+                            <span className={`item-charge-tag ${service?.chargeable ? 'item-charge-tag--charge' : ''}`}>
+                              {service?.chargeable ? '收费' : '不收费'}
+                            </span>
+                          </div>
                         </td>
-                        <td>
+                        <td className="td-quantity">
                           <input type="number" min="0.001" step="any" value={config.quantity}
                             onChange={(e) => setMember(id, { quantity: e.target.value })} />
                         </td>
-                        <td>
+                        <td className="td-unit">
                           <Select value={config.unitCode} onChange={(unitCode) => setMember(id, { unitCode })}
                             placeholder="沿用主档" showValue options={units.filter((v) => v.status === 'ACTIVE').map(unitOption)} />
                         </td>
-                        <td>
+                        <td className="td-required">
                           <Check label="" checked={config.requiredMember} onChange={(v) => setMember(id, { requiredMember: v })} />
                         </td>
-                        <td>
-                          <input type="text" value={config.memberDescription} placeholder="选填"
+                        <td className="td-desc">
+                          <input type="text" value={config.memberDescription} placeholder="选填，如急查说明"
                             onChange={(e) => setMember(id, { memberDescription: e.target.value })} />
                         </td>
-                        <td>
-                          <Button size="sm" variant="text" type="button" onClick={() => toggle(id)}>移除</Button>
+                        <td className="td-actions">
+                          <Button size="sm" variant="text" type="button" className="group-remove-btn" onClick={() => toggle(id)}>
+                            移除
+                          </Button>
                         </td>
                       </tr>
                     )
@@ -2378,18 +2438,35 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
 
     {/* 实时采血分管与费用透视卡片 (仅检验组套) */}
     {type === 'LIS' && selected.length > 0 && (
-      <div className="span-2 group-tube-insight">
-        <div className="group-tube-insight__summary">
-          <strong>
-            <span>🧪</span>
-            <span>组套采血与试管加收实时透视</span>
-            {loadingTubePlan && <small style={{ fontWeight: 'normal', color: 'var(--color-text-secondary)' }}>（计算中…）</small>}
-          </strong>
+      <div className="span-4 group-tube-insight">
+        <div className="group-tube-insight__header">
+          <div className="group-tube-insight__title-area">
+            <div className="tube-insight-icon-wrap">
+              <Icon name="sparkles" className="tube-insight-icon" />
+            </div>
+            <div>
+              <div className="group-tube-insight__title">
+                <span>组套采血与试管加收实时透视</span>
+                {loadingTubePlan && <span className="tube-calculating">（计算中…）</span>}
+              </div>
+              <div className="group-tube-insight__desc">
+                根据标本类型与采血管合并规则自动合并分管，并实时试算耗材加收明细
+              </div>
+            </div>
+          </div>
           {tubePlan && (
-            <span style={{ fontSize: 'var(--font-size-small)', color: 'var(--color-text-primary)' }}>
-              预计生成采血管：<strong>{tubePlan.groups.reduce((acc, g) => acc + g.tubeCount, 0)} 管</strong>
-              {tubePlan.chargeLines.length > 0 && ` · 试管耗材费预估：¥ ${tubePlan.chargeLines.reduce((acc, l) => acc + (l.fixedAmount ? Number(l.fixedAmount) : 0), 0).toFixed(2)}`}
-            </span>
+            <div className="group-tube-insight__stats">
+              <div className="tube-stat-item">
+                <span className="tube-stat-label">预计生成采血管</span>
+                <span className="tube-stat-value"><strong>{tubePlan.groups.reduce((acc, g) => acc + g.tubeCount, 0)}</strong> 管</span>
+              </div>
+              {tubePlan.chargeLines.length > 0 && (
+                <div className="tube-stat-item tube-stat-item--fee">
+                  <span className="tube-stat-label">试管耗材费预估</span>
+                  <span className="tube-stat-value">¥ {tubePlan.chargeLines.reduce((acc, l) => acc + (l.fixedAmount ? Number(l.fixedAmount) : 0), 0).toFixed(2)}</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
         {tubePlan && (
@@ -2399,8 +2476,8 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
               return (
                 <div key={group.groupCode} className="group-tube-pill">
                   <span className="tube-dot" style={{ backgroundColor: color }} />
-                  <strong>{group.specimenName || '标本'} · {group.containerName || '标准管'}</strong>
-                  <span>({group.tubeCount} 管 · 含 {group.serviceIds.length} 个检验单项)</span>
+                  <strong className="group-tube-pill__name">{group.specimenName || '标本'} · {group.containerName || '标准管'}</strong>
+                  <span className="group-tube-pill__detail">({group.tubeCount} 管 · 含 {group.serviceIds.length} 个检验单项)</span>
                 </div>
               )
             })}

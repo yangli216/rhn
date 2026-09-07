@@ -314,7 +314,7 @@ public class OutpatientReferralService implements OutpatientReferralFlowDirector
         boolean identityChecked = identityChecks.existsByTenantIdAndEncounterIdAndResult(
                 encounter.tenantId(), encounter.id(), "PASS");
         boolean primaryDiagnosis = diagnoses
-                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE").stream()
                 .anyMatch(value -> value.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY);
         var decision = completionService.evaluate(encounter, identityChecked, signed, primaryDiagnosis);

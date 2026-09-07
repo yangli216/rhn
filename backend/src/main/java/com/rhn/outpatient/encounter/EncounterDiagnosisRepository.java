@@ -5,8 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 interface EncounterDiagnosisRepository extends JpaRepository<EncounterDiagnosis, Long> {
-    List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStageOrderByRecordedAt(
+    List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
             Long tenantId, Long encounterId, String diagnosisStage);
-    List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+    List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
             Long tenantId, Long encounterId, String diagnosisStage, String diagnosisStatus);
 }

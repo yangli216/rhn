@@ -25,6 +25,56 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
     private static final String PACKAGE_ID = "362387869795403";
 
     @Test
+    void diagnosis_order_is_persisted_and_the_first_item_is_the_unique_primary_diagnosis() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createAndStartEncounter(residentId);
+
+        mockMvc.perform(put("/api/encounters/{encounterId}/clinical-record", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "chiefComplaint":"血压升高伴头晕","systolic":158,"diastolic":96,"diagnoses":[
+                                    {"code":"I10","display":"原发性高血压","type":"PRIMARY"},
+                                    {"code":"R42","display":"头晕","type":"SECONDARY"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.diagnoses[0].code").value("I10"))
+                .andExpect(jsonPath("$.diagnoses[0].sortOrder").value(1))
+                .andExpect(jsonPath("$.diagnoses[1].sortOrder").value(2));
+
+        mockMvc.perform(put("/api/encounters/{encounterId}/clinical-record", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "chiefComplaint":"血压升高伴头晕","systolic":158,"diastolic":96,"diagnoses":[
+                                    {"code":"R42","display":"头晕","type":"PRIMARY"},
+                                    {"code":"I10","display":"原发性高血压","type":"SECONDARY"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.diagnoses[0].code").value("R42"))
+                .andExpect(jsonPath("$.diagnoses[0].type").value("PRIMARY"))
+                .andExpect(jsonPath("$.diagnoses[0].sortOrder").value(1))
+                .andExpect(jsonPath("$.diagnoses[1].code").value("I10"))
+                .andExpect(jsonPath("$.diagnoses[1].type").value("SECONDARY"))
+                .andExpect(jsonPath("$.diagnoses[1].sortOrder").value(2));
+
+        mockMvc.perform(put("/api/encounters/{encounterId}/clinical-record", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "chiefComplaint":"血压升高伴头晕","systolic":158,"diastolic":96,"diagnoses":[
+                                    {"code":"I10","display":"原发性高血压","type":"SECONDARY"},
+                                    {"code":"R42","display":"头晕","type":"PRIMARY"}
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("PRIMARY_DIAGNOSIS_ORDER_INVALID"));
+    }
+
+    @Test
     void outpatient_visit_charges_orders_before_execution_and_releases_pharmacy_only_after_settlement()
             throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
@@ -59,6 +109,8 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PRODUCT_ID, PACKAGE_ID, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.packageSpec").value("5mg*14片/盒"))
+                .andExpect(jsonPath("$.manufacturerName").value("示范制药有限公司"))
                 .andExpect(jsonPath("$.totalAmount").value(18.6))
                 .andReturn().getResponse().getContentAsString());
 

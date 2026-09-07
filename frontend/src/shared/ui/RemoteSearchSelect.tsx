@@ -35,6 +35,9 @@ export interface RemoteSearchSelectProps<T = unknown> {
   clearable?: boolean
   showCode?: boolean
   emptyText?: string
+  popoverMinWidth?: number
+  defaultOpen?: boolean
+  autoFocus?: boolean
   'aria-label'?: string
   'aria-describedby'?: string
   'aria-invalid'?: boolean | 'false' | 'true'
@@ -66,6 +69,9 @@ export function RemoteSearchSelect<T>({
   clearable = true,
   showCode = true,
   emptyText = '未找到匹配结果',
+  popoverMinWidth = 540,
+  defaultOpen = false,
+  autoFocus = false,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
   'aria-invalid': ariaInvalid,
@@ -80,7 +86,7 @@ export function RemoteSearchSelect<T>({
   const searchRef = useRef<HTMLInputElement>(null)
   const requestSequence = useRef(0)
   const cacheRef = useRef(new Map<string, RemoteSearchOption<T>[]>() )
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<RemoteSearchOption<T>[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -155,7 +161,7 @@ export function RemoteSearchSelect<T>({
       const availableAbove = rect.top - gap - margin
       const placement = availableBelow < 300 && availableAbove > availableBelow ? 'top' : 'bottom'
       const availableHeight = placement === 'bottom' ? availableBelow : availableAbove
-      const width = Math.min(Math.max(rect.width, 360), Math.max(0, window.innerWidth - margin * 2))
+      const width = Math.min(Math.max(rect.width, popoverMinWidth), Math.max(0, window.innerWidth - margin * 2))
       const left = Math.min(Math.max(margin, rect.left), Math.max(margin, window.innerWidth - width - margin))
       setPopoverPosition({
         left,
@@ -178,6 +184,10 @@ export function RemoteSearchSelect<T>({
   useEffect(() => {
     if (open && popoverPosition) searchRef.current?.focus()
   }, [open, popoverPosition])
+
+  useEffect(() => {
+    if (autoFocus && !defaultOpen) triggerRef.current?.focus()
+  }, [autoFocus, defaultOpen])
 
   useEffect(() => {
     if (!open) {
@@ -242,7 +252,10 @@ export function RemoteSearchSelect<T>({
       aria-invalid={ariaInvalid}
       aria-required={ariaRequired}
       disabled={disabled}
-      onClick={() => setOpen((current) => !current)}
+      onClick={() => {
+        if (!open) setOpen(true)
+        else searchRef.current?.focus()
+      }}
       onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
@@ -293,7 +306,7 @@ export function RemoteSearchSelect<T>({
           onClick={() => select(option)}
           onMouseMove={() => { if (!option.disabled && activeIndex !== index) setActiveIndex(index) }}
         >
-          <span className="ui-remote-search__option-main">
+          <span className="ui-remote-search__option-main" title={option.description}>
             <strong>{option.label}</strong>
             {(option.description || option.tags?.length) && <small>
               {option.description}

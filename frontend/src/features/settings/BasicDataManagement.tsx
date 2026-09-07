@@ -47,6 +47,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState<Tab>('disease')
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
+  const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -184,6 +185,20 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
+        {tab === 'service' && <div className="service-density-switcher" role="group" aria-label="列表密度">
+          <button type="button"
+            className={`service-density-btn ${serviceDensity === 'two-line' ? 'is-active' : ''}`}
+            onClick={() => setServiceDensity('two-line')}
+            title="两行视图：第一行展示项目与类别，第二行展示执行规格与规则">
+            两行视图
+          </button>
+          <button type="button"
+            className={`service-density-btn ${serviceDensity === 'single-line' ? 'is-active' : ''}`}
+            onClick={() => setServiceDensity('single-line')}
+            title="单行极简视图：极致行高，一屏吞吐更多项目">
+            单行视图
+          </button>
+        </div>}
         <span className="master-data-count">{busy ? '正在刷新…' : `${count ?? 0} 条`}</span>
         {tab === 'medication' && <Button variant="secondary"
           onClick={() => onNavigate('/settings/partners?tab=manufacturers')}>生产企业档案</Button>}
@@ -214,7 +229,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             value.sdStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')
             .then(() => invalidate('疾病管理项目状态已更新')).catch(fail)} />}
       {tab === 'service' && <ServiceTable values={services.data?.content} loading={services.isPending}
-        pagination={pagination}
+        pagination={pagination} density={serviceDensity}
         onConfigure={(value) => setDialog(<ClinicalServiceConfigurationDialog api={api} service={value}
           organizationId={organization.id} dictionaries={dictionaries.data!}
           onClose={() => setDialog(undefined)} />)}
@@ -316,33 +331,183 @@ function DiseaseManagementTable({ values, loading, pagination, onEdit, onMembers
   </Table>
 }
 
-function ServiceTable({ values, loading, pagination, onConfigure, onEdit, onAttributes, onMappings }: { values?: ServiceCatalogItem[]; loading: boolean;
+export const SERVICE_SUBTYPE_MAP: Record<string, string> = {
+  IMMUNOASSAY: '免疫检测',
+  BIOCHEMISTRY: '生化检测',
+  HEMATOLOGY: '血液体液检测',
+  MICROBIOLOGY: '微生物检测',
+  MOLECULAR: '分子生物检测',
+  PATHOLOGY: '病理检查',
+  RADIOGRAPHY: '普通放射 (DR)',
+  CT: '计算机断层扫描 (CT)',
+  MRI: '磁共振成像 (MRI)',
+  ULTRASOUND: '超声检查',
+  ENDOSCOPY: '内镜检查',
+  ECG: '心电图',
+  OUTPATIENT_VISIT: '门诊诊查',
+  EMERGENCY_VISIT: '急诊诊查',
+  INPATIENT_VISIT: '住院诊查',
+  NEBULIZATION: '雾化治疗',
+  DRESSING: '创面换药',
+  INJECTION: '注射处置',
+  PHYSIOTHERAPY: '物理治疗',
+  BED_DAY: '按日床位',
+  GENERAL: '常规项目',
+}
+
+export const ACCOUNTING_CATEGORY_MAP: Record<string, string> = {
+  LABORATORY: '检验费',
+  REGISTRATION: '诊察挂号费',
+  IMAGING: '检查影像费',
+  TREATMENT: '治疗处置费',
+  SURGERY: '手术费',
+  BED: '床位费',
+  NURSING: '护理费',
+  BLOOD: '输血费',
+  MATERIAL: '材料费',
+  OTHER: '其他费用',
+}
+
+export function accountingCategoryLabel(category?: string) {
+  if (!category) return ''
+  return ACCOUNTING_CATEGORY_MAP[category] || category
+}
+
+export const SERVICE_DUPLICATE_RULE_MAP: Record<string, string> = {
+  SAME_DAY: '当日不重复',
+  ALLOW: '允许重复',
+  WARN: '提醒后允许',
+  BLOCK: '禁止重复',
+  INTERVAL: '间隔限制',
+}
+
+export function serviceSubtypeLabel(subtype?: string) {
+  if (!subtype) return ''
+  return SERVICE_SUBTYPE_MAP[subtype] || subtype
+}
+
+export function serviceDuplicateRuleLabel(rule?: string, fallbackText?: string) {
+  if (rule && SERVICE_DUPLICATE_RULE_MAP[rule]) return SERVICE_DUPLICATE_RULE_MAP[rule]
+  if (fallbackText && SERVICE_DUPLICATE_RULE_MAP[fallbackText]) return SERVICE_DUPLICATE_RULE_MAP[fallbackText]
+  return fallbackText || (rule ? SERVICE_DUPLICATE_RULE_MAP[rule] || rule : '')
+}
+
+export function serviceTypeTone(serviceType: string): 'info' | 'success' | 'warning' | 'neutral' {
+  switch (serviceType) {
+    case 'LABORATORY': return 'info'
+    case 'EXAMINATION': return 'info'
+    case 'TREATMENT': return 'success'
+    case 'SURGERY': return 'warning'
+    default: return 'neutral'
+  }
+}
+
+export function ServiceTable({ values, loading, pagination, density = 'two-line', onConfigure, onEdit, onAttributes, onMappings }: {
+  values?: ServiceCatalogItem[]; loading: boolean;
   pagination: ReactNode;
+  density?: 'two-line' | 'single-line';
   onConfigure: (value: ServiceCatalogItem) => void;
   onEdit: (value: ServiceCatalogItem) => void;
-  onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void }) {
+  onAttributes: (value: ServiceCatalogItem) => void; onMappings: (value: ServiceCatalogItem) => void
+}) {
   if (loading) return <LoadingState label="正在加载诊疗项目…" />
   if (!values?.length) return <EmptyState icon="clinical" title="未找到诊疗项目" copy="请调整筛选条件或新增项目。" />
-  return <Table headers={['项目', '临床语义', '中心能力', '状态', '操作']} footer={pagination}>
-    {values.map((value) => <tr key={value.id}><td><strong>{value.name}</strong><code>{value.code}</code></td>
-      <td>{value.sdServiceTypeText}<small>{value.sdUsageTypeText}{value.serviceSubtype ? ` · ${value.serviceSubtype}` : ''}</small>
-        <small>{[value.sdDuplicateRuleText, value.mutualRecognitionCode && `互认 ${value.mutualRecognitionCode}`]
-          .filter(Boolean).join(' · ') || '未设置重复规则'}</small>
-        {value.sdServiceType === 'LABORATORY' && <small>{value.laboratory
-          ? `${value.laboratory.sdLaboratoryMethodText || '检验方法未设置'} · ${value.laboratory.specimens.length} 种标本`
-          : '检验执行配置异常，请进入项目配置检查'}</small>}
-        {value.sdServiceType === 'EXAMINATION' && <small>{value.examination
-          ? `${value.examination.sdExaminationTypeText || '检查类型未设置'} · ${value.examination.variants.length} 个部位/方式`
-          : '检查执行配置异常，请进入项目配置检查'}</small>}
-      </td>
-      <td><Flag value={value.orderable} label="可开立" /> <Flag value={value.chargeable} label="可收费" />
-        <small>{value.singleOrder ? '允许单开' : '仅组合使用'}</small></td>
-      <td><DataStatus value={value.sdStatus} text={value.sdStatusText} /></td>
-      <td><RowActions>{['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType)
-        && <Button size="sm" variant="text" onClick={() => onConfigure(value)}>项目配置</Button>}
-        <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
-        <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
-        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button></RowActions></td></tr>)}
+  const isSingle = density === 'single-line'
+
+  return <Table
+    headers={['项目', '临床语义', '中心能力', '状态', '操作']}
+    footer={pagination}
+    compact={isSingle}
+    className={`service-catalog-table is-${density}`}>
+    {values.map((value) => {
+      const typeText = value.sdServiceTypeText === 'OTHER' ? '其他' : value.sdServiceTypeText
+      const subtype = serviceSubtypeLabel(value.serviceSubtype)
+      const ruleText = serviceDuplicateRuleLabel(value.sdDuplicateRule, value.sdDuplicateRuleText)
+      const mutualText = value.mutualRecognitionCode ? `互认 ${value.mutualRecognitionCode}` : ''
+      const accCategory = accountingCategoryLabel(value.accountingCategory)
+      const execDetail = value.sdServiceType === 'LABORATORY'
+        ? (value.laboratory ? `${value.laboratory.sdLaboratoryMethodText || '检验'} · ${value.laboratory.specimens.length} 种标本` : '未配置标本')
+        : value.sdServiceType === 'EXAMINATION'
+        ? (value.examination ? `${value.examination.sdExaminationTypeText || '检查'} · ${value.examination.variants.length} 个部位/方式` : '未配置部位')
+        : (value.medicalTechnology ? '医技科室执行' : '临床科室执行')
+      const metaSummary = [execDetail, ruleText || '未设置重复规则', mutualText].filter(Boolean).join(' · ')
+
+      return <tr key={value.id} className={`service-catalog-row is-${density}`}>
+        <td className="service-col-name">
+          <div className="service-name-wrap">
+            <strong className="service-item-name" title={`项目编码: ${value.code}`}>{value.name}</strong>
+            {value.unitCode && <span className="service-unit-tag" title="计价单位">{value.unitCode}</span>}
+          </div>
+          {!isSingle && accCategory && (
+            <div className="service-name-sub">
+              <span className="service-acc-tag">{accCategory}</span>
+            </div>
+          )}
+        </td>
+
+        <td className="service-col-semantics">
+          {!isSingle ? (
+            <>
+              <div className="service-cell__primary">
+                <StatusBadge tone={serviceTypeTone(value.sdServiceType)}>{typeText}</StatusBadge>
+                <span className="service-usage-text">{value.sdUsageTypeText}</span>
+                {subtype && <span className="service-subtype-text"> · {subtype}</span>}
+              </div>
+              <div className="service-cell__secondary">
+                <span className="service-meta-text" title={metaSummary}>{metaSummary}</span>
+              </div>
+            </>
+          ) : (
+            <div className="service-cell__inline">
+              <StatusBadge tone={serviceTypeTone(value.sdServiceType)}>{typeText}</StatusBadge>
+              <span className="service-usage-text">{value.sdUsageTypeText}</span>
+              {subtype && <span className="service-subtype-text"> · {subtype}</span>}
+              <span className="service-meta-inline" title={metaSummary}>({metaSummary})</span>
+            </div>
+          )}
+        </td>
+
+        <td className="service-col-capabilities">
+          {!isSingle ? (
+            <>
+              <div className="service-cell__primary service-flags">
+                <Flag value={value.orderable} label="可开立" />
+                <Flag value={value.chargeable} label="可收费" />
+              </div>
+              <div className="service-cell__secondary">
+                <small className="service-single-chip">
+                  {value.singleOrder ? '允许单开' : '仅组合使用'}
+                  {value.pregnancyAlert ? ' · 孕期提醒' : ''}
+                </small>
+              </div>
+            </>
+          ) : (
+            <div className="service-capability-inline">
+              <Flag value={value.orderable} label="开立" />
+              <Flag value={value.chargeable} label="收费" />
+              <span className={`service-single-chip is-inline ${value.singleOrder ? 'is-single' : 'is-combo'}`}>
+                {value.singleOrder ? '单开' : '组合'}
+              </span>
+            </div>
+          )}
+        </td>
+
+        <td className="service-col-status">
+          <DataStatus value={value.sdStatus} text={value.sdStatusText} />
+        </td>
+
+        <td className="service-col-actions">
+          <RowActions>
+            {['LABORATORY', 'EXAMINATION'].includes(value.sdServiceType) && (
+              <Button size="sm" variant="text" onClick={() => onConfigure(value)}>项目配置</Button>
+            )}
+            <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑主档</Button>
+            <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
+            <Button size="sm" variant="text" onClick={() => onAttributes(value)}>类型扩展属性</Button>
+          </RowActions>
+        </td>
+      </tr>
+    })}
   </Table>
 }
 
@@ -1931,11 +2096,11 @@ function StaticSelectControl({ id, name, className, value, onChange, options: va
       aria-describedby={ariaDescribedBy} aria-invalid={ariaInvalid} aria-required={ariaRequired} />
   </div>
 }
-function Table({ headers, children, compact = false, footer }: {
-  headers: string[]; children: ReactNode; compact?: boolean; footer?: ReactNode
+function Table({ headers, children, compact = false, footer, className = '' }: {
+  headers: string[]; children: ReactNode; compact?: boolean; footer?: ReactNode; className?: string
 }) {
   return <TableShell scrollClassName="master-data-table-wrap" footer={footer}>
-    <DataTable className="master-data-table" compact={compact}>
+    <DataTable className={`master-data-table ${className}`.trim()} compact={compact}>
       <thead><tr>{headers.map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{children}</tbody>
     </DataTable>
   </TableShell>

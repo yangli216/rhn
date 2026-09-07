@@ -15,7 +15,7 @@ record MedicationRequestResponse(
         Long adoptionId, Long adoptionRevision,
         Long priceId, Long priceRevision, String priceType, BigDecimal unitPrice,
         BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
-        String medicationCode, String medicationName, String medicationType, String doseForm,
+        String medicationCode, String medicationName, String medicationType, String manufacturerName, String doseForm,
         String preparationSpec, String preparationUnit, boolean skinTestRequired,
         boolean antimicrobial, String antimicrobialLevel,
         BigDecimal doseValue, String doseUnit, Long routeId, String routeCode, String routeName,

@@ -83,6 +83,7 @@ class MedicationRequest {
     @Column(name = "PACKAGE_FACTOR_SNAPSHOT", table = "RHN_EX_MED_REQ", nullable = false, precision = 28, scale = 8) private BigDecimal packageFactorSnapshot;
     @Column(name = "NA_PKG_UNIT_SNAP", table = "RHN_EX_MED_REQ") private String packageUnitNameSnapshot;
     @Column(name = "PACKAGE_SPEC_SNAPSHOT", table = "RHN_EX_MED_REQ") private String packageSpecSnapshot;
+    @Column(name = "NA_MFR_SNAP", table = "RHN_EX_MED_REQ") private String manufacturerNameSnapshot;
     @Column(name = "PRICE_QUANTITY_SNAP", table = "RHN_EX_MED_REQ", precision = 28, scale = 8) private BigDecimal priceQuantitySnapshot;
     @Column(name = "FG_SUBSTITUTION", table = "RHN_EX_MED_REQ", nullable = false) private boolean substitutionAllowed;
     @Column(name = "FG_SELF_PROVIDED", table = "RHN_EX_MED_REQ", nullable = false) private boolean selfProvided;
@@ -113,7 +114,7 @@ class MedicationRequest {
                       String frequencyCode, Long frequencyId, String frequencyName,
                       String frequencyRuleSnapshot, BigDecimal durationValue, String durationUnit,
                       BigDecimal quantity, BigDecimal baseQuantity, String baseUnit, BigDecimal packageFactor,
-                      String packageUnitName, String packageSpec, BigDecimal priceQuantity,
+                      String packageUnitName, String packageSpec, String manufacturerName, BigDecimal priceQuantity,
                       boolean substitutionAllowed, boolean selfProvided, String medicationInstruction,
                       String medicationCode, String medicationName, String medicationType, String doseForm,
                       String preparationSpec, String preparationUnit, boolean skinTestRequired,
@@ -143,6 +144,7 @@ class MedicationRequest {
         this.durationUnit = durationUnit; this.quantity = quantity; this.quantityUnit = quantityUnit;
         this.baseQuantity = baseQuantity; this.baseUnit = baseUnit; this.packageFactorSnapshot = packageFactor;
         this.packageUnitNameSnapshot = packageUnitName; this.packageSpecSnapshot = packageSpec;
+        this.manufacturerNameSnapshot = manufacturerName;
         this.priceQuantitySnapshot = priceQuantity; this.substitutionAllowed = substitutionAllowed;
         this.selfProvided = selfProvided; this.medicationInstruction = medicationInstruction;
         this.medicationCodeSnapshot = medicationCode; this.medicationNameSnapshot = medicationName;
@@ -197,7 +199,9 @@ class MedicationRequest {
     String durationUnit() { return durationUnit; } BigDecimal quantity() { return quantity; } String quantityUnit() { return quantityUnit; }
     BigDecimal baseQuantity() { return baseQuantity; } String baseUnit() { return baseUnit; }
     BigDecimal packageFactorSnapshot() { return packageFactorSnapshot; } String packageUnitNameSnapshot() { return packageUnitNameSnapshot; }
-    String packageSpecSnapshot() { return packageSpecSnapshot; } BigDecimal priceQuantitySnapshot() { return priceQuantitySnapshot; }
+    String packageSpecSnapshot() { return packageSpecSnapshot; }
+    String manufacturerNameSnapshot() { return manufacturerNameSnapshot; }
+    BigDecimal priceQuantitySnapshot() { return priceQuantitySnapshot; }
     boolean substitutionAllowed() { return substitutionAllowed; } boolean selfProvided() { return selfProvided; }
     String medicationInstruction() { return medicationInstruction; } String medicationCodeSnapshot() { return medicationCodeSnapshot; }
     String medicationNameSnapshot() { return medicationNameSnapshot; } String medicationTypeSnapshot() { return medicationTypeSnapshot; }

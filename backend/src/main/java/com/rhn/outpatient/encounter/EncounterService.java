@@ -304,13 +304,15 @@ public class EncounterService implements EncounterDirectory {
 
         ExecutionContext context = executionContextProvider.requireCurrent();
         List<EncounterDiagnosis> existing = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStageOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
                         tenantId, encounterId, "ENCOUNTER");
         Map<String, EncounterDiagnosis> byCode = existing.stream().collect(Collectors.toMap(
                 EncounterDiagnosis::terminologyKey, Function.identity(), (left, right) -> left, LinkedHashMap::new));
         Set<String> incomingCodes = new LinkedHashSet<>();
         List<EncounterDiagnosisRevision> revisions = new java.util.ArrayList<>();
-        for (RecordClinicalDataRequest.DiagnosisInput input : request.diagnoses()) {
+        for (int index = 0; index < request.diagnoses().size(); index++) {
+            RecordClinicalDataRequest.DiagnosisInput input = request.diagnoses().get(index);
+            int sortOrder = index + 1;
             ResolvedDiagnosis resolved = resolveDiagnosis(tenantId, input);
             String key = resolved.terminologyKey();
             incomingCodes.add(key);
@@ -320,13 +322,13 @@ public class EncounterService implements EncounterDirectory {
                 diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId, encounterId, "ENCOUNTER",
                         resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(), resolved.diagnosisDomain(),
                         clean(input.diagnosisGroupId()), resolved.code(), resolved.display(), input.type(), "CONFIRMED",
-                        resolved.managementJson(), context.subjectId()));
+                        resolved.managementJson(), sortOrder, context.subjectId()));
                 changeType = "ADDED";
             } else {
                 changeType = "ACTIVE".equals(diagnosis.diagnosisStatus()) ? "UPDATED" : "RESTORED";
                 diagnosis.revise(resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(),
                         resolved.diagnosisDomain(), clean(input.diagnosisGroupId()), resolved.display(), input.type(),
-                        "CONFIRMED", resolved.managementJson(), context.subjectId());
+                        "CONFIRMED", resolved.managementJson(), sortOrder, context.subjectId());
             }
             revisions.add(new EncounterDiagnosisRevision(diagnosis, changeType, "门诊病历保存",
                     context.practitionerId(), context.subjectId()));
@@ -342,7 +344,7 @@ public class EncounterService implements EncounterDirectory {
         diagnosisRevisionRepository.saveAll(revisions);
         diagnosisRevisionRepository.flush();
         List<EncounterDiagnosis> diagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         tenantId, encounterId, "ENCOUNTER", "ACTIVE");
 
         Map<String, Object> noteContent = new LinkedHashMap<>();
@@ -455,7 +457,7 @@ public class EncounterService implements EncounterDirectory {
             documentFailure = exception;
         }
         List<EncounterDiagnosis> currentDiagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE");
         boolean identityChecked = identityCheckRepository.existsByTenantIdAndEncounterIdAndResult(
                 encounter.tenantId(), encounter.id(), "PASS");
@@ -572,7 +574,7 @@ public class EncounterService implements EncounterDirectory {
         Encounter encounter = encounterRepository.findByIdAndTenantId(encounterId, tenantId)
                 .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));
         List<DiagnosisSnapshot> diagnoses = diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         tenantId, encounterId, "ENCOUNTER", "ACTIVE")
                 .stream().map(value -> new DiagnosisSnapshot(
                         value.code(), value.display(), value.diagnosisType().name())).toList();
@@ -611,7 +613,7 @@ public class EncounterService implements EncounterDirectory {
 
     private EncounterResponse toResponse(Encounter encounter) {
         return EncounterResponse.from(encounter, diagnosisRepository
-                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderByRecordedAt(
+                .findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
                         encounter.tenantId(), encounter.id(), "ENCOUNTER", "ACTIVE")
                 .stream().map(this::diagnosisResponse).toList());
     }
@@ -621,8 +623,9 @@ public class EncounterService implements EncounterDirectory {
                 .filter(input -> input.type() == EncounterDiagnosis.DiagnosisType.PRIMARY).count();
         long distinctCodes = request.diagnoses().stream().map(input -> input.conceptId() == null
                 ? "LEGACY|" + input.code().trim() : "CONCEPT|" + input.conceptId()).distinct().count();
-        if (primaryCount > 1) {
-            throw badRequest("PRIMARY_DIAGNOSIS_DUPLICATED", "病历草稿最多只能有一个主要诊断");
+        if (!request.diagnoses().isEmpty() && (primaryCount != 1
+                || request.diagnoses().getFirst().type() != EncounterDiagnosis.DiagnosisType.PRIMARY)) {
+            throw badRequest("PRIMARY_DIAGNOSIS_ORDER_INVALID", "首项必须是唯一的主要诊断");
         }
         if (distinctCodes != request.diagnoses().size()) {
             throw badRequest("DIAGNOSIS_DUPLICATED", "同一诊断不能重复录入");
@@ -647,7 +650,7 @@ public class EncounterService implements EncounterDirectory {
     private EncounterResponse.DiagnosisResponse diagnosisResponse(EncounterDiagnosis value) {
         return new EncounterResponse.DiagnosisResponse(value.conceptId(), value.codeSystemCodeSnapshot(),
                 value.codeSystemVersionSnapshot(), value.diagnosisDomain(), value.diagnosisGroupId(), value.code(),
-                value.display(), value.diagnosisType().name(), managementEnvelope(value).programs().stream()
+                value.display(), value.diagnosisType().name(), value.sortOrder(), managementEnvelope(value).programs().stream()
                 .map(program -> new EncounterResponse.ManagementProgramResponse(program.id(), program.code(),
                         program.name(), program.managementType(), program.triggerAction(), program.reportCardType(),
                         program.reportDeadlineHours())).toList());
