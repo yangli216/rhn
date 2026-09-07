@@ -61,7 +61,6 @@ describe('BillingWorkspace deep link', () => {
   })
 
   it('uses one settlement action to create the settlement and start payment', async () => {
-    const user = userEvent.setup()
     const charge = {
       id: 'charge-1', patientAccountId: 'account-1', residentId: 'resident-1', encounterId: 'encounter-1',
       catalogItemId: 'catalog-1', sourceType: 'REGISTRATION', sourceId: 'registration-1', requestCode: 'REQ-1',
@@ -120,13 +119,14 @@ describe('BillingWorkspace deep link', () => {
       <MemoryRouter><BillingWorkspace api={api} clinicalContext={clinicalContext} /></MemoryRouter>
     </QueryClientProvider>)
 
-    expect(await screen.findByRole('list', { name: '结算进度' })).toHaveTextContent('费用确认')
+    expect(await screen.findByText('待支付金额')).toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: '结算进度' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('结算类型')).toBeInTheDocument()
     expect(screen.queryByText('医保支付')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: '生成结算凭证' })).not.toBeInTheDocument()
-    const settleButton = screen.getByRole('button', { name: '结算' })
+    const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
     await waitFor(() => expect(settleButton).toBeEnabled())
-    await user.click(settleButton)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true }))
 
     await waitFor(() => expect(issueInvoice).toHaveBeenCalledWith(
       'account-1',
@@ -242,7 +242,7 @@ describe('BillingWorkspace deep link', () => {
     expect(await screen.findByText(/已扫码定位患者：王建国/)).toBeInTheDocument()
   })
 
-  it('navigates patient queue with ArrowDown and toggles mode with F2', async () => {
+  it('navigates patient queue with ArrowDown and cycles the queue with F2', async () => {
     const api = {
       billing: {
         worklist: vi.fn().mockResolvedValue([
@@ -285,9 +285,10 @@ describe('BillingWorkspace deep link', () => {
     await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
       .toHaveTextContent('王建国'))
 
-    // Press F2 to toggle settlement mode
+    // Press F2 to cycle to the next queue patient
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2', bubbles: true }))
-    expect(await screen.findAllByText('医保结算')).not.toHaveLength(0)
+    await waitFor(() => expect(container.querySelector('.billing-queue-list button.is-active'))
+      .toHaveTextContent('李晓梅'))
   })
 
   it('groups charges by document, supports checkbox partial selection, and warns for expired prescriptions', async () => {
@@ -352,19 +353,19 @@ describe('BillingWorkspace deep link', () => {
     expect(screen.getByText('处方已超72小时')).toBeInTheDocument()
 
     // 3. Verify selection summary initially has 2 items selected (¥58.60)
-    expect(screen.getByText(/已选/)).toHaveTextContent('已选 2 / 2 项')
-    expect(screen.getByText(/已选/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥58.60')
+    expect(screen.getByText(/已勾选总金额/)).toHaveTextContent('2 / 2 项')
+    expect(screen.getByText(/已勾选总金额/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥58.60')
 
     // 4. Uncheck the service request item (30.00)
     const serviceCheckbox = screen.getByLabelText('勾选项目 常规心电图检查')
     await user.click(serviceCheckbox)
 
     // Selection should now be 1 item (¥28.60)
-    expect(screen.getByText(/已选/)).toHaveTextContent('已选 1 / 2 项')
-    expect(screen.getByText(/已选/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥28.60')
+    expect(screen.getByText(/已勾选总金额/)).toHaveTextContent('1 / 2 项')
+    expect(screen.getByText(/已勾选总金额/).querySelector('.billing-selection-summary__amount')).toHaveTextContent('¥28.60')
 
     // 5. Settle only the selected medication item
-    const settleButton = screen.getByRole('button', { name: '结算' })
+    const settleButton = screen.getByRole('button', { name: '结算开票 (Ctrl+Enter)' })
     await waitFor(() => expect(settleButton).toBeEnabled())
     await user.click(settleButton)
 

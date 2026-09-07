@@ -82,6 +82,7 @@ export function PatientIdentitySearch({
   const [methodBusy, setMethodBusy] = useState('')
   const [methodError, setMethodError] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const [shortQueryAttempted, setShortQueryAttempted] = useState(false)
   const normalized = query.trim()
   const residents = useQuery({
     queryKey: ['patient-identity-search', queryKey, submitted],
@@ -105,10 +106,14 @@ export function PatientIdentitySearch({
   }, [lookupKind, onSelect, residents.isFetching, selectableCandidates, selected?.id, submitted])
 
   function submit() {
-    if (normalized.length < minimumQueryLength) return
+    if (normalized.length < minimumQueryLength) {
+      if (normalized.length > 0) setShortQueryAttempted(true)
+      return
+    }
     setLookupKind(uniqueIdentityKind(normalized))
     setAutoResolvedQuery('')
     setMethodError('')
+    setShortQueryAttempted(false)
     setSubmitted(normalized)
     setActiveIndex(0)
   }
@@ -201,22 +206,61 @@ export function PatientIdentitySearch({
       <div className="ui-patient-search__form">
         <Icon name="search" />
         <label className="visually-hidden" htmlFor={`${queryKey}-patient-search`}>患者姓名、证件或卡号</label>
-        <input ref={inputRef} id={`${queryKey}-patient-search`} value={query} disabled={disabled} autoFocus={autoFocus}
-          onChange={(event) => setQuery(event.target.value)} placeholder={placeholder}
-          onKeyDown={handleInputKeyDown} />
+        <div className="ui-patient-search__input-wrap">
+          <input ref={inputRef} id={`${queryKey}-patient-search`} value={query} disabled={disabled} autoFocus={autoFocus}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              if (shortQueryAttempted) setShortQueryAttempted(false)
+            }} placeholder={placeholder}
+            onKeyDown={handleInputKeyDown} />
+
+          {shortQueryAttempted && normalized.length > 0 && normalized.length < minimumQueryLength && <p className="ui-patient-search__message is-error" role="alert">
+            至少输入 {minimumQueryLength} 个字符
+          </p>}
+          {(methodError || residents.error) && <p className="ui-patient-search__message is-error" role="alert">
+            {methodError || errorText(residents.error)}
+          </p>}
+          {hasDuplicateUniqueMatches && showCandidates && <p className="ui-patient-search__message is-warning">
+            该唯一标识返回多条记录，请人工确认并检查主索引数据。
+          </p>}
+
+          {showCandidates && (candidates.length ? <div className="ui-patient-search__results" aria-label="患者候选列表">
+            <header>
+              <strong>请选择并确认患者</strong>
+              <span>{candidates.length} 条候选记录</span>
+            </header>
+            <div>{candidates.map((resident) => {
+              const disabledReason = getOptionDisabledReason?.(resident)
+              const selectableIdx = selectableCandidates.findIndex((r) => r.id === resident.id)
+              const isFocused = selectableIdx >= 0 && selectableIdx === activeIndex
+              return <button key={resident.id} type="button" disabled={disabled || Boolean(disabledReason)}
+                className={`${selected?.id === resident.id ? 'is-selected' : ''} ${isFocused ? 'is-keyboard-focused' : ''}`}
+                aria-selected={isFocused}
+                onMouseEnter={() => { if (selectableIdx >= 0) setActiveIndex(selectableIdx) }}
+                onClick={() => onSelect(resident)}>
+                <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>{resident.fullName.slice(-1)}</span>
+                <span>
+                  <span className="ui-patient-search__candidate-title">
+                    <strong>{resident.fullName}</strong>
+                    <small>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</small>
+                  </span>
+                  <span className="ui-patient-search__candidate-meta">
+                    <small>档案号: {resident.healthRecordNo}</small>
+                    <small>身份证: {resident.maskedNationalId || '未登记'}</small>
+                  </span>
+                </span>
+                {disabledReason ? <small className="ui-patient-search__disabled-reason">{disabledReason}</small>
+                  : <Icon name={selected?.id === resident.id ? 'check' : 'chevron-right'} />}
+              </button>
+            })}</div>
+          </div> : <div className="ui-patient-search__empty"><Icon name="residents" /><div><strong>{emptyTitle}</strong><span>未找到匹配记录，可核对条件后重试。</span></div></div>)}
+        </div>
         <button className="ui-button ui-button--secondary ui-button--sm" type="button" onClick={submit}
           disabled={disabled || normalized.length < minimumQueryLength || residents.isFetching}>
           <span className="ui-button__label">{residents.isFetching ? '查询中…' : '查询'}</span>
         </button>
       </div>
     </div>
-
-    {normalized.length > 0 && normalized.length < minimumQueryLength && <p className="ui-patient-search__message is-error" role="alert">
-      至少输入 {minimumQueryLength} 个字符
-    </p>}
-    {(methodError || residents.error) && <p className="ui-patient-search__message is-error" role="alert">
-      {methodError || errorText(residents.error)}
-    </p>}
 
     {selected && showSelectedSummary && <div className="ui-patient-search__selected" aria-live="polite">
       <span className={`resident-avatar ${selected.gender.toLowerCase()}`}>{selected.fullName.slice(-1)}</span>
@@ -230,39 +274,6 @@ export function PatientIdentitySearch({
     {residents.isFetching && <div className="ui-patient-search__loading" role="status">
       <span className="ui-spinner" aria-hidden="true" />正在检索患者…
     </div>}
-    {hasDuplicateUniqueMatches && showCandidates && <p className="ui-patient-search__message is-warning">
-      该唯一标识返回多条记录，请人工确认并检查主索引数据。
-    </p>}
-    {showCandidates && (candidates.length ? <div className="ui-patient-search__results" aria-label="患者候选列表">
-      <header>
-        <strong>请选择并确认患者</strong>
-        <span>{candidates.length} 条候选记录</span>
-      </header>
-      <div>{candidates.map((resident) => {
-        const disabledReason = getOptionDisabledReason?.(resident)
-        const selectableIdx = selectableCandidates.findIndex((r) => r.id === resident.id)
-        const isFocused = selectableIdx >= 0 && selectableIdx === activeIndex
-        return <button key={resident.id} type="button" disabled={disabled || Boolean(disabledReason)}
-          className={`${selected?.id === resident.id ? 'is-selected' : ''} ${isFocused ? 'is-keyboard-focused' : ''}`}
-          aria-selected={isFocused}
-          onMouseEnter={() => { if (selectableIdx >= 0) setActiveIndex(selectableIdx) }}
-          onClick={() => onSelect(resident)}>
-          <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>{resident.fullName.slice(-1)}</span>
-          <span>
-            <span className="ui-patient-search__candidate-title">
-              <strong>{resident.fullName}</strong>
-              <small>{genderLabel(resident.gender)} · {age(resident.birthDate)} 岁</small>
-            </span>
-            <span className="ui-patient-search__candidate-meta">
-              <small>档案号: {resident.healthRecordNo}</small>
-              <small>身份证: {resident.maskedNationalId || '未登记'}</small>
-            </span>
-          </span>
-          {disabledReason ? <small className="ui-patient-search__disabled-reason">{disabledReason}</small>
-            : <Icon name={selected?.id === resident.id ? 'check' : 'chevron-right'} />}
-        </button>
-      })}</div>
-    </div> : <div className="ui-patient-search__empty"><Icon name="residents" /><div><strong>{emptyTitle}</strong><span>未找到匹配记录，可核对条件后重试。</span></div></div>)}
     {showInitialEmpty && !submitted && !selected && <div className="ui-patient-search__empty"><Icon name="residents" /><div>
       <strong>{emptyTitle}</strong><span>{emptyCopy}</span></div></div>}
   </div>

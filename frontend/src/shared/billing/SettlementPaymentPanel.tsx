@@ -50,6 +50,8 @@ export interface SettlementPaymentPanelProps {
   onPreSettleInsurance?: (settlementId: string) => Promise<unknown>
   onCancelInsurancePreSettle?: () => void
   isPreSettlingInsurance?: boolean
+  submitShortcut?: boolean
+  showAmountInput?: boolean
 }
 
 export function SettlementPaymentPanel({
@@ -57,7 +59,8 @@ export function SettlementPaymentPanel({
   sceneLabel = '收款', targetLabel = '待支付结算单', actionLabel, busyLabel,
   showSettlementMode = false, settlementModeCode, onSettlementModeChange, onSubmit, onRecoverOrder,
   onInitiateScanPay, insuranceIntegrated = false, insuranceClaimView, onPreSettleInsurance,
-  onCancelInsurancePreSettle, isPreSettlingInsurance = false,
+  onCancelInsurancePreSettle, isPreSettlingInsurance = false, submitShortcut = false,
+  showAmountInput = true,
 }: SettlementPaymentPanelProps) {
   const [settlementId, setSettlementId] = useState('')
   const [internalSettlementMode, setInternalSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
@@ -183,6 +186,17 @@ export function SettlementPaymentPanel({
     }
   }
 
+  useEffect(() => {
+    if (!submitShortcut) return
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || (!event.ctrlKey && !event.metaKey)) return
+      event.preventDefault()
+      void handleCheckoutSubmit()
+    }
+    window.addEventListener('keydown', handleShortcut)
+    return () => window.removeEventListener('keydown', handleShortcut)
+  })
+
   return <div className="settlement-payment-panel">
     <div className="settlement-payment-panel__grid">
       {showSettlementMode && <FormField label="结算类型"><Select value={activeSettlementMode}
@@ -194,12 +208,12 @@ export function SettlementPaymentPanel({
           { value: 'SELF_PAY', label: '自费结算' },
           { value: 'MEDICAL_INSURANCE', label: '医保结算' },
         ]} /></FormField>}
-      <FormField label={targetLabel}><Select value={settlementId} onChange={setSettlementId} showValue
+      {settlements.length > 1 && <FormField label={targetLabel}><Select value={settlementId} onChange={setSettlementId} showValue
         placeholder="暂无待支付结算单" options={settlements.map((value) => ({ value: value.id,
-          label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>
+          label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>}
       {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><PaymentMethodSelector
         value={methodCode} onChange={setMethodCode} methods={monetaryMethods} /></FormField>}
-      {paymentRequired && <FormField label={insuranceMode ? '个人自付金额' : '本次支付金额'}><input
+      {paymentRequired && showAmountInput && <FormField label={insuranceMode ? '个人自付金额' : '本次支付金额'}><input
         className="ui-field__control" type="number" min="0.01" step="0.01"
         value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>}
     </div>

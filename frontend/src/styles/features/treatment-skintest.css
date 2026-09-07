@@ -598,30 +598,76 @@
 .master-data-count { margin-left: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
 .master-data-table-wrap { min-width: 0; overflow-x: auto; }
 .master-data-table { min-width: 62rem; }
-.master-data-table td { vertical-align: top; }
+.master-data-table td { vertical-align: middle; }
 .master-data-table td > strong, .master-data-table td > code, .master-data-table td > small { display: block; }
 .master-data-table td > code { margin-top: var(--space-1); color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .master-data-table td > small { margin-top: var(--space-1); color: var(--color-text-secondary); line-height: 1.5; }
 .master-data-table td > .ui-badge + .ui-badge { margin-left: var(--space-1); }
 .master-data-table.is-compact { min-width: 68rem; }
 
-.dispense-route-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); margin-bottom: var(--space-4); }
-.dispense-route-summary .ui-panel { min-height: 5.5rem; padding: var(--space-4); display: grid; gap: var(--space-1); align-content: center; }
-.dispense-route-summary span, .dispense-route-summary small { color: var(--color-text-secondary); }
-.dispense-route-summary strong { color: var(--color-text); font-size: var(--font-size-title-3); line-height: 1.25; }
-.dispense-route-panel { overflow: hidden; }
-.dispense-route-panel__head { min-height: 4rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); border-bottom: 1px solid var(--color-border); }
-.dispense-route-panel__head h2 { margin: 0; font-size: var(--font-size-title-3); }
-.dispense-route-panel__head p { margin: var(--space-1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.dispense-route-panel__head > span { color: var(--color-text-secondary); white-space: nowrap; }
-.dispense-route-table { min-width: 68rem; }
-.dispense-route-table td:nth-child(4) strong { white-space: nowrap; }
+/* 发药药房设置：四维 KPI 概览与标准管理页 */
+.dispense-header-actions { display: flex; align-items: center; gap: var(--space-2); }
+.dispense-route-summary { margin-bottom: var(--space-4); grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.dispense-route-page .master-data-toolbar { flex-wrap: wrap; gap: var(--space-2); }
+.dispense-route-page .master-data-toolbar > .ui-select { width: auto; min-width: 8.5rem; }
+
+/* 路由试算沙盒 */
+.dispense-route-simulator { margin: var(--space-3) var(--space-4); padding: var(--space-4); border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border)); border-radius: var(--radius-lg); background: color-mix(in srgb, var(--color-brand-primary) 4%, var(--color-surface)); display: grid; gap: var(--space-3); }
+.dispense-route-simulator__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.dispense-route-simulator__title { display: flex; align-items: center; gap: var(--space-2); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); font-size: var(--font-size-small); }
+.dispense-route-simulator__title .ui-icon { color: var(--color-brand-primary); }
+.dispense-route-simulator__title small { font-weight: var(--font-weight-regular); color: var(--color-text-secondary); }
+.dispense-route-simulator__form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-3); align-items: end; }
+.dispense-route-simulator__form .ui-field { margin: 0; }
+.dispense-route-simulator__result { padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--color-surface); border: 1px solid var(--color-border); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.dispense-route-simulator__result.is-matched { border-color: color-mix(in srgb, var(--color-success) 40%, var(--color-border)); background: color-mix(in srgb, var(--color-success-soft) 40%, var(--color-surface)); }
+.dispense-route-simulator__result.is-unmatched { border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border)); background: color-mix(in srgb, var(--color-warning-soft) 40%, var(--color-surface)); }
+.dispense-route-simulator__result-main { display: flex; align-items: center; gap: var(--space-3); }
+.dispense-route-simulator__result-badge { font-size: 1.15rem; font-weight: var(--font-weight-bold); color: var(--color-brand-primary); display: flex; align-items: center; gap: var(--space-1); }
+.dispense-route-simulator__result-badge .ui-icon { width: 1.25rem; height: 1.25rem; }
+.dispense-route-simulator__result-info { display: flex; flex-direction: column; gap: 2px; }
+.dispense-route-simulator__result-info strong { font-size: var(--font-size-small); color: var(--color-text-primary); }
+.dispense-route-simulator__result-info small { font-size: 0.72rem; color: var(--color-text-secondary); }
+
+/* 表格辅助与高亮行 */
+.dispense-route-table tbody tr.is-simulated-match { background-color: color-mix(in srgb, var(--color-brand-primary) 8%, var(--color-surface)); box-shadow: inset 3px 0 0 var(--color-brand-primary); }
+.dispense-route-table tbody tr.is-inactive-row { opacity: 0.65; }
+.dispense-pharmacy-cell { display: inline-flex; align-items: center; gap: var(--space-1); white-space: nowrap; }
+.dispense-pharmacy-cell .ui-icon { color: var(--color-brand-primary); width: 1rem; height: 1rem; flex-shrink: 0; }
+.dispense-text-muted { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.dispense-priority-preview-badge { margin-left: var(--space-2); margin-right: var(--space-1); }
+.dispense-route-table th.col-actions,
+.dispense-route-table td.col-actions {
+  width: 8.5rem;
+  min-width: 8.5rem;
+  padding-inline: var(--space-3);
+  text-align: right;
+  white-space: nowrap;
+}
+.dispense-route-table .col-actions .master-data-row-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  flex-wrap: nowrap !important;
+  white-space: nowrap;
+}
+.dispense-route-table .col-actions .master-data-row-actions .ui-button {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding-inline: var(--space-2);
+  min-width: fit-content;
+}
+
+/* 弹窗中的优先级实时指导 */
 .dispense-route-editor { display: grid; gap: var(--space-4); }
-.dispense-route-editor__status { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); }
+.dispense-route-editor .ui-form-row { margin: 0; }
+.dispense-route-editor__priority-preview { padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-surface-subtle); border: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.dispense-route-editor__priority-preview .ui-icon { color: var(--color-brand-primary); flex-shrink: 0; }
+.dispense-route-editor__status { display: flex; align-items: flex-start; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); cursor: pointer; }
 .dispense-route-editor__status input { margin-top: .2rem; }
 .dispense-route-editor__status span, .dispense-route-editor__status strong, .dispense-route-editor__status small { display: block; }
 .dispense-route-editor__status small { margin-top: var(--space-1); color: var(--color-text-secondary); }
-@media (max-width: 900px) { .dispense-route-summary { grid-template-columns: 1fr; } }
 .master-data-row-actions { display: flex; align-items: center; justify-content: flex-start; gap: var(--space-1); flex-wrap: wrap; }
 .master-data-row-actions .ui-button { white-space: nowrap; }
 .disease-management-member-dialog { margin-top: var(--space-5); }

@@ -165,8 +165,10 @@ describe('OutpatientRegistrationWorkspace', () => {
     </QueryClientProvider>)
 
     // Open quick resident create modal
-    const quickCreateButtons = screen.getAllByRole('button', { name: /快速建/ })
-    await userEvent.click(quickCreateButtons[0])
+    const quickCreateButton = screen.getByRole('button', { name: /快速建档/ })
+    expect(quickCreateButton.closest('.ui-page-header__actions')).toBeInTheDocument()
+    expect(screen.queryByText('等待患者信息')).not.toBeInTheDocument()
+    await userEvent.click(quickCreateButton)
 
     expect(screen.getByRole('heading', { name: '30秒极速建档' })).toBeInTheDocument()
     const nameInput = screen.getByPlaceholderText('如 张三')
@@ -187,7 +189,9 @@ describe('OutpatientRegistrationWorkspace', () => {
     await waitFor(() => expect(createResident).toHaveBeenCalledWith(expect.objectContaining({
       fullName: '李小龙',
     })))
-    expect(await screen.findByText('李小龙')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('heading', { name: '30秒极速建档' })).not.toBeInTheDocument())
+    expect(document.querySelector('.registration-patient-identity')).toHaveTextContent('李小龙')
+    expect(document.querySelector('.registration-intake-strip')).toHaveClass('has-patient')
   })
 
   it('filters schedules by department category and pinyin search', async () => {
@@ -275,7 +279,7 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Initially first schedule (全科门诊) is selected
     expect(cardGeneral).toHaveClass('is-selected')
-    expect(screen.getByText('科室').parentElement).toHaveTextContent('全科门诊')
+    expect(document.querySelector('.registration-cashier .cashier-panel__head')).toHaveTextContent('全科门诊')
 
     // Focus on search input
     searchInput.focus()
@@ -288,14 +292,14 @@ describe('OutpatientRegistrationWorkspace', () => {
     // Focus still stays in search input!
     expect(searchInput).toHaveFocus()
     // Receiving department reflects the selected schedule's department (内科门诊), not the user's clinicalContext
-    expect(screen.getByText('科室').parentElement).toHaveTextContent('内科门诊')
+    expect(document.querySelector('.registration-cashier .cashier-panel__head')).toHaveTextContent('内科门诊')
 
     // Press ArrowLeft to switch back to first card (全科门诊)
     await userEvent.keyboard('{arrowleft}')
     expect(cardGeneral).toHaveClass('is-selected')
     expect(cardInternal).not.toHaveClass('is-selected')
     expect(searchInput).toHaveFocus()
-    expect(screen.getByText('科室').parentElement).toHaveTextContent('全科门诊')
+    expect(document.querySelector('.registration-cashier .cashier-panel__head')).toHaveTextContent('全科门诊')
 
     // Test doctor pinyin initials search (w -> 王专家)
     await userEvent.type(searchInput, 'w')

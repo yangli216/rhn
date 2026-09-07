@@ -1,17 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
-import type { AccountStatement, PaymentOrder, InsuranceSettlementView, ReceiptView } from '../../shared/api/billingApi'
+import type { AccountStatement, InsuranceSettlementView, ReceiptView } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { useBarcodeScanner } from '../../shared/hooks/useBarcodeScanner'
 import { SettlementPaymentPanel, type SettlementModeCode,
   type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { AggregatedPaymentModal } from '../../shared/billing/AggregatedPaymentModal'
 import { FiscalReceiptModal } from '../../shared/billing/FiscalReceiptModal'
 import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
+import { age, genderLabel } from '../../shared/format'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
@@ -38,6 +40,8 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   const linkedEncounterId = searchParams.get('encounterId')
   const linkedResidentId = searchParams.get('residentId')
   const [encounterId, setEncounterId] = useState('')
+  const [patientLookup, setPatientLookup] = useState('')
+  const [isManualSelecting, setIsManualSelecting] = useState(false)
   const [settlementMode, setSettlementMode] = useState<SettlementModeCode>('SELF_PAY')
   const [insuranceClaimView, setInsuranceClaimView] = useState<InsuranceSettlementView | null>(null)
   const [isPreSettlingInsurance, setIsPreSettlingInsurance] = useState(false)
@@ -69,6 +73,17 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     queryKey: ['applicable-dictionary-items', 'PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'],
     queryFn: () => api.dictionaries.applicable('PAY_METHOD', 'AVAILABLE_SCENE', 'CASHIER'),
   })
+
+  const handleResetPatient = useCallback(() => {
+    setIsManualSelecting(true)
+    setEncounterId('')
+    setPatientLookup('')
+    setTimeout(() => {
+      searchInputRef.current?.focus()
+      searchInputRef.current?.select()
+    }, 50)
+  }, [])
+
   useEffect(() => {
     if ((!linkedEncounterId && !linkedResidentId) || !worklist.data) return
     const target = worklist.data.find((item) => linkedEncounterId
@@ -79,12 +94,12 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
     setSearchParams(next, { replace: true })
   }, [linkedEncounterId, linkedResidentId, searchParams, setSearchParams, worklist.data])
   useEffect(() => {
-    if (linkedEncounterId || linkedResidentId) return
+    if (linkedEncounterId || linkedResidentId || isManualSelecting) return
     if (!encounterId && settlementItems.length) setEncounterId(settlementItems[0].encounterId)
     if (encounterId && settlementItems.length && !settlementItems.some((item) => item.encounterId === encounterId)) {
       setEncounterId(settlementItems[0].encounterId)
     }
-  }, [encounterId, linkedEncounterId, linkedResidentId, settlementItems])
+  }, [encounterId, isManualSelecting, linkedEncounterId, linkedResidentId, settlementItems])
   useEffect(() => {
     setSettlementMode('SELF_PAY')
     setInsuranceClaimView(null)
@@ -565,14 +580,17 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
 
       if (e.key === 'F1') {
         e.preventDefault()
-        searchInputRef.current?.focus()
-        searchInputRef.current?.select()
+        handleResetPatient()
         return
       }
 
       if (e.key === 'F2') {
         e.preventDefault()
-        setSettlementMode((prev) => (prev === 'SELF_PAY' ? 'MEDICAL_INSURANCE' : 'SELF_PAY'))
+        if (!settlementItems.length) return
+        const currentIdx = settlementItems.findIndex((item) => item.encounterId === encounterId)
+        const nextIdx = currentIdx < settlementItems.length - 1 ? currentIdx + 1 : 0
+        setIsManualSelecting(false)
+        setEncounterId(settlementItems[nextIdx].encounterId)
         return
       }
 
@@ -582,69 +600,157 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         const currentIdx = settlementItems.findIndex((item) => item.encounterId === encounterId)
         if (e.key === 'ArrowDown') {
           const nextIdx = currentIdx < settlementItems.length - 1 ? currentIdx + 1 : 0
+          setIsManualSelecting(false)
           setEncounterId(settlementItems[nextIdx].encounterId)
         } else {
           const prevIdx = currentIdx > 0 ? currentIdx - 1 : settlementItems.length - 1
+          setIsManualSelecting(false)
           setEncounterId(settlementItems[prevIdx].encounterId)
         }
         return
       }
 
-      if ((e.key === 'Enter' && (e.ctrlKey || e.metaKey)) || e.key === 'F4') {
-        e.preventDefault()
-        if (selected?.status === 'PENDING_CHARGE' && !synchronize.isPending) {
-          synchronize.mutate()
-        } else if (statement.data && !checkout.isPending && settlementOptions.length > 0) {
-          const opt = settlementOptions[0]
-          if (opt && statement.data.accountBalance > 0) {
-            void checkout.mutateAsync({
-              settlementId: opt.id,
-              settlementModeCode: settlementMode,
-              paymentMethodCode: 'CASH',
-              amount: opt.outstandingAmount,
-              idempotencyKey: `PAY-HOTKEY-${Date.now()}`,
-            })
-          }
-        }
-      }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [encounterId, settlementItems, selected, settlementMode, settlementOptions, statement.data, synchronize, checkout])
+  }, [encounterId, handleResetPatient, settlementItems])
 
   const error = worklist.error || paymentMethods.error || statement.error || paymentOrders.error
     || synchronize.error || checkout.error || recoverPaymentOrder.error
   const currency = statement.data?.currencyCode ?? selected?.currencyCode ?? 'CNY'
+  const timelineCount = (statement.data?.invoices.length ?? 0) + (statement.data?.payments.length ?? 0)
+    + allCurrentReceipts.length
 
   return <div className="billing-page">
-    <PageHeader eyebrow="收费管理" title="收费结算" description="处理费用核对、结算和患者收款。"
-      actions={<Button variant="secondary" onClick={() => void refresh()}>刷新</Button>} />
+    <PageHeader eyebrow="收费管理" title="收费结算" description="处理费用核对、结算和患者收款。" />
     {error && <Alert>{errorMessage(error)}</Alert>}
-    <div className="billing-context-bar billing-context-bar--compact">
-      <div><span>当前收费机构</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong></div>
-      <div><span>待计费</span><strong>{settlementItems.filter((item) => item.status === 'PENDING_CHARGE').length}</strong></div>
-      <div><span>待结算/收款</span><strong>{settlementItems.filter((item) => item.status !== 'PENDING_CHARGE').length}</strong></div>
-    </div>
-    <div className="billing-hotkeys-bar" aria-label="收银快捷键指引">
-      <span className="billing-hotkey-item"><kbd>F1</kbd> 检索患者</span>
-      <span className="billing-hotkey-item"><kbd>↑</kbd><kbd>↓</kbd> 切换患者</span>
-      <span className="billing-hotkey-item"><kbd>F2</kbd> 切换医保/自费</span>
-      <span className="billing-hotkey-item"><kbd>Ctrl+Enter</kbd> 结算开票</span>
-      <span className="billing-hotkey-item"><kbd>扫码枪</kbd> 硬件即扫即切</span>
-    </div>
     {scanNotice && <Alert tone={scanNotice.tone} onDismiss={() => setScanNotice(null)}>{scanNotice.text}</Alert>}
     {worklist.isPending ? <LoadingState label="正在加载收费队列…" /> : <div className="billing-workspace-scroll">
       <div className="billing-workspace">
-      <BillingQueue title="待收费患者" items={settlementItems} selectedId={encounterId} onSelect={setEncounterId}
-        emptyTitle="暂无待收费患者" emptyCopy="当前没有待计费、待结算或待收款业务。" searchInputRef={searchInputRef} />
+      <BillingQueue title="待收费患者" items={settlementItems} selectedId={encounterId}
+        onSelect={(id) => {
+          setIsManualSelecting(false)
+          setEncounterId(id)
+        }}
+        action={
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => void refresh()}
+            busy={worklist.isPending}
+            className="billing-queue-refresh-btn"
+            title="刷新待收费列表"
+            aria-label="刷新待收费列表"
+          >
+            <Icon name="refresh" />
+          </Button>
+        }
+        emptyTitle="暂无待收费患者" emptyCopy="当前没有待计费、待结算或待收款业务。"
+        keyword={patientLookup} onKeywordChange={setPatientLookup} showSearch={false} />
+      <main className="billing-main-workspace">
+        <section className={`billing-patient-strip ${selected ? 'has-patient' : ''}`}>
+          {selected ? (
+            <div className="billing-patient-identity">
+              <span className={`resident-avatar billing-patient-identity__avatar ${selected.gender?.toLowerCase() || ''}`}>
+                {selected.residentName?.slice(-1) || '患'}
+              </span>
+              <div className="billing-patient-identity__content">
+                <div className="billing-patient-identity__header">
+                  <strong className="billing-patient-identity__name">{selected.residentName || '姓名未提供'}</strong>
+                  <span className="billing-patient-identity__tag">
+                    {genderLabel(selected.gender)}
+                    {selected.birthDate ? ` · ${age(selected.birthDate)} 岁` : ''}
+                  </span>
+                  <span className={`billing-patient-identity__mode-badge ${settlementMode === 'MEDICAL_INSURANCE' ? 'is-insurance' : 'is-selfpay'}`}>
+                    <Icon name={settlementMode === 'MEDICAL_INSURANCE' ? 'check' : 'billing'} />
+                    {settlementMode === 'MEDICAL_INSURANCE' ? '医保结算' : '自费结算'}
+                  </span>
+                  {selected.birthDate && age(selected.birthDate) >= 65 && (
+                    <span className="billing-patient-identity__senior-badge">
+                      <Icon name="check" /> 65岁以上老年优待
+                    </span>
+                  )}
+                </div>
+                <div className="billing-patient-identity__meta">
+                  <span><small>就诊号：</small><code>{selected.encounterNo || '未登记'}</code></span>
+                  <span><small>健康档案号：</small><code>{selected.healthRecordNo || '未登记'}</code></span>
+                  <span><small>当前门诊科室：</small><code>{clinicalContext.department.name}</code></span>
+                </div>
+              </div>
+              <Button
+                className="billing-patient-reset"
+                size="sm"
+                variant="secondary"
+                onClick={handleResetPatient}
+              >
+                <Icon name="refresh" />
+                <span>重新选择</span>
+              </Button>
+            </div>
+          ) : (
+            <div className="billing-patient-lookup-bar">
+              <div className="billing-patient-lookup__control">
+                <Icon name="search" />
+                <input ref={searchInputRef} type="search" value={patientLookup}
+                  placeholder="输入姓名 / 就诊卡号 / 医保码快速检索并按回车确认 (F1)"
+                  onChange={(event) => setPatientLookup(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    const code = patientLookup.trim().toLowerCase()
+                    const match = settlementItems.find((item) => !code || [item.residentName, item.encounterNo,
+                      item.healthRecordNo, item.residentId].some((value) => value?.toLowerCase().includes(code)))
+                    if (match) {
+                      setIsManualSelecting(false)
+                      setEncounterId(match.encounterId)
+                    }
+                  }} />
+                {patientLookup && <button type="button" aria-label="清空患者检索" onClick={() => setPatientLookup('')}>
+                  <Icon name="close" />
+                </button>}
+              </div>
+              <div className="billing-patient-placeholder">
+                <Icon name="residents" />
+                <span>可从左侧待收费队列直接点击选择，或输入关键字回车快速定位</span>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <div className="billing-workbench">
       <Panel className="billing-statement">
-        <header className="billing-section-head"><div><h2>费用明细</h2>
-          <span>{selected
-            ? [selected.residentName, selected.encounterNo].filter(Boolean).join(' · ') || '已选择患者'
-            : '请选择患者'}</span></div>
-          {selected?.status === 'PENDING_CHARGE' && <Button onClick={() => synchronize.mutate()}
-            busy={synchronize.isPending}>同步计费</Button>}
+        <header className="billing-section-head">
+          <div className="billing-section-head__title">
+            <h2>费用明细与单据</h2>
+            {statement.data && (
+              <span>共 {documentGroups.length} 张单据 · {statement.data.charges.length} 项收费</span>
+            )}
+          </div>
+          <div className="billing-section-head__actions">
+            {selected?.status === 'PENDING_CHARGE' && (
+              <Button size="sm" onClick={() => synchronize.mutate()} busy={synchronize.isPending}>同步计费</Button>
+            )}
+            {statement.data && totalUninvoicedCount > 0 && (
+              <div className="billing-selection-actions">
+                <label className="billing-check-all-label">
+                  <input
+                    type="checkbox"
+                    checked={selectedChargeIds.size === totalUninvoicedCount && totalUninvoicedCount > 0}
+                    onChange={() => {
+                      if (selectedChargeIds.size === totalUninvoicedCount) setSelectedChargeIds(new Set())
+                      else selectAllUninvoiced()
+                    }}
+                  />
+                  <span>全选待结</span>
+                </label>
+                <Button variant="secondary" size="sm" onClick={invertSelection}>反选</Button>
+                <span className="billing-selection-summary">
+                  已勾选总金额 <strong className="billing-selection-summary__amount">{money(selectedChargesAmount, currency)}</strong>
+                  <span> · {selectedChargeIds.size} / {totalUninvoicedCount} 项</span>
+                </span>
+              </div>
+            )}
+          </div>
         </header>
         {!selected ? (
           <EmptyState icon="billing" title="请选择待收费患者" copy="在左侧待收费列表中选择患者后查看费用明细及办理结算。" />
@@ -658,40 +764,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           <Alert>{errorMessage(statement.error)}</Alert>
         ) : statement.data ? (
           <>
-            <div className="billing-metrics">
-              <div><span>费用合计</span><strong>{money(statement.data.chargeAmount, currency)}</strong></div>
-              <div><span>已结算</span><strong>{money(statement.data.invoicedAmount, currency)}</strong></div>
-              <div><span>已收款</span><strong>{money(statement.data.paymentAmount, currency)}</strong></div>
-              <div className={statement.data.accountBalance === 0 ? 'is-balanced' : 'is-open'}>
-                <span>待收金额</span><strong>{money(statement.data.accountBalance, currency)}</strong></div>
-            </div>
             <section className="billing-table-section">
-              <header className="billing-doc-section-head">
-                <div>
-                  <h3>费用明细与单据</h3>
-                  <span>共 {documentGroups.length} 张单据 · {statement.data.charges.length} 项收费</span>
-                </div>
-                {totalUninvoicedCount > 0 && (
-                  <div className="billing-selection-actions">
-                    <label className="billing-check-all-label">
-                      <input
-                        type="checkbox"
-                        checked={selectedChargeIds.size === totalUninvoicedCount && totalUninvoicedCount > 0}
-                        onChange={() => {
-                          if (selectedChargeIds.size === totalUninvoicedCount) setSelectedChargeIds(new Set())
-                          else selectAllUninvoiced()
-                        }}
-                      />
-                      <span>全选待结</span>
-                    </label>
-                    <Button variant="secondary" size="sm" onClick={invertSelection}>反选</Button>
-                    <span className="billing-selection-summary">
-                      已选 <strong>{selectedChargeIds.size}</strong> / {totalUninvoicedCount} 项
-                      （待付：<strong className="billing-selection-summary__amount">{money(selectedChargesAmount, currency)}</strong>）
-                    </span>
-                  </div>
-                )}
-              </header>
 
               <div className="billing-doc-groups">
                 {documentGroups.map((group) => {
@@ -754,7 +827,6 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                               <tr>
                                 <th style={{ width: '2.5rem' }}></th>
                                 <th>项目名称</th>
-                                <th>来源类型</th>
                                 <th>数量</th>
                                 <th>单价</th>
                                 <th>金额</th>
@@ -781,13 +853,12 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                                       )}
                                     </td>
                                     <td>
-                                      <strong>{charge.itemName}</strong>
-                                      <code>{charge.itemCode}</code>
-                                    </td>
-                                    <td>
-                                      <StatusBadge tone={charge.totalAmount < 0 ? 'warning' : 'info'}>
-                                        {charge.totalAmount < 0 ? '冲正' : '收费'}
-                                      </StatusBadge>
+                                      <div className="billing-table-item-name">
+                                        <strong>{charge.itemName}</strong>
+                                        {charge.totalAmount < 0 && (
+                                          <StatusBadge tone="warning">冲正</StatusBadge>
+                                        )}
+                                      </div>
                                     </td>
                                     <td>{charge.quantity} {charge.unitCode}</td>
                                     <td>{money(charge.unitPrice, charge.currencyCode)}</td>
@@ -814,29 +885,32 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 })}
               </div>
             </section>
-            <BillingTimeline
-              invoices={statement.data.invoices}
-              payments={statement.data.payments}
-              receipts={allCurrentReceipts}
-              currency={currency}
-              onViewReceipt={(receipt) => {
-                setActiveReceipt(receipt)
-                setFiscalModalOpen(true)
-              }}
-            />
+            {timelineCount > 0 && <details className="billing-history-panel">
+              <summary><span>结算与支付记录 · {timelineCount} 条</span><Icon name="chevron-down" /></summary>
+              <BillingTimeline
+                invoices={statement.data.invoices}
+                payments={statement.data.payments}
+                receipts={allCurrentReceipts}
+                currency={currency}
+                onViewReceipt={(receipt) => {
+                  setActiveReceipt(receipt)
+                  setFiscalModalOpen(true)
+                }}
+              />
+            </details>}
           </>
         ) : null}
       </Panel>
-      <Panel className="billing-payment-panel">
-        <header className="billing-section-head"><div><h2>结算</h2><span>结算与支付进度</span></div></header>
+      <CashierPanel className="billing-payment-panel" title="收费结算"
+        amountLabel="待支付金额"
+        amount={money(selectedChargesAmount || statement.data?.accountBalance || 0, currency)}
+        meta={selected ? (settlementMode === 'MEDICAL_INSURANCE' ? '医保实时结算' : '自费结算') : '待选择患者'}>
         {!selected ? (
           <EmptyState icon="billing" title="请先选择患者" copy="选定患者并确认费用明细后在此办理结算与支付。" />
         ) : !selected.accountId ? (
           <EmptyState icon="billing" title="等待生成收费事项" copy="请先在费用明细面板中同步计费以生成费用账户。" />
         ) : (
           <>
-            {statement.data && <SettlementProgress statement={statement.data} canInvoice={canInvoice}
-              orders={paymentOrders.data ?? []} stage={checkoutStage} settlementMode={settlementMode} />}
             <div className="billing-action-form">
               <SettlementPaymentPanel settlements={settlementOptions}
                 methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
@@ -845,7 +919,8 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                   setSettlementMode(mode)
                   setInsuranceClaimView(null)
                 }}
-                actionLabel="结算" busyLabel={checkoutStage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : isPreSettlingInsurance ? '正在试算医保' : '正在支付'}
+                showAmountInput={false}
+                actionLabel="结算开票 (Ctrl+Enter)" busyLabel={checkoutStage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : isPreSettlingInsurance ? '正在试算医保' : '正在支付'}
                 recoveringOrderId={recoverPaymentOrder.isPending ? recoverPaymentOrder.variables : undefined}
                 onRecoverOrder={(order) => recoverPaymentOrder.mutateAsync(order.id)}
                 onInitiateScanPay={handleInitiateScanPay}
@@ -854,6 +929,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                 onPreSettleInsurance={handlePreSettleInsurance}
                 onCancelInsurancePreSettle={() => setInsuranceClaimView(null)}
                 isPreSettlingInsurance={isPreSettlingInsurance}
+                submitShortcut
                 onSubmit={(command) => checkout.mutateAsync(command)} />
             </div>
             {statement.data && statement.data.settlements.length > 0 && (
@@ -896,7 +972,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
             )}
           </>
         )}
-      </Panel>
+      </CashierPanel>
+        </div>
+      </main>
       </div>
     </div>}
     <AggregatedPaymentModal
@@ -934,65 +1012,10 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
   </div>
 }
 
-function SettlementProgress({ statement, canInvoice, orders, stage, settlementMode }: {
-  statement: AccountStatement
-  canInvoice: boolean
-  orders: PaymentOrder[]
-  stage: CheckoutStage
-  settlementMode: SettlementModeCode
-}) {
-  const latestSettlement = [...statement.settlements].filter((value) => value.settlementType === 'NORMAL')
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0]
-  const activeOrder = orders.find((value) => ['CREATED', 'PENDING', 'PROCESSING', 'PARTIAL'].includes(value.status))
-  const latestOrder = [...orders].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
-  const hasCharges = statement.charges.length > 0
-  const insuranceMode = settlementMode === 'MEDICAL_INSURANCE'
-  const settlementGenerated = stage === 'CREATING_PAYMENT' || Boolean(latestSettlement && !canInvoice)
-  const insuranceReady = Boolean(latestSettlement && insuranceSettlementReady(latestSettlement))
-  const settlementComplete = insuranceMode ? settlementGenerated && insuranceReady : settlementGenerated
-  const paymentComplete = settlementComplete && !activeOrder && statement.accountBalance === 0
-  const paymentFailed = settlementComplete && latestOrder?.status === 'FAILED'
-  const steps = [
-    {
-      title: '费用确认', state: hasCharges ? 'done' : 'current',
-      detail: hasCharges ? `${statement.charges.length} 项 · ${money(statement.chargeAmount, statement.currencyCode)}` : '等待收费项目',
-    },
-    {
-      title: insuranceMode ? '医保结算' : '生成结算单', state: settlementComplete ? 'done' : hasCharges ? 'current' : 'waiting',
-      detail: stage === 'CREATING_SETTLEMENT' ? '正在生成结算单' : insuranceMode && settlementGenerated && !insuranceReady
-        ? '等待医保预结算结果' : settlementComplete
-          ? insuranceMode ? `医保基金 ${money(latestSettlement?.insuranceAmount ?? 0, statement.currencyCode)}`
-            : latestSettlement?.settlementNo ?? '已生成' : '点击结算后自动生成',
-    },
-    {
-      title: insuranceMode ? '个人自付收款' : '支付记账', state: paymentComplete ? 'done' : paymentFailed ? 'error'
-        : settlementComplete || activeOrder ? 'current' : 'waiting',
-      detail: stage === 'CREATING_PAYMENT' ? '正在发起支付' : activeOrder ? `支付${paymentOrderProgress(activeOrder.status)}`
-        : paymentComplete ? statement.paymentAmount > 0
-          ? `已收款 ${money(statement.paymentAmount, statement.currencyCode)}` : '无需支付'
-          : paymentFailed ? '支付失败，可重试' : settlementComplete
-            ? `待收 ${money(statement.accountBalance, statement.currencyCode)}` : '等待结算单',
-    },
-  ]
-
-  return <ol className="billing-settlement-progress" aria-label="结算进度">
-    {steps.map((step, index) => <li key={step.title} className={`is-${step.state}`}
-      aria-current={step.state === 'current' ? 'step' : undefined}>
-      <i aria-hidden="true">{step.state === 'done' ? '✓' : index + 1}</i>
-      <div><strong>{step.title}</strong><span>{step.detail}</span></div>
-    </li>)}
-  </ol>
-}
-
 function insuranceSettlementReady(settlement: AccountStatement['settlements'][number]) {
   const latestInsuranceEvent = [...settlement.events]
     .filter((value) => value.commandCode.startsWith('INSURANCE-'))
     .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt))[0]
   if (latestInsuranceEvent) return latestInsuranceEvent.eventType !== 'REVERSE_COMPLETE'
   return settlement.insuranceAmount > 0 || settlement.tenders.some((value) => Boolean(value.claimResponseId))
-}
-
-function paymentOrderProgress(status: PaymentOrder['status']) {
-  return ({ CREATED: '已创建', PENDING: '待确认', PROCESSING: '处理中', PARTIAL: '部分完成' } as Record<string, string>)[status]
-    ?? '处理中'
 }

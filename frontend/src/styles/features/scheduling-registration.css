@@ -721,6 +721,172 @@
 .registration-history-table tr:hover td { background: var(--color-surface-subtle); }
 .registration-shortcuts-hint { display: inline-flex; align-items: center; gap: var(--space-2); font-size: 0.75rem; color: var(--color-text-secondary); }
 .registration-shortcuts-hint kbd { padding: 1px 5px; background: var(--color-surface-muted); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-family: inherit; font-size: 0.75rem; color: var(--color-text-primary); }
+
+/* Registration workstation: patient strip over schedules and the shared cashier. */
+.registration-workspace-layout { min-width: 68rem; display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); margin-bottom: 0; }
+.registration-intake-strip {
+  position: relative;
+  z-index: 4;
+  min-height: 4.5rem;
+  padding: var(--space-2) var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(24rem, .85fr);
+  align-items: center;
+  gap: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--motion-fast) var(--ease-standard), background var(--motion-fast) var(--ease-standard);
+}
+.registration-intake-strip.has-patient {
+  grid-template-columns: minmax(0, 1.45fr) minmax(24rem, .85fr);
+  border-color: color-mix(in srgb, var(--color-brand-primary) 32%, var(--color-border));
+  background: color-mix(in srgb, var(--color-brand-soft) 30%, var(--color-surface));
+}
+.registration-strip-label { display: block; margin-bottom: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-caption); font-weight: var(--font-weight-semibold); }
+.registration-intake-strip__search { position: relative; min-width: 0; display: block; }
+.registration-intake-strip .registration-intake-search { min-width: 0; padding: 0; border: 0; }
+.registration-intake-strip .registration-patient-search { position: relative; }
+.registration-intake-strip .registration-patient-search .ui-patient-search__form > button { height: var(--control-height-md); }
+.registration-intake-strip .registration-patient-search .ui-patient-search__results {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  left: 0;
+  z-index: 25;
+  width: 32rem;
+  max-width: calc(100vw - 2rem);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-lg);
+}
+.registration-intake-strip .registration-patient-search .ui-patient-search__results > div { max-height: 18rem; padding: 0; gap: 0; }
+.registration-intake-strip .registration-patient-search .ui-patient-search__results button { min-height: 4rem; padding: var(--space-2) var(--space-3); border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; }
+.registration-intake-strip .registration-patient-search .ui-patient-search__results button:last-child { border-bottom: 0; }
+.registration-intake-strip .registration-patient-search .ui-patient-search__results button.is-keyboard-focused { border-color: transparent; box-shadow: inset 3px 0 var(--color-brand-primary); }
+.registration-intake-strip__identity { min-width: 0; display: flex; align-items: center; }
+.registration-intake-strip .registration-patient-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  min-height: 3rem;
+}
+.registration-patient-identity__avatar {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.registration-patient-identity__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  flex: 1;
+}
+.registration-patient-identity__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.registration-patient-identity__name {
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+.registration-patient-identity__tag {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+.registration-patient-identity__senior-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning-soft) 85%, var(--color-surface));
+  border: 1px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+}
+.registration-patient-identity__senior-badge .ui-icon {
+  font-size: 0.8125rem;
+}
+.registration-patient-identity__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.registration-patient-identity__meta span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.125rem;
+}
+.registration-patient-identity__meta small {
+  color: var(--color-text-disabled);
+  font-size: var(--font-size-small);
+}
+.registration-patient-identity__meta code {
+  font-family: inherit;
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+.registration-intake-strip .registration-patient-reset {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  height: var(--control-height-sm);
+}
+.registration-intake-strip .registration-params-section { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(10rem, 1fr)); align-items: center; gap: var(--space-2); }
+.registration-intake-strip .registration-params-section .ui-select__trigger { height: var(--control-height-md); }
+.registration-linked-appointment { margin: 0; }
+.registration-workbench { min-width: 0; min-height: 31rem; display: grid; grid-template-columns: minmax(42rem, 1fr) 22rem; align-items: stretch; gap: var(--space-3); }
+.registration-col-schedules { min-width: 0; grid-column: 1; grid-row: 1; display: block; }
+.registration-schedule-panel { height: 100%; overflow: hidden; border-radius: var(--radius-lg); }
+.registration-cashier { min-height: 0; grid-column: 2; grid-row: 1; }
+.registration-cashier .cashier-panel__body { padding: 0; }
+.registration-settlement-section { min-height: 100%; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); border: 0; }
+.registration-settlement-section .registration-fee-card { padding: 0 0 var(--space-2); border: 0; background: transparent; }
+.registration-settlement-options { justify-content: flex-start; }
+.registration-submit-area { margin-top: auto; padding-top: var(--space-3); }
+.registration-confirm-button { min-height: 3rem; }
+.registration-selection-hint { margin-top: var(--space-2); }
+.registration-history-panel { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface); }
+.registration-history-panel > summary { min-height: 2.875rem; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; list-style: none; }
+.registration-history-panel > summary::-webkit-details-marker { display: none; }
+.registration-history-panel > summary strong { color: var(--color-text-primary); }
+.registration-history-panel > summary > span:last-child { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-brand-primary); white-space: nowrap; }
+.registration-history-panel > summary .ui-icon { width: 1rem; height: 1rem; transition: transform var(--motion-fast) var(--ease-standard); }
+.registration-history-panel[open] > summary .ui-icon { transform: rotate(180deg); }
+.registration-history-content { border-top: 1px solid var(--color-border); }
+.registration-history-toolbar { min-height: 2.5rem; padding: 0 var(--space-4); display: flex; align-items: center; justify-content: space-between; color: var(--color-text-secondary); font-size: var(--font-size-small); background: var(--color-surface-subtle); }
+.registration-history-empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .registration-workspace > .ui-panel { min-width: 0; overflow: hidden; }
 .registration-intake-form { padding: var(--space-3) var(--space-4) var(--space-4); display: grid; gap: var(--space-3); }
 .registration-intake-search { min-width: 0; padding-bottom: var(--space-3); border-bottom: 1px solid var(--color-border); }

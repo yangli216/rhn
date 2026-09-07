@@ -1,4 +1,4 @@
-import { useMemo, useState, type RefObject } from 'react'
+import { useMemo, useState, type ReactNode, type RefObject } from 'react'
 import type { BillingWorkItem, Invoice, Payment, ReceiptView } from '../../shared/api/billingApi'
 import { formatTime } from '../../shared/format'
 import { EmptyState, Icon, Panel, StatusBadge } from '../../shared/ui'
@@ -30,7 +30,19 @@ function patientDemographics(item: BillingWorkItem) {
   return [gender, age !== undefined && age >= 0 ? `${age}岁` : ''].filter(Boolean).join(' · ')
 }
 
-export function BillingQueue({ title, items, selectedId, onSelect, emptyTitle, emptyCopy, searchInputRef }: {
+export function BillingQueue({
+  title,
+  items,
+  selectedId,
+  onSelect,
+  emptyTitle,
+  emptyCopy,
+  searchInputRef,
+  keyword: controlledKeyword,
+  onKeywordChange,
+  showSearch = true,
+  action,
+}: {
   title: string
   items: BillingWorkItem[]
   selectedId: string
@@ -38,8 +50,14 @@ export function BillingQueue({ title, items, selectedId, onSelect, emptyTitle, e
   emptyTitle: string
   emptyCopy: string
   searchInputRef?: RefObject<HTMLInputElement | null>
+  keyword?: string
+  onKeywordChange?: (value: string) => void
+  showSearch?: boolean
+  action?: ReactNode
 }) {
-  const [keyword, setKeyword] = useState('')
+  const [internalKeyword, setInternalKeyword] = useState('')
+  const keyword = controlledKeyword ?? internalKeyword
+  const setKeyword = onKeywordChange ?? setInternalKeyword
 
   const filteredItems = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -76,13 +94,13 @@ export function BillingQueue({ title, items, selectedId, onSelect, emptyTitle, e
   }
 
   return <Panel className="billing-queue">
-    <header className="billing-section-head">
-      <div>
+    <header className="billing-queue-head">
+      <div className="billing-queue-head__title">
         <h2>{title}</h2>
-        <span>{keyword.trim() ? `${filteredItems.length} / ${items.length} 条` : `${items.length} 条`}</span>
       </div>
+      {action && <div className="billing-queue-head__action">{action}</div>}
     </header>
-    {items.length > 0 && (
+    {showSearch && items.length > 0 && (
       <div className="billing-queue-search">
         <div className="billing-queue-search-wrap">
           <Icon name="search" className="billing-queue-search-icon" />
@@ -117,14 +135,23 @@ export function BillingQueue({ title, items, selectedId, onSelect, emptyTitle, e
         {filteredItems.map((item) => <button key={item.encounterId} type="button"
           aria-label={`${item.residentName || '患者'}，${workStatusText[item.status]}`}
           className={item.encounterId === selectedId ? 'is-active' : ''} onClick={() => onSelect(item.encounterId)}>
-          <div><strong>{item.residentName || '姓名未提供'}</strong>
-            <StatusBadge tone={billingTone(item.status)}>{workStatusText[item.status]}</StatusBadge></div>
-          <small>{patientDemographics(item) || '性别、年龄未提供'}</small>
-          <b>{money(item.accountBalance, item.currencyCode)}</b>
+          <div className="billing-queue-item__row">
+            <strong>{item.residentName || '姓名未提供'}</strong>
+            <StatusBadge tone={billingTone(item.status)}>{workStatusText[item.status]}</StatusBadge>
+          </div>
+          <small className="billing-queue-item__meta">{patientDemographics(item) || '性别、年龄未提供'}</small>
         </button>)}
       </div>
     )}
   </Panel>
+}
+
+function waitingDuration(value?: string) {
+  if (!value) return '--'
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000))
+  if (!Number.isFinite(minutes)) return '--'
+  if (minutes < 60) return `${minutes} 分钟`
+  return `${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分钟`
 }
 
 export function BillingTimeline({ invoices, payments, receipts = [], currency, onViewReceipt }: {

@@ -10,6 +10,7 @@ import { age, genderLabel } from '../../shared/format'
 import type { Encounter, Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
@@ -395,6 +396,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const scheduleCardRefs = useRef<Array<HTMLButtonElement | null>>([])
 
+  const selectPatient = useCallback((resident: Resident) => {
+    setSelected(resident)
+    setSuccess(null)
+    setTimeout(() => {
+      deptSearchInputRef.current?.focus()
+      deptSearchInputRef.current?.select()
+    }, 60)
+  }, [])
+
   const linkedResidentId = searchParams.get('residentId')
   const linkedAppointmentId = searchParams.get('appointmentId')
 
@@ -764,6 +774,11 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       } else if (e.altKey && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         deptSearchInputRef.current?.focus()
+      } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        if (selected && scheduleId && !createIntent.isPending) {
+          e.preventDefault()
+          confirmButtonRef.current?.click()
+        }
       } else if (e.key === 'F8' || (e.altKey && (e.key === 's' || e.key === 'S'))) {
         if (selected && scheduleId && !createIntent.isPending) {
           e.preventDefault()
@@ -832,7 +847,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     </Alert>}
 
     {showQuickCreate && <QuickResidentCreateDialog api={api} onClose={() => setShowQuickCreate(false)}
-      onSuccess={(newResident) => { setSelected(newResident); setSuccess(null) }} />}
+      onSuccess={selectPatient} />}
 
     {showReceiptModal && activeReceiptItem && (() => {
       const activeSchedule = (schedules.data ?? []).find((s) => s.id === activeReceiptItem.scheduleId) ?? selectedSchedule
@@ -860,95 +875,87 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       onConfirm={(reason) => cancelRegistration.mutate({ item: cancellingItem, reason })} />}
 
     <section className="registration-workspace-layout">
-      {/* Left Column: Patient Intake, Parameters & Real-Time Billing */}
-      <Panel className="registration-col-patient">
-        <PanelHead title="患者登记与挂号结算" meta={selected ? `${selected.fullName} · 已确认` : '待检索'}
-          actions={!selected ? <Button size="sm" variant="secondary" onClick={() => setShowQuickCreate(true)}>
-            <Icon name="add" />快速建卡 (F2)</Button> : undefined} />
-        
-        <div className="registration-intake-form-v2">
-          {/* Patient Search Section */}
-          <section className="registration-intake-search">
-            <PatientIdentitySearch className="registration-patient-search" queryKey="outpatient-registration"
-              inputRef={patientSearchInputRef}
-              search={api.residents.search} selected={selected} disabled={Boolean(intentId)} compact
-              showInitialEmpty={false} showSelectedSummary={false} hideResultsWhenSelected
-              onSelect={(resident) => {
-                setSelected(resident)
-                setSuccess(null)
-                setTimeout(() => {
-                  deptSearchInputRef.current?.focus()
-                  deptSearchInputRef.current?.select()
-                }, 60)
-              }}
-              onClear={() => {
-                setSelected(null)
-                setTimeout(() => patientSearchInputRef.current?.focus(), 50)
-              }}
-              emptyCopy="输入姓名/拼音/卡号快速检索，或按 F2 快速建档。" />
-            {linkedResidentId && linkedResident.isPending && <LoadingState label="正在加载居民…" />}
-          </section>
-
-          {/* Patient Identity Profile Card */}
-          {selected ? (
-            <div className="registration-identity-section">
-              <div className="registration-patient-identity registration-patient-identity--compact">
-                <span className={`resident-avatar ${selected.gender.toLowerCase()}`}>{selected.fullName.slice(-1)}</span>
-                <div>
-                  <strong>{selected.fullName}</strong>
-                  <span>{genderLabel(selected.gender)} · {age(selected.birthDate)} 岁 · 身份证: {selected.maskedNationalId || '未登记'}</span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>健康档案号: {selected.healthRecordNo} · 电话: {selected.phone || '未登记'}</span>
+      <div className={`registration-intake-strip ${selected ? 'has-patient' : ''}`}>
+        {selected ? (
+          <div className="registration-intake-strip__identity">
+            <div className="registration-patient-identity">
+              <span className={`resident-avatar registration-patient-identity__avatar ${selected.gender.toLowerCase()}`}>
+                {selected.fullName.slice(-1)}
+              </span>
+              <div className="registration-patient-identity__content">
+                <div className="registration-patient-identity__header">
+                  <strong className="registration-patient-identity__name">{selected.fullName}</strong>
+                  <span className="registration-patient-identity__tag">
+                    {genderLabel(selected.gender)} · {age(selected.birthDate)} 岁
+                  </span>
+                  {age(selected.birthDate) >= 65 && (
+                    <span className="registration-patient-identity__senior-badge">
+                      <Icon name="check" /> 65岁以上老年优待
+                    </span>
+                  )}
                 </div>
-                <Button className="registration-patient-reset" size="sm" variant="text" disabled={Boolean(intentId)} onClick={() => {
+                <div className="registration-patient-identity__meta">
+                  <span><small>身份证：</small><code>{selected.maskedNationalId || '未登记'}</code></span>
+                  <span><small>健康档案号：</small><code>{selected.healthRecordNo}</code></span>
+                  <span><small>电话：</small><code>{selected.phone || '未登记'}</code></span>
+                </div>
+              </div>
+              <Button
+                className="registration-patient-reset"
+                size="sm"
+                variant="secondary"
+                disabled={Boolean(intentId)}
+                onClick={() => {
                   setSelected(null)
-                  setTimeout(() => patientSearchInputRef.current?.focus(), 50)
-                }}>重新选择</Button>
-              </div>
-            </div>
-          ) : (
-            <div className="registration-form-empty" style={{ minHeight: '3.5rem' }}>
-              <Icon name="residents" /><span>请先检索患者 (F1) 或快速建卡 (F2)</span>
-            </div>
-          )}
-
-          {/* Registration Parameters: 2-Column Grid (No Overlap) */}
-          <div className="registration-params-section">
-            <div className="registration-intake-params-grid">
-              <FormField label="就诊类型" required>
-                <Select value={visitType} options={visitTypeOptions} disabled={Boolean(intentId)}
-                  onChange={(value) => setVisitType(value as typeof visitType)} />
-              </FormField>
-              <FormField label="费用类别" required>
-                <Select value={coverageSelection} options={coverageOptions} disabled={Boolean(intentId) || residentProfile.isPending}
-                  onChange={(value) => { setCoverageSelection(value); setCoverageTouched(true) }} />
-              </FormField>
-            </div>
-            <div className="registration-intake-meta-row">
-              <div className="registration-intake-meta-item">
-                <span>科室</span>
-                <strong>{targetDepartmentName}</strong>
-              </div>
-              <div className="registration-intake-meta-item">
-                <span>来源</span>
-                <strong>{linkedAppointment.data ? '预约到院' : '窗口挂号'}</strong>
-              </div>
-              <div className="registration-intake-meta-item">
-                <span>日期</span>
-                <strong>{today}</strong>
-              </div>
+                  setTimeout(() => {
+                    patientSearchInputRef.current?.focus()
+                    patientSearchInputRef.current?.select()
+                  }, 50)
+                }}
+              >
+                <Icon name="refresh" />
+                <span>重新选择</span>
+              </Button>
             </div>
           </div>
+        ) : (
+          <div className="registration-intake-strip__search">
+            <section className="registration-intake-search">
+              <PatientIdentitySearch className="registration-patient-search" queryKey="outpatient-registration"
+                inputRef={patientSearchInputRef}
+                search={api.residents.search} selected={selected} disabled={Boolean(intentId)} compact
+                showInitialEmpty={false} showSelectedSummary={false} hideResultsWhenSelected
+                onSelect={selectPatient}
+                onClear={() => {
+                  setSelected(null)
+                  setTimeout(() => patientSearchInputRef.current?.focus(), 50)
+                }}
+                emptyCopy="输入姓名/拼音/卡号快速检索，或按 F2 快速建档。" />
+              {linkedResidentId && linkedResident.isPending && <LoadingState label="正在加载居民…" />}
+            </section>
+          </div>
+        )}
 
-          {/* Real-time Fee Card & Cashier */}
+        <div className="registration-params-section">
+          <Select aria-label="就诊类型" aria-required value={visitType} options={visitTypeOptions} disabled={Boolean(intentId)}
+            onChange={(value) => setVisitType(value as typeof visitType)} />
+          <Select aria-label="费用类别" aria-required value={coverageSelection} options={coverageOptions}
+            disabled={Boolean(intentId) || residentProfile.isPending}
+            onChange={(value) => { setCoverageSelection(value); setCoverageTouched(true) }} />
+        </div>
+      </div>
+
+      {linkedAppointment.data && <Alert tone="info" className="registration-linked-appointment">正在办理预约 {linkedAppointment.data.appointmentNo} 到院挂号；已占号源不重复扣除。</Alert>}
+
+      <div className="registration-workbench">
+        <CashierPanel className="registration-cashier" title="挂号收银"
+          amountLabel={feeBreakdown.isExpert ? '专家门诊应收' : '普通门诊应收'}
+          amount={feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}
+          meta={selectedSchedule ? `${targetDepartmentName} · ${selectedSchedule.practitionerName || '普通门诊'}` : '待选择号源'}>
+
           <div className="registration-settlement-section">
-            <header className="registration-form-group-head">
-              <strong>{feeBreakdown.isExpert ? '专家门诊诊查费' : '普通门诊诊查费'}</strong>
-              <span className="registration-settlement-total">应收 <b>{feeBreakdown.feeConfigured
-                ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未配置'}</b></span>
-            </header>
-            
             {(feeBreakdown.insuranceDeduction > 0 || feeBreakdown.seniorDiscount > 0) &&
-            <div className="registration-fee-card" style={{ padding: 'var(--space-2) 0', border: 'none' }}>
+            <div className="registration-fee-card">
               {feeBreakdown.insuranceDeduction > 0 && <div className="registration-fee-row">
                 <span>医保统筹基金抵扣</span>
                 <strong style={{ color: 'var(--color-success)' }}>-¥{feeBreakdown.insuranceDeduction.toFixed(2)}</strong>
@@ -996,7 +1003,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <input type="checkbox" checked={autoPrintTicket} onChange={(e) => setAutoPrintTicket(e.target.checked)} />
                 <span>自动弹出打印凭条</span>
               </label>
-              <span className="registration-shortcuts-hint"><kbd>F8</kbd> 确认出单</span>
             </div>
 
             {validationError && (
@@ -1005,7 +1011,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </Alert>
             )}
 
-            {!intentId && !currentIntent && <div>
+            {!intentId && !currentIntent && <div className="registration-submit-area">
               <Button ref={confirmButtonRef} className="registration-confirm-button"
                 busy={createIntent.isPending} busyLabel="正在核价并出单"
                 disabled={!selected || !scheduleId || !feeBreakdown.feeConfigured || isCashShort}
@@ -1024,7 +1030,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <Icon name="add" />
                 {isCashShort
                   ? `实收缴款不足，还差 ¥${(feeBreakdown.payableAmount - numericTendered).toFixed(2)}`
-                  : `确认挂号并出单 (F8 · ${feeBreakdown.feeConfigured ? `¥${feeBreakdown.payableAmount.toFixed(2)}` : '未定价'})`}
+                  : '确认挂号并出单 (Ctrl+Enter)'}
               </Button>
               <div className="registration-selection-hint">
                 {!selected ? '请先检索患者 (F1) 或快速建卡 (F2)'
@@ -1075,17 +1081,14 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
                   orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending} sceneLabel="挂号费收款"
                   settlementModeCode={currentIntent.settlementMode}
+                  submitShortcut
                   onSubmit={(command) => createPaymentOrder.mutateAsync(command)} />}
             </div>}
           </div>
-        </div>
-        {linkedAppointment.data && <Alert tone="info" className="registration-linked-appointment">正在办理预约 {linkedAppointment.data.appointmentNo} 到院挂号；已占号源不重复扣除。</Alert>}
-      </Panel>
+        </CashierPanel>
 
-      {/* Right Column: Schedules Board (Pro View) & Today's Flow */}
-      <div className="registration-col-schedules">
-        {/* Upper Section: All-Hospital Schedules Grid Pro */}
-        <Panel>
+        <div className="registration-col-schedules">
+        <Panel className="registration-schedule-panel">
           <PanelHead title="全院选科与今日出诊号源" meta={`${displayedSchedules.length} 个班次 · 剩余 ${remainingSlots} 个号源`} />
           <div className="registration-dept-filter-bar">
             <div className="registration-filter-search-row">
@@ -1277,14 +1280,22 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
           {!schedules.isPending && displayedSchedules.length === 0 && !canUseDirect
             && <EmptyState icon="clinical" title="未找到匹配的号源" copy="请调整科室检索条件，或前往排班管理确认出诊安排。" />}
         </Panel>
+        </div>
+      </div>
 
-        {/* Lower Section: Today's Registration Stream & Return */}
-        <Panel className="registration-history-panel">
-          <PanelHead title="本窗口今日挂号记录（最近流水）" meta={`共 ${todayList.length} 条记录 · ${todayWaitingCount} 人候诊中`}
-            actions={<Button size="sm" variant="secondary" onClick={() => void todayQueue.refetch()}>
-              <Icon name="refresh" />刷新流水</Button>} />
+      <details className="registration-history-panel">
+        <summary>
+          <span><strong>本窗口今日挂号记录（最近流水）</strong> · 今日已挂号 {todayList.length} 人 · {todayWaitingCount} 人候诊中</span>
+          <span>展开查看 / 补打 <Icon name="chevron-down" /></span>
+        </summary>
+        <div className="registration-history-content">
+          <div className="registration-history-toolbar">
+            <span>最近 {todayList.length} 条业务记录</span>
+            <Button size="sm" variant="text" onClick={() => void todayQueue.refetch()}>
+              <Icon name="refresh" />刷新流水</Button>
+          </div>
           {todayList.length === 0 ? (
-            <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)' }}>
+            <div className="registration-history-empty">
               今日尚无挂号流水记录。
             </div>
           ) : (
@@ -1333,8 +1344,8 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               </table>
             </div>
           )}
-        </Panel>
-      </div>
+        </div>
+      </details>
     </section>
   </>
 }
