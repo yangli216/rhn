@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
@@ -767,5 +767,67 @@ describe('DoctorWorkstation reception flow', () => {
     // Ensure raw Unicode check/circle characters are completely absent
     expect(checklist.textContent).not.toContain('✓')
     expect(checklist.textContent).not.toContain('○')
+  })
+
+  it('only enables drag on the handle icon and not the entire diagnosis row', async () => {
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{
+      ...mockInProgressEncounter,
+      diagnoses: [
+        { id: 'diag-1', code: 'I10', display: '原发性高血压', type: 'PRIMARY', diagnosisDomain: 'WESTERN_MEDICINE' },
+        { id: 'diag-2', code: 'E11', display: '2型糖尿病', type: 'SECONDARY', diagnosisDomain: 'WESTERN_MEDICINE' },
+      ],
+    }])
+
+    const user = userEvent.setup()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/outpatient/reception']}>
+          <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </StrictMode>)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(await screen.findByText('原发性高血压')).toBeInTheDocument()
+    expect(await screen.findByText('2型糖尿病')).toBeInTheDocument()
+
+    // 验证整个诊断行不具备 draggable="true"
+    const rows = document.querySelectorAll('.doctor-diagnosis-row:not(.is-launcher):not(.is-active-composer)')
+    expect(rows.length).toBe(2)
+    rows.forEach((row) => {
+      expect(row.getAttribute('draggable')).not.toBe('true')
+    })
+
+    // 验证仅有拖拽把手图标具备 draggable="true"
+    const dragHandles = screen.getAllByLabelText(/拖动调整诊断顺序/)
+    expect(dragHandles.length).toBe(2)
+    dragHandles.forEach((handle) => {
+      expect(handle).toHaveAttribute('draggable', 'true')
+    })
+
+    // 模拟从 handle 拖拽并放置到第二行
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn(),
+      getData: vi.fn(),
+      setDragImage: vi.fn(),
+    }
+
+    fireEvent.dragStart(dragHandles[0], { dataTransfer })
+    expect(dataTransfer.effectAllowed).toBe('move')
+
+    fireEvent.dragOver(rows[1], { dataTransfer })
+    expect(dataTransfer.dropEffect).toBe('move')
+
+    fireEvent.drop(rows[1], { dataTransfer })
+    fireEvent.dragEnd(dragHandles[0])
+
+    // 验证顺序调整成功：2型糖尿病排到了原发性高血压前面
+    const updatedRows = document.querySelectorAll('.doctor-diagnosis-row:not(.is-launcher):not(.is-active-composer)')
+    expect(updatedRows[0]).toHaveTextContent('2型糖尿病')
+    expect(updatedRows[1]).toHaveTextContent('原发性高血压')
   })
 })

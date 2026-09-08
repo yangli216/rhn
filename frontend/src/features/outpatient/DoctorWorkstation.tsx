@@ -34,7 +34,7 @@ import { exceedsWarning, VITAL_HARD_LIMITS, vitalRule } from '../../shared/valid
 import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
   Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
-  ObjectContextBar, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
   type ClinicalResourceOption, type SelectOption,
 } from '../../shared/ui'
 import {
@@ -1785,6 +1785,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const diagnosisComposerRef = useRef<HTMLDivElement>(null)
   const [draggedDiagnosisKey, setDraggedDiagnosisKey] = useState<string>()
   const [medicationDrafts, setMedicationDrafts] = useState<MedicationPlanDraft[]>([])
+  const [diagnosisHovered, setDiagnosisHovered] = useState(false)
 
   useEffect(() => {
     if (!diagnosisComposerOpen) return
@@ -2479,174 +2480,200 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     </Panel>
     </div>
     <aside className="doctor-clinical-aside" aria-label="诊断与医嘱工作区">
-      <Panel className="doctor-diagnosis-panel">
+      <Panel className={`doctor-diagnosis-panel ${diagnoses.length === 0 ? 'is-empty' : ''} ${diagnosisHovered ? 'is-hovered' : ''}`}
+        onMouseEnter={() => setDiagnosisHovered(true)}
+        onMouseLeave={() => setDiagnosisHovered(false)}>
         <PanelHead title="诊断" meta={`${diagnoses.length} 项`} actions={
           editing ? <PlanTemplatePanel diagnoses={diagnoses} setDiagnoses={setDiagnoses}
             medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
             serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts}
             allergies={allergies} api={api} disabled={signed} /> : undefined} />
         <div className="doctor-diagnosis-content">
-          <div className="doctor-diagnosis-list" role="table" aria-label="本次诊断连续录入列表">
-            <div className="doctor-diagnosis-head" role="row">
-              <span className="doctor-diag-col-type">类型</span>
-              <span className="doctor-diag-col-main">诊断名称与ICD编码</span>
-              <span className="doctor-diag-col-domain">主次</span>
-              <span className="doctor-diag-col-management">公共卫生管理 / 临床提示</span>
-              {editing && !signed && <span className="doctor-diag-col-actions">操作</span>}
-            </div>
-
-            {diagnoses.length === 0 && (!editing || signed) && (
-              <div className="doctor-diagnosis-empty" role="row">
-                <span>尚未录入诊断</span>
+          <div className="doctor-table-wrap">
+            <div className={`doctor-diagnosis-list ${diagnoses.length === 0 ? 'is-empty' : ''}`} role="table" aria-label="本次诊断连续录入列表">
+              <div className="doctor-diagnosis-head" role="row">
+                <span className="doctor-diag-col-type">类型</span>
+                <span className="doctor-diag-col-main">诊断名称与ICD编码</span>
+                <span className="doctor-diag-col-domain">主次</span>
+                <span className="doctor-diag-col-management">公共卫生管理 / 临床提示</span>
+                {editing && !signed && <span className="doctor-diag-col-actions">操作</span>}
               </div>
-            )}
 
-            {diagnoses.map((item, index) => {
-              const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
-              const isPrimary = item.type === 'PRIMARY'
-              return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}${draggedDiagnosisKey === key ? ' is-dragging' : ''}`}
-                role="row" draggable={editing && !signed}
-                onDragStart={(event) => { setDraggedDiagnosisKey(String(key)); event.dataTransfer.effectAllowed = 'move' }}
-                onDragOver={(event) => { if (editing && !signed) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }}
-                onDrop={(event) => {
-                  event.preventDefault()
-                  if (draggedDiagnosisKey) setDiagnoses((current) => moveDiagnosis(current, draggedDiagnosisKey, String(key)))
-                  setDraggedDiagnosisKey(undefined)
-                }}
-                onDragEnd={() => setDraggedDiagnosisKey(undefined)}>
-                <span className="doctor-diag-col-type">
-                  {editing && !signed && <span className="doctor-diag-drag-handle" title="拖动调整诊断顺序"><Icon name="drag" /></span>}
-                  <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
-                    {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
-                      : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
+              {diagnoses.length === 0 && (!editing || signed) && (
+                <div className="doctor-diagnosis-empty" role="row">
+                  <span>尚未录入诊断</span>
+                </div>
+              )}
+
+              {diagnoses.map((item, index) => {
+                const key = item.conceptId || `${item.diagnosisDomain}|${item.code}`
+                const isPrimary = item.type === 'PRIMARY'
+                return <div key={key} className={`doctor-diagnosis-row ${isPrimary ? 'is-primary' : ''}${draggedDiagnosisKey === key ? ' is-dragging' : ''}`}
+                  role="row"
+                  onDragOver={(event) => { if (editing && !signed) { event.preventDefault(); event.dataTransfer.dropEffect = 'move' } }}
+                  onDrop={(event) => {
+                    event.preventDefault()
+                    if (draggedDiagnosisKey) setDiagnoses((current) => moveDiagnosis(current, draggedDiagnosisKey, String(key)))
+                    setDraggedDiagnosisKey(undefined)
+                  }}
+                  onDragEnd={() => setDraggedDiagnosisKey(undefined)}>
+                  <span className="doctor-diag-col-type">
+                    {editing && !signed && (
+                      <span
+                        className="doctor-diag-drag-handle"
+                        title="拖动调整诊断顺序"
+                        role="button"
+                        aria-label={`拖动调整诊断顺序 ${item.display}`}
+                        draggable
+                        onDragStart={(event) => {
+                          setDraggedDiagnosisKey(String(key))
+                          event.dataTransfer.effectAllowed = 'move'
+                          const row = event.currentTarget.closest('.doctor-diagnosis-row') as HTMLElement | null
+                          if (row && event.dataTransfer.setDragImage) {
+                            const rect = row.getBoundingClientRect()
+                            event.dataTransfer.setDragImage(row, event.clientX - rect.left, event.clientY - rect.top)
+                          }
+                        }}
+                        onDragEnd={() => setDraggedDiagnosisKey(undefined)}
+                      >
+                        <Icon name="drag" />
+                      </span>
+                    )}
+                    <span className={`doctor-diag-domain-pill is-${(item.diagnosisDomain ?? 'WESTERN_MEDICINE').toLowerCase()}`}>
+                      {item.diagnosisDomain === 'TCM_DISEASE' ? '中医病名'
+                        : item.diagnosisDomain === 'TCM_SYNDROME' ? '中医证候' : '西医诊断'}
+                    </span>
                   </span>
-                </span>
-                <span className="doctor-diag-col-main">
-                  <div className="doctor-diag-name-wrap">
-                    <strong className="doctor-diag-name">{item.display}</strong>
-                    <span className="doctor-diag-code-pill" title={`ICD编码: ${item.code}`}>{item.code}</span>
-                  </div>
-                </span>
-                <span className="doctor-diag-col-domain">
-                  <span className={`doctor-diag-badge ${isPrimary ? 'is-primary' : 'is-secondary'}`}>
-                    {isPrimary ? '主要诊断' : `次要 #${index}`}
-                  </span>
-                </span>
-                <span className="doctor-diag-col-management">
-                  {item.managementPrograms?.length ? (
-                    <div className="doctor-diag-management-flow">
-                      {item.managementPrograms.map((program) => (
-                        <span key={program.id} className="doctor-diag-management-chip" title={program.name}>
-                          {program.name}
-                        </span>
-                      ))}
+                  <span className="doctor-diag-col-main">
+                    <div className="doctor-diag-name-wrap">
+                      <strong className="doctor-diag-name">{item.display}</strong>
+                      <span className="doctor-diag-code-pill" title={`ICD编码: ${item.code}`}>{item.code}</span>
                     </div>
-                  ) : <span className="doctor-diag-subtle-dash">—</span>}
-                </span>
-                {editing && !signed && (
-                  <span className="doctor-diag-col-actions">
-                    <Button type="button" size="sm" variant="text" disabled={index === 0}
-                      onClick={() => moveDiagnosisByOffset(String(key), -1)} title="上移" aria-label={`上移诊断 ${item.display}`}><Icon name="chevron-up" /></Button>
-                    <Button type="button" size="sm" variant="text" disabled={index === diagnoses.length - 1}
-                      onClick={() => moveDiagnosisByOffset(String(key), 1)} title="下移" aria-label={`下移诊断 ${item.display}`}><Icon name="chevron-down" /></Button>
-                    {!isPrimary && <Button type="button" size="sm" variant="text" disabled={signed}
-                      onClick={() => makePrimary(key)}>设为主要</Button>}
-                    <Button type="button" size="sm" variant="text" disabled={signed}
-                      onClick={() => removeDiagnosis(key)}>移除</Button>
                   </span>
-                )}
-              </div>
-            })}
+                  <span className="doctor-diag-col-domain">
+                    <span className={`doctor-diag-badge ${isPrimary ? 'is-primary' : 'is-secondary'}`}>
+                      {isPrimary ? '主要诊断' : `次要 #${index}`}
+                    </span>
+                  </span>
+                  <span className="doctor-diag-col-management">
+                    {item.managementPrograms?.length ? (
+                      <div className="doctor-diag-management-flow">
+                        {item.managementPrograms.map((program) => (
+                          <span key={program.id} className="doctor-diag-management-chip" title={program.name}>
+                            {program.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <span className="doctor-diag-subtle-dash">—</span>}
+                  </span>
+                  {editing && !signed && (
+                    <span className="doctor-diag-col-actions">
+                      <Button type="button" size="sm" variant="text" disabled={index === 0}
+                        onClick={() => moveDiagnosisByOffset(String(key), -1)} title="上移" aria-label={`上移诊断 ${item.display}`}><Icon name="chevron-up" /></Button>
+                      <Button type="button" size="sm" variant="text" disabled={index === diagnoses.length - 1}
+                        onClick={() => moveDiagnosisByOffset(String(key), 1)} title="下移" aria-label={`下移诊断 ${item.display}`}><Icon name="chevron-down" /></Button>
+                      {!isPrimary && <Button type="button" size="sm" variant="text" disabled={signed}
+                        onClick={() => makePrimary(key)}>设为主要</Button>}
+                      <Popconfirm
+                        title={`确认移除诊断“${item.display}”？`}
+                        okText="移除"
+                        okVariant="danger"
+                        disabled={signed}
+                        onConfirm={() => removeDiagnosis(key)}
+                      >
+                        <Button type="button" size="sm" variant="text" disabled={signed}>移除</Button>
+                      </Popconfirm>
+                    </span>
+                  )}
+                </div>
+              })}
+
+              {editing && !signed && diagnosisComposerOpen && (
+                <div ref={diagnosisComposerRef} className="doctor-diagnosis-row is-active-composer" role="row"
+                  onBlur={(event) => {
+                    const next = event.relatedTarget as Node | null
+                    if (!next) return
+                    const isInsideRow = diagnosisComposerRef.current?.contains(next)
+                    const isInsidePopover = Boolean(
+                      (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover, .ui-popconfirm')
+                    )
+                    if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
+                      setDiagnosisComposerOpen(false)
+                      setDiagnosisSearch(undefined)
+                      setDiagnosisError('')
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' && !diagnosisSearch) {
+                      e.preventDefault()
+                      setDiagnosisSearch(undefined)
+                      setDiagnosisComposerOpen(false)
+                      setDiagnosisError('')
+                    } else if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
+                      e.preventDefault()
+                      addDiagnosis()
+                    }
+                  }}>
+                  <span className="doctor-diag-col-type">
+                    <div className="doctor-diag-composer-domain">
+                      <Select aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
+                        disabled={signed}
+                        placeholder="全部类型"
+                        options={[
+                          { value: '', label: '全部类型' },
+                          { value: 'WESTERN_MEDICINE', label: '西医诊断' },
+                          { value: 'TCM_DISEASE', label: '中医病名' },
+                          { value: 'TCM_SYNDROME', label: '中医证候' },
+                        ]}
+                        onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
+                    </div>
+                  </span>
+                  <span className="doctor-diag-col-composer-main">
+                    <div className="doctor-diag-composer-search">
+                      <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
+                        resource="diagnosis" value={diagnosisSearch}
+                        defaultOpen
+                        filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
+                        disabled={signed}
+                        placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
+                        onChange={(option) => {
+                          if (option) {
+                            addDiagnosis(option)
+                          } else {
+                            setDiagnosisSearch(undefined)
+                            setDiagnosisError('')
+                          }
+                        }} />
+                    </div>
+                  </span>
+                  <span className="doctor-diag-col-composer-hint">
+                    <span className="doctor-diag-badge is-composer">新增</span>
+                    {diagnoses.length === 0 ? (
+                      <span className="doctor-diag-hint is-required">接诊需至少录入一项主要诊断</span>
+                    ) : (
+                      <span className="doctor-diag-hint">已开立 {diagnoses.length} 项，支持连续盲打</span>
+                    )}
+                    <Button type="button" size="sm" variant="text" onClick={() => {
+                      setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
+                    }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
+                  </span>
+                </div>
+              )}
+            </div>
 
             {editing && !signed && !diagnosisComposerOpen && (
               <div className="doctor-diagnosis-row is-launcher" role="row" onClick={() => {
                 setDiagnosisComposerOpen(true)
               }}>
-                <span className="doctor-diag-col-type" />
                 <div className="doctor-diag-launcher-cell">
                   <button type="button" className="doctor-table-launcher-btn" aria-label="新增诊断" onClick={(e) => {
                     e.stopPropagation()
                     setDiagnosisComposerOpen(true)
                   }}>
                     <Icon name="add" />
-                    <span><strong>新增诊断</strong><small>按诊断顺序连续录入</small></span>
+                    <span><strong>新增诊断</strong></span>
                   </button>
                 </div>
-                <span />
-                <span />
-                <span />
-              </div>
-            )}
-
-            {editing && !signed && diagnosisComposerOpen && (
-              <div ref={diagnosisComposerRef} className="doctor-diagnosis-row is-active-composer" role="row"
-                onBlur={(event) => {
-                  const next = event.relatedTarget as Node | null
-                  if (!next) return
-                  const isInsideRow = diagnosisComposerRef.current?.contains(next)
-                  const isInsidePopover = Boolean(
-                    (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
-                  )
-                  if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
-                    setDiagnosisComposerOpen(false)
-                    setDiagnosisSearch(undefined)
-                    setDiagnosisError('')
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && !diagnosisSearch) {
-                    e.preventDefault()
-                    setDiagnosisSearch(undefined)
-                    setDiagnosisComposerOpen(false)
-                    setDiagnosisError('')
-                  } else if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
-                    e.preventDefault()
-                    addDiagnosis()
-                  }
-                }}>
-                <span className="doctor-diag-col-type">
-                  <div className="doctor-diag-composer-domain">
-                    <Select aria-label="诊断类型" value={diagnosisDomainFilter} clearable={false} searchable={false}
-                      disabled={signed}
-                      placeholder="全部类型"
-                      options={[
-                        { value: '', label: '全部类型' },
-                        { value: 'WESTERN_MEDICINE', label: '西医诊断' },
-                        { value: 'TCM_DISEASE', label: '中医病名' },
-                        { value: 'TCM_SYNDROME', label: '中医证候' },
-                      ]}
-                      onChange={(val) => { setDiagnosisDomainFilter(val); setDiagnosisSearch(undefined) }} />
-                  </div>
-                </span>
-                <span className="doctor-diag-col-composer-main">
-                  <div className="doctor-diag-composer-search">
-                    <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
-                      resource="diagnosis" value={diagnosisSearch}
-                      defaultOpen
-                      filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
-                      disabled={signed}
-                      placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
-                      onChange={(option) => {
-                        if (option) {
-                          addDiagnosis(option)
-                        } else {
-                          setDiagnosisSearch(undefined)
-                          setDiagnosisError('')
-                        }
-                      }} />
-                  </div>
-                </span>
-                <span className="doctor-diag-col-composer-hint">
-                  <span className="doctor-diag-badge is-composer">新增</span>
-                  {diagnoses.length === 0 ? (
-                    <span className="doctor-diag-hint is-required">接诊需至少录入一项主要诊断</span>
-                  ) : (
-                    <span className="doctor-diag-hint">已开立 {diagnoses.length} 项，支持连续盲打</span>
-                  )}
-                  <Button type="button" size="sm" variant="text" onClick={() => {
-                    setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
-                  }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
-                </span>
               </div>
             )}
           </div>
@@ -2885,6 +2912,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
 }) {
   const queryClient = useQueryClient()
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [ordersHovered, setOrdersHovered] = useState(false)
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
   useEffect(() => {
     setReviewOpen(false)
@@ -2944,8 +2972,11 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const splitSummary = prescriptionSplitSummary(medicationDrafts, prescriptions.data ?? [])
   const error = prescriptions.error || services.error || medications.error
     || cancelService.error || cancelMedication.error || confirmPlan.error || saveDraftOrders.error
+  const hasAnyOrders = orderCount + planCount > 0
 
-  return <Panel className="doctor-orders-panel">
+  return <Panel className={`doctor-orders-panel ${!hasAnyOrders ? 'is-empty' : ''} ${ordersHovered ? 'is-hovered' : ''}`}
+    onMouseEnter={() => setOrdersHovered(true)}
+    onMouseLeave={() => setOrdersHovered(false)}>
     <PanelHead title="医嘱和费用信息" meta={<>{orderCount} 项已开立
       {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
       actions={editing ? <div className="doctor-order-head-actions">
@@ -2961,8 +2992,8 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} api={api}
           readOnly={!editing}
           busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending}
-          onCancelMedication={(item) => { if (window.confirm(`确认撤销“${item.medicationName}”？`)) cancelMedication.mutate(item) }}
-          onCancelService={(item) => { if (window.confirm(`确认撤销“${item.itemName}”？`)) cancelService.mutate(item) }}
+          onCancelMedication={(item) => cancelMedication.mutate(item)}
+          onCancelService={(item) => cancelService.mutate(item)}
           onPrint={setPrintPrescription} />}
     </div>
     {reviewOpen && <Dialog title="审核诊疗方案" eyebrow="本次就诊" size="wide" closeOnBackdrop={false}

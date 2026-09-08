@@ -1,10 +1,12 @@
 import {
+  useCallback,
   useEffect,
   useId,
   useLayoutEffect,
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
@@ -36,8 +38,12 @@ export interface RemoteSearchSelectProps<T = unknown> {
   showCode?: boolean
   emptyText?: string
   popoverMinWidth?: number
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   defaultOpen?: boolean
   autoFocus?: boolean
+  openOnFocus?: boolean
+  popoverHeader?: ReactNode
   'aria-label'?: string
   'aria-describedby'?: string
   'aria-invalid'?: boolean | 'false' | 'true'
@@ -70,8 +76,12 @@ export function RemoteSearchSelect<T>({
   showCode = true,
   emptyText = '未找到匹配结果',
   popoverMinWidth = 540,
+  open: controlledOpen,
+  onOpenChange,
   defaultOpen = false,
   autoFocus = false,
+  openOnFocus = true,
+  popoverHeader,
   'aria-label': ariaLabel,
   'aria-describedby': ariaDescribedBy,
   'aria-invalid': ariaInvalid,
@@ -84,9 +94,28 @@ export function RemoteSearchSelect<T>({
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const pointerInteractingRef = useRef(false)
+  const justClosedRef = useRef(false)
   const requestSequence = useRef(0)
   const cacheRef = useRef(new Map<string, RemoteSearchOption<T>[]>() )
-  const [open, setOpen] = useState(defaultOpen)
+  const isControlledOpen = controlledOpen !== undefined
+  const [internalOpen, setInternalOpen] = useState(defaultOpen && !value)
+  const open = isControlledOpen ? Boolean(controlledOpen) : internalOpen
+
+  const setOpen = useCallback((nextOpen: boolean) => {
+    if (!isControlledOpen) {
+      setInternalOpen(nextOpen)
+    }
+    onOpenChange?.(nextOpen)
+  }, [isControlledOpen, onOpenChange])
+
+  const prevValueRef = useRef(value)
+  useEffect(() => {
+    if (value && value !== prevValueRef.current) {
+      setOpen(false)
+    }
+    prevValueRef.current = value
+  }, [value, setOpen])
   const [query, setQuery] = useState('')
   const [options, setOptions] = useState<RemoteSearchOption<T>[]>([])
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -143,7 +172,11 @@ export function RemoteSearchSelect<T>({
     if (!open) return
     function closeFromOutside(event: PointerEvent) {
       const target = event.target as Node
-      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false)
+      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
+        justClosedRef.current = true
+        setOpen(false)
+        window.requestAnimationFrame(() => { justClosedRef.current = false })
+      }
     }
     document.addEventListener('pointerdown', closeFromOutside)
     return () => document.removeEventListener('pointerdown', closeFromOutside)
@@ -203,9 +236,15 @@ export function RemoteSearchSelect<T>({
 
   function select(option: RemoteSearchOption<T>) {
     if (option.disabled) return
-    onChange(option)
+    justClosedRef.current = true
     setOpen(false)
-    triggerRef.current?.focus()
+    window.requestAnimationFrame(() => { justClosedRef.current = false })
+    onChange(option)
+    window.requestAnimationFrame(() => {
+      if (document.activeElement === searchRef.current) {
+        triggerRef.current?.focus()
+      }
+    })
   }
 
   function moveActive(direction: 1 | -1) {
@@ -226,8 +265,44 @@ export function RemoteSearchSelect<T>({
     } else if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
+      justClosedRef.current = true
       setOpen(false)
+      window.setTimeout(() => {
+        justClosedRef.current = false
+      }, 150)
       triggerRef.current?.focus()
+    }
+  }
+
+  function handleTriggerFocus(event: React.FocusEvent<HTMLButtonElement>) {
+    if (disabled || open || pointerInteractingRef.current || justClosedRef.current) return
+    const relatedTarget = event.relatedTarget as Node | null
+    const fromInside = Boolean(
+      (relatedTarget && rootRef.current?.contains(relatedTarget)) ||
+      (relatedTarget && popoverRef.current?.contains(relatedTarget))
+    )
+    if (!fromInside && (openOnFocus || !value)) {
+      setOpen(true)
+    }
+  }
+
+  function handleTriggerKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (disabled) return
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault()
+      setOpen(true)
+      return
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      setOpen(true)
+      return
+    }
+    // 当在触发器按键时直接打字（拼音首字母、数字等），转入搜索框并打开
+    if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault()
+      setQuery(event.key)
+      setOpen(true)
     }
   }
 
@@ -252,16 +327,21 @@ export function RemoteSearchSelect<T>({
       aria-invalid={ariaInvalid}
       aria-required={ariaRequired}
       disabled={disabled}
+      onPointerDown={() => {
+        pointerInteractingRef.current = true
+      }}
+      onPointerUp={() => {
+        window.requestAnimationFrame(() => {
+          pointerInteractingRef.current = false
+        })
+      }}
+      onFocus={handleTriggerFocus}
       onClick={() => {
+        pointerInteractingRef.current = false
         if (!open) setOpen(true)
         else searchRef.current?.focus()
       }}
-      onKeyDown={(event) => {
-        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-          event.preventDefault()
-          setOpen(true)
-        }
-      }}
+      onKeyDown={handleTriggerKeyDown}
     >
       <span className="ui-remote-search__value">{value?.label ?? placeholder}</span>
       {value && showCode && <code>{value.code}</code>}
@@ -274,11 +354,17 @@ export function RemoteSearchSelect<T>({
       style={{ top: popoverPosition.top, bottom: popoverPosition.bottom, left: popoverPosition.left,
         width: popoverPosition.width, maxHeight: popoverPosition.maxHeight }}
     >
+      {popoverHeader}
       <label className="ui-remote-search__search">
         <span className="visually-hidden">远程检索</span>
         <Icon name="search" />
         <input
-          ref={searchRef}
+          ref={(el) => {
+            searchRef.current = el
+            if (el && open && document.activeElement !== el) {
+              el.focus()
+            }
+          }}
           value={query}
           placeholder={searchPlaceholder}
           autoComplete="off"
@@ -315,8 +401,20 @@ export function RemoteSearchSelect<T>({
                     <span
                       key={tag}
                       className={`ui-remote-search__tag ${
-                        tag === '西药' || tag === '中成药' || tag === '草药' || tag === '检验' || tag === '检查' || tag === '治疗'
-                          ? 'is-type'
+                        tag === '组套'
+                          ? 'is-orderset'
+                          : tag === '西药'
+                          ? 'is-type is-med'
+                          : tag === '中成药'
+                          ? 'is-type is-patent'
+                          : tag === '草药'
+                          ? 'is-type is-herbal'
+                          : tag === '检验'
+                          ? 'is-type is-lab'
+                          : tag === '检查'
+                          ? 'is-type is-exam'
+                          : tag === '治疗'
+                          ? 'is-type is-treatment'
                           : tag === '需皮试' || tag === '孕妇慎用'
                           ? 'is-danger'
                           : tag === '基药'
@@ -325,6 +423,7 @@ export function RemoteSearchSelect<T>({
                           ? 'is-rx'
                           : ''
                       }`}
+                      title={tag}
                     >
                       {tag}
                     </span>

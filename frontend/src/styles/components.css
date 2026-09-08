@@ -570,7 +570,7 @@ input[type="checkbox"]:disabled {
   transition: all var(--motion-fast) var(--ease-standard);
 }
 .ui-select__trigger:hover:not(:disabled) { border-color: var(--color-text-disabled); }
-.ui-select__trigger:focus-visible, .ui-select.is-open .ui-select__trigger {
+.ui-select__trigger:focus, .ui-select__trigger:focus-visible, .ui-select.is-open .ui-select__trigger {
   border-color: var(--color-brand-primary);
   box-shadow: 0 0 0 3px var(--color-focus-ring), 0 1px 2px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
   background: var(--color-surface);
@@ -750,7 +750,14 @@ input[type="checkbox"]:disabled {
 .ui-remote-search__tag.is-danger { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger) 12%, transparent); }
 .ui-remote-search__tag.is-success { color: #15803d; background: #dcfce7; }
 .ui-remote-search__tag.is-rx { color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.ui-remote-search__tag.is-orderset { color: #b45309; background: #fef3c7; border: 1px solid #fde68a; font-weight: var(--font-weight-semibold); }
 .ui-remote-search__tag.is-type { color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px solid var(--color-border); }
+.ui-remote-search__tag.is-type.is-med { color: var(--color-brand-primary); background: var(--color-brand-soft); border-color: color-mix(in srgb, var(--color-brand-primary) 30%, transparent); }
+.ui-remote-search__tag.is-type.is-patent { color: #4338ca; background: #e0e7ff; border-color: #c7d2fe; }
+.ui-remote-search__tag.is-type.is-herbal { color: #15803d; background: #f0fdf4; border-color: #bbf7d0; }
+.ui-remote-search__tag.is-type.is-lab { color: #0369a1; background: #f0f9ff; border-color: #bae6fd; }
+.ui-remote-search__tag.is-type.is-exam { color: #c2410c; background: #fff7ed; border-color: #ffedd5; }
+.ui-remote-search__tag.is-type.is-treatment { color: #7e22ce; background: #faf5ff; border-color: #f3e8ff; }
 .ui-remote-search__desc { min-width: 0; display: block; line-height: 1.4; color: var(--color-text-secondary); font-size: var(--font-size-small); word-break: break-word; }
 .ui-remote-search__option-main small { min-width: 0; display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; line-height: 1.4; color: var(--color-text-secondary); font-size: var(--font-size-small); word-break: break-word; }
 .ui-remote-search__option-main small > span { flex: 0 0 auto; padding: 0 var(--space-1); border-radius: var(--radius-sm); color: var(--color-brand-primary); background: var(--color-brand-soft); }
@@ -1349,4 +1356,101 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   .ui-patient-search__selected > .ui-badge { display: none; }
   .ui-patient-search__clear { grid-column: 2 / -1; justify-self: start; }
   .ui-patient-search__results > div { grid-template-columns: 1fr; }
+}
+
+/* Popconfirm 气泡确认框 */
+.ui-popconfirm {
+  position: fixed;
+  z-index: 1050;
+  width: max-content;
+  min-width: 15rem;
+  max-width: 22rem;
+  padding: var(--space-3);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.14), 0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  animation: ui-popconfirm-fade-in 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ui-popconfirm-fade-in {
+  from { opacity: 0; transform: scale(0.96) translateY(2px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ui-popconfirm__content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.ui-popconfirm__icon {
+  flex-shrink: 0;
+  color: var(--color-warning-strong, #d97706);
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 2px;
+}
+
+.ui-popconfirm__icon .ui-icon {
+  width: 1.1rem;
+  height: 1.1rem;
+}
+
+.ui-popconfirm__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.ui-popconfirm__title {
+  margin: 0;
+  font-size: var(--font-size-small, 13px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary);
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.ui-popconfirm__description {
+  margin: var(--space-1) 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+}
+
+.ui-popconfirm__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.ui-popconfirm__actions .ui-button {
+  min-height: 1.75rem;
+  height: 1.75rem;
+  padding-inline: .65rem;
+  font-size: 12px;
+}
+
+/* 气泡指示三角箭头 */
+.ui-popconfirm__arrow {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border);
+  transform: rotate(45deg);
+}
+
+.ui-popconfirm--placement-top .ui-popconfirm__arrow {
+  bottom: -5px;
+  border-top: none;
+  border-left: none;
+}
+
+.ui-popconfirm--placement-bottom .ui-popconfirm__arrow {
+  top: -5px;
+  border-bottom: none;
+  border-right: none;
 }

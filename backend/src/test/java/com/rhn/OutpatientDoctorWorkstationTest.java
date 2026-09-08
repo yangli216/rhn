@@ -127,7 +127,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/residents/{id}/allergies", residentId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].substanceCode").value(medicationCode));
 
-        String medicationId = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        String medicationId = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"%s","name":"测试高风险药","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"TABLET","preparationSpec":"10mg","preparationUnit":"片",
@@ -166,6 +166,16 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                         .formatted(infusionRootId)
                                         + "\"allergyReviewConfirmed\":true,\"allergyOverrideReason\":\"已评估获益大于风险\"")))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.parentRequestId").value(infusionRootId));
+
+        mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"prescriptionId":"%s","medicationId":"%s","quantity":7,"quantityUnit":"片",
+                                 "substitutionAllowed":true,"selfProvided":false,
+                                 "allergyReviewConfirmed":true,"allergyOverrideReason":"用药嘱托可为空测试"}
+                                """.formatted(prescriptionId, medicationId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.medicationInstruction").doesNotExist());
 
         mockMvc.perform(post("/api/residents/{residentId}/allergies/{allergyId}/inactivate", residentId, allergyId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

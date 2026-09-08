@@ -22,6 +22,7 @@ import { Icon, type IconName } from './Icon'
 import type { SemanticTone } from '../presentation'
 
 export { Icon, type IconName } from './Icon'
+export { Popconfirm, type PopconfirmProps } from './Popconfirm'
 export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, type SelectSingleProps } from './Select'
 export { DictionarySelect, type DictionarySelectProps } from './DictionarySelect'
 export { FormSelect } from './FormSelect'
@@ -41,6 +42,7 @@ export {
   type ClinicalResourceOption,
   type ClinicalResourceSearchProps,
   type ClinicalResourceType,
+  type OrderSearchMode,
 } from './ClinicalResourceSearch'
 export {
   DataTable,

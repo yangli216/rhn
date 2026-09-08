@@ -179,7 +179,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 performerOrganizationId, performerDepartmentId, "OUTPATIENT", "MEDICATION", businessDate);
         if (frequencySnapshot != null) frequency = frequencySnapshot.code();
         if (prescription != null) {
-            requirePrescriptionDirections(doseValue, doseUnit, route, frequency, input.medicationInstruction());
+            requirePrescriptionDirections(doseValue, doseUnit, route, frequency);
             requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
         }
         MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
@@ -409,13 +409,12 @@ class MedicationRequestService implements MedicationRequestDirectory {
     }
 
     private void requirePrescriptionDirections(BigDecimal doseValue, String doseUnit, String route,
-                                               String frequency, String instruction) {
+                                               String frequency) {
         if (doseValue == null || doseUnit == null) {
             throw badRequest("PRESCRIPTION_DOSE_REQUIRED", "处方药品必须填写单次剂量和剂量单位");
         }
         if (route == null) throw badRequest("PRESCRIPTION_ROUTE_REQUIRED", "处方药品必须填写给药途径");
         if (frequency == null) throw badRequest("PRESCRIPTION_FREQUENCY_REQUIRED", "处方药品必须填写用药频次");
-        if (clean(instruction) == null) throw badRequest("PRESCRIPTION_INSTRUCTION_REQUIRED", "处方药品必须填写用药嘱托");
     }
 
     private void requirePrescriptionCategory(String categoryCode, String medicationType) {

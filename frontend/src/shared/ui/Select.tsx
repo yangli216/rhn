@@ -39,6 +39,7 @@ interface SelectBaseProps {
   pinyinSearch?: boolean
   showValue?: boolean
   popoverMinWidth?: number
+  openOnFocus?: boolean
   onSelectionCommit?: (option?: SelectOption) => void
   'aria-label'?: string
   'aria-describedby'?: string
@@ -77,6 +78,7 @@ export function Select(props: SelectProps) {
     noResultsText = '未找到匹配的选项',
     pinyinSearch = true,
     showValue = false,
+    openOnFocus = false,
     onSelectionCommit,
     'aria-label': ariaLabel,
     'aria-describedby': ariaDescribedBy,
@@ -91,6 +93,8 @@ export function Select(props: SelectProps) {
   const popoverRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const pointerInteractingRef = useRef(false)
+  const justClosedRef = useRef(false)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -120,7 +124,13 @@ export function Select(props: SelectProps) {
     if (!open) return
     function closeFromOutside(event: PointerEvent) {
       const target = event.target as Node
-      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) setOpen(false)
+      if (!rootRef.current?.contains(target) && !popoverRef.current?.contains(target)) {
+        justClosedRef.current = true
+        setOpen(false)
+        window.setTimeout(() => {
+          justClosedRef.current = false
+        }, 150)
+      }
     }
     document.addEventListener('pointerdown', closeFromOutside)
     return () => document.removeEventListener('pointerdown', closeFromOutside)
@@ -201,15 +211,31 @@ export function Select(props: SelectProps) {
       return
     }
     props.onChange?.(option.value, option)
+    justClosedRef.current = true
     setOpen(false)
-    triggerRef.current?.focus()
-    onSelectionCommit?.(option)
+    window.setTimeout(() => {
+      justClosedRef.current = false
+    }, 150)
+
+    if (onSelectionCommit) {
+      onSelectionCommit(option)
+    } else {
+      window.requestAnimationFrame(() => {
+        if (document.activeElement === searchRef.current) {
+          triggerRef.current?.focus()
+        }
+      })
+    }
   }
 
   function clearSelection() {
     if (multiple) props.onChange?.([], [])
     else props.onChange?.('')
+    justClosedRef.current = true
     setOpen(false)
+    window.setTimeout(() => {
+      justClosedRef.current = false
+    }, 150)
     triggerRef.current?.focus()
   }
 
@@ -222,7 +248,11 @@ export function Select(props: SelectProps) {
     else if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
+      justClosedRef.current = true
       setOpen(false)
+      window.setTimeout(() => {
+        justClosedRef.current = false
+      }, 150)
       triggerRef.current?.focus()
       return
     } else return
@@ -230,6 +260,20 @@ export function Select(props: SelectProps) {
     if (target >= 0) {
       setActiveIndex(target)
       optionRefs.current[target]?.focus()
+    }
+  }
+
+  function handleTriggerFocus(event: React.FocusEvent<HTMLButtonElement>) {
+    if (!openOnFocus || unavailable || open) return
+    if (pointerInteractingRef.current || justClosedRef.current) return
+
+    const relatedTarget = event.relatedTarget as Node | null
+    const fromInside = Boolean(
+      (relatedTarget && rootRef.current?.contains(relatedTarget)) ||
+      (relatedTarget && popoverRef.current?.contains(relatedTarget))
+    )
+    if (!fromInside) {
+      setOpen(true)
     }
   }
 
@@ -251,11 +295,28 @@ export function Select(props: SelectProps) {
       aria-invalid={ariaInvalid}
       aria-required={ariaRequired}
       disabled={unavailable}
-      onClick={() => setOpen((current) => !current)}
+      onPointerDown={() => {
+        pointerInteractingRef.current = true
+      }}
+      onPointerUp={() => {
+        window.requestAnimationFrame(() => {
+          pointerInteractingRef.current = false
+        })
+      }}
+      onFocus={handleTriggerFocus}
+      onClick={() => {
+        pointerInteractingRef.current = false
+        setOpen((current) => !current)
+      }}
       onKeyDown={(event) => {
         if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
           event.preventDefault()
           setOpen(true)
+        } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+          if (onSelectionCommit && selectedOptions.length > 0) {
+            event.preventDefault()
+            onSelectionCommit(selectedOptions[0])
+          }
         }
       }}
     >
@@ -298,7 +359,11 @@ export function Select(props: SelectProps) {
             } else if (event.key === 'Escape') {
               event.preventDefault()
               event.stopPropagation()
+              justClosedRef.current = true
               setOpen(false)
+              window.setTimeout(() => {
+                justClosedRef.current = false
+              }, 150)
               triggerRef.current?.focus()
             }
           }}

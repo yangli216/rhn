@@ -447,7 +447,7 @@ function isLineComplete(value: PrescriptionLineDraft, mode: EditorMode) {
   if (!value.medication || value.doseValue === '' || Number(value.doseValue) <= 0 || !value.doseUnit.trim()) return false
   if (mode === 'herbal') return true
   return Boolean(value.routeCode.trim() && value.frequencyCode.trim() && value.quantity !== ''
-    && Number(value.quantity) > 0 && value.instruction.trim())
+    && Number(value.quantity) > 0)
 }
 
 function focusField(mode: EditorMode, field: EditableField) {

@@ -185,4 +185,86 @@ describe('ClinicalResourceSearch', () => {
     expect(option.textContent).not.toContain('单位:')
     expect(option.textContent).toContain('医疗技术')
   })
+
+  it('supports pinyin initials search for medications like dyx matching 对乙酰氨基酚片', async () => {
+    const user = userEvent.setup()
+    const mockMedication = {
+      id: 'med-pinyin-1',
+      code: 'MED-001',
+      name: '对乙酰氨基酚片',
+      preparationSpec: '0.5g',
+      preparationUnit: '片',
+      sdMedicationType: 'WESTERN',
+      sdMedicationTypeText: '西药',
+      sdDoseFormText: '片剂',
+      prescriptionDrug: true,
+      stockSiteName: '门诊药房',
+      availablePackageQuantity: 10,
+      packageUnitName: '盒',
+      products: [
+        {
+          id: 'prod-1',
+          name: '对乙酰氨基酚片',
+          manufacturerName: '安康制药有限公司',
+        },
+      ],
+    }
+
+    // 当输入拼音 dyx 时，后端带 query 返回空，触发前端候选池拼音匹配
+    vi.mocked(mockApi.encounters.orderableMedications)
+      .mockResolvedValueOnce([] as never) // query = 'dyx' 返回空
+      .mockResolvedValueOnce([mockMedication] as never) // 全量 pool 拉取返回药品
+
+    render(
+      <ClinicalResourceSearch
+        id="test-pinyin-search"
+        api={mockApi}
+        resource="medication"
+        encounterId="enc-pinyin-1"
+        defaultOpen
+        onChange={vi.fn()}
+      />
+    )
+
+    const searchInput = screen.getByPlaceholderText('输入通用名、编码或别名')
+    await user.type(searchInput, 'dyx')
+
+    const option = await screen.findByRole('option', { name: /对乙酰氨基酚片/ })
+    expect(option).toBeInTheDocument()
+    expect(option.textContent).toContain('安康制药有限公司')
+  })
+
+  it('supports pinyin initials search in mixed mode for services like xcg matching 血常规五分类', async () => {
+    const user = userEvent.setup()
+    const mockService = {
+      id: 'srv-pinyin-1',
+      code: 'SRV-001',
+      name: '血常规五分类',
+      unitCode: '次',
+      sdServiceTypeText: '检验',
+      prices: [{ price: 18.0, sdStatus: 'ACTIVE' }],
+    }
+
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([] as never)
+    vi.mocked(mockApi.masterData.services)
+      .mockResolvedValueOnce([] as never)
+      .mockResolvedValueOnce([mockService] as never)
+
+    render(
+      <ClinicalResourceSearch
+        id="test-mixed-pinyin-search"
+        api={mockApi}
+        resource="mixed"
+        encounterId="enc-pinyin-2"
+        defaultOpen
+        onChange={vi.fn()}
+      />
+    )
+
+    const searchInput = screen.getByPlaceholderText('输入通用名、编码或别名')
+    await user.type(searchInput, 'xcg')
+
+    const option = await screen.findByRole('option', { name: /血常规五分类/ })
+    expect(option).toBeInTheDocument()
+  })
 })

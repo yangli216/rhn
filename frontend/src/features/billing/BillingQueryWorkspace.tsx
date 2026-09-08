@@ -134,7 +134,7 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
       <div className="billing-query-filters__summary">
         <span>{clinicalContext.organization.name}</span><strong>{filteredRecords.length} 笔 · {money(totalAmount)}</strong>
       </div>
-      {hasFilters && <Button size="sm" variant="ghost" onClick={resetFilters}>重置</Button>}
+      {hasFilters && <Button size="sm" variant="secondary" onClick={resetFilters}>重置</Button>}
     </div>
 
     <div className="billing-query-scroll">
