@@ -1,5 +1,6 @@
 package com.rhn.platform.dictionary.application;
 
+import com.rhn.platform.dictionary.api.DictionaryAttributeDirectory;
 import com.rhn.platform.dictionary.api.DictionaryChangeResponse;
 import com.rhn.platform.dictionary.api.DictionaryCategoryResponse;
 import com.rhn.platform.dictionary.api.DictionaryDetailResponse;
@@ -27,6 +28,7 @@ import com.rhn.shared.api.RevisionGuard;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -57,6 +59,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
     private final IdentityAccessDirectory identityAccessDirectory;
     private final SystemEnumDirectory systemEnumDirectory;
     private final DictionaryTextCache dictionaryTextCache;
+    private final ObjectProvider<DictionaryAttributeDirectory> attributeDirectoryProvider;
 
     public DictionaryApplicationService(DictionaryDefinitionRepository definitionRepository,
                                         DictionaryCategoryRepository categoryRepository,
@@ -66,7 +69,8 @@ public class DictionaryApplicationService implements DictionaryDirectory {
                                         JsonCodec jsonCodec,
                                         IdentityAccessDirectory identityAccessDirectory,
                                         SystemEnumDirectory systemEnumDirectory,
-                                        DictionaryTextCache dictionaryTextCache) {
+                                        DictionaryTextCache dictionaryTextCache,
+                                        ObjectProvider<DictionaryAttributeDirectory> attributeDirectoryProvider) {
         this.definitionRepository = definitionRepository;
         this.categoryRepository = categoryRepository;
         this.itemRepository = itemRepository;
@@ -76,6 +80,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         this.identityAccessDirectory = identityAccessDirectory;
         this.systemEnumDirectory = systemEnumDirectory;
         this.dictionaryTextCache = dictionaryTextCache;
+        this.attributeDirectoryProvider = attributeDirectoryProvider;
     }
 
     @Transactional(readOnly = true)
@@ -322,10 +327,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
                 .or(() -> definitionRepository.findByScopeTypeAndCode(DictionaryScopeType.PLATFORM, code))
                 .filter(value -> value.status() == DictionaryStatus.ACTIVE)
                 .orElseThrow(() -> notFound("DICTIONARY_NOT_FOUND", "未找到可用字典 " + code));
-        return itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(definition.id()).stream()
-                .filter(item -> item.status() == DictionaryStatus.ACTIVE)
-                .map(item -> new DictionaryValue(item.code(), item.name(), item.sortOrder()))
-                .toList();
+        return resolveActiveItemsForDefinition(tenantId, definition);
     }
 
     @Override
@@ -335,9 +337,30 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         DictionaryDefinition definition = definitionRepository.findVisibleById(dictionaryId, tenantId)
                 .filter(value -> value.status() == DictionaryStatus.ACTIVE)
                 .orElseThrow(() -> notFound("DICTIONARY_NOT_FOUND", "未找到可用字典"));
-        return itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(definition.id()).stream()
+        return resolveActiveItemsForDefinition(tenantId, definition);
+    }
+
+    private List<DictionaryValue> resolveActiveItemsForDefinition(Long tenantId, DictionaryDefinition definition) {
+        List<DictionaryItem> activeItems = itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(definition.id()).stream()
                 .filter(item -> item.status() == DictionaryStatus.ACTIVE)
-                .map(item -> new DictionaryValue(item.code(), item.name(), item.sortOrder()))
+                .toList();
+        if (activeItems.isEmpty()) return List.of();
+        ExecutionContext ctx = null;
+        try {
+            ctx = contextProvider.requireCurrent();
+        } catch (Exception ignored) {
+        }
+        Long orgId = ctx != null ? ctx.organizationId() : null;
+        Long deptId = ctx != null ? ctx.departmentId() : null;
+        DictionaryAttributeDirectory attrDir = attributeDirectoryProvider.getIfAvailable();
+        Map<Long, Map<String, String>> scalarAttrs = attrDir != null
+                ? attrDir.resolveScalarAttributes(
+                        definition.id(), activeItems.stream().map(DictionaryItem::id).toList(),
+                        tenantId, orgId, deptId)
+                : Map.of();
+        return activeItems.stream()
+                .map(item -> new DictionaryValue(item.code(), item.name(), item.sortOrder(),
+                        scalarAttrs.getOrDefault(item.id(), Map.of())))
                 .toList();
     }
 

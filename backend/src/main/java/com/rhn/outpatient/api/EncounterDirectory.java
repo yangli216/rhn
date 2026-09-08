@@ -24,7 +24,8 @@ public interface EncounterDirectory {
 
     record EncounterSnapshot(
             Long id, Long tenantId, Long residentId, Long organizationId, Long departmentId,
-            String encounterNo, String clinicianId, String status, long revision) {}
+            String encounterNo, String clinicianId, String status, long revision,
+            String departmentName, java.time.Instant registeredAt) {}
 
     record PharmacyClinicalSnapshot(
             Long encounterId, Long residentId, String encounterNo, String clinicianId,

@@ -1,7 +1,7 @@
 import type { Encounter, Resident } from './model'
 import { encounterStatusPresentation } from './presentation'
 
-export function genderLabel(gender: Resident['gender']) {
+export function genderLabel(gender?: Resident['gender'] | string) {
   return gender === 'MALE' ? '男' : gender === 'FEMALE' ? '女' : '未知'
 }
 

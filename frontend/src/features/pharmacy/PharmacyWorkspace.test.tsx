@@ -354,4 +354,40 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
     expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
     expect(await screen.findByTitle('该药品无需追溯码核对')).toHaveTextContent('无需扫码')
   })
+
+  it('uses the top pharmacy context and omits the duplicated site toolbar in review mode', async () => {
+    const stockItems = vi.fn().mockResolvedValue([])
+    const api = {
+      pharmacy: {
+        sites: vi.fn().mockResolvedValue([
+          { id: 'site-current', name: '门诊药房', code: 'PH-01', active: true, siteType: 'PHARMACY', departmentId: 'dept-1' },
+          { id: 'site-other', name: '住院药房', code: 'PH-02', active: true, siteType: 'PHARMACY', departmentId: 'dept-2' },
+        ]),
+        inbox: vi.fn().mockResolvedValue([]),
+        prescriptionReviewMode: vi.fn().mockResolvedValue({ enabled: true, mode: 'PRE_DISPENSE' }),
+        stockItems,
+      },
+      organization: {
+        practitioners: vi.fn().mockResolvedValue([]),
+        practitioner: vi.fn(),
+      },
+    } as unknown as RhnApi
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <PharmacyWorkspace api={api} clinicalContext={clinicalContext} mode="review" />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByText('事前审方')).toBeInTheDocument()
+    await waitFor(() => expect(stockItems).toHaveBeenCalledWith('site-current'))
+    expect(document.querySelector('.pharmacy-toolbar')).not.toBeInTheDocument()
+    expect(screen.queryByText('当前药房')).not.toBeInTheDocument()
+    expect(screen.queryByText('当前工作上下文')).not.toBeInTheDocument()
+  })
 })

@@ -307,11 +307,32 @@ export function RemoteSearchSelect<T>({
           onMouseMove={() => { if (!option.disabled && activeIndex !== index) setActiveIndex(index) }}
         >
           <span className="ui-remote-search__option-main" title={option.description}>
-            <strong>{option.label}</strong>
-            {(option.description || option.tags?.length) && <small>
-              {option.description}
-              {option.tags?.map((tag) => <span key={tag}>{tag}</span>)}
-            </small>}
+            <span className="ui-remote-search__option-head">
+              <strong>{option.label}</strong>
+              {option.tags && option.tags.length > 0 && (
+                <span className="ui-remote-search__tags">
+                  {option.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className={`ui-remote-search__tag ${
+                        tag === '西药' || tag === '中成药' || tag === '草药' || tag === '检验' || tag === '检查' || tag === '治疗'
+                          ? 'is-type'
+                          : tag === '需皮试' || tag === '孕妇慎用'
+                          ? 'is-danger'
+                          : tag === '基药'
+                          ? 'is-success'
+                          : tag === '处方药'
+                          ? 'is-rx'
+                          : ''
+                      }`}
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </span>
+              )}
+            </span>
+            {option.description && <small className="ui-remote-search__desc">{option.description}</small>}
           </span>
           <span className="ui-remote-search__option-code">{showCode && <code>{option.code}</code>}
             {value?.value === option.value && <Icon name="check" />}</span>

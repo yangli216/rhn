@@ -18,6 +18,7 @@ import com.rhn.billing.domain.InvoiceLine;
 import com.rhn.billing.domain.LedgerEntry;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Payment;
+import com.rhn.billing.domain.Settlement;
 import com.rhn.billing.infrastructure.ChargeItemComponentRepository;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.InvoiceCategorySummaryRepository;
@@ -230,7 +231,7 @@ public class BillingApplicationService {
                         resident.fullName(), resident.healthRecordNo(), resident.gender(), resident.birthDate(),
                         encounter.encounterNo(), null, null, "PENDING_CHARGE", events.size(), 0,
                         latest.dispenseNo(), latest.occurredAt(), BigDecimal.ZERO.setScale(2),
-                        BigDecimal.ZERO.setScale(2)));
+                        BigDecimal.ZERO.setScale(2), encounter.departmentName(), encounter.registeredAt()));
                 continue;
             }
             if (charges.isEmpty() && events.isEmpty()) continue;
@@ -248,7 +249,8 @@ public class BillingApplicationService {
             result.add(new BillingWorkItemView(encounterId, resident.id(), resident.fullName(),
                     resident.healthRecordNo(), resident.gender(), resident.birthDate(), encounter.encounterNo(),
                     account.id(), account.currencyCode(), status, charges.size() + unmatchedEvents, charges.size(),
-                    latest.sourceNo(), latest.occurredAt(), chargeAmount, balance));
+                    latest.sourceNo(), latest.occurredAt(), chargeAmount, balance,
+                    encounter.departmentName(), encounter.registeredAt()));
         }
         return result.stream().sorted(Comparator.comparing(BillingWorkItemView::latestOccurredAt).reversed())
                 .limit(100).toList();
@@ -345,6 +347,11 @@ public class BillingApplicationService {
             throw badRequest("PAYMENT_METHOD_NOT_APPLICABLE", "当前支付方式不适用于所选结算场景");
         }
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
+        if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
+            Settlement formalSettlement = settlements.requireForPayment(context, invoice.id());
+            formalSettlement.applyRoundingAdjustment(input.roundingAdjustment());
+            invoice.adjustRounding(input.roundingAdjustment());
+        }
         BigDecimal paid = money(paymentRepository.netPaidForInvoice(context.tenantId(), invoice.id()));
         BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
@@ -587,12 +594,27 @@ public class BillingApplicationService {
     }
 
     private ChargeItemView chargeView(ChargeItem value) {
+        String packageSpec = null;
+        String manufacturerName = null;
+        String unitName = null;
+        if (value.sourceType() != null && value.sourceType().startsWith("MEDICATION")
+                && (value.requestId() != null || value.sourceId() != null)) {
+            Long reqId = value.requestId() != null ? value.requestId() : value.sourceId();
+            try {
+                MedicationRequestSnapshot snap = medicationRequestDirectory.requireForRouting(value.tenantId(), reqId);
+                if (snap != null) {
+                    packageSpec = snap.packageSpec();
+                    manufacturerName = snap.manufacturerName();
+                    unitName = snap.packageUnitName();
+                }
+            } catch (Exception ignored) {}
+        }
         return new ChargeItemView(value.id(), value.patientAccountId(), value.residentId(), value.encounterId(),
                 value.requestId(), value.catalogItemId(), value.sourceType(), value.sourceId(), value.requestCode(),
                 value.status(), value.quantity(), value.unitCode(), value.unitPrice(), value.totalAmount(),
                 value.currencyCode(), value.priceId(), value.priceRevision(), value.priceType(),
                 value.itemCodeSnapshot(), value.itemNameSnapshot(), value.occurredAt(), value.enteredBy(),
-                value.reversesChargeItemId());
+                value.reversesChargeItemId(), packageSpec, manufacturerName, unitName);
     }
 
     private PaymentView paymentView(Payment value) {
@@ -739,7 +761,13 @@ public class BillingApplicationService {
     }
     public record PaymentCommand(String paymentNo, String paymentMethodCode, String paymentSceneCode, BigDecimal amount,
                                  Instant paidAt, String externalTransactionNo, String description,
-                                 Long paymentOrderId) {}
+                                 Long paymentOrderId, BigDecimal roundingAdjustment) {
+        public PaymentCommand(String paymentNo, String paymentMethodCode, String paymentSceneCode, BigDecimal amount,
+                              Instant paidAt, String externalTransactionNo, String description,
+                              Long paymentOrderId) {
+            this(paymentNo, paymentMethodCode, paymentSceneCode, amount, paidAt, externalTransactionNo, description, paymentOrderId, null);
+        }
+    }
     public record RefundCommand(String refundNo, BigDecimal amount, Instant refundedAt,
                                 String externalTransactionNo, String reason, Long paymentOrderId,
                                 String paymentSceneCode) {}

@@ -141,6 +141,7 @@ export interface DictionaryValue extends DictionaryValueContract {
   code: string
   name: string
   sortOrder: number
+  attributes?: Record<string, string>
 }
 
 export type DictionaryAttributeDataType = 'BOOLEAN' | 'INTEGER' | 'DECIMAL' | 'TEXT' | 'CODE' | 'DATE' | 'DATETIME' | 'DICT_REF'
@@ -218,6 +219,7 @@ export interface ApplicableDictionaryItem {
   matchedAttributeCode: string
   matchedReferenceCode: string
   resolvedScopeCode: string
+  attributes?: Record<string, string>
 }
 
 export interface DictionaryAttributeDefinitionInput {

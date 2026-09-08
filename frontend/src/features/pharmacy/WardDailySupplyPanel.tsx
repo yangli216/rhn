@@ -181,7 +181,7 @@ export function WardDailySupplyPanel({ api, organizationId, stockSiteId, stockIt
     || dispenseDeliver.error
 
   return <Panel className="pharmacy-ward-daily-supply" aria-label="滚动供药">
-    <header><div><span>住院单位剂量</span><h2>滚动供药</h2>
+    <header><div><h2>滚动供药</h2>
       <p>按日期、班次和病区汇总医嘱覆盖，缺口逐行接方。</p></div>
       <Button size="sm" variant="secondary" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
         {open ? '收起' : '进入滚动供药'}</Button></header>

@@ -34,5 +34,6 @@ public interface MedicationRequestDirectory {
             Long priceId, Long priceRevision, String priceType,
             BigDecimal unitPrice, BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
             JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,
-            Instant itemAttributeResolvedAt, JsonNode standardMappings) {}
+            Instant itemAttributeResolvedAt, JsonNode standardMappings,
+            String packageSpec, String manufacturerName, String packageUnitName) {}
 }

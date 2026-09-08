@@ -473,29 +473,31 @@ type FormControlProps = {
   'aria-required'?: boolean | 'false' | 'true'
 }
 
-function FieldHint({ label, hint, hintId }: { label: string; hint: string; hintId: string }) {
-  const triggerRef = useRef<HTMLButtonElement>(null)
+function FieldHint({ label, hint, hintId }: { label: ReactNode; hint: string; hintId: string }) {
   const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState({ left: 0, top: 0, placement: 'above' as 'above' | 'below' })
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const [position, setPosition] = useState<{ left: number; top: number; placement: 'top' | 'bottom' }>({
+    left: 0,
+    top: 0,
+    placement: 'top',
+  })
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!open) return
-
-    function updatePosition() {
+    const updatePosition = () => {
       const trigger = triggerRef.current
       if (!trigger) return
       const rect = trigger.getBoundingClientRect()
-      const viewportGap = 12
-      const tooltipWidth = Math.min(320, window.innerWidth - viewportGap * 2)
-      const left = Math.max(viewportGap, Math.min(rect.left, window.innerWidth - tooltipWidth - viewportGap))
-      const placement = rect.top >= 80 ? 'above' : 'below'
+      const tooltipHeight = 44
+      const spacing = 8
+      const topPlacement = rect.top - tooltipHeight - spacing
+      const hasTopSpace = topPlacement >= 8
       setPosition({
-        left,
-        top: placement === 'above' ? rect.top - 8 : rect.bottom + 8,
-        placement,
+        left: Math.max(8, Math.min(window.innerWidth - 280, rect.left + rect.width / 2 - 130)),
+        top: hasTopSpace ? topPlacement : rect.bottom + spacing,
+        placement: hasTopSpace ? 'top' : 'bottom',
       })
     }
-
     updatePosition()
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
@@ -511,7 +513,7 @@ function FieldHint({ label, hint, hintId }: { label: string; hint: string; hintI
         ref={triggerRef}
         type="button"
         className="ui-field__hint-trigger"
-        aria-label={`查看${label}提示`}
+        aria-label={typeof label === 'string' ? `查看${label}提示` : '查看字段提示'}
         aria-describedby={hintId}
         aria-expanded={open}
         onMouseEnter={() => setOpen(true)}
@@ -532,7 +534,7 @@ function FieldHint({ label, hint, hintId }: { label: string; hint: string; hintI
 }
 
 export function FormField({ label, error, hint, required = false, className = '', children }: {
-  label: string
+  label: ReactNode
   error?: string
   hint?: string
   required?: boolean

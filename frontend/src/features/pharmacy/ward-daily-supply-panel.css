@@ -1,9 +1,11 @@
-.pharmacy-ward-daily-supply { margin-bottom: var(--space-4); overflow: hidden; }
-.pharmacy-ward-daily-supply > header { min-height: 5rem; padding: var(--space-3) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.pharmacy-ward-daily-supply > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.pharmacy-ward-daily-supply > header h2 { margin: var(--space-1) 0; font-size: var(--font-size-h2); }
+.pharmacy-ward-daily-supply { margin-bottom: var(--space-3); overflow: hidden; }
+.pharmacy-ward-daily-supply > header { min-height: 3.75rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.pharmacy-ward-daily-supply > header h2 { margin: 0; font-size: var(--font-size-h3); }
 .pharmacy-ward-daily-supply > header p { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.pharmacy-ward-daily-supply__body { padding: var(--space-4) var(--space-5) var(--space-5); display: grid; gap: var(--space-4); border-top: 1px solid var(--color-border); }
+.pharmacy-ward-daily-supply__body { padding: var(--space-3) var(--space-4) var(--space-4); display: grid; gap: var(--space-3); border-top: 1px solid var(--color-border); }
+.pharmacy-ward-daily-supply__body > .ui-empty-state { min-height: 5rem; padding: var(--space-2) var(--space-3); display: grid; grid-template-columns: auto auto minmax(0, 1fr); justify-content: start; gap: 0 var(--space-3); text-align: left; }
+.pharmacy-ward-daily-supply__body > .ui-empty-state .ui-empty-state__icon { grid-row: 1 / 3; width: 2.25rem; height: 2.25rem; margin: 0; font-size: 1.125rem; }
+.pharmacy-ward-daily-supply__body > .ui-empty-state p { margin: var(--space-1) 0 0; }
 .pharmacy-ward-daily-supply__filters { display: grid; grid-template-columns: minmax(10rem, .7fr) minmax(14rem, 1fr) minmax(15rem, 1.2fr) auto; align-items: end; gap: var(--space-3); }
 .pharmacy-ward-daily-supply__filters .ui-field { margin: 0; }
 .pharmacy-ward-daily-supply__batch { display: grid; gap: var(--space-3); }

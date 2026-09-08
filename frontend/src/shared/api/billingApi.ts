@@ -8,6 +8,8 @@ export interface BillingWorkItem {
   gender: string
   birthDate: string
   encounterNo: string
+  departmentName?: string
+  registeredAt?: string
   accountId?: string
   currencyCode?: string
   status: 'PENDING_CHARGE' | 'PENDING_INVOICE' | 'PENDING_PAYMENT' | 'PENDING_REFUND' | 'SETTLED'
@@ -34,6 +36,9 @@ export interface ChargeItem {
   status: string
   quantity: number
   unitCode: string
+  unitName?: string
+  packageSpec?: string
+  manufacturerName?: string
   unitPrice: number
   totalAmount: number
   currencyCode: string
@@ -134,6 +139,36 @@ export interface Settlement {
   lines: SettlementLine[]
   tenders: SettlementTender[]
   events: SettlementEvent[]
+}
+
+export interface SettlementRecord {
+  id: string
+  patientAccountId: string
+  residentId: string
+  encounterId?: string
+  departmentId: string
+  residentName: string
+  healthRecordNo: string
+  gender: string
+  birthDate: string
+  encounterNo?: string
+  departmentName?: string
+  settlementNo: string
+  settlementType: Settlement['settlementType']
+  settlementScene: Settlement['settlementScene']
+  terminalScene: Settlement['terminalScene']
+  status: Settlement['status']
+  grossAmount: number
+  discountAmount: number
+  insuranceAmount: number
+  patientAmount: number
+  otherAmount: number
+  roundingAmount: number
+  netAmount: number
+  currencyCode: string
+  terminalCode?: string
+  createdAt: string
+  finalizedAt?: string
 }
 
 export interface Payment {
@@ -377,6 +412,7 @@ export function createBillingApi(client: ApiClient) {
       paymentSceneCode: string
       paymentMethodCode: string
       amount: number
+      roundingAdjustment?: number
       correlationId?: string
       terminalCode?: string
       expiresAt?: string
@@ -420,6 +456,9 @@ export function createBillingApi(client: ApiClient) {
     ),
     settlement: (settlementId: string) => client.request<Settlement>(
       `/api/billing/settlements/${settlementId}`,
+    ),
+    settlementRecords: (limit = 200) => client.request<SettlementRecord[]>(
+      `/api/billing/settlement-records?limit=${encodeURIComponent(limit)}`,
     ),
     paymentOrders: (accountId: string) => client.request<PaymentOrder[]>(
       `/api/billing/accounts/${accountId}/payment-orders`,
@@ -719,6 +758,4 @@ export interface DirectRefundRequest {
   terminalCode?: string
   chargeItemIds?: string[]
 }
-
-
 

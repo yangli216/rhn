@@ -38,6 +38,11 @@ public class Invoice {
         this.issuedBy = issuedBy;
     }
 
+    public void adjustRounding(BigDecimal adjustment) {
+        if (adjustment == null) return;
+        this.netAmount = this.grossAmount.add(adjustment).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+    }
+
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public Long patientAccountId() { return patientAccountId; }

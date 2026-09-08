@@ -12,6 +12,7 @@ export interface CashPaymentCalculatorProps {
   inputRef?: RefObject<HTMLInputElement | null>
   maxPresets?: number
   className?: string
+  precision?: string
 }
 
 /**
@@ -57,9 +58,10 @@ export function CashPaymentCalculator({
   inputRef,
   maxPresets = 3,
   className = '',
+  precision = '0.01',
 }: CashPaymentCalculatorProps) {
   const numericTendered = Number(tendered)
-  const cashChange = numericTendered >= payableAmount ? numericTendered - payableAmount : 0
+  const cashChange = numericTendered >= payableAmount ? Math.round((numericTendered - payableAmount) * 100) / 100 : 0
   const isCashShort = payableAmount > 0 && (!tendered || isNaN(numericTendered) || numericTendered < payableAmount)
 
   const presets = useMemo(() => {
@@ -75,7 +77,7 @@ export function CashPaymentCalculator({
           <input
             ref={inputRef}
             type="number"
-            step="0.01"
+            step={precision === '0.1' ? '0.1' : '0.01'}
             min={0}
             className="cash-payment-input"
             value={tendered}

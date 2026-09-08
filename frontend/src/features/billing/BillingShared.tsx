@@ -30,6 +30,23 @@ function patientDemographics(item: BillingWorkItem) {
   return [gender, age !== undefined && age >= 0 ? `${age}岁` : ''].filter(Boolean).join(' · ')
 }
 
+function formatRegistrationInfo(item: BillingWorkItem) {
+  const parts: string[] = []
+  if (item.departmentName) parts.push(item.departmentName)
+  if (item.registeredAt) {
+    const d = new Date(item.registeredAt)
+    if (!Number.isNaN(d.getTime())) {
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const date = String(d.getDate()).padStart(2, '0')
+      const hours = String(d.getHours()).padStart(2, '0')
+      const minutes = String(d.getMinutes()).padStart(2, '0')
+      parts.push(`${year}/${month}/${date} ${hours}:${minutes}`)
+    }
+  }
+  return parts.join(' · ')
+}
+
 export function BillingQueue({
   title,
   items,
@@ -140,13 +157,18 @@ export function BillingQueue({
             <StatusBadge tone={billingTone(item.status)}>{workStatusText[item.status]}</StatusBadge>
           </div>
           <small className="billing-queue-item__meta">{patientDemographics(item) || '性别、年龄未提供'}</small>
+          {formatRegistrationInfo(item) && (
+            <small className="billing-queue-item__meta billing-queue-item__registration">
+              {formatRegistrationInfo(item)}
+            </small>
+          )}
         </button>)}
       </div>
     )}
   </Panel>
 }
 
-function waitingDuration(value?: string) {
+export function waitingDuration(value?: string) {
   if (!value) return '--'
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60000))
   if (!Number.isFinite(minutes)) return '--'

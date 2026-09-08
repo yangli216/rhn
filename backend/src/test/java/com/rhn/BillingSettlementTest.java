@@ -490,6 +490,50 @@ class BillingSettlementTest extends RhnIntegrationTestSupport {
         return new PharmacyFixture(site.get("id").asText(), item.get("id").asText(), bin.get("id").asText());
     }
 
+    @Test
+    void payment_order_with_rounding_adjustment_updates_settlement_and_invoice_amounts() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        PharmacyFixture pharmacy = createPharmacy(suffix);
+        JsonNode lot = createLot(pharmacy.stockItemId(), "BIL-" + suffix);
+        receive("BIL-RCV-" + suffix, pharmacy, lot.get("id").asText(), "2");
+        Reviewer pharmacist = createReviewer(suffix);
+        TaskFixture task = createReviewedTask(suffix, pharmacy.stockItemId(), pharmacist, 2);
+        reserveAndPrepare(task.taskId(), pharmacist);
+        dispense(task.taskId(), "BIL-DSP-" + suffix, "2", pharmacist);
+
+        JsonNode synchronizedCharges = synchronize(task.encounterId(), "BIL-SYNC-" + suffix);
+        BigDecimal originalAmount = synchronizedCharges.at("/statement/chargeAmount").decimalValue();
+        String accountId = synchronizedCharges.at("/statement/accountId").asText();
+        JsonNode invoice = issueInvoice(accountId, "INV-" + suffix);
+        assertEquals(originalAmount, invoice.get("netAmount").decimalValue());
+
+        BigDecimal roundingAdjustment = new BigDecimal("0.03");
+        BigDecimal adjustedAmount = originalAmount.add(roundingAdjustment);
+
+        String paymentBody = """
+                {
+                  "idempotencyKey":"PAY-ROUND-%s","businessScene":"OUTPATIENT","paymentSceneCode":"CASHIER",
+                  "paymentMethodCode":"CASH","amount":%s,"roundingAdjustment":%s,"terminalCode":"CASHIER-TEST"
+                }
+                """.formatted(suffix, adjustedAmount.toPlainString(), roundingAdjustment.toPlainString());
+
+        JsonNode paymentOrder = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asText())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(paymentBody))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+
+        assertEquals("SUCCEEDED", paymentOrder.get("status").asText());
+
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", invoice.get("id").asText())
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SETTLED"))
+                .andExpect(jsonPath("$.roundingAmount").value(0.03))
+                .andExpect(jsonPath("$.netAmount").value(adjustedAmount.doubleValue()))
+                .andExpect(jsonPath("$.tenderedAmount").value(adjustedAmount.doubleValue()))
+                .andExpect(jsonPath("$.outstandingAmount").value(0));
+    }
+
     private JsonNode createLot(String stockItemId, String lotNo) throws Exception {
         return json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", stockItemId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

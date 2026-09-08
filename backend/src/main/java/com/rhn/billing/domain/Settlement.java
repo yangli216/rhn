@@ -96,6 +96,16 @@ public class Settlement {
         return previous;
     }
 
+    public void applyRoundingAdjustment(BigDecimal adjustment) {
+        if (adjustment == null) return;
+        if (!List.of("PRICED", "PAYMENT_PENDING", "PARTIAL").contains(status)) {
+            throw new IllegalStateException("当前结算状态不能应用货币舍入调整");
+        }
+        this.roundingAmount = adjustment.setScale(6, java.math.RoundingMode.HALF_UP);
+        this.netAmount = this.grossAmount.add(this.roundingAmount).subtract(this.discountAmount).setScale(6, java.math.RoundingMode.HALF_UP);
+        this.patientAmount = this.netAmount.subtract(this.insuranceAmount).subtract(this.otherAmount).abs().setScale(6, java.math.RoundingMode.HALF_UP);
+    }
+
     private BigDecimal zero() { return BigDecimal.ZERO.setScale(6); }
     public Long id() { return id; }
     public long revision() { return revision; }

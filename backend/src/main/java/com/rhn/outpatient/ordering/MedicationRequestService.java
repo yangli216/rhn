@@ -366,7 +366,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.priceQuantitySnapshot(), value.totalAmount(), value.currencyCode(),
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
                 value.itemAttributeHash(), value.itemAttributeResolvedAt(),
-                jsonCodec.readTree(value.standardMappingSnapshot()));
+                jsonCodec.readTree(value.standardMappingSnapshot()),
+                value.packageSpecSnapshot(), value.manufacturerNameSnapshot(), value.packageUnitNameSnapshot());
     }
 
     private void requirePharmacyOrganizationAccess(ExecutionContext context, Long organizationId) {

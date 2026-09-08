@@ -2,6 +2,7 @@ package com.rhn.billing.application;
 
 import com.rhn.billing.api.BillingViews.SettlementEventView;
 import com.rhn.billing.api.BillingViews.SettlementLineView;
+import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.api.BillingViews.SettlementTenderView;
 import com.rhn.billing.api.BillingViews.SettlementView;
 import com.rhn.billing.domain.ChargeItem;
@@ -25,8 +26,13 @@ import com.rhn.billing.infrastructure.SettlementRepository;
 import com.rhn.billing.infrastructure.SettlementTenderRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import com.rhn.healthcore.api.ResidentDirectory;
+import com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot;
+import com.rhn.outpatient.api.EncounterDirectory;
+import com.rhn.outpatient.api.EncounterDirectory.EncounterSnapshot;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,8 +40,12 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.List;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
@@ -52,16 +62,20 @@ public class SettlementApplicationService {
     private final LedgerEntryRepository ledger;
     private final ExecutionContextProvider contextProvider;
     private final DomainEventPublisher eventPublisher;
+    private final ResidentDirectory residentDirectory;
+    private final EncounterDirectory encounterDirectory;
 
     public SettlementApplicationService(SettlementRepository settlements, SettlementLineRepository lines,
                                         SettlementTenderRepository tenders, SettlementEventRepository events,
                                         SettlementCategorySummaryRepository categories,
                                         PatientAccountRepository accounts, ChargeItemRepository chargeItems,
                                         LedgerEntryRepository ledger, ExecutionContextProvider contextProvider,
-                                        DomainEventPublisher eventPublisher) {
+                                        DomainEventPublisher eventPublisher, ResidentDirectory residentDirectory,
+                                        EncounterDirectory encounterDirectory) {
         this.settlements = settlements; this.lines = lines; this.tenders = tenders; this.events = events;
         this.categories = categories; this.accounts = accounts; this.chargeItems = chargeItems;
         this.ledger = ledger; this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
+        this.residentDirectory = residentDirectory; this.encounterDirectory = encounterDirectory;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -287,6 +301,41 @@ public class SettlementApplicationService {
             throw forbidden("SETTLEMENT_FORBIDDEN", "当前工作上下文不能访问该结算单");
         }
         return view(context, value);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SettlementRecordView> recentCompleted(int limit) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        if (!context.hasWorkContext()) {
+            throw forbidden("SETTLEMENT_QUERY_CONTEXT_REQUIRED", "收费查询需要机构工作上下文");
+        }
+        int boundedLimit = Math.max(1, Math.min(limit, 500));
+        List<Settlement> values = settlements.findRecentCompleted(context.tenantId(), context.organizationId(),
+                PageRequest.of(0, boundedLimit));
+        Collection<Long> accountIds = values.stream().map(Settlement::patientAccountId).collect(Collectors.toSet());
+        Map<Long, PatientAccount> accountById = accountIds.isEmpty() ? Map.of() : accounts
+                .findByTenantIdAndIdIn(context.tenantId(), accountIds).stream()
+                .collect(Collectors.toMap(PatientAccount::id, Function.identity()));
+        Collection<Long> encounterIds = accountById.values().stream().map(PatientAccount::encounterId)
+                .filter(java.util.Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, EncounterSnapshot> encounterById = encounterDirectory.findOrganizationAccessible(encounterIds)
+                .stream().collect(Collectors.toMap(EncounterSnapshot::id, Function.identity()));
+        Map<Long, ResidentSnapshot> residentById = new HashMap<>();
+        return values.stream().map(value -> {
+            PatientAccount account = accountById.get(value.patientAccountId());
+            if (account == null) return null;
+            ResidentSnapshot resident = residentById.computeIfAbsent(account.residentId(),
+                    residentId -> residentDirectory.requireSnapshot(context.tenantId(), residentId));
+            EncounterSnapshot encounter = account.encounterId() == null ? null : encounterById.get(account.encounterId());
+            return new SettlementRecordView(value.id(), account.id(), account.residentId(), account.encounterId(),
+                    account.departmentId(), resident.fullName(), resident.healthRecordNo(), resident.gender(),
+                    resident.birthDate(), encounter == null ? null : encounter.encounterNo(),
+                    encounter == null ? null : encounter.departmentName(),
+                    value.settlementNo(), value.settlementType(), value.settlementScene(),
+                    value.terminalScene(), value.status(), value.grossAmount(), value.discountAmount(),
+                    value.insuranceAmount(), value.patientAmount(), value.otherAmount(), value.roundingAmount(),
+                    value.netAmount(), value.currencyCode(), value.terminalCode(), value.createdAt(), value.finalizedAt());
+        }).filter(java.util.Objects::nonNull).toList();
     }
 
     Settlement requireForPayment(ExecutionContext context, Long settlementId) {

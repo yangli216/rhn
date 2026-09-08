@@ -52,7 +52,7 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
     public PaymentOrderView create(CreatePaymentOrderCommand input) {
         var created = transactions.create(new PaymentOrderTransactionService.CreateCommand(
                 input.settlementId(), input.idempotencyKey(), input.businessScene(), input.paymentSceneCode(),
-                input.paymentMethodCode(), input.amount(), input.correlationId(), input.terminalCode(), input.expiresAt()));
+                input.paymentMethodCode(), input.amount(), input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt()));
         PaymentOrder order = created.order();
         notifyPaymentRequested(order);
         if (created.duplicate() || terminal(order.status())) {
@@ -456,8 +456,17 @@ public class PaymentOrchestrationService implements PaymentResultDirectory {
 
     public record CreatePaymentOrderCommand(
             Long settlementId, String idempotencyKey, String businessScene, String paymentSceneCode,
-            String paymentMethodCode, BigDecimal amount, String correlationId, String terminalCode,
-            Instant expiresAt) {}
+            String paymentMethodCode, BigDecimal amount, BigDecimal roundingAdjustment,
+            String correlationId, String terminalCode,
+            Instant expiresAt) {
+        public CreatePaymentOrderCommand(
+                Long settlementId, String idempotencyKey, String businessScene, String paymentSceneCode,
+                String paymentMethodCode, BigDecimal amount, String correlationId, String terminalCode,
+                Instant expiresAt) {
+            this(settlementId, idempotencyKey, businessScene, paymentSceneCode,
+                    paymentMethodCode, amount, null, correlationId, terminalCode, expiresAt);
+        }
+    }
     public record CreateRefundOrderCommand(
             Long originalPaymentId, String idempotencyKey, BigDecimal amount, String reason,
             String correlationId, String terminalCode) {}

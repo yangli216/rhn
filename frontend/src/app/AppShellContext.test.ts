@@ -8,6 +8,7 @@ describe('AppShell work context routing', () => {
     expect(workContextTypeForPath('/inpatient/orders?episodeId=1')).toBe('GENERAL')
     expect(workContextTypeForPath('/outpatient/reception')).toBe('CLINICAL')
     expect(workContextTypeForPath('/billing/settlement')).toBe('CLINICAL')
+    expect(workContextTypeForPath('/billing/query')).toBe('CLINICAL')
   })
 
   it('keeps the four pharmacy functions in the pharmacy context while warehouse remains independent', () => {

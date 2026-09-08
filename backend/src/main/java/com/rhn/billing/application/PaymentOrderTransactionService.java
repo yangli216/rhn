@@ -90,6 +90,11 @@ class PaymentOrderTransactionService {
         existing = orderRepository.findByTenantIdAndIdempotencyKey(context.tenantId(), idempotencyKey).orElse(null);
         if (existing != null) return new CreateResult(verifySame(existing, input), true);
 
+        if (input.roundingAdjustment() != null && input.roundingAdjustment().signum() != 0) {
+            formalSettlement.applyRoundingAdjustment(input.roundingAdjustment());
+            invoice.adjustRounding(input.roundingAdjustment());
+        }
+
         BigDecimal amount = money(input.amount());
         if (amount.signum() <= 0) throw badRequest("PAYMENT_AMOUNT_INVALID", "支付金额必须大于零");
         if (invoice.netAmount().signum() <= 0) throw conflict("PAYMENT_CREDIT_INVOICE_INVALID", "贷项结算凭证不能执行收款");
@@ -385,8 +390,16 @@ class PaymentOrderTransactionService {
     private String upper(String value) { String result = clean(value); return result == null ? null : result.toUpperCase(); }
 
     record CreateCommand(Long invoiceId, String idempotencyKey, String businessScene, String paymentSceneCode,
-                         String paymentMethodCode, BigDecimal amount, String correlationId, String terminalCode,
-                         Instant expiresAt) {}
+                         String paymentMethodCode, BigDecimal amount, BigDecimal roundingAdjustment,
+                         String correlationId, String terminalCode,
+                         Instant expiresAt) {
+        CreateCommand(Long invoiceId, String idempotencyKey, String businessScene, String paymentSceneCode,
+                      String paymentMethodCode, BigDecimal amount, String correlationId, String terminalCode,
+                      Instant expiresAt) {
+            this(invoiceId, idempotencyKey, businessScene, paymentSceneCode,
+                    paymentMethodCode, amount, null, correlationId, terminalCode, expiresAt);
+        }
+    }
     record CreateRefundCommand(Long originalPaymentId, String idempotencyKey, BigDecimal amount, String reason,
                                String correlationId, String terminalCode) {}
     record CreateResult(PaymentOrder order, boolean duplicate) {}

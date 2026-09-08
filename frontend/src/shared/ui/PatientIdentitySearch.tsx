@@ -224,6 +224,10 @@ export function PatientIdentitySearch({
             该唯一标识返回多条记录，请人工确认并检查主索引数据。
           </p>}
 
+          {submitted && residents.isFetching && <div className="ui-patient-search__loading" role="status">
+            <span className="ui-spinner" aria-hidden="true" />正在检索患者…
+          </div>}
+
           {showCandidates && (candidates.length ? <div className="ui-patient-search__results" aria-label="患者候选列表">
             <header>
               <strong>请选择并确认患者</strong>
@@ -257,6 +261,7 @@ export function PatientIdentitySearch({
         </div>
         <button className="ui-button ui-button--secondary ui-button--sm" type="button" onClick={submit}
           disabled={disabled || normalized.length < minimumQueryLength || residents.isFetching}>
+          {residents.isFetching && <span className="ui-spinner" aria-hidden="true" style={{ width: '0.875rem', height: '0.875rem' }} />}
           <span className="ui-button__label">{residents.isFetching ? '查询中…' : '查询'}</span>
         </button>
       </div>
@@ -271,7 +276,7 @@ export function PatientIdentitySearch({
         onClick={() => { setAutoResolvedQuery(''); onClear() }}>重新选择</button>}
     </div>}
 
-    {residents.isFetching && <div className="ui-patient-search__loading" role="status">
+    {!compact && !submitted && residents.isFetching && <div className="ui-patient-search__loading" role="status">
       <span className="ui-spinner" aria-hidden="true" />正在检索患者…
     </div>}
     {showInitialEmpty && !submitted && !selected && <div className="ui-patient-search__empty"><Icon name="residents" /><div>

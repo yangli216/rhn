@@ -583,9 +583,16 @@ public class EncounterService implements EncounterDirectory {
     }
 
     private EncounterSnapshot snapshot(Encounter encounter) {
+        String departmentName = null;
+        if (encounter.departmentId() != null) {
+            try {
+                departmentName = organizationDirectory.requireDepartment(
+                        encounter.tenantId(), encounter.organizationId(), encounter.departmentId()).name();
+            } catch (Exception ignored) {}
+        }
         return new EncounterSnapshot(encounter.id(), encounter.tenantId(), encounter.residentId(),
                 encounter.organizationId(), encounter.departmentId(), encounter.encounterNo(), encounter.clinicianId(),
-                encounter.status().name(), encounter.version());
+                encounter.status().name(), encounter.version(), departmentName, encounter.registeredAt());
     }
 
     private Encounter requireEncounter(Long encounterId) {

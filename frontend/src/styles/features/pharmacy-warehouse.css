@@ -1,25 +1,7 @@
 /* Warehouse management */
-.warehouse-workspace { min-height: 42rem; display: flex; flex-direction: column; gap: var(--space-4); width: 100%; }
+.warehouse-workspace { min-height: 0; display: flex; flex-direction: column; gap: var(--space-3); width: 100%; }
 .warehouse-workspace--single { display: flex; flex-direction: column; width: 100%; }
 .warehouse-detail { min-width: 0; width: 100%; overflow: hidden; }
-
-/* Top-right header switcher */
-.warehouse-header-switcher { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
-.warehouse-header-switcher__label { font-size: var(--font-size-small); color: var(--color-text-secondary); white-space: nowrap; font-weight: var(--font-weight-medium); }
-.warehouse-header-switcher__select { min-width: 15rem; max-width: 22rem; }
-.warehouse-header-switcher--single { display: flex; align-items: center; gap: var(--space-2); }
-.warehouse-header-site-name { font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); }
-.warehouse-header-site-code { padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); background: var(--color-surface-muted); color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); }
-
-.warehouse-site-badge { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; padding: 0.15rem 0.45rem; border-radius: var(--radius-sm); font-weight: var(--font-weight-medium); white-space: nowrap; }
-.warehouse-site-badge--brand { background: var(--color-brand-soft); color: var(--color-brand-primary); }
-.warehouse-site-badge--info { background: rgba(37, 99, 235, 0.1); color: #2563eb; }
-.warehouse-site-badge--success { background: rgba(16, 185, 129, 0.1); color: #059669; }
-.warehouse-site-badge--neutral { background: var(--color-surface-muted); color: var(--color-text-secondary); }
-
-.warehouse-perm-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.75rem; padding: 0.2rem 0.6rem; border-radius: 999px; font-weight: var(--font-weight-semibold); white-space: nowrap; }
-.warehouse-perm-chip--super { background: rgba(99, 102, 241, 0.12); color: #4f46e5; border: 1px solid rgba(99, 102, 241, 0.25); }
-.warehouse-perm-chip--operator { background: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.25); }
 
 .warehouse-scenario-banner { margin: var(--space-3) var(--space-4) 0; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: rgba(37, 99, 235, 0.06); border: 1px solid rgba(37, 99, 235, 0.2); display: flex; align-items: center; gap: var(--space-3); }
 .warehouse-scenario-banner__icon { font-size: 1.1rem; flex: none; }

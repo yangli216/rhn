@@ -7,8 +7,8 @@ export interface VitalSignRule {
   unit: string
   hardMinimum: number
   hardMaximum: number
-  warningMinimum?: number
-  warningMaximum?: number
+  warningMinimum?: number | null
+  warningMaximum?: number | null
 }
 
 export interface VitalValidationProfile {

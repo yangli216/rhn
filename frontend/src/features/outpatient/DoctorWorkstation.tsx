@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -451,6 +451,8 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
   const [editing, setEditing] = useState(false)
+  const saveDraftHandlerRef = useRef<(() => void) | null>(null)
+  const [saveDraftNotice, setSaveDraftNotice] = useState<{ message: string; tone?: 'success' | 'error' | 'warning' } | null>(null)
   const automaticEntry = useRef<string | null>(null)
   const [resumeCommandCode] = useState(() => commandCode('RESUME', encounterId ?? resident.id))
   const queryClient = useQueryClient()
@@ -496,6 +498,32 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     window.addEventListener('beforeunload', preventUnload)
     return () => window.removeEventListener('beforeunload', preventUnload)
   }, [hasUnsavedDraft])
+  const handleSaveDraft = useCallback(() => {
+    if (saveDraftHandlerRef.current) {
+      saveDraftHandlerRef.current()
+    } else {
+      const form = document.getElementById('doctor-record-form') as HTMLFormElement | null
+      form?.requestSubmit()
+    }
+  }, [])
+  const handleRegisterSaveDraft = useCallback((handler: (() => void) | null) => {
+    saveDraftHandlerRef.current = handler
+  }, [])
+  const handleSaveDraftNotice = useCallback((notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => {
+    setSaveDraftNotice(notice)
+    setTimeout(() => setSaveDraftNotice(null), 3500)
+  }, [])
+  useEffect(() => {
+    if (!editing || encounter?.status !== 'IN_PROGRESS') return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        handleSaveDraft()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [editing, encounter?.status, handleSaveDraft])
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['doctor-encounters', resident.id] }),
@@ -598,6 +626,18 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
           <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
             title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
           {editing && encounter.status === 'IN_PROGRESS' && <>
+            <Button
+              size="sm"
+              variant={hasUnsavedDraft ? 'primary' : 'secondary'}
+              className="doctor-btn--save-draft"
+              busy={draftState.busy}
+              disabled={aiAdoptionBusy}
+              title={hasUnsavedDraft ? '保存病历、诊断与医嘱草稿 (Ctrl+S)' : '当前草稿已与服务器同步 (Ctrl+S)'}
+              onClick={handleSaveDraft}
+            >
+              <Icon name="check" />
+              <span>保存草稿</span>
+            </Button>
             <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
               title="暂时释放当前接诊工作会话，患者返回后可继续"
               onClick={() => requestAction('suspend')}>暂挂</Button>
@@ -616,10 +656,15 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
           <main className={`doctor-workspace-main${aiAdoptionBusy ? ' is-ai-adoption-busy' : ''}`}
             aria-busy={aiAdoptionBusy || undefined}>
             {(start.error || resume.error) && <Alert className="ui-page-feedback">{errorMessage(start.error || resume.error)}</Alert>}
+            {saveDraftNotice && <Alert tone={saveDraftNotice.tone ?? 'success'} className="ui-page-feedback">
+              <Icon name={saveDraftNotice.tone === 'error' ? 'error' : 'check'} /> {saveDraftNotice.message}
+            </Alert>}
             <ClinicalRecordPanel key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
                 enteringEdit={start.isPending || resume.isPending}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
+                onRegisterSaveDraft={handleRegisterSaveDraft}
+                onSaveDraftNotice={handleSaveDraftNotice}
                 aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
                 onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
@@ -853,6 +898,7 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
     mutationFn: (command: SettlementPaymentCommand) => api.billing.createPaymentOrder(command.settlementId, {
       idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CLINIC_SETTLE',
       paymentMethodCode: command.paymentMethodCode, amount: command.amount,
+      roundingAdjustment: command.roundingAdjustment,
       correlationId: `DOCTOR-STATION-${encounter.id}`, terminalCode: 'WEB-DOCTOR-WORKSTATION',
     }),
     onSuccess: async () => { await Promise.all([statement.refetch(), orders.refetch(),
@@ -947,7 +993,13 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
           <div className="doctor-completion-payment">
             <SettlementPaymentPanel settlements={payable.map((value) => ({
               id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
-            }))} methods={(methods.data ?? []).map((value) => ({ code: value.code, name: value.name }))}
+            }))} methods={(methods.data ?? []).map((value) => ({
+              code: value.code,
+              name: value.name,
+              sortOrder: value.sortOrder,
+              precision: value.attributes?.PAYMENT_PRECISION,
+              roundingMode: value.attributes?.ROUNDING_MODE,
+            }))}
             orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
             onSubmit={(command) => createPayment.mutateAsync(command)} />
           </div>
@@ -1704,13 +1756,16 @@ export async function persistOrderDrafts(
 }
 
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
-  aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, editing, canEdit, enteringEdit, onRequestEditing,
+  aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
+  editing, canEdit, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
   onAiContextChange: (value: ClinicalAiDraftContext | null) => void
   onHistoryCopyConsumed: () => void; onDraftStateChange: (value: EncounterDraftState) => void
+  onRegisterSaveDraft?: (handler: (() => void) | null) => void
+  onSaveDraftNotice?: (notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => void
   editing: boolean; canEdit: boolean; enteringEdit: boolean; onRequestEditing: () => void; onRequestReading: () => void
   onRefresh: () => Promise<unknown>
   aiPreConsultation?: AiPreConsultation
@@ -1930,6 +1985,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     onSuccess: async (savedEncounter, form) => {
       pendingRecordCommand.current = null
       setCopyNotice('')
+      onSaveDraftNotice?.({ message: '门诊病历、诊断与医嘱草稿已保存', tone: 'success' })
       setMedicationDrafts([])
       setServiceDrafts([])
 
@@ -1978,6 +2034,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         queryClient.invalidateQueries({ queryKey: ['doctor-billing-statement', encounter.id] }),
         onRefresh(),
       ])
+    },
+    onError: (error) => {
+      onSaveDraftNotice?.({ message: errorMessage(error), tone: 'error' })
     },
   })
   useEffect(() => {
@@ -2088,6 +2147,20 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       busy: businessBusy })
   }, [diagnosesChanged, formState.isDirty, medicationDrafts.length, onDraftStateChange, orderBusy,
     save.isPending, serviceDrafts.length, sign.isPending, structuredChanged, businessBusy])
+  const handleRecordSubmit = handleSubmit(
+    (value) => save.mutate(value),
+    (formErrors) => {
+      const first = Object.values(formErrors)[0]?.message
+      onSaveDraftNotice?.({
+        message: typeof first === 'string' ? first : '请检查病历表单必填项',
+        tone: 'error',
+      })
+    }
+  )
+  useEffect(() => {
+    onRegisterSaveDraft?.(handleRecordSubmit)
+    return () => onRegisterSaveDraft?.(null)
+  }, [handleRecordSubmit, onRegisterSaveDraft])
   const signed = document?.status === 'SIGNED'
   const addDiagnosis = (candidate?: ClinicalResourceOption<DiseaseConcept>) => {
     const selected = candidate?.raw ?? diagnosisSearch?.raw
@@ -2162,26 +2235,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} />}
-          {editing && !signed && (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="doctor-save-draft-btn"
-              busy={save.isPending}
-              disabled={signed}
-              title="保存门诊病历草稿"
-              onClick={handleSubmit((value) => save.mutate(value))}
-            >
-              <Icon name="check" />
-              保存草稿
-            </Button>
-          )}
           {document && signed && <Button size="sm" variant="secondary"
           onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}</>} />
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
-      {editing ? <form id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleSubmit((value) => save.mutate(value))}>
+      {editing ? <form id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
         {aiPreConsultation && !signed && (
           <div className="ai-preconsultation-banner">
             <div className="ai-banner-content">
@@ -2892,11 +2950,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
       actions={editing ? <div className="doctor-order-head-actions">
         <StatusBadge tone={planCount ? 'warning' : 'neutral'}>{planCount} 项待确认</StatusBadge>
-        {(medicationDrafts.length > 0 || serviceDrafts.length > 0) && (
-          <Button size="sm" variant="secondary" busy={saveDraftOrders.isPending}
-            onClick={() => saveDraftOrders.mutate()}>存为草稿</Button>
-        )}
-        <Button size="sm" disabled={planCount === 0} onClick={() => setReviewOpen(true)}>审核保存</Button>
+        <Button size="sm" disabled={planCount === 0} onClick={() => setReviewOpen(true)}>审核开立</Button>
       </div> : undefined} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
     <div className="doctor-orders-content">

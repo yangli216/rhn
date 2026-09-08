@@ -4,6 +4,8 @@ export interface PaymentMethodOption {
   code: string
   name: string
   sortOrder?: number
+  precision?: string
+  roundingMode?: string
 }
 
 export interface PaymentMethodSelectorProps {
@@ -19,10 +21,10 @@ export interface PaymentMethodSelectorProps {
 }
 
 export const DEFAULT_FALLBACK_PAYMENT_METHODS: PaymentMethodOption[] = [
-  { code: 'WECHAT', name: '微信支付', sortOrder: 10 },
-  { code: 'ALIPAY', name: '支付宝', sortOrder: 20 },
-  { code: 'CASH', name: '现金收款', sortOrder: 30 },
-  { code: 'BANK_CARD', name: '银行卡', sortOrder: 40 },
+  { code: 'WECHAT', name: '微信支付', sortOrder: 10, precision: '0.01', roundingMode: 'HALF_UP' },
+  { code: 'ALIPAY', name: '支付宝', sortOrder: 20, precision: '0.01', roundingMode: 'HALF_UP' },
+  { code: 'CASH', name: '现金收款', sortOrder: 30, precision: '0.1', roundingMode: 'FLOOR' },
+  { code: 'BANK_CARD', name: '银行卡', sortOrder: 40, precision: '0.01', roundingMode: 'HALF_UP' },
 ]
 
 export function PaymentMethodSelector({

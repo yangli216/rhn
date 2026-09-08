@@ -101,7 +101,8 @@ public class ResidentService implements ResidentDirectory {
                 java.time.LocalDate.now(clock));
         List<NormalizedIdentifier> identifiers = normalizedIdentifiers(request.nationalId(), request.identifiers());
         if (identifiers.isEmpty()) {
-            throw badRequest("RESIDENT_IDENTIFIER_REQUIRED", "至少需要提供一个居民标识");
+            NormalizedIdentifier autoCard = normalizeIdentifier("HEALTH_CARD", nextTempCardNo(), "SECONDARY");
+            identifiers = List.of(autoCard);
         }
         validateNationalIdentifiers(identifiers, request.birthDate(), request.gender());
         identifiers.forEach(identifier -> requireDictionaryValue(tenantId, "PI_IDENTIFIER_TYPE", identifier.system()));
@@ -524,6 +525,11 @@ public class ResidentService implements ResidentDirectory {
     private String nextRecordNo() {
         String time = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         return "RHN" + time + com.rhn.shared.id.GlobalIds.randomSuffix(6);
+    }
+
+    private String nextTempCardNo() {
+        String time = LocalDateTime.now(clock).format(DateTimeFormatter.ofPattern("yyMMddHHmmss"));
+        return "TC" + time + com.rhn.shared.id.GlobalIds.randomSuffix(4);
     }
 
     private String normalize(String value) {

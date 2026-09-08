@@ -19,6 +19,7 @@ public interface PatientAccountRepository extends JpaRepository<PatientAccount, 
     List<PatientAccount> findTop200ByTenantIdAndOrganizationIdAndEncounterIdIsNotNullOrderByOpenedAtDesc(
             Long tenantId, Long organizationId);
     List<PatientAccount> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
+    List<PatientAccount> findByTenantIdAndIdIn(Long tenantId, Collection<Long> accountIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select a from PatientAccount a where a.id = :id and a.tenantId = :tenantId")

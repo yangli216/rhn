@@ -395,7 +395,7 @@ export function UnifiedOrderListEditor({
       packageUnitName: rawOrderable?.packageUnitName,
     })
     setValidationError('')
-    if (option) focusControlAfterSelection('doctor-unified-package')
+    if (option) focusControlAfterSelection('doctor-unified-dose')
   }
 
   function updateMedication<K extends keyof MedicationEntry>(field: K, value: MedicationEntry[K]) {
@@ -564,14 +564,14 @@ export function UnifiedOrderListEditor({
         <span className="doctor-unified-cell-type">类型</span>
         <span className="doctor-unified-cell-name">药品 / 项目</span>
         <span>产品规格</span>
-        <span>生产厂家</span>
-        <span>单价</span>
         <span>单次剂量</span>
         <span>途径</span>
         <span>频次</span>
         <span>疗程</span>
-        <span>嘱托 / 说明</span>
         <span className="doctor-unified-cell-qty">总量</span>
+        <span>嘱托 / 说明</span>
+        <span>单价</span>
+        <span>生产厂家</span>
         <span className="doctor-unified-cell-status">状态</span>
         {!readOnly && <span className="doctor-unified-cell-actions">操作</span>}
       </div>
@@ -705,43 +705,15 @@ export function UnifiedOrderListEditor({
             </div>
 
             {isMedication ? (
-              <div className={`doctor-inline-order-field doctor-inline-order-package${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                {dispensableOptions.length > 0 ? (
-                  <Select id="doctor-unified-package" aria-label="产品规格" value={selectedProduct ? selectedProduct.key : ''}
-                    disabled={!hasEnteredOrder}
-                    onChange={(value) => updateMedication('dispenseOptionKey', value)}
-                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-dose')} clearable={false} showValue
-                    placeholder="发药包装"
-                    options={dispensableOptions.map((value) => ({
-                      value: value.key, label: value.label, secondaryText: value.secondaryText,
-                      searchKeywords: [value.unitCode, value.unitName],
-                    }))} />
-                ) : <span className="doctor-inline-order-placeholder">{hasEnteredOrder ? '选择药品后显示包装' : '调入药品后显示包装'}</span>}
+              <div className="doctor-inline-order-static doctor-inline-order-package"
+                title={selectedProduct?.itemPackage?.packageSpec || selectedProduct?.label || undefined}>
+                {selectedProduct ? (selectedProduct.itemPackage?.packageSpec || selectedProduct.label) : (hasEnteredOrder ? '—' : '调入药品后显示规格')}
               </div>
             ) : <div className="doctor-inline-order-static doctor-inline-order-package">—</div>}
-
-            {isMedication ? <div className="doctor-inline-order-static doctor-inline-order-manufacturer"
-              title={selectedProduct?.product.manufacturerName || undefined}>
-              {selectedProduct?.product.manufacturerName || '—'}
-            </div> : <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>}
-
-            {isMedication ? (
-              <div className="doctor-inline-order-static doctor-inline-order-price">
-                {selectedProduct ? formatUnitPrice(selectedProduct.price, selectedProduct.currencyCode) : '—'}
-              </div>
-            ) : (
-              <div className="doctor-inline-order-static doctor-inline-order-price">
-                {(() => {
-                  const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
-                  return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
-                })()}
-              </div>
-            )}
 
               {entryType === 'MEDICATION' && (
                 <>
                   <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="单次剂量">
-                    <label htmlFor="doctor-unified-dose">每次</label>
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-dose" aria-label="单次剂量" type="number" min="0" step="0.01"
                         disabled={!hasEnteredOrder}
@@ -778,16 +750,9 @@ export function UnifiedOrderListEditor({
                         disabled={!hasEnteredOrder}
                         value={medicationEntry.durationValue} placeholder="天数"
                         onChange={(event) => updateMedication('durationValue', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
+                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
                       <small>天</small>
                     </div>
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="用药嘱托">
-                    <input id="doctor-unified-instruction" aria-label="用药嘱托" value={medicationEntry.instruction}
-                      disabled={!hasEnteredOrder}
-                      placeholder="嘱托 (如: 饭后)" onChange={(event) => updateMedication('instruction', event.target.value)}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
                   </div>
 
                   <div className={`doctor-inline-order-field doctor-inline-order-quantity ${isStockInsufficient ? 'is-danger' : ''}${!hasEnteredOrder ? ' is-disabled' : ''}`}>
@@ -797,9 +762,16 @@ export function UnifiedOrderListEditor({
                         title={isStockInsufficient ? `开立数量超过当前可用库存` : (calcResult?.calculationText ? `根据剂量频次自动计算: ${calcResult.calculationText}` : undefined)}
                         value={medicationEntry.quantity} placeholder="数量"
                         onChange={(event) => updateMedication('quantity', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event)} />
+                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
                       <small>{formatPackageUnit(selectedProduct?.unitName, selectedProduct?.unitCode)}</small>
                     </div>
+                  </div>
+
+                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="用药嘱托">
+                    <input id="doctor-unified-instruction" aria-label="用药嘱托" value={medicationEntry.instruction}
+                      disabled={!hasEnteredOrder}
+                      placeholder="嘱托 (如: 饭后)" onChange={(event) => updateMedication('instruction', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event)} />
                   </div>
                 </>
               )}
@@ -807,7 +779,6 @@ export function UnifiedOrderListEditor({
               {entryType === 'HERBAL' && (
                 <>
                   <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="每付剂量">
-                    <label htmlFor="doctor-unified-dose">每付</label>
                     <div className="doctor-entry-input-unit">
                       <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.01"
                         disabled={!hasEnteredOrder}
@@ -815,17 +786,6 @@ export function UnifiedOrderListEditor({
                         onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
                         onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-count')} />
                       <small>{medicationEntry.doseUnit || 'g'}</small>
-                    </div>
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
-                    <div className="doctor-entry-input-unit">
-                      <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
-                        disabled={!hasEnteredOrder}
-                        value={medicationEntry.herbalDoseCount}
-                        onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-method')} />
-                      <small>剂</small>
                     </div>
                   </div>
 
@@ -840,20 +800,20 @@ export function UnifiedOrderListEditor({
                     <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
                       disabled={!hasEnteredOrder}
                       onChange={(value) => updateMedication('frequencyCode', value)}
-                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-instruction')}
+                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-duration')}
                       showValue loading={frequencies.isPending} popoverMinWidth={260}
                       placeholder="频次" options={frequencyOptions} />
                   </div>
 
-                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
-                    <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
-                      disabled={!hasEnteredOrder}
-                      list="doctor-herbal-instruction-options"
-                      placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
-                    <datalist id="doctor-herbal-instruction-options">
-                      {['先煎', '后下', '包煎', '烊化', '冲服', '另煎', '生用'].map((value) => <option key={value} value={value} />)}
-                    </datalist>
+                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
+                    <div className="doctor-entry-input-unit">
+                      <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
+                        disabled={!hasEnteredOrder}
+                        value={medicationEntry.herbalDoseCount}
+                        onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
+                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
+                      <small>剂</small>
+                    </div>
                   </div>
 
                   <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
@@ -862,9 +822,20 @@ export function UnifiedOrderListEditor({
                         disabled={!hasEnteredOrder}
                         value={medicationEntry.doseValue === '' || medicationEntry.herbalDoseCount === '' ? ''
                           : Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount)}
-                        onKeyDown={(event) => continueOnEnter(event)} readOnly />
+                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} readOnly />
                       <small>g</small>
                     </div>
+                  </div>
+
+                  <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
+                    <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
+                      disabled={!hasEnteredOrder}
+                      list="doctor-herbal-instruction-options"
+                      placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
+                      onKeyDown={(event) => continueOnEnter(event)} />
+                    <datalist id="doctor-herbal-instruction-options">
+                      {['先煎', '后下', '包煎', '烊化', '冲服', '另煎', '生用'].map((value) => <option key={value} value={value} />)}
+                    </datalist>
                   </div>
                 </>
               )}
@@ -879,16 +850,34 @@ export function UnifiedOrderListEditor({
                 </div>
               )}
 
-            {!isMedication && (
-              <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
-                  disabled={!hasEnteredOrder}
-                  value={serviceQuantity} placeholder="数量"
-                  onChange={(event) => setServiceQuantity(Number(event.target.value))}
-                  onKeyDown={(event) => continueOnEnter(event)} />
-                <small>{service?.raw?.unitCode ?? '项'}</small>
+              {!isMedication && (
+                <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                  <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
+                    disabled={!hasEnteredOrder}
+                    value={serviceQuantity} placeholder="数量"
+                    onChange={(event) => setServiceQuantity(Number(event.target.value))}
+                    onKeyDown={(event) => continueOnEnter(event)} />
+                  <small>{service?.raw?.unitCode ?? '项'}</small>
+                </div>
+              )}
+
+            {isMedication ? (
+              <div className="doctor-inline-order-static doctor-inline-order-price">
+                {selectedProduct ? formatUnitPrice(selectedProduct.price, selectedProduct.currencyCode) : '—'}
+              </div>
+            ) : (
+              <div className="doctor-inline-order-static doctor-inline-order-price">
+                {(() => {
+                  const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
+                  return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
+                })()}
               </div>
             )}
+
+            {isMedication ? <div className="doctor-inline-order-static doctor-inline-order-manufacturer"
+              title={selectedProduct?.product.manufacturerName || undefined}>
+              {selectedProduct?.product.manufacturerName || '—'}
+            </div> : <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>}
 
             <div className="doctor-inline-order-status"><StatusBadge tone="info">录入中</StatusBadge></div>
             <div className="doctor-inline-order-actions">
@@ -987,16 +976,16 @@ function MedicationReadRow({ value, skinTest, busy, readOnly, administrationGrou
       <strong>{value.itemName || value.medicationName}</strong>
     </span>
     <span className="doctor-unified-product-spec">{value.packageSpec || value.preparationSpec || '—'}</span>
-    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
-    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span>{value.doseValue ? `${value.doseValue}${value.doseUnit || ''}` : '—'}</span>
     <span>{value.routeName || value.routeCode || '—'}</span>
     <span>{value.frequencyName || value.frequencyCode || '—'}</span>
     <span>{value.durationValue ? `${value.durationValue}${value.durationUnit || '天'}` : '—'}</span>
-    <span className="doctor-unified-order-detail">{value.medicationInstruction || '—'}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{formatPackageUnit(undefined, value.quantityUnit)}</small>
     </span>
+    <span className="doctor-unified-order-detail">{value.medicationInstruction || '—'}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'DRAFT' ? 'warning' : 'neutral'}>
         {orderStatusLabel(value.status)}
@@ -1032,15 +1021,15 @@ function ServiceReadRow({ value, busy, readOnly, onCancel }: {
     </span>
     <span>—</span>
     <span>—</span>
-    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span>—</span>
     <span>—</span>
     <span>—</span>
-    <span>—</span>
-    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
     </span>
+    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>—</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : 'neutral'}>{orderStatusLabel(value.status)}</StatusBadge>
     </span>
@@ -1090,10 +1079,7 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
         <strong>{value.productName || value.medicationName}</strong>
       </div>
       <div className="doctor-inline-order-static doctor-inline-order-package">{value.productSpec || value.preparationSpec || '—'}</div>
-      <div className="doctor-inline-order-static doctor-inline-order-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</div>
-      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
       <div className="doctor-inline-order-field doctor-inline-order-dose">
-        <label htmlFor={`draft-dose-${value.id}`}>{value.editorMode === 'herbal' ? '每付' : '每次'}</label>
         <div className="doctor-entry-input-unit"><input id={`draft-dose-${value.id}`} aria-label="编辑单次剂量" type="number" min="0" step="0.01"
           value={doseValue} onChange={(event) => setDoseValue(numberValue(event.target.value))}
           onKeyDown={(event) => continueDraftOnEnter(event, `draft-route-${value.id}`)} /><small>{value.request.doseUnit}</small></div>
@@ -1114,19 +1100,21 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
       <div className="doctor-inline-order-field doctor-inline-order-duration">
         <div className="doctor-entry-input-unit"><input id={`draft-duration-${value.id}`} aria-label="编辑疗程" type="number" min="1" value={durationValue}
           onChange={(event) => setDurationValue(numberValue(event.target.value))}
-          onKeyDown={(event) => continueDraftOnEnter(event, `draft-instruction-${value.id}`)} /><small>{value.request.durationUnit || '天'}</small></div>
-      </div>
-      <div className="doctor-inline-order-field doctor-inline-order-instruction">
-        <input id={`draft-instruction-${value.id}`} aria-label="编辑用药嘱托" value={instruction} placeholder="用药嘱托"
-          onChange={(event) => setInstruction(event.target.value)}
-          onKeyDown={(event) => continueDraftOnEnter(event, `draft-quantity-${value.id}`)} />
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-quantity-${value.id}`)} /><small>{value.request.durationUnit || '天'}</small></div>
       </div>
       <div className="doctor-inline-order-field doctor-inline-order-quantity">
         <div className="doctor-entry-input-unit"><input id={`draft-quantity-${value.id}`} aria-label="编辑总量" type="number" min="0.01" step="0.01" value={quantity}
           onChange={(event) => setQuantity(Number(event.target.value))}
-          onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} />
+          onKeyDown={(event) => continueDraftOnEnter(event, `draft-instruction-${value.id}`)} />
           <small>{formatPackageUnit(undefined, value.request.quantityUnit)}</small></div>
       </div>
+      <div className="doctor-inline-order-field doctor-inline-order-instruction">
+        <input id={`draft-instruction-${value.id}`} aria-label="编辑用药嘱托" value={instruction} placeholder="用药嘱托"
+          onChange={(event) => setInstruction(event.target.value)}
+          onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} />
+      </div>
+      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
+      <div className="doctor-inline-order-static doctor-inline-order-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</div>
       <div className="doctor-inline-order-status"><StatusBadge tone="warning">编辑中</StatusBadge></div>
       <div className="doctor-inline-order-actions">
         <Button size="sm" disabled={!valid} onClick={save} title="保存修改" aria-label="保存医嘱修改"><Icon name="check" /></Button>
@@ -1147,8 +1135,6 @@ function ServiceDraftEditRow({ value, onSave, onCancel }: {
       <div className="doctor-inline-order-static-type"><OrderTypeBadge type={value.serviceType || 'OTHER'} /></div>
       <div className="doctor-inline-order-static-resource"><strong>{value.itemName}</strong></div>
       <div className="doctor-inline-order-static doctor-inline-order-package">—</div>
-      <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>
-      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
       <div className="doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note">
         <input id={`draft-service-note-${value.id}`} aria-label="编辑临床说明" value={description} placeholder="临床说明"
           onChange={(event) => setDescription(event.target.value)}
@@ -1159,6 +1145,8 @@ function ServiceDraftEditRow({ value, onSave, onCancel }: {
           onChange={(event) => setQuantity(Number(event.target.value))}
           onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) { event.preventDefault(); save() } }} /><small>{value.unitCode || '项'}</small></div>
       </div>
+      <div className="doctor-inline-order-static doctor-inline-order-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</div>
+      <div className="doctor-inline-order-static doctor-inline-order-manufacturer">—</div>
       <div className="doctor-inline-order-status"><StatusBadge tone="warning">编辑中</StatusBadge></div>
       <div className="doctor-inline-order-actions">
         <Button size="sm" disabled={quantity <= 0} onClick={save} title="保存修改" aria-label="保存医嘱修改"><Icon name="check" /></Button>
@@ -1179,16 +1167,16 @@ function MedicationDraftRow({ value, administrationGroupLabel, onEdit, onRemove 
       <strong>{value.productName || value.medicationName}</strong>
     </span>
     <span className="doctor-unified-product-spec">{value.productSpec || value.preparationSpec || '—'}</span>
-    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
-    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span>{value.request.doseValue ? `${value.request.doseValue}${value.request.doseUnit || ''}` : '—'}</span>
     <span>{value.routeName || value.request.routeCode || '—'}</span>
     <span>{value.request.frequencyCode || '—'}</span>
     <span>{value.request.durationValue ? `${value.request.durationValue}${value.request.durationUnit || '天'}` : '—'}</span>
-    <span className="doctor-unified-order-detail">{value.request.medicationInstruction || '—'}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.request.quantity}</strong> <small>{formatPackageUnit(undefined, value.request.quantityUnit)}</small>
     </span>
+    <span className="doctor-unified-order-detail">{value.request.medicationInstruction || '—'}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span className="doctor-unified-manufacturer" title={value.manufacturerName}>{value.manufacturerName || '—'}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone="warning">待确认</StatusBadge>
     </span>
@@ -1208,15 +1196,15 @@ function ServiceDraftRow({ value, onEdit, onRemove }: { value: ServicePlanDraft;
     </span>
     <span>—</span>
     <span>—</span>
-    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span>—</span>
     <span>—</span>
     <span>—</span>
-    <span>—</span>
-    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
     <span className="doctor-unified-cell-qty">
       <strong>{value.quantity}</strong> <small>{value.unitCode}</small>
     </span>
+    <span className="doctor-unified-order-detail">{value.clinicalDescription || serviceTypeLabel(value.serviceType)}</span>
+    <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
+    <span>—</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone="warning">待确认</StatusBadge>
     </span>

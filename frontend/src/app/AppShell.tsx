@@ -42,6 +42,8 @@ const WarehouseManagement = lazy(() => import('../features/pharmacy/WarehouseMan
   .then((module) => ({ default: module.WarehouseManagement })))
 const BillingWorkspace = lazy(() => import('../features/billing/BillingWorkspace')
   .then((module) => ({ default: module.BillingWorkspace })))
+const BillingQueryWorkspace = lazy(() => import('../features/billing/BillingQueryWorkspace')
+  .then((module) => ({ default: module.BillingQueryWorkspace })))
 const RefundManagementWorkspace = lazy(() => import('../features/billing/RefundManagementWorkspace')
   .then((module) => ({ default: module.RefundManagementWorkspace })))
 const CashierCloseWorkspace = lazy(() => import('../features/billing/CashierCloseWorkspace')
@@ -214,6 +216,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
   {
     id: 'billing-management', label: '收费管理', icon: 'billing', children: [
       { id: 'billing-settlement', label: '收费结算', icon: 'billing', to: '/billing/settlement', requiredAuthority: 'BILLING.ACCESS' },
+      { id: 'billing-query', label: '收费查询', icon: 'search', to: '/billing/query', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-refunds', label: '退费管理', icon: 'billing', to: '/billing/refunds', requiredAuthority: 'BILLING.ACCESS' },
       { id: 'billing-close', label: '日终结账', icon: 'billing', to: '/billing/daily-close', requiredAuthority: 'BILLING.ACCESS' },
     ],
@@ -323,6 +326,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/pharmacy/warehouse') return { id: pathname, path: pathname, title: '库房管理', icon: 'pharmacy', closeable: true }
   if (pathname === '/billing') return { id: pathname, path: pathname, title: '费用结算', icon: 'billing', closeable: true }
   if (pathname === '/billing/settlement') return { id: pathname, path: pathname, title: '收费结算', icon: 'billing', closeable: true }
+  if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
   if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'clinical', closeable: true }
@@ -860,16 +864,12 @@ export function AppShell() {
                   <Route path="/pharmacy/ward-delivery" element={<PharmacyWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} mode="ward" />} />
                   <Route path="/pharmacy/warehouse" element={<WarehouseManagement api={tabSlot.api}
-                    session={session}
-                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)}
-                    onDepartmentChange={(organizationId, departmentId) => {
-                      const selected = session.workContexts.find((context) =>
-                        context.organizationId === organizationId && context.departmentId === departmentId)
-                      if (selected) void switchWorkContext('INVENTORY', workContextKey(selected))
-                    }} />} />
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/billing" element={<BillingWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/settlement" element={<BillingWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} />} />
+                  <Route path="/billing/query" element={<BillingQueryWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/billing/refunds" element={<RefundManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} />} />

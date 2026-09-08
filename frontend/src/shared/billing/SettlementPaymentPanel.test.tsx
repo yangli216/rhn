@@ -333,5 +333,86 @@ describe('SettlementPaymentPanel payment recovery', () => {
       amount: 50,
     }))
   })
+
+  it('按现金精度(0.1)+抹零(FLOOR)时，金额自动调整为33.60、锁定输入，并提交舍入误差-0.07', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金收款', precision: '0.1', roundingMode: 'FLOOR' }]}
+      orders={[]}
+      onSubmit={onSubmit}
+    />)
+
+    const amountInput = screen.getByLabelText(/本次支付金额/)
+    expect(amountInput).toHaveValue(33.60)
+    expect(amountInput).toHaveAttribute('readonly')
+    expect(screen.getByText(/按精度抹零 -¥0.07/)).toBeInTheDocument()
+    expect(screen.getByText('已锁定')).toBeInTheDocument()
+
+    const submitBtn = screen.getByRole('button', { name: '确认收款并记账' })
+    await user.click(submitBtn)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      settlementId: 'settlement-1',
+      paymentMethodCode: 'CASH',
+      amount: 33.60,
+      roundingAdjustment: -0.07,
+    }))
+  })
+
+  it('按现金精度(0.1)+四舍五入(HALF_UP)时，金额自动调整为33.70、锁定输入，并提交货币误差+0.03', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金收款', precision: '0.1', roundingMode: 'HALF_UP' }]}
+      orders={[]}
+      onSubmit={onSubmit}
+    />)
+
+    const amountInput = screen.getByLabelText(/本次支付金额/)
+    expect(amountInput).toHaveValue(33.70)
+    expect(amountInput).toHaveAttribute('readonly')
+    expect(screen.getByText(/含货币误差 \+¥0.03/)).toBeInTheDocument()
+    expect(screen.getByText('已锁定')).toBeInTheDocument()
+
+    const submitBtn = screen.getByRole('button', { name: '确认收款并记账' })
+    await user.click(submitBtn)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      settlementId: 'settlement-1',
+      paymentMethodCode: 'CASH',
+      amount: 33.70,
+      roundingAdjustment: 0.03,
+    }))
+  })
+
+  it('非现金方式默认分级精度(0.01)时，不锁定输入且舍入误差为0', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn().mockResolvedValue(undefined)
+
+    render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 33.67, currencyCode: 'CNY' }]}
+      methods={[{ code: 'BANK_CARD', name: '银行卡', precision: '0.01', roundingMode: 'HALF_UP' }]}
+      orders={[]}
+      onSubmit={onSubmit}
+    />)
+
+    const amountInput = screen.getByLabelText(/本次支付金额/)
+    expect(amountInput).toHaveValue(33.67)
+    expect(amountInput).not.toHaveAttribute('readonly')
+    expect(screen.queryByText('已锁定')).not.toBeInTheDocument()
+
+    const submitBtn = screen.getByRole('button', { name: '发起收款' })
+    await user.click(submitBtn)
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      settlementId: 'settlement-1',
+      paymentMethodCode: 'BANK_CARD',
+      amount: 33.67,
+      roundingAdjustment: 0,
+    }))
+  })
 })
+
 

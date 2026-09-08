@@ -3,6 +3,7 @@ import type { InsuranceSettlementView, PaymentOrder } from '../api/billingApi'
 import { Button, FormField, Select, StatusBadge } from '../ui'
 import { CashPaymentCalculator } from './CashPaymentCalculator'
 import { PaymentMethodSelector, type PaymentMethodOption } from './PaymentMethodSelector'
+import { roundAmount } from './roundAmount'
 
 export interface SettlementOption {
   id: string
@@ -23,6 +24,7 @@ export interface SettlementPaymentCommand {
   settlementModeCode?: SettlementModeCode
   paymentMethodCode: string
   amount: number
+  roundingAdjustment?: number
   idempotencyKey: string
 }
 
@@ -102,15 +104,24 @@ export function SettlementPaymentPanel({
   // 待支付金额
   const effectiveOutstanding = insuranceMode && hasPreSettled ? chsCashAmount : (settlement?.outstandingAmount ?? 0)
 
+  const methodPrecision = selectedMethod?.precision ?? '0.01'
+  const methodRoundingMode = selectedMethod?.roundingMode ?? 'HALF_UP'
+  const isAmountLocked = Boolean(selectedMethod?.precision && selectedMethod.precision !== '0.01')
+  const { rounded: autoAmount, adjustment: roundingAdjustment } = useMemo(() => {
+    return roundAmount(effectiveOutstanding, methodPrecision, methodRoundingMode)
+  }, [effectiveOutstanding, methodPrecision, methodRoundingMode])
+
   useEffect(() => {
     if (insuranceMode && hasPreSettled) {
-      setAmount(chsCashAmount > 0 ? String(chsCashAmount) : '0')
+      const rounded = roundAmount(chsCashAmount, selectedMethod?.precision, selectedMethod?.roundingMode).rounded
+      setAmount(rounded > 0 ? String(rounded) : '0')
     } else if (settlement && !insurancePending) {
-      setAmount(String(settlement.outstandingAmount))
+      const rounded = roundAmount(settlement.outstandingAmount, selectedMethod?.precision, selectedMethod?.roundingMode).rounded
+      setAmount(String(rounded))
     } else {
       setAmount('')
     }
-  }, [insuranceMode, hasPreSettled, chsCashAmount, insurancePending, settlement?.id, settlement?.outstandingAmount])
+  }, [insuranceMode, hasPreSettled, chsCashAmount, insurancePending, settlement?.id, settlement?.outstandingAmount, selectedMethod?.precision, selectedMethod?.roundingMode])
 
   useEffect(() => { submissionKey.current = null }, [settlementId, activeSettlementMode, methodCode, amount])
   const activeOrder = useMemo(() => orders.find((value) => value.settlementId === settlementId
@@ -141,9 +152,12 @@ export function SettlementPaymentPanel({
   const isAggregatedScanMethod = Boolean(onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode))
   const isMethodUnintegrated = !onInitiateScanPay && ['WECHAT', 'ALIPAY'].includes(methodCode)
 
+  const maxAllowed = isAmountLocked ? autoAmount : (effectiveOutstanding + Math.max(0, roundingAdjustment))
+  const isAmountInvalid = isAmountLocked ? numericAmount !== autoAmount : (numericAmount <= 0 || numericAmount > maxAllowed)
+
   const disabled = !settlement
     || (insurancePending && !insurancePreparationAllowed)
-    || (paymentRequired && (!methodCode || numericAmount <= 0 || numericAmount > effectiveOutstanding))
+    || (paymentRequired && (!methodCode || isAmountInvalid))
     || Boolean(activeOrder)
     || isCashShort
     || (paymentRequired && isMethodUnintegrated)
@@ -178,6 +192,7 @@ export function SettlementPaymentPanel({
         settlementModeCode: showSettlementMode ? activeSettlementMode : undefined,
         paymentMethodCode: paymentRequired ? methodCode : '',
         amount: paymentRequired ? numericAmount : 0,
+        roundingAdjustment: paymentRequired ? roundingAdjustment : 0,
         idempotencyKey: submissionKey.current,
       })
       submissionKey.current = null
@@ -213,9 +228,40 @@ export function SettlementPaymentPanel({
           label: value.code, secondaryText: money(value.outstandingAmount, value.currencyCode) }))} /></FormField>}
       {paymentRequired && <FormField label={insuranceMode ? '个人自付支付方式' : '支付方式'}><PaymentMethodSelector
         value={methodCode} onChange={setMethodCode} methods={monetaryMethods} /></FormField>}
-      {paymentRequired && showAmountInput && <FormField label={insuranceMode ? '个人自付金额' : '本次支付金额'}><input
-        className="ui-field__control" type="number" min="0.01" step="0.01"
-        value={amount} onChange={(event) => setAmount(event.target.value)} /></FormField>}
+      {paymentRequired && showAmountInput && (
+        <FormField
+          label={
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <span>{insuranceMode ? '个人自付金额' : '本次支付金额'}</span>
+              {roundingAdjustment !== 0 && (
+                <span style={{ fontSize: '12px', fontWeight: 'normal', color: roundingAdjustment > 0 ? 'var(--color-warning, #e67e22)' : 'var(--color-success, #27ae60)' }}>
+                  {roundingAdjustment > 0 ? `(含货币误差 +¥${roundingAdjustment.toFixed(2)})` : `(按精度抹零 -¥${Math.abs(roundingAdjustment).toFixed(2)})`}
+                </span>
+              )}
+              {isAmountLocked && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', background: 'var(--color-bg-subtle, #f0f0f0)', padding: '1px 6px', borderRadius: '4px' }}>
+                  已锁定
+                </span>
+              )}
+            </span>
+          }
+        >
+          <input
+            className="ui-field__control"
+            type="number"
+            min="0.01"
+            step={selectedMethod?.precision === '0.1' ? '0.1' : '0.01'}
+            readOnly={isAmountLocked}
+            style={isAmountLocked ? { backgroundColor: 'var(--color-bg-subtle, #fafafa)', cursor: 'not-allowed' } : undefined}
+            value={amount}
+            onChange={(event) => {
+              if (!isAmountLocked) {
+                setAmount(event.target.value)
+              }
+            }}
+          />
+        </FormField>
+      )}
     </div>
 
     {/* 医保预结算指引卡片（尚未试算时呈现） */}
@@ -300,6 +346,7 @@ export function SettlementPaymentPanel({
         tendered={cashTendered}
         onTenderedChange={setCashTendered}
         inputRef={cashInputRef}
+        precision={selectedMethod?.precision}
         onEnter={() => {
           if (!disabled && !busy) void handleCheckoutSubmit()
         }}

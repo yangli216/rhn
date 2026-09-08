@@ -8,7 +8,7 @@ import type {
 } from '../../shared/api/pharmacyApi'
 import { formatTime } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, FormField, LoadingState, Panel, Select, StatusBadge } from '../../shared/ui'
 import './ward-medication-return-inbox.css'
 
 const statusText: Record<WardMedicationReturnStatus, string> = {
@@ -75,15 +75,15 @@ export function WardMedicationReturnInbox({ api, practitioners, assignments, pra
   const values = requests.data ?? []
   const pendingCount = values.filter((value) => value.status === 'IN_TRANSIT').length
 
-  return <Panel className="pharmacy-ward-return-inbox" aria-label="病区退药接收">
-    <header><div><span>病区反向交接</span><h2>病区退药接收</h2>
+  return <Panel className={`pharmacy-ward-return-inbox${!requests.isPending && values.length === 0 ? ' is-empty' : ''}`}
+    aria-label="病区退药接收">
+    <header><div><h2>病区退药接收</h2>
       <p>{pendingCount ? `${pendingCount} 单已由病区交出，等待逐项验收` : '当前没有待接收退药'}</p></div>
       <Button size="sm" variant="secondary" onClick={() => void requests.refetch()}>刷新退药状态</Button></header>
     {requests.error && <Alert>{errorMessage(requests.error)}</Alert>}
     {receive.error && <Alert>{errorMessage(receive.error)}</Alert>}
-    {requests.isPending ? <LoadingState label="正在加载病区退药交接…" /> : values.length === 0
-      ? <EmptyState icon="pharmacy" title="暂无病区退药申请" copy="病区创建并确认交出后，将在这里逐项验收并形成正式退药。" />
-      : <div className="pharmacy-ward-return-inbox__list">{values.map((request) => <article key={request.id}
+    {requests.isPending ? <LoadingState label="正在加载病区退药交接…" /> : values.length > 0
+      && <div className="pharmacy-ward-return-inbox__list">{values.map((request) => <article key={request.id}
           className={`is-${request.status.toLowerCase()}`} aria-label={`病区退药 ${request.requestNo}`}>
         <header><div><strong>{request.requestNo}</strong><small>{formatTime(request.requestedAt)} 申请</small></div>
           <StatusBadge tone={statusTone(request.status)}>{statusText[request.status]}</StatusBadge></header>

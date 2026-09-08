@@ -198,20 +198,23 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
   }
 
   const createMutation = useMutation({
-    mutationFn: () => api.residents.create({
-      fullName,
-      nationalId,
-      gender,
-      birthDate,
-      phone,
-      identifiers: nationalId ? [{ system: '1', value: nationalId, useType: 'OFFICIAL' }] : [],
-      coverages: (coverageType !== '07' && coverageType !== 'SELF_PAY') ? [{
-        sdCoverageType: coverageType,
-        payerName: (coverageType === '01' || coverageType === 'EMPLOYEE_BASIC') ? '城镇职工基本医疗保险' : '城乡居民基本医疗保险',
-        primary: true,
-        validFrom: businessDate(),
-      }] : [],
-    }),
+    mutationFn: () => {
+      const cleanNationalId = nationalId.trim().toUpperCase()
+      return api.residents.create({
+        fullName: fullName.trim(),
+        nationalId: cleanNationalId || undefined,
+        gender,
+        birthDate,
+        phone: phone.trim() || undefined,
+        identifiers: cleanNationalId ? [{ system: '1', value: cleanNationalId, useType: 'OFFICIAL' }] : [],
+        coverages: (coverageType !== '07' && coverageType !== 'SELF_PAY') ? [{
+          sdCoverageType: coverageType,
+          payerName: (coverageType === '01' || coverageType === 'EMPLOYEE_BASIC') ? '城镇职工基本医疗保险' : '城乡居民基本医疗保险',
+          primary: true,
+          validFrom: businessDate(),
+        }] : [],
+      })
+    },
     onSuccess: (created) => {
       onSuccess(created)
       onClose()
@@ -229,7 +232,7 @@ function QuickResidentCreateDialog({ api, onClose, onSuccess }: {
       <div className="ui-form-row">
         <FormField label="患者姓名" required><input ref={fullNameRef} value={fullName} onChange={(e) => setFullName(e.target.value)} required placeholder="如 张三" /></FormField>
         <FormField label="身份证号"><input value={nationalId} onChange={(e) => handleIdChange(e.target.value)}
-          placeholder="18位身份证号（自动识别生日性别）" maxLength={18} pattern="[0-9]{17}[0-9Xx]"
+          placeholder="18位身份证号（未携带将自动分配临时就诊卡）" maxLength={18} pattern="[0-9]{17}[0-9Xx]"
           title="请输入18位有效身份证号" /></FormField>
       </div>
       <div className="ui-form-row">
@@ -695,6 +698,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     mutationFn: (command: SettlementPaymentCommand) => api.billing.createPaymentOrder(command.settlementId, {
       idempotencyKey: command.idempotencyKey, businessScene: 'REGISTRATION', paymentSceneCode: 'CASHIER',
       paymentMethodCode: command.paymentMethodCode, amount: command.amount,
+      roundingAdjustment: command.roundingAdjustment,
       correlationId: `REGISTRATION-${intentId}`, terminalCode: 'REGISTRATION-WINDOW-WEB',
       expiresAt: intent.data?.expiresAt,
     }),
@@ -1078,7 +1082,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 busy={cancelIntent.isPending} onClick={() => cancelIntent.mutate()}>取消本次挂号并释放号源</Button>}
               {currentIntent.feeAmount > 0 && ['PAYMENT_PENDING', 'PAID'].includes(currentIntent.status)
                 && <SettlementPaymentPanel settlements={settlementOptions}
-                  methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
+                  methods={(paymentMethods.data ?? []).map((item) => ({
+                    code: item.code,
+                    name: item.name,
+                    sortOrder: item.sortOrder,
+                    precision: item.attributes?.PAYMENT_PRECISION,
+                    roundingMode: item.attributes?.ROUNDING_MODE,
+                  }))}
                   orders={paymentOrders.data ?? []} busy={createPaymentOrder.isPending} sceneLabel="挂号费收款"
                   settlementModeCode={currentIntent.settlementMode}
                   submitShortcut

@@ -9,10 +9,10 @@ export interface ResidentIdentifierInput {
 
 export interface CreateResidentInput {
   fullName: string
-  nationalId: string
+  nationalId?: string
   gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
   birthDate: string
-  phone: string
+  phone?: string
   identifiers?: ResidentIdentifierInput[]
   demographicProfile?: ResidentDemographicProfile
   addresses?: ResidentAddressInput[]

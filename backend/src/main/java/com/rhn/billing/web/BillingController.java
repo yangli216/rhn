@@ -7,6 +7,7 @@ import com.rhn.billing.api.BillingViews.DailyReconciliationView;
 import com.rhn.billing.api.BillingViews.InvoiceView;
 import com.rhn.billing.api.BillingViews.PaymentView;
 import com.rhn.billing.api.BillingViews.SettlementView;
+import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.application.BillingApplicationService;
 import com.rhn.billing.application.BillingApplicationService.IssueInvoiceCommand;
 import com.rhn.billing.application.BillingApplicationService.PaymentCommand;
@@ -87,7 +88,7 @@ public class BillingController {
     @ResponseStatus(HttpStatus.CREATED)
     PaymentView collect(@PathVariable Long invoiceId, @Valid @RequestBody PaymentRequest input) {
         return service.collectPayment(invoiceId, new PaymentCommand(input.paymentNo(), input.paymentMethodCode(),
-                input.paymentSceneCode(), input.amount(), input.paidAt(), input.externalTransactionNo(), input.description(), null));
+                input.paymentSceneCode(), input.amount(), input.paidAt(), input.externalTransactionNo(), input.description(), null, input.roundingAdjustment()));
     }
 
     @PostMapping("/settlements/{settlementId}/payment-orders")
@@ -96,7 +97,7 @@ public class BillingController {
                                         @Valid @RequestBody PaymentOrderRequest input) {
         return payments.create(new CreatePaymentOrderCommand(settlementId, input.idempotencyKey(),
                 input.businessScene(), input.paymentSceneCode(), input.paymentMethodCode(), input.amount(),
-                input.correlationId(), input.terminalCode(), input.expiresAt()));
+                input.roundingAdjustment(), input.correlationId(), input.terminalCode(), input.expiresAt()));
     }
 
     @GetMapping("/payment-orders/{paymentOrderId}")
@@ -133,6 +134,11 @@ public class BillingController {
     @GetMapping("/settlements/{settlementId}")
     SettlementView settlement(@PathVariable Long settlementId) {
         return settlements.get(settlementId);
+    }
+
+    @GetMapping("/settlement-records")
+    List<SettlementRecordView> settlementRecords(@RequestParam(defaultValue = "200") int limit) {
+        return settlements.recentCompleted(limit);
     }
 
     @GetMapping("/accounts/{accountId}/payment-orders")
@@ -191,6 +197,7 @@ public class BillingController {
             @Size(max = 128) String paymentSceneCode,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
             BigDecimal amount,
+            @Digits(integer = 18, fraction = 6) BigDecimal roundingAdjustment,
             Instant paidAt, @Size(max = 128) String externalTransactionNo,
             @Size(max = 1000) String description) {}
     record PaymentOrderRequest(
@@ -200,6 +207,7 @@ public class BillingController {
             @NotBlank @Size(max = 128) String paymentMethodCode,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
             BigDecimal amount,
+            @Digits(integer = 18, fraction = 6) BigDecimal roundingAdjustment,
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode,
             Instant expiresAt) {}

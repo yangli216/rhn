@@ -344,13 +344,59 @@ public class DictionaryAttributeService implements DictionaryAttributeDirectory 
             byItem.computeIfAbsent(value.dictionaryItemId(), ignored -> new ArrayList<>()).add(value);
         }
         List<ApplicableItemView> result = new ArrayList<>();
+        Map<Long, Map<String, String>> scalarAttributes = resolveScalarAttributes(
+                dictionary.id(), items.stream().map(DictionaryItem::id).toList(),
+                effectiveTenantId, effectiveOrganizationId, effectiveDepartmentId);
         for (DictionaryItem item : items) {
             AttributeValueSetView resolved = resolvedValueSet(byItem.getOrDefault(item.id(), List.of()), definition,
                     effectiveOrganizationId, effectiveDepartmentId, effectiveTenantId, true);
             if (resolved != null && resolved.values().stream()
                     .anyMatch(value -> Objects.equals(value.referenceItemId(), reference.id()))) {
                 result.add(new ApplicableItemView(item.id(), item.code(), item.name(), item.sortOrder(),
-                        definition.code(), reference.code(), resolved.scopeCode()));
+                        definition.code(), reference.code(), resolved.scopeCode(),
+                        scalarAttributes.getOrDefault(item.id(), Map.of())));
+            }
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, Map<String, String>> resolveScalarAttributes(
+            Long dictionaryId, List<Long> itemIds,
+            Long tenantId, Long organizationId, Long departmentId) {
+        if (itemIds == null || itemIds.isEmpty()) return Map.of();
+        List<DictionaryAttributeDefinition> definitions = attributeRepository
+                .findByDictionaryIdOrderByNameAscCodeAsc(dictionaryId).stream()
+                .filter(d -> d.status() == DictionaryStatus.ACTIVE && d.dataType() != DictionaryAttributeDataType.DICT_REF)
+                .toList();
+        if (definitions.isEmpty()) return Map.of();
+        List<DictionaryItemAttributeValue> values = valueRepository
+                .findByDictionaryItemIdInAndStatusOrderByDictionaryItemIdAscAttributeDefinitionIdAscValueOrderAsc(
+                        itemIds, DictionaryStatus.ACTIVE);
+        Map<Long, Map<Long, List<DictionaryItemAttributeValue>>> valuesByItemAndDefinition = new HashMap<>();
+        for (DictionaryItemAttributeValue value : values) {
+            valuesByItemAndDefinition
+                    .computeIfAbsent(value.dictionaryItemId(), ignored -> new HashMap<>())
+                    .computeIfAbsent(value.attributeDefinitionId(), ignored -> new ArrayList<>())
+                    .add(value);
+        }
+        Map<Long, Map<String, String>> result = new HashMap<>();
+        for (Long itemId : itemIds) {
+            Map<Long, List<DictionaryItemAttributeValue>> itemValues = valuesByItemAndDefinition.getOrDefault(itemId, Map.of());
+            Map<String, String> attrMap = new HashMap<>();
+            for (DictionaryAttributeDefinition def : definitions) {
+                List<DictionaryItemAttributeValue> all = itemValues.getOrDefault(def.id(), List.of());
+                AttributeValueSetView resolved = resolvedValueSet(all, def, organizationId, departmentId, tenantId, false);
+                if (resolved != null && !resolved.values().isEmpty()) {
+                    String val = resolved.values().getFirst().value();
+                    if (val != null) {
+                        attrMap.put(def.code(), val);
+                    }
+                }
+            }
+            if (!attrMap.isEmpty()) {
+                result.put(itemId, attrMap);
             }
         }
         return result;

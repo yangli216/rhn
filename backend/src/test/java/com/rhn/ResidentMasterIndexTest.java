@@ -135,6 +135,36 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.content.length()").value(0));
     }
 
+    @Test
+    void quick_resident_creation_without_national_id_allocates_temporary_health_card() throws Exception {
+        String testName = "临时卡测试" + Long.toString(System.currentTimeMillis()).substring(8);
+        String body = mockMvc.perform(post("/api/residents")
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "fullName":"%s",
+                                  "gender":"MALE",
+                                  "birthDate":"1990-01-01",
+                                  "phone":"13600000001",
+                                  "identifiers":[]
+                                }
+                                """.formatted(testName)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fullName").value(testName))
+                .andExpect(jsonPath("$.maskedNationalId").doesNotExist())
+                .andExpect(jsonPath("$.identifiers[0].system").value("9"))
+                .andExpect(jsonPath("$.identifiers[0].maskedValue").value(org.hamcrest.Matchers.startsWith("TC")))
+                .andReturn().getResponse().getContentAsString();
+
+        String residentId = objectMapper.readTree(body).get("id").asText();
+        mockMvc.perform(get("/api/residents/{id}", residentId)
+                        .with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.identifiers[0].system").value("9"))
+                .andExpect(jsonPath("$.identifiers[0].maskedValue").value(org.hamcrest.Matchers.startsWith("TC")));
+    }
+
     private String createResident(String name, String nationalId, String identifiers) throws Exception {
         String nationalIdField = nationalId == null ? "" : "\"nationalId\":\"" + nationalId + "\",";
         String identifiersField = identifiers == null ? "" : ",\"identifiers\":" + identifiers;

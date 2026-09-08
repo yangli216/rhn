@@ -210,7 +210,8 @@ public class DiagnosticExchangeService {
             throw conflict("DIAGNOSTIC_REQUEST_ENCOUNTER_MISMATCH", "检查检验申请与就诊上下文不一致");
         }
         return new EncounterSnapshot(encounter.encounterId(), request.tenantId(), encounter.residentId(),
-                encounter.organizationId(), encounter.departmentId(), null, null, encounter.status(), 0);
+                encounter.organizationId(), encounter.departmentId(), null, null, encounter.status(), 0,
+                null, null);
     }
 
     private Map<String, Object> requestPayload(ServiceRequestDirectory.ServiceRequestSnapshot request) {

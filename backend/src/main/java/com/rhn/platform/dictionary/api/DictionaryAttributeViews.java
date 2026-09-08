@@ -10,6 +10,7 @@ import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 public final class DictionaryAttributeViews {
     private DictionaryAttributeViews() {
@@ -55,6 +56,12 @@ public final class DictionaryAttributeViews {
 
     public record ApplicableItemView(Long id, String code, String name, int sortOrder,
                                      String matchedAttributeCode, String matchedReferenceCode,
-                                     String resolvedScopeCode) {
+                                     String resolvedScopeCode,
+                                     Map<String, String> attributes) {
+        public ApplicableItemView(Long id, String code, String name, int sortOrder,
+                                  String matchedAttributeCode, String matchedReferenceCode,
+                                  String resolvedScopeCode) {
+            this(id, code, name, sortOrder, matchedAttributeCode, matchedReferenceCode, resolvedScopeCode, Map.of());
+        }
     }
 }

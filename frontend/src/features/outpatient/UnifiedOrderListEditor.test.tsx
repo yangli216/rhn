@@ -225,10 +225,14 @@ describe('UnifiedOrderListEditor', () => {
     await user.click(screen.getByRole('combobox', { name: '搜索药品名称/拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫')
     await user.click(await screen.findByRole('option', { name: /阿莫西林胶囊/ }))
-    await waitFor(() => expect(screen.getByRole('combobox', { name: '产品规格' })).toHaveFocus())
 
-    await user.keyboard('{Enter}{Enter}')
+    // 产品规格为静态只读展示，不可修改
+    expect(screen.queryByRole('combobox', { name: '产品规格' })).not.toBeInTheDocument()
+    expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
+
+    // 焦点直接自动落入单次剂量输入框
     await waitFor(() => expect(screen.getByLabelText('单次剂量')).toHaveFocus())
+
     await user.keyboard('{Enter}')
     await waitFor(() => expect(screen.getByRole('combobox', { name: '给药途径' })).toHaveFocus())
 
@@ -237,9 +241,9 @@ describe('UnifiedOrderListEditor', () => {
     await user.keyboard('{Enter}{Enter}')
     await waitFor(() => expect(screen.getByLabelText('疗程')).toHaveFocus())
     await user.keyboard('{Enter}')
-    await waitFor(() => expect(screen.getByLabelText('用药嘱托')).toHaveFocus())
-    await user.keyboard('{Enter}')
     await waitFor(() => expect(screen.getByLabelText('总量')).toHaveFocus())
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByLabelText('用药嘱托')).toHaveFocus())
     await user.keyboard('{Enter}')
 
     expect(setMedicationDrafts).toHaveBeenCalledTimes(1)

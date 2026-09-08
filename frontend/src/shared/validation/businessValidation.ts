@@ -39,6 +39,6 @@ export function vitalRule(profile: VitalValidationProfile | undefined, code: Vit
 
 export function exceedsWarning(value: number | undefined, rule: VitalSignRule | undefined) {
   if (value === undefined || Number.isNaN(value) || !rule) return false
-  return rule.warningMinimum !== undefined && value < rule.warningMinimum
-    || rule.warningMaximum !== undefined && value > rule.warningMaximum
+  return (rule.warningMinimum != null && value < rule.warningMinimum)
+    || (rule.warningMaximum != null && value > rule.warningMaximum)
 }

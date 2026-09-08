@@ -14,7 +14,7 @@ public final class BillingViews {
             BigDecimal quantity, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
             String currencyCode, Long priceId, Long priceRevision, String priceType,
             String itemCode, String itemName, Instant occurredAt, Long enteredBy,
-            Long reversesChargeItemId) {}
+            Long reversesChargeItemId, String packageSpec, String manufacturerName, String unitName) {}
 
     public record InvoiceLineView(Long id, Long chargeItemId, int lineNo, BigDecimal amount) {}
 
@@ -48,6 +48,15 @@ public final class BillingViews {
             String errorCode, String errorMessage, List<SettlementLineView> lines,
             List<SettlementTenderView> tenders, List<SettlementEventView> events) {}
 
+    public record SettlementRecordView(
+            Long id, Long patientAccountId, Long residentId, Long encounterId, Long departmentId,
+            String residentName, String healthRecordNo, String gender, LocalDate birthDate,
+            String encounterNo, String departmentName,
+            String settlementNo, String settlementType, String settlementScene, String terminalScene,
+            String status, BigDecimal grossAmount, BigDecimal discountAmount, BigDecimal insuranceAmount,
+            BigDecimal patientAmount, BigDecimal otherAmount, BigDecimal roundingAmount, BigDecimal netAmount,
+            String currencyCode, String terminalCode, Instant createdAt, Instant finalizedAt) {}
+
     public record PaymentView(
             Long id, Long patientAccountId, Long invoiceId, Long paymentOrderId, String paymentNo, String paymentType,
             String paymentMethodCode, String paymentSceneCode, String status, BigDecimal amount, String currencyCode,
@@ -76,7 +85,8 @@ public final class BillingViews {
             String gender, LocalDate birthDate, String encounterNo,
             Long accountId, String currencyCode, String status,
             int sourceEventCount, int chargedEventCount, String latestSourceNo, Instant latestOccurredAt,
-            BigDecimal chargeAmount, BigDecimal accountBalance) {}
+            BigDecimal chargeAmount, BigDecimal accountBalance,
+            String departmentName, Instant registeredAt) {}
 
     public record ReconciliationLineView(
             Long sourceId, String sourceType, String sourceNo, Long encounterId, Long accountId,

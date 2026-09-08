@@ -34,6 +34,43 @@ export interface BillingDocumentGroup {
   uninvoicedCount: number
 }
 
+const UNIT_ZH_MAP: Record<string, string> = {
+  BOX: '盒',
+  VIAL: '支',
+  BOTTLE: '瓶',
+  AMP: '支',
+  AMPOULE: '支',
+  PIECE: '片',
+  TABLET: '片',
+  CAPSULE: '粒',
+  BAG: '袋',
+  PACK: '包',
+  TUBE: '支',
+  SYRINGE: '支',
+  G: '克',
+  MG: '毫克',
+  ML: '毫升',
+  L: '升',
+}
+
+function formatUnit(unitCode?: string, unitName?: string) {
+  if (unitName && !/^[A-Za-z]+$/.test(unitName)) return unitName
+  if (!unitCode) return unitName || ''
+  const upper = unitCode.toUpperCase()
+  return UNIT_ZH_MAP[upper] || unitName || unitCode
+}
+
+function formatItemDisplayName(itemName: string, packageSpec?: string) {
+  if (!packageSpec) return itemName
+  if (itemName.includes(packageSpec)) return itemName
+  const parts = itemName.split(/\s+/)
+  if (parts.length > 1 && /^[\d.]+[a-zA-Z%]+$/.test(parts[parts.length - 1])) {
+    const baseName = parts.slice(0, -1).join(' ')
+    return `${baseName} ${packageSpec}`
+  }
+  return `${itemName} ${packageSpec}`
+}
+
 export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinicalContext: ClinicalContext }) {
   const queryClient = useQueryClient()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -427,6 +464,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
             paymentSceneCode: 'CASHIER',
             paymentMethodCode: command.paymentMethodCode,
             amount: command.amount,
+            roundingAdjustment: command.roundingAdjustment,
             terminalCode: 'CASHIER-WEB',
           })
         }
@@ -452,7 +490,8 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
       setCheckoutStage('CREATING_PAYMENT')
       return api.billing.createPaymentOrder(settlementId, {
         idempotencyKey: command.idempotencyKey, businessScene: 'OUTPATIENT', paymentSceneCode: 'CASHIER',
-        paymentMethodCode: command.paymentMethodCode, amount: command.amount, terminalCode: 'CASHIER-WEB',
+        paymentMethodCode: command.paymentMethodCode, amount: command.amount,
+        roundingAdjustment: command.roundingAdjustment, terminalCode: 'CASHIER-WEB',
       })
     },
     onSettled: async () => {
@@ -854,13 +893,22 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                                     </td>
                                     <td>
                                       <div className="billing-table-item-name">
-                                        <strong>{charge.itemName}</strong>
+                                         <div className="billing-table-item-main">
+                                           <strong className="billing-table-item-title">
+                                             {formatItemDisplayName(charge.itemName, charge.packageSpec)}
+                                           </strong>
+                                           {charge.manufacturerName && (
+                                             <div className="billing-table-item-manufacturer">
+                                               {charge.manufacturerName}
+                                             </div>
+                                           )}
+                                         </div>
                                         {charge.totalAmount < 0 && (
                                           <StatusBadge tone="warning">冲正</StatusBadge>
                                         )}
                                       </div>
                                     </td>
-                                    <td>{charge.quantity} {charge.unitCode}</td>
+                                    <td>{charge.quantity} {formatUnit(charge.unitCode, charge.unitName)}</td>
                                     <td>{money(charge.unitPrice, charge.currencyCode)}</td>
                                     <td className={charge.totalAmount < 0 ? 'is-negative' : ''}>
                                       {money(charge.totalAmount, charge.currencyCode)}
@@ -913,7 +961,13 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
           <>
             <div className="billing-action-form">
               <SettlementPaymentPanel settlements={settlementOptions}
-                methods={(paymentMethods.data ?? []).map((item) => ({ code: item.code, name: item.name }))}
+                methods={(paymentMethods.data ?? []).map((item) => ({
+                  code: item.code,
+                  name: item.name,
+                  sortOrder: item.sortOrder,
+                  precision: item.attributes?.PAYMENT_PRECISION,
+                  roundingMode: item.attributes?.ROUNDING_MODE,
+                }))}
                 orders={paymentOrders.data ?? []} busy={checkout.isPending || isPreSettlingInsurance} targetLabel="结算范围"
                 showSettlementMode settlementModeCode={settlementMode} onSettlementModeChange={(mode) => {
                   setSettlementMode(mode)

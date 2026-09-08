@@ -81,7 +81,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const organizationId = clinicalContext.organization.id
   const departmentId = clinicalContext.department.id
 
-  const [siteId, setSiteId] = useState('')
   const [requestId, setRequestId] = useState('')
   const [selectedResidentId, setSelectedResidentId] = useState('')
   const [stockItemId, setStockItemId] = useState('')
@@ -139,6 +138,11 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   }, [actionNotice])
 
   const sites = useQuery({ queryKey: ['pharmacy-sites', organizationId], queryFn: () => api.pharmacy.sites(organizationId) })
+  const eligibleSites = useMemo(() => (sites.data ?? []).filter((site) => site.active
+    && site.siteType === 'PHARMACY'
+    && site.departmentId === departmentId), [departmentId, sites.data])
+  const selectedSite = eligibleSites[0]
+  const siteId = selectedSite?.id ?? ''
   const inbox = useQuery({
     queryKey: ['pharmacy-inbox', organizationId, departmentId],
     queryFn: () => api.pharmacy.inbox(organizationId),
@@ -156,11 +160,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     queryKey: ['practitioner-detail', practitionerId], queryFn: () => api.organization.practitioner(practitionerId),
     enabled: Boolean(practitionerId),
   })
-  const eligibleSites = useMemo(() => (sites.data ?? []).filter((site) => site.active
-    && site.siteType === 'PHARMACY'
-    && site.departmentId === departmentId), [departmentId, sites.data])
-  const selectedSite = eligibleSites.find((site) => site.id === siteId)
-
   const visibleInbox = useMemo(() => (inbox.data ?? []).filter((item) => {
     if (mode === 'dispensing') return !item.taskStatus || activeTaskStatuses.has(item.taskStatus)
     if (mode === 'review') {
@@ -176,11 +175,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     if (mode === 'query') return Boolean(item.taskStatus && closedTaskStatuses.has(item.taskStatus))
     return false
   }), [inbox.data, mode, prescriptionReviewMode.data?.mode])
-
-  useEffect(() => {
-    if (!siteId && eligibleSites.length) setSiteId(eligibleSites[0].id)
-    if (siteId && !eligibleSites.some((site) => site.id === siteId)) setSiteId(eligibleSites[0]?.id ?? '')
-  }, [eligibleSites, siteId])
 
   useEffect(() => {
     if ((!linkedEncounterId && !linkedResidentId) || !inbox.data) return
@@ -805,27 +799,14 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
 
   // If in non-dispensing mode, render the classic panels
   if (mode !== 'dispensing') {
+    const reviewModeLabel = mode === 'review' && prescriptionReviewMode.data?.enabled
+      ? prescriptionReviewMode.data.mode === 'PRE_DISPENSE' ? '事前审方' : '事后审方'
+      : ''
     return <>
       <PageHeader eyebrow={copy.eyebrow} title={copy.title} description={copy.description}
-        actions={<Button variant="secondary" onClick={() => void refresh(selected?.taskId)}>刷新队列</Button>} />
+        actions={<>{reviewModeLabel && <StatusBadge tone="info">{reviewModeLabel}</StatusBadge>}
+          <Button variant="secondary" onClick={() => void refresh(selected?.taskId)}><Icon name="refresh" />刷新队列</Button></>} />
       {error && <Alert>{errorMessage(error)}</Alert>}
-      {mode === 'review' && prescriptionReviewMode.data?.mode === 'PRE_DISPENSE'
-        && <Alert tone="info">当前为事前审方：审方通过后，处方才会进入门诊发药队列。</Alert>}
-      {mode === 'review' && prescriptionReviewMode.data?.mode === 'POST_DISPENSE'
-        && <Alert tone="info">当前为事后审方：门诊先完成发药，审方结论作为独立药学记录留存。</Alert>}
-      <div className="pharmacy-toolbar">
-        <FormField label="当前药房">
-          <Select value={siteId} onChange={(value) => setSiteId(value)} placeholder="请选择当前药房"
-            options={eligibleSites.map((site) => ({ value: site.id, label: site.name, code: site.code }))} />
-        </FormField>
-        <div className="pharmacy-toolbar__context">
-          <span>当前工作上下文</span><strong>{clinicalContext.organization.name} · {clinicalContext.department.name}</strong>
-        </div>
-        <div className="pharmacy-toolbar__metrics">
-          <span>{mode === 'ward' ? '服务范围' : copy.queueTitle}</span>
-          <strong>{mode === 'ward' ? serviceScopeText(selectedSite?.serviceScope) : visibleInbox.length}</strong>
-        </div>
-      </div>
       {mode === 'ward' && !sites.isPending && selectedSite && (selectedSite.serviceScope === 'INPATIENT'
         || selectedSite.serviceScope === 'MIXED') && <WardDailySupplyPanel api={api} organizationId={organizationId}
         stockSiteId={selectedSite.id} stockItems={stockItems.data ?? []}
@@ -836,7 +817,7 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
         || selectedSite.serviceScope === 'MIXED') && <WardDeliveryQueue api={api} stockSiteId={selectedSite.id} />}
       {mode === 'ward' && !sites.isPending && selectedSite && selectedSite.serviceScope !== 'INPATIENT'
         && selectedSite.serviceScope !== 'MIXED' && <Panel><EmptyState icon="pharmacy" title="当前药房不承担病区配送"
-          copy="病区配送仅对住院或混合服务范围的药房开放，请切换到相应药房后继续。" /></Panel>}
+          copy="病区配送仅对住院或混合服务范围的药房开放，请在顶部栏切换到相应药房后继续。" /></Panel>}
       {mode === 'returns' && !sites.isPending && eligibleSites.length > 0 && <WardMedicationReturnInbox api={api}
         practitioners={practitioners.data ?? []} assignments={eligibleAssignments}
         practitionerId={practitionerId} assignmentId={assignmentId}
@@ -1571,13 +1552,6 @@ function WardDeliveryRow({ api, delivery }: { api: RhnApi; delivery: WardDeliver
       {delivery.status === 'RESOLVED' && <span>{delivery.resolutionNote}</span>}
     </>
   </article>
-}
-
-function serviceScopeText(value?: string) {
-  const labels: Record<string, string> = {
-    OUTPATIENT: '门诊', INPATIENT: '住院', EMERGENCY: '急诊', COMMUNITY: '基层', MIXED: '综合',
-  }
-  return labels[value ?? ''] ?? '未设置'
 }
 
 interface RequestQuantityView {
