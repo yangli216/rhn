@@ -50,25 +50,53 @@
 .doctor-status-toggle {
   display: inline-flex;
   align-items: center;
-  padding: 0.2rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
+  gap: var(--space-1);
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-round);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-medium);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s ease;
+  background: var(--color-surface);
+  line-height: 1.2;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.doctor-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-round);
+  background-color: currentColor;
+  flex-shrink: 0;
+  display: inline-block;
 }
 
 .doctor-status-toggle.is-active {
-  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  background: var(--color-success-soft);
   border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
   color: var(--color-success);
 }
 
+.doctor-status-toggle.is-active .doctor-status-dot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-success) 25%, transparent);
+  animation: pulse-status-success 2s infinite;
+}
+
 .doctor-status-toggle.is-paused {
-  background: color-mix(in srgb, var(--color-warning) 12%, transparent);
+  background: var(--color-warning-soft);
   border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
   color: var(--color-warning);
+}
+
+.doctor-status-toggle:hover {
+  filter: brightness(0.96);
+  transform: translateY(-0.5px);
+}
+
+@keyframes pulse-status-success {
+  0% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.9; }
 }
 
 /* --------------------------------------------------------------------------
@@ -509,9 +537,9 @@
 
 .waiting-card__header-line {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
   flex-wrap: wrap;
 }
 
@@ -542,20 +570,22 @@
   display: inline-flex;
   align-items: center;
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
-  font-size: 0.72rem;
+  border-radius: var(--radius-round);
+  font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);
 }
 
 .clinical-pulse-badge.is-critical {
-  background: color-mix(in srgb, var(--color-danger) 15%, transparent);
+  background: var(--color-danger-soft);
   color: var(--color-danger);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 25%, transparent);
   animation: pulse-danger 1.8s infinite;
 }
 
 .clinical-pulse-badge.is-urgent {
-  background: color-mix(in srgb, var(--color-warning) 15%, transparent);
+  background: var(--color-warning-soft);
   color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 @keyframes pulse-danger {
@@ -568,24 +598,26 @@
   display: inline-block;
   padding: 0.15rem 0.45rem;
   border-radius: var(--radius-sm);
-  font-size: 0.72rem;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
 }
 
 .category-pill--return {
-  background: #f3e8ff;
-  color: #7e22ce;
-  border: 1px solid #d8b4fe;
+  background: var(--color-violet-soft);
+  color: var(--color-violet);
+  border: 1px solid color-mix(in srgb, var(--color-violet) 25%, transparent);
 }
 
 .category-pill--priority {
-  background: #fef3c7;
-  color: #b45309;
-  border: 1px solid #fcd34d;
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 .category-pill--chronic {
-  background: color-mix(in srgb, var(--color-brand-primary) 10%, transparent);
+  background: var(--color-brand-soft);
   color: var(--color-brand-strong);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
 }
 
 /* 分诊生命体征行 */
@@ -654,7 +686,7 @@
 }
 
 .report-badge-pill {
-  color: #6b21a8;
+  color: var(--color-violet);
   font-weight: var(--font-weight-semibold);
 }
 
@@ -682,8 +714,16 @@
 .waiting-card__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
   flex-shrink: 0;
+}
+
+.waiting-card__actions .ui-btn {
+  height: var(--control-height-sm);
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
 }
 
 /* --------------------------------------------------------------------------

@@ -258,6 +258,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
     @Transactional
     public DictionaryDetailResponse addItem(Long dictionaryId, long expectedRevision, String code,
                                             String name, String description, int sortOrder,
+                                            Long parentItemId,
                                             String reason, String requestCode) {
         DictionaryDetailResponse repeated = repeated(requestCode, dictionaryId);
         if (repeated != null) return repeated;
@@ -268,9 +269,10 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         if (itemRepository.existsByDictionaryIdAndCode(dictionaryId, normalizedCode)) {
             throw conflict("DICTIONARY_ITEM_CODE_DUPLICATE", "该字典下已存在相同字典项编码");
         }
+        validateItemParent(dictionaryId, null, parentItemId, true);
         runRevisionGuard(() -> definition.touchForItemChange(expectedRevision, context.subjectId()));
         DictionaryItem item = itemRepository.save(new DictionaryItem(
-                dictionaryId, normalizedCode, name, description, sortOrder));
+                dictionaryId, parentItemId, normalizedCode, name, description, sortOrder));
         definitionRepository.saveAndFlush(definition);
         append(definition, item.id(), DictionaryChangeType.ADD_ITEM, null,
                 jsonCodec.write(itemSnapshot(item)), reason, requestCode, context.subjectId());
@@ -281,6 +283,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
     @Transactional
     public DictionaryDetailResponse updateItem(Long dictionaryId, Long itemId, long expectedRevision,
                                                String name, String description, int sortOrder,
+                                               Long parentItemId,
                                                String reason, String requestCode) {
         DictionaryDetailResponse repeated = repeated(requestCode, dictionaryId);
         if (repeated != null) return repeated;
@@ -288,9 +291,10 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         DictionaryDefinition definition = requireVisible(dictionaryId);
         requireMutable(definition);
         DictionaryItem item = requireItem(dictionaryId, itemId);
+        validateItemParent(dictionaryId, itemId, parentItemId, item.status() == DictionaryStatus.ACTIVE);
         String before = jsonCodec.write(itemSnapshot(item));
         runRevisionGuard(() -> definition.touchForItemChange(expectedRevision, context.subjectId()));
-        item.update(name, description, sortOrder);
+        item.update(parentItemId, name, description, sortOrder);
         itemRepository.save(item);
         definitionRepository.saveAndFlush(definition);
         append(definition, item.id(), DictionaryChangeType.UPDATE_ITEM, before,
@@ -308,6 +312,14 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         DictionaryDefinition definition = requireVisible(dictionaryId);
         requireMutable(definition);
         DictionaryItem item = requireItem(dictionaryId, itemId);
+        if (!enabled && itemRepository.existsByDictionaryIdAndParentItemIdAndStatus(
+                dictionaryId, itemId, DictionaryStatus.ACTIVE)) {
+            throw conflict("DICTIONARY_ITEM_HAS_ACTIVE_CHILDREN", "请先停用该字典项下的启用子项");
+        }
+        if (enabled && item.parentItemId() != null
+                && requireItem(dictionaryId, item.parentItemId()).status() != DictionaryStatus.ACTIVE) {
+            throw conflict("DICTIONARY_ITEM_PARENT_INACTIVE", "请先启用上级字典项");
+        }
         String before = jsonCodec.write(itemSnapshot(item));
         runRevisionGuard(() -> definition.touchForItemChange(expectedRevision, context.subjectId()));
         if (enabled) item.enable(); else item.disable();
@@ -358,9 +370,10 @@ public class DictionaryApplicationService implements DictionaryDirectory {
                         definition.id(), activeItems.stream().map(DictionaryItem::id).toList(),
                         tenantId, orgId, deptId)
                 : Map.of();
+        Map<Long, String> itemCodes = activeItems.stream().collect(Collectors.toMap(DictionaryItem::id, DictionaryItem::code));
         return activeItems.stream()
                 .map(item -> new DictionaryValue(item.code(), item.name(), item.sortOrder(),
-                        scalarAttrs.getOrDefault(item.id(), Map.of())))
+                        scalarAttrs.getOrDefault(item.id(), Map.of()), itemCodes.get(item.parentItemId())))
                 .toList();
     }
 
@@ -558,9 +571,10 @@ public class DictionaryApplicationService implements DictionaryDirectory {
 
     private DictionaryDetailResponse detail(DictionaryDefinition definition) {
         DictionaryCategory category = categoryRepository.findById(definition.categoryId()).orElse(null);
-        List<DictionaryItemResponse> items = itemRepository
-                .findByDictionaryIdOrderBySortOrderAscCodeAsc(definition.id()).stream()
-                .map(this::itemResponse).toList();
+        List<DictionaryItem> itemEntities = itemRepository.findByDictionaryIdOrderBySortOrderAscCodeAsc(definition.id());
+        Map<Long, String> itemCodes = itemEntities.stream().collect(Collectors.toMap(DictionaryItem::id, DictionaryItem::code));
+        List<DictionaryItemResponse> items = itemEntities.stream()
+                .map(item -> itemResponse(item, itemCodes)).toList();
         return new DictionaryDetailResponse(definition.id(), definition.revision(), definition.scopeType(),
                 definition.scopeCode(), definition.tenantId(), definition.categoryId(),
                 category == null ? "UNCATEGORIZED" : category.code(),
@@ -570,9 +584,28 @@ public class DictionaryApplicationService implements DictionaryDirectory {
                 definition.updatedAt(), definition.updatedBy(), items);
     }
 
-    private DictionaryItemResponse itemResponse(DictionaryItem item) {
-        return new DictionaryItemResponse(item.id(), item.code(), item.name(), item.description(),
+    private DictionaryItemResponse itemResponse(DictionaryItem item, Map<Long, String> itemCodes) {
+        return new DictionaryItemResponse(item.id(), item.parentItemId(), itemCodes.get(item.parentItemId()),
+                item.code(), item.name(), item.description(),
                 item.sortOrder(), item.status());
+    }
+
+    private void validateItemParent(Long dictionaryId, Long itemId, Long parentItemId, boolean childActive) {
+        if (parentItemId == null) return;
+        if (parentItemId.equals(itemId)) {
+            throw badRequest("DICTIONARY_ITEM_PARENT_INVALID", "字典项不能以自身作为上级");
+        }
+        DictionaryItem current = requireItem(dictionaryId, parentItemId);
+        if (childActive && current.status() != DictionaryStatus.ACTIVE) {
+            throw conflict("DICTIONARY_ITEM_PARENT_INACTIVE", "启用的字典项不能归入已停用的上级");
+        }
+        Set<Long> visited = new HashSet<>();
+        while (current != null) {
+            if (!visited.add(current.id()) || current.id().equals(itemId)) {
+                throw badRequest("DICTIONARY_ITEM_PARENT_CYCLE", "字典项层级不能形成循环");
+            }
+            current = current.parentItemId() == null ? null : requireItem(dictionaryId, current.parentItemId());
+        }
     }
 
     private DictionaryChangeResponse changeResponse(DictionaryChange change) {
@@ -628,6 +661,7 @@ public class DictionaryApplicationService implements DictionaryDirectory {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("id", value.id().toString());
         result.put("dictionaryId", value.dictionaryId().toString());
+        result.put("parentItemId", value.parentItemId() == null ? null : value.parentItemId().toString());
         result.put("code", value.code());
         result.put("name", value.name());
         result.put("description", value.description());

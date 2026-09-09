@@ -14,6 +14,7 @@ import { pinyinInitials } from './pinyinInitials'
 export interface SelectOption {
   value: string
   label: string
+  parentValue?: string
   icon?: IconName
   disabled?: boolean
   searchKeywords?: string[]
@@ -98,6 +99,7 @@ export function Select(props: SelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [expandedValues, setExpandedValues] = useState<Set<string>>(() => new Set())
   const [popoverPosition, setPopoverPosition] = useState<PopoverPosition>()
   const positioned = Boolean(popoverPosition)
   const multiple = props.multiple === true
@@ -108,17 +110,37 @@ export function Select(props: SelectProps) {
       : []
   const valueSet = useMemo(() => new Set(values), [values])
   const selectedOptions = options.filter((option) => valueSet.has(option.value))
-  const filteredOptions = useMemo(() => filterSelectOptions(options, query, pinyinSearch), [options, pinyinSearch, query])
+  const hierarchical = options.some((option) => option.parentValue)
+  const treeEntries = useMemo(() => buildSelectTree(options, query, pinyinSearch, expandedValues),
+    [expandedValues, options, pinyinSearch, query])
+  const visibleOptions = treeEntries.map((entry) => entry.option)
   const unavailable = disabled || loading
 
   useEffect(() => {
     if (!open || !positioned) return
     const selectedIndex = query.trim()
       ? -1
-      : filteredOptions.findIndex((option) => values.includes(option.value) && !option.disabled)
-    const firstEnabledIndex = nextEnabledIndex(-1, 1, filteredOptions)
+      : visibleOptions.findIndex((option) => values.includes(option.value) && !option.disabled)
+    const firstEnabledIndex = nextEnabledIndex(-1, 1, visibleOptions)
     setActiveIndex(selectedIndex >= 0 ? selectedIndex : firstEnabledIndex)
-  }, [filteredOptions, open, positioned, query, values.join('\u0000')])
+  }, [open, positioned, query, values.join('\u0000'), visibleOptions.map((option) => option.value).join('\u0000')])
+
+  useEffect(() => {
+    if (!open || !hierarchical || !values.length) return
+    const byValue = new Map(options.map((option) => [option.value, option]))
+    setExpandedValues((current) => {
+      const next = new Set(current)
+      let changed = false
+      for (const value of values) {
+        let parentValue = byValue.get(value)?.parentValue
+        while (parentValue && byValue.has(parentValue)) {
+          if (!next.has(parentValue)) { next.add(parentValue); changed = true }
+          parentValue = byValue.get(parentValue)?.parentValue
+        }
+      }
+      return changed ? next : current
+    })
+  }, [hierarchical, open, options, values.join('\u0000')])
 
   useEffect(() => {
     if (!open) return
@@ -178,8 +200,8 @@ export function Select(props: SelectProps) {
       searchRef.current?.focus()
       return
     }
-    const selectedIndex = filteredOptions.findIndex((option) => valueSet.has(option.value) && !option.disabled)
-    const firstEnabledIndex = filteredOptions.findIndex((option) => !option.disabled)
+    const selectedIndex = visibleOptions.findIndex((option) => valueSet.has(option.value) && !option.disabled)
+    const firstEnabledIndex = visibleOptions.findIndex((option) => !option.disabled)
     const initialIndex = selectedIndex >= 0 ? selectedIndex : firstEnabledIndex
     if (initialIndex >= 0) optionRefs.current[initialIndex]?.focus()
   }, [open, positioned, searchable])
@@ -241,10 +263,26 @@ export function Select(props: SelectProps) {
 
   function moveFocus(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let target = index
-    if (event.key === 'ArrowDown') target = nextEnabledIndex(index, 1, filteredOptions)
-    else if (event.key === 'ArrowUp') target = nextEnabledIndex(index, -1, filteredOptions)
-    else if (event.key === 'Home') target = nextEnabledIndex(-1, 1, filteredOptions)
-    else if (event.key === 'End') target = nextEnabledIndex(filteredOptions.length, -1, filteredOptions)
+    const entry = treeEntries[index]
+    if (hierarchical && event.key === 'ArrowRight' && entry?.hasChildren) {
+      event.preventDefault()
+      setExpandedValues((current) => new Set(current).add(entry.option.value))
+      return
+    } else if (hierarchical && event.key === 'ArrowLeft' && entry) {
+      event.preventDefault()
+      if (expandedValues.has(entry.option.value)) {
+        setExpandedValues((current) => {
+          const next = new Set(current); next.delete(entry.option.value); return next
+        })
+      } else if (entry.option.parentValue) {
+        const parentIndex = visibleOptions.findIndex((option) => option.value === entry.option.parentValue)
+        if (parentIndex >= 0) { setActiveIndex(parentIndex); optionRefs.current[parentIndex]?.focus() }
+      }
+      return
+    } else if (event.key === 'ArrowDown') target = nextEnabledIndex(index, 1, visibleOptions)
+    else if (event.key === 'ArrowUp') target = nextEnabledIndex(index, -1, visibleOptions)
+    else if (event.key === 'Home') target = nextEnabledIndex(-1, 1, visibleOptions)
+    else if (event.key === 'End') target = nextEnabledIndex(visibleOptions.length, -1, visibleOptions)
     else if (event.key === 'Escape') {
       event.preventDefault()
       event.stopPropagation()
@@ -291,7 +329,7 @@ export function Select(props: SelectProps) {
       aria-controls={listboxId}
       aria-describedby={ariaDescribedBy}
       aria-expanded={open}
-      aria-haspopup="listbox"
+      aria-haspopup={hierarchical ? 'tree' : 'listbox'}
       aria-invalid={ariaInvalid}
       aria-required={ariaRequired}
       disabled={unavailable}
@@ -347,11 +385,11 @@ export function Select(props: SelectProps) {
               const direction = event.key === 'ArrowDown' ? 1 : -1
               const startIndex = activeIndex >= 0
                 ? activeIndex
-                : direction === 1 ? -1 : filteredOptions.length
-              const nextIndex = nextEnabledIndex(startIndex, direction, filteredOptions)
+                : direction === 1 ? -1 : visibleOptions.length
+              const nextIndex = nextEnabledIndex(startIndex, direction, visibleOptions)
               if (nextIndex >= 0) setActiveIndex(nextIndex)
             } else if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-              const activeOption = filteredOptions[activeIndex]
+              const activeOption = visibleOptions[activeIndex]
               if (activeOption && !activeOption.disabled) {
                 event.preventDefault()
                 changeSelection(activeOption)
@@ -373,20 +411,23 @@ export function Select(props: SelectProps) {
           searchRef.current?.focus()
         }}><Icon name="close" /></button>}
       </label>}
-      <div id={listboxId} className="ui-select__list" role="listbox" aria-multiselectable={multiple || undefined}>
-        {filteredOptions.length === 0 && <div className="ui-select__empty" role="status">
+      <div id={listboxId} className={`ui-select__list ${hierarchical ? 'is-tree' : ''}`}
+        role={hierarchical ? 'tree' : 'listbox'} aria-multiselectable={multiple || undefined}>
+        {visibleOptions.length === 0 && <div className="ui-select__empty" role="status">
           {query.trim() ? noResultsText : emptyText}
         </div>}
-        {filteredOptions.map((option, index) => {
+        {treeEntries.map(({ option, depth, hasChildren }, index) => {
           const selected = valueSet.has(option.value)
-          return <button
+          const optionButton = <button
             key={option.value}
             id={`${listboxId}-option-${index}`}
             ref={(element) => { optionRefs.current[index] = element }}
             type="button"
-            role="option"
+            role={hierarchical ? 'treeitem' : 'option'}
             className={`ui-select__option ${selected ? 'is-selected' : ''} ${index === activeIndex ? 'is-active' : ''}`}
             aria-selected={selected}
+            aria-level={hierarchical ? depth + 1 : undefined}
+            aria-expanded={hierarchical && hasChildren ? expandedValues.has(option.value) : undefined}
             disabled={option.disabled}
             onClick={() => changeSelection(option)}
             onFocus={() => setActiveIndex(index)}
@@ -406,6 +447,20 @@ export function Select(props: SelectProps) {
               {selected && <Icon name="check" />}
             </span>
           </button>
+          if (!hierarchical) return optionButton
+          return <div key={option.value} role="none" className="ui-select__tree-row"
+            style={{ '--select-tree-depth': depth } as React.CSSProperties}>
+            {hasChildren && <button type="button" className="ui-select__tree-toggle"
+              aria-label={`${expandedValues.has(option.value) ? '收起' : '展开'} ${option.label}`}
+              onClick={() => setExpandedValues((current) => {
+                const next = new Set(current)
+                if (next.has(option.value)) next.delete(option.value); else next.add(option.value)
+                return next
+              })}>
+              <Icon name={expandedValues.has(option.value) ? 'chevron-down' : 'chevron-right'} />
+            </button>}
+            {optionButton}
+          </div>
         })}
       </div>
       {clearable && values.length > 0 && <button className="ui-select__clear" type="button" onClick={clearSelection}
@@ -454,4 +509,52 @@ function nextEnabledIndex(current: number, direction: 1 | -1, options: SelectOpt
     index += direction
   }
   return -1
+}
+
+interface SelectTreeEntry {
+  option: SelectOption
+  depth: number
+  hasChildren: boolean
+}
+
+function buildSelectTree(options: SelectOption[], query: string, includePinyin: boolean,
+                         expandedValues: Set<string>): SelectTreeEntry[] {
+  if (!options.some((option) => option.parentValue)) {
+    return filterSelectOptions(options, query, includePinyin)
+      .map((option) => ({ option, depth: 0, hasChildren: false }))
+  }
+  const byValue = new Map(options.map((option) => [option.value, option]))
+  const children = new Map<string, SelectOption[]>()
+  const roots: SelectOption[] = []
+  for (const option of options) {
+    if (option.parentValue && byValue.has(option.parentValue)) {
+      children.set(option.parentValue, [...(children.get(option.parentValue) ?? []), option])
+    } else roots.push(option)
+  }
+  const normalizedQuery = query.trim()
+  const included = new Set<string>()
+  if (normalizedQuery) {
+    for (const option of filterSelectOptions(options, query, includePinyin)) {
+      let current: SelectOption | undefined = option
+      while (current && !included.has(current.value)) {
+        included.add(current.value)
+        current = current.parentValue ? byValue.get(current.parentValue) : undefined
+      }
+    }
+  }
+  const result: SelectTreeEntry[] = []
+  const visited = new Set<string>()
+  const visit = (option: SelectOption, depth: number) => {
+    if (visited.has(option.value)) return
+    visited.add(option.value)
+    const childOptions = children.get(option.value) ?? []
+    if (!normalizedQuery || included.has(option.value)) {
+      result.push({ option, depth, hasChildren: childOptions.length > 0 })
+    }
+    if (normalizedQuery || expandedValues.has(option.value)) {
+      for (const child of childOptions) visit(child, depth + 1)
+    }
+  }
+  for (const root of roots) visit(root, 0)
+  return result
 }

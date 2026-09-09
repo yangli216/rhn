@@ -103,4 +103,30 @@ describe('Select', () => {
     expect(onChange).toHaveBeenCalledWith('EXT', expect.objectContaining({ value: 'EXT', label: '外用' }))
     expect(onSelectionCommit).toHaveBeenCalledWith(expect.objectContaining({ value: 'EXT', label: '外用' }))
   })
+
+  it('renders hierarchical options as an expandable searchable tree', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<Select aria-label="与患者关系" value="" onChange={onChange} showValue options={[
+      { value: '1', label: '配偶' },
+      { value: '11', label: '夫', parentValue: '1' },
+      { value: '12', label: '妻', parentValue: '1' },
+      { value: '2', label: '子' },
+      { value: '21', label: '独生子', parentValue: '2' },
+    ]} />)
+
+    await user.click(screen.getByRole('combobox', { name: '与患者关系' }))
+    expect(screen.getByRole('tree')).toBeInTheDocument()
+    expect(screen.getByRole('treeitem', { name: /配偶/ })).toBeInTheDocument()
+    expect(screen.queryByRole('treeitem', { name: /夫/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '展开 配偶' }))
+    await user.click(screen.getByRole('treeitem', { name: /^夫/ }))
+    expect(onChange).toHaveBeenCalledWith('11', expect.objectContaining({ parentValue: '1' }))
+
+    await user.click(screen.getByRole('combobox', { name: '与患者关系' }))
+    await user.type(screen.getByPlaceholderText('搜索名称、编码或拼音首字母'), '独生子')
+    expect(screen.getByRole('treeitem', { name: /^子\s*2$/ })).toBeInTheDocument()
+    expect(screen.getByRole('treeitem', { name: /独生子/ })).toBeInTheDocument()
+  })
 })

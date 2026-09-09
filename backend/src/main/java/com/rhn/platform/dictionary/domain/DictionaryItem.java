@@ -15,6 +15,8 @@ public class DictionaryItem {
     @Column(name = "ID_DICT_ITEM") private Long id;
     @Column(name = "ID_DICT_DEF_DICT", nullable = false)
     private Long dictionaryId;
+    @Column(name = "ID_DICT_ITEM_PARENT")
+    private Long parentItemId;
     @Column(name = "CD_DICT_ITEM", nullable = false, length = 128)
     private String code;
     @Column(name = "NA_DICT_ITEM", nullable = false, length = 300)
@@ -30,10 +32,11 @@ public class DictionaryItem {
     protected DictionaryItem() {
     }
 
-    public DictionaryItem(Long dictionaryId, String code, String name, String description, int sortOrder) {
+    public DictionaryItem(Long dictionaryId, Long parentItemId, String code, String name, String description, int sortOrder) {
         if (dictionaryId == null) throw new IllegalArgumentException("字典标识不能为空");
         this.id = GlobalIds.next();
         this.dictionaryId = dictionaryId;
+        this.parentItemId = optionalId(parentItemId);
         this.code = DictionaryCodePolicy.requireItemCode(code);
         this.name = requireName(name);
         this.description = optionalDescription(description);
@@ -41,7 +44,8 @@ public class DictionaryItem {
         this.status = DictionaryStatus.ACTIVE;
     }
 
-    public void update(String name, String description, int sortOrder) {
+    public void update(Long parentItemId, String name, String description, int sortOrder) {
+        this.parentItemId = optionalId(parentItemId);
         this.name = requireName(name);
         this.description = optionalDescription(description);
         this.sortOrder = requireSort(sortOrder);
@@ -76,12 +80,17 @@ public class DictionaryItem {
         return value;
     }
 
+    private static Long optionalId(Long value) {
+        if (value != null && value <= 0) throw new IllegalArgumentException("上级字典项标识不正确");
+        return value;
+    }
+
     public Long id() { return id; }
     public Long dictionaryId() { return dictionaryId; }
+    public Long parentItemId() { return parentItemId; }
     public String code() { return code; }
     public String name() { return name; }
     public String description() { return description; }
     public int sortOrder() { return sortOrder; }
     public DictionaryStatus status() { return status; }
 }
-

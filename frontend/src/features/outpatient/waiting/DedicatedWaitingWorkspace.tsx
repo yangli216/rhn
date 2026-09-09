@@ -150,9 +150,11 @@ export function DedicatedWaitingWorkspace({
               type="button"
               className={`doctor-status-toggle ${doctorStatus === 'ACTIVE' ? 'is-active' : 'is-paused'}`}
               onClick={() => setDoctorStatus(doctorStatus === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}
-              title="切换坐诊与暂停状态"
+              title="点击切换接诊与暂停状态"
+              aria-label={`当前接诊状态：${doctorStatus === 'ACTIVE' ? '接诊中' : '暂停接诊'}，点击切换`}
             >
-              {doctorStatus === 'ACTIVE' ? '🟢 接诊中' : '⏸️ 暂停接诊'}
+              <span className="doctor-status-dot" aria-hidden="true" />
+              <span>{doctorStatus === 'ACTIVE' ? '接诊中' : '暂停接诊'}</span>
             </button>
           </span>
         </div>
@@ -315,27 +317,27 @@ export function DedicatedWaitingWorkspace({
 
                         {isCritical && (
                           <span className="clinical-pulse-badge is-critical">
-                            🔴 危急抢救
+                            危急抢救
                           </span>
                         )}
                         {isUrgent && (
                           <span className="clinical-pulse-badge is-urgent">
-                            🟡 重点关注
+                            重点关注
                           </span>
                         )}
                         {item.queueCategory === 'RETURN_VISIT' && (
                           <span className="category-pill category-pill--return">
-                            🟣 回诊
+                            回诊
                           </span>
                         )}
                         {item.queueCategory === 'PRIORITY' && (
                           <span className="category-pill category-pill--priority">
-                            ⭐ 绿色通道
+                            绿色通道
                           </span>
                         )}
                         {item.publicHealthTags?.chronicLabel && (
                           <span className="category-pill category-pill--chronic">
-                            🩺 {item.publicHealthTags.chronicLabel}
+                            {item.publicHealthTags.chronicLabel}
                           </span>
                         )}
                       </div>
@@ -344,7 +346,7 @@ export function DedicatedWaitingWorkspace({
                     {/* 分诊生命体征透视 */}
                     {item.vitals && (
                       <div className="waiting-card__vitals-line">
-                        <span className="vitals-label">🩺 分诊体征:</span>
+                        <span className="vitals-label">分诊体征:</span>
                         <span className={`vital-val ${item.vitals.systolic && item.vitals.systolic >= 140 ? 'is-danger' : ''}`}>
                           血压: {item.vitals.systolic}/{item.vitals.diastolic} mmHg
                         </span>
@@ -374,7 +376,7 @@ export function DedicatedWaitingWorkspace({
                     {item.reportSummary && (
                       <div className="waiting-card__reports-line">
                         <span className="report-badge-pill">
-                          📋 报告状态: {item.reportSummary.allReportsReady ? '全部已出具' : '部分出具'} ({item.reportSummary.totalCompleted}/{item.reportSummary.totalRequested})
+                          报告状态: {item.reportSummary.allReportsReady ? '全部已出具' : '部分出具'} ({item.reportSummary.totalCompleted}/{item.reportSummary.totalRequested})
                         </span>
                         {item.reportSummary.items?.map((rep) => (
                           <span key={rep.id} className={`report-item-tag ${rep.abnormal ? 'is-abnormal' : ''}`}>
@@ -426,7 +428,7 @@ export function DedicatedWaitingWorkspace({
 
                     <Button
                       size="sm"
-                      variant="text"
+                      variant="secondary"
                       disabled={busy}
                       aria-label={`查看 ${item.residentName}`}
                       onClick={() => onView(item)}

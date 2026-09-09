@@ -8,6 +8,8 @@ import java.util.Optional;
 
 public interface DictionaryItemRepository extends JpaRepository<DictionaryItem, Long> {
     boolean existsByDictionaryIdAndCode(Long dictionaryId, String code);
+    boolean existsByDictionaryIdAndParentItemIdAndStatus(Long dictionaryId, Long parentItemId,
+                                                          com.rhn.platform.dictionary.domain.DictionaryStatus status);
     long countByDictionaryId(Long dictionaryId);
     List<DictionaryItem> findByDictionaryIdOrderBySortOrderAscCodeAsc(Long dictionaryId);
     Optional<DictionaryItem> findByIdAndDictionaryId(Long id, Long dictionaryId);

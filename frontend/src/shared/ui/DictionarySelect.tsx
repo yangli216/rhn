@@ -45,9 +45,12 @@ export function DictionarySelect(props: DictionarySelectProps) {
       if (dictionaryCode) return api.resolve(dictionaryCode)
       const detail = await api.get(dictionaryId!)
       if (detail.sdDictStatus !== 'ACTIVE') return []
+      const codeById = new Map(detail.items.map((item) => [item.id, item.code]))
       return detail.items
         .filter((item) => item.sdDictItemStatus === 'ACTIVE')
-        .map(({ code, name, sortOrder }) => ({ code, name, sortOrder }))
+        .map(({ code, name, sortOrder, parentItemId, parentItemCode }) => ({
+          code, name, sortOrder, parentCode: parentItemCode ?? codeById.get(parentItemId ?? ''),
+        }))
     },
     enabled: Boolean(sourceValue),
     staleTime: 5 * 60 * 1000,
@@ -55,7 +58,7 @@ export function DictionarySelect(props: DictionarySelectProps) {
   const options = useMemo<SelectOption[]>(() => (dictionary.data ?? [])
     .slice()
     .sort((left, right) => left.sortOrder - right.sortOrder || left.code.localeCompare(right.code))
-    .map((item) => ({ value: item.code, label: item.name })), [dictionary.data])
+    .map((item) => ({ value: item.code, label: item.name, parentValue: item.parentCode })), [dictionary.data])
   const message = dictionary.error ? (errorText ?? errorMessage(dictionary.error)) : ''
   const describedBy = [ariaDescribedBy, message ? messageId : ''].filter(Boolean).join(' ') || undefined
   const configuredProps = {

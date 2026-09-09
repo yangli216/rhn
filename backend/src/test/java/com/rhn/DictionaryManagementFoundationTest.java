@@ -224,6 +224,100 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void dictionary_items_support_parent_child_hierarchy_and_reject_cycles() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        JsonNode created = json(mockMvc.perform(post("/api/platform/dictionaries")
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scopeType":"TENANT","categoryId":"%s","code":"TEST_TREE_%s",
+                                 "name":"树形测试字典","requestCode":"%s"}
+                                """.formatted(TENANT_CATEGORY, suffix, requestCode())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String dictionaryId = created.get("id").asText();
+
+        JsonNode withRoot = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"0","code":"ROOT","name":"根节点",
+                                 "sortOrder":10,"requestCode":"%s"}
+                                """.formatted(requestCode())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items[0].parentItemId").doesNotExist())
+                .andReturn().getResponse().getContentAsString());
+        String rootId = withRoot.get("items").get(0).get("id").asText();
+
+        JsonNode withChild = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"1","parentItemId":"%s","code":"CHILD","name":"子节点",
+                                 "sortOrder":20,"requestCode":"%s"}
+                                """.formatted(rootId, requestCode())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.items[1].parentItemId").value(Long.parseLong(rootId)))
+                .andExpect(jsonPath("$.items[1].parentItemCode").value("ROOT"))
+                .andReturn().getResponse().getContentAsString());
+        String childId = withChild.get("items").get(1).get("id").asText();
+
+        mockMvc.perform(get("/api/platform/dictionaries/resolve/TEST_TREE_" + suffix).with(rhn()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[1].code").value("CHILD"))
+                .andExpect(jsonPath("$[1].parentCode").value("ROOT"));
+
+        mockMvc.perform(put("/api/platform/dictionaries/{id}/items/{itemId}", dictionaryId, rootId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"2","parentItemId":"%s","name":"根节点",
+                                 "sortOrder":10,"requestCode":"%s"}
+                                """.formatted(childId, requestCode())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("DICTIONARY_ITEM_PARENT_CYCLE"));
+
+        JsonNode withInactiveRoot = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"2","code":"INACTIVE_ROOT","name":"停用根节点",
+                                 "sortOrder":30,"requestCode":"%s"}
+                                """.formatted(requestCode())))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String inactiveRootId = withInactiveRoot.get("items").get(2).get("id").asText();
+
+        mockMvc.perform(post("/api/platform/dictionaries/{id}/items/{itemId}/disable", dictionaryId, inactiveRootId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"3","requestCode":"%s"}
+                                """.formatted(requestCode())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"4","parentItemId":"%s","code":"ORPHAN","name":"不可达子项",
+                                 "sortOrder":40,"requestCode":"%s"}
+                                """.formatted(inactiveRootId, requestCode())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DICTIONARY_ITEM_PARENT_INACTIVE"));
+
+        mockMvc.perform(put("/api/platform/dictionaries/{id}/items/{itemId}", dictionaryId, childId)
+                        .with(rhn())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedRevision":"4","parentItemId":"%s","name":"子节点",
+                                 "sortOrder":20,"requestCode":"%s"}
+                                """.formatted(inactiveRootId, requestCode())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("DICTIONARY_ITEM_PARENT_INACTIVE"));
+    }
+
+    @Test
     void dictionary_categories_support_tree_governance_dictionary_move_and_audit() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode root = json(mockMvc.perform(post("/api/platform/dictionaries/categories")

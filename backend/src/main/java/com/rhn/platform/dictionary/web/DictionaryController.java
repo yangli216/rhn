@@ -247,14 +247,14 @@ public class DictionaryController {
     @ResponseStatus(HttpStatus.CREATED)
     DictionaryDetailResponse addItem(@PathVariable Long id, @Valid @RequestBody CreateItemRequest request) {
         return service.addItem(id, revision(request.expectedRevision()), request.code(), request.name(),
-                request.description(), request.sortOrder(), request.reason(), request.requestCode());
+                request.description(), request.sortOrder(), request.parentItemId(), request.reason(), request.requestCode());
     }
 
     @PutMapping("/{id}/items/{itemId}")
     DictionaryDetailResponse updateItem(@PathVariable Long id, @PathVariable Long itemId,
                                         @Valid @RequestBody UpdateItemRequest request) {
         return service.updateItem(id, itemId, revision(request.expectedRevision()), request.name(),
-                request.description(), request.sortOrder(), request.reason(), request.requestCode());
+                request.description(), request.sortOrder(), request.parentItemId(), request.reason(), request.requestCode());
     }
 
     @PostMapping("/{id}/items/{itemId}/enable")
@@ -326,6 +326,7 @@ public class DictionaryController {
             @NotBlank @Size(max = 300) String name,
             @Size(max = 1000) String description,
             @Min(0) int sortOrder,
+            Long parentItemId,
             @Size(max = 1000) String reason,
             @NotBlank @Size(max = 128) String requestCode) {
     }
@@ -335,6 +336,7 @@ public class DictionaryController {
             @NotBlank @Size(max = 300) String name,
             @Size(max = 1000) String description,
             @Min(0) int sortOrder,
+            Long parentItemId,
             @Size(max = 1000) String reason,
             @NotBlank @Size(max = 128) String requestCode) {
     }

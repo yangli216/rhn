@@ -27,6 +27,7 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
   const [selectedId, setSelectedId] = useState<string>()
   const [itemQuery, setItemQuery] = useState('')
   const [itemStatus, setItemStatus] = useState('')
+  const [collapsedItemIds, setCollapsedItemIds] = useState<Set<string>>(() => new Set())
   const [dictionaryDialog, setDictionaryDialog] = useState<DictionaryDialogState>()
   const [categoryDialog, setCategoryDialog] = useState<CategoryDialogState>()
   const [editingItem, setEditingItem] = useState<DictionaryItem | null | undefined>(undefined)
@@ -147,7 +148,7 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
     onError: refreshAfterError,
   })
   const saveItem = useMutation({
-    mutationFn: (input: { code: string; name: string; description?: string; sortOrder: number }) => {
+    mutationFn: (input: { code: string; name: string; description?: string; sortOrder: number; parentItemId?: string }) => {
       const context = { ...input, expectedRevision: detail.data!.revision,
         reason: editingItem ? '维护字典项展示属性' : '新增业务代码', requestCode: crypto.randomUUID() }
       return editingItem
@@ -174,11 +175,10 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
   const scopeOptions = systemEnumItems(systemEnums.data, DICTIONARY_SYSTEM_ENUM.scopeType)
   const dictionaryStatusOptions = systemEnumItems(systemEnums.data, DICTIONARY_SYSTEM_ENUM.dictionaryStatus)
   const itemStatusOptions = systemEnumItems(systemEnums.data, DICTIONARY_SYSTEM_ENUM.itemStatus)
-  const visibleItems = useMemo(() => selectedItems.filter((item) => {
-    const query = itemQuery.trim().toLowerCase()
-    const matchesQuery = !query || `${item.name}${item.code}${item.description ?? ''}`.toLowerCase().includes(query)
-    return matchesQuery && (!itemStatus || item.sdDictItemStatus === itemStatus)
-  }), [itemQuery, itemStatus, selectedItems])
+  const visibleItemRows = useMemo(() => dictionaryItemRows(
+    selectedItems, itemQuery, itemStatus, collapsedItemIds,
+  ), [collapsedItemIds, itemQuery, itemStatus, selectedItems])
+  const visibleItems = visibleItemRows.map((row) => row.item)
   const busy = createDictionary.isPending || updateDictionary.isPending || dictionaryStatus.isPending
     || saveItem.isPending || itemState.isPending || createCategory.isPending || updateCategory.isPending
     || categoryStatus.isPending
@@ -291,7 +291,7 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
           <div className="dictionary-items__toolbar">
             <div><h3>字典项</h3><span>{selected.systemManaged
               ? '系统托管内容与代码枚举、数据库约束保持一致，仅供查看。'
-              : '业务编码创建后不可修改；状态和展示属性的每次变化都会留下快照。'}</span></div>
+              : '支持树形层级维护；业务编码创建后不可修改，所有变化都会留下快照。'}</span></div>
             <div className="dictionary-items__actions">
               <SearchField className="dictionary-items__search" label="搜索字典项" value={itemQuery}
                 onChange={setItemQuery} placeholder="搜索字典项" />
@@ -305,8 +305,19 @@ export function DictionaryManagement({ api, onOpenAttributeConfiguration }: {
             footer={`显示 ${visibleItems.length} 个字典项 · 共 ${selectedItems.length} 个`}>
             <DataTable className="dictionary-table" aria-label="字典项">
               <thead><tr><th>显示名称 / 编码</th><th>说明</th><th>排序</th><th>状态</th><th aria-label="操作">操作</th></tr></thead>
-              <tbody>{visibleItems.map((item) => <tr key={item.id}>
-                <td><strong>{item.name}</strong><code>{item.code}</code></td><td>{item.description || '—'}</td>
+              <tbody>{visibleItemRows.map(({ item, depth, hasChildren }) => <tr key={item.id}>
+                <td><div className="dictionary-item-tree-cell"
+                  style={{ '--dictionary-item-depth': depth } as React.CSSProperties}>
+                  {hasChildren ? <button type="button" className="dictionary-item-tree-cell__toggle"
+                    aria-label={`${collapsedItemIds.has(item.id) ? '展开' : '收起'} ${item.name}`}
+                    onClick={() => setCollapsedItemIds((current) => {
+                      const next = new Set(current)
+                      if (next.has(item.id)) next.delete(item.id); else next.add(item.id)
+                      return next
+                    })}><Icon name={collapsedItemIds.has(item.id) ? 'chevron-right' : 'chevron-down'} /></button>
+                    : <span className="dictionary-item-tree-cell__spacer" />}
+                  <span><strong>{item.name}</strong><code>{item.code}</code></span>
+                </div></td><td>{item.description || '—'}</td>
                 <td className="numeric">{item.sortOrder}</td>
                 <td><StatusBadge tone={item.sdDictItemStatus === 'ACTIVE' ? 'success' : 'neutral'}>
                   {item.sdDictItemStatusText}</StatusBadge></td>
@@ -554,20 +565,24 @@ function DictionaryCategoryEditor({ mode, category, categories, defaultParentId,
 
 function DictionaryItemDialog({ dictionary, item, busy, onClose, onSave }: {
   dictionary: DictionaryDetail; item: DictionaryItem | null; busy: boolean; onClose: () => void
-  onSave: (input: { code: string; name: string; description?: string; sortOrder: number }) => Promise<unknown>
+  onSave: (input: { code: string; name: string; description?: string; sortOrder: number; parentItemId?: string }) => Promise<unknown>
 }) {
   const [code, setCode] = useState(item?.code ?? '')
   const [name, setName] = useState(item?.name ?? '')
   const [description, setDescription] = useState(item?.description ?? '')
   const [sortOrder, setSortOrder] = useState(item?.sortOrder ?? 10)
+  const [parentItemId, setParentItemId] = useState(item?.parentItemId ?? '')
   const [submitted, setSubmitted] = useState(false)
+  const descendants = item ? descendantItemIds(dictionary.items, item.id) : new Set<string>()
+  const parentOptions = dictionary.items.filter((candidate) => candidate.id !== item?.id
+    && !descendants.has(candidate.id) && candidate.sdDictItemStatus === 'ACTIVE')
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitted(true)
     if (!code.trim() || !name.trim() || sortOrder < 0) return
     try {
       await onSave({ code: code.trim().toUpperCase(), name: name.trim(),
-        description: description.trim() || undefined, sortOrder })
+        description: description.trim() || undefined, sortOrder, parentItemId: parentItemId || undefined })
     } catch {
       // The page-level alert is populated by the mutation; keep the dialog open for correction.
     }
@@ -586,6 +601,10 @@ function DictionaryItemDialog({ dictionary, item, busy, onClose, onSave }: {
       <FormField label="业务编码" error={submitted && !code.trim() ? '请输入业务编码' : undefined}
         hint={item ? '已创建编码不可修改' : '大写字母、数字、下划线、点或连字符'}>
         <input value={code} maxLength={128} readOnly={Boolean(item)} onChange={(event) => setCode(event.target.value)} /></FormField>
+      <FormField label="上级字典项" hint="选填，用于构建树形字典">
+        <Select value={parentItemId} placeholder="根级字典项" showValue onChange={setParentItemId}
+          options={parentOptions.map((candidate) => ({ value: candidate.id, label: candidate.name,
+            secondaryText: candidate.code, parentValue: candidate.parentItemId }))} /></FormField>
       <FormField label="说明"><textarea value={description} maxLength={1000}
         onChange={(event) => setDescription(event.target.value)} /></FormField>
     </form>
@@ -612,6 +631,64 @@ function DictionaryChangesDialog({ dictionary, changes, loading, error, onClose 
 }
 
 interface CategoryOption { category: DictionaryCategory; label: string }
+
+interface DictionaryItemRow { item: DictionaryItem; depth: number; hasChildren: boolean }
+
+function dictionaryItemRows(items: DictionaryItem[], query: string, status: string,
+                            collapsedIds: Set<string>): DictionaryItemRow[] {
+  const byId = new Map(items.map((item) => [item.id, item]))
+  const children = new Map<string, DictionaryItem[]>()
+  const roots: DictionaryItem[] = []
+  for (const item of items) {
+    if (item.parentItemId && byId.has(item.parentItemId)) {
+      children.set(item.parentItemId, [...(children.get(item.parentItemId) ?? []), item])
+    } else roots.push(item)
+  }
+  const normalizedQuery = query.trim().toLowerCase()
+  const filtering = Boolean(normalizedQuery || status)
+  const included = new Set<string>()
+  if (filtering) {
+    for (const item of items) {
+      const matchesQuery = !normalizedQuery
+        || `${item.name}${item.code}${item.description ?? ''}`.toLowerCase().includes(normalizedQuery)
+      if (!matchesQuery || (status && item.sdDictItemStatus !== status)) continue
+      let current: DictionaryItem | undefined = item
+      while (current && !included.has(current.id)) {
+        included.add(current.id)
+        current = current.parentItemId ? byId.get(current.parentItemId) : undefined
+      }
+    }
+  }
+  const result: DictionaryItemRow[] = []
+  const visited = new Set<string>()
+  const visit = (item: DictionaryItem, depth: number) => {
+    if (visited.has(item.id)) return
+    visited.add(item.id)
+    const childItems = children.get(item.id) ?? []
+    if (!filtering || included.has(item.id)) result.push({ item, depth, hasChildren: childItems.length > 0 })
+    if (filtering || !collapsedIds.has(item.id)) {
+      for (const child of childItems) visit(child, depth + 1)
+    }
+  }
+  for (const root of roots) visit(root, 0)
+  return result
+}
+
+function descendantItemIds(items: DictionaryItem[], itemId: string) {
+  const children = new Map<string, string[]>()
+  for (const item of items) {
+    if (item.parentItemId) children.set(item.parentItemId, [...(children.get(item.parentItemId) ?? []), item.id])
+  }
+  const result = new Set<string>()
+  const visit = (id: string) => {
+    for (const childId of children.get(id) ?? []) {
+      if (result.has(childId)) continue
+      result.add(childId); visit(childId)
+    }
+  }
+  visit(itemId)
+  return result
+}
 
 function flattenCategories(categories: DictionaryCategory[]): CategoryOption[] {
   const byParent = new Map<string, DictionaryCategory[]>()

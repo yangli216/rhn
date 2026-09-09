@@ -49,6 +49,8 @@ export interface SystemEnumDefinition extends SystemEnumDefinitionContract {
 
 export interface DictionaryItem extends DictionaryItemContract {
   id: string
+  parentItemId?: string
+  parentItemCode?: string
   code: string
   name: string
   description?: string
@@ -142,6 +144,7 @@ export interface DictionaryValue extends DictionaryValueContract {
   name: string
   sortOrder: number
   attributes?: Record<string, string>
+  parentCode?: string
 }
 
 export type DictionaryAttributeDataType = 'BOOLEAN' | 'INTEGER' | 'DECIMAL' | 'TEXT' | 'CODE' | 'DATE' | 'DATETIME' | 'DICT_REF'
@@ -254,10 +257,12 @@ export interface UpdateDictionaryCategoryInput extends UpdateCategoryContract {}
 
 export interface CreateDictionaryItemInput extends CreateItemContract {
   sortOrder: number
+  parentItemId?: string
 }
 
 export interface UpdateDictionaryItemInput extends UpdateItemContract {
   sortOrder: number
+  parentItemId?: string
 }
 
 export function systemEnumItems(definitions: SystemEnumDefinition[] | undefined,

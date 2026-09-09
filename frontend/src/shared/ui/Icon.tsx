@@ -14,9 +14,12 @@ export type IconName =
   | 'chevron-up'
   | 'clinical'
   | 'close'
+  | 'copy'
   | 'error'
   | 'credential'
   | 'drag'
+  | 'eye'
+  | 'eye-off'
   | 'face'
   | 'fullscreen'
   | 'home'
@@ -66,9 +69,12 @@ function iconPath(name: IconName) {
     case 'chevron-up': return <path d="m6 15 6-6 6 6" />
     case 'clinical': return <><path d="M12 2v20M2 12h20" /><circle cx="12" cy="12" r="9" /></>
     case 'close': return <><path d="m6 6 12 12" /><path d="m18 6-12 12" /></>
+    case 'copy': return <><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>
     case 'error': return <><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16h.01" /></>
     case 'credential': return <><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M9 6h6M8 17h8" /><path d="m9 13 2 2 4-4" /></>
     case 'drag': return <><circle cx="9" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="6" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="9" cy="18" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="18" r="1" fill="currentColor" stroke="none" /></>
+    case 'eye': return <><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" /></>
+    case 'eye-off': return <><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" /><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" /><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" /><line x1="2" x2="22" y1="2" y2="22" /></>
     case 'face': return <><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" /><circle cx="9" cy="10" r=".5" /><circle cx="15" cy="10" r=".5" /><path d="M8.5 14a5 5 0 0 0 7 0" /></>
     case 'fullscreen': return <><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5" /></>
     case 'home': return <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>

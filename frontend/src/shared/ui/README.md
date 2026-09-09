@@ -29,6 +29,7 @@
 | `Dialog` | 单任务弹窗 | 焦点约束、Escape、焦点恢复、滚动锁定 |
 | `ObjectContextBar` | 居民、患者等对象上下文 | 身份、关键事实和主操作的统一位置 |
 | `BackButton` | 返回上层任务 | 统一图标、尺寸与焦点状态 |
+| `Switch` | 开关选择 | 遵循 ARIA switch 语义规范，支持键盘 Space/Enter 操作、受控/非受控、sm/md 尺寸与随动状态说明 |
 
 业务枚举的文案和颜色不能写在功能组件中，应集中到 `shared/presentation.ts`，再传给 `StatusBadge`。
 

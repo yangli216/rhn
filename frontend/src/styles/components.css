@@ -654,6 +654,27 @@ input[type="checkbox"]:disabled {
 .ui-select__option-trailing strong { flex: 0 0 auto; color: var(--color-brand-strong); font-size: var(--font-size-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ui-select__option-trailing code { min-width: 0; max-width: 100%; flex: 1 1 auto; overflow: hidden; color: var(--color-text-disabled); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); font-weight: var(--font-weight-regular); text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 .ui-select__option-trailing svg { flex: 0 0 auto; }
+.ui-select__tree-row { position: relative; min-width: 0; }
+.ui-select__tree-row .ui-select__option { padding-left: calc(var(--space-3) + (var(--select-tree-depth) * 1.25rem) + 1.5rem); }
+.ui-select__tree-toggle {
+  position: absolute;
+  z-index: 1;
+  top: 50%;
+  left: calc(var(--space-2) + (var(--select-tree-depth) * 1.25rem));
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.ui-select__tree-toggle:hover, .ui-select__tree-toggle:focus-visible { outline: 0; color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.ui-select__tree-toggle .ui-icon { width: 1rem; height: 1rem; }
 .ui-select__empty { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); text-align: center; }
 .ui-select__clear { min-height: var(--target-size-min); padding: 0 var(--space-3); border: 0; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); text-align: left; }
 .ui-select__clear:hover, .ui-select__clear:focus-visible { color: var(--color-brand-primary); outline: 0; }
@@ -1454,3 +1475,133 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   border-bottom: none;
   border-right: none;
 }
+
+/* ==========================================================================
+   Switch 开关型通用组件规范
+   ========================================================================== */
+
+.ui-switch-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+}
+
+.ui-switch-wrapper.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.ui-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-round);
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+  flex-shrink: 0;
+  transition: all var(--motion-normal) var(--ease-standard);
+}
+
+.ui-switch:disabled {
+  cursor: not-allowed;
+}
+
+.ui-switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-focus-ring);
+}
+
+/* 尺寸规范 - md (默认) */
+.ui-switch--md {
+  width: 2.375rem; /* 38px */
+  height: 1.375rem; /* 22px */
+}
+
+.ui-switch--md .ui-switch__track {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-round);
+  background-color: var(--color-border-strong);
+  transition: background-color var(--motion-normal) var(--ease-standard);
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.ui-switch--md .ui-switch__thumb {
+  width: 1.125rem; /* 18px */
+  height: 1.125rem; /* 18px */
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-normal) var(--ease-standard);
+  transform: translateX(0);
+}
+
+.ui-switch--md.is-checked .ui-switch__track {
+  background-color: var(--color-brand-primary);
+}
+
+.ui-switch--md.is-checked .ui-switch__thumb {
+  transform: translateX(1rem); /* 16px */
+}
+
+/* 尺寸规范 - sm (小号，适合卡片右上角或紧凑表单) */
+.ui-switch--sm {
+  width: 1.875rem; /* 30px */
+  height: 1.125rem; /* 18px */
+}
+
+.ui-switch--sm .ui-switch__track {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-round);
+  background-color: var(--color-border-strong);
+  transition: background-color var(--motion-normal) var(--ease-standard);
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  box-sizing: border-box;
+}
+
+.ui-switch--sm .ui-switch__thumb {
+  width: 0.875rem; /* 14px */
+  height: 0.875rem; /* 14px */
+  border-radius: var(--radius-round);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--motion-normal) var(--ease-standard);
+  transform: translateX(0);
+}
+
+.ui-switch--sm.is-checked .ui-switch__track {
+  background-color: var(--color-brand-primary);
+}
+
+.ui-switch--sm.is-checked .ui-switch__thumb {
+  transform: translateX(0.75rem); /* 12px */
+}
+
+/* 开关附带标签文字 */
+.ui-switch__label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  transition: color var(--motion-normal) var(--ease-standard);
+}
+
+.ui-switch__label.is-checked {
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+
