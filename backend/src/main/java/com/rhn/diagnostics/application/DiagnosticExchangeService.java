@@ -1,6 +1,7 @@
 package com.rhn.diagnostics.application;
 
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
+import com.rhn.diagnostics.api.DiagnosticReportDirectory;
 import com.rhn.diagnostics.domain.DiagnosticReport;
 import com.rhn.diagnostics.domain.DiagnosticReportResult;
 import com.rhn.diagnostics.domain.Observation;
@@ -34,7 +35,7 @@ import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
-public class DiagnosticExchangeService {
+public class DiagnosticExchangeService implements DiagnosticReportDirectory {
     private static final Set<String> DIAGNOSTIC_TYPES = Set.of("LABORATORY", "EXAMINATION");
     private static final Set<String> REPORT_STATUSES = Set.of("PRELIMINARY", "FINAL", "CORRECTED", "CANCELLED");
     private static final Set<String> VALUE_TYPES = Set.of("STRING", "NUMBER", "BOOLEAN", "CODE", "DATETIME");
@@ -163,6 +164,7 @@ public class DiagnosticExchangeService {
     }
 
     @Transactional(readOnly = true)
+    @Override
     public List<DiagnosticReportResponse> listByEncounter(Long encounterId) {
         ExecutionContext context = contextProvider.requireCurrent();
         var encounter = encounterCareSettings.require(context.tenantId(), encounterId);

@@ -54,7 +54,7 @@ public final class OutpatientPlanTemplateContracts {
                        List<ServiceView> services, Instant createdAt, Instant updatedAt) {}
 
     public record DiagnosisView(String code, String display, String type) {}
-    public record MedicationView(Long medicationId, Long catalogItemId, Long packageId, String editorMode,
+    public record MedicationView(Long lineId, Long medicationId, Long catalogItemId, Long packageId, String editorMode,
                                  String categoryCode, String medicationCode, String medicationName,
                                  String preparationSpec, String productName, BigDecimal doseValue,
                                  String doseUnit, String routeCode, String routeName,

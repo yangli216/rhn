@@ -160,7 +160,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
 
   return <>
     <PageHeader eyebrow="门诊医疗 · 医生工作区" title="门诊医生站"
-      description="新一代智能候诊工作台：多队列穿插调度、急危体征预警、检查检验就绪透视及AI预问诊画像领航。" />
+      description="门诊候诊、叫号调度与接诊状态协同工作台。" />
     {(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error) && <Alert className="ui-page-feedback">
       {errorMessage(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error)}</Alert>}
 

@@ -10,6 +10,7 @@ public interface EncounterDirectory {
     EncounterSnapshot requireActiveForOrdering(Long encounterId);
     List<EncounterSnapshot> findAccessible(Collection<Long> encounterIds);
     List<EncounterSnapshot> findOrganizationAccessible(Collection<Long> encounterIds);
+    List<EncounterSnapshot> recentForResident(Long residentId, int limit);
     PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId);
 
     void validateRegistration(RegistrationEligibilityCommand command);

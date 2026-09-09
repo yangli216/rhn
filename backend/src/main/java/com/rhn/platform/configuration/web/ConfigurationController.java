@@ -169,8 +169,13 @@ public class ConfigurationController {
                                @RequestParam(required = false) String environmentCode) {
         Long effectiveUserId = userId == null
                 ? executionContextProvider.requireCurrent().subjectId() : userId;
-        return service.resolveCurrent(TenantContext.requireTenantId(), effectiveUserId,
+        ConfigurationValue value = service.resolveCurrent(TenantContext.requireTenantId(), effectiveUserId,
                 organizationId, departmentId, productCode, moduleCode, environmentCode, key);
+        if (value.secretReference() == null) return value;
+        return new ConfigurationValue(value.key(), value.value(), value.valueType(), value.category(),
+                value.inheritanceEnabled(), value.cacheEnabled(), value.requestedScope(), value.requestedScopeId(),
+                value.requestedScopeCode(), value.resolvedScope(), value.resolvedScopeId(), value.resolvedScopeCode(),
+                value.valueMode(), value.inherited(), value.revision(), null);
     }
 
     private DefinitionCommand command(DefinitionRequest request) {

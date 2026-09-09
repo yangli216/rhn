@@ -5,6 +5,7 @@ export type OutpatientPlanTemplateScope = 'PERSONAL' | 'DEPARTMENT'
 
 export interface OutpatientPlanTemplateMedication extends Omit<CreateMedicationRequestInput,
   'prescriptionId' | 'parentRequestId' | 'allergyReviewConfirmed' | 'allergyOverrideReason'> {
+  lineId: string
   medicationId: string
   editorMode: 'regular' | 'herbal'
   categoryCode: string
@@ -46,7 +47,7 @@ export interface SaveOutpatientPlanTemplateInput {
   sortOrder?: number
   diagnoses: DiagnosisInput[]
   medications: Array<Omit<OutpatientPlanTemplateMedication,
-    'editorMode' | 'categoryCode' | 'medicationCode' | 'medicationName' | 'preparationSpec' | 'productName'>>
+    'lineId' | 'editorMode' | 'categoryCode' | 'medicationCode' | 'medicationName' | 'preparationSpec' | 'productName'>>
   services: CreateServiceRequestInput[]
 }
 

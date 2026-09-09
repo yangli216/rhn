@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AiSuggestionRepository extends JpaRepository<AiSuggestion, Long> {
-    List<AiSuggestion> findByTenantIdAndEncounterIdOrderByGeneratedAtDesc(Long tenantId, Long encounterId);
+    List<AiSuggestion> findTop50ByTenantIdAndEncounterIdOrderByGeneratedAtDescIdDesc(Long tenantId, Long encounterId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from AiSuggestion value where value.id = :id and value.tenantId = :tenantId")

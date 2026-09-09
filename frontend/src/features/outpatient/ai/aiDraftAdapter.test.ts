@@ -19,6 +19,7 @@ function makeSuggestion(context: ClinicalAiDraftContext,
   return {
     id: '1', status: 'GENERATED', contextHash: 'server-hash',
     clientContextFingerprint: clinicalAiContextFingerprint(context), provider: 'local-assist',
+    promptVersion: 'local-assist-v1',
     generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60_000).toISOString(),
     summary: '', recordDraft: {}, diagnosisCandidates: [], differentialDiagnoses: [],
     missingInformation: [], safetyAlerts: [], recommendedPlans: [], disclaimer: '', ...overrides,

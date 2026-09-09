@@ -247,6 +247,18 @@ public class TerminologyApplicationService implements TerminologyDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<TerminologyConceptSnapshot> findConcept(Long tenantId, String codeSystemCode, String conceptCode,
+                                                            LocalDate atDate) {
+        return visibleSystems(tenantId, codeSystemCode, atDate).stream().findFirst().flatMap(system ->
+                conceptRepository.findByCodeSystemIdAndCode(system.id(), conceptCode)
+                        .filter(Concept::isActive)
+                        .filter(value -> value.isEffectiveAt(atDate))
+                        .map(concept -> new TerminologyConceptSnapshot(concept.id(), system.code(),
+                                system.canonicalUri(), system.versionCode(), concept.code(), concept.display())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<CodeSystemSnapshot> listCodeSystems() {
         return codeSystemRepository.findAll().stream().map(this::snapshot).toList();
     }

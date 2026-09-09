@@ -570,6 +570,22 @@ public class EncounterService implements EncounterDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public List<EncounterSnapshot> recentForResident(Long residentId, int limit) {
+        Long canonicalResidentId = residentDirectory.resolveCanonicalResidentId(residentId);
+        Long tenantId = TenantContext.requireTenantId();
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (!context.hasWorkContext() || context.organizationId() == null || context.departmentId() == null) {
+            return List.of();
+        }
+        int cappedLimit = Math.max(0, Math.min(limit, 20));
+        return encounterRepository
+                .findTop20ByTenantIdAndResidentIdAndOrganizationIdAndDepartmentIdOrderByRegisteredAtDesc(
+                        tenantId, canonicalResidentId, context.organizationId(), context.departmentId())
+                .stream().limit(cappedLimit).map(this::snapshot).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public PharmacyClinicalSnapshot requireForPharmacy(Long tenantId, Long encounterId) {
         Encounter encounter = encounterRepository.findByIdAndTenantId(encounterId, tenantId)
                 .orElseThrow(() -> notFound("ENCOUNTER_NOT_FOUND", "未找到该次就诊"));

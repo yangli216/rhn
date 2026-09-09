@@ -283,71 +283,124 @@ function AdmissionForm({ api, beds, onSuccess }: {
     !(contactName.trim() && contactRelationshipCode && contactPhone.trim())
   const canSubmit = Boolean(resident && bedId && admittedAt && !contactIncomplete
     && (!depositRequested || validDepositAmount))
-  return <form className="inpatient-admission-form" onSubmit={(event) => {
+  const selectedBed = beds.find((value) => value.id === bedId)
+  return <form className="inpatient-admission-workbench" onSubmit={(event) => {
     event.preventDefault(); if (canSubmit) admit.mutate()
   }}>
-    {admit.error && <Alert>{errorMessage(admit.error)}</Alert>}
-    <Panel className="inpatient-admission-section"><header className="inpatient-section-head"><div><h2>1. 患者确认</h2></div>
-      {resident && <StatusBadge tone="success">已选择</StatusBadge>}</header>
-      <div className="inpatient-admission-section__body"><PatientIdentitySearch queryKey="inpatient-admission"
-        search={api.residents.search} selected={resident} autoFocus compact showInitialEmpty={false}
-        onClear={() => setResident(null)}
-        onSelect={(value) => { setResident(value); if (!contactPhone && value.phone) setContactPhone(value.phone) }}
-        getOptionDisabledReason={(value) => value.deceased ? '已死亡，不能办理入院'
-          : value.status !== 'ACTIVE' ? '居民档案状态不可用' : undefined} /></div>
-    </Panel>
-    <Panel className="inpatient-admission-section"><header className="inpatient-section-head"><div><h2>2. 入院信息</h2></div></header>
-      <div className="inpatient-admission-section__body inpatient-form-grid">
-        <FormField label="入院时间" required><input type="datetime-local" value={admittedAt} max={localDateTimeValue()}
-          onChange={(event) => setAdmittedAt(event.target.value)} /></FormField>
-        <FormField label="入院类型" required><Select value={admissionType} options={admissionTypeOptions}
-          searchable={false} clearable={false} onChange={(value) => setAdmissionType(value as typeof admissionType)} /></FormField>
-        <FormField label="入院来源" required><Select value={source} options={admissionSourceOptions}
-          searchable={false} clearable={false} onChange={(value) => setSource(value as typeof source)} /></FormField>
-        <FormField label="入院方式" required><Select value={method} options={admissionMethodOptions}
-          searchable={false} clearable={false} onChange={(value) => setMethod(value as typeof method)} /></FormField>
-        <FormField label="入院病情" required><Select value={condition} options={admissionConditionOptions}
-          searchable={false} clearable={false} onChange={(value) => setCondition(value as typeof condition)} /></FormField>
-        <FormField label="转诊机构" hint={source === 'REFERRAL' ? '转诊入院时建议填写' : '非转诊入院可不填'}><input value={referralOrganization}
-          onChange={(event) => setReferralOrganization(event.target.value)} disabled={source !== 'REFERRAL'} /></FormField>
-        <FormField label="入院原因 / 主要症状" className="is-wide"><textarea rows={3} value={reason}
-          maxLength={1000} placeholder="简要记录主要症状、持续时间或住院目的" onChange={(event) => setReason(event.target.value)} /></FormField>
-      </div></Panel>
-    <Panel className="inpatient-admission-section"><header className="inpatient-section-head"><div><h2>3. 病区与费用</h2></div></header>
-      <div className="inpatient-admission-section__body inpatient-form-grid">
-        <FormField label="分配床位" required><Select value={bedId}
-          options={availableBeds.map((bed) => ({ value: bed.id, label: `${bed.wardName} · ${bed.roomName} · ${bed.bedNo}` }))}
-          placeholder="请选择可用床位" emptyText="暂无可用床位" clearable={false} disabled={!availableBeds.length}
-          searchPlaceholder="搜索病区、房间或床号" onChange={setBedId} /></FormField>
-        <FormField label="护理级别" required><Select value={level} options={nursingLevelOptions}
-          searchable={false} clearable={false} onChange={(value) => setLevel(value as typeof level)} /></FormField>
-        <FormField label="饮食类别"><Select value={diet} options={dietOptions}
-          searchable={false} clearable={false} onChange={setDiet} /></FormField>
-        <FormField label="付费方式" required><Select value={payment} options={inpatientPaymentOptions}
-          searchable={false} clearable={false} onChange={(value) => setPayment(value as typeof payment)} /></FormField>
-        <FormField label="快捷预交金（选填）" hint="登记成功后直接收取"
-          error={depositRequested && !validDepositAmount ? '请输入大于 0 的金额' : undefined}>
-          <input inputMode="decimal" value={depositAmount} placeholder="0.00"
-            onChange={(event) => setDepositAmount(event.target.value)} /></FormField>
-        <FormField label="预交金支付方式"><Select value={depositPaymentMethod} options={quickDepositPaymentOptions}
-          searchable={false} clearable={false} disabled={!depositRequested} onChange={setDepositPaymentMethod} /></FormField>
-      </div></Panel>
-    <Panel className="inpatient-admission-section"><header className="inpatient-section-head"><div><h2>4. 联系人与备注</h2></div></header>
-      <div className="inpatient-admission-section__body inpatient-form-grid">
-        <FormField label="联系人姓名" error={contactIncomplete && !contactName.trim() ? '请填写联系人姓名' : undefined}>
-          <input value={contactName} maxLength={100} onChange={(event) => setContactName(event.target.value)} /></FormField>
-        <FormField label="与患者关系" error={contactIncomplete && !contactRelationshipCode ? '请选择与患者关系' : undefined}>
-          <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP"
-            value={contactRelationshipCode} placeholder="请选择" clearable onChange={setContactRelationshipCode} /></FormField>
-        <FormField label="联系电话" error={contactIncomplete && !contactPhone.trim() ? '请填写联系电话' : undefined}>
-          <input value={contactPhone} maxLength={32} inputMode="tel" onChange={(event) => setContactPhone(event.target.value)} /></FormField>
-        <FormField label="登记备注" className="is-wide"><textarea rows={3} value={note} maxLength={1000}
-          placeholder="可记录陪护、沟通或其他行政注意事项" onChange={(event) => setNote(event.target.value)} /></FormField>
-      </div></Panel>
-    <div className="inpatient-admission-submit"><span>{depositRequested && validDepositAmount
-      ? `登记后将生成住院号、占用床位并收取预交金 ${money(parsedDepositAmount)}。`
-      : '登记后将生成住院号并立即占用所选床位。'}</span>
-      <Button type="submit" busy={admit.isPending} disabled={!canSubmit}>确认入院登记</Button></div>
+    {admit.error && <div className="inpatient-admission-error-banner"><Alert>{errorMessage(admit.error)}</Alert></div>}
+    
+    <div className="inpatient-admission-sidebar">
+      <Panel className="inpatient-admission-section">
+        <header className="inpatient-section-head">
+          <div><h2>1. 患者确认</h2></div>
+          {resident && <StatusBadge tone="success">已选择</StatusBadge>}
+        </header>
+        <div className="inpatient-admission-section__body">
+          <PatientIdentitySearch queryKey="inpatient-admission"
+            search={api.residents.search} selected={resident} autoFocus compact showInitialEmpty={false}
+            onClear={() => setResident(null)}
+            onSelect={(value) => { setResident(value); if (!contactPhone && value.phone) setContactPhone(value.phone) }}
+            getOptionDisabledReason={(value) => value.deceased ? '已死亡，不能办理入院'
+              : value.status !== 'ACTIVE' ? '居民档案状态不可用' : undefined} />
+        </div>
+      </Panel>
+
+      <Panel className="inpatient-admission-sidebar-summary">
+        <header className="inpatient-section-head">
+          <div><h3>床位与登记概览</h3></div>
+          <StatusBadge tone={availableBeds.length > 0 ? 'success' : 'danger'}>
+            {availableBeds.length > 0 ? `可用 ${availableBeds.length} 床` : '无可用床位'}
+          </StatusBadge>
+        </header>
+        <div className="inpatient-admission-sidebar-summary__body">
+          <div className="inpatient-admission-stat-card">
+            <span className="inpatient-admission-stat-label">所选分配床位</span>
+            {selectedBed ? (
+              <div className="inpatient-admission-selected-bed">
+                <strong className="inpatient-admission-bed-code">{selectedBed.bedNo}</strong>
+                <small>{selectedBed.wardName} · {selectedBed.roomName}</small>
+              </div>
+            ) : (
+              <div className="inpatient-admission-bed-empty">请在右侧选择床位</div>
+            )}
+          </div>
+
+          {depositRequested && validDepositAmount && (
+            <div className="inpatient-admission-stat-card is-deposit">
+              <span className="inpatient-admission-stat-label">快捷预交金</span>
+              <strong className="inpatient-admission-deposit-num">{money(parsedDepositAmount)}</strong>
+              <small>支付方式：{quickDepositPaymentOptions.find((o) => o.value === depositPaymentMethod)?.label || depositPaymentMethod}</small>
+            </div>
+          )}
+        </div>
+      </Panel>
+    </div>
+
+    <div className="inpatient-admission-main">
+      <Panel className="inpatient-admission-section">
+        <header className="inpatient-section-head"><div><h2>2. 入院信息</h2></div></header>
+        <div className="inpatient-admission-section__body inpatient-form-grid">
+          <FormField label="入院时间" required><input type="datetime-local" value={admittedAt} max={localDateTimeValue()}
+            onChange={(event) => setAdmittedAt(event.target.value)} /></FormField>
+          <FormField label="入院类型" required><Select value={admissionType} options={admissionTypeOptions}
+            searchable={false} clearable={false} onChange={(value) => setAdmissionType(value as typeof admissionType)} /></FormField>
+          <FormField label="入院来源" required><Select value={source} options={admissionSourceOptions}
+            searchable={false} clearable={false} onChange={(value) => setSource(value as typeof source)} /></FormField>
+          <FormField label="入院方式" required><Select value={method} options={admissionMethodOptions}
+            searchable={false} clearable={false} onChange={(value) => setMethod(value as typeof method)} /></FormField>
+          <FormField label="入院病情" required><Select value={condition} options={admissionConditionOptions}
+            searchable={false} clearable={false} onChange={(value) => setCondition(value as typeof condition)} /></FormField>
+          <FormField label="转诊机构" hint={source === 'REFERRAL' ? '转诊入院时建议填写' : '非转诊入院可不填'}><input value={referralOrganization}
+            onChange={(event) => setReferralOrganization(event.target.value)} disabled={source !== 'REFERRAL'} /></FormField>
+          <FormField label="入院原因 / 主要症状" className="is-wide"><textarea rows={3} value={reason}
+            maxLength={1000} placeholder="简要记录主要症状、持续时间或住院目的" onChange={(event) => setReason(event.target.value)} /></FormField>
+        </div>
+      </Panel>
+
+      <Panel className="inpatient-admission-section">
+        <header className="inpatient-section-head"><div><h2>3. 病区与费用</h2></div></header>
+        <div className="inpatient-admission-section__body inpatient-form-grid">
+          <FormField label="分配床位" required><Select value={bedId}
+            options={availableBeds.map((bed) => ({ value: bed.id, label: `${bed.wardName} · ${bed.roomName} · ${bed.bedNo}` }))}
+            placeholder="请选择可用床位" emptyText="暂无可用床位" clearable={false} disabled={!availableBeds.length}
+            searchPlaceholder="搜索病区、房间或床号" onChange={setBedId} /></FormField>
+          <FormField label="护理级别" required><Select value={level} options={nursingLevelOptions}
+            searchable={false} clearable={false} onChange={(value) => setLevel(value as typeof level)} /></FormField>
+          <FormField label="饮食类别"><Select value={diet} options={dietOptions}
+            searchable={false} clearable={false} onChange={setDiet} /></FormField>
+          <FormField label="付费方式" required><Select value={payment} options={inpatientPaymentOptions}
+            searchable={false} clearable={false} onChange={(value) => setPayment(value as typeof payment)} /></FormField>
+          <FormField label="快捷预交金（选填）" hint="登记成功后直接收取"
+            error={depositRequested && !validDepositAmount ? '请输入大于 0 的金额' : undefined}>
+            <input inputMode="decimal" value={depositAmount} placeholder="0.00"
+              onChange={(event) => setDepositAmount(event.target.value)} /></FormField>
+          <FormField label="预交金支付方式"><Select value={depositPaymentMethod} options={quickDepositPaymentOptions}
+            searchable={false} clearable={false} disabled={!depositRequested} onChange={setDepositPaymentMethod} /></FormField>
+        </div>
+      </Panel>
+
+      <Panel className="inpatient-admission-section">
+        <header className="inpatient-section-head"><div><h2>4. 联系人与备注</h2></div></header>
+        <div className="inpatient-admission-section__body inpatient-form-grid">
+          <FormField label="联系人姓名" error={contactIncomplete && !contactName.trim() ? '请填写联系人姓名' : undefined}>
+            <input value={contactName} maxLength={100} onChange={(event) => setContactName(event.target.value)} /></FormField>
+          <FormField label="与患者关系" error={contactIncomplete && !contactRelationshipCode ? '请选择与患者关系' : undefined}>
+            <DictionarySelect api={api.dictionaries} dictionaryCode="PI_RELATED_PERSON_RELATIONSHIP"
+              value={contactRelationshipCode} placeholder="请选择" clearable onChange={setContactRelationshipCode} /></FormField>
+          <FormField label="联系电话" error={contactIncomplete && !contactPhone.trim() ? '请填写联系电话' : undefined}>
+            <input value={contactPhone} maxLength={32} inputMode="tel" onChange={(event) => setContactPhone(event.target.value)} /></FormField>
+          <FormField label="登记备注" className="is-wide"><textarea rows={3} value={note} maxLength={1000}
+            placeholder="可记录陪护、沟通或其他行政注意事项" onChange={(event) => setNote(event.target.value)} /></FormField>
+        </div>
+      </Panel>
+
+      <div className="inpatient-admission-submit">
+        <span>{depositRequested && validDepositAmount
+          ? `登记后将生成住院号、占用床位并收取预交金 ${money(parsedDepositAmount)}。`
+          : '登记后将生成住院号并立即占用所选床位。'}</span>
+        <Button type="submit" busy={admit.isPending} disabled={!canSubmit}>确认入院登记</Button>
+      </div>
+    </div>
   </form>
 }
 

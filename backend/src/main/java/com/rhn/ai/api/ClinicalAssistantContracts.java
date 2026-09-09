@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -27,7 +28,58 @@ public final class ClinicalAssistantContracts {
     public record GenerateRequest(
             @NotBlank @Size(max = 128) String clientContextFingerprint,
             @Size(max = 500) String question,
-            @NotNull @Valid Draft draft) {}
+            @Size(max = 10000) String voiceTranscript,
+            @NotNull @Valid Draft draft,
+            @Positive Long parentSuggestionId) {}
+
+    public record Transcription(String text, String provider, String model, String contentType,
+                                long audioBytes, Instant transcribedAt) {}
+
+    public record KnowledgeSearchRequest(@NotBlank @Size(max = 500) String query) {}
+
+    public record KnowledgeSearch(String query, String provider, List<KnowledgeReference> results,
+                                  Instant retrievedAt) {
+        public KnowledgeSearch {
+            results = results == null ? List.of() : List.copyOf(results);
+        }
+    }
+
+    public record KnowledgeReference(String id, String title, String excerpt, Double score,
+                                     String sourceName, String sourceId, String publishYear,
+                                     String resourcePosition) {}
+
+    public record PlanPreflightRequest(
+            @Size(max = 50) List<@NotNull @Positive Long> selectedMedicationLineIds,
+            boolean allergyReviewConfirmed,
+            @Size(max = 1000) String allergyOverrideReason) {
+        public PlanPreflightRequest {
+            selectedMedicationLineIds = selectedMedicationLineIds == null
+                    ? List.of() : List.copyOf(selectedMedicationLineIds);
+        }
+    }
+
+    public record PlanPreflight(Long templateId, long templateRevision, String status,
+                                int blockingCount, int warningCount,
+                                List<MedicationPreflight> medications,
+                                EvaluationBoundary drugInteractions,
+                                EvaluationBoundary contraindications,
+                                Instant checkedAt) {
+        public PlanPreflight {
+            medications = medications == null ? List.of() : List.copyOf(medications);
+        }
+    }
+
+    public record MedicationPreflight(Long lineId, Long medicationId, Long catalogItemId, Long packageId,
+                                      String medicationCode, String medicationName, String productName,
+                                      String status, List<PreflightCheck> checks) {
+        public MedicationPreflight {
+            checks = checks == null ? List.of() : List.copyOf(checks);
+        }
+    }
+
+    public record PreflightCheck(String code, String status, String message) {}
+
+    public record EvaluationBoundary(String status, String message) {}
 
     public record Draft(
             @Size(max = 1000) String chiefComplaint,
@@ -61,8 +113,8 @@ public final class ClinicalAssistantContracts {
             @Size(max = 1000) String detail) {}
 
     public record Suggestion(
-            Long id, String status, String contextHash, String clientContextFingerprint,
-            String provider, String model, Instant generatedAt, Instant expiresAt,
+            Long id, Long parentSuggestionId, String status, String contextHash, String clientContextFingerprint,
+            String provider, String model, String promptVersion, Instant generatedAt, Instant expiresAt,
             String summary, RecordDraft recordDraft,
             List<DiagnosisCandidate> diagnosisCandidates,
             List<DiagnosisCandidate> differentialDiagnoses,

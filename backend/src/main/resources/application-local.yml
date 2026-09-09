@@ -25,6 +25,8 @@ rhn:
     # enforcement is enabled and must never be used as production evidence.
     active-provider: development-jca
     enforce-compliance: false
+    secret-encryption-key: ${RHN_SECRET_ENCRYPTION_KEY:cmhuLWxvY2FsLWRldmVsb3BtZW50LWtleS0yMDI2ISE=}
+    secret-encryption-key-id: ${RHN_SECRET_ENCRYPTION_KEY_ID:local-development}
   presence:
     store: ${RHN_PRESENCE_STORE:memory}
 springdoc:

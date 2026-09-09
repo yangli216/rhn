@@ -18,7 +18,7 @@
 智医助理独立抽屉 ──> Clinical Assistant API ──> 能力模式 / 访问校验
         ▲                         │
         │                         ├─ LOCAL_ASSIST：保守规则辅助
-        │                         ├─ MODEL：预留服务端模型适配器
+        │                         ├─ MODEL：服务端 OpenAI-compatible 模型适配器
         │                         └─ DISABLED：安全降级，不影响医生站
         │
         └── 结构化建议 + 风险依据 + 有效期
@@ -61,7 +61,7 @@ AI 模块不调用病历、诊断、处方、医嘱或诊毕的写服务。现�
 - 病历正在保存、签署或医嘱正在提交；
 - 采纳方案时过敏信息尚未成功加载。
 
-方案采纳还必须由医生完成药品与过敏复核；命中过敏信息时必须填写覆盖理由。AI 审计成功后才允许合并到本地草稿。
+方案采纳还必须由医生完成药品与过敏复核；命中过敏信息时必须填写覆盖理由。服务端会重新读取当前可见方案，并对所选药品行执行产品/包装、剂量、途径、频次、疗程、数量、精确过敏命中和路由药房指定包装库存预检；确定性失败会阻断采纳。药物相互作用和禁忌证在没有经治理规则源时明确返回 `NOT_EVALUATED`。AI 审计成功后才允许合并到本地草稿，正式医嘱创建与处方提交仍执行原有校验。
 
 ## 5. 服务端模式
 
@@ -69,9 +69,29 @@ AI 模块不调用病历、诊断、处方、医嘱或诊毕的写服务。现�
 
 - `DISABLED`：生产默认值。AI 不可用，但医生站全部原有能力正常工作。
 - `LOCAL_ASSIST`：开发、本地和测试环境启用。仅执行可解释的保守规则、术语校验和既有方案匹配。
-- `MODEL`：外部模型适配预留值。未配置适配器时返回独立的不可用状态，不影响医生站。
+- `MODEL`：服务端模型辅助。调用 OpenAI-compatible Chat Completions 端点，返回病历草稿、诊断与鉴别方向、补问项、风险提示和院内方案推荐。模型结果在进入建议库前必须再次经过院内 ICD-10、可见方案白名单、字段长度和确定性风险规则校验。
 
-后续接入模型时必须坚持服务端网关、最小必要数据、结构化输出 Schema、版本化提示词、超时与熔断、脱敏日志以及全过程审计，不向浏览器或桌面端下发模型密钥。
+模型模式配置：
+
+| 配置 | 环境变量 | 说明 |
+| --- | --- | --- |
+| `rhn.ai.mode` | `RHN_AI_MODE=MODEL` | 启用真实模型模式 |
+| `rhn.ai.provider` | `RHN_AI_PROVIDER` | 审计使用的提供方编码 |
+| `rhn.ai.model` | `RHN_AI_MODEL` | 模型名称，必填 |
+| `rhn.ai.endpoint` | `RHN_AI_ENDPOINT` | 完整的 Chat Completions 地址，必填 |
+| `rhn.ai.api-key` | `RHN_AI_API_KEY` | 仅服务端持有；本地无鉴权模型可省略 |
+| `rhn.ai.request-timeout` | `RHN_AI_REQUEST_TIMEOUT` | 单次请求超时，默认 `PT45S` |
+| `rhn.ai.max-output-tokens` | `RHN_AI_MAX_OUTPUT_TOKENS` | 输出上限，限制在 512 到 8000 |
+| `rhn.ai.speech-endpoint` | `RHN_AI_SPEECH_ENDPOINT` | 完整的 Audio Transcriptions 地址；配置后开启录音转写 |
+| `rhn.ai.speech-model` | `RHN_AI_SPEECH_MODEL` | 转写模型，默认 `gpt-transcribe` |
+| `rhn.ai.max-audio-bytes` | `RHN_AI_MAX_AUDIO_BYTES` | 单段录音上限，默认且最大为 20 MB |
+| `rhn.ai.knowledge-endpoint` | `RHN_AI_KNOWLEDGE_ENDPOINT` | PMPHAI-compatible `/search` 地址；配置后开启只读知识检索 |
+| `rhn.ai.knowledge-api-key` | `RHN_AI_KNOWLEDGE_API_KEY` | 知识服务端密钥；为空时复用 `RHN_AI_API_KEY` |
+| `rhn.ai.max-knowledge-results` | `RHN_AI_MAX_KNOWLEDGE_RESULTS` | 单次结果上限，默认 5，限制在 1 到 10 |
+
+模型网关坚持最小必要数据、结构化输出、版本化提示词、超时、脱敏错误和全过程审计，不向浏览器下发模型密钥。当前调用不发送姓名、电话、健康档案号等直接身份标识；只发送性别、出生日期、当前草稿、活动性过敏和当前医生可见的方案摘要。模型服务异常时返回独立 `AI_MODEL_UNAVAILABLE`，不伪装成本地或模型建议，也不影响医生站原有功能。语音文件由浏览器录制后直接上传到服务端转写端点，RHN 不落盘；转写结果先作为可编辑文本返回，只有医生再次发起分析时才进入临床建议上下文。
+
+完整能力演进和与全医慧助的对照见 [原生 AI 辅助诊疗实施路线图](../ai/原生AI辅助诊疗实施路线图.md)。
 
 ## 6. API
 
@@ -79,6 +99,9 @@ AI 模块不调用病历、诊断、处方、医嘱或诊毕的写服务。现�
 | --- | --- | --- |
 | `GET` | `/api/ai/clinical-assistant/capabilities` | 查询模式、可用性和能力清单 |
 | `POST` | `/api/ai/clinical-assistant/encounters/{id}/suggestions` | 为当前接诊生成建议 |
+| `POST` | `/api/ai/clinical-assistant/encounters/{id}/transcriptions` | 转写当前接诊录音，不保存音频 |
+| `POST` | `/api/ai/clinical-assistant/encounters/{id}/knowledge-searches` | 检索带来源、年份和定位片段的医学知识 |
+| `POST` | `/api/ai/clinical-assistant/encounters/{id}/plan-templates/{templateId}/preflight` | 对所选院内方案药品执行只读采纳前预检 |
 | `GET` | `/api/ai/clinical-assistant/encounters/{id}/suggestions` | 查询该就诊的建议历史 |
 | `POST` | `/api/ai/clinical-assistant/suggestions/{id}/events` | 记录查看、采纳、忽略或反馈 |
 | `GET` | `/api/ai/clinical-assistant/suggestions/{id}/events` | 查询建议事件轨迹 |
@@ -105,6 +128,6 @@ AI 模块不调用病历、诊断、处方、医嘱或诊毕的写服务。现�
 - 生成、查看或反馈建议不会写入任何临床核心表。
 - 未明确采纳、上下文已变化或建议已过期时，不得写入本地草稿。
 - 采纳诊断前必须通过当前院内术语目录校验。
-- 采纳方案前必须完成过敏信息加载与医生安全确认。
+- 采纳方案前必须完成过敏信息加载、医生安全确认和服务端用药预检；确定性阻断不得绕过。
 - 最终保存、签署、医嘱提交和诊毕仍由原功能完成，并保留原有权限与校验。
 - 所有 AI 建议和采纳行为可按租户、就诊、医生和时间回溯。

@@ -35,6 +35,8 @@ rhn:
   crypto:
     active-provider: development-jca
     enforce-compliance: false
+    secret-encryption-key: ${RHN_SECRET_ENCRYPTION_KEY:cmhuLWxvY2FsLWRldmVsb3BtZW50LWtleS0yMDI2ISE=}
+    secret-encryption-key-id: ${RHN_SECRET_ENCRYPTION_KEY_ID:oracle-local-development}
   presence:
     store: ${RHN_PRESENCE_STORE:memory}
 

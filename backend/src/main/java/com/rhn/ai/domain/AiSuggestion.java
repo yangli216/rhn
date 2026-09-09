@@ -52,6 +52,7 @@ public class AiSuggestion {
     public AiSuggestion(Long tenantId, Long residentId, Long encounterId, Long organizationId, Long departmentId,
                         String clientContextFingerprint, String contextHash, String contentJson, String evidenceJson,
                         String serverContextHash, String riskLevel, String providerCode, String modelCode,
+                        String promptVersion,
                         Long practitionerId, Long userId,
                         Instant generatedAt, Instant expiresAt) {
         this.id = GlobalIds.next();
@@ -73,7 +74,7 @@ public class AiSuggestion {
         this.evidenceJson = evidenceJson;
         this.providerCode = providerCode;
         this.modelCode = modelCode;
-        this.promptVersion = "local-assist-v1";
+        this.promptVersion = promptVersion;
         this.knowledgeVersion = "terminology-current";
         this.dataCutoff = generatedAt;
         this.generatedAt = generatedAt;
@@ -122,6 +123,7 @@ public class AiSuggestion {
     public String evidenceJson() { return evidenceJson; }
     public String providerCode() { return providerCode; }
     public String modelCode() { return modelCode; }
+    public String promptVersion() { return promptVersion; }
     public Instant generatedAt() { return generatedAt; }
     public Instant expiresAt() { return expiresAt; }
     public Long requestedPractitionerId() { return requestedPractitionerId; }

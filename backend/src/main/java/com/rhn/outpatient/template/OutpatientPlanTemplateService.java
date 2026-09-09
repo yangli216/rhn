@@ -73,13 +73,31 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
         List<OutpatientPlanTemplate> values = templates.findVisible(context.tenantId(), context.organizationId(),
                 context.departmentId(), context.practitionerId());
         if (values.isEmpty()) return List.of();
+        List<Long> templateIds = values.stream().map(OutpatientPlanTemplate::id).toList();
         Map<Long, List<OutpatientPlanDiagnosis>> diagnosisMap = groupDiagnoses(
                 diagnoses.findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
-                        context.tenantId(), values.stream().map(OutpatientPlanTemplate::id).toList()));
+                        context.tenantId(), templateIds));
+        Map<Long, List<OutpatientPlanMedication>> medicationMap = groupMedications(
+                medications.findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
+                        context.tenantId(), templateIds));
+        Map<Long, List<OutpatientPlanServiceLine>> serviceMap = groupServices(
+                services.findByTenantIdAndTemplateIdInOrderByTemplateIdAscLineNoAsc(
+                        context.tenantId(), templateIds));
         return values.stream().map(value -> new PlanTemplateSnapshot(
-                value.id(), value.name(), value.description(), value.useCount(),
+                value.id(), value.revision(), value.name(), value.description(), value.useCount(),
                 diagnosisMap.getOrDefault(value.id(), List.of()).stream().map(diagnosis -> new DiagnosisSnapshot(
-                        diagnosis.code(), diagnosis.name(), diagnosis.type())).toList())).toList();
+                        diagnosis.code(), diagnosis.name(), diagnosis.type())).toList(),
+                medicationMap.getOrDefault(value.id(), List.of()).stream().map(line -> new MedicationSnapshot(
+                        line.id(), line.medicationId(), line.catalogItemId(), line.packageId(), line.categoryCode(),
+                        line.medicationCode(), line.medicationName(), line.preparationSpec(), line.productName(),
+                        line.doseValue(), line.doseUnit(), line.routeCode(), line.frequencyCode(),
+                        line.durationValue(), line.durationUnit(), line.quantity(), line.quantityUnit(),
+                        line.medicationInstruction(), line.selfProvided(), line.priceType(), line.pricingRequired(),
+                        line.reason())).toList(),
+                serviceMap.getOrDefault(value.id(), List.of()).stream().map(line -> new ServiceSnapshot(
+                        line.catalogItemId(), line.itemCode(), line.itemName(), line.serviceType(),
+                        line.quantity(), line.unitCode(), line.reason(), line.clinicalDescription())).toList()
+        )).toList();
     }
 
     @Transactional
@@ -283,7 +301,7 @@ class OutpatientPlanTemplateService implements OutpatientPlanTemplateDirectory {
     private MedicationView medicationView(Long tenantId, OutpatientPlanMedication line) {
         MedicationRouteDirectory.RouteSnapshot route = medicationRouteDirectory.resolveActive(
                 tenantId, line.routeCode(), "OUTPATIENT", LocalDate.now()).orElse(null);
-        return new MedicationView(line.medicationId(), line.catalogItemId(), line.packageId(),
+        return new MedicationView(line.id(), line.medicationId(), line.catalogItemId(), line.packageId(),
                 "HERBAL".equals(line.categoryCode()) ? "herbal" : "regular", line.categoryCode(),
                 line.medicationCode(), line.medicationName(), line.preparationSpec(), line.productName(),
                 line.doseValue(), line.doseUnit(), route == null ? line.routeCode() : route.code(),

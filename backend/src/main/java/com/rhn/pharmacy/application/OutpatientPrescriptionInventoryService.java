@@ -212,6 +212,57 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public MedicationAvailabilityView inspectMedicationAvailability(Long tenantId, Long organizationId,
+                                                                     Long departmentId, Long catalogItemId,
+                                                                     Long packageId) {
+        LocalDate today = LocalDate.now();
+        StockSite site = routedPharmacy(tenantId, organizationId, departmentId, today);
+        if (site == null) {
+            return new MedicationAvailabilityView(false, null, null, false, null, packageId, null,
+                    null, BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+        StockItem stockItem = stockItemRepository.findByTenantIdAndStockSiteIdAndCatalogItemId(
+                tenantId, site.id(), catalogItemId).filter(value -> "ACTIVE".equals(value.status())).orElse(null);
+        if (stockItem == null) {
+            return new MedicationAvailabilityView(true, site.id(), site.name(), false, null, packageId, null,
+                    null, BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+
+        Long effectivePackageId = packageId == null ? stockItem.basePackageId() : packageId;
+        var catalog = catalogLifecycleDirectory.resolve(tenantId, catalogItemId, organizationId,
+                effectivePackageId, "SALE", today);
+        BigDecimal factor = catalog.itemPackage() == null || catalog.itemPackage().quantityFactor() == null
+                || catalog.itemPackage().quantityFactor().signum() <= 0
+                ? BigDecimal.ONE : catalog.itemPackage().quantityFactor();
+        String unit = catalog.itemPackage() == null ? catalog.item().unitCode() : catalog.itemPackage().unitCode();
+        BigDecimal availableBase = availabilityService.findByItem(tenantId, site.id(), stockItem.id()).stream()
+                .filter(value -> "AVAILABLE".equals(value.stockStatus()) && value.quantityAvailable().signum() > 0)
+                .map(InventoryBalance::quantityAvailable).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal availablePackages = availableBase.divide(factor, 8, RoundingMode.DOWN).stripTrailingZeros();
+        return new MedicationAvailabilityView(true, site.id(), site.name(), true, stockItem.id(),
+                effectivePackageId, unit, factor, availableBase, availablePackages);
+    }
+
+    private StockSite routedPharmacy(Long tenantId, Long organizationId, Long departmentId, LocalDate date) {
+        List<DispenseRoute> activeRoutes = dispenseRouteRepository
+                .findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
+                .filter(route -> route.effective(date) && "OUTPATIENT".equals(route.careSetting())
+                        && (route.sourceDepartmentId() == null || route.sourceDepartmentId().equals(departmentId)))
+                .toList();
+        List<DispenseRoute> departmentRoutes = activeRoutes.stream()
+                .filter(route -> departmentId.equals(route.sourceDepartmentId())).toList();
+        List<DispenseRoute> effectiveRoutes = departmentRoutes.isEmpty() ? activeRoutes : departmentRoutes;
+        if (!effectiveRoutes.isEmpty()) {
+            Long siteId = effectiveRoutes.getFirst().targetStockSiteId();
+            return stockSiteRepository.findById(siteId)
+                    .filter(site -> site.tenantId().equals(tenantId) && site.effective(date)).orElse(null);
+        }
+        return stockSiteRepository.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId).stream()
+                .filter(site -> site.effective(date) && "PHARMACY".equals(site.siteType())).findFirst().orElse(null);
+    }
+
+    @Override
     @Transactional
     public PrescriptionFreezeResult freezePrescription(PrescriptionFreezeCommand command) {
         LocalDate today = LocalDate.now();

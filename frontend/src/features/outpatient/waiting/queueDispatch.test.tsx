@@ -87,19 +87,23 @@ const mockItem3: ReceptionQueueItem = {
 }
 
 describe('queueDispatchService & queueDataEnhancer', () => {
-  it('enhances raw queue items with clinical vitals, triage levels and AI summaries', () => {
+  it('adds queue dispatch metadata without inventing clinical facts', () => {
     const enhanced = enhanceQueueList([mockItem1, mockItem2, mockItem3])
     expect(enhanced).toHaveLength(3)
 
-    // Check mockItem3 (emergency/priority)
     const priorityItem = enhanced.find((i) => i.registrationId === 'reg-3')!
     expect(priorityItem.queueCategory).toBe('PRIORITY')
     expect(priorityItem.triageLevel).toBe('LEVEL_1_CRITICAL')
 
-    // Check mockItem2 (follow-up/return visit)
     const returnItem = enhanced.find((i) => i.registrationId === 'reg-2')!
     expect(returnItem.queueCategory).toBe('RETURN_VISIT')
-    expect(returnItem.reportSummary).toBeDefined()
+    expect(returnItem.reportSummary).toBeUndefined()
+    expect(returnItem.vitals).toBeUndefined()
+    expect(returnItem.aiPreConsultation).toBeUndefined()
+    expect(returnItem.allergies).toBeUndefined()
+    expect(returnItem.pastConditions).toBeUndefined()
+    expect(returnItem.currentMedications).toBeUndefined()
+    expect(returnItem.recentVisits).toBeUndefined()
   })
 
   it('filters queue items by tabs and search queries', () => {
@@ -123,8 +127,18 @@ describe('queueDispatchService & queueDataEnhancer', () => {
   })
 
   it('alternates return visits after consecutive initial calls ratio', () => {
-    // Exclude priority item, only have initial & return
-    const enhanced = enhanceQueueList([mockItem1, mockItem2])
+    const enhanced = enhanceQueueList([mockItem1, mockItem2]).map((item) => item.registrationId === 'reg-2'
+      ? {
+          ...item,
+          reportSummary: {
+            totalRequested: 1,
+            totalCompleted: 1,
+            hasCriticalValue: false,
+            hasAbnormalValue: false,
+            allReportsReady: true,
+          },
+        }
+      : item)
 
     // With 0 consecutive initial calls, candidate is initial
     const candidate0 = determineNextCallCandidate(enhanced, { ...DEFAULT_DISPATCH_RULES, initialToReturnRatio: 2 }, 0)
@@ -162,7 +176,7 @@ describe('queueDispatchService & queueDataEnhancer', () => {
 })
 
 describe('PreEncounterBriefingCard', () => {
-  it('renders clinical vitals, AI summary and allows entering encounter', async () => {
+  it('does not present unavailable clinical data as patient facts', async () => {
     const user = userEvent.setup()
     const item = enhanceQueueItem(mockItem1)
     const onEnterSpy = vi.fn()
@@ -178,11 +192,12 @@ describe('PreEncounterBriefingCard', () => {
     )
 
     expect(screen.getByText('张建国')).toBeInTheDocument()
-    expect(screen.getByText(/分诊生命体征/)).toBeInTheDocument()
-    expect(screen.getByText(/AI 预问诊画像提炼/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /立即接诊并代入预问诊/ })).toBeInTheDocument()
+    expect(screen.queryByText(/分诊生命体征/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/AI 预问诊画像提炼/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/未登记明确药物过敏史/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '立即接诊' })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /立即接诊并代入预问诊/ }))
+    await user.click(screen.getByRole('button', { name: '立即接诊' }))
     expect(onEnterSpy).toHaveBeenCalled()
   })
 })
@@ -297,8 +312,8 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
   })
 })
 
-describe('AI Pre-consultation draft adoption in DoctorWorkstation', () => {
-  it('displays the AI pre-consultation banner and populates complaints when accepted', async () => {
+describe('AI Pre-consultation data boundary in DoctorWorkstation', () => {
+  it('does not expose or apply an AI draft when the queue has no pre-consultation source', async () => {
     const user = userEvent.setup()
     const mockResident: Resident = {
       id: 'res-1',
@@ -371,17 +386,10 @@ describe('AI Pre-consultation draft adoption in DoctorWorkstation', () => {
     // Click "接诊 张建国"
     await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
 
-    // Encounter opens, verify AI pre-consultation banner is present
-    expect(await screen.findByText(/AI 预问诊已提炼主诉与现病史草稿/)).toBeInTheDocument()
-
-    // Click "一键采纳预问诊草稿"
-    const adoptBtn = screen.getByRole('button', { name: /一键采纳预问诊草稿/ })
-    await user.click(adoptBtn)
-
-    // Verify textarea values are populated with AI draft
-    const complaintInput = screen.getByPlaceholderText('症状、持续时间及本次就诊原因') as HTMLTextAreaElement
-    expect(complaintInput.value).not.toBe('')
-    const presentInput = screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过') as HTMLTextAreaElement
-    expect(presentInput.value).not.toBe('')
+    expect(await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
+    expect(screen.queryByText(/AI 预问诊已提炼主诉与现病史草稿/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /一键采纳预问诊草稿/ })).not.toBeInTheDocument()
+    expect((screen.getByPlaceholderText('症状、持续时间及本次就诊原因') as HTMLTextAreaElement).value).toBe('')
+    expect((screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过') as HTMLTextAreaElement).value).toBe('')
   })
 })

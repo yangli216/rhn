@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockMultipartFile;
 import tools.jackson.databind.JsonNode;
 
 import java.time.Instant;
@@ -15,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -22,6 +24,25 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Tag("outpatient-main-flow")
 class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
+
+    @Test
+    void speechTranscriptionIsUnavailableUnlessModelSpeechEndpointIsConfigured() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
+        String encounterId = createStartedEncounter(suffix);
+        MockMultipartFile audio = new MockMultipartFile(
+                "file", "note.webm", "audio/webm", new byte[]{1});
+
+        mockMvc.perform(multipart("/api/ai/clinical-assistant/encounters/{encounterId}/transcriptions", encounterId)
+                        .file(audio).with(rhnWorkContext()))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("AI_SPEECH_UNAVAILABLE"));
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/knowledge-searches", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"query\":\"高血压\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("AI_KNOWLEDGE_UNAVAILABLE"));
+    }
 
     @Test
     void local_assistant_is_structured_audited_and_never_mutates_clinical_diagnoses() throws Exception {

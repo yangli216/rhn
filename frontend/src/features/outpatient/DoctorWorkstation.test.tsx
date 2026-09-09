@@ -451,14 +451,10 @@ describe('DoctorWorkstation reception flow', () => {
     expect(screen.queryByPlaceholderText('170')).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText('65')).not.toBeInTheDocument()
 
-    // 2. 验证出现近期体征参考条与双数据源 tabs（分诊测量 + 上次就诊）
+    // 2. 没有真实分诊来源时，只显示服务端返回的上次就诊体征
     expect(await screen.findByText('近期参考')).toBeInTheDocument()
-    expect(screen.getByText(/分诊测量/)).toBeInTheDocument()
-    const pastTab = screen.getByRole('button', { name: /上次就诊/ })
-    expect(pastTab).toBeInTheDocument()
-
-    // 默认展示分诊数据，点击切换至“上次就诊”
-    await user.click(pastTab)
+    expect(screen.queryByText(/分诊测量/)).not.toBeInTheDocument()
+    expect(screen.getByText(/上次就诊/)).toBeInTheDocument()
     expect(await screen.findByText('135/85 mmHg')).toBeInTheDocument()
 
     // 3. 验证引用上次结果按钮并点击

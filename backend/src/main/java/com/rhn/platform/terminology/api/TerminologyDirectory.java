@@ -13,6 +13,8 @@ public interface TerminologyDirectory {
     List<ConceptView> expandValueSet(Long tenantId, String valueSetCode, LocalDate atDate);
     TerminologyConceptSnapshot requireConcept(Long tenantId, String codeSystemCode, String conceptCode,
                                               LocalDate atDate);
+    Optional<TerminologyConceptSnapshot> findConcept(Long tenantId, String codeSystemCode, String conceptCode,
+                                                     LocalDate atDate);
     List<CodeSystemSnapshot> listCodeSystems();
     List<CodeSystemSnapshot> findCodeSystems(Collection<Long> ids);
     Optional<CodeSystemSnapshot> findCodeSystem(Long id);

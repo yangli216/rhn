@@ -24,6 +24,8 @@ const AccessControlManagement = lazy(() => import('../features/settings/AccessCo
   .then((module) => ({ default: module.AccessControlManagement })))
 const ParameterManagement = lazy(() => import('../features/settings/ParameterManagement')
   .then((module) => ({ default: module.ParameterManagement })))
+const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
+  .then((module) => ({ default: module.AiConfigurationManagement })))
 const OrganizationPersonnelManagement = lazy(() => import('../features/settings/OrganizationPersonnelManagement')
   .then((module) => ({ default: module.OrganizationPersonnelManagement })))
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
@@ -249,6 +251,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
   },
   {
     id: 'system-config', label: '系统配置', icon: 'settings', children: [
+      { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
@@ -353,6 +356,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
+  if (pathname === '/settings/ai-assistant') return { id: pathname, path: pathname, title: 'AI助理配置', icon: 'sparkles', closeable: true }
   if (pathname === '/settings/dictionaries') return { id: pathname, path: pathname, title: '字典管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionary-attributes') return { id: pathname, path: pathname, title: '字典扩展配置', icon: 'settings', closeable: true }
   if (pathname === '/settings/announcements') return { id: pathname, path: pathname, title: '系统公告', icon: 'roadmap', closeable: true }
@@ -931,6 +935,7 @@ export function AppShell() {
                     organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,
                     userId: session.userId,
                   }} />} />
+                  <Route path="/settings/ai-assistant" element={<AiConfigurationManagement api={tabSlot.api} />} />
                   <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api}
                     onOpenAttributeConfiguration={(dictionaryId) => navigate(`/settings/dictionary-attributes?dictionaryId=${dictionaryId}`)} />} />
                   <Route path="/settings/dictionary-attributes" element={<DictionaryAttributeManagement api={tabSlot.api}

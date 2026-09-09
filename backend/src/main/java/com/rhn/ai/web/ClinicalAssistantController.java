@@ -4,9 +4,15 @@ import com.rhn.ai.api.ClinicalAssistantContracts.Capabilities;
 import com.rhn.ai.api.ClinicalAssistantContracts.Event;
 import com.rhn.ai.api.ClinicalAssistantContracts.EventRequest;
 import com.rhn.ai.api.ClinicalAssistantContracts.GenerateRequest;
+import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearch;
+import com.rhn.ai.api.ClinicalAssistantContracts.KnowledgeSearchRequest;
+import com.rhn.ai.api.ClinicalAssistantContracts.PlanPreflight;
+import com.rhn.ai.api.ClinicalAssistantContracts.PlanPreflightRequest;
 import com.rhn.ai.api.ClinicalAssistantContracts.Suggestion;
+import com.rhn.ai.api.ClinicalAssistantContracts.Transcription;
 import com.rhn.ai.application.ClinicalAssistantApplicationService;
 import com.rhn.ai.application.ClinicalAssistantApplicationService.EventRecordingOutcome;
+import com.rhn.ai.application.ClinicalPlanPreflightService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -15,8 +21,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import java.util.List;
 
@@ -27,9 +37,12 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 @PreAuthorize("hasAnyAuthority('OUTPATIENT_RECEPTION.ACCESS','ROLE_ADMIN')")
 class ClinicalAssistantController {
     private final ClinicalAssistantApplicationService service;
+    private final ClinicalPlanPreflightService planPreflightService;
 
-    ClinicalAssistantController(ClinicalAssistantApplicationService service) {
+    ClinicalAssistantController(ClinicalAssistantApplicationService service,
+                                ClinicalPlanPreflightService planPreflightService) {
         this.service = service;
+        this.planPreflightService = planPreflightService;
     }
 
     @GetMapping("/capabilities")
@@ -41,6 +54,25 @@ class ClinicalAssistantController {
     @ResponseStatus(HttpStatus.CREATED)
     Suggestion generate(@PathVariable Long encounterId, @Valid @RequestBody GenerateRequest input) {
         return service.generate(encounterId, input);
+    }
+
+    @PostMapping(path = "/encounters/{encounterId}/transcriptions", consumes = "multipart/form-data")
+    @ResponseStatus(HttpStatus.CREATED)
+    Transcription transcribe(@PathVariable Long encounterId,
+                             @RequestPart("file") MultipartFile file) throws IOException {
+        return service.transcribe(encounterId, file.getContentType(), file.getBytes());
+    }
+
+    @PostMapping("/encounters/{encounterId}/knowledge-searches")
+    KnowledgeSearch searchKnowledge(@PathVariable Long encounterId,
+                                    @Valid @RequestBody KnowledgeSearchRequest input) {
+        return service.searchKnowledge(encounterId, input);
+    }
+
+    @PostMapping("/encounters/{encounterId}/plan-templates/{templateId}/preflight")
+    PlanPreflight preflightPlan(@PathVariable Long encounterId, @PathVariable Long templateId,
+                                @Valid @RequestBody PlanPreflightRequest input) {
+        return planPreflightService.preflight(encounterId, templateId, input);
     }
 
     @GetMapping("/encounters/{encounterId}/suggestions")

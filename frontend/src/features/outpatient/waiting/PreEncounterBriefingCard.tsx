@@ -116,62 +116,70 @@ export function PreEncounterBriefingCard({
           )}
 
           {/* 高危警示与过敏史 */}
-          <section className="briefing-section briefing-alerts">
-            <h4 className="briefing-section__title">
-              <Icon name="warning" /> ⚠️ 临床高危警示 & 过敏史
-            </h4>
-            <div className="briefing-alert-box">
-              {item.allergies && item.allergies.length > 0 ? (
-                <ul className="briefing-list briefing-list--danger">
-                  {item.allergies.map((allergy, idx) => (
-                    <li key={idx}><strong>药物过敏：</strong>{allergy}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="briefing-empty-text">未登记明确药物过敏史</p>
-              )}
-              {item.aiPreConsultation?.riskFlags && item.aiPreConsultation.riskFlags.length > 0 && (
-                <div className="briefing-risks">
-                  {item.aiPreConsultation.riskFlags.map((flag, idx) => (
-                    <span key={idx} className="risk-badge">🚨 {flag}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
+          {(item.allergies !== undefined || (item.aiPreConsultation?.riskFlags?.length ?? 0) > 0) && (
+            <section className="briefing-section briefing-alerts">
+              <h4 className="briefing-section__title">
+                <Icon name="warning" /> ⚠️ 临床高危警示 & 过敏史
+              </h4>
+              <div className="briefing-alert-box">
+                {item.allergies !== undefined && (item.allergies.length > 0 ? (
+                  <ul className="briefing-list briefing-list--danger">
+                    {item.allergies.map((allergy, idx) => (
+                      <li key={idx}><strong>药物过敏：</strong>{allergy}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="briefing-empty-text">未登记明确药物过敏史</p>
+                ))}
+                {item.aiPreConsultation?.riskFlags && item.aiPreConsultation.riskFlags.length > 0 && (
+                  <div className="briefing-risks">
+                    {item.aiPreConsultation.riskFlags.map((flag, idx) => (
+                      <span key={idx} className="risk-badge">🚨 {flag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* 既往慢性病与长期用药 */}
-          <div className="briefing-two-columns">
-            <section className="briefing-section">
-              <h4 className="briefing-section__title">
-                <Icon name="tasks" /> 既往慢性病史
-              </h4>
-              {item.pastConditions && item.pastConditions.length > 0 ? (
-                <ul className="briefing-list">
-                  {item.pastConditions.map((cond, idx) => (
-                    <li key={idx}>{cond}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="briefing-empty-text">暂无既往慢性病史记录</p>
+          {(item.pastConditions !== undefined || item.currentMedications !== undefined) && (
+            <div className="briefing-two-columns">
+              {item.pastConditions !== undefined && (
+                <section className="briefing-section">
+                  <h4 className="briefing-section__title">
+                    <Icon name="tasks" /> 既往慢性病史
+                  </h4>
+                  {item.pastConditions.length > 0 ? (
+                    <ul className="briefing-list">
+                      {item.pastConditions.map((cond, idx) => (
+                        <li key={idx}>{cond}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="briefing-empty-text">暂无既往慢性病史记录</p>
+                  )}
+                </section>
               )}
-            </section>
 
-            <section className="briefing-section">
-              <h4 className="briefing-section__title">
-                <Icon name="pill" /> 长期/近期用药
-              </h4>
-              {item.currentMedications && item.currentMedications.length > 0 ? (
-                <ul className="briefing-list">
-                  {item.currentMedications.map((med, idx) => (
-                    <li key={idx}>{med}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="briefing-empty-text">无长期用药处方记录</p>
+              {item.currentMedications !== undefined && (
+                <section className="briefing-section">
+                  <h4 className="briefing-section__title">
+                    <Icon name="pill" /> 长期/近期用药
+                  </h4>
+                  {item.currentMedications.length > 0 ? (
+                    <ul className="briefing-list">
+                      {item.currentMedications.map((med, idx) => (
+                        <li key={idx}>{med}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="briefing-empty-text">无长期用药处方记录</p>
+                  )}
+                </section>
               )}
-            </section>
-          </div>
+            </div>
+          )}
 
           {/* 检验检查就绪度 */}
           {item.reportSummary && (
@@ -221,7 +229,7 @@ export function PreEncounterBriefingCard({
               onEnter()
             }}
           >
-            <Icon name="clinical" /> 立即接诊并代入预问诊
+            <Icon name="clinical" /> {item.aiPreConsultation ? '立即接诊并代入预问诊' : '立即接诊'}
           </Button>
         </footer>
       </div>

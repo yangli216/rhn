@@ -1,6 +1,7 @@
 package com.rhn.platform.configuration.application;
 
 import com.rhn.platform.configuration.api.ConfigurationDirectory;
+import com.rhn.platform.configuration.api.ConfigurationAdministration;
 import com.rhn.platform.configuration.api.ConfigurationValue;
 import com.rhn.platform.configuration.api.ParameterCategoryResponse;
 import com.rhn.platform.configuration.api.ParameterChangeResponse;
@@ -45,12 +46,14 @@ import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.node.ObjectNode;
 
 import java.math.BigDecimal;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
@@ -58,10 +61,13 @@ import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
+import static com.rhn.shared.api.BusinessErrors.forbidden;
 import static com.rhn.shared.api.BusinessErrors.notFound;
+import static com.rhn.ai.api.ClinicalAiConfigurationPermissions.MANAGE;
+import static com.rhn.ai.api.ClinicalAiConfigurationPermissions.PLATFORM_ROLE;
 
 @Service
-public class ConfigurationApplicationService implements ConfigurationDirectory {
+public class ConfigurationApplicationService implements ConfigurationDirectory, ConfigurationAdministration {
     private final ParameterCategoryRepository categoryRepository;
     private final ConfigurationDefinitionRepository definitionRepository;
     private final ParameterValueRepository valueRepository;
@@ -209,6 +215,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         if (repeated != null) return repeated;
         ExecutionContext context = currentWithActor();
         String key = ConfigurationCodePolicy.requireParameterKey(command.key());
+        requireAiConfigurationAuthority(key, command.allowedScopes());
         if (definitionRepository.existsByConfigKey(key)) {
             throw conflict("PARAMETER_KEY_DUPLICATE", "参数键已经存在");
         }
@@ -233,6 +240,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         if (repeated != null) return repeated;
         ExecutionContext context = currentWithActor();
         ConfigurationDefinition definition = requireDefinition(id);
+        requireAiConfigurationAuthority(definition.configKey(), command.allowedScopes());
         String submittedKey = ConfigurationCodePolicy.requireParameterKey(command.key());
         if (!definition.configKey().equals(submittedKey)) {
             throw badRequest("PARAMETER_KEY_IMMUTABLE", "参数键创建后不可修改");
@@ -263,6 +271,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         if (repeated != null) return repeated;
         ExecutionContext context = currentWithActor();
         ConfigurationDefinition definition = requireDefinition(id);
+        requireAiConfigurationAuthority(definition.configKey(), definition.allowedScopes());
         String before = definitionSnapshot(definition);
         runRevisionGuard(() -> {
             definition.changeStatus(expectedRevision, enabled, context.subjectId());
@@ -281,6 +290,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         if (repeated != null) return repeated;
         ExecutionContext context = currentWithActor();
         ConfigurationDefinition definition = requireDefinition(definitionId);
+        requireAiValueAuthority(definition.configKey(), command.scopeType());
         if (!definition.allows(command.scopeType())) {
             throw badRequest("PARAMETER_SCOPE_NOT_ALLOWED", "该参数不允许维护到 " + command.scopeType() + " 作用域");
         }
@@ -319,6 +329,25 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         return detail(definition);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<ManagedValue> findValue(String key, String scopeCode) {
+        ConfigurationDefinition definition = requireActiveDefinition(key);
+        return valueRepository.findByDefinitionIdAndScopeCode(definition.id(), scopeCode)
+                .map(value -> new ManagedValue(value.valueJson(), value.secretRef(),
+                        ValueMode.valueOf(value.valueMode().name()), value.active(), value.revision()));
+    }
+
+    @Override
+    @Transactional
+    public void saveValue(String key, ManagedValueCommand command) {
+        ConfigurationDefinition definition = requireActiveDefinition(key);
+        saveValue(definition.id(), new ValueCommand(command.expectedRevision(),
+                ConfigurationScope.valueOf(command.scope().name()), command.scopeId(), null, null,
+                ConfigurationValueMode.valueOf(command.valueMode().name()), command.valueJson(),
+                command.secretReference(), command.reason(), command.requestCode()));
+    }
+
     @Transactional
     public ParameterDefinitionDetailResponse changeValueStatus(Long definitionId, Long valueId,
                                                                long expectedRevision, boolean enabled,
@@ -328,6 +357,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         ExecutionContext context = currentWithActor();
         ConfigurationDefinition definition = requireDefinition(definitionId);
         ParameterValue value = requireVisibleValue(definitionId, valueId, context.tenantId());
+        requireAiValueAuthority(definition.configKey(), value.scopeType());
         String before = valueSnapshot(definition, value);
         runRevisionGuard(() -> {
             value.changeStatus(expectedRevision, enabled, context.subjectId());
@@ -355,6 +385,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
                 .orElseThrow(() -> notFound("PARAMETER_CHANGE_NOT_FOUND", "未找到可回退的参数变更"));
         JsonNode snapshot = parseSnapshot(target.afterJson());
         ParameterValue value = requireVisibleValue(definitionId, target.valueId(), context.tenantId());
+        requireAiValueAuthority(definition.configKey(), value.scopeType());
         ConfigurationValueMode mode = ConfigurationValueMode.valueOf(snapshot.get("valueMode").asText());
         String valueJson = textOrNull(snapshot.get("valueJson"));
         String secretRef = textOrNull(snapshot.get("secretRef"));
@@ -618,12 +649,16 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
                     if (command.secretRef() == null || command.secretRef().isBlank() || command.valueJson() != null) {
                         throw badRequest("PARAMETER_SECRET_REFERENCE_REQUIRED", "密钥参数只能保存密钥引用");
                     }
+                    if (isClinicalAiKey(definition.configKey()) && !command.secretRef().startsWith("enc:v1:")) {
+                        throw badRequest("AI_SECRET_ENCRYPTION_REQUIRED", "AI 密钥必须由专用配置接口加密保存");
+                    }
                 } else {
                     if (command.valueJson() == null || command.secretRef() != null) {
                         throw badRequest("PARAMETER_VALUE_REQUIRED", "覆盖模式必须提供参数值");
                     }
                     validateValue(definition.valueType(), command.valueJson(), definition.jsonSchema());
                     validateDictionaryValue(definition, command.valueJson(), current().tenantId());
+                    validateAiEndpoint(definition.configKey(), command.valueJson());
                 }
             }
         }
@@ -648,6 +683,50 @@ public class ConfigurationApplicationService implements ConfigurationDirectory {
         if (command.valueJson() != null || command.secretRef() != null) {
             throw badRequest("PARAMETER_VALUE_CONTENT_FORBIDDEN", "当前值模式不能携带参数内容");
         }
+    }
+
+    private void requireAiConfigurationAuthority(String key, Set<ConfigurationScope> scopes) {
+        if (!isClinicalAiKey(key)) return;
+        ExecutionContext context = current();
+        if (!context.hasAuthority(MANAGE) && !context.hasAuthority("ROLE_ADMIN")) {
+            throw forbidden("AI_CONFIGURATION_FORBIDDEN", "当前账号无权维护 AI 配置");
+        }
+        if (!Set.of(ConfigurationScope.PLATFORM, ConfigurationScope.TENANT).equals(scopes)) {
+            throw badRequest("AI_CONFIGURATION_SCOPE_RESTRICTED", "AI 参数仅允许平台和租户作用域");
+        }
+    }
+
+    private void requireAiValueAuthority(String key, ConfigurationScope scope) {
+        if (!isClinicalAiKey(key)) return;
+        ExecutionContext context = current();
+        if (!context.hasAuthority(MANAGE) && !context.hasAuthority("ROLE_ADMIN")) {
+            throw forbidden("AI_CONFIGURATION_FORBIDDEN", "当前账号无权维护 AI 配置");
+        }
+        if (scope != ConfigurationScope.PLATFORM && scope != ConfigurationScope.TENANT) {
+            throw badRequest("AI_CONFIGURATION_SCOPE_RESTRICTED", "AI 参数仅允许平台和租户作用域");
+        }
+        if (scope == ConfigurationScope.PLATFORM && !context.hasAuthority(PLATFORM_ROLE)
+                && !context.hasAuthority("ROLE_ADMIN")) {
+            throw forbidden("AI_PLATFORM_CONFIGURATION_FORBIDDEN", "只有 AI 配置管理员可以维护平台默认值");
+        }
+    }
+
+    private void validateAiEndpoint(String key, String rawJson) {
+        if (!isClinicalAiKey(key) || !key.endsWith("endpoint")) return;
+        String value = parseValue(rawJson).asText();
+        try {
+            URI uri = URI.create(value);
+            if (!uri.isAbsolute() || !("http".equalsIgnoreCase(uri.getScheme())
+                    || "https".equalsIgnoreCase(uri.getScheme()))) {
+                throw new IllegalArgumentException();
+            }
+        } catch (IllegalArgumentException exception) {
+            throw badRequest("AI_ENDPOINT_INVALID", "AI 服务地址必须是完整的 HTTP 或 HTTPS 地址");
+        }
+    }
+
+    private boolean isClinicalAiKey(String key) {
+        return key != null && key.startsWith("ai.clinical.");
     }
 
     private void validateValue(ConfigurationValueType type, String rawJson, String schemaJson) {

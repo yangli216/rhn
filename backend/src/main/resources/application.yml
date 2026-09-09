@@ -28,6 +28,10 @@ spring:
   web:
     error:
       include-message: never
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 21MB
 
 server:
   port: ${RHN_PORT:8080}
@@ -52,7 +56,21 @@ rhn:
     mode: ${RHN_AI_MODE:DISABLED}
     provider: ${RHN_AI_PROVIDER:disabled}
     model: ${RHN_AI_MODEL:}
+    endpoint: ${RHN_AI_ENDPOINT:}
+    api-key: ${RHN_AI_API_KEY:}
+    request-timeout: ${RHN_AI_REQUEST_TIMEOUT:PT45S}
+    max-output-tokens: ${RHN_AI_MAX_OUTPUT_TOKENS:3000}
+    speech-endpoint: ${RHN_AI_SPEECH_ENDPOINT:}
+    speech-model: ${RHN_AI_SPEECH_MODEL:gpt-transcribe}
+    max-audio-bytes: ${RHN_AI_MAX_AUDIO_BYTES:20971520}
+    knowledge-endpoint: ${RHN_AI_KNOWLEDGE_ENDPOINT:}
+    knowledge-api-key: ${RHN_AI_KNOWLEDGE_API_KEY:}
+    max-knowledge-results: ${RHN_AI_MAX_KNOWLEDGE_RESULTS:5}
     suggestion-ttl: ${RHN_AI_SUGGESTION_TTL:PT30M}
+    rollout:
+      organization-ids: ${RHN_AI_ROLLOUT_ORGANIZATION_IDS:}
+      department-ids: ${RHN_AI_ROLLOUT_DEPARTMENT_IDS:}
+      percentage: ${RHN_AI_ROLLOUT_PERCENTAGE:100}
   id:
     data-center-id: ${RHN_ID_DATA_CENTER_ID:0}
     worker-id: ${RHN_ID_WORKER_ID:0}
@@ -75,6 +93,8 @@ rhn:
     enforce-compliance: ${RHN_CRYPTO_ENFORCE_COMPLIANCE:true}
     required-digest-algorithm: ${RHN_CRYPTO_REQUIRED_DIGEST_ALGORITHM:SM3}
     required-signature-algorithm: ${RHN_CRYPTO_REQUIRED_SIGNATURE_ALGORITHM:SM2}
+    secret-encryption-key: ${RHN_SECRET_ENCRYPTION_KEY:}
+    secret-encryption-key-id: ${RHN_SECRET_ENCRYPTION_KEY_ID:primary}
   configuration:
     cache:
       maximum-size: ${RHN_CONFIGURATION_CACHE_MAXIMUM_SIZE:10000}

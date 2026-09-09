@@ -76,7 +76,7 @@ class OutpatientPlanMedication {
         this.selfProvided = selfProvided; this.medicationInstruction = medicationInstruction;
         this.priceType = priceType; this.pricingRequired = pricingRequired; this.reason = reason;
     }
-    Long templateId() { return templateId; } int lineNo() { return lineNo; }
+    Long id() { return id; } Long templateId() { return templateId; } int lineNo() { return lineNo; }
     Long medicationId() { return medicationId; } Long catalogItemId() { return catalogItemId; }
     Long packageId() { return packageId; } String categoryCode() { return categoryCode; }
     String medicationCode() { return medicationCode; } String medicationName() { return medicationName; }

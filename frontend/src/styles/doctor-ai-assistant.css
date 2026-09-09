@@ -6,10 +6,29 @@
 .doctor-ai-assistant__guardrail > .ui-icon { width: 1.5rem; height: 1.5rem; padding: .25rem; border-radius: var(--radius-md); color: var(--color-brand-primary); background: var(--color-surface); }
 .doctor-ai-assistant__guardrail strong, .doctor-ai-assistant__guardrail small { display: block; }
 .doctor-ai-assistant__guardrail small { margin-top: .1rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__tabs { padding: 0 var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+.doctor-ai-assistant__history { padding: var(--space-3); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.doctor-ai-assistant__history > header { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.doctor-ai-assistant__history > header small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__history > .ui-empty-state { min-height: 10rem; border: 0; box-shadow: none; background: transparent; }
+.doctor-ai-assistant__history-list { max-height: 16rem; overflow: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.doctor-ai-assistant__history-list > div { border-top: 1px solid var(--color-border); }
+.doctor-ai-assistant__history-list > div:first-child { border-top: 0; }
+.doctor-ai-assistant__history-list > div > button { width: 100%; min-width: 0; padding: var(--space-2); display: grid; gap: .2rem; border: 0; color: var(--color-text-primary); background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.doctor-ai-assistant__history-list > div > button:hover { background: var(--color-surface-subtle); }
+.doctor-ai-assistant__history-list > div > button.is-active { box-shadow: inset 3px 0 0 var(--color-brand-primary); background: var(--color-brand-soft); }
+.doctor-ai-assistant__history-list > div > button > small { overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
+.doctor-ai-assistant__history-row { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: var(--space-2); }
+.doctor-ai-assistant__history-row > strong { overflow: hidden; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-ai-assistant__prompt { padding: var(--space-3); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
+.doctor-ai-assistant__voice { padding-bottom: var(--space-2); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.doctor-ai-assistant__voice-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.doctor-ai-assistant__voice-head strong, .doctor-ai-assistant__voice-head small { display: block; }
+.doctor-ai-assistant__voice-head small { margin-top: .1rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__voice textarea { min-height: 5.5rem; }
 .doctor-ai-assistant__prompt .ui-field { margin: 0; }
 .doctor-ai-assistant__prompt textarea { min-height: 4.25rem; resize: vertical; }
-.doctor-ai-assistant__prompt > .ui-button { justify-self: end; }
+.doctor-ai-assistant__prompt-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 .doctor-ai-assistant__quick-prompts { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .doctor-ai-assistant__quick-prompts button { padding: .25rem var(--space-2); border: 1px solid var(--color-border); border-radius: 999px; color: var(--color-text-secondary); background: var(--color-surface); font: inherit; font-size: var(--font-size-small); cursor: pointer; }
 .doctor-ai-assistant__quick-prompts button:hover { color: var(--color-brand-primary); border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
@@ -48,15 +67,44 @@
 .doctor-ai-assistant__plans article strong, .doctor-ai-assistant__plans article small { display: block; }
 .doctor-ai-assistant__plans article small { margin-top: .15rem; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-small); text-overflow: ellipsis; white-space: nowrap; }
 .doctor-ai-assistant__disclaimer { padding: var(--space-2) var(--space-3); color: var(--color-text-secondary); background: var(--color-surface-muted); font-size: var(--font-size-small); line-height: 1.45; }
+.doctor-ai-assistant__provenance { padding: 0 var(--space-3) var(--space-2); color: var(--color-text-tertiary); background: var(--color-surface-muted); font-size: var(--font-size-small); }
 .doctor-ai-assistant__feedback { padding: var(--space-2) var(--space-3); display: flex; align-items: center; gap: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .doctor-ai-assistant__feedback .ui-button:first-of-type { margin-left: auto; }
 .doctor-ai-assistant__plan-reason { margin: var(--space-3) 0; padding: var(--space-2); border-radius: var(--radius-md); color: var(--color-text-secondary); background: var(--color-surface-subtle); }
+.doctor-ai-assistant__plan-items { margin-top: var(--space-3); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+.doctor-ai-assistant__plan-items section { min-width: 0; padding: var(--space-2); border-right: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.doctor-ai-assistant__plan-items section:nth-child(even) { border-right: 0; }
+.doctor-ai-assistant__plan-items header { margin: 0 0 var(--space-1); display: flex; justify-content: space-between; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__plan-item { min-width: 0; padding: var(--space-1) 0; display: grid; grid-template-columns: 1rem minmax(0, 1fr); align-items: start; gap: var(--space-1); border-top: 1px dashed var(--color-border); cursor: pointer; }
+.doctor-ai-assistant__plan-item input { margin-top: .2rem; }
+.doctor-ai-assistant__plan-item strong, .doctor-ai-assistant__plan-item small { display: block; overflow-wrap: anywhere; }
+.doctor-ai-assistant__plan-item small { margin-top: .1rem; color: var(--color-text-secondary); line-height: 1.4; }
+.doctor-ai-assistant__preflight { margin-top: var(--space-3); display: grid; gap: var(--space-2); }
+.doctor-ai-assistant__preflight > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.doctor-ai-assistant__preflight > header strong, .doctor-ai-assistant__preflight > header small { display: block; }
+.doctor-ai-assistant__preflight > header small { margin-top: .15rem; color: var(--color-text-secondary); }
+.doctor-ai-assistant__preflight-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.doctor-ai-assistant__preflight-grid article { min-width: 0; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.doctor-ai-assistant__preflight-grid article > header { padding: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.doctor-ai-assistant__preflight-grid ul { margin: 0; padding: var(--space-1) var(--space-2); list-style: none; }
+.doctor-ai-assistant__preflight-grid li { padding: var(--space-1) 0; display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: var(--space-2); border-top: 1px dashed var(--color-border); }
+.doctor-ai-assistant__preflight-grid li:first-child { border-top: 0; }
+.doctor-ai-assistant__preflight-grid li > span { font-weight: 600; }
+.doctor-ai-assistant__preflight-grid li > small { color: var(--color-text-secondary); line-height: 1.4; overflow-wrap: anywhere; }
+.doctor-ai-assistant__preflight-grid li.is-blocked > span { color: var(--color-danger); }
+.doctor-ai-assistant__preflight-grid li.is-warning > span,
+.doctor-ai-assistant__preflight-grid li.is-not_evaluated > span { color: var(--color-warning); }
+.doctor-ai-assistant__evaluation-boundary { padding: var(--space-2); display: grid; grid-template-columns: 6rem minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-2); border-left: 3px solid var(--color-warning); background: var(--color-surface-subtle); }
+.doctor-ai-assistant__evaluation-boundary span { color: var(--color-text-secondary); font-size: var(--font-size-small); line-height: 1.45; }
 .doctor-ai-assistant__audit-note { display: block; margin-top: var(--space-3); color: var(--color-text-secondary); }
-
-@media (max-width: 47.5rem) {
-  .doctor-workspace-drawer.is-assistant { width: calc(100% - 3.5rem); }
-  .doctor-ai-assistant__guardrail { grid-template-columns: 2rem minmax(0, 1fr); }
-  .doctor-ai-assistant__guardrail .ui-status-badge { grid-column: 2; justify-self: start; }
-  .doctor-ai-assistant__record article { grid-template-columns: 1fr; }
-  .doctor-ai-assistant__plans article { grid-template-columns: 1fr; }
-}
+.doctor-ai-assistant__knowledge { padding: var(--space-3); display: grid; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.doctor-ai-assistant__knowledge header strong, .doctor-ai-assistant__knowledge header small { display: block; }
+.doctor-ai-assistant__knowledge header small { margin-top: .1rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__knowledge-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2); }
+.doctor-ai-assistant__knowledge-search input { min-width: 0; }
+.doctor-ai-assistant__knowledge-results { display: grid; gap: var(--space-2); }
+.doctor-ai-assistant__knowledge-results article { min-width: 0; padding: var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
+.doctor-ai-assistant__knowledge-title { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-2); }
+.doctor-ai-assistant__knowledge-results p { margin: var(--space-1) 0; color: var(--color-text-secondary); line-height: 1.5; white-space: pre-wrap; }
+.doctor-ai-assistant__knowledge-results small { color: var(--color-text-tertiary); }
+.doctor-ai-assistant__knowledge-results .ui-empty-state { min-height: 8rem; }

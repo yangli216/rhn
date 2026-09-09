@@ -27,6 +27,8 @@ rhn:
   crypto:
     active-provider: development-jca
     enforce-compliance: false
+    secret-encryption-key: cmhuLXRlc3QtZGV2ZWxvcG1lbnQta2V5LTIwMjYhISE=
+    secret-encryption-key-id: test-development
   eventing:
     outbox:
       enabled: false

@@ -18,6 +18,10 @@ public interface OutpatientPrescriptionInventoryDirectory {
      */
     List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId, Long departmentId, String query);
 
+    /** Exact, read-only availability at the pharmacy selected by the current outpatient routing rules. */
+    MedicationAvailabilityView inspectMedicationAvailability(Long tenantId, Long organizationId, Long departmentId,
+                                                              Long catalogItemId, Long packageId);
+
     /**
      * 门诊处方提交时，针对路由药房执行库存预留冻结。
      */
@@ -65,6 +69,19 @@ public interface OutpatientPrescriptionInventoryDirectory {
             String packageUnitName,
             BigDecimal packageFactor,
             List<MedicationProductView> products
+    ) {}
+
+    record MedicationAvailabilityView(
+            boolean routeConfigured,
+            Long stockSiteId,
+            String stockSiteName,
+            boolean stockItemConfigured,
+            Long stockItemId,
+            Long effectivePackageId,
+            String packageUnitCode,
+            BigDecimal packageFactor,
+            BigDecimal availableBaseQuantity,
+            BigDecimal availablePackageQuantity
     ) {}
 
     record PrescriptionFreezeCommand(
