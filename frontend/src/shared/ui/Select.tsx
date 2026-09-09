@@ -39,6 +39,7 @@ interface SelectBaseProps {
   noResultsText?: string
   pinyinSearch?: boolean
   showValue?: boolean
+  leafOnly?: boolean
   popoverMinWidth?: number
   openOnFocus?: boolean
   onSelectionCommit?: (option?: SelectOption) => void
@@ -79,6 +80,7 @@ export function Select(props: SelectProps) {
     noResultsText = '未找到匹配的选项',
     pinyinSearch = true,
     showValue = false,
+    leafOnly = false,
     openOnFocus = false,
     onSelectionCommit,
     'aria-label': ariaLabel,
@@ -111,6 +113,13 @@ export function Select(props: SelectProps) {
   const valueSet = useMemo(() => new Set(values), [values])
   const selectedOptions = options.filter((option) => valueSet.has(option.value))
   const hierarchical = options.some((option) => option.parentValue)
+  const parentValueSet = useMemo(() => {
+    const set = new Set<string>()
+    for (const option of options) {
+      if (option.parentValue) set.add(option.parentValue)
+    }
+    return set
+  }, [options])
   const treeEntries = useMemo(() => buildSelectTree(options, query, pinyinSearch, expandedValues),
     [expandedValues, options, pinyinSearch, query])
   const visibleOptions = treeEntries.map((entry) => entry.option)
@@ -224,6 +233,15 @@ export function Select(props: SelectProps) {
 
   function changeSelection(option: SelectOption) {
     if (option.disabled) return
+    if (leafOnly && hierarchical && parentValueSet.has(option.value)) {
+      setExpandedValues((current) => {
+        const next = new Set(current)
+        if (next.has(option.value)) next.delete(option.value)
+        else next.add(option.value)
+        return next
+      })
+      return
+    }
     if (multiple) {
       const nextValues = valueSet.has(option.value)
         ? values.filter((value) => value !== option.value)
@@ -417,15 +435,16 @@ export function Select(props: SelectProps) {
           {query.trim() ? noResultsText : emptyText}
         </div>}
         {treeEntries.map(({ option, depth, hasChildren }, index) => {
-          const selected = valueSet.has(option.value)
+          const isLeafOnlyParent = Boolean(leafOnly && hierarchical && hasChildren)
+          const selected = !isLeafOnlyParent && valueSet.has(option.value)
           const optionButton = <button
             key={option.value}
             id={`${listboxId}-option-${index}`}
             ref={(element) => { optionRefs.current[index] = element }}
             type="button"
             role={hierarchical ? 'treeitem' : 'option'}
-            className={`ui-select__option ${selected ? 'is-selected' : ''} ${index === activeIndex ? 'is-active' : ''}`}
-            aria-selected={selected}
+            className={`ui-select__option ${selected ? 'is-selected' : ''} ${index === activeIndex ? 'is-active' : ''} ${isLeafOnlyParent ? 'is-leaf-only-parent' : ''}`}
+            aria-selected={isLeafOnlyParent ? undefined : selected}
             aria-level={hierarchical ? depth + 1 : undefined}
             aria-expanded={hierarchical && hasChildren ? expandedValues.has(option.value) : undefined}
             disabled={option.disabled}

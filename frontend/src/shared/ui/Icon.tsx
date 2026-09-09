@@ -27,6 +27,7 @@ export type IconName =
   | 'info'
   | 'lock'
   | 'menu'
+  | 'mic'
   | 'minimize'
   | 'moon'
   | 'notification'
@@ -82,6 +83,7 @@ function iconPath(name: IconName) {
     case 'info': return <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>
     case 'lock': return <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>
     case 'menu': return <><path d="M4 7h16M4 12h16M4 17h16" /></>
+    case 'mic': return <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /><line x1="8" x2="16" y1="22" y2="22" /></>
     case 'minimize': return <><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7" /></>
     case 'moon': return <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
     case 'notification': return <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" /></>

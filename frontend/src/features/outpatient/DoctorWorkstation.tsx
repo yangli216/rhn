@@ -623,8 +623,6 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
           />
         )}
         <div className="doctor-context-actions__buttons">
-          <Button size="sm" variant="secondary" disabled={draftState.busy || aiAdoptionBusy}
-            title="返回候诊队列并选择其他患者" onClick={() => requestAction('queue')}>切换患者</Button>
           {editing && encounter.status === 'IN_PROGRESS' && <>
             <Button
               size="sm"
@@ -1788,7 +1786,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const [diagnosisHovered, setDiagnosisHovered] = useState(false)
 
   useEffect(() => {
-    if (!diagnosisComposerOpen) return
+    if (!diagnosisComposerOpen && diagnoses.length > 0) return
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const isInsideRow = diagnosisComposerRef.current?.contains(target)
@@ -1796,14 +1794,16 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
       )
       if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
-        setDiagnosisComposerOpen(false)
+        if (diagnoses.length > 0) {
+          setDiagnosisComposerOpen(false)
+        }
         setDiagnosisSearch(undefined)
         setDiagnosisError('')
       }
     }
     window.document.addEventListener('pointerdown', handlePointerDown)
     return () => window.document.removeEventListener('pointerdown', handlePointerDown)
-  }, [diagnosisComposerOpen, diagnosisSearch])
+  }, [diagnosisComposerOpen, diagnosisSearch, diagnoses.length])
   const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
   const [orderBusy, setOrderBusy] = useState(false)
   const [diagnosisError, setDiagnosisError] = useState('')
@@ -2163,6 +2163,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     return () => onRegisterSaveDraft?.(null)
   }, [handleRecordSubmit, onRegisterSaveDraft])
   const signed = document?.status === 'SIGNED'
+  const isDiagnosisEmpty = diagnoses.length === 0
+  const showDiagnosisComposer = editing && !signed && (diagnosisComposerOpen || isDiagnosisEmpty)
   const addDiagnosis = (candidate?: ClinicalResourceOption<DiseaseConcept>) => {
     const selected = candidate?.raw ?? diagnosisSearch?.raw
     if (!selected) { setDiagnosisError('请先检索并选择诊断'); return }
@@ -2588,7 +2590,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                 </div>
               })}
 
-              {editing && !signed && diagnosisComposerOpen && (
+              {showDiagnosisComposer && (
                 <div ref={diagnosisComposerRef} className="doctor-diagnosis-row is-active-composer" role="row"
                   onBlur={(event) => {
                     const next = event.relatedTarget as Node | null
@@ -2598,7 +2600,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                       (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover, .ui-popconfirm')
                     )
                     if (!isInsideRow && !isInsidePopover && !diagnosisSearch) {
-                      setDiagnosisComposerOpen(false)
+                      if (!isDiagnosisEmpty) {
+                        setDiagnosisComposerOpen(false)
+                      }
                       setDiagnosisSearch(undefined)
                       setDiagnosisError('')
                     }
@@ -2607,7 +2611,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                     if (e.key === 'Escape' && !diagnosisSearch) {
                       e.preventDefault()
                       setDiagnosisSearch(undefined)
-                      setDiagnosisComposerOpen(false)
+                      if (!isDiagnosisEmpty) {
+                        setDiagnosisComposerOpen(false)
+                      }
                       setDiagnosisError('')
                     } else if (e.key === 'Enter' && diagnosisSearch && !e.nativeEvent.isComposing) {
                       e.preventDefault()
@@ -2632,7 +2638,6 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                     <div className="doctor-diag-composer-search">
                       <ClinicalResourceSearch<DiseaseConcept> id="doctor-diagnosis-composer-search" api={api}
                         resource="diagnosis" value={diagnosisSearch}
-                        defaultOpen
                         filterResult={(item) => !diagnosisDomainFilter || item.sdDiagnosisDomain === diagnosisDomainFilter}
                         disabled={signed}
                         placeholder={diagnoses.length === 0 ? "检索并选择主要诊断 (拼音/编码/名称，回车连续录入)" : "检索并选择次要诊断 (支持拼音/编码/名称，回车连续录入)"}
@@ -2653,15 +2658,17 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                     ) : (
                       <span className="doctor-diag-hint">已开立 {diagnoses.length} 项，支持连续盲打</span>
                     )}
-                    <Button type="button" size="sm" variant="text" onClick={() => {
-                      setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
-                    }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
+                    {!isDiagnosisEmpty && (
+                      <Button type="button" size="sm" variant="text" onClick={() => {
+                        setDiagnosisSearch(undefined); setDiagnosisComposerOpen(false); setDiagnosisError('')
+                      }} title="退出诊断录入" aria-label="退出诊断录入"><Icon name="close" /></Button>
+                    )}
                   </span>
                 </div>
               )}
             </div>
 
-            {editing && !signed && !diagnosisComposerOpen && (
+            {editing && !signed && !showDiagnosisComposer && (
               <div className="doctor-diagnosis-row is-launcher" role="row" onClick={() => {
                 setDiagnosisComposerOpen(true)
               }}>

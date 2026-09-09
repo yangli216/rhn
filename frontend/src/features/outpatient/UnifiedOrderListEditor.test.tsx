@@ -108,6 +108,14 @@ describe('UnifiedOrderListEditor', () => {
     )
   }
 
+  const ensureComposerOpen = async (user?: ReturnType<typeof userEvent.setup>) => {
+    const launcher = screen.queryByRole('button', { name: '新增医嘱' })
+    if (launcher) {
+      if (user) await user.click(launcher)
+      else await userEvent.click(launcher)
+    }
+  }
+
   it('renders medication product details in separate readable columns', () => {
     renderComponent({ medicationDrafts: [mockMedicationDraft] })
 
@@ -128,15 +136,14 @@ describe('UnifiedOrderListEditor', () => {
       id: 'med-request-1', status: 'ACTIVE', medicationType: 'WESTERN',
       itemName: '阿莫西林胶囊（已开立产品）', itemCode: 'P001',
       medicationName: '阿莫西林胶囊', preparationSpec: '0.25g', packageSpec: '0.25g*24粒/盒',
-      manufacturerName: '示范制药有限公司', unitPrice: 18.8, currencyCode: 'CNY',
-      doseValue: 0.5, doseUnit: 'g', routeName: '口服', frequencyCode: 'TID',
-      durationValue: 3, durationUnit: '天', quantity: 1, quantityUnit: 'BOX',
-      skinTestRequired: false, authoredAt: '2026-09-02T10:00:00Z',
+      manufacturerName: '示范制药有限公司', packageQuantity: 3, packageUnitName: '盒',
+      dose: 0.5, doseUnit: 'g', routeName: '口服', frequencyCode: 'TID',
+      pricingRequired: true, unitPrice: 18.8,
     } as never] })
 
     const row = screen.getByRole('row', { name: /阿莫西林胶囊（已开立产品）/ })
+    expect(within(row).getByText('阿莫西林胶囊（已开立产品）')).toBeInTheDocument()
     expect(within(row).getByText('0.25g*24粒/盒')).toBeInTheDocument()
-    expect(within(row).queryByText('0.25g')).not.toBeInTheDocument()
     expect(within(row).getByText('示范制药有限公司')).toBeInTheDocument()
     expect(within(row).getByText('¥18.80')).toBeInTheDocument()
     expect(within(row).getByText('已开立')).toBeInTheDocument()
@@ -166,15 +173,21 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getAllByText('¥25.00').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('keeps the composer friendly while idle and opens it with one click', async () => {
+  it('defaults to inserting an empty composer row when order list is empty', async () => {
     renderComponent()
 
-    expect(screen.getByRole('button', { name: '新增医嘱' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('加入医嘱')).not.toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: '新增医嘱' }))
+    expect(screen.queryByRole('button', { name: '新增医嘱' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
     expect(screen.getByText('搜索药品/项目名称或拼音')).toBeInTheDocument()
+  })
+
+  it('shows add order launcher when existing orders are present and composer is closed', async () => {
+    renderComponent({ medicationDrafts: [mockMedicationDraft] })
+
+    const addOrderLauncher = screen.getByRole('button', { name: '新增医嘱' })
+    expect(addOrderLauncher).toBeInTheDocument()
+    await userEvent.click(addOrderLauncher)
+    expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
   })
 
   it('keeps reading mode focused on persisted order content', () => {
@@ -189,9 +202,7 @@ describe('UnifiedOrderListEditor', () => {
     renderComponent()
 
     expect(screen.getByRole('table', { name: '本次医嘱连续录入列表' })).toBeInTheDocument()
-    const addOrderLauncher = screen.getByRole('button', { name: '新增医嘱' })
-    expect(addOrderLauncher.closest('.doctor-unified-order-row')).toHaveClass('is-launcher')
-    await userEvent.click(addOrderLauncher)
+    await ensureComposerOpen()
     expect(screen.getByLabelText('医嘱类型')).toBeInTheDocument()
     expect(screen.getByLabelText('总量')).toBeInTheDocument()
     // 医嘱项目未调入时，其它编辑框不允许操作
@@ -237,7 +248,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([medication] as never)
     renderComponent({ setMedicationDrafts })
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫')
     await user.click(await screen.findByRole('option', { name: /阿莫西林胶囊/ }))
@@ -298,7 +309,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
     renderComponent()
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '葡萄糖')
     await user.click(await screen.findByRole('option', { name: /葡萄糖注射液/ }))
@@ -339,7 +350,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
     renderComponent()
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '氯化钠')
     await user.click(await screen.findByRole('option', { name: /氯化钠注射液/ }))
@@ -370,7 +381,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([herb] as never)
     renderComponent({ setMedicationDrafts })
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '医嘱类型' }))
     await user.click(await screen.findByRole('option', { name: '草药' }))
     await user.click(screen.getByRole('combobox', { name: '搜索中草药名称/拼音' }))
@@ -535,8 +546,8 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByText(/75盒/)).not.toBeInTheDocument()
   })
 
-  it('collapses unentered order composer back to launcher on outside blur', async () => {
-    renderComponent()
+  it('collapses unentered order composer back to launcher on outside blur when orders exist', async () => {
+    renderComponent({ medicationDrafts: [mockMedicationDraft] })
 
     await userEvent.click(screen.getByRole('button', { name: '新增医嘱' }))
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
@@ -546,12 +557,21 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByLabelText('加入医嘱')).not.toBeInTheDocument()
   })
 
+  it('preserves empty composer row on outside blur when order list is empty', async () => {
+    renderComponent()
+
+    expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
+    fireEvent.pointerDown(document.body)
+    expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '新增医嘱' })).not.toBeInTheDocument()
+  })
+
   it('switches between smart mode and prefix mode in popover and persists user choice to localStorage', async () => {
     const user = userEvent.setup()
     localStorage.clear()
     renderComponent()
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
 
     // Popover 展开后默认智能模式
@@ -585,7 +605,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.masterData.services).mockResolvedValue([labItem] as never)
     renderComponent({ setServiceDrafts })
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '血常规')
     await user.click(await screen.findByRole('option', { name: /血常规五分类/ }))
@@ -624,7 +644,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([orderSet] as never)
     renderComponent({ setServiceDrafts })
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     // 在 popover 切换至前缀模式
     await user.click(screen.getByRole('tab', { name: /前缀模式/ }))
@@ -662,7 +682,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([medication] as never)
     renderComponent({})
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     const input = screen.getByPlaceholderText('输入通用名、编码或别名')
     await user.type(input, '头孢')
@@ -696,7 +716,7 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([skintestMed] as never)
     renderComponent({ setMedicationDrafts })
 
-    await user.click(screen.getByRole('button', { name: '新增医嘱' }))
+    await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '青霉素')
     await user.click(await screen.findByRole('option', { name: /青霉素V钾片/ }))

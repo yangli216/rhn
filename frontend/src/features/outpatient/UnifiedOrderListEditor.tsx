@@ -374,6 +374,9 @@ export function UnifiedOrderListEditor({
     ...medicationDrafts.map((value) => ({ kind: 'medication' as const, value })),
   ].sort((left, right) => bySequence(left.value, right.value))
 
+  const hasOrders = savedEntries.length > 0 || draftEntries.length > 0
+  const isComposerActive = !readOnly && (composerOpen || !hasOrders)
+
   function changeType(value: OrderEntryType) {
     setEntryType(value)
     setMedicationEntry(emptyMedicationEntry())
@@ -390,13 +393,15 @@ export function UnifiedOrderListEditor({
 
   function closeComposer() {
     changeType('ALL')
-    setComposerOpen(false)
+    if (hasOrders) {
+      setComposerOpen(false)
+    }
   }
 
   const hasEnteredOrder = isMedication ? Boolean(medicationEntry.medication) : Boolean(service)
 
   useEffect(() => {
-    if (!composerOpen) return
+    if (!composerOpen && hasOrders) return
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node
       const isInsideRow = composerRef.current?.contains(target)
@@ -404,12 +409,16 @@ export function UnifiedOrderListEditor({
         (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
       )
       if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
-        closeComposer()
+        if (hasOrders) {
+          closeComposer()
+        } else {
+          setValidationError('')
+        }
       }
     }
     document.addEventListener('pointerdown', handlePointerDown)
     return () => document.removeEventListener('pointerdown', handlePointerDown)
-  }, [composerOpen, hasEnteredOrder])
+  }, [composerOpen, hasEnteredOrder, hasOrders])
 
   function selectMedication(option?: ClinicalResourceOption<MedicationKnowledge>) {
     if (!option) {
@@ -802,9 +811,9 @@ export function UnifiedOrderListEditor({
                 onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
             })())}
 
-      {!readOnly && composerOpen && (
+      {!readOnly && isComposerActive && (
         <>
-          <div ref={composerRef} className={`doctor-unified-inline-composer is-${entryType.toLowerCase()}`} role="row"
+          <div ref={composerRef} className={`doctor-unified-inline-composer is-${entryType.toLowerCase()}${!hasEnteredOrder ? ' is-unselected' : ''}`} role="row"
             onBlur={(event) => {
               const next = event.relatedTarget as Node | null
               if (!next) return
@@ -813,13 +822,22 @@ export function UnifiedOrderListEditor({
                 (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
               )
               if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
-                closeComposer()
+                if (hasOrders) {
+                  closeComposer()
+                } else {
+                  setValidationError('')
+                }
               }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Escape' && !hasEnteredOrder) {
                 e.preventDefault()
-                closeComposer()
+                if (hasOrders) {
+                  closeComposer()
+                } else {
+                  changeType('ALL')
+                  setValidationError('')
+                }
               }
             }}>
             <div className="doctor-inline-order-field doctor-inline-order-type">
@@ -845,7 +863,6 @@ export function UnifiedOrderListEditor({
               <ClinicalResourceSearch
                 id={`doctor-unified-${entryType}-resource`}
                 api={api}
-                defaultOpen={!hasEnteredOrder}
                 resource={entryType === 'ALL' ? 'mixed' : (isMedication ? 'medication' : 'service')}
                 searchMode={searchMode}
                 onSearchModeChange={changeSearchMode}
@@ -1182,7 +1199,7 @@ export function UnifiedOrderListEditor({
       )}
       </div>
 
-      {!readOnly && !composerOpen && !editingDraft && (
+      {!readOnly && !isComposerActive && !editingDraft && (
         <div className="doctor-unified-order-row is-launcher" role="row" onClick={openComposer}>
           <div className="doctor-unified-launcher-cell">
             <button type="button" className="doctor-table-launcher-btn" aria-label="新增医嘱" onClick={(e) => {

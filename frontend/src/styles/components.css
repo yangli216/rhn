@@ -656,6 +656,8 @@ input[type="checkbox"]:disabled {
 .ui-select__option-trailing svg { flex: 0 0 auto; }
 .ui-select__tree-row { position: relative; min-width: 0; }
 .ui-select__tree-row .ui-select__option { padding-left: calc(var(--space-3) + (var(--select-tree-depth) * 1.25rem) + 1.5rem); }
+.ui-select__option.is-leaf-only-parent { font-weight: var(--font-weight-medium); color: var(--color-text-primary); }
+.ui-select__option.is-leaf-only-parent:not(:disabled):hover { background: var(--color-surface-muted); }
 .ui-select__tree-toggle {
   position: absolute;
   z-index: 1;

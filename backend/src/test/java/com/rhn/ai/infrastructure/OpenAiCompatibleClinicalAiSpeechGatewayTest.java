@@ -66,20 +66,58 @@ class OpenAiCompatibleClinicalAiSpeechGatewayTest {
     }
 
     @Test
-    void rejectsNonSuccessfulProviderResponseWithoutLeakingBody() throws Exception {
-        startServer(exchange -> {
-            byte[] response = "provider-secret-error".getBytes(StandardCharsets.UTF_8);
-            exchange.sendResponseHeaders(429, response.length);
+    void sendsDashScopeAsrRequestAndPollsTranscript() throws Exception {
+        AtomicReference<String> asyncHeader = new AtomicReference<>();
+        AtomicReference<String> authorization = new AtomicReference<>();
+        AtomicReference<String> submitBody = new AtomicReference<>();
+
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        int port = server.getAddress().getPort();
+
+        server.createContext("/services/audio/asr/transcription", exchange -> {
+            asyncHeader.set(exchange.getRequestHeaders().getFirst("X-DashScope-Async"));
+            authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
+            submitBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] response = "{\"output\":{\"task_id\":\"task-999\",\"task_status\":\"PENDING\"}}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
         });
 
-        ClinicalAiModelException error = assertThrows(ClinicalAiModelException.class,
-                () -> new OpenAiCompatibleClinicalAiSpeechGateway(settings(null), jsonCodec).transcribe(
-                        new SpeechRequest("audio/wav", "clinical-dictation.wav", new byte[]{1}, "zh")));
+        server.createContext("/tasks/task-999", exchange -> {
+            byte[] response = ("{\"output\":{\"task_id\":\"task-999\",\"task_status\":\"SUCCEEDED\","
+                    + "\"results\":[{\"transcription_url\":\"http://127.0.0.1:" + port + "/results/trans-999\"}]}}")
+                    .getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
 
-        assertEquals("语音转写服务返回非成功状态：429", error.getMessage());
-        assertFalse(error.getMessage().contains("provider-secret-error"));
+        server.createContext("/results/trans-999", exchange -> {
+            byte[] response = "{\"transcripts\":[{\"text\":\"患者发热伴咽痛两日。\"}]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+        server.start();
+
+        ClinicalAssistantSettings settings = new ClinicalAssistantSettings("MODEL", "test-provider", "test-model", Duration.ofMinutes(30),
+                "http://127.0.0.1:9/v1/chat/completions", "dashscope-secret", Duration.ofSeconds(5), 1200,
+                "http://127.0.0.1:" + port + "/services/audio/asr/transcription",
+                "qwen3-asr-flash", 20 * 1024 * 1024, "", "", 5);
+
+        var gateway = new OpenAiCompatibleClinicalAiSpeechGateway(settings, jsonCodec);
+        String result = gateway.transcribe(new SpeechRequest(
+                "audio/wav", "test.wav", new byte[]{1, 2, 3}, "zh"));
+
+        assertEquals("患者发热伴咽痛两日。", result);
+        assertEquals("enable", asyncHeader.get());
+        assertEquals("Bearer dashscope-secret", authorization.get());
+        assertTrue(submitBody.get().contains("qwen3-asr-flash-filetrans"));
+        assertTrue(submitBody.get().contains("data:audio/wav;base64,"));
     }
 
     private ClinicalAssistantSettings settings(String apiKey) {

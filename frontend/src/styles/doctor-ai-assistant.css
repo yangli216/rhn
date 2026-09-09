@@ -25,6 +25,46 @@
 .doctor-ai-assistant__voice-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
 .doctor-ai-assistant__voice-head strong, .doctor-ai-assistant__voice-head small { display: block; }
 .doctor-ai-assistant__voice-head small { margin-top: .1rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-assistant__voice-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+.doctor-ai-assistant__voice-actions .doctor-ai-voice-active-btn {
+  background: var(--color-brand-primary);
+  color: #fff;
+  animation: voice-pulse 1.5s infinite ease-in-out;
+}
+@keyframes voice-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4); }
+  70% { box-shadow: 0 0 0 8px rgba(14, 165, 233, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+}
+.doctor-ai-assistant__interim-preview {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2-5);
+  background: color-mix(in srgb, var(--color-brand-soft) 80%, white);
+  border: 1px dashed var(--color-brand-primary);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+  color: var(--color-brand-strong);
+}
+.doctor-ai-assistant__interim-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  animation: interim-blink 1s infinite alternate ease-in-out;
+  flex-shrink: 0;
+}
+@keyframes interim-blink {
+  from { opacity: 0.3; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.15); }
+}
+.doctor-ai-assistant__interim-text {
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .doctor-ai-assistant__voice textarea { min-height: 5.5rem; }
 .doctor-ai-assistant__prompt .ui-field { margin: 0; }
 .doctor-ai-assistant__prompt textarea { min-height: 4.25rem; resize: vertical; }

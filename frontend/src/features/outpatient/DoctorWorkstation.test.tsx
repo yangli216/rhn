@@ -330,9 +330,9 @@ describe('DoctorWorkstation reception flow', () => {
 
     await user.click(await screen.findByRole('button', { name: '查看 张建国' }))
     expect(await screen.findByText('阅读状态')).toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: '切换患者' }))
+    expect(screen.queryByRole('button', { name: '切换患者' })).not.toBeInTheDocument()
 
-    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '进入编辑' }))
     expect(await screen.findByPlaceholderText('症状、持续时间及本次就诊原因')).toBeInTheDocument()
     expect(screen.queryByText('编辑状态')).not.toBeInTheDocument()
     expect(api.encounters.start).not.toHaveBeenCalled()
@@ -527,9 +527,11 @@ describe('DoctorWorkstation reception flow', () => {
     const tempInput = screen.getByLabelText('体温')
     await user.type(tempInput, '36.8')
 
-    // 3. 录入主要诊断
-    const addDiagBtn = screen.getByRole('button', { name: /新增诊断/ })
-    await user.click(addDiagBtn)
+    // 3. 录入主要诊断（空记录时默认已插入空行，无需手动点击新增诊断）
+    const addDiagBtn = screen.queryByRole('button', { name: /新增诊断/ })
+    if (addDiagBtn) {
+      await user.click(addDiagBtn)
+    }
     const diagTrigger = await screen.findByText(/检索并选择主要诊断/)
     await user.click(diagTrigger)
     const searchInput = await screen.findByPlaceholderText('输入诊断名称、编码或拼音码')

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import {
   errorMessage, type ClinicalAiConfigurationScope, type ClinicalAiConfigurationSetting,
-  type ClinicalAiConfigurationUpdate, type RhnApi,
+  type ClinicalAiConfigurationTestResult, type ClinicalAiConfigurationUpdate, type RhnApi,
 } from '../../shared/rhnApi'
 import {
   Alert, Button, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead, StatusBadge, Switch, Tabs
@@ -98,6 +98,70 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
   const [operationError, setOperationError] = useState('')
   const [presetMenuOpen, setPresetMenuOpen] = useState(false)
   const [copiedKey, setCopiedKey] = useState(false)
+  const [testResult, setTestResult] = useState<Record<string, ClinicalAiConfigurationTestResult | null>>({})
+  const [governanceCollapsed, setGovernanceCollapsed] = useState(true)
+
+  const testModel = useMutation({
+    mutationFn: () => api.clinicalAi.testAdministrationConfiguration({
+      scope,
+      target: 'MODEL',
+      endpoint: typeof draft['endpoint'] === 'string' ? draft['endpoint'] : undefined,
+      model: typeof draft['model'] === 'string' ? draft['model'] : undefined,
+      secretValue: secrets['api-key'] || undefined,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+    }),
+    onSuccess: (res) => {
+      setTestResult((prev) => ({ ...prev, MODEL: res }))
+      if (res.success) {
+        setTimeout(() => {
+          setTestResult((prev) => (prev.MODEL?.success ? { ...prev, MODEL: null } : prev))
+        }, 3500)
+      }
+    },
+    onError: (err) => {
+      setTestResult((prev) => ({
+        ...prev,
+        MODEL: {
+          target: 'MODEL',
+          success: false,
+          statusCode: 0,
+          latencyMs: 0,
+          message: `测试请求执行失败：${errorMessage(err)}`,
+        },
+      }))
+    },
+  })
+
+  const testSpeech = useMutation({
+    mutationFn: () => api.clinicalAi.testAdministrationConfiguration({
+      scope,
+      target: 'SPEECH',
+      endpoint: typeof draft['speech-endpoint'] === 'string' ? draft['speech-endpoint'] : undefined,
+      model: typeof draft['speech-model'] === 'string' ? draft['speech-model'] : undefined,
+      secretValue: secrets['api-key'] || undefined,
+      timeoutSeconds: typeof draft['request-timeout-seconds'] === 'number' ? draft['request-timeout-seconds'] : 15,
+    }),
+    onSuccess: (res) => {
+      setTestResult((prev) => ({ ...prev, SPEECH: res }))
+      if (res.success) {
+        setTimeout(() => {
+          setTestResult((prev) => (prev.SPEECH?.success ? { ...prev, SPEECH: null } : prev))
+        }, 3500)
+      }
+    },
+    onError: (err) => {
+      setTestResult((prev) => ({
+        ...prev,
+        SPEECH: {
+          target: 'SPEECH',
+          success: false,
+          statusCode: 0,
+          latencyMs: 0,
+          message: `测试请求执行失败：${errorMessage(err)}`,
+        },
+      }))
+    },
+  })
 
   const query = useQuery({
     queryKey: ['clinical-ai-administration', scope],
@@ -135,6 +199,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
     setScope(next)
     setFeedback('')
     setOperationError('')
+    setTestResult({})
   }
 
   function resetOverride(setting: ClinicalAiConfigurationSetting) {
@@ -148,6 +213,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
       .map((item) => [item.key, normalizeValue(item)])))
     setSecrets({})
     setResetKeys(new Set())
+    setTestResult({})
     setFeedback('已放弃未保存的修改，恢复原配置值')
   }
 
@@ -198,7 +264,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
         ? 'READY_MODEL'
         : 'NEEDS_CONFIG'
 
-  return <>
+  return <div className="ai-config-page">
     <PageHeader
       compact
       eyebrow="系统配置 · 智能引擎"
@@ -417,42 +483,185 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                     </div>
                   )}
 
+                  {group === '临床治理' && (
+                    <div className="ai-config-group-actions">
+                      <span className="ai-config-governance-summary-badge">
+                        建议: {draft['suggestion-ttl-minutes'] ?? 30}分钟 · 灰度: {draft['rollout-percentage'] ?? 100}%
+                      </span>
+                      <button
+                        type="button"
+                        className="ai-config-collapse-btn"
+                        onClick={() => setGovernanceCollapsed(!governanceCollapsed)}
+                        title={governanceCollapsed ? '展开微调低频临床治理参数' : '收起折叠'}
+                      >
+                        <Icon name={governanceCollapsed ? 'chevron-down' : 'chevron-up'} />
+                        <span>{governanceCollapsed ? '展开选项' : '收起'}</span>
+                      </button>
+                    </div>
+                  )}
+
                   {group === '模型服务' && (
-                    <div className="ai-config-preset-dropdown-wrap">
+                    <div className="ai-config-group-actions">
+                      {testResult.MODEL?.success && (
+                        <span className="ai-config-test-success-pill" title={testResult.MODEL.message}>
+                          <Icon name="check" />
+                          <span>已连通 · {testResult.MODEL.latencyMs}ms</span>
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        className="ai-config-test-btn"
+                        disabled={testModel.isPending}
+                        onClick={() => testModel.mutate()}
+                        title="向模型服务地址发送测试探针，实时检测连通性、密钥与模型可用性"
+                      >
+                        <Icon name={testModel.isPending ? 'refresh' : 'sparkles'} />
+                        <span>{testModel.isPending ? '正在测试…' : '测试模型连接'}</span>
+                      </button>
+
+                      <div className="ai-config-preset-dropdown-wrap">
+                        <button
+                          type="button"
+                          className="ai-config-preset-btn"
+                          onClick={() => setPresetMenuOpen(!presetMenuOpen)}
+                          aria-expanded={presetMenuOpen}
+                        >
+                          <Icon name="sparkles" />
+                          <span>常用模型预设</span>
+                          <Icon name="chevron-down" />
+                        </button>
+                        {presetMenuOpen && (
+                          <div className="ai-config-preset-menu" role="menu">
+                            <div className="ai-config-preset-menu-header">选择常用模型模板一键填充：</div>
+                            {MODEL_PRESETS.map((preset) => (
+                              <button
+                                type="button"
+                                key={preset.name}
+                                className="ai-config-preset-item"
+                                onClick={() => applyModelPreset(preset)}
+                              >
+                                <div className="ai-config-preset-item__title">{preset.name}</div>
+                                <div className="ai-config-preset-item__desc">{preset.desc}</div>
+                                <code className="ai-config-preset-item__endpoint">{preset.endpoint}</code>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {group === '语音能力' && isGroupEnabled && (
+                    <div className="ai-config-group-actions">
+                      {testResult.SPEECH?.success && (
+                        <span className="ai-config-test-success-pill" title={testResult.SPEECH.message}>
+                          <Icon name="check" />
+                          <span>千问已连通 · {testResult.SPEECH.latencyMs}ms</span>
+                        </span>
+                      )}
+
+                      <button
+                        type="button"
+                        className="ai-config-test-btn"
+                        disabled={testSpeech.isPending}
+                        onClick={() => testSpeech.mutate()}
+                        title="向语音转写服务地址发送测试探针，检测连通性与密钥是否正确"
+                      >
+                        <Icon name={testSpeech.isPending ? 'refresh' : 'face'} />
+                        <span>{testSpeech.isPending ? '正在测试…' : '测试语音连接'}</span>
+                      </button>
+
                       <button
                         type="button"
                         className="ai-config-preset-btn"
-                        onClick={() => setPresetMenuOpen(!presetMenuOpen)}
-                        aria-expanded={presetMenuOpen}
+                        onClick={() => {
+                          setDraft((current) => ({
+                            ...current,
+                            'speech-endpoint': 'https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription',
+                            'speech-model': 'qwen3-asr-flash-filetrans',
+                          }))
+                          setResetKeys((current) => {
+                            const next = new Set(current)
+                            next.delete('speech-endpoint')
+                            next.delete('speech-model')
+                            return next
+                          })
+                          setFeedback('已自动填入【通义千问官方语音】推荐服务地址与模型参数，确认后可点击保存变更')
+                        }}
+                        title="一键填入通义千问官方语音转写服务地址与推荐模型"
                       >
                         <Icon name="sparkles" />
-                        <span>常用模型预设</span>
-                        <Icon name="chevron-down" />
+                        <span>千问推荐配置</span>
                       </button>
-                      {presetMenuOpen && (
-                        <div className="ai-config-preset-menu" role="menu">
-                          <div className="ai-config-preset-menu-header">选择常用模型模板一键填充：</div>
-                          {MODEL_PRESETS.map((preset) => (
-                            <button
-                              type="button"
-                              key={preset.name}
-                              className="ai-config-preset-item"
-                              onClick={() => applyModelPreset(preset)}
-                            >
-                              <div className="ai-config-preset-item__title">{preset.name}</div>
-                              <div className="ai-config-preset-item__desc">{preset.desc}</div>
-                              <code className="ai-config-preset-item__endpoint">{preset.endpoint}</code>
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
               </div>
 
-              {isGroupEnabled ? (
-                <div className="ai-config-fields">
+              {isGroupEnabled && (group !== '临床治理' || !governanceCollapsed) ? (
+                <>
+                  {group === '模型服务' && testResult.MODEL && !testResult.MODEL.success && (
+                    <div className="ai-config-test-banner ai-config-test-banner--error">
+                      <div className="ai-config-test-banner__header">
+                        <div className="ai-config-test-banner__status">
+                          <Icon name="warning" />
+                          <strong>模型连接测试未通过</strong>
+                          <span className="ai-config-test-banner__meta">
+                            {testResult.MODEL.statusCode > 0 && `HTTP ${testResult.MODEL.statusCode} · `}
+                            {testResult.MODEL.latencyMs}ms
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="ai-config-test-banner__close"
+                          onClick={() => setTestResult((prev) => ({ ...prev, MODEL: null }))}
+                          title="关闭诊断结果"
+                        >
+                          <Icon name="close" />
+                        </button>
+                      </div>
+                      <p className="ai-config-test-banner__message">{testResult.MODEL.message}</p>
+                      {testResult.MODEL.rawDetail && (
+                        <details className="ai-config-test-banner__details">
+                          <summary>查看上游原始返回 / 异常明细</summary>
+                          <pre>{testResult.MODEL.rawDetail}</pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+
+                  {group === '语音能力' && testResult.SPEECH && !testResult.SPEECH.success && (
+                    <div className="ai-config-test-banner ai-config-test-banner--error">
+                      <div className="ai-config-test-banner__header">
+                        <div className="ai-config-test-banner__status">
+                          <Icon name="warning" />
+                          <strong>语音连接测试未通过</strong>
+                          <span className="ai-config-test-banner__meta">
+                            {testResult.SPEECH.statusCode > 0 && `HTTP ${testResult.SPEECH.statusCode} · `}
+                            {testResult.SPEECH.latencyMs}ms
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="ai-config-test-banner__close"
+                          onClick={() => setTestResult((prev) => ({ ...prev, SPEECH: null }))}
+                          title="关闭诊断结果"
+                        >
+                          <Icon name="close" />
+                        </button>
+                      </div>
+                      <p className="ai-config-test-banner__message">{testResult.SPEECH.message}</p>
+                      {testResult.SPEECH.rawDetail && (
+                        <details className="ai-config-test-banner__details">
+                          <summary>查看上游原始返回 / 异常明细</summary>
+                          <pre>{testResult.SPEECH.rawDetail}</pre>
+                        </details>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="ai-config-fields">
                   {childSettings.map((setting) =>
                     <SettingField
                       key={setting.key}
@@ -470,7 +679,8 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
                       }}
                       onReset={() => resetOverride(setting)}
                     />)}
-                </div>
+                  </div>
+                </>
               ) : null}
             </section>
           })}
@@ -566,7 +776,7 @@ export function AiConfigurationManagement({ api }: { api: RhnApi }) {
         </div>
       </Panel>
     </div>}
-  </>
+  </div>
 }
 
 function SettingField({ setting, value, secretValue, reset, onChange, onSecretChange, onReset }: {

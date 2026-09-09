@@ -32,6 +32,7 @@ export function DictionarySelect(props: DictionarySelectProps) {
     dictionaryId,
     errorText,
     disabled,
+    leafOnly = true,
     'aria-describedby': ariaDescribedBy,
     ...selectProps
   } = props
@@ -67,6 +68,7 @@ export function DictionarySelect(props: DictionarySelectProps) {
     searchable: true,
     pinyinSearch: true,
     showValue: true,
+    leafOnly,
     loading: dictionary.isFetching,
     loadingText: '正在加载字典项…',
     disabled: disabled || dictionary.isError || !sourceValue,

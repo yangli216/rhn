@@ -46,6 +46,24 @@ export interface ClinicalAiConfigurationUpdate {
   expectedRevision?: number | null
 }
 
+export interface ClinicalAiConfigurationTestInput {
+  scope: ClinicalAiConfigurationScope
+  target: 'MODEL' | 'SPEECH'
+  endpoint?: string
+  model?: string
+  secretValue?: string
+  timeoutSeconds?: number
+}
+
+export interface ClinicalAiConfigurationTestResult {
+  target: 'MODEL' | 'SPEECH'
+  success: boolean
+  statusCode: number
+  latencyMs: number
+  message: string
+  rawDetail?: string | null
+}
+
 export interface ClinicalAiCapabilities {
   mode: ClinicalAiMode
   available: boolean
@@ -230,6 +248,10 @@ export function createClinicalAiApi(client: ApiClient) {
       settings: ClinicalAiConfigurationUpdate[], reason?: string) =>
       client.request<ClinicalAiConfigurationView>('/api/ai/administration/configuration', {
         method: 'PUT', body: JSON.stringify({ scope, settings, reason }),
+      }),
+    testAdministrationConfiguration: (input: ClinicalAiConfigurationTestInput) =>
+      client.request<ClinicalAiConfigurationTestResult>('/api/ai/administration/configuration/test', {
+        method: 'POST', body: JSON.stringify(input),
       }),
     capabilities: () => client.request<ClinicalAiCapabilities>('/api/ai/clinical-assistant/capabilities'),
     generate: (encounterId: string, input: GenerateClinicalAiSuggestionInput) =>

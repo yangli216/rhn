@@ -1,5 +1,7 @@
 package com.rhn.ai.web;
 
+import com.rhn.ai.api.ClinicalAiAdministrationContracts.ConfigurationTestRequest;
+import com.rhn.ai.api.ClinicalAiAdministrationContracts.ConfigurationTestResult;
 import com.rhn.ai.api.ClinicalAiAdministrationContracts.ConfigurationView;
 import com.rhn.ai.api.ClinicalAiAdministrationContracts.Scope;
 import com.rhn.ai.api.ClinicalAiAdministrationContracts.UpdateRequest;
@@ -9,6 +11,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,6 +36,11 @@ public class ClinicalAiAdministrationController {
     @PutMapping
     ConfigurationView update(@Valid @RequestBody UpdateRequest request) {
         return service.update(request);
+    }
+
+    @PostMapping("/test")
+    ConfigurationTestResult test(@Valid @RequestBody ConfigurationTestRequest request) {
+        return service.test(request);
     }
 
     private Scope parseScope(String scope) {

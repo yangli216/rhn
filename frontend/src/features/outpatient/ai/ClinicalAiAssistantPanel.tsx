@@ -76,6 +76,86 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     enabled: Boolean(!historicalView && suggestion?.recommendedPlans.length
       && capabilities.data?.features.includes('PLAN_RECOMMENDATIONS')),
   })
+  const [realtimeListening, setRealtimeListening] = useState(false)
+  const [interimTranscript, setInterimTranscript] = useState('')
+  const speechRecognitionRef = useRef<any>(null)
+
+  const isRealtimeSupported = typeof window !== 'undefined' &&
+    Boolean((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition)
+
+  const toggleRealtimeSpeech = () => {
+    if (realtimeListening) {
+      speechRecognitionRef.current?.stop()
+      setRealtimeListening(false)
+      setInterimTranscript('')
+      return
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    if (!SpeechRecognition) {
+      setLocalError('当前浏览器环境不支持 Web 实时语音听写，可点击右侧【高精录音转写】使用千问模型。')
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.continuous = true
+      recognition.interimResults = true
+      recognition.lang = 'zh-CN'
+      recognition.maxAlternatives = 1
+
+      recognition.onstart = () => {
+        setRealtimeListening(true)
+        setInterimTranscript('')
+        setLocalError('')
+      }
+
+      recognition.onresult = (event: any) => {
+        let finalChunk = ''
+        let interimChunk = ''
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const res = event.results[i]
+          if (res.isFinal) {
+            finalChunk += res[0]?.transcript || ''
+          } else {
+            interimChunk += res[0]?.transcript || ''
+          }
+        }
+        if (finalChunk) {
+          setVoiceTranscript((prev) => (prev ? prev + ' ' : '') + finalChunk.trim())
+          setInterimTranscript('')
+        } else {
+          setInterimTranscript(interimChunk)
+        }
+      }
+
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech') {
+          setLocalError(`实时语音提示：${event.error === 'not-allowed' ? '请在浏览器地址栏允许麦克风权限' : event.error}`)
+        }
+      }
+
+      recognition.onend = () => {
+        setRealtimeListening(false)
+        setInterimTranscript('')
+      }
+
+      speechRecognitionRef.current = recognition
+      recognition.start()
+    } catch (err) {
+      setRealtimeListening(false)
+      setLocalError('启动实时语音识别失败，请检查麦克风权限。')
+    }
+  }
+
+  useEffect(() => {
+    return () => {
+      if (speechRecognitionRef.current) {
+        try { speechRecognitionRef.current.stop() } catch {}
+      }
+    }
+  }, [])
+
   const transcribe = useMutation({
     mutationFn: (audio: Blob) => api.clinicalAi.transcribe(encounter.id, audio),
     onSuccess: (value) => {
@@ -181,7 +261,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       void queryClient.invalidateQueries({ queryKey: historyQueryKey })
     },
   })
-  const actionPending = recording || transcribe.isPending || generate.isPending
+  const actionPending = recording || realtimeListening || transcribe.isPending || generate.isPending
     || adoptDraft.isPending || ignoreSuggestion.isPending
   useEffect(() => {
     onAdoptionBusyChange(adoptDraft.isPending)
@@ -316,13 +396,47 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     {!historicalView && <>
     <section className="doctor-ai-assistant__prompt">
       {capability.features.includes('VOICE_TRANSCRIPTION') && <div className="doctor-ai-assistant__voice">
-        <div className="doctor-ai-assistant__voice-head"><div><strong>语音转写草稿</strong>
-          <small>{recording ? '正在录音' : transcribe.isPending ? '正在转写' : '录音停止后转写，可编辑后再分析'}</small></div>
-          {recording
-            ? <Button size="sm" variant="secondary" onClick={stopRecording}>停止录音</Button>
-            : <Button size="sm" variant="secondary" disabled={actionPending}
-              onClick={() => void startRecording()}>开始录音</Button>}
+        <div className="doctor-ai-assistant__voice-head">
+          <div>
+            <strong>语音转写草稿</strong>
+            <small>
+              {realtimeListening ? '正在实时听写（边说边实时出字）…' : recording ? '正在录音…' : transcribe.isPending ? '正在千问高精转写…' : '支持实时语音听写与千问高精录音转写'}
+            </small>
+          </div>
+          <div className="doctor-ai-assistant__voice-actions">
+            {isRealtimeSupported && (
+              <Button
+                size="sm"
+                variant={realtimeListening ? 'primary' : 'secondary'}
+                className={realtimeListening ? 'doctor-ai-voice-active-btn' : ''}
+                disabled={recording || transcribe.isPending || generate.isPending}
+                onClick={toggleRealtimeSpeech}
+              >
+                <Icon name={realtimeListening ? 'mic' : 'sparkles'} />
+                {realtimeListening ? '停止听写' : '实时听写'}
+              </Button>
+            )}
+            {recording ? (
+              <Button size="sm" variant="secondary" onClick={stopRecording}>停止录音</Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={actionPending}
+                onClick={() => void startRecording()}
+              >
+                <Icon name="face" />
+                {transcribe.isPending ? '转写中…' : '录音转写'}
+              </Button>
+            )}
+          </div>
         </div>
+        {realtimeListening && interimTranscript && (
+          <div className="doctor-ai-assistant__interim-preview">
+            <span className="doctor-ai-assistant__interim-dot" />
+            <span className="doctor-ai-assistant__interim-text">{interimTranscript}</span>
+          </div>
+        )}
         {voiceTranscript && <FormField label="转写文本（可编辑）"><textarea value={voiceTranscript}
           maxLength={10000} disabled={actionPending} onChange={(event) => setVoiceTranscript(event.target.value)} /></FormField>}
       </div>}

@@ -82,4 +82,23 @@ public final class ClinicalAiAdministrationContracts {
             return value == null ? null : value.deepCopy();
         }
     }
+
+    public record ConfigurationTestRequest(
+            @NotNull Scope scope,
+            @NotBlank String target,
+            String endpoint,
+            String model,
+            @Size(max = 500) String secretValue,
+            Integer timeoutSeconds) {
+    }
+
+    public record ConfigurationTestResult(
+            String target,
+            boolean success,
+            int statusCode,
+            long latencyMs,
+            String message,
+            String rawDetail) {
+    }
 }
+
