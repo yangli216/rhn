@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { OutpatientFlowStage, OutpatientFlowStatus, OutpatientFlowVisit } from '../../shared/api/outpatientFlowApi'
@@ -6,8 +6,8 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Panel,
-  StatusBadge, type DateRange, type StatusTone,
+  Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Pagination, Panel,
+  SearchField, StatusBadge, type DateRange, type StatusTone,
 } from '../../shared/ui'
 
 type FlowFilter = 'ACTIVE' | 'DOWNSTREAM' | 'EXCEPTION' | 'COMPLETED' | 'ALL'
@@ -44,6 +44,13 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
   const [dateRange, setDateRange] = useState<DateRange>(getTodayRange)
   const [keyword, setKeyword] = useState('')
   const [filter, setFilter] = useState<FlowFilter>('ACTIVE')
+  const [page, setPage] = useState(0)
+  const [pageSize, setPageSize] = useState(10)
+
+  useEffect(() => {
+    setPage(0)
+  }, [filter, dateRange, keyword])
+
   const board = useQuery({
     queryKey: ['outpatient-flow', dateRange.from, dateRange.to, keyword.trim()],
     queryFn: () => api.outpatientFlow.board(dateRange.from, dateRange.to, undefined, keyword),
@@ -58,6 +65,13 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
       || value.flowStatus === 'TERMINATED' || value.flowStatus === 'CANCELLED'
   }), [board.data?.visits, filter])
   const summary = board.data?.summary
+
+  const totalPages = Math.max(1, Math.ceil(values.length / pageSize))
+  const safePage = Math.min(page, totalPages - 1)
+  const pagedVisits = useMemo(() => {
+    const start = safePage * pageSize
+    return values.slice(start, start + pageSize)
+  }, [values, safePage, pageSize])
 
   return <>
     <PageHeader compact eyebrow="门诊医疗 · 全程协同" title="门诊流转看板"
@@ -82,18 +96,37 @@ export function OutpatientFlowWorkspace({ api, clinicalContext, onNavigate }: {
           ['ACTIVE', '诊前诊中'], ['DOWNSTREAM', '诊后待办'], ['EXCEPTION', '异常'], ['COMPLETED', '已完成'], ['ALL', '全部'],
         ] as [FlowFilter, string][]).map(([value, label]) => <button type="button" key={value}
           className={filter === value ? 'is-active' : ''} onClick={() => setFilter(value)}>{label}</button>)}</nav>
-        <DateRangePicker compact value={dateRange} onChange={setDateRange} />
-        <input type="search" aria-label="搜索患者" value={keyword} placeholder="姓名 / 档案号 / 就诊号"
-          onChange={(event) => setKeyword(event.target.value)} />
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <SearchField
+          label="搜索患者"
+          value={keyword}
+          onChange={setKeyword}
+          placeholder="姓名 / 档案号 / 就诊号"
+        />
       </header>
       {board.isPending && <LoadingState label="正在汇总门诊各环节状态…" />}
       {!board.isPending && values.length === 0 && <EmptyState icon="clinical" title="当前筛选下暂无患者"
         copy="完成挂号后，患者会自动进入流转看板。" />}
-      {values.length > 0 && <div className="outpatient-flow-list" role="table" aria-label="门诊患者流转列表">
-        <div className="outpatient-flow-row outpatient-flow-row--head" role="row">
-          <span>患者</span><span>门诊状态</span><span>业务进度</span><span>当前去向 / 原因</span><span /></div>
-        {values.map((value) => <VisitRow key={value.encounterId} value={value} onNavigate={onNavigate} />)}
-      </div>}
+      {values.length > 0 && <>
+        <div className="outpatient-flow-list" role="table" aria-label="门诊患者流转列表">
+          <div className="outpatient-flow-row outpatient-flow-row--head" role="row">
+            <span>患者</span><span>门诊状态</span><span>业务进度</span><span>当前去向 / 原因</span><span /></div>
+          {pagedVisits.map((value) => <VisitRow key={value.encounterId} value={value} onNavigate={onNavigate} />)}
+        </div>
+        <Pagination
+          page={safePage}
+          totalPages={totalPages}
+          total={values.length}
+          pageSize={pageSize}
+          pageSizeOptions={[10, 20, 50]}
+          onPageSizeChange={(size) => {
+            setPageSize(size)
+            setPage(0)
+          }}
+          onChange={setPage}
+          label="门诊患者流转列表分页"
+        />
+      </>}
     </Panel>
   </>
 }

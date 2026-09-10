@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { clinicalAiPreview, type ClinicalAiPreview, type ClinicalAiFieldStream } from '../../../shared/api/clinicalAiStream'
 import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelection } from './ClinicalAiInlineWorkspace'
-import { assessReceptionScene, recentHistoryEncounters, type ReceptionSceneType } from './receptionSceneAssessment'
+import { assessReceptionScene, recentHistoryEncounters } from './receptionSceneAssessment'
 import type {
   ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
   ClinicalAiSuggestionEventType,
@@ -66,42 +66,19 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     .map((item) => ({ queryKey: ['doctor-reports', item.id], queryFn: () => api.diagnostics.reportsByEncounter(item.id), staleTime: 60_000 })) })
   const reportDataKey = JSON.stringify([reportsQuery.data ?? [], ...historyReportQueries.map((query) => query.data ?? [])])
   const diagnosticReports = useMemo(() => JSON.parse(reportDataKey).flat() as import('../../../shared/api/diagnosticsApi').DiagnosticReport[], [reportDataKey])
-  const [sceneOverride, setSceneOverride] = useState<ReceptionSceneType | ''>('')
-  const [reportSelection, setReportSelection] = useState<string[] | null>(null)
-  const [conditionSelection, setConditionSelection] = useState<string[] | null>(null)
-  const assessedScene = useMemo(() => assessReceptionScene({ encounter, historyEncounters,
+  const sceneAssessment = useMemo(() => assessReceptionScene({ encounter, historyEncounters,
     diagnosticReports, currentDraft: currentContext }), [encounter, historyEncounters, diagnosticReports, currentContext])
-  const selectedConditions = conditionSelection === null ? assessedScene.matchedConditions
-    : assessedScene.matchedConditions.filter((item) => conditionSelection.includes(item))
-  const sceneLabels = { FIRST_VISIT: '初诊全科接诊', CHRONIC_REFILL: '慢病复诊配药', REPORT_FOLLOW_UP: '报告回诊' }
-  const sceneAssessment = { ...assessedScene, scene: sceneOverride || assessedScene.scene,
-    sceneLabel: sceneLabels[sceneOverride || assessedScene.scene], matchedConditions: selectedConditions,
-    selectedReportIds: reportSelection === null ? assessedScene.selectedReportIds
-      : assessedScene.selectedReportIds.filter((id) => reportSelection.includes(id)) }
-  useEffect(() => { setSceneOverride(''); setConditionSelection(null); setReportSelection(null) }, [encounter.id, encounter.residentId])
   const [question, setQuestion] = useState('')
   const [voiceTranscript, setVoiceTranscript] = useState('')
   const [preview, setPreview] = useState<ClinicalAiPreview>({ recordDraft: {} })
-  const [background, setBackground] = useState(false)
-  const [autoEnabled, setAutoEnabled] = useState(() => {
-    try { return localStorage.getItem('rhn:ai-auto-prepare') !== 'off' } catch { return true }
-  })
   const [resultViewedId, setResultViewedId] = useState<string | null>(null)
   const generationController = useRef<AbortController | null>(null)
-  const attempted = useRef(new Set<string>())
-  const lastAutoStart = useRef(0)
-  const skipAfterAdopt = useRef(false)
   const inputKey = stableClinicalAiFingerprint('ai-input', {
     context: clinicalAiContextFingerprint({ ...currentContext, busy: false }), scene: sceneAssessment.scene,
     conditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds, reports: diagnosticReports, question: question.trim(), voiceTranscript: voiceTranscript.trim(),
   })
   const latestInputKey = useRef(inputKey)
   latestInputKey.current = inputKey
-  const changeAutoEnabled = (value: boolean) => {
-    setAutoEnabled(value)
-    if (!value && background) generationController.current?.abort()
-    try { localStorage.setItem('rhn:ai-auto-prepare', value ? 'on' : 'off') } catch { /* Session preference still applies. */ }
-  }
   const [knowledgeQuery, setKnowledgeQuery] = useState('')
   const [suggestionInputKey, setSuggestionInputKey] = useState('')
   const [suggestionVoiceTranscript, setSuggestionVoiceTranscript] = useState('')
@@ -110,7 +87,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const treatmentContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
   const [acceptedTreatmentKeys, setAcceptedTreatmentKeys] = useState<string[]>([])
   const controlsKey = stableClinicalAiFingerprint('ai-controls', { question: question.trim(), voiceTranscript: voiceTranscript.trim(),
-    sceneOverride, conditionSelection, reportSelection, diagnosticReports })
+    diagnosticReports })
   const currentClinicalFingerprint = clinicalContextWithoutOrdersFingerprint(currentContext)
   const continuation = Boolean(storedSuggestion && ((adoptedContinuation.current?.id === storedSuggestion.id
     && adoptedContinuation.current.controls === controlsKey
@@ -237,8 +214,8 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     }
   }, [])
   const generate = useMutation({
-    mutationFn: async ({ parentSuggestionId, focus, automatic = false }: {
-      parentSuggestionId?: string; focus?: string; automatic?: boolean
+    mutationFn: async ({ parentSuggestionId, focus }: {
+      parentSuggestionId?: string; focus?: string
     }) => {
       const context = latestContext.current
       if (disabled || context.busy || context.encounterId !== encounter.id
@@ -248,13 +225,10 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       adoptedContinuation.current = null
       treatmentContinuation.current = null
       setAcceptedTreatmentKeys([])
-      attempted.current.add(key)
-      if (attempted.current.size > 64) attempted.current.delete(attempted.current.values().next().value!)
-      if (automatic) lastAutoStart.current = Date.now()
       generationController.current?.abort()
       const controller = new AbortController()
       generationController.current = controller
-      setBackground(automatic); setPreview({ recordDraft: {} }); setLocalError('')
+      setPreview({ recordDraft: {} }); setLocalError('')
       const transcript = voiceTranscript.trim()
       const input = {
         clientContextFingerprint: clinicalAiContextFingerprint(context),
@@ -275,7 +249,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
         if (controller.signal.aborted || latestInputKey.current !== key) throw new DOMException('已取消过期分析', 'AbortError')
         return { value, transcript, key }
       } catch (error) {
-        if (controller.signal.aborted) attempted.current.delete(key)
         if (generationController.current === controller) setPreview({ recordDraft: {} })
         throw error
       }
@@ -290,7 +263,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   })
   useEffect(() => {
     setPreview({ recordDraft: {} })
-    if (skipAfterAdopt.current && continuation) { attempted.current.add(inputKey); skipAfterAdopt.current = false }
     return () => generationController.current?.abort()
   }, [inputKey])
   useEffect(() => {
@@ -358,7 +330,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       if (!guardCurrent(value.suggestion, latestContext.current, setLocalError, value.request, encounter)) return
       adoptionCommands.current.delete(`${value.suggestion.id}:${value.commandKey ?? value.sectionCode}`)
       if (value.closePlan) setSelectedPlan(null)
-      skipAfterAdopt.current = true
       if (!value.request.planTemplate) {
         const next = mergeAiRecordDraft({ ...latestContext.current, busy: false }, value.request.recordDraft ?? {}, value.request.overwriteRecord)
         next.diagnoses = mergeAiDiagnoses(next.diagnoses, value.request.diagnoses ?? [])
@@ -378,25 +349,11 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const actionPending = realtimeListening || generate.isPending
     || adoptDraft.isPending || ignoreSuggestion.isPending
   useEffect(() => {
-    onFieldStream?.(generate.isPending && !background && !disabled && !currentContext.busy
+    onFieldStream?.(generate.isPending && !disabled && !currentContext.busy
       ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft: preview.recordDraft } : null)
-  }, [generate.isPending, background, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
+  }, [generate.isPending, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
   useEffect(() => () => onFieldStream?.(null), [onFieldStream])
   const inputBusy = realtimeListening || adoptDraft.isPending || ignoreSuggestion.isPending
-  const hasUsefulInput = [currentContext.chiefComplaint, currentContext.presentIllness, currentContext.medicalHistory,
-    currentContext.physicalExam, currentContext.treatmentPlan, question, voiceTranscript].join('').trim().length >= 10
-  useEffect(() => {
-    if (!surfaces || !autoEnabled || !capabilities.data?.available
-      || !capabilities.data.features.includes('BACKGROUND_DRAFT') || !hasUsefulInput
-      || disabled || currentContext.busy || allergyState !== 'READY' || actionPending
-      || continuation || currentContext.encounterStatus !== 'IN_PROGRESS' || attempted.current.has(inputKey)) return
-    const timer = window.setTimeout(() => {
-      if (document.visibilityState === 'hidden') return
-      generate.mutate({ automatic: true })
-    }, Math.max(2500, lastAutoStart.current + 15000 - Date.now()))
-    return () => window.clearTimeout(timer)
-  }, [inputKey, autoEnabled, disabled, currentContext.busy, currentContext.encounterStatus, allergyState,
-    actionPending, hasUsefulInput, capabilities.data, Boolean(surfaces)])
   useEffect(() => {
     onAdoptionBusyChange(adoptDraft.isPending)
     return () => onAdoptionBusyChange(false)
@@ -663,18 +620,16 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       setAcceptedTreatmentKeys((current) => [...new Set([...current, ...acceptedKeys])])
       treatmentContinuation.current = { id: value.id, fingerprint: clinicalContextWithoutOrdersFingerprint(latestContext.current),
         controls: controlsKey }
-      skipAfterAdopt.current = true
-      attempted.current.add(latestInputKey.current)
       void api.clinicalAi.recordEvent(value.id, eventInput(value, 'ADOPTED', 'TREATMENT',
         adoptionCommand(adoptionCommands.current, value.id, `TREATMENT:${acceptedKeys.sort().join('|')}`),
         JSON.stringify({ treatmentKeys: acceptedKeys }))).catch(() => undefined)
     })
   }
   return <>
-    <ClinicalAiInlineWorkspace surfaces={surfaces}
+    <ClinicalAiInlineWorkspace api={api} encounter={encounter} surfaces={surfaces}
       context={currentContext} capability={capability} suggestion={currentSuggestion} current={liveCurrent}
       busy={actionPending} inputBusy={inputBusy} generating={generate.isPending}
-      preview={preview} background={background} autoEnabled={autoEnabled} onAutoEnabledChange={changeAutoEnabled}
+      preview={preview}
       onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
       canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}
       voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
@@ -686,12 +641,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
       templatesPending={templates.isPending}
       sceneAssessment={sceneAssessment}
-      sceneOverride={sceneOverride} onSceneChange={setSceneOverride}
-      conditionOptions={assessedScene.matchedConditions} onConditionsChange={setConditionSelection}
-      reportOptions={diagnosticReports.filter((report) => assessedScene.selectedReportIds.includes(report.id))}
-      onReportsChange={setReportSelection}
-      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)}
-      sceneError={Boolean(reportsQuery.error || historyReportQueries.some((query) => query.error))} />
+      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)} />
     {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
     {planReview}
   </>

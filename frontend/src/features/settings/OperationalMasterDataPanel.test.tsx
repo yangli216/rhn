@@ -242,6 +242,10 @@ function createMockApi(): RhnApi {
       }),
       updateExaminationProfile: vi.fn().mockResolvedValue(mockExamConfiguration),
       updateLaboratoryProfile: vi.fn().mockResolvedValue(mockLabConfiguration),
+      previewOrderFrequency: vi.fn().mockResolvedValue({
+        explanation: '根据全院规则自动计算执行时间',
+        plannedTimes: ['2026-09-10T08:00:00', '2026-09-10T20:00:00'],
+      }),
     } as unknown as RhnApi['masterData'],
     organization: {
       departments: vi.fn().mockResolvedValue([]),
@@ -534,11 +538,12 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     expect(searchInput).toHaveValue('')
   })
 
-  it('opens frequency configuration workbench dialog and triggers add config modal without being pushed out of view', async () => {
+  it('opens frequency configuration workbench dialog in single-modal split workspace mode without stacked dialogs', async () => {
     const user = userEvent.setup()
     const api = createMockApi()
     const mockFrequency: OrderFrequency = {
       id: 'freq-1',
+      revision: 1,
       code: 'BID',
       name: '每日两次',
       shortName: 'BID',
@@ -562,6 +567,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
       configurations: [
         {
           id: 'cfg-1',
+          revision: 1,
           frequencyId: 'freq-1',
           organizationId: 'org-1',
           localCode: 'BID',
@@ -576,7 +582,7 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     }
     api.masterData.orderFrequencies = vi.fn().mockResolvedValue([mockFrequency])
     api.organization.departments = vi.fn().mockResolvedValue([
-      { id: 'dept-1', code: 'IM', name: '内科', sdOrgStatus: 'ACTIVE' },
+      { id: 'dept-1', code: 'IM', name: '内科', sdOrgStatus: 'ACTIVE' } as any,
     ])
     const queryClient = new QueryClient()
 
@@ -606,22 +612,15 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     const configButton = screen.getByRole('button', { name: '执行配置' })
     await user.click(configButton)
 
-    // 验证弹出专属配置管理弹窗
+    // 验证直接弹出方案A分栏单弹窗工作台（零嵌套弹窗）
     await waitFor(() => {
-      expect(screen.getByText('每日两次 · 机构/科室执行配置')).toBeInTheDocument()
-      expect(screen.getByText('执行配置列表 (1)')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '新增执行配置' })).toBeInTheDocument()
-      expect(screen.getByText('本频次执行排程试算')).toBeInTheDocument()
-    })
-
-    // 点击“新增执行配置”
-    await user.click(screen.getByRole('button', { name: '新增执行配置' }))
-
-    // 验证调起新增执行配置表单弹窗
-    await waitFor(() => {
-      expect(screen.getByText('每日两次 · 新增执行配置')).toBeInTheDocument()
-      expect(screen.getByText('作用范围')).toBeInTheDocument()
-      expect(screen.getByText('在当前范围启用')).toBeInTheDocument()
+      expect(screen.getByText('每日两次 · 执行配置工作台')).toBeInTheDocument()
+      expect(screen.getByText('作用范围管理')).toBeInTheDocument()
+      expect(screen.getByText('全院统一配置')).toBeInTheDocument()
+      expect(screen.getByText('青禾镇中心卫生院 · 全院统一标准时点')).toBeInTheDocument()
+      expect(screen.getByText('标准执行时点')).toBeInTheDocument()
+      expect(screen.getByText('⚡ 执行排程实时推演')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '保存当前范围配置' })).toBeInTheDocument()
     })
   })
 })

@@ -48,9 +48,11 @@ export {
   DataTable,
   SearchField,
   SplitWorkspace,
+  tableCellClass,
   TableShell,
   Tabs,
   type TabItem,
+  type TableColumnType,
   type TabsVariant,
 } from './Workspace'
 

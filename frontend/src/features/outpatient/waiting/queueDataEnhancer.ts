@@ -31,7 +31,9 @@ export function enhanceQueueItem(rawItem: ReceptionQueueItem): EnhancedQueueItem
   const age = Number.isFinite(birthYear) ? Math.max(1, new Date().getFullYear() - birthYear) : undefined
 
   let queueCategory: QueueCategory
-  if (rawItem.status === 'SUSPENDED') {
+  if (rawItem.status === 'COMPLETED') {
+    queueCategory = 'COMPLETED'
+  } else if (rawItem.status === 'SUSPENDED') {
     queueCategory = 'SUSPENDED'
   } else if (rawItem.status === 'MISSED') {
     queueCategory = 'SKIPPED'

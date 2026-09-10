@@ -34,6 +34,42 @@
   flex-wrap: wrap;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.queue-scope-control {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(3.5rem, 1fr));
+  align-items: center;
+  height: var(--control-height-sm);
+  padding: 3px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-subtle);
+}
+
+.queue-scope-control button {
+  height: calc(var(--control-height-sm) - 8px);
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.queue-scope-control button.is-active {
+  background: var(--color-surface);
+  color: var(--color-brand-strong);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: var(--shadow-sm);
+}
+
 .topbar-chip {
   display: inline-flex;
   align-items: center;
@@ -383,6 +419,16 @@
   color: #92400e;
 }
 
+.waiting-tab-btn--completed.is-active {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+
+.waiting-tab-btn--completed.is-active .tab-badge {
+  background: var(--color-success);
+  color: white;
+}
+
 .tab-badge {
   display: inline-block;
   padding: 0.05rem 0.45rem;
@@ -618,6 +664,12 @@
   background: var(--color-brand-soft);
   color: var(--color-brand-strong);
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 25%, transparent);
+}
+
+.category-pill--called {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 25%, transparent);
 }
 
 /* 分诊生命体征行 */

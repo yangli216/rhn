@@ -8,6 +8,7 @@ public interface OrganizationDirectory {
     OrganizationView requireOrganization(Long tenantId, Long organizationId);
     Long catalogSourceOrganizationId(Long tenantId, Long organizationId);
     DepartmentView requireDepartment(Long tenantId, Long organizationId, Long departmentId);
+    List<DepartmentView> listDepartments(Long tenantId, Long organizationId);
     StaffDetailView requireStaff(Long tenantId, Long practitionerId);
     List<StaffView> listStaff(Long tenantId);
     List<OrganizationView> organizationLineage(Long tenantId, Long organizationId);

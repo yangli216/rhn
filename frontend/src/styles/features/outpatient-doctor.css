@@ -106,13 +106,14 @@
 .doctor-btn--terminate { color: var(--color-danger) !important; }
 .doctor-btn--terminate:hover { background: var(--color-danger-soft) !important; color: var(--color-danger) !important; }
 .doctor-clinical-cockpit { display: grid; grid-template-columns: minmax(29.5rem, .88fr) minmax(36.5rem, 1.12fr); align-items: start; gap: var(--space-3); }
-.doctor-clinical-modebar { grid-column: 1 / -1; min-height: 2.75rem; padding: 0 var(--space-1) var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
-.doctor-clinical-modebar > span { min-width: 0; }
-.doctor-clinical-modebar > span > * { display: block; }
+.doctor-clinical-modebar { grid-column: 1 / -1; min-height: 2.75rem; padding: 0 var(--space-1) var(--space-2); display: flex; align-items: center; gap: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.doctor-clinical-modebar__status { min-width: 0; flex: none; }
+.doctor-clinical-modebar__status > * { display: block; }
 .doctor-clinical-modebar strong { font-size: var(--font-size-body); }
 .doctor-clinical-modebar small { margin-top: .125rem; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-clinical-readonly-note { min-height: 2.25rem; padding: var(--space-2) var(--space-4); display: flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
-.doctor-clinical-readonly-note .ui-icon { width: 1rem; height: 1rem; flex: none; }
+.doctor-clinical-readonly-note { margin-left: var(--space-2); padding: 0.25rem var(--space-3); border-radius: var(--radius-md); background: color-mix(in srgb, var(--color-warning-soft) 30%, var(--color-surface-subtle)); border: 1px solid color-mix(in srgb, var(--color-warning) 25%, var(--color-border)); display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-clinical-readonly-note .ui-icon { width: 0.875rem; height: 0.875rem; color: var(--color-warning, #d97706); flex: none; }
+.doctor-clinical-modebar > .ui-button { margin-left: auto; flex: none; }
 .doctor-record-column, .doctor-record-panel, .doctor-clinical-aside, .doctor-diagnosis-panel, .doctor-orders-panel, .doctor-settlement-panel { min-width: 0; }
 .doctor-record-column { display: grid; align-content: start; gap: var(--space-2); }
 .doctor-record-panel { overflow: hidden; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-sm); }
@@ -1105,6 +1106,10 @@
 .doctor-disposition-form { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); align-items: start; gap: var(--space-3); }
 .doctor-disposition-form .ui-field { margin: 0; }
 .doctor-disposition-form textarea { min-height: 4.25rem; resize: vertical; }
+.doctor-amendment-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.doctor-amendment-form .ui-field { min-width: 0; margin: 0; }
+.doctor-amendment-form .ui-field:first-child { grid-column: 1 / -1; }
+.doctor-amendment-form textarea { min-height: 5.5rem; resize: vertical; }
 .doctor-disposition-note-wrap { display: grid; gap: var(--space-2); }
 .doctor-quick-phrases { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: start; gap: var(--space-2); }
 .doctor-quick-phrases__label { padding-top: 3px; color: var(--color-text-secondary); font-size: .7rem; white-space: nowrap; }

@@ -126,6 +126,18 @@ function buildMockApi(): RhnApi {
     outpatientTriage: {
       statistics: vi.fn().mockResolvedValue(mockStats),
       pendingEncounters: vi.fn().mockResolvedValue([mockPendingEncounter]),
+      assess: vi.fn().mockImplementation(async () => ({
+        ruleLevel: 'LEVEL_4_NON_URGENT',
+        suggestedLevel: 'LEVEL_4_NON_URGENT',
+        source: 'LOCAL_ASSIST',
+        aiMode: 'LOCAL_ASSIST',
+        aiApplied: false,
+        summary: '当前资料未触发急危重规则',
+        ruleReasons: ['当前资料未触发急危重规则'],
+        dangerSigns: [],
+        departmentRecommendations: mockRecommendations,
+        fallbackReason: null,
+      })),
       recommendDepartments: vi.fn().mockResolvedValue(mockRecommendations),
       create: vi.fn().mockResolvedValue(mockTriageRecord),
       update: vi.fn().mockResolvedValue(mockTriageRecord),
@@ -254,7 +266,7 @@ describe('OutpatientTriageWorkspace', () => {
 
     // 验证调用了 recommendDepartments
     await waitFor(() => {
-      expect(api.outpatientTriage.recommendDepartments).toHaveBeenCalled()
+      expect(api.outpatientTriage.assess).toHaveBeenCalled()
       expect(screen.getByText('发热门诊')).toBeInTheDocument()
     })
 

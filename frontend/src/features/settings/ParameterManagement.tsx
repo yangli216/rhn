@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
   errorMessage, PARAMETER_SYSTEM_ENUM, systemEnumItems,
+  type ConfigurationDependencyBehavior,
   type ParameterCategory, type ParameterConfigType, type ParameterControlType,
   type ParameterDefinition, type ParameterDefinitionInput, type ParameterDefinitionSummary,
   type ParameterDisplayPolicy, type ParameterScope, type ParameterSensitivity,
@@ -36,6 +37,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   const [selectedId, setSelectedId] = useState<string>()
   const [definitionDialog, setDefinitionDialog] = useState<DefinitionDialogMode>()
   const [categoryDialog, setCategoryDialog] = useState<CategoryDialogState>()
+  const [categorySearch, setCategorySearch] = useState('')
   const [editingValue, setEditingValue] = useState<ParameterValue | null | undefined>(undefined)
   const [showChanges, setShowChanges] = useState(false)
   const [confirmDefinitionStatus, setConfirmDefinitionStatus] = useState(false)
@@ -47,6 +49,10 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     queryKey: ['dictionary-system-enums'], queryFn: api.dictionaries.systemEnums, staleTime: Infinity,
   })
   const categories = useQuery({ queryKey: ['parameter-categories'], queryFn: api.configuration.categories })
+  const allDefinitions = useQuery({
+    queryKey: ['parameter-definitions-all'],
+    queryFn: () => api.configuration.definitions(),
+  })
   const definitions = useQuery({
     queryKey: ['parameter-definitions', query, categoryFilter, configTypeFilter, statusFilter],
     queryFn: () => api.configuration.definitions(query, categoryFilter, configTypeFilter, statusFilter),
@@ -77,6 +83,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     setOperationError('')
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['parameter-definitions'] }),
+      queryClient.invalidateQueries({ queryKey: ['parameter-definitions-all'] }),
       queryClient.invalidateQueries({ queryKey: ['parameter-changes', next.id] }),
     ])
   }
@@ -156,6 +163,31 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   })
 
   const categoryOptions = useMemo(() => flattenCategories(categories.data ?? []), [categories.data])
+  const categoryCountMap = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const item of allDefinitions.data ?? []) {
+      if (item.categoryId) {
+        map[item.categoryId] = (map[item.categoryId] ?? 0) + 1
+      }
+    }
+    return map
+  }, [allDefinitions.data])
+
+  const filteredCategoryOptions = useMemo(() => {
+    const keyword = categorySearch.trim().toLowerCase()
+    if (!keyword) return categoryOptions
+    return categoryOptions.filter((item) =>
+      item.label.toLowerCase().includes(keyword) ||
+      item.category.code.toLowerCase().includes(keyword),
+    )
+  }, [categoryOptions, categorySearch])
+
+  const currentCategoryName = useMemo(() => {
+    if (!categoryFilter) return '全部参数'
+    const match = categories.data?.find((c) => c.id === categoryFilter)
+    return match ? match.name : '全部参数'
+  }, [categories.data, categoryFilter])
+
   const configTypeOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.configType)
   const statusOptions = enumOptions(systemEnums.data, PARAMETER_SYSTEM_ENUM.status)
   const selected = detail.data
@@ -194,14 +226,79 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
       {operationError || errorMessage(queryError)}</Alert>}
 
     <SplitWorkspace className="parameter-workspace">
+      <Panel className="parameter-category-nav">
+        <PanelHead
+          title="参数分类"
+          meta={`${categories.data?.length ?? 0} 类`}
+          actions={<Button size="sm" variant="text" onClick={() => setCategoryDialog({ mode: 'create' })}>管理分类</Button>}
+        />
+        <div className="parameter-category-nav__toolbar">
+          <SearchField
+            className="parameter-category-nav__search"
+            label="搜索分类"
+            value={categorySearch}
+            onChange={setCategorySearch}
+            placeholder="搜索分类名称"
+          />
+        </div>
+        <div className="parameter-category-nav__list" role="tablist" aria-label="参数分类导航">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!categoryFilter}
+            className={`parameter-category-item ${!categoryFilter ? 'is-active' : ''}`}
+            onClick={() => {
+              setCategoryFilter('')
+              setFeedback('')
+              setOperationError('')
+            }}
+          >
+            <span className="parameter-category-item__label">
+              <Icon name="tasks" className="parameter-category-item__icon" />
+              <span className="parameter-category-item__name">全部参数</span>
+            </span>
+            <span className="parameter-category-item__count">
+              {allDefinitions.data?.length ?? 0}
+            </span>
+          </button>
+          {filteredCategoryOptions.map((item) => {
+            const count = categoryCountMap[item.category.id] ?? 0
+            const isSelected = categoryFilter === item.category.id
+            return (
+              <button
+                key={item.category.id}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                className={`parameter-category-item ${isSelected ? 'is-active' : ''} ${item.depth > 0 ? 'is-sub' : ''}`}
+                style={{ paddingLeft: item.depth > 0 ? `${0.5 + item.depth * 0.75}rem` : '0.5rem' }}
+                onClick={() => {
+                  setCategoryFilter(item.category.id)
+                  setFeedback('')
+                  setOperationError('')
+                }}
+              >
+                <span className="parameter-category-item__label">
+                  {item.depth > 0 && <span className="parameter-category-item__branch" aria-hidden="true" />}
+                  <span className="parameter-category-item__name" title={item.category.name}>
+                    {item.category.name}
+                  </span>
+                  {item.category.sdParamStatus !== 'ACTIVE' && (
+                    <StatusBadge tone="neutral">已停用</StatusBadge>
+                  )}
+                </span>
+                <span className="parameter-category-item__count">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      </Panel>
+
       <Panel className="parameter-catalog">
-        <PanelHead title="参数目录" meta={`${definitions.data?.length ?? 0} 项`} />
+        <PanelHead title={currentCategoryName} meta={`${definitions.data?.length ?? 0} 项`} />
         <div className="parameter-filters">
           <SearchField className="parameter-filters__search" label="搜索参数" value={query}
             onChange={setQuery} placeholder="搜索名称或参数键" />
-          <Select aria-label="参数分类" value={categoryFilter} placeholder="全部分类" showValue
-            onChange={setCategoryFilter} options={categoryOptions.map((item) => ({ value: item.category.id,
-              label: item.label, secondaryText: item.category.code }))} />
           <Select aria-label="配置属性" value={configTypeFilter} placeholder="全部属性" showValue
             onChange={setConfigTypeFilter} options={configTypeOptions.map(selectOption)} />
           <Select aria-label="参数状态" value={statusFilter} placeholder="全部状态" showValue
@@ -251,7 +348,42 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
             <div><dt>值类型 / 控件</dt><dd>{selected.sdParamValueTypeText} · {selected.sdParamControlTypeText}</dd></div>
             <div><dt>配置属性</dt><dd>{selected.sdParamConfigTypeText}</dd></div>
             <div><dt>安全策略</dt><dd>{selected.sdParamSensitivityText} · {selected.sdParamDisplayPolicyText}</dd></div>
+            <div><dt>前置依赖</dt><dd>{selected.dependsOnKey ? `${selected.dependsOnName || selected.dependsOnKey}（期望: ${selected.dependsOnValue || '非空'}）` : '无（独立生效）'}</dd></div>
           </dl>
+          {selected.dependsOnKey && (
+            <div className={`parameter-dependency-banner ${selected.dependencySatisfied ? 'is-satisfied' : 'is-unsatisfied'}`} role="status">
+              <div className="parameter-dependency-banner__icon">
+                <Icon name={selected.dependencySatisfied ? 'check' : 'warning'} />
+              </div>
+              <div className="parameter-dependency-banner__content">
+                <div className="parameter-dependency-banner__title">
+                  <strong>前置依赖联动：{selected.dependencySatisfied ? '条件已满足（正常生效）' : '条件未满足（运行时已抑制）'}</strong>
+                  <StatusBadge tone={selected.dependencySatisfied ? 'success' : 'warning'}>
+                    {selected.dependencySatisfied ? '正常生效' : '运行时抑制'}
+                  </StatusBadge>
+                </div>
+                <p>
+                  本参数依赖于 <code>{selected.dependsOnName || selected.dependsOnKey}</code>
+                  {selected.dependsOnValue ? <>，期望匹配值：<code>{selected.dependsOnValue}</code>。</> : '，期望具有任意非空有效值。'}
+                  {selected.dependencySatisfied
+                    ? ' 当前前置参数值已达成，业务端在读取该参数时将正常生效。'
+                    : ' 当前前置条件未满足，业务调用时将安全抑制并返回空值；您在此维护的值将在前置条件满足后自动激活。'}
+                </p>
+              </div>
+              <div className="parameter-dependency-banner__action">
+                <Button size="sm" variant="secondary" onClick={() => {
+                  const target = definitions.data?.find((d) => d.key === selected.dependsOnKey)
+                  if (target) {
+                    setSelectedId(target.id)
+                    setFeedback(`已定位至前置参数“${target.name}”`)
+                    setOperationError('')
+                  }
+                }}>
+                  <Icon name="roadmap" />查看/配置前置参数
+                </Button>
+              </div>
+            </div>
+          )}
           <section className="parameter-policy" aria-label="参数策略">
             <div className="parameter-policy__copy"><strong>参数级别</strong><span>{selected.allowedScopes.map((scope) =>
               enumName(systemEnums.data, PARAMETER_SYSTEM_ENUM.scopeType, scope)).join('、')}</span></div>
@@ -290,7 +422,9 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     {definitionDialog && <ParameterDefinitionDialog
       key={`${definitionDialog}-${definitionDialog === 'edit' ? selected?.id ?? 'missing' : 'new'}`}
       mode={definitionDialog} definition={definitionDialog === 'edit' ? selected : undefined}
+      initialCategoryId={categoryFilter || undefined}
       categories={categoryOptions.filter((item) => item.category.sdParamStatus === 'ACTIVE')}
+      allDefinitions={allDefinitions.data ?? []}
       systemEnums={systemEnums.data} busy={busy} onClose={() => setDefinitionDialog(undefined)}
       onSave={async (input) => {
         if (definitionDialog === 'create') await createDefinition.mutateAsync(input)
@@ -351,16 +485,25 @@ function ParameterCard({ definition, selected, tabIndex, buttonRef, onKeyDown, o
         <StatusBadge tone={definition.sdParamStatus === 'ACTIVE' ? 'success' : 'neutral'}>
           {definition.sdParamStatusText}</StatusBadge></span><code>{definition.key}</code>
       <small>{definition.categoryName} · {definition.sdParamConfigTypeText} · {definition.valueCount} 条当前值</small>
+      {definition.dependsOnKey && (
+        <span className={`parameter-card__dependency ${definition.dependencySatisfied ? 'is-satisfied' : 'is-unsatisfied'}`}>
+          <Icon name="roadmap" />
+          <span>依赖: {definition.dependsOnName || definition.dependsOnKey}</span>
+          {!definition.dependencySatisfied && <span className="dependency-tag">抑制中</span>}
+        </span>
+      )}
     </span><Icon name="chevron-right" />
   </button>
 }
 
-function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, busy, onClose, onSave }: {
-  mode: 'create' | 'edit'; definition?: ParameterDefinition
-  categories: CategoryOption[]; systemEnums?: SystemEnumDefinition[]; busy: boolean; onClose: () => void
+function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, onClose, onSave }: {
+  mode: 'create' | 'edit'; definition?: ParameterDefinition; initialCategoryId?: string
+  categories: CategoryOption[]; allDefinitions?: ParameterDefinitionSummary[]; systemEnums?: SystemEnumDefinition[]; busy: boolean; onClose: () => void
   onSave: (input: ParameterDefinitionInput) => Promise<void>
 }) {
-  const [categoryId, setCategoryId] = useState(definition?.categoryId ?? categories[0]?.category.id ?? '')
+  const [categoryId, setCategoryId] = useState(
+    definition?.categoryId ?? initialCategoryId ?? categories[0]?.category.id ?? '',
+  )
   const [key, setKey] = useState(definition?.key ?? '')
   const [name, setName] = useState(definition?.name ?? '')
   const [description, setDescription] = useState(definition?.description ?? '')
@@ -378,9 +521,17 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
   const [nullableValue, setNullableValue] = useState(definition?.nullableValue ?? false)
   const [sensitivity, setSensitivity] = useState<ParameterSensitivity>(definition?.sdParamSensitivity ?? 'NORMAL')
   const [displayPolicy, setDisplayPolicy] = useState<ParameterDisplayPolicy>(definition?.sdParamDisplayPolicy ?? 'PLAIN')
+  const [dependsOnKey, setDependsOnKey] = useState(definition?.dependsOnKey ?? '')
+  const [dependsOnValue, setDependsOnValue] = useState(definition?.dependsOnValue ?? '')
+  const [dependencyBehavior, setDependencyBehavior] = useState<ConfigurationDependencyBehavior>(
+    definition?.dependencyBehavior ?? 'DISABLE_AND_SUPPRESS',
+  )
   const [validationExpanded, setValidationExpanded] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const compatibleControls = controlsFor(valueType)
+  const availableDependencies = useMemo(() => {
+    return (allDefinitions ?? []).filter((d) => d.key !== (definition?.key ?? key.trim().toLowerCase()))
+  }, [allDefinitions, definition?.key, key])
   const keyError = !key.trim() ? '请输入参数键'
     : !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+){1,15}$/.test(key.trim().toLowerCase())
       ? '请使用小写分段命名，例如 outpatient.queue.max-size' : ''
@@ -394,12 +545,15 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
     : ''
 
   useEffect(() => {
-    if (!compatibleControls.includes(controlType)) setControlType(compatibleControls[0])
-  }, [compatibleControls, controlType])
-  useEffect(() => {
-    if (sensitivity === 'SECRET') { setControlType('SECRET_REFERENCE'); setDisplayPolicy('HIDDEN'); setDefaultValue('') }
-    else if (sensitivity === 'SENSITIVE' && displayPolicy === 'PLAIN') setDisplayPolicy('MASKED')
-  }, [displayPolicy, sensitivity])
+    if (!compatibleControls.includes(controlType)) {
+      const fallback = compatibleControls[0]
+      setControlType(fallback)
+      if (fallback !== 'SECRET_REFERENCE' && sensitivity === 'SECRET') {
+        setSensitivity('NORMAL')
+      }
+    }
+  }, [compatibleControls, controlType, sensitivity])
+
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitted(true)
@@ -411,7 +565,10 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
         defaultValueJson: hasDefaultValue ? writeJsonValue(valueType, defaultValue) : undefined,
         dictionaryCode: controlType === 'SELECT' ? optional(dictionaryCode)?.toUpperCase() : undefined,
         allowedScopes: [scopeLevel], category: configType, inheritanceEnabled, cacheEnabled, nullableValue,
-        sensitivity, displayPolicy })
+        sensitivity, displayPolicy,
+        dependsOnKey: optional(dependsOnKey),
+        dependsOnValue: dependsOnKey ? optional(dependsOnValue) : undefined,
+        dependencyBehavior: dependsOnKey ? dependencyBehavior : undefined })
     } catch { /* The page-level mutation error keeps this dialog open for correction. */ }
   }
 
@@ -443,12 +600,14 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
               setValueType(nextType); setDefaultValue(''); setValidation(readValidationRules(undefined, nextType))
             }} options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.valueType).map(selectOption)} /></FormField>
           <FormField className="parameter-grid__span-3" label="界面控件" required><Select value={controlType}
-            disabled={sensitivity === 'SECRET'} showValue clearable={false}
+            showValue clearable={false}
             onChange={(value) => {
               const nextControl = value as ParameterControlType
               setControlType(nextControl)
               if (nextControl === 'SECRET_REFERENCE') {
                 setSensitivity('SECRET'); setDisplayPolicy('HIDDEN'); setDefaultValue('')
+              } else if (sensitivity === 'SECRET') {
+                setSensitivity('NORMAL'); setDisplayPolicy('PLAIN')
               }
             }}
             options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.controlType)
@@ -503,7 +662,18 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
               showValue clearable={false} onChange={(value) => setScopeLevel(value as ParameterScope)}
               options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.scopeType).map(selectOption)} /></FormField>
             <FormField label="敏感级别" required><Select value={sensitivity}
-              showValue clearable={false} onChange={(value) => setSensitivity(value as ParameterSensitivity)}
+              showValue clearable={false} onChange={(value) => {
+                const nextSensitivity = value as ParameterSensitivity
+                setSensitivity(nextSensitivity)
+                if (nextSensitivity === 'SECRET') {
+                  setControlType('SECRET_REFERENCE'); setDisplayPolicy('HIDDEN'); setDefaultValue('')
+                } else if (controlType === 'SECRET_REFERENCE') {
+                  setControlType('TEXT')
+                  setDisplayPolicy(nextSensitivity === 'SENSITIVE' ? 'MASKED' : 'PLAIN')
+                } else if (nextSensitivity === 'SENSITIVE' && displayPolicy === 'PLAIN') {
+                  setDisplayPolicy('MASKED')
+                }
+              }}
               options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.sensitivity)
                 .filter((item) => valueType === 'STRING' || item.code !== 'SECRET').map(selectOption)} /></FormField>
             <FormField label="展示策略" required><Select value={displayPolicy}
@@ -520,9 +690,50 @@ function ParameterDefinitionDialog({ mode, definition, categories, systemEnums, 
           </div>
         </div>
       </section>
+
+      <section className="parameter-form__group" aria-labelledby="parameter-dependency-title">
+        <header className="parameter-form__group-head"><div><h3 id="parameter-dependency-title">前置依赖与联动策略</h3>
+          <p>配置本参数生效的前置条件（例如仅当 AI 主开关启用为 MODEL 时模型相关参数才生效）。未满足前置条件时系统将抑制该参数。</p></div></header>
+        <div className="parameter-form__grid parameter-form__grid--dependency">
+          <FormField className="parameter-grid__span-6" label="前置依赖参数"
+            hint="选择本参数依赖的上游参数；留空表示独立生效无依赖">
+            <Select aria-label="前置依赖参数" value={dependsOnKey} placeholder="无前置依赖（独立生效）"
+              showValue clearable
+              onChange={setDependsOnKey} options={[
+                { value: '', label: '无前置依赖（独立生效）' },
+                ...availableDependencies.map((item) => ({
+                  value: item.key,
+                  label: `${item.name} (${item.key})`,
+                  secondaryText: item.categoryName,
+                })),
+              ]} />
+          </FormField>
+          {dependsOnKey && (
+            <>
+              <FormField className="parameter-grid__span-6" label="期望匹配值"
+                hint="满足依赖时的期望值（例如 MODEL 或 true）；留空表示前置参数有任意非空值即可">
+                <input value={dependsOnValue} maxLength={500}
+                  placeholder="例如: MODEL 或 true"
+                  onChange={(event) => setDependsOnValue(event.target.value)} />
+              </FormField>
+              <FormField className="parameter-grid__span-12" label="未满足时策略"
+                hint="当依赖的前置参数未达期望值时的运行时行为">
+                <Select aria-label="未满足时策略" value={dependencyBehavior}
+                  showValue clearable={false}
+                  onChange={(value) => setDependencyBehavior(value as ConfigurationDependencyBehavior)}
+                  options={[
+                    { value: 'DISABLE_AND_SUPPRESS', label: '禁用并抑制运行时解析（推荐：运行时返回空值）' },
+                    { value: 'HIDE', label: '抑制并在业务端隐藏' },
+                  ]} />
+              </FormField>
+            </>
+          )}
+        </div>
+      </section>
     </form>
   </Dialog>
 }
+
 
 type ValidationSchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array'
 
@@ -894,7 +1105,7 @@ function Toggle({ checked, onChange, title, copy }: { checked: boolean; onChange
     onChange={(event) => onChange(event.target.checked)} /><span><strong>{title}</strong><small>{copy}</small></span></label>
 }
 
-interface CategoryOption { category: ParameterCategory; label: string }
+interface CategoryOption { category: ParameterCategory; label: string; depth: number }
 
 function flattenCategories(categories: ParameterCategory[]): CategoryOption[] {
   const byParent = new Map<string, ParameterCategory[]>()
@@ -905,7 +1116,11 @@ function flattenCategories(categories: ParameterCategory[]): CategoryOption[] {
   const result: CategoryOption[] = []
   const visit = (parentId: string, depth: number) => {
     for (const category of (byParent.get(parentId) ?? []).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))) {
-      result.push({ category, label: `${'　'.repeat(depth)}${depth ? '└ ' : ''}${category.name}` })
+      result.push({
+        category,
+        label: `${'　'.repeat(depth)}${depth ? '└ ' : ''}${category.name}`,
+        depth,
+      })
       visit(category.id, depth + 1)
     }
   }

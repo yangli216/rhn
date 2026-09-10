@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { RegistrationBillingIntent, Settlement } from '../../shared/api/billingApi'
 import { systemEnumItemName, systemEnumItems, type SystemEnumDefinition } from '../../shared/api/dictionaryApi'
+import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { ResidentCoverageInput } from '../../shared/api/residentsApi'
 import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem, type ServiceSchedule } from '../../shared/api/schedulingApi'
 import { age, genderLabel } from '../../shared/format'
@@ -88,6 +89,11 @@ const DAYPART_OPTIONS = [
   { key: 'MORNING', label: '上午' },
   { key: 'AFTERNOON', label: '下午' },
 ]
+
+export function getSmartDayPart(): 'MORNING' | 'AFTERNOON' {
+  const hour = new Date().getHours()
+  return hour < 12 ? 'MORNING' : 'AFTERNOON'
+}
 
 function isExpertSchedule(item?: ServiceSchedule) {
   if (!item) return false
@@ -388,7 +394,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [deptSearch, setDeptSearch] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [selectedClinicType, setSelectedClinicType] = useState('ALL')
-  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>('ALL')
+  const [selectedDayPart, setSelectedDayPart] = useState<'ALL' | 'MORNING' | 'AFTERNOON'>(getSmartDayPart)
+  const [dayPartManuallyChanged, setDayPartManuallyChanged] = useState(false)
+  const [manualAppointmentId, setManualAppointmentId] = useState<string | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
   const [cashTendered, setCashTendered] = useState('')
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
@@ -402,6 +410,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const selectPatient = useCallback((resident: Resident) => {
     setSelected(resident)
     setSuccess(null)
+    setManualAppointmentId(null)
     setTimeout(() => {
       deptSearchInputRef.current?.focus()
       deptSearchInputRef.current?.select()
@@ -410,6 +419,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const linkedResidentId = searchParams.get('residentId')
   const linkedAppointmentId = searchParams.get('appointmentId')
+  const effectiveAppointmentId = manualAppointmentId ?? linkedAppointmentId
   const linkedTriageId = searchParams.get('triageId')
   const linkedDeptId = searchParams.get('deptId')
   const linkedTriageLevel = searchParams.get('level')
@@ -432,10 +442,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     enabled: Boolean(linkedResidentId),
   })
   const linkedAppointment = useQuery({
-    queryKey: ['registration-appointment-deep-link', linkedAppointmentId],
-    queryFn: () => api.appointments.get(linkedAppointmentId!),
-    enabled: Boolean(linkedAppointmentId),
+    queryKey: ['registration-appointment-deep-link', effectiveAppointmentId],
+    queryFn: () => (api.appointments?.get ? api.appointments.get(effectiveAppointmentId!) : Promise.resolve(null as unknown as Appointment)),
+    enabled: Boolean(effectiveAppointmentId),
   })
+  const residentTodayAppointments = useQuery({
+    queryKey: ['registration-resident-today-appointments', selected?.id, today],
+    queryFn: () => (api.appointments?.list
+      ? api.appointments.list({ dateFrom: today, dateTo: today, status: 'BOOKED', query: selected!.healthRecordNo || selected!.fullName })
+      : Promise.resolve([])),
+    enabled: Boolean(selected && !effectiveAppointmentId && !intentId),
+  })
+  const pendingTodayAppointment = useMemo(() => {
+    if (!residentTodayAppointments.data || !selected) return null
+    return residentTodayAppointments.data.find(
+      (item) => String(item.residentId) === String(selected.id) && item.sdStatus === 'BOOKED' && item.serviceDate === today,
+    ) ?? null
+  }, [residentTodayAppointments.data, selected, today])
   const residentProfile = useQuery({
     queryKey: ['registration-resident-profile', selected?.id],
     queryFn: () => api.residents.profile(selected!.id),
@@ -547,7 +570,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const linkedSchedule = linkedAppointment.data
     ? (schedules.data ?? []).find((item) => item.id === linkedAppointment.data?.scheduleId) : undefined
-  const canUseDirect = !linkedAppointmentId && (allAvailable.length === 0 || visitType === 'EMERGENCY')
+  const canUseDirect = !effectiveAppointmentId && (allAvailable.length === 0 || visitType === 'EMERGENCY')
   const selectedSchedule = linkedSchedule ?? allAvailable.find((item) => item.id === scheduleId)
   const targetDepartmentName = useMemo(() => {
     if (!selectedSchedule) return clinicalContext.department.name
@@ -624,8 +647,23 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   }, [linkedResident.data])
 
   useEffect(() => {
-    if (linkedAppointment.data) setScheduleId(linkedAppointment.data.scheduleId)
+    if (linkedAppointment.data) {
+      setScheduleId(linkedAppointment.data.scheduleId)
+      if (linkedAppointment.data.sdDayPart === 'MORNING' || linkedAppointment.data.sdDayPart === 'AFTERNOON') {
+        setSelectedDayPart(linkedAppointment.data.sdDayPart)
+      }
+    }
   }, [linkedAppointment.data])
+
+  useEffect(() => {
+    if (dayPartManuallyChanged || !schedules.data || schedules.data.length === 0) return
+    if (selectedDayPart !== 'ALL') {
+      const hasCurrentDayPart = schedules.data.some((item) => item.sdDayPart === selectedDayPart)
+      if (!hasCurrentDayPart) {
+        setSelectedDayPart('ALL')
+      }
+    }
+  }, [dayPartManuallyChanged, schedules.data, selectedDayPart])
 
   useEffect(() => {
     setCoverageSelection('SELF_PAY')
@@ -659,7 +697,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const createIntent = useMutation({
     mutationFn: () => api.billing.createRegistrationIntent({
       residentId: selected!.id,
-      appointmentId: linkedAppointmentId || undefined,
+      appointmentId: effectiveAppointmentId || undefined,
       scheduleId: scheduleId === 'DIRECT' ? undefined : scheduleId,
       organizationId: clinicalContext.organization.id,
       departmentId: selectedSchedule?.departmentId || clinicalContext.department.id,
@@ -971,7 +1009,43 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         </div>
       </div>
 
-      {linkedAppointment.data && <Alert tone="info" className="registration-linked-appointment">正在办理预约 {linkedAppointment.data.appointmentNo} 到院挂号；已占号源不重复扣除。</Alert>}
+      {pendingTodayAppointment && !effectiveAppointmentId && (
+        <Alert tone="warning" className="registration-pending-appointment-banner">
+          <div className="registration-pending-appointment-content">
+            <div className="registration-pending-appointment-text">
+              <Icon name="sparkles" />
+              <span>
+                <strong>检测到该患者今日有待取号预约：</strong>
+                {pendingTodayAppointment.appointmentNo} · {pendingTodayAppointment.serviceName}
+                {pendingTodayAppointment.practitionerName ? `（${pendingTodayAppointment.practitionerName}）` : ''} ·
+                {pendingTodayAppointment.sdDayPartText} ({clock(pendingTodayAppointment.startAt)}–{clock(pendingTodayAppointment.endAt)})
+              </span>
+            </div>
+            <Button size="sm" variant="primary" onClick={() => {
+              setManualAppointmentId(pendingTodayAppointment.id)
+              setScheduleId(pendingTodayAppointment.scheduleId)
+              if (pendingTodayAppointment.sdDayPart === 'MORNING' || pendingTodayAppointment.sdDayPart === 'AFTERNOON') {
+                setSelectedDayPart(pendingTodayAppointment.sdDayPart)
+              }
+            }}>
+              一键带入预约取号
+            </Button>
+          </div>
+        </Alert>
+      )}
+
+      {linkedAppointment.data && (
+        <Alert tone="info" className="registration-linked-appointment">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+            <span>正在办理预约 <strong>{linkedAppointment.data.appointmentNo}</strong> 到院取号（{linkedAppointment.data.serviceName} · {linkedAppointment.data.practitionerName || '普通号'} · {linkedAppointment.data.sdDayPartText}）；已占号源不重复扣除。</span>
+            {manualAppointmentId && !intentId && (
+              <Button size="sm" variant="secondary" onClick={() => setManualAppointmentId(null)}>
+                取消关联预约
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
 
       <div className="registration-workbench">
         <CashierPanel className="registration-cashier" title="挂号收银"
@@ -1195,7 +1269,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 {DAYPART_OPTIONS.map((dp) => (
                   <button key={dp.key} type="button"
                     className={`registration-daypart-pill ${selectedDayPart === dp.key ? 'is-active' : ''}`}
-                    onClick={() => setSelectedDayPart(dp.key as 'ALL' | 'MORNING' | 'AFTERNOON')}>{dp.label}</button>
+                    onClick={() => {
+                      setDayPartManuallyChanged(true)
+                      setSelectedDayPart(dp.key as 'ALL' | 'MORNING' | 'AFTERNOON')
+                    }}>{dp.label}</button>
                 ))}
               </div>
             </div>
@@ -1212,7 +1289,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 <button key={item.id} type="button"
                   ref={(el) => { scheduleCardRefs.current[idx] = el }}
                   className={`registration-schedule-card-compact ${isExpert ? 'is-expert' : 'is-regular'} ${isSelected ? 'is-selected' : ''}`}
-                  aria-pressed={isSelected} disabled={Boolean(intentId) || Boolean(linkedAppointmentId)}
+                  aria-pressed={isSelected} disabled={Boolean(intentId) || Boolean(effectiveAppointmentId)}
                   onClick={() => {
                     setScheduleId(item.id)
                     setTimeout(() => confirmButtonRef.current?.focus(), 50)

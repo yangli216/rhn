@@ -2488,131 +2488,486 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
   </FormDialog>
 }
 
-function FrequencyConfigurationsDialog({
+const FIRST_DAY_POLICIES: Array<{
+  value: OrderFrequencyConfiguration['firstDayPolicy']
+  title: string
+  desc: string
+}> = [
+  {
+    value: 'REMAINING_SLOTS',
+    title: '仅执行剩余时点',
+    desc: '自动跳过医嘱开立前的时点，仅生成当天尚未到达的执行任务（推荐）。',
+  },
+  {
+    value: 'FULL_SCHEDULE',
+    title: '执行完整日计划',
+    desc: '开立当天的全部频次时点均需补齐执行（补开医嘱或当天必须足量）。',
+  },
+  {
+    value: 'FROM_ORDER_TIME',
+    title: '从开立时间起算',
+    desc: '以开立时间为基准顺延生成下一个执行时点。',
+  },
+]
+
+function FrequencyConfigurationWorkbenchDialog({
   frequency, organization, departments, api, onClose, onSaveConfiguration, onError,
 }: {
   frequency: OrderFrequency; organization: Organization; departments: Department[]; api: RhnApi
   onClose: () => void; onSaveConfiguration: (config?: OrderFrequencyConfiguration) => (input: OrderFrequencyConfigurationInput) => Promise<void>
   onError: (error: unknown) => void
 }) {
-  const [childDialog, setChildDialog] = useState<ReactNode>()
-  const [previewDepartmentId, setPreviewDepartmentId] = useState('')
+  const orgConfig = frequency.configurations.find((c) => !c.departmentId)
+  const [selectedScope, setSelectedScope] = useState<string>('ORGANIZATION')
+  const [saving, setSaving] = useState(false)
   const [previewStart, setPreviewStart] = useState(() => new Date().toISOString().slice(0, 16))
   const [preview, setPreview] = useState<{ explanation: string; plannedTimes: string[] }>()
 
-  const runPreview = () => api.masterData.previewOrderFrequency(
-    frequency.code, organization.id, previewDepartmentId || undefined, previewStart ? `${previewStart}:00` : undefined, 8,
-  ).then(setPreview).catch(onError)
+  const [scopeDrafts, setScopeDrafts] = useState<Record<string, {
+    departmentId?: string
+    localCode: string
+    localName: string
+    executionTimes: string
+    firstDayPolicy: OrderFrequencyConfiguration['firstDayPolicy']
+    enabled: boolean
+    status: 'ACTIVE' | 'INACTIVE'
+    validFrom: string
+    validTo: string
+  }>>(() => {
+    const initial: Record<string, any> = {
+      ORGANIZATION: {
+        departmentId: undefined,
+        localCode: orgConfig?.localCode ?? '',
+        localName: orgConfig?.localName ?? '',
+        executionTimes: orgConfig?.executionTimes.join(',') ?? frequency.defaultExecutionTimes.join(','),
+        firstDayPolicy: orgConfig?.firstDayPolicy ?? 'REMAINING_SLOTS',
+        enabled: orgConfig?.enabled ?? true,
+        status: orgConfig?.status ?? 'ACTIVE',
+        validFrom: orgConfig?.validFrom ?? today(),
+        validTo: orgConfig?.validTo ?? '',
+      },
+    }
+    frequency.configurations.filter((c) => Boolean(c.departmentId)).forEach((c) => {
+      initial[c.departmentId!] = {
+        departmentId: c.departmentId,
+        localCode: c.localCode ?? '',
+        localName: c.localName ?? '',
+        executionTimes: c.executionTimes.join(','),
+        firstDayPolicy: c.firstDayPolicy,
+        enabled: c.enabled,
+        status: c.status,
+        validFrom: c.validFrom,
+        validTo: c.validTo ?? '',
+      }
+    })
+    return initial
+  })
 
-  if (childDialog) return <>{childDialog}</>
-
-  const openForm = (config?: OrderFrequencyConfiguration) => {
-    setChildDialog(<FrequencyConfigurationDialog
-      frequency={frequency} value={config} organization={organization} departments={departments}
-      onClose={() => setChildDialog(undefined)}
-      onSave={(input) => {
-        return onSaveConfiguration(config)(input).then(() => {
-          setChildDialog(undefined)
-        })
-      }} />)
+  const configuredDeptIds = Object.keys(scopeDrafts).filter((k) => k !== 'ORGANIZATION')
+  const isOrg = selectedScope === 'ORGANIZATION'
+  const currentDept = !isOrg ? departments.find((d) => d.id === selectedScope) : null
+  const currentDraft = scopeDrafts[selectedScope] ?? {
+    departmentId: isOrg ? undefined : selectedScope,
+    localCode: '',
+    localName: '',
+    executionTimes: frequency.defaultExecutionTimes.join(','),
+    firstDayPolicy: 'REMAINING_SLOTS' as const,
+    enabled: true,
+    status: 'ACTIVE' as const,
+    validFrom: today(),
+    validTo: '',
   }
 
+  const updateCurrentDraft = (patch: Partial<typeof currentDraft>) => {
+    setScopeDrafts((prev) => ({
+      ...prev,
+      [selectedScope]: { ...currentDraft, ...patch },
+    }))
+  }
+
+  const addDepartmentScope = (deptId: string) => {
+    if (!deptId) return
+    const dept = departments.find((d) => d.id === deptId)
+    setScopeDrafts((prev) => ({
+      ...prev,
+      [deptId]: {
+        departmentId: deptId,
+        localCode: '',
+        localName: dept ? `${frequency.name} (${dept.name})` : '',
+        executionTimes: scopeDrafts.ORGANIZATION?.executionTimes || frequency.defaultExecutionTimes.join(','),
+        firstDayPolicy: scopeDrafts.ORGANIZATION?.firstDayPolicy ?? 'REMAINING_SLOTS',
+        enabled: true,
+        status: 'ACTIVE',
+        validFrom: today(),
+        validTo: '',
+      },
+    }))
+    setSelectedScope(deptId)
+  }
+
+  const removeDepartmentScope = (deptId: string) => {
+    setScopeDrafts((prev) => {
+      const next = { ...prev }
+      delete next[deptId]
+      return next
+    })
+    if (selectedScope === deptId) {
+      setSelectedScope('ORGANIZATION')
+    }
+  }
+
+  const runPreview = () => {
+    if (typeof api.masterData?.previewOrderFrequency !== 'function') return
+    const deptId = isOrg ? undefined : selectedScope
+    api.masterData.previewOrderFrequency(
+      frequency.code, organization.id, deptId, previewStart ? `${previewStart}:00` : undefined, 8,
+    ).then(setPreview).catch(onError)
+  }
+
+  useEffect(() => {
+    runPreview()
+  }, [selectedScope])
+
+  const presetTimeOptions = useMemo(() => {
+    const code = frequency.code.toUpperCase()
+    if (code === 'BID' || frequency.frequencyCount === 2) {
+      return [
+        { label: '早晚12H', times: ['08:00', '20:00'] },
+        { label: '日间8H', times: ['08:00', '16:00'] },
+        { label: '门诊班', times: ['09:00', '17:00'] },
+      ]
+    }
+    if (code === 'TID' || frequency.frequencyCount === 3) {
+      return [
+        { label: '均匀6H', times: ['08:00', '14:00', '20:00'] },
+        { label: '三餐制', times: ['07:30', '11:30', '17:30'] },
+      ]
+    }
+    if (code === 'QID' || frequency.frequencyCount === 4) {
+      return [
+        { label: '日间4H', times: ['08:00', '12:00', '16:00', '20:00'] },
+        { label: '全天6H', times: ['06:00', '12:00', '18:00', '00:00'] },
+      ]
+    }
+    if (code === 'QD' || frequency.frequencyCount === 1) {
+      return [
+        { label: '早晨', times: ['08:00'] },
+        { label: '上午', times: ['09:00'] },
+        { label: '睡前', times: ['20:00'] },
+      ]
+    }
+    if (code === 'Q8H') {
+      return [
+        { label: '标准', times: ['06:00', '14:00', '22:00'] },
+        { label: '顺延', times: ['08:00', '16:00', '00:00'] },
+      ]
+    }
+    if (code === 'Q6H') {
+      return [
+        { label: '标准', times: ['06:00', '12:00', '18:00', '00:00'] },
+      ]
+    }
+    return [
+      { label: '早晚', times: ['08:00', '20:00'] },
+      { label: '三次', times: ['08:00', '14:00', '20:00'] },
+    ]
+  }, [frequency])
+
+  const handleSave = async () => {
+    setSaving(true)
+    try {
+      const existing = isOrg
+        ? orgConfig
+        : frequency.configurations.find((c) => c.departmentId === selectedScope)
+
+      const payload: OrderFrequencyConfigurationInput = {
+        organizationId: organization.id,
+        departmentId: currentDraft.departmentId,
+        localCode: currentDraft.localCode || undefined,
+        localName: currentDraft.localName || undefined,
+        executionTimes: currentDraft.executionTimes || undefined,
+        firstDayPolicy: currentDraft.firstDayPolicy,
+        enabled: currentDraft.enabled,
+        status: currentDraft.status,
+        validFrom: currentDraft.validFrom,
+        validTo: currentDraft.validTo || undefined,
+      }
+      await onSaveConfiguration(existing)(payload)
+    } catch (e) {
+      onError(e)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const currentConfiguredTimes = frequencyExecutionTimes(currentDraft.executionTimes)
+  const availableDepts = departments.filter(
+    (d) => d.sdOrgStatus === 'ACTIVE' && !configuredDeptIds.includes(d.id),
+  )
+
   return <Dialog
-    title={`${frequency.name} · 机构/科室执行配置`}
+    title={`${frequency.name} · 执行配置工作台`}
     eyebrow={`医嘱频次 · ${frequency.code}${frequency.shortName ? ` · ${frequency.shortName}` : ''}`}
     size="xwide"
-    className="frequency-config-dialog"
+    className="frequency-workbench-dialog"
     onClose={onClose}
-    description={`科室配置优先于机构配置；未维护时继承主档默认执行时点（${frequency.defaultExecutionTimes.join('、') || '随医嘱/事件'}）。`}
-    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
-    <div className="frequency-config-dialog__toolbar">
-      <div>
-        <h4>执行配置列表 ({frequency.configurations.length})</h4>
-        <p>支持按不同科室或院区维护差异化执行时间点与首日执行策略。</p>
-      </div>
-      <Button onClick={() => openForm()}><Icon name="add" />新增执行配置</Button>
-    </div>
-    <div className="frequency-config-dialog__content">
-      {!frequency.configurations.length ? (
-        <EmptyState
-          icon="clinical"
-          title="当前频次暂无局部配置"
-          copy={`当前机构各科室统一继承主档默认执行时点：${frequency.defaultExecutionTimes.join('、') || '随医嘱开始时间'}`}
-          action={<Button size="sm" onClick={() => openForm()}><Icon name="add" />立即新增执行配置</Button>}
-        />
-      ) : (
-        <TableShell scrollClassName="master-data-table-wrap">
-          <UiDataTable className="master-data-table">
-            <thead>
-              <tr>
-                <th>作用范围</th>
-                <th>本地显示</th>
-                <th>执行时点</th>
-                <th>首日策略</th>
-                <th>启用状态</th>
-                <th>有效期</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              {frequency.configurations.map((config, index) => (
-                <tr key={index}>
-                  <td>
-                    <strong>
-                      {config.departmentId
-                        ? departments.find((item) => item.id === config.departmentId)?.name ?? config.departmentId
-                        : `${organization.name} (机构级)`}
-                    </strong>
-                  </td>
-                  <td>
-                    <span>{config.localName || frequency.name}<small>{config.localCode || frequency.code}</small></span>
-                  </td>
-                  <td>
-                    <strong>{config.executionTimes.join('、') || `继承主档: ${frequency.defaultExecutionTimes.join('、') || '无固定时点'}`}</strong>
-                  </td>
-                  <td>{firstDayPolicyLabel(config.firstDayPolicy)}</td>
-                  <td>
-                    <StatusBadge tone={config.enabled ? 'success' : 'neutral'}>
-                      {config.enabled ? '启用' : '禁用'}
-                    </StatusBadge>
-                  </td>
-                  <td>{`${config.validFrom} 至 ${config.validTo || '长期'}`}</td>
-                  <td>
-                    <Button size="sm" variant="text" onClick={() => openForm(config)}>编辑</Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </UiDataTable>
-        </TableShell>
-      )}
+    description="统一维护全院标准执行时点与各科室差异化例外；左侧切换范围，中间配置时点与策略，右侧沙盘即时推演。">
+    <div className="frequency-workbench">
+      {/* 栏 1：作用范围管理 */}
+      <aside className="frequency-workbench__sidebar">
+        <div className="frequency-workbench__scope-header">
+          <strong>作用范围管理</strong>
+          <small>全院默认 / 科室差异化例外</small>
+        </div>
+        <div className="frequency-workbench__scope-list">
+          <button
+            type="button"
+            className={`frequency-scope-item ${selectedScope === 'ORGANIZATION' ? 'is-active' : ''}`}
+            onClick={() => setSelectedScope('ORGANIZATION')}>
+            <div className="frequency-scope-item__icon">🏢</div>
+            <div className="frequency-scope-item__info">
+              <strong>全院统一配置</strong>
+              <span>{orgConfig ? `已自定义: ${orgConfig.executionTimes.join('、')}` : `继承主档: ${frequency.defaultExecutionTimes.join('、') || '随医嘱'}`}</span>
+            </div>
+            <span className="frequency-scope-item__tag">全院</span>
+          </button>
 
-      <div className="frequency-preview">
-        <strong>本频次执行排程试算</strong>
-        <Select
-          value={previewDepartmentId}
-          onChange={setPreviewDepartmentId}
-          placeholder={`机构级配置 (${organization.name})`}
-          showValue
-          options={departments.filter((item) => item.sdOrgStatus === 'ACTIVE').map((item) => ({
-            value: item.id,
-            label: item.name,
-            secondaryText: item.code,
-          }))}
-        />
-        <input
-          type="datetime-local"
-          value={previewStart}
-          onChange={(event) => setPreviewStart(event.target.value)}
-        />
-        <Button variant="secondary" onClick={runPreview}>试算 8 个时点</Button>
-        {preview && (
-          <output>
-            <span>{preview.explanation}</span>
-            <strong>{preview.plannedTimes.length ? preview.plannedTimes.map(formatDateTime).join(' · ') : '无固定执行时点'}</strong>
-          </output>
-        )}
-      </div>
+          <div className="frequency-workbench__scope-divider">
+            科室例外 ({configuredDeptIds.length})
+          </div>
+          {configuredDeptIds.map((deptId) => {
+            const dept = departments.find((d) => d.id === deptId)
+            const draft = scopeDrafts[deptId]
+            const deptTimes = draft?.executionTimes ? draft.executionTimes.split(',') : []
+            return (
+              <button
+                key={deptId}
+                type="button"
+                className={`frequency-scope-item ${selectedScope === deptId ? 'is-active' : ''}`}
+                onClick={() => setSelectedScope(deptId)}>
+                <div className="frequency-scope-item__icon">🏥</div>
+                <div className="frequency-scope-item__info">
+                  <strong>{dept?.name ?? deptId}</strong>
+                  <span>{deptTimes.join('、') || '已自定义'}</span>
+                </div>
+                <span className="frequency-scope-item__tag">例外</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="frequency-workbench__add-dept">
+          <Select
+            placeholder="+ 添加科室例外…"
+            value=""
+            onChange={(deptId) => addDepartmentScope(deptId)}
+            options={availableDepts.map((d) => ({
+              value: d.id,
+              label: d.name,
+              secondaryText: d.code,
+            }))}
+          />
+        </div>
+      </aside>
+
+      {/* 栏 2：时点与策略配置 */}
+      <section className="frequency-workbench__form-pane">
+        <header className="frequency-workbench__pane-header">
+          <div>
+            <h4>{isOrg ? `${organization.name} · 全院统一标准时点` : `${currentDept?.name ?? selectedScope} · 科室例外时点`}</h4>
+            <p>{isOrg ? '全院所有科室默认继承此配置，如需特殊时点可在左侧添加科室例外。' : '当前科室优先级高于全院配置；仅对本科室开立的医嘱生效。'}</p>
+          </div>
+          {!isOrg && (
+            <Button size="sm" variant="text" onClick={() => removeDepartmentScope(selectedScope)}>
+              移除本科室例外
+            </Button>
+          )}
+        </header>
+
+        <div className="frequency-workbench__form-body">
+          {(frequency.ruleType === 'TIMES_PER_PERIOD' || frequency.ruleType === 'CALENDAR') && (
+            <div className="frequency-workbench__field-group">
+              <FormField label="标准执行时点" required>
+                <FrequencyTimeEditor
+                  value={currentConfiguredTimes}
+                  inheritLabel={isOrg
+                    ? `留空继承主档默认：${frequency.defaultExecutionTimes.join('、') || '无固定时点'}`
+                    : `留空继承全院时点：${scopeDrafts.ORGANIZATION?.executionTimes || frequency.defaultExecutionTimes.join('、') || '无固定时点'}`}
+                  inheritTimes={isOrg ? frequency.defaultExecutionTimes : frequencyExecutionTimes(scopeDrafts.ORGANIZATION?.executionTimes || '')}
+                  onChange={(times) => updateCurrentDraft({ executionTimes: times.join(',') })}
+                />
+              </FormField>
+
+              {presetTimeOptions.length > 0 && (
+                <div className="frequency-quick-presets">
+                  <span>快捷时点：</span>
+                  {presetTimeOptions.map((opt) => (
+                    <button
+                      key={opt.label}
+                      type="button"
+                      className="frequency-preset-btn"
+                      onClick={() => updateCurrentDraft({ executionTimes: opt.times.join(',') })}
+                    >
+                      {opt.label} ({opt.times.join('、')})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="frequency-workbench__field-group">
+            <label className="ui-field__label" style={{ marginBottom: '0.25rem', display: 'block' }}>
+              首日执行策略
+            </label>
+            <div className="frequency-policy-cards">
+              {FIRST_DAY_POLICIES.map((p) => {
+                const active = currentDraft.firstDayPolicy === p.value
+                return (
+                  <label
+                    key={p.value}
+                    className={`frequency-policy-card ${active ? 'is-active' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="firstDayPolicy"
+                      value={p.value}
+                      checked={active}
+                      onChange={() => updateCurrentDraft({ firstDayPolicy: p.value })}
+                    />
+                    <div className="frequency-policy-card__content">
+                      <strong>{p.title}</strong>
+                      <span>{p.desc}</span>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="frequency-workbench-check-field">
+            <Check
+              label="在当前范围启用"
+              checked={currentDraft.enabled}
+              onChange={(enabled) => updateCurrentDraft({ enabled })}
+            />
+          </div>
+
+          <details className="frequency-advanced">
+            <summary><span>高级设置</span><small>本地显示名称、编码与状态</small></summary>
+            <div className="frequency-advanced__grid">
+              <FormField label="本地编码">
+                <input
+                  value={currentDraft.localCode}
+                  onChange={(e) => updateCurrentDraft({ localCode: e.target.value.toUpperCase() })}
+                  placeholder={frequency.code}
+                />
+              </FormField>
+              <FormField label="本地名称">
+                <input
+                  value={currentDraft.localName}
+                  onChange={(e) => updateCurrentDraft({ localName: e.target.value })}
+                  placeholder={frequency.name}
+                />
+              </FormField>
+              <FormField label="状态">
+                <Select
+                  value={currentDraft.status}
+                  onChange={(s) => updateCurrentDraft({ status: s as 'ACTIVE' | 'INACTIVE' })}
+                  options={activeStatus}
+                />
+              </FormField>
+              <FormField label="生效日期">
+                <input
+                  type="date"
+                  value={currentDraft.validFrom}
+                  onChange={(e) => updateCurrentDraft({ validFrom: e.target.value })}
+                />
+              </FormField>
+              <FormField label="失效日期">
+                <input
+                  type="date"
+                  min={currentDraft.validFrom}
+                  value={currentDraft.validTo}
+                  onChange={(e) => updateCurrentDraft({ validTo: e.target.value })}
+                />
+              </FormField>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      {/* 栏 3：实时排程推演沙盘 */}
+      <section className="frequency-workbench__preview-pane">
+        <header className="frequency-workbench__pane-header">
+          <div>
+            <h4>⚡ 执行排程实时推演</h4>
+            <p>根据当前范围设定的时点与模拟开立时间，生成前 8 个执行任务</p>
+          </div>
+        </header>
+
+        <div className="frequency-workbench__preview-body">
+          <div className="frequency-workbench__preview-ctrl">
+            <label style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+              开立时刻：
+            </label>
+            <input
+              type="datetime-local"
+              value={previewStart}
+              onChange={(e) => setPreviewStart(e.target.value)}
+            />
+            <Button size="sm" variant="secondary" onClick={runPreview}>
+              推演 8 个时点
+            </Button>
+          </div>
+
+          {preview ? (
+            <>
+              <div className="frequency-preview-rule-tip">
+                <span style={{ fontWeight: 600, color: 'var(--color-brand-primary)' }}>💡 规则解析：</span>
+                <p>{preview.explanation}</p>
+              </div>
+
+              <div className="frequency-schedule-timeline">
+                {preview.plannedTimes.length > 0 ? (
+                  preview.plannedTimes.map((time, idx) => (
+                    <div key={`${time}-${idx}`} className="frequency-schedule-item">
+                      <span className="frequency-schedule-item__badge">第 {idx + 1} 剂</span>
+                      <span className="frequency-schedule-item__time">{formatDateTime(time)}</span>
+                      <span className="frequency-schedule-item__desc">
+                        {idx === 0 ? '首发执行' : '常规排程'}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
+                    当前配置下无固定生成时点（如需固定时点，请在中间栏配置标准时点）
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ padding: 'var(--space-6) var(--space-4)', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
+              点击上方「推演 8 个时点」查看真实执行排程
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* 底部全宽状态与操作条 */}
+      <footer className="frequency-workbench__footer-bar">
+        <div className="frequency-workbench__footer-status">
+          <span>当前编辑：</span>
+          <strong>{isOrg ? `${organization.name} · 全院统一配置` : `${currentDept?.name ?? selectedScope} · 科室例外`}</strong>
+          <span>· 时点数: {currentConfiguredTimes.length > 0 ? `${currentConfiguredTimes.length} 个` : '继承主档'}</span>
+        </div>
+        <div className="frequency-workbench__footer-actions">
+          <Button variant="secondary" onClick={onClose}>取消</Button>
+          <Button variant="primary" busy={saving} onClick={handleSave}>
+            保存当前范围配置
+          </Button>
+        </div>
+      </footer>
     </div>
   </Dialog>
 }
@@ -2631,7 +2986,7 @@ function FrequencyWorkspace({ api, organization, departments, values, loading, o
       .then(() => onDone(value ? '执行时间配置已更新' : '执行时间配置已新增')).catch(onError)
 
   const openConfigurations = (frequency: OrderFrequency) => {
-    onDialog(<FrequencyConfigurationsDialog
+    onDialog(<FrequencyConfigurationWorkbenchDialog
       frequency={frequency}
       organization={organization}
       departments={departments}
@@ -2807,59 +3162,6 @@ function FrequencyDialog({ value, onClose, onSave }: {
   </FormDialog>
 }
 
-function FrequencyConfigurationDialog({ frequency, value, organization, departments, onClose, onSave }: {
-  frequency: OrderFrequency; value?: OrderFrequencyConfiguration; organization: Organization; departments: Department[]
-  onClose: () => void; onSave: (input: OrderFrequencyConfigurationInput) => void
-}) {
-  const [form, setForm] = useState({ departmentId: value?.departmentId ?? '', localCode: value?.localCode ?? '',
-    localName: value?.localName ?? '', executionTimes: value?.executionTimes.join(',') ?? '',
-    firstDayPolicy: value?.firstDayPolicy ?? 'REMAINING_SLOTS', enabled: value?.enabled ?? true,
-    status: value?.status ?? 'ACTIVE', validFrom: value?.validFrom ?? today(), validTo: value?.validTo ?? '' })
-  const configuredTimes = frequencyExecutionTimes(form.executionTimes)
-  const effectiveTimes = configuredTimes.length ? configuredTimes : frequency.defaultExecutionTimes
-  const localDraft = { code: frequency.code, name: form.localName || frequency.name, shortName: frequency.shortName ?? '',
-    description: frequency.description ?? '', ruleType: frequency.ruleType, frequencyCount: String(frequency.frequencyCount ?? 1),
-    periodValue: String(frequency.periodValue ?? 1), periodUnit: frequency.periodUnit ?? 'D', anchorType: frequency.anchorType,
-    defaultExecutionTimes: effectiveTimes.join(','), outpatientApplicable: frequency.outpatientApplicable,
-    inpatientApplicable: frequency.inpatientApplicable, emergencyApplicable: frequency.emergencyApplicable,
-    medicationApplicable: frequency.medicationApplicable, treatmentApplicable: frequency.treatmentApplicable,
-    nursingApplicable: frequency.nursingApplicable, automaticTaskGeneration: frequency.automaticTaskGeneration,
-    sortOrder: String(frequency.sortOrder), status: frequency.status, validFrom: frequency.validFrom,
-    validTo: frequency.validTo ?? '' } satisfies FrequencyDraft
-  return <FormDialog title={`${frequency.name} · ${value ? '编辑执行配置' : '新增执行配置'}`}
-    description="只需选择作用范围并调整执行时点；留空时自动继承频次主档。" onClose={onClose}
-    onSubmit={(event) => { event.preventDefault(); onSave({ organizationId: organization.id,
-      departmentId: form.departmentId || undefined, localCode: form.localCode || undefined,
-      localName: form.localName || undefined, executionTimes: form.executionTimes || undefined,
-      firstDayPolicy: form.firstDayPolicy as OrderFrequencyConfigurationInput['firstDayPolicy'],
-      enabled: form.enabled, status: form.status as 'ACTIVE' | 'INACTIVE', validFrom: form.validFrom,
-      validTo: form.validTo || undefined }) }}>
-    <FormField label="作用范围" required><Select value={form.departmentId} disabled={Boolean(value)}
-      onChange={(departmentId) => setForm({ ...form, departmentId })} placeholder={`机构：${organization.name}`}
-      showValue options={departments.map((department) => ({ value: department.id, label: department.name, secondaryText: department.code }))} /></FormField>
-    <Check label="在当前范围启用" checked={form.enabled} onChange={(enabled) => setForm({ ...form, enabled })} />
-    {(frequency.ruleType === 'TIMES_PER_PERIOD' || frequency.ruleType === 'CALENDAR') && <FormField label="执行时点" className="span-2"><FrequencyTimeEditor
-      value={configuredTimes} inheritLabel={`留空继承主档：${frequency.defaultExecutionTimes.join('、') || '无固定时点'}`}
-      inheritTimes={frequency.defaultExecutionTimes}
-      onChange={(times) => setForm({ ...form, executionTimes: times.join(',') })} /></FormField>}
-    <FormField label="首日执行策略" hint="决定医嘱在当天标准执行时点之后开立时如何处理。"><Select value={form.firstDayPolicy} onChange={(firstDayPolicy) => setForm({ ...form,
-      firstDayPolicy: firstDayPolicy as OrderFrequencyConfiguration['firstDayPolicy'] })}
-      options={[{ value: 'REMAINING_SLOTS', label: '仅执行剩余时点' }, { value: 'FULL_SCHEDULE', label: '执行完整日计划' },
-        { value: 'FROM_ORDER_TIME', label: '从开立时间起算' }]} /></FormField>
-    <div className="frequency-config-policy"><strong>{firstDayPolicyLabel(form.firstDayPolicy as OrderFrequencyConfiguration['firstDayPolicy'])}</strong>
-      <span>{frequencyFirstDayPolicyDescription(form.firstDayPolicy)}</span></div>
-    <FrequencyDraftPreview form={localDraft} preview={frequencyDraftPreview(localDraft)} compact />
-    <details className="frequency-advanced span-2" open={Boolean(value)}><summary><span>高级设置</span><small>本地显示名称、状态和有效期</small></summary>
-      <div className="frequency-advanced__grid">
-        <FormField label="本地编码"><input value={form.localCode} onChange={(event) => setForm({ ...form, localCode: event.target.value.toUpperCase() })} placeholder={frequency.code} /></FormField>
-        <FormField label="本地名称"><input value={form.localName} onChange={(event) => setForm({ ...form, localName: event.target.value })} placeholder={frequency.name} /></FormField>
-        <FormField label="状态"><Select value={form.status} onChange={(status) => setForm({ ...form, status: status as 'ACTIVE' | 'INACTIVE' })} options={activeStatus} /></FormField>
-        <FormField label="生效日期"><input type="date" value={form.validFrom} onChange={(event) => setForm({ ...form, validFrom: event.target.value })} /></FormField>
-        <FormField label="失效日期"><input type="date" min={form.validFrom} value={form.validTo} onChange={(event) => setForm({ ...form, validTo: event.target.value })} /></FormField>
-      </div>
-    </details>
-  </FormDialog>
-}
 
 type FrequencyDraft = {
   code: string; name: string; shortName: string; description: string; ruleType: OrderFrequencyRuleType
@@ -2981,12 +3283,6 @@ function addFrequencyPeriod(value: Date, amount: number, unit: string) {
   return next
 }
 
-function frequencyFirstDayPolicyDescription(value: string) {
-  if (value === 'FULL_SCHEDULE') return '首日仍展示全天所有标准时点，适合按完整日计划管理的场景。'
-  if (value === 'FROM_ORDER_TIME') return '忽略标准时点，从医嘱开立时间开始按规则计算。'
-  return '自动跳过医嘱开立前的时点，仅生成当天尚未到达的执行任务。'
-}
-
 const frequencyRuleOptions = [
   { value: 'ONCE', label: '单次执行' }, { value: 'TIMES_PER_PERIOD', label: '周期内固定次数' },
   { value: 'FIXED_INTERVAL', label: '固定间隔' }, { value: 'CALENDAR', label: '日历/标准时点' },
@@ -3007,9 +3303,6 @@ function frequencyApplicabilityLabel(value: OrderFrequency) {
   const scenes = [value.outpatientApplicable && '门诊', value.inpatientApplicable && '住院', value.emergencyApplicable && '急诊'].filter(Boolean)
   const orders = [value.medicationApplicable && '药品', value.treatmentApplicable && '治疗', value.nursingApplicable && '护理'].filter(Boolean)
   return `${scenes.join('/')} · ${orders.join('/')}`
-}
-function firstDayPolicyLabel(value: OrderFrequencyConfiguration['firstDayPolicy']) {
-  return ({ REMAINING_SLOTS: '仅剩余时点', FULL_SCHEDULE: '完整日计划', FROM_ORDER_TIME: '从开立起算' } as const)[value]
 }
 function formatDateTime(value: string) { return value.replace('T', ' ').slice(0, 16) }
 

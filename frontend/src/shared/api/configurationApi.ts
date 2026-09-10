@@ -43,6 +43,8 @@ export interface ParameterCategory extends CategoryContract {
   sdParamStatusText: string
 }
 
+export type ConfigurationDependencyBehavior = 'DISABLE_AND_SUPPRESS' | 'HIDE'
+
 export interface ParameterDefinitionSummary extends SummaryContract {
   id: string
   revision: number
@@ -60,6 +62,11 @@ export interface ParameterDefinitionSummary extends SummaryContract {
   sdParamStatusText: string
   valueCount: number
   updatedAt: string
+  dependsOnKey?: string | null
+  dependsOnValue?: string | null
+  dependencyBehavior?: ConfigurationDependencyBehavior | null
+  dependsOnName?: string | null
+  dependencySatisfied?: boolean | null
 }
 
 export interface ParameterValue extends ValueContract {
@@ -104,6 +111,11 @@ export interface ParameterDefinition extends DetailContract {
   values: ParameterValue[]
   createdAt: string
   updatedAt: string
+  dependsOnKey?: string | null
+  dependsOnValue?: string | null
+  dependencyBehavior?: ConfigurationDependencyBehavior | null
+  dependsOnName?: string | null
+  dependencySatisfied?: boolean | null
 }
 
 export interface ParameterChange extends ChangeContract {
@@ -120,6 +132,9 @@ export interface ParameterChange extends ChangeContract {
 
 export interface ParameterDefinitionInput extends Omit<DefinitionRequestContract, 'requestCode' | 'expectedRevision'> {
   reason?: string
+  dependsOnKey?: string | null
+  dependsOnValue?: string | null
+  dependencyBehavior?: ConfigurationDependencyBehavior | null
 }
 
 export interface ParameterValueInput extends Omit<SaveValueContract, 'requestCode'> {}
@@ -132,8 +147,30 @@ export interface ParameterCategoryOrder {
   sortOrder: number
 }
 
+export interface ResolvedConfigurationValue<T = unknown> {
+  key: string
+  value: T
+  requestedScope: string
+  resolvedScope: string
+  inherited: boolean
+  suppressedByDependency: boolean
+}
+
 export function createConfigurationApi(client: ApiClient) {
   return {
+    resolve: <T = unknown>(key: string, context: {
+      organizationId?: string
+      departmentId?: string
+      moduleCode?: string
+    } = {}) => {
+      const params = new URLSearchParams()
+      if (context.organizationId) params.set('organizationId', context.organizationId)
+      if (context.departmentId) params.set('departmentId', context.departmentId)
+      if (context.moduleCode) params.set('moduleCode', context.moduleCode)
+      return client.request<ResolvedConfigurationValue<T>>(
+        `/api/platform/configuration/values/${encodeURIComponent(key)}${params.size ? `?${params}` : ''}`,
+      )
+    },
     categories: () => client.request<ParameterCategory[]>('/api/platform/configuration/categories'),
     createCategory: (input: ParameterCategoryInput) => client.request<ParameterCategory>(
       '/api/platform/configuration/categories', { method: 'POST', body: JSON.stringify(input) },

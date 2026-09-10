@@ -77,6 +77,11 @@
 .registration-metrics small { overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
 .registration-workspace { margin-bottom: var(--space-4); display: grid; grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: var(--space-3); }
 .registration-linked-appointment { margin: 0 var(--space-4) var(--space-4); }
+.registration-pending-appointment-banner { margin: 0 0 var(--space-3); border-radius: var(--radius-md); }
+.registration-pending-appointment-content { display: flex; align-items: center; justify-content: space-between; width: 100%; flex-wrap: wrap; gap: var(--space-3); }
+.registration-pending-appointment-text { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); }
+.registration-pending-appointment-text strong { font-weight: var(--font-weight-semibold); }
+.appointment-future-hint { display: inline-flex; align-items: center; padding: 2px 8px; font-size: 0.75rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); border: 1px dashed var(--color-border); border-radius: var(--radius-sm); user-select: none; }
 .registration-workspace-layout { display: grid; grid-template-columns: minmax(22rem, 26rem) minmax(0, 1fr); gap: var(--space-4); align-items: start; margin-bottom: var(--space-5); }
 @media (max-width: 68rem) { .registration-workspace-layout { grid-template-columns: 1fr; } }
 .registration-col-patient { min-width: 0; }

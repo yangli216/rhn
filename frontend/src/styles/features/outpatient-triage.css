@@ -856,6 +856,13 @@
   color: var(--color-brand-strong);
 }
 
+.triage-recommendation-card__source {
+  margin-left: 8px;
+  color: var(--color-primary-600);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .triage-recommendation-card__score {
   font-size: var(--font-size-small);
   font-weight: var(--font-weight-bold);

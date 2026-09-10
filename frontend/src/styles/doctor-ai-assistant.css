@@ -217,12 +217,6 @@
 .doctor-ai-composer-field {
   margin: 0 0 var(--space-2) 0 !important;
 }
-.doctor-ai-composer-field .ui-field__label {
-  font-size: var(--font-size-small);
-  font-weight: 500;
-  color: var(--color-text-secondary);
-  margin-bottom: 0.25rem;
-}
 .doctor-ai-composer-card__footer {
   display: flex;
   align-items: center;
@@ -349,7 +343,7 @@
 .doctor-ai-cowrite {
   background: linear-gradient(180deg, color-mix(in srgb, var(--color-brand-soft) 42%, var(--color-surface)) 0%, color-mix(in srgb, var(--color-surface-subtle) 75%, var(--color-surface)) 100%);
   border-bottom: 1px solid color-mix(in srgb, var(--color-brand-primary) 22%, var(--color-border));
-  padding: var(--space-2-5, 0.625rem) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: all var(--transition-normal, 0.2s ease);
 }
@@ -359,22 +353,23 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-2-5, 0.625rem);
+  gap: var(--space-1);
   margin-bottom: 0;
 }
 .doctor-ai-cowrite__lead {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: var(--space-2-5, 0.625rem);
+  gap: var(--space-1);
 }
+.doctor-ai-cowrite__header > .doctor-ai-inline__actions { flex-wrap: nowrap; gap: var(--space-1); }
 
 /* 品牌标识徽章 */
 .doctor-ai-brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.2rem 0.65rem 0.2rem 0.35rem;
+  gap: 0.35rem;
+  padding: 0.15rem 0.5rem 0.15rem 0.25rem;
   background: color-mix(in srgb, var(--color-brand-primary) 12%, var(--color-surface));
   border: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, transparent);
   border-radius: 9999px;
@@ -385,8 +380,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--color-brand-primary) 0%, var(--color-brand-strong, #0284c7) 100%);
   box-shadow: 0 2px 5px rgba(14, 165, 233, 0.35);
@@ -408,8 +403,8 @@
 .doctor-ai-status-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.38rem;
-  padding: 0.2rem 0.65rem;
+  gap: 0.3rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 9999px;
   font-size: var(--font-size-small);
   font-weight: 500;
@@ -488,8 +483,8 @@
 .doctor-ai-quiet__switch {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.22rem 0.55rem;
+  gap: 0.35rem;
+  padding: 0.15rem 0.45rem;
   border-radius: 9999px;
   font-size: var(--font-size-small);
   color: var(--color-text-secondary);
@@ -554,7 +549,7 @@
   border: 1px solid var(--color-border) !important;
   background: var(--color-surface) !important;
   color: var(--color-text-primary) !important;
-  padding: 0.25rem 0.75rem !important;
+  padding: 0.2rem 0.55rem !important;
   height: auto !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
   transition: all 0.18s ease !important;
@@ -579,8 +574,8 @@
 .doctor-ai-entrance-btn {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 0.45rem !important;
-  padding: 0.35rem 0.95rem 0.35rem 0.5rem !important;
+  gap: 0.35rem !important;
+  padding: 0.25rem 0.65rem 0.25rem 0.4rem !important;
   border-radius: 9999px !important;
   font-size: var(--font-size-small) !important;
   font-weight: 600 !important;
@@ -599,8 +594,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.3rem;
+  height: 1.3rem;
   border-radius: 50%;
   background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
   color: #ffffff;
@@ -671,12 +666,15 @@
 .doctor-ai-btn--more {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 0.35rem !important;
+  justify-content: center !important;
+  gap: 0 !important;
   border-radius: var(--radius-md) !important;
   font-size: var(--font-size-small) !important;
   color: var(--color-text-secondary) !important;
-  padding: 0.25rem 0.6rem !important;
-  height: auto !important;
+  width: var(--control-height-sm) !important;
+  min-width: var(--control-height-sm) !important;
+  padding: 0 !important;
+  height: var(--control-height-sm) !important;
   transition: all 0.18s ease !important;
 }
 .doctor-ai-btn--more .ui-icon {
@@ -695,9 +693,9 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  margin-top: var(--space-2);
+  gap: var(--space-1);
+  padding: .25rem var(--space-2);
+  margin-top: var(--space-1);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-surface);
@@ -717,8 +715,8 @@
 .doctor-ai-scene-bar__info {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  flex-wrap: nowrap;
+  gap: var(--space-1);
 }
 .doctor-ai-scene-badge {
   display: inline-flex;
@@ -757,7 +755,7 @@
 .doctor-ai-scene-bar.is-report_follow_up { border-left-color: var(--color-warning); background: var(--color-warning-soft); }
 .doctor-ai-scene-badge.is-warning { color: var(--color-warning); background: var(--color-warning-soft); }
 .doctor-ai-scene-bar__info { flex: 1 1 32rem; min-width: 0; }
-.doctor-ai-scene-bar__info > .ui-select { width: 11rem; margin-left: auto; flex: 0 0 11rem; }
+.doctor-ai-scene-bar__info > .ui-select { width: 9.5rem; margin-left: auto; flex: 0 0 9.5rem; }
 .doctor-ai-scene-bar__info > .ui-select .ui-select__trigger {
   min-height: var(--control-height-sm);
   height: var(--control-height-sm);
@@ -821,3 +819,27 @@
 @media (prefers-reduced-motion: reduce) {
   .doctor-ai-generation__orb::before, .doctor-ai-generation__dots i { animation: none; }
 }
+
+/* Catalog details remain in the order row; editing expands only the selected item. */
+.doctor-ai-treatment-item .doctor-unified-cell-name { display: flex; flex-direction: column; gap: var(--space-1); }
+.doctor-ai-treatment-item .doctor-unified-cell-name small { color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; }
+.doctor-ai-treatment-directions { display: flex; flex-direction: column; gap: var(--space-1); white-space: normal; }
+.doctor-ai-treatment-directions small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-ai-treatment-editor {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(70px, 1fr));
+  min-width: 54rem;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+.doctor-ai-treatment-editor label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.doctor-ai-treatment-editor input, .doctor-ai-treatment-editor select {
+  width: 100%; min-width: 0; height: 30px; padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-border); border-radius: var(--radius-sm);
+}
+.doctor-ai-treatment-editor__instruction { grid-column: span 6; }
+.doctor-ai-treatment-editor > small { grid-column: 1 / -1; color: var(--color-danger); }
+.doctor-vital-required { color: var(--color-danger); }
+.doctor-vital-input-wrap input[aria-invalid="true"] { box-shadow: inset 0 -1px 0 var(--color-danger); }

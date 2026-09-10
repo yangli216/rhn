@@ -51,7 +51,8 @@ public interface OutpatientRegistrationDirectory {
                               Instant registeredAt, Instant readyAt, Instant calledAt, Instant startedAt,
                               int callCount, int missedCount, Long currentLocationId,
                               Instant validUntil,
-                              String registeredByName, String departmentName, String sdDayPartText) {
+                              String registeredByName, String departmentName, String sdDayPartText,
+                              Long practitionerId, String clinicianId, String clinicianName, Instant completedAt) {
         public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                                   Long ticketId, Long serviceQueueId,
                                   Long residentId, String healthRecordNo, String residentName, String gender,
@@ -65,7 +66,8 @@ public interface OutpatientRegistrationDirectory {
                     residentId, healthRecordNo, residentName, gender, birthDate, registrationNo, ticketNo,
                     sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
                     practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
-                    callCount, missedCount, currentLocationId, null, null, null, null);
+                    callCount, missedCount, currentLocationId, null, null, null, null,
+                    null, null, null, null);
         }
 
         public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
@@ -82,7 +84,8 @@ public interface OutpatientRegistrationDirectory {
                     residentId, healthRecordNo, residentName, gender, birthDate, registrationNo, ticketNo,
                     sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
                     practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
-                    callCount, missedCount, currentLocationId, validUntil, null, null, null);
+                    callCount, missedCount, currentLocationId, validUntil, null, null, null,
+                    null, null, null, null);
         }
     }
 }

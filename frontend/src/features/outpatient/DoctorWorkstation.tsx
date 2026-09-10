@@ -28,7 +28,7 @@ import type {
 } from '../../shared/api/outpatientNoteFormsApi'
 import type { PrintPurpose, PrintReceipt, PrintRecord } from '../../shared/api/printingApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
-import type { ReceptionQueueItem } from '../../shared/api/schedulingApi'
+import type { ReceptionQueueItem, ReceptionQueueScope } from '../../shared/api/schedulingApi'
 import type { Encounter, Resident } from '../../shared/model'
 import { age, formatTime, genderLabel } from '../../shared/format'
 import { encounterStatusPresentation } from '../../shared/presentation'
@@ -60,6 +60,13 @@ import type { AiPreConsultation, EnhancedQueueItem, VitalsSummary } from './wait
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
 }).format(new Date())
+
+const OUTPATIENT_COMPLETION_MODE_KEY = 'outpatient.doctor-workstation.completion-mode'
+type OutpatientCompletionMode = 'COMBINED_CONFIRMATION' | 'SEPARATE_CONFIRMATIONS'
+
+function outpatientCompletionMode(value: unknown): OutpatientCompletionMode {
+  return value === 'SEPARATE_CONFIRMATIONS' ? value : 'COMBINED_CONFIRMATION'
+}
 
 function commandCode(action: string, encounterId: string) {
   return `${action}-${encounterId}-${globalThis.crypto.randomUUID()}`
@@ -102,10 +109,11 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   const linkedEncounterId = params.get('encounterId')
   const [selected, setSelected] = useState<PatientSelection | null>(null)
   const [peekDrawerOpen, setPeekDrawerOpen] = useState(false)
+  const [queueScope, setQueueScope] = useState<ReceptionQueueScope>('PERSONAL')
   const queryClient = useQueryClient()
   const queue = useQuery({
-    queryKey: ['outpatient-reception-queue', businessDate(), clinicalContext.department.id],
-    queryFn: () => api.scheduling.receptionQueue(businessDate()),
+    queryKey: ['outpatient-reception-queue', businessDate(), clinicalContext.department.id, queueScope],
+    queryFn: () => api.scheduling.receptionQueue(businessDate(), undefined, queueScope),
   })
   const referralInbox = useQuery({
     queryKey: ['outpatient-referral-inbox', clinicalContext.organization.id, clinicalContext.department.id],
@@ -145,7 +153,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   const refreshInbox = () => queryClient.invalidateQueries({ queryKey: ['outpatient-referral-inbox'] })
 
   const rawQueue = (queue.data ?? []).filter((item) =>
-    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED'].includes(item.status))
+    ['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED'].includes(item.status))
   const enhancedItems = useMemo(() => {
     return enhanceQueueList(rawQueue)
   }, [rawQueue])
@@ -176,6 +184,8 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     ) : (
       <DedicatedWaitingWorkspace
         items={enhancedItems}
+        queueScope={queueScope}
+        onQueueScopeChange={setQueueScope}
         clinicalContext={clinicalContext}
         canEdit={canEdit}
         busy={openPatient.isPending || queueAction.isPending}
@@ -468,7 +478,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
   const [editing, setEditing] = useState(false)
-  const saveDraftHandlerRef = useRef<(() => void) | null>(null)
+  const saveDraftHandlerRef = useRef<(() => Promise<boolean>) | null>(null)
   const [saveDraftNotice, setSaveDraftNotice] = useState<{ message: string; tone?: 'success' | 'error' | 'warning' } | null>(null)
   const automaticEntry = useRef<string | null>(null)
   const [resumeCommandCode] = useState(() => commandCode('RESUME', encounterId ?? resident.id))
@@ -508,8 +518,21 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     return currentEnhancedItem?.vitals
   }, [patientTriageRecord.data, currentEnhancedItem?.vitals])
   const outpatientNote = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
-  const readyToComplete = Boolean(encounter?.chiefComplaint
-    && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote?.status === 'SIGNED')
+  const completionModeQuery = useQuery({
+    queryKey: ['outpatient-completion-mode', encounter?.organizationId, encounter?.departmentId],
+    queryFn: () => api.configuration.resolve<string>(OUTPATIENT_COMPLETION_MODE_KEY, {
+      organizationId: encounter?.organizationId,
+      departmentId: encounter?.departmentId,
+      moduleCode: 'DOCTOR_WORKSTATION',
+    }),
+    enabled: Boolean(encounter && (api as Partial<RhnApi>).configuration),
+    staleTime: 5 * 60 * 1000,
+  })
+  const completionMode = outpatientCompletionMode(completionModeQuery.data?.value)
+  const hasCompletionBasics = Boolean(encounter?.chiefComplaint
+    && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote)
+  const readyToComplete = Boolean(hasCompletionBasics && (outpatientNote?.status === 'SIGNED'
+    || completionMode === 'COMBINED_CONFIRMATION'))
   const signNoteMutation = useMutation({
     mutationFn: () => api.clinicalDocuments.sign(outpatientNote!.id, outpatientNote!.currentVersion),
     onSuccess: async () => {
@@ -535,15 +558,16 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     window.addEventListener('beforeunload', preventUnload)
     return () => window.removeEventListener('beforeunload', preventUnload)
   }, [hasUnsavedDraft])
-  const handleSaveDraft = useCallback(() => {
+  const handleSaveDraft = useCallback(async () => {
     if (saveDraftHandlerRef.current) {
-      saveDraftHandlerRef.current()
+      return saveDraftHandlerRef.current()
     } else {
       const form = document.getElementById('doctor-record-form') as HTMLFormElement | null
       form?.requestSubmit()
+      return false
     }
   }, [])
-  const handleRegisterSaveDraft = useCallback((handler: (() => void) | null) => {
+  const handleRegisterSaveDraft = useCallback((handler: (() => Promise<boolean>) | null) => {
     saveDraftHandlerRef.current = handler
   }, [])
   const handleSaveDraftNotice = useCallback((notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => {
@@ -581,6 +605,18 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     mutationFn: (input: CompleteEncounterInput) => api.encounters.complete(encounter!.id, input),
     onSuccess: async () => { setCompletionOpen(false); await refresh(); onBack() },
   })
+  const completeWithSignature = useMutation({
+    mutationFn: async (input: CompleteEncounterInput) => {
+      if (!outpatientNote) throw new Error('请先保存门诊病历')
+      if (outpatientNote.status !== 'SIGNED') {
+        const signedNote = await api.clinicalDocuments.sign(outpatientNote.id, outpatientNote.currentVersion)
+        queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', encounter!.id], (current) =>
+          current?.map((item) => item.id === signedNote.id ? signedNote : item) ?? [signedNote])
+      }
+      return api.encounters.complete(encounter!.id, input)
+    },
+    onSuccess: async () => { setCompletionOpen(false); await refresh(); onBack() },
+  })
   const suspend = useMutation({
     mutationFn: (input: { commandCode: string; reason: string }) => api.encounters.suspend(encounter!.id, input),
     onSuccess: async () => { setSuspensionOpen(false); await refresh(); onBack() },
@@ -606,6 +642,10 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     if (action === 'suspend') setSuspensionOpen(true)
     if (action === 'complete') setCompletionOpen(true)
     if (action === 'terminate') setTerminationOpen(true)
+  }
+  const saveAndContinue = async (action: GuardedPatientAction) => {
+    const saved = await handleSaveDraft()
+    if (saved) runAction(action)
   }
   const enterEditing = () => {
     if (!encounter || !canEdit) return
@@ -655,54 +695,60 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
         { label: '过敏信息', value: <AllergyContextValue allergies={allergies.data ?? []}
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
           onClick={() => setAllergyOpen(true)} /> }]}
-      actions={encounter && <div className="doctor-context-actions">
-        <StatusBadge tone={encounterStatusPresentation(encounter.status).tone}>
-          {encounterStatusPresentation(encounter.status).label}</StatusBadge>
-        {enhancedQueueItems.length > 0 && (
-          <QueueCapsuleBar
-            items={enhancedQueueItems}
-            currentEncounterId={encounter.id}
-            currentResidentName={resident.fullName}
-            canEdit={canEdit}
-            onCallAndEnterNext={(targetItem) => {
-              void (async () => {
-                await onQueueAction?.(targetItem, 'call')
-                onSwitchPatient?.(targetItem)
-              })()
-            }}
-            onRecallCurrent={currentCalledItem && onQueueAction
-              ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
-            onSkipAndPostpone={currentCalledItem && onQueueAction
-              ? () => { void onQueueAction(currentCalledItem, 'miss') } : undefined}
-            onSuspendCurrent={() => requestAction('suspend')}
-            onOpenPeekDrawer={() => setPeekDrawerOpen?.(true)}
-          />
-        )}
-        <div className="doctor-context-actions__buttons">
-          {editing && encounter.status === 'IN_PROGRESS' && <>
-            <Button
-              size="sm"
-              variant={hasUnsavedDraft ? 'primary' : 'secondary'}
-              className="doctor-btn--save-draft"
-              busy={draftState.busy}
-              disabled={aiAdoptionBusy || Boolean(aiFieldStream)}
-              title={hasUnsavedDraft ? '保存病历、诊断与医嘱草稿 (Ctrl+S)' : '当前草稿已与服务器同步 (Ctrl+S)'}
-              onClick={handleSaveDraft}
-            >
-              <Icon name="check" />
-              <span>保存草稿</span>
-            </Button>
-            <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
-              title="暂时释放当前接诊工作会话，患者返回后可继续"
-              onClick={() => requestAction('suspend')}>暂挂</Button>
-            <Button size="sm" busy={complete.isPending} disabled={aiAdoptionBusy}
-              title="进入诊毕汇总，核对费用和转归信息"
-              onClick={() => requestAction('complete')}>诊毕</Button>
-            <Button size="sm" variant="text" disabled={aiAdoptionBusy} className="doctor-btn--terminate"
-              title="患者离开或明确要求停止本次诊疗"
-              onClick={() => requestAction('terminate')}>终止诊疗</Button>
-          </>}
-        </div>
+      actions={<div className="doctor-context-actions">
+        <Button size="sm" variant="secondary" aria-label="返回患者列表"
+          title="退出当前患者并返回患者列表" onClick={() => requestAction('queue')}>
+          <Icon name="arrow-left" /><span>返回列表</span>
+        </Button>
+        {encounter && <>
+          <StatusBadge tone={encounterStatusPresentation(encounter.status).tone}>
+            {encounterStatusPresentation(encounter.status).label}</StatusBadge>
+          {enhancedQueueItems.length > 0 && (
+            <QueueCapsuleBar
+              items={enhancedQueueItems}
+              currentEncounterId={encounter.id}
+              currentResidentName={resident.fullName}
+              canEdit={canEdit}
+              onCallAndEnterNext={(targetItem) => {
+                void (async () => {
+                  await onQueueAction?.(targetItem, 'call')
+                  onSwitchPatient?.(targetItem)
+                })()
+              }}
+              onRecallCurrent={currentCalledItem && onQueueAction
+                ? () => { void onQueueAction(currentCalledItem, 'recall') } : undefined}
+              onSkipAndPostpone={currentCalledItem && onQueueAction
+                ? () => { void onQueueAction(currentCalledItem, 'miss') } : undefined}
+              onSuspendCurrent={() => requestAction('suspend')}
+              onOpenPeekDrawer={() => setPeekDrawerOpen?.(true)}
+            />
+          )}
+          <div className="doctor-context-actions__buttons">
+            {editing && encounter.status === 'IN_PROGRESS' && <>
+              <Button
+                size="sm"
+                variant={hasUnsavedDraft ? 'primary' : 'secondary'}
+                className="doctor-btn--save-draft"
+                busy={draftState.busy}
+                disabled={aiAdoptionBusy || Boolean(aiFieldStream) || !hasUnsavedDraft}
+                title={hasUnsavedDraft ? '保存病历、诊断与医嘱草稿 (Ctrl+S)' : '当前草稿已与服务器同步 (Ctrl+S)'}
+                onClick={() => { void handleSaveDraft() }}
+              >
+                <Icon name="check" />
+                <span>{hasUnsavedDraft ? '保存全部草稿' : '草稿已保存'}</span>
+              </Button>
+              <Button size="sm" variant="secondary" disabled={aiAdoptionBusy}
+                title="暂时释放当前接诊工作会话，患者返回后可继续"
+                onClick={() => requestAction('suspend')}>暂挂</Button>
+              <Button size="sm" busy={complete.isPending} disabled={aiAdoptionBusy}
+                title="进入诊毕汇总，核对费用和转归信息"
+                onClick={() => requestAction('complete')}>诊毕</Button>
+              <Button size="sm" variant="text" disabled={aiAdoptionBusy} className="doctor-btn--terminate"
+                title="患者离开或明确要求停止本次诊疗"
+                onClick={() => requestAction('terminate')}>终止诊疗</Button>
+            </>}
+          </div>
+        </>}
       </div>} />
     {encounters.isPending ? <LoadingState label="正在加载就诊记录…" /> : !encounter
       ? <EmptyState icon="clinical" title="没有可处理的门诊就诊" copy="请先在门诊挂号工作台完成挂号。" />
@@ -714,6 +760,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
               <Icon name={saveDraftNotice.tone === 'error' ? 'error' : 'check'} /> {saveDraftNotice.message}
             </Alert>}
             <ClinicalRecordPanel aiSurfaceRefs={aiSurfaceRefs} key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
+                completionMode={completionMode}
                 enteringEdit={start.isPending || resume.isPending}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
@@ -768,11 +815,15 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
           </nav>
         </div>}
     {completionOpen && encounter && <EncounterCompletionDialog encounter={encounter} api={api}
-      signed={outpatientNote?.status === 'SIGNED'} ready={readyToComplete} busy={complete.isPending}
-      error={complete.error || signNoteMutation.error} onClose={() => setCompletionOpen(false)}
-      onComplete={(input) => complete.mutate(input)}
-      onSignNote={outpatientNote ? () => signNoteMutation.mutate() : undefined}
-      signing={signNoteMutation.isPending} />}
+      signed={outpatientNote?.status === 'SIGNED'} ready={readyToComplete}
+      busy={complete.isPending || completeWithSignature.isPending}
+      completionMode={completionMode}
+      error={complete.error || completeWithSignature.error || signNoteMutation.error} onClose={() => setCompletionOpen(false)}
+      onComplete={(input) => completionMode === 'COMBINED_CONFIRMATION'
+        ? completeWithSignature.mutate(input) : complete.mutate(input)}
+      onSignNote={completionMode === 'SEPARATE_CONFIRMATIONS' && outpatientNote
+        ? () => signNoteMutation.mutate() : undefined}
+      signing={signNoteMutation.isPending || completeWithSignature.isPending} />}
     {suspensionOpen && encounter && <EncounterSuspendDialog encounterId={encounter.id}
       busy={suspend.isPending} error={suspend.error}
       onClose={() => setSuspensionOpen(false)} onConfirm={(input) => suspend.mutate(input)} />}
@@ -787,7 +838,8 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
         loading={allergies.isPending} error={allergies.error} api={api} readOnly={!editing} dialog />
     </Dialog>}
     {guardedAction && <UnsavedPatientWorkDialog residentName={resident.fullName} action={guardedAction}
-      labels={draftLabels} onClose={() => setGuardedAction(null)} onDiscard={() => runAction(guardedAction)} />}
+      labels={draftLabels} saving={draftState.busy} onClose={() => setGuardedAction(null)}
+      onSaveAndContinue={() => saveAndContinue(guardedAction)} onDiscard={() => runAction(guardedAction)} />}
     {setPeekDrawerOpen && (
       <QueuePeekDrawer
         open={peekDrawerOpen}
@@ -804,21 +856,23 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   </section>
 }
 
-function UnsavedPatientWorkDialog({ residentName, action, labels, onClose, onDiscard }: {
-  residentName: string; action: GuardedPatientAction; labels: string[]; onClose: () => void; onDiscard: () => void
+function UnsavedPatientWorkDialog({ residentName, action, labels, saving, onClose, onSaveAndContinue, onDiscard }: {
+  residentName: string; action: GuardedPatientAction; labels: string[]; saving: boolean
+  onClose: () => void; onSaveAndContinue: () => Promise<void>; onDiscard: () => void
 }) {
   const actionText = ({ queue: '切换患者', suspend: '暂挂接诊', complete: '完成诊毕', terminate: '终止诊疗' } as const)[action]
   const completionBlocked = action === 'complete'
   return <Dialog title={`${actionText}前请处理草稿`} eyebrow={`${residentName} · 防止串写`}
     closeOnBackdrop={false} description="当前页面还有未保存内容，直接离开会丢失这些修改。"
     onClose={onClose} footer={completionBlocked
-      ? <Button onClick={onClose}>返回处理草稿</Button>
+      ? <><Button variant="secondary" disabled={saving} onClick={onClose}>继续修改</Button>
+        <Button busy={saving} onClick={() => { void onSaveAndContinue() }}>保存并继续诊毕</Button></>
       : <><Button variant="secondary" onClick={onClose}>继续当前患者</Button>
         <Button onClick={onDiscard}>放弃草稿并{actionText}</Button></>}>
     <div className="doctor-unsaved-work-list" role="list" aria-label="未保存内容">
       {labels.map((label) => <div role="listitem" key={label}><Icon name="warning" /><span>{label}</span></div>)}
     </div>
-    {completionBlocked && <Alert>诊毕前必须先保存病历和诊断，并确认待开立医嘱；系统不会静默丢弃草稿。</Alert>}
+    {completionBlocked && <Alert>保存将同步病历、诊断和医嘱草稿；校验通过后自动进入诊毕核对。</Alert>}
   </Dialog>
 }
 
@@ -936,8 +990,10 @@ const quickDispositionPhrases = [
   '建议转专科进一步系统检查与治疗',
 ]
 
-function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, onClose, onComplete, onSignNote, signing }: {
+function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error, completionMode,
+  onClose, onComplete, onSignNote, signing }: {
   encounter: Encounter; api: RhnApi; signed: boolean; ready: boolean; busy: boolean; error: unknown
+  completionMode: OutpatientCompletionMode
   onClose: () => void; onComplete: (input: CompleteEncounterInput) => void
   onSignNote?: () => void; signing?: boolean
 }) {
@@ -985,16 +1041,18 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
   const primaryDiag = encounter.diagnoses.find((value) => value.type === 'PRIMARY')?.display || '未录入'
   const hasChiefComplaint = Boolean(encounter.chiefComplaint?.trim())
   const hasPrimaryDiagnosis = encounter.diagnoses.some((value) => value.type === 'PRIMARY')
-  const completedRequirementCount = [hasChiefComplaint, hasPrimaryDiagnosis, signed].filter(Boolean).length
+  const signatureReady = signed || completionMode === 'COMBINED_CONFIRMATION'
+  const completedRequirementCount = [hasChiefComplaint, hasPrimaryDiagnosis, signatureReady].filter(Boolean).length
 
   return <Dialog title="诊毕确认" eyebrow="本次就诊收口" size="xwide" className="doctor-completion-modal"
     closeOnBackdrop={false} onClose={onClose}
     description="集中核对病历、诊断、医嘱、费用与患者转归；确认后当前就诊将结束。"
     footer={<><Button variant="secondary" onClick={onClose}>继续诊疗</Button>
-      <Button busy={busy} disabled={!ready || !dispositionCode || outstanding > 0}
-        title={outstanding > 0 ? '请先完成诊间结算' : !ready ? '病历、主要诊断或签署尚未完成' : '确认诊毕'}
+      <Button busy={busy || signing} disabled={!ready || !dispositionCode || outstanding > 0}
+        title={outstanding > 0 ? '请先完成诊间结算' : !ready ? '病历或主要诊断尚未完成' : signed ? '确认诊毕' : '签署病历并完成诊毕'}
         onClick={() => onComplete({ commandCode: requestCommand, dispositionCode,
-          dispositionNote: dispositionNote.trim() || undefined })}>确认诊毕</Button></>}>
+          dispositionNote: dispositionNote.trim() || undefined })}>{signed ? '确认诊毕' : completionMode === 'COMBINED_CONFIRMATION'
+            ? '签署并诊毕' : '确认诊毕'}</Button></>}>
     <div className="doctor-completion-dialog">
       {(error || createPayment.error || issueInvoice.error)
         && <Alert>{errorMessage(error || createPayment.error || issueInvoice.error)}</Alert>}
@@ -1011,7 +1069,8 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
             <Icon name={signed ? 'check' : 'warning'} className="ui-icon-inline" />
             <span>病历状态</span>
           </div>
-          <strong className={signed ? 'is-success' : 'is-warning'}>{signed ? '已签署' : '待签署'}</strong>
+          <strong className={signed || completionMode === 'COMBINED_CONFIRMATION' ? 'is-success' : 'is-warning'}>
+            {signed ? '已签署' : completionMode === 'COMBINED_CONFIRMATION' ? '将在诊毕时签署' : '待签署'}</strong>
         </div>
         <div className="doctor-overview-stat doctor-overview-stat--orders">
           <div className="doctor-overview-stat__header">
@@ -1143,10 +1202,10 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
               <Icon name={hasPrimaryDiagnosis ? 'check' : 'warning'} className="ui-icon-inline" />
               <span>主要诊断</span>
             </span>
-            <span className={`doctor-checklist-chip ${signed ? 'is-ready' : 'is-missing'}`}>
-              <Icon name={signed ? 'check' : 'warning'} className="ui-icon-inline" />
-              <span>{signed ? '病历已签署' : '病历签署'}</span>
-              {!signed && onSignNote && (
+            <span className={`doctor-checklist-chip ${signatureReady ? 'is-ready' : 'is-missing'}`}>
+              <Icon name={signatureReady ? 'check' : 'warning'} className="ui-icon-inline" />
+              <span>{signed ? '病历已签署' : completionMode === 'COMBINED_CONFIRMATION' ? '确认时自动签署' : '病历签署'}</span>
+              {!signed && completionMode === 'SEPARATE_CONFIRMATIONS' && onSignNote && (
                 <Button
                   size="sm"
                   variant="primary"
@@ -1256,26 +1315,35 @@ function allergySeverityLabel(value?: AllergyIntolerance['reactionSeverity']) {
 }
 
 
+function vitalNumber(label: string, limits: { minimum: number; maximum: number }, integer: boolean) {
+  const rangeMessage = `${label}请输入 ${limits.minimum}～${limits.maximum} 之间的数值`
+  const number = z.number({ error: (issue) => issue.input === undefined
+    ? `请填写${label}` : `${label}请输入有效数字` }).min(limits.minimum, rangeMessage).max(limits.maximum, rangeMessage)
+  return integer ? number.int(`${label}请输入整数`) : number
+}
+
 const recordSchema = z.object({
   chiefComplaint: z.string().trim().min(1, '请输入主诉').max(1000),
   presentIllness: z.string().trim().max(4000),
   medicalHistory: z.string().trim().max(4000),
   physicalExam: z.string().trim().max(4000),
   treatmentPlan: z.string().trim().max(4000),
-  systolic: z.number().int().min(VITAL_HARD_LIMITS.systolicPressure.minimum).max(VITAL_HARD_LIMITS.systolicPressure.maximum),
-  diastolic: z.number().int().min(VITAL_HARD_LIMITS.diastolicPressure.minimum).max(VITAL_HARD_LIMITS.diastolicPressure.maximum),
-  temperature: z.number().min(VITAL_HARD_LIMITS.temperature.minimum).max(VITAL_HARD_LIMITS.temperature.maximum).optional(),
-  pulseRate: z.number().int().min(VITAL_HARD_LIMITS.pulse.minimum).max(VITAL_HARD_LIMITS.pulse.maximum).optional(),
-  respiratoryRate: z.number().int().min(VITAL_HARD_LIMITS.respiratoryRate.minimum).max(VITAL_HARD_LIMITS.respiratoryRate.maximum).optional(),
-  heightCm: z.number().min(VITAL_HARD_LIMITS.height.minimum).max(VITAL_HARD_LIMITS.height.maximum).optional(),
-  weightKg: z.number().min(VITAL_HARD_LIMITS.weight.minimum).max(VITAL_HARD_LIMITS.weight.maximum).optional(),
-  oxygenSaturation: z.number().int().min(VITAL_HARD_LIMITS.oxygenSaturation.minimum).max(VITAL_HARD_LIMITS.oxygenSaturation.maximum).optional(),
+  systolic: vitalNumber('收缩压', VITAL_HARD_LIMITS.systolicPressure, true),
+  diastolic: vitalNumber('舒张压', VITAL_HARD_LIMITS.diastolicPressure, true),
+  temperature: vitalNumber('体温', VITAL_HARD_LIMITS.temperature, false).optional(),
+  pulseRate: vitalNumber('脉搏', VITAL_HARD_LIMITS.pulse, true).optional(),
+  respiratoryRate: vitalNumber('呼吸', VITAL_HARD_LIMITS.respiratoryRate, true).optional(),
+  heightCm: vitalNumber('身高', VITAL_HARD_LIMITS.height, false).optional(),
+  weightKg: vitalNumber('体重', VITAL_HARD_LIMITS.weight, false).optional(),
+  oxygenSaturation: vitalNumber('血氧', VITAL_HARD_LIMITS.oxygenSaturation, true).optional(),
 }).superRefine((value, context) => {
   if (value.systolic <= value.diastolic) {
     context.addIssue({ code: 'custom', path: ['systolic'], message: '收缩压必须大于舒张压' })
   }
 })
 type RecordForm = z.infer<typeof recordSchema>
+type AmendmentDraft = Pick<RecordForm,
+  'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'>
 
 interface ClinicalAiContextState {
   document?: ClinicalDocument
@@ -1823,15 +1891,16 @@ export async function persistOrderDrafts(
 
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
-  editing, canEdit, enteringEdit, onRequestEditing,
+  editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
   aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
+  completionMode: OutpatientCompletionMode
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
   onAiContextChange: (value: ClinicalAiDraftContext | null) => void
   onHistoryCopyConsumed: () => void; onDraftStateChange: (value: EncounterDraftState) => void
-  onRegisterSaveDraft?: (handler: (() => void) | null) => void
+  onRegisterSaveDraft?: (handler: (() => Promise<boolean>) | null) => void
   onSaveDraftNotice?: (notice: { message: string; tone?: 'success' | 'error' | 'warning' }) => void
   editing: boolean; canEdit: boolean; enteringEdit: boolean; onRequestEditing: () => void; onRequestReading: () => void
   onRefresh: () => Promise<unknown>
@@ -1886,6 +1955,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     before: ClinicalAiRecordDraft; after: ClinicalAiRecordDraft; documentVersion: number
   } | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
+  const [amendmentOpen, setAmendmentOpen] = useState(false)
+  const [amendmentReason, setAmendmentReason] = useState('')
+  const [amendmentDraft, setAmendmentDraft] = useState<AmendmentDraft>({
+    chiefComplaint: '', presentIllness: '', medicalHistory: '', physicalExam: '', treatmentPlan: '',
+  })
   const [selectedNoteFormId, setSelectedNoteFormId] = useState('')
   const [structuredValues, setStructuredValues] = useState<Record<string, unknown>>({})
   const [structuredBaseline, setStructuredBaseline] = useState(structuredFormSignature('', {}))
@@ -2176,7 +2250,32 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     mutationFn: () => api.clinicalDocuments.sign(document!.id, document!.currentVersion),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh(); onRequestReading() },
   })
-  const businessBusy = save.isPending || sign.isPending || orderBusy
+  const amend = useMutation({
+    mutationFn: async () => {
+      const amended = await api.clinicalDocuments.amend(document!.id, {
+        expectedCurrentVersion: document!.currentVersion,
+        contentSchema: document!.contentSchema,
+        content: { ...document!.content, ...amendmentDraft },
+        changeReason: amendmentReason.trim(),
+      })
+      queryClient.setQueryData<ClinicalDocument[]>(['doctor-document', encounter.id], (current) =>
+        current?.map((item) => item.id === amended.id ? amended : item) ?? [amended])
+      try {
+        return await api.clinicalDocuments.sign(amended.id, amended.currentVersion)
+      } catch (error) {
+        await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] })
+        throw error
+      }
+    },
+    onSuccess: async () => {
+      setAmendmentOpen(false)
+      setAmendmentReason('')
+      await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] })
+      await onRefresh()
+      onRequestReading()
+    },
+  })
+  const businessBusy = save.isPending || sign.isPending || amend.isPending || orderBusy
   const aiContextBusy = businessBusy || documents.isPending || Boolean(documents.error)
   const documentStatus = documents.isPending ? 'LOADING'
     : documents.error ? 'ERROR' : document?.status ?? 'NONE'
@@ -2245,26 +2344,35 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       busy: businessBusy })
   }, [diagnosesChanged, formState.isDirty, medicationDrafts.length, onDraftStateChange, orderBusy,
     save.isPending, serviceDrafts.length, sign.isPending, structuredChanged, businessBusy])
-  const handleRecordSubmit = handleSubmit(
-    (value) => {
+  const submitRecordDraft = async (value: RecordForm) => {
       if (aiFieldStream?.encounterId === encounter.id) {
         onSaveDraftNotice?.({ message: 'AI 正在生成，请待完整病历带入并核对后保存。', tone: 'warning' })
-        return
+        return false
       }
-      save.mutate(value)
-    },
-    (formErrors) => {
-      const first = Object.values(formErrors)[0]?.message
-      onSaveDraftNotice?.({
-        message: typeof first === 'string' ? first : '请检查病历表单必填项',
-        tone: 'error',
-      })
-    }
-  )
+      try {
+        await save.mutateAsync(value)
+        return true
+      } catch {
+        return false
+      }
+  }
+  const reportRecordErrors = (formErrors: typeof formState.errors) => {
+    const first = Object.values(formErrors)[0]?.message
+    onSaveDraftNotice?.({
+      message: typeof first === 'string' ? first : '请检查病历表单必填项',
+      tone: 'error',
+    })
+  }
+  const handleRecordSubmit = handleSubmit((value) => { void submitRecordDraft(value) }, reportRecordErrors)
+  const saveDraftAndWait = async () => {
+    let saved = false
+    await handleSubmit(async (value) => { saved = await submitRecordDraft(value) }, reportRecordErrors)()
+    return saved
+  }
   useEffect(() => {
-    onRegisterSaveDraft?.(handleRecordSubmit)
+    onRegisterSaveDraft?.(saveDraftAndWait)
     return () => onRegisterSaveDraft?.(null)
-  }, [handleRecordSubmit, onRegisterSaveDraft])
+  }, [onRegisterSaveDraft, saveDraftAndWait])
   const signed = document?.status === 'SIGNED'
   const isDiagnosisEmpty = diagnoses.length === 0
   const showDiagnosisComposer = editing && !signed && (diagnosisComposerOpen || isDiagnosisEmpty)
@@ -2320,13 +2428,24 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     return { chiefComplaint: value.chiefComplaint, presentIllness: value.presentIllness,
       medicalHistory: value.medicalHistory, physicalExam: value.physicalExam, treatmentPlan: value.treatmentPlan }
   }
+  const openAmendment = () => {
+    setAmendmentReason('')
+    setAmendmentDraft({
+      chiefComplaint: document?.content.chiefComplaint ?? encounter.chiefComplaint ?? '',
+      presentIllness: document?.content.presentIllness ?? '',
+      medicalHistory: document?.content.medicalHistory ?? '',
+      physicalExam: document?.content.physicalExam ?? '',
+      treatmentPlan: document?.content.treatmentPlan ?? '',
+    })
+    setAmendmentOpen(true)
+  }
   const applyNoteTemplate = (template: OutpatientNoteTemplate, fields: Set<NoteTemplateField>, overwrite: boolean) => {
     const current = getValues()
     reset({ ...current, ...mergeNoteTemplateContent(current, template.content, fields, overwrite) },
       { keepDefaultValues: true })
     setCopyNotice(`已从病历模板“${template.name}”带入所选段落，请结合本次患者情况核对后保存。`)
   }
-  const error = save.error || sign.error || documents.error || noteForms.error
+  const error = save.error || sign.error || amend.error || documents.error || noteForms.error
   const encounterEditable = ['REGISTERED', 'IN_PROGRESS', 'SUSPENDED'].includes(encounter.status)
   const editActionLabel = encounter.status === 'REGISTERED' ? '开始接诊'
     : encounter.status === 'SUSPENDED' ? '恢复接诊' : '进入编辑'
@@ -2347,21 +2466,31 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
 
   return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
     {!editing && <div className="doctor-clinical-modebar">
-      <span><strong>阅读状态</strong>
-        <small>{signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small></span>
-      <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
+      <div className="doctor-clinical-modebar__status">
+        <strong>阅读状态</strong>
+        <small>{signed ? '病历已签署' : document ? '仅查看，不会修改就诊状态和时间' : '尚未形成病历记录'}</small>
+      </div>
+      {readOnlyReason && <div className="doctor-clinical-readonly-note">
+        <Icon name="lock" />
+        <span>{readOnlyReason}</span>
+      </div>}
+      {encounterEditable && <Button size="sm" busy={enteringEdit} disabled={Boolean(readOnlyReason)}
           title={readOnlyReason || `${editActionLabel}后可修改病历`}
-          onClick={onRequestEditing}>{editActionLabel}</Button>
+          onClick={onRequestEditing}>{editActionLabel}</Button>}
     </div>}
-    {!editing && readOnlyReason && <div className="doctor-clinical-readonly-note"><Icon name="lock" />
-      <span>{readOnlyReason}</span></div>}
     <div className="doctor-record-column"><Panel className="doctor-record-panel">
       <PanelHead className="doctor-record-heading" title="门诊病历"
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} />}
-          {document && signed && <Button size="sm" variant="secondary"
-          onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}</>} />
+          {document && signed && <>
+            {canEdit && <Button size="sm" variant="secondary" onClick={openAmendment}>发起更正</Button>}
+            <Button size="sm" variant="secondary"
+              onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>
+          </>}</>} />
+      {document?.status === 'AMENDMENT_IN_PROGRESS' && canEdit && !editing && <Alert tone="warning">
+        更正草稿尚未签署。<Button size="sm" busy={sign.isPending} onClick={() => sign.mutate()}>重新签署更正版</Button>
+      </Alert>}
       {editing && !signed && <div ref={aiSurfaceRefs.note} />}
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
@@ -2490,9 +2619,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                       {isTempAbnormal && <span className="doctor-vital-alert-dot" title="体温异常" />}
                     </span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="体温" type="number" step="0.1" min={VITAL_HARD_LIMITS.temperature.minimum}
+                      <input aria-label="体温" aria-invalid={Boolean(formState.errors.temperature)}
+                        aria-describedby={formState.errors.temperature ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.temperature.minimum}
                         max={VITAL_HARD_LIMITS.temperature.maximum} disabled={signed}
-                        {...register('temperature', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('temperature', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>℃</small>
                     </div>
                   </div>
@@ -2502,9 +2632,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                       {isPulseAbnormal && <span className="doctor-vital-alert-dot" title="脉搏异常" />}
                     </span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="脉搏" type="number" min={VITAL_HARD_LIMITS.pulse.minimum}
+                      <input aria-label="脉搏" aria-invalid={Boolean(formState.errors.pulseRate)}
+                        aria-describedby={formState.errors.pulseRate ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.pulse.minimum}
                         max={VITAL_HARD_LIMITS.pulse.maximum} disabled={signed}
-                        {...register('pulseRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('pulseRate', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>次/分</small>
                     </div>
                   </div>
@@ -2514,9 +2645,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                       {isRespAbnormal && <span className="doctor-vital-alert-dot" title="呼吸频率异常" />}
                     </span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="呼吸" type="number" min={VITAL_HARD_LIMITS.respiratoryRate.minimum}
+                      <input aria-label="呼吸" aria-invalid={Boolean(formState.errors.respiratoryRate)}
+                        aria-describedby={formState.errors.respiratoryRate ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.respiratoryRate.minimum}
                         max={VITAL_HARD_LIMITS.respiratoryRate.maximum} disabled={signed}
-                        {...register('respiratoryRate', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('respiratoryRate', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>次/分</small>
                     </div>
                   </div>
@@ -2526,43 +2658,48 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                       {isSpo2Abnormal && <span className="doctor-vital-alert-dot" title="血氧偏低" />}
                     </span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="血氧" type="number" min={VITAL_HARD_LIMITS.oxygenSaturation.minimum}
+                      <input aria-label="血氧" aria-invalid={Boolean(formState.errors.oxygenSaturation)}
+                        aria-describedby={formState.errors.oxygenSaturation ? 'doctor-vital-errors' : undefined} type="number" min={VITAL_HARD_LIMITS.oxygenSaturation.minimum}
                         max={VITAL_HARD_LIMITS.oxygenSaturation.maximum} disabled={signed}
-                        {...register('oxygenSaturation', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('oxygenSaturation', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>%</small>
                     </div>
                   </div>
                   <div className={`doctor-vital-cell doctor-vital-cell--bp ${isBpAbnormal ? 'is-abnormal' : ''}`}>
                     <span className="doctor-vital-name">
-                      血压
+                      血压 <span className="doctor-vital-required" aria-hidden="true">*</span>
                       {isBpAbnormal && <span className="doctor-vital-alert-dot" title="血压异常" />}
                     </span>
                     <div className="doctor-vital-input-wrap doctor-vital-bp-wrap">
-                      <input aria-label="收缩压" type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum}
+                      <input aria-label="收缩压" aria-invalid={Boolean(formState.errors.systolic)}
+                        aria-describedby={formState.errors.systolic ? 'doctor-vital-errors' : undefined} aria-required="true" type="number" min={VITAL_HARD_LIMITS.systolicPressure.minimum}
                         max={VITAL_HARD_LIMITS.systolicPressure.maximum}
-                        {...register('systolic', { valueAsNumber: true })} disabled={signed} />
+                        {...register('systolic', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} disabled={signed} />
                       <b>/</b>
-                      <input aria-label="舒张压" type="number" min={VITAL_HARD_LIMITS.diastolicPressure.minimum}
+                      <input aria-label="舒张压" aria-invalid={Boolean(formState.errors.diastolic)}
+                        aria-describedby={formState.errors.diastolic ? 'doctor-vital-errors' : undefined} aria-required="true" type="number" min={VITAL_HARD_LIMITS.diastolicPressure.minimum}
                         max={VITAL_HARD_LIMITS.diastolicPressure.maximum}
-                        {...register('diastolic', { valueAsNumber: true })} disabled={signed} />
+                        {...register('diastolic', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} disabled={signed} />
                       <small>mmHg</small>
                     </div>
                   </div>
                   <div className="doctor-vital-cell">
                     <span className="doctor-vital-name">身高</span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="身高" type="number" step="0.1" min={VITAL_HARD_LIMITS.height.minimum}
+                      <input aria-label="身高" aria-invalid={Boolean(formState.errors.heightCm)}
+                        aria-describedby={formState.errors.heightCm ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.height.minimum}
                         max={VITAL_HARD_LIMITS.height.maximum} disabled={signed}
-                        {...register('heightCm', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('heightCm', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>cm</small>
                     </div>
                   </div>
                   <div className="doctor-vital-cell">
                     <span className="doctor-vital-name">体重</span>
                     <div className="doctor-vital-input-wrap">
-                      <input aria-label="体重" type="number" step="0.1" min={VITAL_HARD_LIMITS.weight.minimum}
+                      <input aria-label="体重" aria-invalid={Boolean(formState.errors.weightKg)}
+                        aria-describedby={formState.errors.weightKg ? 'doctor-vital-errors' : undefined} type="number" step="0.1" min={VITAL_HARD_LIMITS.weight.minimum}
                         max={VITAL_HARD_LIMITS.weight.maximum} disabled={signed}
-                        {...register('weightKg', { setValueAs: (value) => value === '' ? undefined : Number(value) })} />
+                        {...register('weightKg', { setValueAs: (value) => value === '' || value == null ? undefined : Number(value) })} />
                       <small>kg</small>
                     </div>
                   </div>
@@ -2580,7 +2717,12 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                 temperature: formState.errors.temperature, pulseRate: formState.errors.pulseRate,
                 respiratoryRate: formState.errors.respiratoryRate, heightCm: formState.errors.heightCm,
                 weightKg: formState.errors.weightKg, oxygenSaturation: formState.errors.oxygenSaturation })
-                .find(Boolean)?.message && <small className="ui-field__message ui-field__error">请检查生命体征录入范围</small>}
+                .some(Boolean) && <small id="doctor-vital-errors" role="alert" className="ui-field__message ui-field__error">
+                  {[formState.errors.systolic, formState.errors.diastolic, formState.errors.temperature,
+                    formState.errors.pulseRate, formState.errors.respiratoryRate, formState.errors.heightCm,
+                    formState.errors.weightKg, formState.errors.oxygenSaturation]
+                    .flatMap((error) => error?.message ? [error.message] : []).join('；')}
+                </small>}
             </div>
           )
         })()}
@@ -2595,7 +2737,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
             setStructuredValues((current) => ({ ...current, [code]: value }))
             setStructuredErrors((current) => ({ ...current, [code]: '' }))
           }} />}
-        {document && !signed && (
+        {document && !signed && completionMode === 'SEPARATE_CONFIRMATIONS' && (
           <div className="ui-form-actions doctor-record-actions">
             <Button type="button" variant="secondary" busy={sign.isPending}
               disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending || Boolean(aiFieldStream)}
@@ -2832,6 +2974,32 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       sourceLabel={`${document.title} · V${document.currentVersion}`}
       generate={(purpose, copies) => api.printing.clinicalDocument(document.id, purpose, copies)}
       onClose={() => setNotePrintOpen(false)} />}
+    {amendmentOpen && document && <Dialog title="发起病历更正" eyebrow={`已签署版本 V${document.currentVersion}`}
+      size="xwide"
+      closeOnBackdrop={false}
+      description="原签署版本和签名证据将完整保留；以下更正内容将生成新版本并重新签署。"
+      onClose={() => !amend.isPending && setAmendmentOpen(false)}
+      footer={<><Button variant="secondary" disabled={amend.isPending} onClick={() => setAmendmentOpen(false)}>取消</Button>
+        <Button busy={amend.isPending} disabled={!amendmentReason.trim() || !amendmentDraft.chiefComplaint.trim()}
+          onClick={() => amend.mutate()}>更正并重新签署</Button></>}>
+      <div className="doctor-amendment-form">
+        <FormField label="更正原因" required error={amend.error ? errorMessage(amend.error) : undefined}>
+          <textarea className="ui-field__control" value={amendmentReason} maxLength={500} autoFocus
+            onChange={(event) => setAmendmentReason(event.target.value)}
+            placeholder="说明需要更正的内容和原因" />
+        </FormField>
+        <FormField label="主诉" required>
+          <textarea className="ui-field__control" value={amendmentDraft.chiefComplaint}
+            onChange={(event) => setAmendmentDraft((current) => ({ ...current, chiefComplaint: event.target.value }))} />
+        </FormField>
+        {([
+          ['presentIllness', '现病史'], ['medicalHistory', '既往史'], ['physicalExam', '体格检查'], ['treatmentPlan', '处置计划'],
+        ] as const).map(([field, label]) => <FormField key={field} label={label}>
+          <textarea className="ui-field__control" value={amendmentDraft[field]}
+            onChange={(event) => setAmendmentDraft((current) => ({ ...current, [field]: event.target.value }))} />
+        </FormField>)}
+      </div>
+    </Dialog>}
   </section>
 }
 
@@ -3137,6 +3305,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
         : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
+          onAiOrdersPrepared={() => setReviewOpen(true)}
           aiSuggestionSurfaceRef={aiSuggestionSurfaceRef} encounter={encounter} allergies={allergies}
           prescriptions={prescriptions.data ?? []} medications={medications.data ?? []} services={services.data ?? []}
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}

@@ -10,6 +10,11 @@ import {
 import { Icon } from './Icon'
 
 export type TabsVariant = 'line' | 'workspace' | 'cards'
+export type TableColumnType = 'text' | 'numeric' | 'status' | 'control' | 'actions'
+
+export function tableCellClass(type: TableColumnType) {
+  return `ui-table-cell--${type}`
+}
 
 export type TabItem<T extends string> = {
   value: T

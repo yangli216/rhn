@@ -12,6 +12,7 @@ import com.rhn.platform.configuration.application.ConfigurationApplicationServic
 import com.rhn.platform.configuration.domain.ConfigurationCategory;
 import com.rhn.platform.configuration.domain.ConfigurationCodePolicy;
 import com.rhn.platform.configuration.domain.ConfigurationControlType;
+import com.rhn.platform.configuration.domain.ConfigurationDependencyBehavior;
 import com.rhn.platform.configuration.domain.ConfigurationDisplayPolicy;
 import com.rhn.platform.configuration.domain.ConfigurationScope;
 import com.rhn.platform.configuration.domain.ConfigurationSensitivity;
@@ -187,6 +188,8 @@ public class ConfigurationController {
                 request.nullableValue() != null && request.nullableValue(),
                 request.sensitivity() == null ? ConfigurationSensitivity.NORMAL : request.sensitivity(),
                 request.displayPolicy() == null ? ConfigurationDisplayPolicy.PLAIN : request.displayPolicy(),
+                request.dependsOnKey(), request.dependsOnValue(),
+                request.dependencyBehavior() == null ? ConfigurationDependencyBehavior.DISABLE_AND_SUPPRESS : request.dependencyBehavior(),
                 request.reason(), request.requestCode());
     }
 
@@ -252,6 +255,9 @@ public class ConfigurationController {
             Boolean nullableValue,
             ConfigurationSensitivity sensitivity,
             ConfigurationDisplayPolicy displayPolicy,
+            @Size(max = 160) String dependsOnKey,
+            @Size(max = 500) String dependsOnValue,
+            ConfigurationDependencyBehavior dependencyBehavior,
             @Size(max = 1000) String reason,
             @NotBlank @Size(max = 128) String requestCode) {
     }

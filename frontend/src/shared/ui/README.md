@@ -13,7 +13,7 @@
 | `Tabs` | 页面或工作区页签 | 线性、工作区和卡片三种规范变体；自动处理 ARIA、方向键、Home/End 与焦点移动 |
 | `SearchField` | 列表和主数据检索 | 统一搜索图标、清空操作、焦点状态与可访问名称 |
 | `SplitWorkspace` | 左侧目录、右侧详情的主从页面 | 统一最小尺寸、间距和溢出边界，业务仅配置列宽 |
-| `TableShell` / `DataTable` | 数据列表与表格 | 统一滚动容器、表头、行密度、悬停和底部统计区 |
+| `TableShell` / `DataTable` | 数据列表与表格 | 统一滚动容器、表头、行密度、悬停、列语义对齐和底部统计区 |
 | `Pagination` | 长列表分页 | 上一页、下一页、页码播报和边界禁用状态 |
 | `FormField` | 表单字段 | 标签绑定、错误关联、提示和统一控件样式 |
 | `Select` | 通用下拉选择 | 单选、多选、名称/值/拼音首字母检索、清空、键盘操作、表单提交 |
@@ -32,6 +32,29 @@
 | `Switch` | 开关选择 | 遵循 ARIA switch 语义规范，支持键盘 Space/Enter 操作、受控/非受控、sm/md 尺寸与随动状态说明 |
 
 业务枚举的文案和颜色不能写在功能组件中，应集中到 `shared/presentation.ts`，再传给 `StatusBadge`。
+
+## 表格列语义与对齐
+
+`DataTable` 的普通文本列默认左对齐。其余列通过 `tableCellClass` 显式声明语义，并同时应用到该列的 `th` 和所有 `td`，确保标题与内容严格一致：`numeric` 数值列右对齐并使用等宽数字，`status` 状态列居中，`control` 选择/序号/展开等结构控制列居中，`actions` 操作列右对齐。`text` 可用于覆盖业务样式并明确恢复左对齐。
+
+编号、手机号、证件号和条码虽然由数字字符组成，但不可计算，仍属于文本列。日期时间默认按文本左对齐；复合单元格按主信息语义判断；空值 `—` 跟随所在列。不要根据当前内容或 `nth-child` 推断列类型。
+
+```tsx
+import { DataTable, StatusBadge, tableCellClass } from '../../shared/ui'
+
+<DataTable>
+  <thead><tr>
+    <th>项目</th>
+    <th className={tableCellClass('numeric')}>金额</th>
+    <th className={tableCellClass('status')}>状态</th>
+  </tr></thead>
+  <tbody><tr>
+    <td>诊查费</td>
+    <td className={tableCellClass('numeric')}>12.00</td>
+    <td className={tableCellClass('status')}><StatusBadge tone="success">已结算</StatusBadge></td>
+  </tr></tbody>
+</DataTable>
+```
 
 ## 示例
 

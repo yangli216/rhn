@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { SystemEnumDefinition } from '../../shared/api/dictionaryApi'
+import type { Appointment } from '../../shared/api/appointmentsApi'
 import type { ReceptionQueueItem, ServiceSchedule } from '../../shared/api/schedulingApi'
 import type { Encounter, Resident } from '../../shared/model'
 import type { RegistrationBillingIntent } from '../../shared/api/billingApi'
@@ -217,9 +218,10 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
+    await userEvent.click(screen.getByRole('button', { name: '全天' }))
     expect(screen.getByRole('button', { name: '全天' })).toHaveClass('is-active')
 
-    // Registration desks see all departments and sessions by default.
+    // Registration desks see all departments and sessions when viewing all day.
     expect(await screen.findByRole('button', { name: /全科门诊/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /王专家/ })).toBeInTheDocument()
 
@@ -272,12 +274,14 @@ describe('OutpatientRegistrationWorkspace', () => {
       </MemoryRouter>
     </QueryClientProvider>)
 
+    await userEvent.click(screen.getByRole('button', { name: '全天' }))
     await screen.findByRole('button', { name: /全科门诊/ })
     const cardGeneral = screen.getByRole('button', { name: /全科门诊/ })
     const cardInternal = await screen.findByRole('button', { name: /王专家/ })
     const searchInput = screen.getByPlaceholderText(/输入科室\/医生名称或拼音/)
 
-    // Initially first schedule (全科门诊) is selected
+    // Select first schedule (全科门诊)
+    await userEvent.click(cardGeneral)
     expect(cardGeneral).toHaveClass('is-selected')
     expect(document.querySelector('.registration-cashier .cashier-panel__head')).toHaveTextContent('全科门诊')
 
@@ -574,5 +578,81 @@ describe('OutpatientRegistrationWorkspace', () => {
 
     // Cannot refund once already in service
     expect(screen.queryByRole('button', { name: '退号' })).not.toBeInTheDocument()
+  })
+
+  it('proactively detects resident pending appointment today and enables one-click check-in', async () => {
+    const todayAppointment = {
+      id: 'app-today-1', revision: 0, appointmentNo: 'APPT-2026-999',
+      residentId: resident.id, healthRecordNo: resident.healthRecordNo,
+      residentName: resident.fullName, gender: resident.gender, birthDate: resident.birthDate,
+      scheduleId: schedule.id, scheduleCode: schedule.scheduleCode, serviceDate: businessDate(),
+      sdDayPart: 'MORNING', sdDayPartText: '上午',
+      startAt: `${businessDate()}T08:30:00Z`, endAt: `${businessDate()}T11:30:00Z`,
+      practitionerId: 'doctor-1', practitionerName: '李医生', serviceCode: 'GENERAL', serviceName: '全科门诊',
+      sdStatus: 'BOOKED', sdStatusText: '待就诊', sdBookingSource: 'WINDOW', sdBookingSourceText: '窗口预约',
+      confirmedAt: '2026-09-10T08:00:00Z', createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z',
+    } as Appointment
+
+    const createRegistrationIntent = vi.fn().mockResolvedValue({
+      id: 'intent-app-1', revision: 1, residentId: resident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, appointmentId: todayAppointment.id,
+      idempotencyCode: 'REG-INTENT-test', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY', status: 'COMPLETED', feeAmount: 0, currencyCode: 'CNY',
+      completionAttempts: 1, createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', duplicate: false,
+    } as RegistrationBillingIntent)
+
+    const api = {
+      residents: {
+        get: vi.fn().mockResolvedValue(resident),
+        search: vi.fn().mockResolvedValue([resident]),
+        profile: vi.fn().mockResolvedValue({ resident, demographicProfile: {}, addresses: [], relatedPersons: [], coverages: [], employments: [] }),
+      },
+      appointments: {
+        list: vi.fn().mockResolvedValue([todayAppointment]),
+        get: vi.fn().mockResolvedValue(todayAppointment),
+      },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration?residentId=resident-1']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // Verify appointment banner appears
+    expect(await screen.findByText(/检测到该患者今日有待取号预约/)).toBeInTheDocument()
+    expect(screen.getByText(/APPT-2026-999/)).toBeInTheDocument()
+
+    // Click '一键带入预约取号'
+    const applyBtn = screen.getByRole('button', { name: /一键带入预约取号/ })
+    await userEvent.click(applyBtn)
+
+    // Confirm that the linked appointment alert shows up
+    expect(await screen.findByText(/正在办理预约/)).toBeInTheDocument()
+
+    // Confirm registration
+    const confirmBtn = await screen.findByRole('button', { name: /确认挂号/ })
+    await userEvent.click(confirmBtn)
+
+    // Expect mutation to include the appointmentId
+    await waitFor(() => expect(createRegistrationIntent).toHaveBeenCalledWith(expect.objectContaining({
+      residentId: resident.id,
+      scheduleId: schedule.id,
+      appointmentId: todayAppointment.id,
+    })))
   })
 })

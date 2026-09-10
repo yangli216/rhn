@@ -5,7 +5,7 @@ import type { SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, SearchField,
-  Select, StatusBadge } from '../../shared/ui'
+  Select, StatusBadge, tableCellClass } from '../../shared/ui'
 import { Icon } from '../../shared/ui/Icon'
 import { formatTime } from '../../shared/format'
 import { money } from './BillingShared'
@@ -200,14 +200,18 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
       <header><h3>收费项目</h3><span>{settlement?.lines.length ?? 0} 项</span></header>
       {!settlement?.lines.length ? <p className="billing-query-section__empty">未查询到收费项目明细。</p>
         : <div className="billing-query-table-wrap"><table className="billing-query-table"><thead><tr>
-          <th>项目名称</th><th>项目编码</th><th>数量</th><th>单价</th><th>结算金额</th>
+          <th>项目名称</th><th>项目编码</th>
+          <th className={tableCellClass('numeric')}>数量</th>
+          <th className={tableCellClass('numeric')}>单价</th>
+          <th className={tableCellClass('numeric')}>结算金额</th>
         </tr></thead><tbody>{settlement.lines.map((line) => {
           const charge = chargeById.get(line.chargeItemId)
           return <tr key={line.id}><td><strong>{charge?.itemName ?? `收费项目 ${line.chargeItemId}`}</strong>
             {charge?.packageSpec && <small>{charge.packageSpec}</small>}</td>
             <td><code>{charge?.itemCode ?? '--'}</code></td>
-            <td>{line.settledQuantity} {charge?.unitName ?? charge?.unitCode ?? ''}</td>
-            <td>{money(charge?.unitPrice, record.currencyCode)}</td><td><strong>{money(line.netAmount, record.currencyCode)}</strong></td>
+            <td className={tableCellClass('numeric')}>{line.settledQuantity} {charge?.unitName ?? charge?.unitCode ?? ''}</td>
+            <td className={tableCellClass('numeric')}>{money(charge?.unitPrice, record.currencyCode)}</td>
+            <td className={tableCellClass('numeric')}><strong>{money(line.netAmount, record.currencyCode)}</strong></td>
           </tr>
         })}</tbody></table></div>}
     </section>

@@ -22,6 +22,10 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
   const api = { clinicalAi: { capabilities: vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
     features: ['BACKGROUND_DRAFT', 'STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'PLAN_RECOMMENDATIONS', 'AUDIT_TRAIL'] }),
     generateStream, history: vi.fn().mockResolvedValue([]), recordEvent },
+    masterData: { searchServices: vi.fn().mockResolvedValue({ content: [
+      { id: 'lab-1', code: 'LAB001', name: '血常规', prices: [] },
+      { id: 'exam-1', code: 'EXAM001', name: '胸部X线', prices: [] },
+    ] }) },
     diagnostics: { reportsByEncounter: vi.fn().mockResolvedValue([]) },
     outpatientPlanTemplates: { list: vi.fn().mockResolvedValue([]) } } as unknown as RhnApi
   const nodes = render(<div><div data-testid="summary" /><div data-testid="note" /><div data-testid="diagnoses" /><div data-testid="plans" /></div>)
@@ -51,6 +55,29 @@ beforeEach(() => { vi.useFakeTimers(); localStorage.clear() })
 afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('quiet clinical AI workflow', () => {
+  it('keeps the default co-writing toolbar compact without removing accessible actions', async () => {
+    setup()
+    await advance(20)
+
+    expect(screen.getByText('AI 共写')).toBeInTheDocument()
+    expect(screen.getByText('待分析')).toBeInTheDocument()
+    expect(screen.queryByText('输入问诊要点后准备建议')).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: '自动准备' })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('接诊场景')).not.toBeInTheDocument()
+    expect(screen.queryByText('初诊全科接诊')).not.toBeInTheDocument()
+    expect(screen.queryByText('自动识别')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '分析当前病历' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '口述 / 输入要点' })).toHaveTextContent('录入要点')
+    expect(screen.getByRole('button', { name: '更多辅助' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    const composer = screen.getByLabelText('问诊要点或辅助要求')
+    const headingLabel = document.querySelector('.doctor-ai-composer-card__head label')
+    expect(screen.queryByText('问诊要点与口述录入')).not.toBeInTheDocument()
+    expect(headingLabel).toHaveTextContent('问诊要点或辅助要求')
+    expect(headingLabel).toHaveAttribute('for', composer.id)
+  })
+
   it('generates and directly adopts only the completed record, through audit, without auto-adding diagnoses', async () => {
     const { apply, recordEvent, generateStream } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
       recordDraft: { chiefComplaint: '发热3天', presentIllness: '患者发热3天，最高体温39℃。', medicalHistory: '既往史待询问',
@@ -101,30 +128,31 @@ describe('quiet clinical AI workflow', () => {
     expect(apply).not.toHaveBeenCalled()
   })
 
-  it('debounces editing, prepares once, and does not open or mark unseen suggestions as viewed', async () => {
-    const { generateStream, recordEvent, surfaces, apply } = setup()
+  it('never generates on typing or idle time, even with a previously enabled automatic preference', async () => {
+    localStorage.setItem('rhn:ai-auto-prepare', 'on')
+    const { generateStream, surfaces, apply } = setup()
     await advance(20)
     expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
     expect(surfaces.plans).toBeEmptyDOMElement()
     await advance(3000)
     expect(generateStream).not.toHaveBeenCalled()
-    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成问诊输入内容用于静默整理测试' } })
-    await advance(2000)
-    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成问诊输入内容用于静默整理测试，追加描述' } })
-    await advance(2000)
+    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成问诊输入内容，仅手动触发分析' } })
+    await advance(60_000)
     expect(generateStream).not.toHaveBeenCalled()
-    await advance(600)
+    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '补充模拟问诊描述，停顿不自动分析' } })
+    await advance(60_000)
+    expect(generateStream).not.toHaveBeenCalled()
+    expect(apply).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '整理并对照建议' }))
+    await advance(100)
     expect(generateStream).toHaveBeenCalledTimes(1)
     expect(screen.getByText('建议已准备好')).toBeInTheDocument()
-    expect(screen.queryByLabelText('主诉建议（可编辑）')).not.toBeInTheDocument()
-    expect(recordEvent).not.toHaveBeenCalled()
-    expect(apply).not.toHaveBeenCalled()
-    await advance(30000)
-    expect(generateStream).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByRole('button', { name: '段落对照 · 1' }))
-    await advance(20)
     expect(screen.getByLabelText('主诉建议（可编辑）')).toHaveValue('待核对的测试主诉')
-    expect(recordEvent).toHaveBeenCalledWith('quiet-result', expect.objectContaining({ eventType: 'VIEWED' }))
+    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '手动生成后再次修改，也不会自动重试分析' } })
+    await advance(60_000)
+    expect(generateStream).toHaveBeenCalledTimes(1)
+    expect(apply).not.toHaveBeenCalled()
   })
 
   it('keeps accepted treatment rows hidden and does not regenerate when only order drafts change', async () => {
@@ -191,18 +219,19 @@ describe('quiet clinical AI workflow', () => {
     expect(apply).not.toHaveBeenCalled()
   })
 
-  it('can turn off automatic preparation and keeps background errors unobtrusive without retries', async () => {
+  it('shows a manual generation error and retries only when the button is clicked', async () => {
     const { generateStream } = setup(vi.fn().mockRejectedValue(new Error('模拟服务失败')))
     await advance(20)
-    fireEvent.click(screen.getByRole('checkbox', { name: '自动准备' }))
-    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成输入，足够长度用于自动生成测试' } })
-    await advance(3000)
+    fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成输入，等待后不应自动调用模型' } })
+    await advance(60_000)
     expect(generateStream).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('checkbox', { name: '自动准备' }))
-    await advance(2600)
-    expect(screen.getByText('自动整理未完成')).toBeInTheDocument()
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    await advance(30000)
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    expect(screen.getByRole('alert')).toHaveTextContent('模拟服务失败')
+    await advance(60_000)
     expect(generateStream).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await advance(100)
+    expect(generateStream).toHaveBeenCalledTimes(2)
   })
 })

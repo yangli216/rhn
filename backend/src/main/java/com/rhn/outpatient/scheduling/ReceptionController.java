@@ -25,11 +25,11 @@ class ReceptionController {
                                   @RequestParam(required = false) LocalDate dateFrom,
                                   @RequestParam(required = false) LocalDate dateTo,
                                   @RequestParam(defaultValue = "DEPARTMENT") String scope) {
-        boolean organizationScope = organizationScope(scope);
+        ReceptionQueueScope queueScope = ReceptionQueueScope.parse(scope);
         if (dateFrom != null || dateTo != null) {
-            return service.queue(dateFrom, dateTo, organizationScope);
+            return service.queue(dateFrom, dateTo, queueScope);
         }
-        return service.queue(date, date, organizationScope);
+        return service.queue(date, date, queueScope);
     }
 
     @GetMapping("/page")
@@ -41,10 +41,7 @@ class ReceptionController {
                               @RequestParam(defaultValue = "0") int page,
                               @RequestParam(defaultValue = "20") int size,
                               @RequestParam(defaultValue = "DEPARTMENT") String scope) {
-        return service.page(dateFrom, dateTo, status, query, page, size, organizationScope(scope));
-    }
-
-    private boolean organizationScope(String scope) {
-        return "ORGANIZATION".equalsIgnoreCase(scope);
+        return service.page(dateFrom, dateTo, status, query, page, size,
+                ReceptionQueueScope.parse(scope) == ReceptionQueueScope.ORGANIZATION);
     }
 }

@@ -17,7 +17,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
     @Test
     void manufacturer_and_supplier_support_independent_maintenance_and_status_control() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhn())
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"MFR-MAINT-%s","name":"维护测试制药企业","shortName":"测试制药",
                                  "sdManufacturerType":"DRUG","sdProductionPlace":"DOMESTIC",
@@ -26,7 +26,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(put("/api/platform/master-data/manufacturers/{id}", manufacturer.get("id").asText()).with(rhn())
+        mockMvc.perform(put("/api/platform/master-data/manufacturers/{id}", manufacturer.get("id").asText()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":"0","code":"MFR-MAINT-%s","name":"更新制药企业",
                                  "shortName":"更新制药","sdManufacturerType":"DRUG",
@@ -36,7 +36,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.name").value("更新制药企业"));
 
-        mockMvc.perform(post("/api/platform/master-data/manufacturers/{id}/status", manufacturer.get("id").asText()).with(rhn())
+        mockMvc.perform(post("/api/platform/master-data/manufacturers/{id}/status", manufacturer.get("id").asText()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":\"1\",\"sdStatus\":\"SUSPENDED\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(2))

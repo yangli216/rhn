@@ -79,7 +79,9 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.queryByDisplayValue('不存在项目')).not.toBeInTheDocument()
   })
 
-  it('converts a medication with catalog defaults directly to an editable pending draft', async () => {
+  it.each([undefined, { packageId: 'package-para', doseValue: 1, doseUnit: 'g', routeCode: 'ORAL',
+    frequencyCode: 'QD', durationValue: 3, quantity: 2, instruction: '测试医生核对的嘱托' }])(
+    'converts catalog defaults or physician-edited AI details to a pending draft: %j', async (orderDraft) => {
     const medication = {
       id: 'm-para', code: 'MED-PARA', name: '对乙酰氨基酚片', preparationSpec: '0.5g', preparationUnit: '片',
       defaultDose: 0.5, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'QD',
@@ -97,7 +99,7 @@ describe('UnifiedOrderListEditor', () => {
     const setMedications = vi.fn(), completed = vi.fn()
     renderComponent({ setMedicationDrafts: setMedications, aiOrderReview: {
       id: 'review-medication', encounterId: 'enc-1', items: [{ type: 'MEDICATION', medicationId: 'm-para',
-        catalogItemId: 'product-para', code: 'MED-PARA', name: '对乙酰氨基酚片', rationale: '退热' }],
+        catalogItemId: 'product-para', code: 'MED-PARA', name: '对乙酰氨基酚片', rationale: '退热', orderDraft }],
       onCompleted: completed,
     } })
     await waitFor(() => expect(completed).toHaveBeenCalledWith(['MEDICATION:product-para']))
@@ -105,7 +107,8 @@ describe('UnifiedOrderListEditor', () => {
     expect(setMedications.mock.calls[0][0]([])[0]).toMatchObject({
       medicationName: '对乙酰氨基酚片', productName: '对乙酰氨基酚片 0.5g', unitPrice: 8.6,
       request: { catalogItemId: 'product-para', doseValue: 0.5, doseUnit: 'g', routeCode: 'ORAL',
-        frequencyCode: 'QD', quantity: 1, quantityUnit: 'BOX' },
+        frequencyCode: 'QD', quantity: 1, quantityUnit: 'BOX', ...orderDraft && { doseValue: orderDraft.doseValue, durationValue: 3, durationUnit: 'd', quantity: 2,
+          medicationInstruction: orderDraft.instruction }  },
     })
     expect(screen.queryByDisplayValue('对乙酰氨基酚片')).not.toBeInTheDocument()
   })

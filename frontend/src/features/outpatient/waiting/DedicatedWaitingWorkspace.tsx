@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../../app/AppShell'
+import type { ReceptionQueueScope } from '../../../shared/api/schedulingApi'
 import { Button, EmptyState, Icon, StatusBadge } from '../../../shared/ui'
 import { CallingControlHub } from './CallingControlHub'
 import { PreEncounterBriefingCard } from './PreEncounterBriefingCard'
@@ -18,6 +19,8 @@ import type {
 
 export interface DedicatedWaitingWorkspaceProps {
   items: EnhancedQueueItem[]
+  queueScope?: ReceptionQueueScope
+  onQueueScopeChange?: (scope: ReceptionQueueScope) => void
   clinicalContext: ClinicalContext
   canEdit: boolean
   busy: boolean
@@ -32,6 +35,8 @@ export interface DedicatedWaitingWorkspaceProps {
 
 export function DedicatedWaitingWorkspace({
   items,
+  queueScope = 'PERSONAL',
+  onQueueScopeChange,
   clinicalContext,
   canEdit,
   busy,
@@ -53,12 +58,13 @@ export function DedicatedWaitingWorkspace({
   // 计算多 Tab 数量
   const tabCounts = useMemo(() => {
     return {
-      ALL: items.filter((i) => i.queueCategory !== 'SKIPPED').length,
+      ALL: items.filter((i) => !['SKIPPED', 'COMPLETED'].includes(i.queueCategory)).length,
       INITIAL: items.filter((i) => i.queueCategory === 'INITIAL').length,
       RETURN_VISIT: items.filter((i) => i.queueCategory === 'RETURN_VISIT').length,
       PRIORITY: items.filter((i) => i.queueCategory === 'PRIORITY').length,
       SUSPENDED: items.filter((i) => i.queueCategory === 'SUSPENDED').length,
       SKIPPED: items.filter((i) => i.queueCategory === 'SKIPPED').length,
+      COMPLETED: items.filter((i) => i.status === 'COMPLETED').length,
     }
   }, [items])
 
@@ -159,6 +165,18 @@ export function DedicatedWaitingWorkspace({
           </span>
         </div>
         <div className="topbar-actions">
+          <div className="queue-scope-control" role="group" aria-label="患者数据视角">
+            {([
+              ['PERSONAL', '本人'],
+              ['DEPARTMENT', '本科室'],
+              ['ORGANIZATION', '本院'],
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button"
+                className={queueScope === value ? 'is-active' : ''}
+                aria-pressed={queueScope === value}
+                onClick={() => onQueueScopeChange?.(value)}>{label}</button>
+            ))}
+          </div>
           <Button variant="secondary" size="sm" onClick={onRefresh}>
             <Icon name="refresh" />
             <span>刷新队列</span>
@@ -238,6 +256,15 @@ export function DedicatedWaitingWorkspace({
           >
             过号 <span className="tab-badge">{tabCounts.SKIPPED}</span>
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'COMPLETED'}
+            className={`waiting-tab-btn waiting-tab-btn--completed ${activeTab === 'COMPLETED' ? 'is-active' : ''}`}
+            onClick={() => setActiveTab('COMPLETED')}
+          >
+            已接诊 <span className="tab-badge">{tabCounts.COMPLETED}</span>
+          </button>
         </div>
 
         <div className="waiting-search-box">
@@ -247,7 +274,7 @@ export function DedicatedWaitingWorkspace({
             placeholder="搜索姓名 / 排队号 / 档案号..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            aria-label="搜索候诊患者"
+            aria-label="搜索门诊患者"
           />
           {searchQuery && (
             <button
@@ -267,13 +294,16 @@ export function DedicatedWaitingWorkspace({
         {displayedItems.length === 0 ? (
           <EmptyState
             icon="clinical"
-            title="当前分类下没有候诊患者"
-            copy={searchQuery ? '没有找到符合搜索条件的患者，请尝试清空搜索关键词。' : '新挂号或回诊患者将自动进入本科室候诊队列。'}
+            title={activeTab === 'COMPLETED' ? '当前视角下暂无已接诊患者' : '当前分类下没有候诊患者'}
+            copy={searchQuery ? '没有找到符合搜索条件的患者，请尝试清空搜索关键词。' : activeTab === 'COMPLETED'
+              ? '完成诊疗的患者将按完成时间显示在这里。'
+              : '新挂号或回诊患者将自动进入当前视角的候诊队列。'}
           />
         ) : (
           <div className="waiting-card-list">
             {displayedItems.map((item) => {
               const isCalling = item.status === 'CALLED'
+              const isCompleted = item.status === 'COMPLETED'
               const isCritical = item.triageLevel === 'LEVEL_1_CRITICAL'
               const isUrgent = item.triageLevel === 'LEVEL_2_URGENT'
 
@@ -281,7 +311,8 @@ export function DedicatedWaitingWorkspace({
               const statusLabel = item.status === 'CALLED' ? '已叫号'
                 : item.status === 'SERVING' ? '接诊中'
                   : item.status === 'SUSPENDED' ? '已暂挂'
-                    : item.status === 'MISSED' ? '已过号' : '候诊'
+                    : item.status === 'MISSED' ? '已过号'
+                      : isCompleted ? '已接诊' : '候诊'
 
               return (
                 <article
@@ -292,9 +323,6 @@ export function DedicatedWaitingWorkspace({
                   <div className="waiting-card__ticket-col">
                     <span className="waiting-card__ticket-badge">{item.ticketNo}</span>
                     <span className="waiting-card__seq">第 {item.sequenceNo} 号</span>
-                    {item.calledCount > 0 && (
-                      <span className="waiting-card__called-count">叫号 {item.calledCount} 次</span>
-                    )}
                   </div>
 
                   {/* 卡片主内容区 */}
@@ -311,9 +339,15 @@ export function DedicatedWaitingWorkspace({
                       </div>
 
                       <div className="card-badge-group">
-                        <StatusBadge tone={item.status === 'SERVING' ? 'success' : ['SUSPENDED', 'MISSED'].includes(item.status) ? 'warning' : 'neutral'}>
+                        <StatusBadge tone={['SERVING', 'COMPLETED'].includes(item.status) ? 'success' : ['SUSPENDED', 'MISSED'].includes(item.status) ? 'warning' : 'neutral'}>
                           {statusLabel}
                         </StatusBadge>
+
+                        {item.calledCount > 0 && (
+                          <span className="category-pill category-pill--called" title={`已叫号 ${item.calledCount} 次`}>
+                            叫号 {item.calledCount} 次
+                          </span>
+                        )}
 
                         {isCritical && (
                           <span className="clinical-pulse-badge is-critical">
@@ -389,14 +423,25 @@ export function DedicatedWaitingWorkspace({
                     {/* 挂号与服务归属 */}
                     <div className="waiting-card__footer-meta">
                       <span>就诊服务: <strong>{item.serviceName || '普通门诊'}</strong></span>
-                      <span>接诊医生: {item.practitionerName || '现场接诊'}</span>
+                      <span>接诊医生: {item.clinicianName || item.practitionerName || '现场接诊'}</span>
                       <span>挂号时间: {item.registeredAt ? new Date(item.registeredAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                      {isCompleted && <span>完成时间: {item.completedAt ? new Date(item.completedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>}
                       {item.validUntil && <span>效期至: {new Date(item.validUntil).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>}
                     </div>
                   </div>
 
                   {/* 卡片右侧快捷操作区 */}
                   <div className="waiting-card__actions">
+                    {isCompleted ? <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={busy}
+                      aria-label={`查看病历 ${item.residentName}`}
+                      onClick={() => onView(item)}
+                    >
+                      <Icon name="clinical" />
+                      <span>查看病历</span>
+                    </Button> : <>
                     {['WAITING', 'CALLED'].includes(item.status) && <Button
                       size="sm"
                       variant="secondary"
@@ -447,6 +492,7 @@ export function DedicatedWaitingWorkspace({
                     >
                       {entryLabel}
                     </Button>
+                    </>}
                   </div>
                 </article>
               )

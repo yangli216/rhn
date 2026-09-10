@@ -1,6 +1,6 @@
 import type { ReceptionQueueItem } from '../../../shared/api/schedulingApi'
 
-export type QueueCategory = 'INITIAL' | 'RETURN_VISIT' | 'PRIORITY' | 'SUSPENDED' | 'SKIPPED'
+export type QueueCategory = 'INITIAL' | 'RETURN_VISIT' | 'PRIORITY' | 'SUSPENDED' | 'SKIPPED' | 'COMPLETED'
 
 export type QueueTabFilter = 'ALL' | QueueCategory
 

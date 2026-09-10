@@ -207,7 +207,13 @@ export interface ReceptionQueueItem {
   missedCount?: number
   currentLocationId?: string
   validUntil?: string
+  practitionerId?: string
+  clinicianId?: string
+  clinicianName?: string
+  completedAt?: string
 }
+
+export type ReceptionQueueScope = 'PERSONAL' | 'DEPARTMENT' | 'ORGANIZATION'
 
 export const REGISTRATION_SOURCE_LABELS: Record<ReceptionQueueItem['registrationSource'], string> = {
   WINDOW: '窗口挂号',
@@ -238,7 +244,7 @@ export function createSchedulingApi(client: ApiClient) {
     schedules: (dateFrom: string, dateTo: string) => client.request<ServiceSchedule[]>(
       `/api/outpatient/scheduling/schedules?${dates(dateFrom, dateTo)}`,
     ),
-    receptionQueue: (dateOrFrom?: string, dateTo?: string, scope?: 'DEPARTMENT' | 'ORGANIZATION') => {
+    receptionQueue: (dateOrFrom?: string, dateTo?: string, scope?: ReceptionQueueScope) => {
       const params = new URLSearchParams()
       if (dateOrFrom && dateTo) {
         params.set('dateFrom', dateOrFrom)

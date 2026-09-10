@@ -2,6 +2,7 @@ package com.rhn.platform.configuration.api;
 
 import com.rhn.platform.configuration.domain.ConfigurationCategory;
 import com.rhn.platform.configuration.domain.ConfigurationControlType;
+import com.rhn.platform.configuration.domain.ConfigurationDependencyBehavior;
 import com.rhn.platform.configuration.domain.ConfigurationDisplayPolicy;
 import com.rhn.platform.configuration.domain.ConfigurationScope;
 import com.rhn.platform.configuration.domain.ConfigurationSensitivity;
@@ -41,6 +42,27 @@ public record ParameterDefinitionDetailResponse(
         Long createdBy,
         Instant updatedAt,
         Long updatedBy,
-        List<ParameterValueResponse> values
+        List<ParameterValueResponse> values,
+        String dependsOnKey,
+        String dependsOnValue,
+        ConfigurationDependencyBehavior dependencyBehavior,
+        String dependsOnName,
+        Boolean dependencySatisfied
 ) {
+    public ParameterDefinitionDetailResponse(
+            Long id, long revision, Long categoryId, String categoryName, String key, String name,
+            String description, ConfigurationValueType sdParamValueType, ConfigurationControlType sdParamControlType,
+            String jsonSchema, String defaultValueJson, String exampleValueJson, boolean hasDefaultValue,
+            boolean hasExampleValue, String unit, String dictionaryCode, Set<ConfigurationScope> allowedScopes,
+            ConfigurationCategory sdParamConfigType, boolean inheritanceEnabled, boolean cacheEnabled,
+            boolean nullableValue, ConfigurationSensitivity sdParamSensitivity,
+            ConfigurationDisplayPolicy sdParamDisplayPolicy, ConfigurationStatus sdParamStatus,
+            Instant createdAt, Long createdBy, Instant updatedAt, Long updatedBy,
+            List<ParameterValueResponse> values) {
+        this(id, revision, categoryId, categoryName, key, name, description, sdParamValueType, sdParamControlType,
+                jsonSchema, defaultValueJson, exampleValueJson, hasDefaultValue, hasExampleValue, unit, dictionaryCode,
+                allowedScopes, sdParamConfigType, inheritanceEnabled, cacheEnabled, nullableValue, sdParamSensitivity,
+                sdParamDisplayPolicy, sdParamStatus, createdAt, createdBy, updatedAt, updatedBy, values,
+                null, null, null, null, null);
+    }
 }

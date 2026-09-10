@@ -7,6 +7,7 @@ import type {
   DepartmentRecommendation,
   PendingEncounter,
   TriageArrivalMethod,
+  TriageAssessmentInput,
   TriageCompanionType,
   TriageConsciousness,
   TriageDisposition,
@@ -101,6 +102,13 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   return debouncedValue
 }
 
+const TRIAGE_LEVEL_URGENCY: Record<TriageLevel, number> = {
+  LEVEL_1_CRITICAL: 1,
+  LEVEL_2_URGENT: 2,
+  LEVEL_3_ROUTINE_URGENT: 3,
+  LEVEL_4_NON_URGENT: 4,
+}
+
 export function OutpatientTriageWorkspace({
   api,
   clinicalContext,
@@ -190,32 +198,53 @@ export function OutpatientTriageWorkspace({
     refetchInterval: 15_000,
   })
 
-  const recommendationInput = useMemo(() => ({
+  const assessmentInput = useMemo<TriageAssessmentInput>(() => ({
     chiefComplaint,
     symptoms: selectedSymptomTags.join(','),
     temperature: typeof temperature === 'number' ? temperature : undefined,
+    respiratoryRate: typeof respiratoryRate === 'number' ? respiratoryRate : undefined,
     systolic: typeof systolic === 'number' ? systolic : undefined,
     diastolic: typeof diastolic === 'number' ? diastolic : undefined,
     oxygenSaturation: typeof oxygenSaturation === 'number' ? oxygenSaturation : undefined,
     pulseRate: typeof pulseRate === 'number' ? pulseRate : undefined,
+    bloodGlucose: typeof bloodGlucose === 'number' ? bloodGlucose : undefined,
+    painScore: Number(painScore) || 0,
+    consciousness,
     age: typeof age === 'number' ? age : undefined,
     gender,
-  }), [chiefComplaint, selectedSymptomTags, temperature, systolic, diastolic, oxygenSaturation, pulseRate, age, gender])
-  const debouncedRecommendationInput = useDebouncedValue(recommendationInput, 350)
+  }), [chiefComplaint, selectedSymptomTags, temperature, respiratoryRate, systolic, diastolic,
+    oxygenSaturation, pulseRate, bloodGlucose, painScore, consciousness, age, gender])
+  const debouncedAssessmentInput = useDebouncedValue(assessmentInput, 300)
+  const hasAssessmentInput = Boolean(
+    debouncedAssessmentInput.chiefComplaint?.trim()
+    || debouncedAssessmentInput.symptoms
+    || debouncedAssessmentInput.temperature != null
+    || debouncedAssessmentInput.systolic != null
+    || debouncedAssessmentInput.oxygenSaturation != null
+  )
 
-  // 智能科室推荐：等待连续输入结束后再请求，避免每个按键都触发计算。
-  const recommendQuery = useQuery({
-    queryKey: ['outpatient-triage-recommend', debouncedRecommendationInput],
-    queryFn: () => api.outpatientTriage.recommendDepartments(debouncedRecommendationInput),
-    enabled: Boolean(
-      debouncedRecommendationInput.chiefComplaint.trim()
-      || debouncedRecommendationInput.symptoms
-      || debouncedRecommendationInput.temperature != null
-      || debouncedRecommendationInput.systolic != null
-    ),
-    placeholderData: (previousData) => previousData,
+  // 先返回确定性规则结果；仅在 MODEL 模式下静默启动较慢的模型增强。
+  const baseAssessmentQuery = useQuery({
+    queryKey: ['outpatient-triage-assessment-base', activeEncounterId, patientName, debouncedAssessmentInput],
+    queryFn: () => api.outpatientTriage.assess({ ...debouncedAssessmentInput, aiEnhancement: false }),
+    enabled: hasAssessmentInput,
     staleTime: 30_000,
   })
+  const aiAssessmentQuery = useQuery({
+    queryKey: ['outpatient-triage-assessment-ai', activeEncounterId, patientName, debouncedAssessmentInput],
+    queryFn: () => api.outpatientTriage.assess({ ...debouncedAssessmentInput, aiEnhancement: true }),
+    enabled: hasAssessmentInput && baseAssessmentQuery.data?.aiMode === 'MODEL',
+    staleTime: 30_000,
+    retry: false,
+  })
+  const triageAssessment = aiAssessmentQuery.data?.aiApplied
+    ? aiAssessmentQuery.data
+    : baseAssessmentQuery.data
+  const departmentRecommendations = triageAssessment?.departmentRecommendations ?? []
+  const assessmentSourceLabel = triageAssessment?.source === 'AI_ENHANCED'
+    ? 'AI增强'
+    : triageAssessment?.source === 'LOCAL_ASSIST' ? '本地辅助' : '规则建议'
+  const assessmentUpdating = baseAssessmentQuery.isFetching || aiAssessmentQuery.isFetching
 
   // 实时体征与危重评估
   const vitalsAssessment = useMemo(() => {
@@ -231,6 +260,7 @@ export function OutpatientTriageWorkspace({
       consciousness,
     })
   }, [temperature, pulseRate, respiratoryRate, systolic, diastolic, oxygenSaturation, bloodGlucose, painScore, consciousness])
+  const suggestedLevel = triageAssessment?.suggestedLevel ?? vitalsAssessment.suggestedLevel
 
   // 当体征产生危象时自动提示或自动联动等级
   useEffect(() => {
@@ -242,6 +272,19 @@ export function OutpatientTriageWorkspace({
       setFever(true)
     }
   }, [vitalsAssessment, temperature])
+
+  useEffect(() => {
+    if (!triageAssessment) return
+    if (TRIAGE_LEVEL_URGENCY[triageAssessment.suggestedLevel] < TRIAGE_LEVEL_URGENCY[triageLevel]) {
+      setTriageLevel(triageAssessment.suggestedLevel)
+      setTriageReason((current) => current || triageAssessment.summary)
+    }
+    const first = triageAssessment.departmentRecommendations[0]
+    if (!targetDepartmentId && first) {
+      setTargetDepartmentId(first.departmentId)
+      setTargetDepartmentName(first.departmentName)
+    }
+  }, [triageAssessment, targetDepartmentId, triageLevel])
 
   // 切换患者清空或回填
   const resetForm = useCallback(() => {
@@ -1056,7 +1099,7 @@ export function OutpatientTriageWorkspace({
           <Panel>
             <PanelHead
               title="急慢分诊定级与去向判定"
-              meta={`系统建议 ${TRIAGE_LEVEL_DEFINITIONS[vitalsAssessment.suggestedLevel].codeName}`}
+              meta={`${assessmentSourceLabel} ${TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName}`}
             />
 
             {/* 四级定级单行卡片 */}
@@ -1141,18 +1184,6 @@ export function OutpatientTriageWorkspace({
                 <Icon name="close" />
                 <span>重置</span>
               </Button>
-              <Button
-                size="md"
-                variant="secondary"
-                onClick={() => {
-                  setTriageLevel(vitalsAssessment.suggestedLevel)
-                  setTriageReason(vitalsAssessment.suggestedReason)
-                  setFeedback({ message: `已自动算级：${TRIAGE_LEVEL_DEFINITIONS[vitalsAssessment.suggestedLevel].label}`, tone: 'info' })
-                }}
-              >
-                <Icon name="sparkles" />
-                <span>自动定级</span>
-              </Button>
             </div>
 
             <div className="triage-action-bar__right">
@@ -1195,18 +1226,18 @@ export function OutpatientTriageWorkspace({
           <Panel className="triage-decision-panel">
             <PanelHead
               title="分诊辅助"
-              meta={recommendQuery.isFetching ? '正在更新推荐' : '动态评估'}
+              meta={assessmentUpdating ? `${assessmentSourceLabel}更新中` : assessmentSourceLabel}
             />
             <div className={`triage-decision-summary triage-decision-summary--${TRIAGE_LEVEL_DEFINITIONS[triageLevel].colorName}`}>
               <div>
                 <span>当前分级</span>
                 <strong>{TRIAGE_LEVEL_DEFINITIONS[triageLevel].codeName} {TRIAGE_LEVEL_DEFINITIONS[triageLevel].label}</strong>
               </div>
-              <div className={triageLevel !== vitalsAssessment.suggestedLevel ? 'triage-decision-summary__suggestion' : ''}>
-                <span>系统建议</span>
+              <div className={triageLevel !== suggestedLevel ? 'triage-decision-summary__suggestion' : ''}>
+                <span>{assessmentSourceLabel}</span>
                 <strong>
-                  {TRIAGE_LEVEL_DEFINITIONS[vitalsAssessment.suggestedLevel].codeName}
-                  {' '}{TRIAGE_LEVEL_DEFINITIONS[vitalsAssessment.suggestedLevel].label}
+                  {TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].codeName}
+                  {' '}{TRIAGE_LEVEL_DEFINITIONS[suggestedLevel].label}
                 </strong>
               </div>
               <div>
@@ -1216,18 +1247,18 @@ export function OutpatientTriageWorkspace({
             </div>
 
             <div className="triage-assist-section-title">
-              <span>智能科室推荐</span>
-              {recommendQuery.isFetching && <span className="triage-assist-status"><Icon name="refresh" />计算中</span>}
+              <span>接诊科室建议</span>
+              {assessmentUpdating && <span className="triage-assist-status"><Icon name="refresh" />评估中</span>}
             </div>
             <div className="triage-recommendations-list">
-              {recommendQuery.isLoading && <LoadingState label="计算推荐科室中..." />}
-              {!recommendQuery.isLoading && (recommendQuery.data == null || recommendQuery.data.length === 0) && (
+              {baseAssessmentQuery.isLoading && <LoadingState label="正在匹配接诊科室..." />}
+              {!baseAssessmentQuery.isLoading && departmentRecommendations.length === 0 && (
                 <div className="triage-compact-empty">
                   <Icon name="clinical" />
                   <span>{patientName ? '录入主诉、症状或体征后显示推荐' : '请先从左侧队列选择患者'}</span>
                 </div>
               )}
-              {(recommendQuery.data ?? []).map((rec, idx) => (
+              {departmentRecommendations.map((rec, idx) => (
                 <div
                   key={rec.departmentId}
                   className={`triage-recommendation-card ${idx === 0 ? 'triage-recommendation-card--top' : ''}`}
@@ -1235,6 +1266,7 @@ export function OutpatientTriageWorkspace({
                   <div className="triage-recommendation-card__header">
                     <span className="triage-recommendation-card__title">
                       {rec.departmentName}
+                      {rec.source === 'AI' && <small className="triage-recommendation-card__source">AI增强</small>}
                     </span>
                     <span className="triage-recommendation-card__score">匹配度 {rec.score}%</span>
                   </div>
@@ -1247,7 +1279,7 @@ export function OutpatientTriageWorkspace({
                   )}
                   <div className="triage-recommendation-card__footer">
                     <span className="triage-recommendation-card__capacity">
-                      今日号源余量：{rec.availableScheduleCount} 个
+                      {rec.scheduledToday === false ? '今日暂无已发布排班' : `今日可用号源：${rec.availableScheduleCount} 个`}
                     </span>
                     <Button
                       size="sm"

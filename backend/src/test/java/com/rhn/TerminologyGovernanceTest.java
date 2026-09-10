@@ -14,7 +14,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
     void migrated_value_set_is_available_under_the_governed_key() throws Exception {
         mockMvc.perform(get("/api/platform/terminology/value-sets/{code}/expand",
                         "RHN.PI.VS.RESIDENT.GENDER")
-                        .with(rhn()))
+                        .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].system").value("RHN.COMMON.CS.GENDER"))
                 .andExpect(jsonPath("$[0].systemVersion").value("2026.01"))
@@ -25,7 +25,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
     @Test
     void terminology_management_rejects_legacy_and_cross_scope_keys() throws Exception {
         mockMvc.perform(post("/api/platform/terminology/code-systems")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -42,7 +42,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.violations[0].field").value("code"));
 
         mockMvc.perform(post("/api/platform/terminology/code-systems")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -58,7 +58,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
 
         mockMvc.perform(post("/api/platform/terminology/value-sets")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -76,7 +76,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
     @Test
     void local_code_system_preserves_source_concept_codes() throws Exception {
         String response = mockMvc.perform(post("/api/platform/terminology/code-systems")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -93,7 +93,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
         String codeSystemId = objectMapper.readTree(response).get("id").asText();
 
         mockMvc.perform(post("/api/platform/terminology/code-systems/{id}/concepts", codeSystemId)
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {

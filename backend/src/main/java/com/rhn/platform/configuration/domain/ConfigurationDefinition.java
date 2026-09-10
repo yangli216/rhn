@@ -45,6 +45,10 @@ public class ConfigurationDefinition {
     private ConfigurationSensitivity sensitivity;
     @Enumerated(EnumType.STRING) @Column(name = "SD_DISPLAY_POLICY", nullable = false, length = 24)
     private ConfigurationDisplayPolicy displayPolicy;
+    @Column(name = "CD_DEPENDS_ON_KEY", length = 160) private String dependsOnKey;
+    @Column(name = "EXPR_DEPENDS_ON_VAL", length = 500) private String dependsOnValue;
+    @Enumerated(EnumType.STRING) @Column(name = "SD_DEPENDENCY_BEHAVIOR", length = 32)
+    private ConfigurationDependencyBehavior dependencyBehavior;
     @Enumerated(EnumType.STRING) @Column(name = "SD_STATUS", nullable = false, length = 16) private ConfigurationStatus status;
     @Version @Column(name = "REVISION", nullable = false) private Long revision;
     @Column(name = "DT_CREATED", nullable = false) private Instant createdAt;
@@ -63,11 +67,29 @@ public class ConfigurationDefinition {
                                    boolean cacheEnabled, boolean nullableValue,
                                    ConfigurationSensitivity sensitivity,
                                    ConfigurationDisplayPolicy displayPolicy, Long actorId) {
+        this(categoryId, configKey, name, description, valueType, controlType, jsonSchema, defaultValueJson,
+                exampleValueJson, unit, dictionaryCode, allowedScopes, category, inheritanceEnabled, cacheEnabled,
+                nullableValue, sensitivity, displayPolicy, null, null,
+                ConfigurationDependencyBehavior.DISABLE_AND_SUPPRESS, actorId);
+    }
+
+    public ConfigurationDefinition(Long categoryId, String configKey, String name, String description,
+                                   ConfigurationValueType valueType, ConfigurationControlType controlType,
+                                   String jsonSchema, String defaultValueJson, String exampleValueJson,
+                                   String unit, String dictionaryCode, Set<ConfigurationScope> allowedScopes,
+                                   ConfigurationCategory category, boolean inheritanceEnabled,
+                                   boolean cacheEnabled, boolean nullableValue,
+                                   ConfigurationSensitivity sensitivity,
+                                   ConfigurationDisplayPolicy displayPolicy,
+                                   String dependsOnKey, String dependsOnValue,
+                                   ConfigurationDependencyBehavior dependencyBehavior,
+                                   Long actorId) {
         this.id = GlobalIds.next();
         this.revision = null;
         apply(categoryId, name, description, valueType, controlType, jsonSchema, defaultValueJson,
                 exampleValueJson, unit, dictionaryCode, allowedScopes, category, inheritanceEnabled,
-                cacheEnabled, nullableValue, sensitivity, displayPolicy);
+                cacheEnabled, nullableValue, sensitivity, displayPolicy,
+                dependsOnKey, dependsOnValue, dependencyBehavior);
         this.configKey = ConfigurationCodePolicy.requireParameterKey(configKey);
         this.status = ConfigurationStatus.ACTIVE;
         this.createdAt = Instant.now();
@@ -84,10 +106,28 @@ public class ConfigurationDefinition {
                        boolean cacheEnabled, boolean nullableValue,
                        ConfigurationSensitivity sensitivity,
                        ConfigurationDisplayPolicy displayPolicy, Long actorId) {
+        update(expectedRevision, categoryId, name, description, valueType, controlType, jsonSchema,
+                defaultValueJson, exampleValueJson, unit, dictionaryCode, allowedScopes, category,
+                inheritanceEnabled, cacheEnabled, nullableValue, sensitivity, displayPolicy,
+                null, null, ConfigurationDependencyBehavior.DISABLE_AND_SUPPRESS, actorId);
+    }
+
+    public void update(long expectedRevision, Long categoryId, String name, String description,
+                       ConfigurationValueType valueType, ConfigurationControlType controlType,
+                       String jsonSchema, String defaultValueJson, String exampleValueJson,
+                       String unit, String dictionaryCode, Set<ConfigurationScope> allowedScopes,
+                       ConfigurationCategory category, boolean inheritanceEnabled,
+                       boolean cacheEnabled, boolean nullableValue,
+                       ConfigurationSensitivity sensitivity,
+                       ConfigurationDisplayPolicy displayPolicy,
+                       String dependsOnKey, String dependsOnValue,
+                       ConfigurationDependencyBehavior dependencyBehavior,
+                       Long actorId) {
         assertRevision(expectedRevision);
         apply(categoryId, name, description, valueType, controlType, jsonSchema, defaultValueJson,
                 exampleValueJson, unit, dictionaryCode, allowedScopes, category, inheritanceEnabled,
-                cacheEnabled, nullableValue, sensitivity, displayPolicy);
+                cacheEnabled, nullableValue, sensitivity, displayPolicy,
+                dependsOnKey, dependsOnValue, dependencyBehavior);
         touch(actorId);
     }
 
@@ -112,7 +152,9 @@ public class ConfigurationDefinition {
                        ConfigurationCategory category, boolean inheritanceEnabled,
                        boolean cacheEnabled, boolean nullableValue,
                        ConfigurationSensitivity sensitivity,
-                       ConfigurationDisplayPolicy displayPolicy) {
+                       ConfigurationDisplayPolicy displayPolicy,
+                       String dependsOnKey, String dependsOnValue,
+                       ConfigurationDependencyBehavior dependencyBehavior) {
         this.categoryId = Strings.requireId(categoryId, "参数分类");
         this.name = Strings.requireText(name, "参数名称", 200);
         this.description = Strings.optionalText(description, 1000);
@@ -130,6 +172,9 @@ public class ConfigurationDefinition {
         this.nullableValue = nullableValue;
         this.sensitivity = Strings.require(sensitivity, "敏感级别");
         this.displayPolicy = Strings.require(displayPolicy, "展示策略");
+        this.dependsOnKey = Strings.optionalText(dependsOnKey, 160);
+        this.dependsOnValue = Strings.optionalText(dependsOnValue, 500);
+        this.dependencyBehavior = dependencyBehavior == null ? ConfigurationDependencyBehavior.DISABLE_AND_SUPPRESS : dependencyBehavior;
     }
 
     private void touch(Long actorId) {
@@ -173,6 +218,9 @@ public class ConfigurationDefinition {
     public boolean nullableValue() { return nullableValue; }
     public ConfigurationSensitivity sensitivity() { return sensitivity; }
     public ConfigurationDisplayPolicy displayPolicy() { return displayPolicy; }
+    public String dependsOnKey() { return dependsOnKey; }
+    public String dependsOnValue() { return dependsOnValue; }
+    public ConfigurationDependencyBehavior dependencyBehavior() { return dependencyBehavior; }
     public ConfigurationStatus status() { return status; }
     public Instant createdAt() { return createdAt; }
     public Long createdBy() { return createdBy; }

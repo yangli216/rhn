@@ -13,6 +13,7 @@ import java.time.ZoneId;
 import java.util.stream.StreamSupport;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -77,6 +78,51 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
 
         assertFalse(containsRegistration(firstDay, registrationId));
         assertTrue(containsRegistration(nextDay, registrationId));
+    }
+
+    @Test
+    void queue_supports_personal_scope_using_the_actual_reception_clinician() throws Exception {
+        String suffix = Long.toString(GlobalIds.next()).substring(13);
+        JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"本人视角患者%s","identifiers":[{"system":"9","value":"QUEUE-OWN-%s","useType":"SECONDARY"}],
+                                  "gender":"FEMALE","birthDate":"1990-01-02","phone":"13800138087"
+                                }
+                                """.formatted(suffix, suffix)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"QUEUE-OWN-%s"
+                                }
+                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
+                .andExpect(status().isOk());
+
+        JsonNode personal = json(mockMvc.perform(get("/api/outpatient/reception/queue")
+                        .with(rhnWorkContext())
+                        .queryParam("scope", "PERSONAL"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode item = StreamSupport.stream(personal.spliterator(), false)
+                .filter(value -> encounter.get("registrationId").asText().equals(value.get("registrationId").asText()))
+                .findFirst().orElseThrow();
+
+        assertEquals("doctor", item.get("clinicianId").asText());
+        assertTrue(item.hasNonNull("clinicianName"));
+    }
+
+    @Test
+    void queue_rejects_unknown_scope() throws Exception {
+        mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())
+                        .queryParam("scope", "UNKNOWN"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

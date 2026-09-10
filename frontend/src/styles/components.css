@@ -251,11 +251,15 @@
 .ui-table-scroll::-webkit-scrollbar-thumb { border-radius: var(--radius-round); background: color-mix(in srgb, var(--color-border-strong) 60%, transparent); }
 .ui-table-scroll:hover::-webkit-scrollbar-thumb, .ui-table-scroll:focus-within::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--color-text-secondary) 50%, transparent); }
 .ui-data-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-table); }
-.ui-data-table th { position: sticky; top: 0; z-index: 2; height: 2.75rem; padding: 0 var(--space-4); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-weight: var(--font-weight-semibold); text-align: left; white-space: nowrap; box-shadow: inset 0 -1px 0 var(--color-border); }
-.ui-data-table td, .master-data-table td { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); vertical-align: middle; }
+.ui-data-table th { position: sticky; top: 0; z-index: 2; height: 2.75rem; padding: 0 var(--space-4); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-weight: var(--font-weight-semibold); text-align: left; vertical-align: middle; white-space: nowrap; box-shadow: inset 0 -1px 0 var(--color-border); }
+.ui-data-table td, .master-data-table td { padding: var(--space-3) var(--space-4); border-top: 1px solid var(--color-border); text-align: left; vertical-align: middle; }
 .ui-data-table tbody tr:hover { background: var(--color-surface-subtle); }
 .ui-data-table.is-compact td { padding-block: var(--space-2); }
-.ui-data-table th.col-actions, .ui-data-table td.col-actions { text-align: right; }
+.ui-table-cell--text { text-align: left !important; vertical-align: middle; }
+.ui-table-cell--numeric { text-align: right !important; vertical-align: middle; font-variant-numeric: tabular-nums; }
+.ui-table-cell--status, .ui-table-cell--control { text-align: center !important; vertical-align: middle; }
+.ui-table-cell--status { white-space: nowrap; }
+.ui-table-cell--actions, .ui-data-table th.col-actions, .ui-data-table td.col-actions { text-align: right !important; vertical-align: middle; }
 .ui-table-footer { min-height: 2.75rem; padding: 0 var(--space-5); display: flex; align-items: center; justify-content: flex-end; flex: none; border-top: 1px solid var(--color-border); color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); }
 .ui-table-footer .ui-pagination { border-top: 0; background: transparent; padding: 0; min-height: 0; }
 
@@ -1606,4 +1610,3 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-medium);
 }
-

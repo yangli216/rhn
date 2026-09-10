@@ -11,7 +11,7 @@ import { parseChineseResidentId } from '../../shared/validation/businessValidati
 import {
   Alert, BackButton, Button, DataTable, Dialog, DictionarySelect,
   EmptyState, FormField, GridAddressInput, Icon, IconButton, LoadingState, ObjectContextBar,
-  PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, TableShell,
+  PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, tableCellClass, TableShell,
 } from '../../shared/ui'
 
 const today = () => new Intl.DateTimeFormat('en-CA', {
@@ -213,9 +213,9 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                 <th>健康档案号</th>
                 <th>身份证件 / 卡号</th>
                 <th>联系电话</th>
-                <th>档案状态</th>
+                <th className={tableCellClass('status')}>档案状态</th>
                 <th>建档时间</th>
-                <th>操作</th>
+                <th className={tableCellClass('actions')}>操作</th>
               </tr>
             </thead>
             <tbody>
@@ -251,7 +251,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                     <td>
                       {resident.phone ? <span>{resident.phone}</span> : <span className="resident-cell-muted">未登记</span>}
                     </td>
-                    <td>
+                    <td className={tableCellClass('status')}>
                       <StatusBadge tone={resident.deceased ? 'warning' : resident.status === 'ACTIVE' ? 'success' : 'neutral'}>
                         {resident.deceased ? '已登记死亡' : resident.status === 'ACTIVE' ? '有效居民' : '已合并'}
                       </StatusBadge>
@@ -259,7 +259,7 @@ export function ResidentCenterWorkspace({ api, onNavigate }: { api: RhnApi; onNa
                     <td>
                       <span>{formatTime(resident.createdAt)}</span>
                     </td>
-                    <td>
+                    <td className={tableCellClass('actions')}>
                       <div className="resident-cell-actions">
                         <Button size="sm" variant="secondary" onClick={() => setSelected(resident)}>
                           <Icon name="search" />查看档案

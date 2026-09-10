@@ -28,9 +28,13 @@ export function filterQueueItems(
 ): EnhancedQueueItem[] {
   const normalizedQuery = searchQuery.trim().toLowerCase()
 
-  return items.filter((item) => {
+  const filtered = items.filter((item) => {
     // 1. Tab 类别过滤
-    if (tab !== 'ALL') {
+    if (tab === 'COMPLETED') {
+      if (item.status !== 'COMPLETED') return false
+    } else if (item.status === 'COMPLETED') {
+      return false
+    } else if (tab !== 'ALL') {
       if (item.queueCategory !== tab) return false
     } else {
       // 在 'ALL' 标签页下，排除已过号的患者（过号患者在专属 Tab 中查看）
@@ -50,6 +54,13 @@ export function filterQueueItems(
     }
 
     return true
+  })
+
+  if (tab !== 'COMPLETED') return filtered
+  return filtered.sort((left, right) => {
+    const leftTime = left.completedAt ? new Date(left.completedAt).getTime() : 0
+    const rightTime = right.completedAt ? new Date(right.completedAt).getTime() : 0
+    return rightTime - leftTime
   })
 }
 

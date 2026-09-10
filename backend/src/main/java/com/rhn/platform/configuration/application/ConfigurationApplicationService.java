@@ -13,6 +13,7 @@ import com.rhn.platform.configuration.domain.ConfigurationChangeType;
 import com.rhn.platform.configuration.domain.ConfigurationCodePolicy;
 import com.rhn.platform.configuration.domain.ConfigurationControlType;
 import com.rhn.platform.configuration.domain.ConfigurationDefinition;
+import com.rhn.platform.configuration.domain.ConfigurationDependencyBehavior;
 import com.rhn.platform.configuration.domain.ConfigurationDisplayPolicy;
 import com.rhn.platform.configuration.domain.ConfigurationScope;
 import com.rhn.platform.configuration.domain.ConfigurationSensitivity;
@@ -48,6 +49,7 @@ import tools.jackson.databind.node.ObjectNode;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -226,7 +228,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 command.controlType(), command.jsonSchema(), command.defaultValueJson(),
                 command.exampleValueJson(), command.unit(), normalizedDictionaryCode(command.dictionaryCode()),
                 command.allowedScopes(), command.category(), command.inheritanceEnabled(), command.cacheEnabled(),
-                command.nullableValue(), command.sensitivity(), command.displayPolicy(), context.subjectId()));
+                command.nullableValue(), command.sensitivity(), command.displayPolicy(),
+                command.dependsOnKey(), command.dependsOnValue(), command.dependencyBehavior(),
+                context.subjectId()));
         append(context.tenantId(), definition.id(), null, ConfigurationChangeType.CREATE,
                 null, definitionSnapshot(definition), command.reason(), command.requestCode(), context.subjectId());
         invalidateCacheAfterCommit();
@@ -254,7 +258,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                     effectiveCommand.valueType(), effectiveCommand.controlType(), effectiveCommand.jsonSchema(), effectiveCommand.defaultValueJson(),
                     effectiveCommand.exampleValueJson(), effectiveCommand.unit(), normalizedDictionaryCode(effectiveCommand.dictionaryCode()),
                     effectiveCommand.allowedScopes(), effectiveCommand.category(), effectiveCommand.inheritanceEnabled(), effectiveCommand.cacheEnabled(),
-                    effectiveCommand.nullableValue(), effectiveCommand.sensitivity(), effectiveCommand.displayPolicy(), context.subjectId());
+                    effectiveCommand.nullableValue(), effectiveCommand.sensitivity(), effectiveCommand.displayPolicy(),
+                    effectiveCommand.dependsOnKey(), effectiveCommand.dependsOnValue(), effectiveCommand.dependencyBehavior(),
+                    context.subjectId());
             definitionRepository.saveAndFlush(definition);
         });
         append(context.tenantId(), definition.id(), null, ConfigurationChangeType.UPDATE,
@@ -412,6 +418,26 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 productCode, moduleCode, environmentCode, key).orElse(null);
         if (cached != null) return cached;
         ConfigurationDefinition definition = requireActiveDefinition(key);
+        if (definition.dependsOnKey() != null && !definition.dependsOnKey().isBlank()) {
+            boolean satisfied = isDependencySatisfied(tenantId, userId, organizationId, departmentId,
+                    productCode, moduleCode, environmentCode, definition.dependsOnKey(), definition.dependsOnValue());
+            if (!satisfied) {
+                ResolutionContext context = validateResolutionContext(tenantId, userId, organizationId, departmentId,
+                        productCode, moduleCode, environmentCode);
+                ScopeCandidate requested = requested(context);
+                ConfigurationValue suppressed = new ConfigurationValue(
+                        definition.configKey(), null, definition.valueType().name(), definition.category().name(),
+                        definition.inheritanceEnabled(), definition.cacheEnabled(),
+                        requested.scope() == null ? "DEFAULT" : requested.scope().name(),
+                        requested.scopeId(), requested.scopeCode(), "SUPPRESSED", null, "SUPPRESSED",
+                        "SUPPRESSED", false, definition.revision(), null, true);
+                if (definition.cacheEnabled()) {
+                    valueCache.put(tenantId, userId, organizationId, departmentId, productCode,
+                            moduleCode, environmentCode, key, suppressed);
+                }
+                return suppressed;
+            }
+        }
         ResolutionContext context = validateResolutionContext(tenantId, userId, organizationId, departmentId,
                 productCode, moduleCode, environmentCode);
         ScopeCandidate requested = requested(context);
@@ -426,6 +452,47 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                     moduleCode, environmentCode, key, resolved);
         }
         return resolved;
+    }
+
+    private boolean isDependencySatisfied(Long tenantId, Long userId, Long organizationId,
+                                         Long departmentId, String productCode, String moduleCode,
+                                         String environmentCode, String parentKey, String expectedValue) {
+        try {
+            ConfigurationValue parentValue = resolveCurrent(tenantId, userId, organizationId, departmentId,
+                    productCode, moduleCode, environmentCode, parentKey);
+            if (parentValue == null || parentValue.suppressedByDependency() || parentValue.value() == null || parentValue.value().isNull()) {
+                return false;
+            }
+            return matchExpectedValue(parentValue.value(), expectedValue);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean matchExpectedValue(JsonNode actualNode, String expectedExpr) {
+        if (actualNode == null || actualNode.isNull() || expectedExpr == null || expectedExpr.isBlank()) {
+            return false;
+        }
+        String cleanExpected = expectedExpr.trim();
+        if (cleanExpected.startsWith("\"") && cleanExpected.endsWith("\"") && cleanExpected.length() >= 2) {
+            cleanExpected = cleanExpected.substring(1, cleanExpected.length() - 1);
+        }
+        if (actualNode.isBoolean()) {
+            return actualNode.asBoolean() == Boolean.parseBoolean(cleanExpected);
+        }
+        if (actualNode.isNumber()) {
+            try {
+                BigDecimal actualNum = new BigDecimal(actualNode.asText());
+                BigDecimal expectedNum = new BigDecimal(cleanExpected);
+                return actualNum.compareTo(expectedNum) == 0;
+            } catch (Exception ignored) {
+                return actualNode.asText().equalsIgnoreCase(cleanExpected);
+            }
+        }
+        if (actualNode.isTextual()) {
+            return actualNode.asText().equalsIgnoreCase(cleanExpected);
+        }
+        return actualNode.toString().equals(cleanExpected);
     }
 
     private ConfigurationValue resolve(ConfigurationDefinition definition, ScopeCandidate requested,
@@ -608,6 +675,33 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             if (command.exampleValueJson() != null) {
                 validateDictionaryValue(dictionaryCode, command.exampleValueJson(), tenantId);
             }
+        }
+        validateDependency(command.key(), command.dependsOnKey(), command.dependsOnValue());
+    }
+
+    private void validateDependency(String currentKey, String dependsOnKey, String dependsOnValue) {
+        if (dependsOnKey == null || dependsOnKey.isBlank()) {
+            return;
+        }
+        String parentKey = dependsOnKey.trim();
+        if (parentKey.equalsIgnoreCase(currentKey.trim())) {
+            throw badRequest("PARAMETER_DEPENDENCY_SELF", "参数不能依赖自身");
+        }
+        definitionRepository.findByConfigKey(parentKey)
+                .orElseThrow(() -> badRequest("PARAMETER_DEPENDENCY_NOT_FOUND", "所依赖的前置参数不存在: " + parentKey));
+        if (dependsOnValue == null || dependsOnValue.isBlank()) {
+            throw badRequest("PARAMETER_DEPENDENCY_VALUE_REQUIRED", "必须指定满足依赖的前置期望值");
+        }
+        Set<String> visited = new HashSet<>();
+        visited.add(currentKey.trim());
+        String current = parentKey;
+        while (current != null && !current.isBlank()) {
+            if (!visited.add(current)) {
+                throw badRequest("PARAMETER_DEPENDENCY_CYCLE", "参数依赖关系存在循环引用: " + current);
+            }
+            ConfigurationDefinition next = definitionRepository.findByConfigKey(current).orElse(null);
+            if (next == null) break;
+            current = next.dependsOnKey();
         }
     }
 
@@ -915,6 +1009,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         snapshot.put("sensitivity", value.sensitivity().name());
         snapshot.put("displayPolicy", value.displayPolicy().name());
         snapshot.put("status", value.status().name());
+        snapshot.put("dependsOnKey", value.dependsOnKey());
+        snapshot.put("dependsOnValue", value.dependsOnValue());
+        snapshot.put("dependencyBehavior", value.dependencyBehavior() == null ? null : value.dependencyBehavior().name());
         return jsonCodec.write(snapshot);
     }
 
@@ -942,7 +1039,8 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         return new ParameterDefinitionSummaryResponse(value.id(), value.revision(), value.categoryId(),
                 category == null ? "未分类" : category.name(), value.configKey(), value.name(), value.description(),
                 value.valueType(), value.controlType(), value.category(), value.status(),
-                valueRepository.countByDefinitionId(value.id()), value.updatedAt(), value.updatedBy());
+                valueRepository.countByDefinitionId(value.id()), value.updatedAt(), value.updatedBy(),
+                value.dependsOnKey(), value.dependsOnValue(), value.dependencyBehavior());
     }
 
     private ParameterDefinitionDetailResponse detail(ConfigurationDefinition value) {
@@ -952,6 +1050,20 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 .map(item -> valueResponse(value, item)).toList();
         boolean reveal = value.sensitivity() == ConfigurationSensitivity.NORMAL
                 && value.displayPolicy() == ConfigurationDisplayPolicy.PLAIN;
+        String dependsOnName = null;
+        Boolean dependencySatisfied = null;
+        if (value.dependsOnKey() != null && !value.dependsOnKey().isBlank()) {
+            ConfigurationDefinition parentDef = definitionRepository.findByConfigKey(value.dependsOnKey()).orElse(null);
+            if (parentDef != null) {
+                dependsOnName = parentDef.name();
+            }
+            try {
+                dependencySatisfied = isDependencySatisfied(current().tenantId(), current().subjectId(), null, null, null, null, null,
+                        value.dependsOnKey(), value.dependsOnValue());
+            } catch (Exception ignored) {
+                dependencySatisfied = false;
+            }
+        }
         return new ParameterDefinitionDetailResponse(value.id(), value.revision(), value.categoryId(),
                 category == null ? "未分类" : category.name(), value.configKey(), value.name(), value.description(),
                 value.valueType(), value.controlType(), value.jsonSchema(), reveal ? value.defaultValueJson() : null,
@@ -959,7 +1071,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 value.exampleValueJson() != null, value.unit(), value.dictionaryCode(), value.allowedScopes(),
                 value.category(), value.inheritanceEnabled(), value.cacheEnabled(), value.nullableValue(),
                 value.sensitivity(), value.displayPolicy(), value.status(), value.createdAt(), value.createdBy(),
-                value.updatedAt(), value.updatedBy(), values);
+                value.updatedAt(), value.updatedBy(), values,
+                value.dependsOnKey(), value.dependsOnValue(), value.dependencyBehavior(),
+                dependsOnName, dependencySatisfied);
     }
 
     private ParameterValueResponse valueResponse(ConfigurationDefinition definition, ParameterValue value) {
@@ -1101,7 +1215,9 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 command.valueType(), command.controlType(), command.jsonSchema(), defaultValue, exampleValue,
                 command.unit(), command.dictionaryCode(), command.allowedScopes(), command.category(),
                 command.inheritanceEnabled(), command.cacheEnabled(), command.nullableValue(),
-                command.sensitivity(), command.displayPolicy(), command.reason(), command.requestCode());
+                command.sensitivity(), command.displayPolicy(),
+                command.dependsOnKey(), command.dependsOnValue(), command.dependencyBehavior(),
+                command.reason(), command.requestCode());
     }
 
     private String normalizeReference(String value) {
@@ -1133,7 +1249,23 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             String unit, String dictionaryCode, Set<ConfigurationScope> allowedScopes,
             ConfigurationCategory category, boolean inheritanceEnabled, boolean cacheEnabled,
             boolean nullableValue, ConfigurationSensitivity sensitivity,
-            ConfigurationDisplayPolicy displayPolicy, String reason, String requestCode) {
+            ConfigurationDisplayPolicy displayPolicy,
+            String dependsOnKey, String dependsOnValue,
+            ConfigurationDependencyBehavior dependencyBehavior,
+            String reason, String requestCode) {
+        public DefinitionCommand(
+                Long categoryId, String key, String name, String description,
+                ConfigurationValueType valueType, ConfigurationControlType controlType,
+                String jsonSchema, String defaultValueJson, String exampleValueJson,
+                String unit, String dictionaryCode, Set<ConfigurationScope> allowedScopes,
+                ConfigurationCategory category, boolean inheritanceEnabled, boolean cacheEnabled,
+                boolean nullableValue, ConfigurationSensitivity sensitivity,
+                ConfigurationDisplayPolicy displayPolicy, String reason, String requestCode) {
+            this(categoryId, key, name, description, valueType, controlType, jsonSchema, defaultValueJson,
+                    exampleValueJson, unit, dictionaryCode, allowedScopes, category, inheritanceEnabled,
+                    cacheEnabled, nullableValue, sensitivity, displayPolicy, null, null,
+                    ConfigurationDependencyBehavior.DISABLE_AND_SUPPRESS, reason, requestCode);
+        }
     }
 
     public record CategoryOrderCommand(

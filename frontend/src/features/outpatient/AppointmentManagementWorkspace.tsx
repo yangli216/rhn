@@ -188,8 +188,16 @@ export function AppointmentManagementWorkspace({ api, clinicalContext, onNavigat
             <span>{value.sdBookingSourceText}</span>
             <StatusBadge tone={statusTone(value.sdStatus)}>{value.sdStatusText}</StatusBadge>
             <div className="appointment-row-actions">{value.sdStatus === 'BOOKED' && <>
-              {value.serviceDate === businessDate() && <Button size="sm" variant="text"
-                onClick={() => onNavigate(`/outpatient/registration?residentId=${value.residentId}&appointmentId=${value.id}`)}>挂号</Button>}
+              {value.serviceDate === businessDate() ? (
+                <Button size="sm" variant="primary"
+                  onClick={() => onNavigate(`/outpatient/registration?residentId=${value.residentId}&appointmentId=${value.id}`)}>
+                  到院取号
+                </Button>
+              ) : (
+                <span className="appointment-future-hint" title="未到就诊日期，就诊当日方可办理取号">
+                  当日取号
+                </span>
+              )}
               <Button size="sm" variant="text" onClick={() => { setSuccess(''); setRescheduling(value) }}>改约</Button>
               <Button size="sm" variant="text" onClick={() => { setSuccess(''); setCancelling(value) }}>取消</Button>
             </>}</div>

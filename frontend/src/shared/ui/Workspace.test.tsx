@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
-import { SearchField, Tabs } from './Workspace'
+import { DataTable, SearchField, tableCellClass, Tabs } from './Workspace'
 
 function TabsExample() {
   const [value, setValue] = useState<'first' | 'second'>('first')
@@ -39,5 +39,22 @@ describe('Workspace primitives', () => {
     const searchbox = screen.getByRole('searchbox', { name: '搜索参数' })
     expect(searchbox).toHaveValue('')
     expect(searchbox).toHaveFocus()
+  })
+
+  it('provides explicit semantic classes for matching table headers and cells', () => {
+    render(<DataTable><thead><tr>
+      <th className={tableCellClass('text')}>项目</th>
+      <th className={tableCellClass('numeric')}>金额</th>
+      <th className={tableCellClass('status')}>状态</th>
+    </tr></thead><tbody><tr>
+      <td className={tableCellClass('text')}>诊查费</td>
+      <td className={tableCellClass('numeric')}>12.00</td>
+      <td className={tableCellClass('status')}>已结算</td>
+    </tr></tbody></DataTable>)
+
+    expect(screen.getByRole('columnheader', { name: '金额' })).toHaveClass('ui-table-cell--numeric')
+    expect(screen.getByRole('cell', { name: '12.00' })).toHaveClass('ui-table-cell--numeric')
+    expect(screen.getByRole('columnheader', { name: '状态' })).toHaveClass('ui-table-cell--status')
+    expect(screen.getByRole('cell', { name: '已结算' })).toHaveClass('ui-table-cell--status')
   })
 })

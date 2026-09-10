@@ -56,6 +56,20 @@ const mockSuspendedEncounter: Encounter = {
   status: 'SUSPENDED',
 } as unknown as Encounter
 
+const mockCompletedEncounter: Encounter = {
+  ...mockRegisteredEncounter,
+  status: 'COMPLETED',
+} as unknown as Encounter
+
+const outpatientNote = (status: 'DRAFT' | 'SIGNED' | 'AMENDMENT_IN_PROGRESS' = 'DRAFT', version = 1) => ({
+  id: 'note-1', residentId: 'resident-1', encounterId: 'encounter-101', organizationId: 'org-1',
+  departmentId: 'dept-1', documentType: 'OUTPATIENT_NOTE', instanceKey: 'DEFAULT', title: '门诊病历',
+  status, currentVersion: version, contentSchema: 'RHN.OUTPATIENT_NOTE.V1',
+  content: { chiefComplaint: '头痛复诊', presentIllness: '头痛较前缓解', vitalSigns: { systolic: 120, diastolic: 80 },
+    diagnoses: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY' }] },
+  createdBy: 'doctor', createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', history: [],
+})
+
 const mockQueueItem: ReceptionQueueItem = {
   registrationId: 'reg-1',
   scheduleId: 'sch-1',
@@ -87,7 +101,7 @@ const clinicalContext: ClinicalContext = {
 function createMockApi({
   initialEncounterStatus = 'REGISTERED', queueStatus = 'WAITING', startFn = vi.fn(), resumeFn = vi.fn(),
 }: {
-  initialEncounterStatus?: 'REGISTERED' | 'IN_PROGRESS' | 'SUSPENDED'
+  initialEncounterStatus?: 'REGISTERED' | 'IN_PROGRESS' | 'SUSPENDED' | 'COMPLETED'
   queueStatus?: ReceptionQueueItem['status']
   startFn?: ReturnType<typeof vi.fn>
   resumeFn?: ReturnType<typeof vi.fn>
@@ -128,7 +142,8 @@ function createMockApi({
     encounters: {
       byResident: vi.fn().mockImplementation(() =>
         Promise.resolve([encounterStatus === 'REGISTERED' ? mockRegisteredEncounter
-          : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter : mockInProgressEncounter])
+          : encounterStatus === 'SUSPENDED' ? mockSuspendedEncounter
+            : encounterStatus === 'COMPLETED' ? mockCompletedEncounter : mockInProgressEncounter])
       ),
       recordClinicalData: vi.fn().mockImplementation((id: string, input: any) => Promise.resolve({
         ...mockInProgressEncounter,
@@ -250,7 +265,35 @@ function createMockApi({
   } as unknown as RhnApi
 }
 
+function renderStation(api: RhnApi) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  return render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+    <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+  </MemoryRouter></QueryClientProvider>)
+}
+
 describe('DoctorWorkstation reception flow', () => {
+  it('loads the personal view by default and reloads when the data scope changes', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await screen.findByText('张建国')
+    expect(api.scheduling.receptionQueue).toHaveBeenCalledWith(expect.any(String), undefined, 'PERSONAL')
+    await user.click(screen.getByRole('button', { name: '本科室' }))
+    await waitFor(() => expect(api.scheduling.receptionQueue)
+      .toHaveBeenCalledWith(expect.any(String), undefined, 'DEPARTMENT'))
+    await user.click(screen.getByRole('button', { name: '本院' }))
+    await waitFor(() => expect(api.scheduling.receptionQueue)
+      .toHaveBeenCalledWith(expect.any(String), undefined, 'ORGANIZATION'))
+  })
+
   it('opens a waiting patient in reading mode from the explicit view action', async () => {
     const user = userEvent.setup()
     const startEncounterSpy = vi.fn()
@@ -402,6 +445,33 @@ describe('DoctorWorkstation reception flow', () => {
     expect(api.encounters.start).not.toHaveBeenCalled()
   })
 
+  it('opens a completed encounter in a stable read-only layout without an edit action', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'COMPLETED', queueStatus: 'COMPLETED' })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    const { container } = render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    await user.click(await screen.findByRole('tab', { name: /已接诊/ }))
+    await user.click(await screen.findByRole('button', { name: '查看病历 张建国' }))
+
+    expect(await screen.findByText('阅读状态')).toBeInTheDocument()
+    expect(screen.getByText('本次就诊已结束；如需更正，应发起病历修订并保留原始版本')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '进入编辑' })).not.toBeInTheDocument()
+    expect(container.querySelector('.doctor-clinical-cockpit')).toHaveClass('is-reading')
+    expect(container.querySelector('.doctor-clinical-readonly-note')).toBeInTheDocument()
+    expect(container.querySelector('.doctor-record-column')).toBeInTheDocument()
+    expect(screen.getByLabelText('诊断与医嘱工作区')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '返回患者列表' }))
+    expect(await screen.findByRole('heading', { name: '门诊医生站' })).toBeInTheDocument()
+    expect(screen.queryByText('阅读状态')).not.toBeInTheDocument()
+  })
+
   it('renders physical exam inputs without dummy value placeholders and applies reference vitals from history', async () => {
     const user = userEvent.setup()
     const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
@@ -478,6 +548,33 @@ describe('DoctorWorkstation reception flow', () => {
     expect(sysInput.value).toBe('135')
     expect(diaInput.value).toBe('85')
     expect(await screen.findByText('已带入')).toBeInTheDocument()
+  })
+
+  it('marks blood pressure required and explains empty, range and relationship errors in Chinese', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const systolic = await screen.findByLabelText('收缩压'), diastolic = screen.getByLabelText('舒张压')
+    expect(systolic).toHaveAttribute('aria-required', 'true')
+    expect(diastolic).toHaveAttribute('aria-required', 'true')
+    await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
+    await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '发热3天')
+    await user.clear(systolic); await user.clear(diastolic)
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('请填写收缩压；请填写舒张压'))
+    expect(screen.queryByText(/NaN|Invalid input/)).not.toBeInTheDocument()
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+    fireEvent.change(systolic, { target: { value: '301' } })
+    fireEvent.change(diastolic, { target: { value: '80' } })
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('收缩压请输入 20～300 之间的数值'))
+    fireEvent.change(systolic, { target: { value: '70' } })
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('收缩压必须大于舒张压'))
   })
 
   it('preserves chief complaint, diagnoses, and physical exam data without clearing after saving draft', async () => {
@@ -571,8 +668,11 @@ describe('DoctorWorkstation reception flow', () => {
       },
     }]
 
+    await user.clear(screen.getByLabelText('体温'))
+    await user.type(screen.getByLabelText('体温'), '36.8')
+    await user.clear(screen.getByLabelText('体温'))
     // 4. 点击保存草稿
-    const saveDraftBtn = screen.getByRole('button', { name: '保存草稿' })
+    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
     await user.click(saveDraftBtn)
 
     // 5. 验证后端接口被正确调用
@@ -583,7 +683,7 @@ describe('DoctorWorkstation reception flow', () => {
         physicalExam: '心肺听诊未见异常，双下肢无水肿',
         systolic: 140,
         diastolic: 90,
-        temperature: 36.8,
+        temperature: undefined,
         diagnoses: [expect.objectContaining({ code: 'I10', display: '原发性高血压', type: 'PRIMARY' })],
       }))
     })
@@ -595,7 +695,7 @@ describe('DoctorWorkstation reception flow', () => {
       expect(screen.getByPlaceholderText('阳性体征及必要的阴性体征')).toHaveValue('心肺听诊未见异常，双下肢无水肿')
       expect(screen.getByLabelText('收缩压')).toHaveValue(140)
       expect(screen.getByLabelText('舒张压')).toHaveValue(90)
-      expect(screen.getByLabelText('体温')).toHaveValue(36.8)
+      expect(screen.getByLabelText('体温')).toHaveValue(null)
       expect(screen.getByText('原发性高血压')).toBeInTheDocument()
     })
     expect(await screen.findByText(/草稿 V1/)).toBeInTheDocument()
@@ -770,11 +870,115 @@ describe('DoctorWorkstation reception flow', () => {
     const checklist = screen.getByLabelText('诊毕准入核对')
     expect(checklist).toHaveTextContent('主诉已保存')
     expect(checklist).toHaveTextContent('主要诊断')
-    expect(checklist).toHaveTextContent('病历签署')
+    expect(checklist).toHaveTextContent('确认时自动签署')
 
     // Ensure raw Unicode check/circle characters are completely absent
     expect(checklist.textContent).not.toContain('✓')
     expect(checklist.textContent).not.toContain('○')
+  })
+
+  it('uses the default combined mode to sign the saved note and complete the encounter in one confirmation', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const readyEncounter = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ conceptId: 'concept-hyp-1', diagnosisDomain: 'WESTERN_MEDICINE',
+        code: 'I10', display: '原发性高血压', type: 'PRIMARY', managementPrograms: [] }] } as Encounter
+    api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('SIGNED'))
+    api.encounters.complete = vi.fn().mockResolvedValue({ ...readyEncounter, status: 'COMPLETED' })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(screen.queryByRole('button', { name: '签署当前版本' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    const finish = await screen.findByRole('button', { name: '签署并诊毕' })
+    expect(finish).toBeEnabled()
+    await user.click(finish)
+    await waitFor(() => expect(api.encounters.complete).toHaveBeenCalledTimes(1))
+    expect(api.clinicalDocuments.sign).toHaveBeenCalledWith('note-1', 1)
+    expect(vi.mocked(api.clinicalDocuments.sign).mock.invocationCallOrder[0])
+      .toBeLessThan(vi.mocked(api.encounters.complete).mock.invocationCallOrder[0])
+  })
+
+  it('saves unsaved work before opening the completion confirmation', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const readyEncounter = { ...mockInProgressEncounter, chiefComplaint: '头痛复诊', systolic: 120, diastolic: 80,
+      diagnoses: [{ conceptId: 'concept-hyp-1', diagnosisDomain: 'WESTERN_MEDICINE',
+        code: 'I10', display: '原发性高血压', type: 'PRIMARY', managementPrograms: [] }] } as Encounter
+    let finishSave: ((value: Encounter) => void) | undefined
+    api.encounters.byResident = vi.fn().mockResolvedValue([readyEncounter])
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    api.encounters.recordClinicalData = vi.fn().mockImplementation(() => new Promise<Encounter>((resolve) => {
+      finishSave = resolve
+    }))
+    renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const complaint = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await waitFor(() => expect(complaint).toHaveValue('头痛复诊'))
+    fireEvent.change(complaint, { target: { value: '头痛复诊，今日加重' } })
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    expect(await screen.findByRole('button', { name: '保存并继续诊毕' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '保存并继续诊毕' }))
+    expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101', expect.objectContaining({
+      chiefComplaint: '头痛复诊，今日加重',
+    }))
+    expect(screen.queryByRole('dialog', { name: /诊毕确认/ })).not.toBeInTheDocument()
+
+    finishSave?.({ ...readyEncounter, chiefComplaint: '头痛复诊，今日加重' })
+    expect(await screen.findByRole('dialog', { name: /诊毕确认/ })).toBeInTheDocument()
+  })
+
+  it('keeps separate signing available when the completion mode parameter requests it', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.configuration = { resolve: vi.fn().mockResolvedValue({
+      key: 'outpatient.doctor-workstation.completion-mode', value: 'SEPARATE_CONFIRMATIONS',
+      requestedScope: 'DEPARTMENT', resolvedScope: 'DEPARTMENT', inherited: false, suppressedByDependency: false,
+    }) } as never
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('DRAFT')])
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    expect(await screen.findByRole('button', { name: '签署当前版本' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '诊毕' }))
+    expect(await screen.findByRole('button', { name: '立即签署' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认诊毕' })).toBeDisabled()
+  })
+
+  it('starts an auditable amendment instead of withdrawing a signed note', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
+    api.clinicalDocuments.amend = vi.fn().mockResolvedValue(outpatientNote('AMENDMENT_IN_PROGRESS', 2))
+    api.clinicalDocuments.sign = vi.fn().mockResolvedValue(outpatientNote('SIGNED', 2))
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '发起更正' }))
+    expect(screen.getByText('原签署版本和签名证据将完整保留；以下更正内容将生成新版本并重新签署。')).toBeInTheDocument()
+    await user.type(screen.getByPlaceholderText('说明需要更正的内容和原因'), '更正现病史中的症状持续时间')
+    await user.click(screen.getByRole('button', { name: '更正并重新签署' }))
+    await waitFor(() => expect(api.clinicalDocuments.amend).toHaveBeenCalledWith('note-1', expect.objectContaining({
+      expectedCurrentVersion: 1, changeReason: '更正现病史中的症状持续时间',
+    })))
+    expect(api.clinicalDocuments.sign).toHaveBeenCalledWith('note-1', 2)
+  })
+
+  it('offers an auditable correction action after the encounter is completed', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'COMPLETED', queueStatus: 'COMPLETED' })
+    api.clinicalDocuments.byEncounter = vi.fn().mockResolvedValue([outpatientNote('SIGNED')])
+    renderStation(api)
+
+    await user.click(await screen.findByRole('tab', { name: /已接诊/ }))
+    await user.click(await screen.findByRole('button', { name: '查看病历 张建国' }))
+
+    expect(await screen.findByRole('button', { name: '发起更正' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '进入编辑' })).not.toBeInTheDocument()
   })
 
   it('only enables drag on the handle icon and not the entire diagnosis row', async () => {
@@ -895,6 +1099,9 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
     await waitFor(() => expect(within(orderTable).queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument())
     expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规')
+    expect(await screen.findByRole('dialog', { name: '审核诊疗方案' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '确认保存并开立' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '返回修改' }))
     expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.stringMatching(/^ai-/),
       expect.objectContaining({ eventType: 'ADOPTED', sectionCode: 'TREATMENT' }))
     expect(document.querySelector('.doctor-ai-summary-slot')).not.toBeInTheDocument()

@@ -83,15 +83,18 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void shouldRecommendDepartmentsBasedOnVitalsAndChiefComplaint() throws Exception {
+    void shouldRecommendRealDepartmentsBasedOnVitalsAndChiefComplaint() throws Exception {
         mockMvc.perform(get("/api/outpatient/triage/recommend-departments")
                         .with(rhnWorkContext())
                         .param("chiefComplaint", "发热、咳嗽、咳黄痰3天")
                         .param("temperature", "38.8"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].departmentName").value("发热门诊"))
+                .andExpect(jsonPath("$[0].departmentId").value("362387869899001"))
+                .andExpect(jsonPath("$[0].departmentName").value("内科门诊"))
                 .andExpect(jsonPath("$[0].score").isNumber())
-                .andExpect(jsonPath("$[0].rationale").isNotEmpty());
+                .andExpect(jsonPath("$[0].rationale").isNotEmpty())
+                .andExpect(jsonPath("$[0].availableScheduleCount").value(0))
+                .andExpect(jsonPath("$[0].scheduledToday").value(false));
 
         mockMvc.perform(get("/api/outpatient/triage/recommend-departments")
                         .with(rhnWorkContext())
@@ -99,8 +102,50 @@ class OutpatientTriageTest extends RhnIntegrationTestSupport {
                         .param("systolic", "190")
                         .param("diastolic", "115"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].departmentName").value("心血管内科"))
-                .andExpect(jsonPath("$[0].alertNotice").value(containsString("高血压危象")));
+                .andExpect(jsonPath("$[0].departmentName").value("内科门诊"))
+                .andExpect(jsonPath("$[0].source").value("LOCAL_ASSIST"));
+    }
+
+    @Test
+    void shouldAssessWithLocalModeWithoutRequiringModel() throws Exception {
+        mockMvc.perform(post("/api/outpatient/triage/assessments")
+                        .with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "chiefComplaint":"发热咳嗽3天",
+                                  "temperature":38.8,
+                                  "pulseRate":102,
+                                  "consciousness":"ALERT",
+                                  "age":35,
+                                  "gender":"MALE",
+                                  "aiEnhancement":true
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.aiMode").value("LOCAL_ASSIST"))
+                .andExpect(jsonPath("$.aiApplied").value(false))
+                .andExpect(jsonPath("$.source").value("LOCAL_ASSIST"))
+                .andExpect(jsonPath("$.ruleLevel").value("LEVEL_3_ROUTINE_URGENT"))
+                .andExpect(jsonPath("$.departmentRecommendations[0].departmentName").value("内科门诊"));
+    }
+
+    @Test
+    void shouldRaiseSubmittedLevelToServerRuleBaseline() throws Exception {
+        CreateTriageRequest request = new CreateTriageRequest(
+                Long.valueOf(ORGANIZATION), null, null, null, "安全基线患者", "MALE", 45, null,
+                null, null, null, "WALK_IN", "NONE", "头晕", "", BigDecimal.valueOf(36.8),
+                BigDecimal.valueOf(80), BigDecimal.valueOf(18), BigDecimal.valueOf(190),
+                BigDecimal.valueOf(115), BigDecimal.valueOf(98), null, 1, "ALERT", false, null, null,
+                "LEVEL_4_NON_URGENT", "人工初判普通", null, null, null, null, "NONE",
+                "WAITING_QUEUE", null, "nurse-01", "王护士");
+
+        mockMvc.perform(post("/api/outpatient/triage")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.triageLevel").value("LEVEL_1_CRITICAL"))
+                .andExpect(jsonPath("$.triageReason").value(containsString("系统安全规则已将分级提升")));
     }
 
     @Test

@@ -261,7 +261,7 @@ export function UnifiedOrderListEditor({
   encounter, allergies = [], prescriptions = [], medications = [], services = [],
   medicationDrafts = [], setMedicationDrafts,
   serviceDrafts = [], setServiceDrafts, api, busy = false,
-  readOnly = false, aiOrderReview, onAiOrderReviewConsumed, aiSuggestionSurfaceRef,
+  readOnly = false, aiOrderReview, onAiOrderReviewConsumed, onAiOrdersPrepared, aiSuggestionSurfaceRef,
   onCancelMedication = () => {}, onCancelService = () => {}, onPrint = () => {},
 }: {
   encounter: Encounter
@@ -277,6 +277,7 @@ export function UnifiedOrderListEditor({
   busy?: boolean
   aiOrderReview?: AiOrderReviewCommand | null
   onAiOrderReviewConsumed?: () => void
+  onAiOrdersPrepared?: () => void
   aiSuggestionSurfaceRef?: (element: HTMLDivElement | null) => void
   readOnly?: boolean
   onCancelMedication?: (value: MedicationRequest) => void
@@ -569,9 +570,9 @@ export function UnifiedOrderListEditor({
     }
   }
 
-  const reviewState = useRef({ encounterId: encounter.id, busy, readOnly, onAiOrderReviewConsumed,
+  const reviewState = useRef({ encounterId: encounter.id, busy, readOnly, onAiOrderReviewConsumed, onAiOrdersPrepared,
     medicationDrafts, serviceDrafts, medications, services, allergies })
-  reviewState.current = { encounterId: encounter.id, busy, readOnly, onAiOrderReviewConsumed,
+  reviewState.current = { encounterId: encounter.id, busy, readOnly, onAiOrderReviewConsumed, onAiOrdersPrepared,
     medicationDrafts, serviceDrafts, medications, services, allergies }
   useEffect(() => {
     if (!aiOrderReview || aiOrderReview.encounterId !== encounter.id) return
@@ -603,16 +604,30 @@ export function UnifiedOrderListEditor({
           if (!medication) return { item, error: '已不在本次可用药品目录中' }
           const raw = { ...medication,
             products: medication.products.filter((product) => String(product.id) === String(item.catalogItemId)) }
-          const product = resolveDispensableOptions(raw, encounter.organizationId)[0]
+          const options = resolveDispensableOptions(raw, encounter.organizationId)
+          const product = item.orderDraft
+            ? options.find((option) => option.itemPackage?.id === item.orderDraft?.packageId) : options[0]
           if (!product) return { item, error: '未配置可发药产品、包装或有效价格' }
-          const doseValue = Number(raw.defaultDose)
-          const doseUnit = raw.defaultDoseUnit || raw.preparationUnit
-          const routeCode = raw.defaultRoute
-          const frequencyCode = raw.defaultFrequency
-          if (!(doseValue > 0) || !doseUnit || !routeCode || !frequencyCode) {
+          const doseValue = Number(item.orderDraft ? item.orderDraft.doseValue : raw.defaultDose)
+          const doseUnit = item.orderDraft ? item.orderDraft.doseUnit : raw.defaultDoseUnit || raw.preparationUnit
+          const routeCode = item.orderDraft ? item.orderDraft.routeCode : raw.defaultRoute
+          const frequencyCode = item.orderDraft ? item.orderDraft.frequencyCode : raw.defaultFrequency
+          const durationValue = item.orderDraft?.durationValue
+          if (!Number.isFinite(doseValue) || !(doseValue > 0) || !doseUnit?.trim() || !routeCode || !frequencyCode) {
             return { item, error: '目录缺少默认剂量、途径或频次，请手工检索后补全' }
           }
-          const routeExecutionType = routes.data?.find((value) => value.code === routeCode)?.executionType
+          const [activeRoutes, activeFrequencies] = await Promise.all([
+            api.masterData.activeMedicationRoutes('OUTPATIENT'),
+            api.masterData.activeOrderFrequencies(encounter.organizationId, encounter.departmentId, 'OUTPATIENT', 'MEDICATION'),
+          ])
+          if (!activeRoutes.some((value) => value.code === routeCode)
+            || !activeFrequencies.some((value) => value.code === frequencyCode)) {
+            return { item, error: '用药途径或频次已失效，请重新选择' }
+          }
+          if (durationValue !== undefined && (!Number.isFinite(durationValue) || durationValue <= 0)) {
+            return { item, error: '用药天数须大于 0' }
+          }
+          const routeExecutionType = activeRoutes.find((value) => value.code === routeCode)?.executionType
           if (raw.sdMedicationType === 'HERBAL' || routeExecutionType === 'INFUSION') {
             return { item, error: '草药或输液需手工核对剂数、服法或输液分组' }
           }
@@ -625,8 +640,9 @@ export function UnifiedOrderListEditor({
             allergy.assertionType === 'NO_KNOWN_ALLERGY' || allergy.assertionType === 'NO_KNOWN_DRUG_ALLERGY')
             || drugAllergies.length > 0
           const hasSafetyAlert = drugAllergies.length > 0 || Boolean(raw.skinTestRequired || raw.antimicrobial)
-          const quantity = calculatePackageQuantity({ medication: raw, doseValue, doseUnit, frequencyCode,
-            selectedPackage: product, frequencies: frequencies.data })?.quantity ?? 1
+          const quantity = item.orderDraft?.quantity ?? calculatePackageQuantity({ medication: raw, doseValue, doseUnit, frequencyCode,
+            durationValue, selectedPackage: product, frequencies: activeFrequencies })?.quantity ?? 1
+          if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的开药总量' }
           if (quantity > Number(raw.availablePackageQuantity)) return { item, error: '当前可用库存不足' }
           const draft: MedicationPlanDraft = {
             id: globalThis.crypto.randomUUID(), sequence: Date.now(), editorMode: 'regular',
@@ -635,12 +651,14 @@ export function UnifiedOrderListEditor({
             productSpec: product.itemPackage?.packageSpec || product.label,
             manufacturerName: product.product.manufacturerName, unitPrice: product.price,
             currencyCode: product.currencyCode,
-            routeName: routes.data?.find((value) => value.code === routeCode)?.name,
+            routeName: activeRoutes.find((value) => value.code === routeCode)?.name,
             routeExecutionType,
             stockSiteName: raw.stockSiteName, availablePackageQuantity: raw.availablePackageQuantity,
             packageUnitName: raw.packageUnitName,
             request: { medicationId: raw.id, catalogItemId: product.product.id, packageId: product.itemPackage?.id,
               doseValue, doseUnit, routeCode, frequencyCode, quantity, quantityUnit: product.unitCode,
+              durationValue, durationUnit: durationValue === undefined ? undefined : 'd',
+              medicationInstruction: item.orderDraft ? item.orderDraft.instruction || undefined : product.product.instruction || undefined,
               substitutionAllowed: true, selfProvided: false,
               allergyReviewConfirmed: allergyReviewRecorded || !hasSafetyAlert,
               priceType: product.priceType, pricingRequired: true, reason: 'AI 治疗建议，待医生核对' },
@@ -656,11 +674,16 @@ export function UnifiedOrderListEditor({
           && value.organizationAdoption.sdStatus === 'ACTIVE' && value.organizationAdoption.orderable
           && value.organizationAdoption.executable && valid(value.organizationAdoption.validFrom, value.organizationAdoption.validTo))
         if (!raw) return { item, error: '已不在本次可用诊疗目录中' }
-        const activePrice = raw.prices?.find((price) => price.sdStatus === 'ACTIVE') ?? raw.prices?.[0]
+        const activePrice = raw.prices?.filter((price) => price.sdStatus === 'ACTIVE' && price.sdPriceType === 'SALE'
+          && (!price.organizationId || price.organizationId === encounter.organizationId)
+          && valid(price.validFrom, price.validTo)).sort((left, right) =>
+            Number(Boolean(right.organizationId)) - Number(Boolean(left.organizationId)))[0]
+        const quantity = item.orderDraft?.quantity ?? 1
+        if (!Number.isFinite(quantity) || quantity <= 0) return { item, error: '请填写有效的项目总量' }
         const serviceDraft: ServicePlanDraft = {
           id: globalThis.crypto.randomUUID(), sequence: Date.now(), serviceType: raw.sdServiceType,
-          catalogItemId: raw.id, itemCode: raw.code, itemName: raw.name, quantity: 1, unitCode: raw.unitCode,
-          clinicalDescription: item.rationale || undefined, unitPrice: activePrice?.price,
+          catalogItemId: raw.id, itemCode: raw.code, itemName: raw.name, quantity, unitCode: raw.unitCode,
+          clinicalDescription: item.orderDraft?.instruction ?? (item.rationale || undefined), unitPrice: activePrice?.price,
           currencyCode: activePrice?.currencyCode,
         }
         return { item, serviceDraft }
@@ -676,6 +699,7 @@ export function UnifiedOrderListEditor({
       if (acceptedKeys.length) {
         setSuccessToast(`已将 ${acceptedKeys.length} 项 AI 建议转为待确认医嘱，可直接逐项编辑或统一审核开立。`)
         aiOrderReview.onCompleted?.(acceptedKeys)
+        if (!failures.length) reviewState.current.onAiOrdersPrepared?.()
       }
       setValidationError(failures.length ? failures.map((value) => `${value.item.name}：${value.error}`).join('；') : '')
     })().catch(() => {

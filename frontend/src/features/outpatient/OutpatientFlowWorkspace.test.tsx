@@ -52,4 +52,82 @@ describe('OutpatientFlowWorkspace composite visit', () => {
     expect(row).toHaveTextContent('可以离院')
     expect(row).toHaveTextContent('接诊及诊后环节均已完成')
   })
+
+  it('renders standard SearchField and supports list pagination', async () => {
+    const user = userEvent.setup()
+    const visits = Array.from({ length: 15 }, (_, i) => ({
+      encounterId: `encounter-${i + 1}`,
+      encounterNo: `OP-${i + 1}`,
+      residentId: `res-${i + 1}`,
+      residentName: `患者${i + 1}`,
+      healthRecordNo: `HR${i + 1}`,
+      gender: 'MALE' as const,
+      clinicalStatus: 'REGISTERED' as const,
+      flowStatus: 'WAITING_CONSULTATION' as const,
+      flowStatusText: '候诊中',
+      nextDestination: '1号诊室',
+      attentionReason: '等待医生接诊',
+      pendingMinutes: i * 5,
+      outstandingAmount: 0,
+      registeredAt: '2026-08-30T08:00:00Z',
+      stages: [
+        { stageCode: 'CLINICAL' as const, stageName: '接诊', status: 'IN_PROGRESS' as const, statusText: '候诊中', totalCount: 1, pendingCount: 1 },
+      ],
+    }))
+
+    const board: OutpatientFlowBoard = {
+      businessDate: '2026-08-30',
+      refreshedAt: '2026-08-30T12:50:00Z',
+      summary: {
+        totalCount: 15,
+        waitingConsultationCount: 15,
+        inConsultationCount: 0,
+        downstreamPendingCount: 0,
+        exceptionCount: 0,
+        completedCount: 0,
+      },
+      visits,
+    }
+
+    const api = { outpatientFlow: { board: vi.fn().mockResolvedValue(board) } } as unknown as RhnApi
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科门诊' },
+    } as ClinicalContext
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+    const { container } = render(
+      <QueryClientProvider client={queryClient}>
+        <OutpatientFlowWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </QueryClientProvider>
+    )
+
+    // 1. Verify standard SearchField exists with icon and clearable attribute
+    const searchField = container.querySelector('.ui-search-field')
+    expect(searchField).toBeInTheDocument()
+    const searchInput = screen.getByRole('searchbox', { name: '搜索患者' })
+    expect(searchInput).toHaveAttribute('placeholder', '姓名 / 档案号 / 就诊号')
+
+    // 2. Verify Pagination renders with total and page navigation
+    expect(await screen.findByText('共 15 条记录')).toBeInTheDocument()
+    expect(screen.getByText('患者1')).toBeInTheDocument()
+    expect(screen.getByText('患者10')).toBeInTheDocument()
+    // Patient 11 should be on page 2
+    expect(screen.queryByText('患者11')).not.toBeInTheDocument()
+
+    // 3. Navigate to next page
+    const nextBtn = screen.getByRole('button', { name: '下一页' })
+    expect(nextBtn).toBeEnabled()
+    await user.click(nextBtn)
+    expect(screen.getByText('患者11')).toBeInTheDocument()
+    expect(screen.getByText('患者15')).toBeInTheDocument()
+    expect(screen.queryByText('患者1')).not.toBeInTheDocument()
+
+    // 4. Test page size change
+    const pageSizeSelect = screen.getByRole('combobox', { name: '每页显示条数' })
+    await user.selectOptions(pageSizeSelect, '20')
+    // All 15 items should now be on page 1
+    expect(screen.getByText('患者1')).toBeInTheDocument()
+    expect(screen.getByText('患者15')).toBeInTheDocument()
+  })
 })

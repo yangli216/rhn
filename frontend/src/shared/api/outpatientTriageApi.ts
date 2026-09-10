@@ -135,6 +135,38 @@ export interface DepartmentRecommendation {
   rationale: string
   availableScheduleCount: number
   alertNotice?: string | null
+  source?: 'LOCAL_ASSIST' | 'AI'
+  scheduledToday?: boolean
+}
+
+export interface TriageAssessmentInput {
+  chiefComplaint?: string
+  symptoms?: string
+  temperature?: number
+  pulseRate?: number
+  respiratoryRate?: number
+  systolic?: number
+  diastolic?: number
+  oxygenSaturation?: number
+  bloodGlucose?: number
+  painScore?: number
+  consciousness?: TriageConsciousness
+  age?: number
+  gender?: string
+  aiEnhancement?: boolean
+}
+
+export interface TriageAssessment {
+  ruleLevel: TriageLevel
+  suggestedLevel: TriageLevel
+  source: 'RULE' | 'LOCAL_ASSIST' | 'AI_ENHANCED' | 'AI_FALLBACK'
+  aiMode: 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
+  aiApplied: boolean
+  summary: string
+  ruleReasons: string[]
+  dangerSigns: string[]
+  departmentRecommendations: DepartmentRecommendation[]
+  fallbackReason?: string | null
 }
 
 export interface PendingEncounter {
@@ -177,6 +209,7 @@ export interface OutpatientTriageApi {
   search: (filter?: TriageSearchFilter) => Promise<{ content: TriageRecord[]; totalElements: number; totalPages: number }>
   statistics: (date?: string) => Promise<TriageStatistics>
   pendingEncounters: (date?: string) => Promise<PendingEncounter[]>
+  assess: (input: TriageAssessmentInput) => Promise<TriageAssessment>
   recommendDepartments: (params: {
     chiefComplaint?: string
     symptoms?: string
@@ -222,6 +255,10 @@ export function createOutpatientTriageApi(client: ApiClient): OutpatientTriageAp
     pendingEncounters: (date) => client.request<PendingEncounter[]>(
       `/api/outpatient/triage/pending-encounters${date ? `?date=${date}` : ''}`
     ),
+    assess: (input) => client.request<TriageAssessment>('/api/outpatient/triage/assessments', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
     recommendDepartments: (params) => {
       const sp = new URLSearchParams()
       if (params.chiefComplaint) sp.set('chiefComplaint', params.chiefComplaint)

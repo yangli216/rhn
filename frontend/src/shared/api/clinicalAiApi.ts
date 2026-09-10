@@ -134,6 +134,17 @@ export interface ClinicalAiTreatmentRecommendation {
   name: string
   specification?: string
   rationale: string
+  /** Catalog-backed, physician-editable details; revalidated when accepting into order drafts. */
+  orderDraft?: {
+    packageId?: string
+    doseValue?: number
+    doseUnit?: string
+    routeCode?: string
+    frequencyCode?: string
+    durationValue?: number
+    quantity: number
+    instruction?: string
+  }
 }
 
 export interface ClinicalAiSuggestion {

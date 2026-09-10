@@ -107,7 +107,11 @@ describe('queueDispatchService & queueDataEnhancer', () => {
   })
 
   it('filters queue items by tabs and search queries', () => {
-    const enhanced = enhanceQueueList([mockItem1, mockItem2, mockItem3])
+    const completed = { ...mockItem1, registrationId: 'reg-completed', status: 'COMPLETED' as const,
+      completedAt: '2026-09-05T09:30:00Z' }
+    const completedEarlier = { ...mockItem2, registrationId: 'reg-completed-earlier', status: 'COMPLETED' as const,
+      completedAt: '2026-09-05T09:00:00Z' }
+    const enhanced = enhanceQueueList([mockItem1, mockItem2, mockItem3, completedEarlier, completed])
 
     // Filter by RETURN_VISIT tab
     const returnList = filterQueueItems(enhanced, 'RETURN_VISIT')
@@ -117,6 +121,11 @@ describe('queueDispatchService & queueDataEnhancer', () => {
     const searched = filterQueueItems(enhanced, 'ALL', '李翠华')
     expect(searched).toHaveLength(1)
     expect(searched[0].residentName).toBe('李翠华')
+
+    expect(filterQueueItems(enhanced, 'ALL').some((item) => item.status === 'COMPLETED')).toBe(false)
+    expect(filterQueueItems(enhanced, 'COMPLETED').map((item) => item.registrationId)).toEqual([
+      'reg-completed', 'reg-completed-earlier',
+    ])
   })
 
   it('prioritizes critical emergency patients over standard queue', () => {
@@ -309,6 +318,78 @@ describe('DedicatedWaitingWorkspace interactive features', () => {
     expect(await screen.findByText('叫号与智能排队设置')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: '3:1' }))
     await user.click(screen.getByRole('button', { name: '关闭设置' }))
+  })
+
+  it('renders called count badge in header badge group instead of stretching ticket column', () => {
+    const calledItem = enhanceQueueItem({
+      ...mockItem1,
+      status: 'CALLED',
+      callCount: 2,
+    })
+
+    const { container } = render(
+      <DedicatedWaitingWorkspace
+        items={[calledItem]}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        onEnter={vi.fn()}
+        onView={vi.fn()}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    // Check that called count pill badge exists in card-badge-group
+    const calledBadge = screen.getByText('叫号 2 次')
+    expect(calledBadge).toBeInTheDocument()
+    expect(calledBadge).toHaveClass('category-pill--called')
+
+    // Confirm that ticket column only contains ticketNo and seq (no called-count)
+    const ticketCol = container.querySelector('.waiting-card__ticket-col')
+    expect(ticketCol).toBeInTheDocument()
+    expect(ticketCol?.querySelector('.waiting-card__called-count')).toBeNull()
+    expect(ticketCol?.textContent).toContain('A001')
+    expect(ticketCol?.textContent).toContain('第 1 号')
+    expect(ticketCol?.textContent).not.toContain('叫号')
+  })
+
+  it('shows completed encounters in a read-only completed tab', async () => {
+    const user = userEvent.setup()
+    const completedItem = enhanceQueueItem({
+      ...mockItem1,
+      status: 'COMPLETED',
+      clinicianName: '李医生',
+      completedAt: '2026-09-05T09:30:00Z',
+    })
+    const viewSpy = vi.fn()
+
+    render(
+      <DedicatedWaitingWorkspace
+        items={[completedItem]}
+        clinicalContext={{ organization: { id: 'org-1', name: '社区卫生中心' }, department: { id: 'dept-1', name: '全科医疗科' } } as ClinicalContext}
+        canEdit
+        busy={false}
+        onEnter={vi.fn()}
+        onView={viewSpy}
+        onRefresh={vi.fn()}
+        onCallItem={vi.fn().mockResolvedValue(undefined)}
+        onMissItem={vi.fn().mockResolvedValue(undefined)}
+        onRequeueItem={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(screen.queryByText('张建国')).not.toBeInTheDocument()
+    await user.click(screen.getByText('已接诊'))
+    expect(screen.getByText('张建国')).toBeInTheDocument()
+    expect(screen.getByText('接诊医生: 李医生')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /接诊 张建国/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /呼叫 张建国/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /查看画像 张建国/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: '查看病历 张建国' }))
+    expect(viewSpy).toHaveBeenCalledWith(completedItem)
   })
 })
 

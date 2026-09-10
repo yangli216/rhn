@@ -205,8 +205,16 @@ public class TriageContracts {
             int score,
             String rationale,
             int availableScheduleCount,
-            String alertNotice
-    ) {}
+            String alertNotice,
+            String source,
+            boolean scheduledToday
+    ) {
+        public DepartmentRecommendationResponse(Long departmentId, String departmentName, int score,
+                                                String rationale, int availableScheduleCount, String alertNotice) {
+            this(departmentId, departmentName, score, rationale, availableScheduleCount, alertNotice,
+                    "LOCAL_ASSIST", availableScheduleCount > 0);
+        }
+    }
 
     public record PendingEncounterResponse(
             Long encounterId,

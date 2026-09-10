@@ -4,6 +4,8 @@ import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.OutpatientRegistrationDirectory;
 import com.rhn.outpatient.api.OutpatientScheduleDirectory;
 import com.rhn.outpatient.api.RegistrationValidityPolicy;
+import com.rhn.outpatient.api.EncounterFlowDirectory;
+import com.rhn.outpatient.api.EncounterFlowDirectory.EncounterFlowSnapshot;
 import com.rhn.queueing.api.QueueingDirectory;
 import com.rhn.queueing.api.QueueingDirectory.TicketSnapshot;
 import com.rhn.shared.context.ExecutionContext;
@@ -45,6 +47,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
     private final RegistrationValidityPolicy validityPolicy;
+    private final EncounterFlowDirectory encounterFlowDirectory;
     private final IdentityAccessDirectory identityAccessDirectory;
     private final OrganizationDirectory organizationDirectory;
 
@@ -59,6 +62,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           ResidentDirectory residentDirectory,
                                           ExecutionContextProvider contextProvider,
                                           RegistrationValidityPolicy validityPolicy,
+                                          EncounterFlowDirectory encounterFlowDirectory,
                                           IdentityAccessDirectory identityAccessDirectory,
                                           OrganizationDirectory organizationDirectory) {
         this.registrationRepository = registrationRepository;
@@ -72,6 +76,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider;
         this.validityPolicy = validityPolicy;
+        this.encounterFlowDirectory = encounterFlowDirectory;
         this.identityAccessDirectory = identityAccessDirectory;
         this.organizationDirectory = organizationDirectory;
     }
@@ -283,12 +288,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     @Override
     @Transactional(readOnly = true)
     public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo) {
-        return queue(dateFrom, dateTo, false);
+        return queue(dateFrom, dateTo, ReceptionQueueScope.DEPARTMENT);
     }
 
     @Transactional(readOnly = true)
-    public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo, boolean organizationScope) {
+    public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo, ReceptionQueueScope scope) {
         ExecutionContext context = requireOrganizationContext(null);
+        ReceptionQueueScope resolvedScope = scope == null ? ReceptionQueueScope.DEPARTMENT : scope;
+        boolean organizationScope = resolvedScope == ReceptionQueueScope.ORGANIZATION;
         requireDepartmentContextForDepartmentScope(context, organizationScope);
         LocalDate resolvedStart = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
         LocalDate resolvedEnd = dateTo == null ? resolvedStart : dateTo;
@@ -323,9 +330,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .filter(java.util.Objects::nonNull).distinct()
                 .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
                 .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
+        Map<Long, EncounterFlowSnapshot> encounters = encounterFlowDirectory.findByIds(context.tenantId(),
+                        registrations.stream().map(PatientRegistration::encounterId).toList())
+                .stream().collect(Collectors.toMap(EncounterFlowSnapshot::encounterId, Function.identity(),
+                        (first, ignored) -> first));
 
         Map<Long, String> queueOperatorCache = new HashMap<>();
         Map<Long, String> queueDepartmentCache = new HashMap<>();
+        Map<String, String> clinicianNameCache = new HashMap<>();
         Instant now = Instant.now();
         return registrations.stream().filter(reg -> {
             LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
@@ -341,16 +353,20 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     || "CANCELLED".equalsIgnoreCase(ticketStatus)
                     || "CANCELLED".equalsIgnoreCase(reg.status());
             return !expired || isCompleted;
-        }).map(registration -> {
+        }).filter(registration -> resolvedScope != ReceptionQueueScope.PERSONAL
+                || belongsToCurrentPractitioner(registration, schedules, encounters, context)).map(registration -> {
             TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
             ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
+            EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
             Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),
                     context.subjectId(), registration.organizationId(), registration.departmentId());
             String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), queueOperatorCache);
             Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
             String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, queueDepartmentCache);
             String dayPartText = resolveDayPartText(schedule);
+            String clinicianId = encounter == null ? null : encounter.clinicianId();
+            String clinicianName = resolveClinicianName(context.tenantId(), clinicianId, clinicianNameCache);
 
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
                     registration.encounterId(), ticket == null ? null : ticket.id(),
@@ -368,7 +384,10 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     ticket == null ? null : ticket.calledAt(), ticket == null ? null : ticket.startedAt(),
                     ticket == null ? 0 : ticket.callCount(), ticket == null ? 0 : ticket.missedCount(),
                     ticket == null ? null : ticket.currentLocationId(), validUntil,
-                    registeredByName, departmentName, dayPartText);
+                    registeredByName, departmentName, dayPartText,
+                    schedule == null ? null : schedule.practitionerId(), clinicianId, clinicianName,
+                    encounter != null && encounter.completedAt() != null
+                            ? encounter.completedAt() : ticket == null ? null : ticket.completedAt());
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
@@ -502,7 +521,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     ticket == null ? null : ticket.readyAt(), ticket == null ? null : ticket.calledAt(),
                     ticket == null ? null : ticket.startedAt(), ticket == null ? 0 : ticket.callCount(),
                     ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId(),
-                    null, registeredByName, departmentName, dayPartText);
+                    null, registeredByName, departmentName, dayPartText,
+                    schedule == null ? null : schedule.practitionerId(), null, null,
+                    ticket == null ? null : ticket.completedAt());
         }).toList();
 
         boolean first = safePage == 0;
@@ -528,6 +549,36 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 }
             } catch (Exception ignored) {}
             return null;
+        });
+    }
+
+    private boolean belongsToCurrentPractitioner(PatientRegistration registration,
+                                                 Map<Long, ServiceSchedule> schedules,
+                                                 Map<Long, EncounterFlowSnapshot> encounters,
+                                                 ExecutionContext context) {
+        EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
+        if (encounter != null && encounter.clinicianId() != null && !encounter.clinicianId().isBlank()) {
+            return encounter.clinicianId().equalsIgnoreCase(context.actor());
+        }
+        if (context.practitionerId() == null || registration.scheduleId() == null) return false;
+        ServiceSchedule schedule = schedules.get(registration.scheduleId());
+        return schedule != null && context.practitionerId().equals(schedule.practitionerId());
+    }
+
+    private String resolveClinicianName(Long tenantId, String clinicianId, Map<String, String> cache) {
+        if (clinicianId == null || clinicianId.isBlank()) return null;
+        return cache.computeIfAbsent(clinicianId, username -> {
+            try {
+                var account = identityAccessDirectory.findActiveAccount(tenantId, username).orElse(null);
+                if (account != null && account.practitionerId() != null) {
+                    var staff = organizationDirectory.requireStaff(tenantId, account.practitionerId());
+                    if (staff != null && staff.practitioner() != null
+                            && staff.practitioner().fullName() != null) {
+                        return staff.practitioner().fullName();
+                    }
+                }
+            } catch (Exception ignored) {}
+            return username;
         });
     }
 
