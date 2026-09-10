@@ -1,3 +1,6 @@
+import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
+import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
+import { isAbnormalObservation } from './ai/receptionSceneAssessment'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
@@ -6,7 +9,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { ClinicalDocument } from '../../shared/api/clinicalDocumentsApi'
-import type { ClinicalAiDraftContext } from '../../shared/api/clinicalAiApi'
+import type { ClinicalAiDraftContext, ClinicalAiRecordDraft } from '../../shared/api/clinicalAiApi'
 import type { DiseaseConcept } from '../../shared/api/masterDataApi'
 import type { Department } from '../../shared/api/organizationApi'
 import type {
@@ -40,8 +43,9 @@ import {
 import {
   isInfusionRoute, type MedicationPlanDraft,
 } from './PrescriptionListEditor'
-import { UnifiedOrderListEditor, type ServicePlanDraft } from './UnifiedOrderListEditor'
+import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from './UnifiedOrderListEditor'
 import { ClinicalAiAssistantPanel } from './ai/ClinicalAiAssistantPanel'
+import type { ClinicalAiSurfaceRefs } from './ai/ClinicalAiInlineWorkspace'
 import {
   clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, stableClinicalAiFingerprint,
   type ClinicalAiDraftRequest,
@@ -421,6 +425,9 @@ type HistoryCopyRecord = Partial<Pick<ClinicalRecordInput,
   'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'>>
 
 interface HistoryCopyDraft {
+  targetEncounterId?: string
+  targetResidentId?: string
+  medicationDrafts?: MedicationPlanDraft[]
   requestId: number
   sourceEncounterNo: string
   sourceRegisteredAt: string
@@ -445,9 +452,19 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [terminationOpen, setTerminationOpen] = useState(false)
   const [allergyOpen, setAllergyOpen] = useState(false)
   const [historyCopy, setHistoryCopy] = useState<HistoryCopyDraft | null>(null)
+  const [aiFieldStream, setAiFieldStream] = useState<ClinicalAiFieldStream | null>(null)
+  const [aiOrderReview, setAiOrderReview] = useState<AiOrderReviewCommand | null>(null)
+  const [existingTreatmentKeys, setExistingTreatmentKeys] = useState<string[]>([])
   const [aiContext, setAiContext] = useState<ClinicalAiDraftContext | null>(null)
   const [aiDraft, setAiDraft] = useState<ClinicalAiDraftRequest | null>(null)
   const [aiAdoptionBusy, setAiAdoptionBusy] = useState(false)
+  const [aiNote, setAiNote] = useState<HTMLDivElement | null>(null)
+  const [aiDiagnoses, setAiDiagnoses] = useState<HTMLDivElement | null>(null)
+  const [aiPlans, setAiPlans] = useState<HTMLDivElement | null>(null)
+  const [aiDetail, setAiDetail] = useState<HTMLDivElement | null>(null)
+  const aiSurfaceRefs = useMemo<ClinicalAiSurfaceRefs>(() => ({
+    note: setAiNote, diagnoses: setAiDiagnoses, plans: setAiPlans,
+  }), [])
   const [draftState, setDraftState] = useState<EncounterDraftState>(emptyDraftState)
   const [guardedAction, setGuardedAction] = useState<GuardedPatientAction | null>(null)
   const [editing, setEditing] = useState(false)
@@ -470,6 +487,26 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     queryFn: () => api.clinicalDocuments.byEncounter(encounter!.id),
     enabled: Boolean(encounter?.id),
   })
+  const patientTriageRecord = useQuery({
+    queryKey: ['patient-latest-triage', encounter?.id],
+    queryFn: () => api.outpatientTriage.getByEncounter(encounter!.id),
+    enabled: Boolean(encounter?.id),
+    staleTime: 60 * 1000,
+  })
+  const effectiveTriageVitals = useMemo(() => {
+    if (patientTriageRecord.data) {
+      const rec = patientTriageRecord.data
+      return {
+        systolic: rec.systolic,
+        diastolic: rec.diastolic,
+        temperature: rec.temperature,
+        pulseRate: rec.pulseRate,
+        spo2: rec.oxygenSaturation,
+        measuredAt: rec.triageTime,
+      }
+    }
+    return currentEnhancedItem?.vitals
+  }, [patientTriageRecord.data, currentEnhancedItem?.vitals])
   const outpatientNote = documents.data?.find((item) => item.documentType === 'OUTPATIENT_NOTE')
   const readyToComplete = Boolean(encounter?.chiefComplaint
     && encounter.diagnoses.some((item) => item.type === 'PRIMARY') && outpatientNote?.status === 'SIGNED')
@@ -596,6 +633,25 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
       facts={[{ label: '健康档案号', value: resident.healthRecordNo },
         { label: '联系电话', value: resident.phone || '未登记' },
         { label: '就诊号', value: encounter?.encounterNo || '无当前就诊' },
+        ...(patientTriageRecord.data ? [{
+          label: '预检分诊',
+          value: (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+              <StatusBadge tone={
+                patientTriageRecord.data.triageLevel === 'LEVEL_1_CRITICAL' ? 'danger'
+                : patientTriageRecord.data.triageLevel === 'LEVEL_2_URGENT' ? 'warning'
+                : patientTriageRecord.data.triageLevel === 'LEVEL_3_ROUTINE_URGENT' ? 'info'
+                : 'neutral'
+              }>
+                {patientTriageRecord.data.triageLevel === 'LEVEL_1_CRITICAL' ? '一级·危急'
+                : patientTriageRecord.data.triageLevel === 'LEVEL_2_URGENT' ? '二级·急症'
+                : patientTriageRecord.data.triageLevel === 'LEVEL_3_ROUTINE_URGENT' ? '三级·急诊'
+                : '四级·普通'}
+              </StatusBadge>
+              {patientTriageRecord.data.fever && <StatusBadge tone="danger">发热</StatusBadge>}
+            </span>
+          ),
+        }] : []),
         { label: '过敏信息', value: <AllergyContextValue allergies={allergies.data ?? []}
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
           onClick={() => setAllergyOpen(true)} /> }]}
@@ -629,7 +685,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
               variant={hasUnsavedDraft ? 'primary' : 'secondary'}
               className="doctor-btn--save-draft"
               busy={draftState.busy}
-              disabled={aiAdoptionBusy}
+              disabled={aiAdoptionBusy || Boolean(aiFieldStream)}
               title={hasUnsavedDraft ? '保存病历、诊断与医嘱草稿 (Ctrl+S)' : '当前草稿已与服务器同步 (Ctrl+S)'}
               onClick={handleSaveDraft}
             >
@@ -657,32 +713,44 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
             {saveDraftNotice && <Alert tone={saveDraftNotice.tone ?? 'success'} className="ui-page-feedback">
               <Icon name={saveDraftNotice.tone === 'error' ? 'error' : 'check'} /> {saveDraftNotice.message}
             </Alert>}
-            <ClinicalRecordPanel key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
+            <ClinicalRecordPanel aiSurfaceRefs={aiSurfaceRefs} key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
                 enteringEdit={start.isPending || resume.isPending}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
                 onRegisterSaveDraft={handleRegisterSaveDraft}
                 onSaveDraftNotice={handleSaveDraftNotice}
+                aiFieldStream={aiFieldStream} aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={() => setAiOrderReview(null)}
+                onTreatmentKeysChange={setExistingTreatmentKeys}
                 aiDraft={aiDraft} onAiDraftConsumed={() => setAiDraft(null)} onAiContextChange={setAiContext}
                 onRequestEditing={enterEditing} onRequestReading={enterReading} onRefresh={refresh}
                 aiPreConsultation={currentEnhancedItem?.aiPreConsultation}
-                triageVitals={currentEnhancedItem?.vitals}
+                triageVitals={effectiveTriageVitals}
                 historyEncounters={encounters.data ?? []} />
           </main>
+          {editing && encounter.status === 'IN_PROGRESS' && aiContext?.encounterId === encounter.id
+            && aiContext.residentId === encounter.residentId && <ClinicalAiAssistantPanel key={encounter.id}
+              encounter={encounter} currentContext={aiContext} allergies={allergies.data ?? []}
+              allergyState={allergyState} api={api}
+              disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
+              surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail }}
+              onOpenDetail={() => setActiveTool('assistant')}
+              onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
+              onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onFieldStream={setAiFieldStream}
+              existingTreatmentKeys={existingTreatmentKeys}
+              onReviewTreatment={(items, onCompleted) => setAiOrderReview({
+                id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted,
+              })}
+              historyEncounters={encounters.data ?? []} />}
           {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}`}
             aria-label={toolLabel(activeTool)}>
             <header><div><span>扩展业务</span><strong>{toolLabel(activeTool)}</strong></div>
               <button type="button" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
                 onClick={() => setActiveTool(null)}><Icon name="close" /></button></header>
             <div className="doctor-workspace-drawer__content">
-              {activeTool === 'assistant' && aiContext && <ClinicalAiAssistantPanel key={encounter.id} encounter={encounter}
-                currentContext={aiContext} allergies={allergies.data ?? []} allergyState={allergyState} api={api}
-                disabled={!editing || outpatientNote?.status === 'SIGNED' || draftState.busy}
-                onAdoptionBusyChange={setAiAdoptionBusy}
-                onApply={(request) => { setAiDraft(request); setActiveTool(null) }} />}
+              {activeTool === 'assistant' && <div ref={setAiDetail} />}
               {activeTool === 'history' && <HistoryPanel encounters={encounters.data ?? []}
-                currentEncounterId={encounter.id} api={api} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
-                onCopy={(draft) => { setHistoryCopy(draft); setActiveTool(null) }} />}
+                currentEncounterId={encounter.id} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
+                onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
               {activeTool === 'results' && <ResultsPanel encounter={encounter} api={api} />}
               {activeTool === 'coordination' && editing && <ReferralCoordinationPanel encounter={encounter}
                 clinicalContext={clinicalContext} api={api} hasUnsavedDraft={hasUnsavedDraft} onRefresh={refresh} />}
@@ -1756,7 +1824,8 @@ export async function persistOrderDrafts(
 function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyCopy, onHistoryCopyConsumed,
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, enteringEdit, onRequestEditing,
-  onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters }: {
+  onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
+  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   api: RhnApi; historyCopy: HistoryCopyDraft | null
   aiDraft: ClinicalAiDraftRequest | null; onAiDraftConsumed: () => void
@@ -1767,6 +1836,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   editing: boolean; canEdit: boolean; enteringEdit: boolean; onRequestEditing: () => void; onRequestReading: () => void
   onRefresh: () => Promise<unknown>
   aiPreConsultation?: AiPreConsultation
+  aiSurfaceRefs: ClinicalAiSurfaceRefs
+  aiFieldStream?: ClinicalAiFieldStream | null
+  aiOrderReview?: AiOrderReviewCommand | null
+  onAiOrderReviewConsumed?: () => void
+  onTreatmentKeysChange?: (keys: string[]) => void
   triageVitals?: VitalsSummary
   historyEncounters?: Encounter[]
 }) {
@@ -1808,6 +1882,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   const [orderBusy, setOrderBusy] = useState(false)
   const [diagnosisError, setDiagnosisError] = useState('')
   const [copyNotice, setCopyNotice] = useState('')
+  const [aiRecordUndo, setAiRecordUndo] = useState<{
+    before: ClinicalAiRecordDraft; after: ClinicalAiRecordDraft; documentVersion: number
+  } | null>(null)
   const [notePrintOpen, setNotePrintOpen] = useState(false)
   const [selectedNoteFormId, setSelectedNoteFormId] = useState('')
   const [structuredValues, setStructuredValues] = useState<Record<string, unknown>>({})
@@ -2071,6 +2148,17 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   }, [encounter.id])
   useEffect(() => {
     if (!historyCopy || documents.isPending) return
+    if (historyCopy.targetEncounterId && (historyCopy.targetEncounterId !== encounter.id
+      || historyCopy.targetResidentId !== encounter.residentId) || save.isPending || orderBusy
+      || document?.status === 'SIGNED' || encounter.status !== 'IN_PROGRESS'
+      || (historyCopy.medicationDrafts?.length && allergyState !== 'READY')) {
+      setCopyNotice('当前就诊状态或过敏资料已变化，已拒绝历史内容带入，请重新核对。')
+      onHistoryCopyConsumed(); return
+    }
+    if (historyCopy.medicationDrafts?.length) setMedicationDrafts((current) => {
+      const keys = new Set(current.map(medicationDraftKey))
+      return [...current, ...historyCopy.medicationDrafts!.filter((item) => !keys.has(medicationDraftKey(item)))]
+    })
     reset({ ...getValues(), ...historyCopy.record }, { keepDefaultValues: true })
     if (historyCopy.diagnoses?.length) {
       setDiagnoses((current) => {
@@ -2083,7 +2171,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     }
     setCopyNotice(`已从 ${formatTime(historyCopy.sourceRegisteredAt)}（${historyCopy.sourceEncounterNo}）带入所选内容，请核对后保存。`)
     onHistoryCopyConsumed()
-  }, [documents.isPending, getValues, historyCopy, onHistoryCopyConsumed, reset])
+  }, [documents.isPending, getValues, historyCopy, onHistoryCopyConsumed, reset, encounter, save.isPending, orderBusy, document?.status, allergyState])
   const sign = useMutation({
     mutationFn: () => api.clinicalDocuments.sign(document!.id, document!.currentVersion),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['doctor-document', encounter.id] }); await onRefresh(); onRequestReading() },
@@ -2128,7 +2216,16 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       onAiDraftConsumed(); return
     }
     if (aiDraft.recordDraft) {
-      reset(mergeAiRecordDraft(getValues(), aiDraft.recordDraft), { keepDefaultValues: true })
+      const previous = getValues()
+      const next = mergeAiRecordDraft(previous, aiDraft.recordDraft, aiDraft.overwriteRecord === true)
+      const changedFields = (Object.keys(aiDraft.recordDraft) as Array<keyof ClinicalAiRecordDraft>)
+        .filter((field) => previous[field] !== next[field])
+      if (changedFields.length) setAiRecordUndo({
+        before: Object.fromEntries(changedFields.map((field) => [field, previous[field] ?? ''])),
+        after: Object.fromEntries(changedFields.map((field) => [field, next[field] ?? ''])),
+        documentVersion: document?.currentVersion ?? 0,
+      })
+      reset(next, { keepDefaultValues: true })
     }
     const diagnosesWithAi = aiDraft.diagnoses?.length
       ? mergeAiDiagnoses(diagnoses, aiDraft.diagnoses) : diagnoses
@@ -2149,7 +2246,13 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   }, [diagnosesChanged, formState.isDirty, medicationDrafts.length, onDraftStateChange, orderBusy,
     save.isPending, serviceDrafts.length, sign.isPending, structuredChanged, businessBusy])
   const handleRecordSubmit = handleSubmit(
-    (value) => save.mutate(value),
+    (value) => {
+      if (aiFieldStream?.encounterId === encounter.id) {
+        onSaveDraftNotice?.({ message: 'AI 正在生成，请待完整病历带入并核对后保存。', tone: 'warning' })
+        return
+      }
+      save.mutate(value)
+    },
     (formErrors) => {
       const first = Object.values(formErrors)[0]?.message
       onSaveDraftNotice?.({
@@ -2189,6 +2292,14 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     })
   }
   const recordValues = watch()
+  const streamingRecord = aiFieldStream?.encounterId === encounter.id
+    && aiFieldStream.contextFingerprint === clinicalAiContextFingerprint(buildAiContext()) ? aiFieldStream.recordDraft : null
+  const streamingField = (field: keyof ClinicalAiRecordDraft) => ({
+    value: streamingRecord?.[field] ?? recordValues[field] ?? '',
+    readOnly: streamingRecord !== null,
+    'aria-busy': streamingRecord !== null || undefined,
+    className: streamingRecord !== null ? 'doctor-record-field--generating' : undefined,
+  })
   const height = recordValues.heightCm
   const weight = recordValues.weightKg
   const bmi = height && weight && Number(height) > 0 ? (Number(weight) / ((Number(height) / 100) ** 2)).toFixed(1) : undefined
@@ -2223,6 +2334,17 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     : !encounterEditable ? '本次就诊已结束；如需更正，应发起病历修订并保留原始版本'
       : signed ? '病历已签署；如需更正，应发起病历修订' : ''
 
+  const canUndoAiRecord = Boolean(aiRecordUndo && !signed && !businessBusy
+    && aiRecordUndo.documentVersion === (document?.currentVersion ?? 0)
+    && Object.entries(aiRecordUndo.after).every(([field, value]) =>
+      getValues(field as keyof ClinicalAiRecordDraft) === value))
+  const undoAiRecord = () => {
+    if (!canUndoAiRecord || !aiRecordUndo) return
+    reset({ ...getValues(), ...aiRecordUndo.before }, { keepDefaultValues: true })
+    setAiRecordUndo(null)
+    setCopyNotice('已撤销本次 AI 病历采纳；诊断及医嘱草稿保留。')
+  }
+
   return <section className={`doctor-clinical-cockpit ${editing ? 'is-editing' : 'is-reading'}`}>
     {!editing && <div className="doctor-clinical-modebar">
       <span><strong>阅读状态</strong>
@@ -2240,8 +2362,12 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
           onApply={applyNoteTemplate} />}
           {document && signed && <Button size="sm" variant="secondary"
           onClick={() => setNotePrintOpen(true)}><Icon name="print" />打印病历</Button>}</>} />
+      {editing && !signed && <div ref={aiSurfaceRefs.note} />}
       {error && <Alert>{errorMessage(error)}</Alert>}
-      {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span></div>}
+      {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
+        {editing && aiRecordUndo && <Button size="sm" variant="text" disabled={!canUndoAiRecord}
+          title={canUndoAiRecord ? '恢复本次采纳前的病历段落' : '相关段落已修改或保存，不能撤销此前采纳'}
+          onClick={undoAiRecord}>撤销本次病历采纳</Button>}</div>}
       {editing ? <form id="doctor-record-form" className="clinical-form doctor-record-form" noValidate onSubmit={handleRecordSubmit}>
         {aiPreConsultation && !signed && (
           <div className="ai-preconsultation-banner">
@@ -2274,13 +2400,13 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
           </div>
         )}
         <FormField className="doctor-record-narrative doctor-record-field--chief" label="主诉" required error={formState.errors.chiefComplaint?.message}>
-          <textarea {...register('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
+          <textarea {...register('chiefComplaint')} {...streamingField('chiefComplaint')} disabled={signed} placeholder="症状、持续时间及本次就诊原因" rows={2} />
         </FormField>
         <FormField className="doctor-record-narrative doctor-record-field--present" label="现病史" error={formState.errors.presentIllness?.message}>
-          <textarea {...register('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
+          <textarea {...register('presentIllness')} {...streamingField('presentIllness')} disabled={signed} placeholder="起病、演变、伴随症状及诊治经过" rows={3} />
         </FormField>
         <FormField className="doctor-record-narrative doctor-record-field--history" label="既往史" error={formState.errors.medicalHistory?.message}>
-          <textarea {...register('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
+          <textarea {...register('medicalHistory')} {...streamingField('medicalHistory')} disabled={signed} placeholder="既往疾病、手术、过敏及长期用药" rows={2} />
         </FormField>
         {(() => {
           const tempNum = recordValues.temperature ? Number(recordValues.temperature) : undefined
@@ -2459,10 +2585,10 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
           )
         })()}
         <FormField className="doctor-record-narrative doctor-record-field--exam" label="查体所见" error={formState.errors.physicalExam?.message}>
-          <textarea {...register('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
+          <textarea {...register('physicalExam')} {...streamingField('physicalExam')} disabled={signed} placeholder="阳性体征及必要的阴性体征" rows={3} />
         </FormField>
         <FormField className="doctor-record-narrative doctor-record-field--plan" label="诊疗计划" error={formState.errors.treatmentPlan?.message}>
-          <textarea {...register('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" rows={3} />
+          <textarea {...register('treatmentPlan')} {...streamingField('treatmentPlan')} disabled={signed} placeholder="检查、治疗、用药和随访安排" rows={3} />
         </FormField>
         {selectedNoteForm && <StructuredNoteForm form={selectedNoteForm} values={structuredValues}
           errors={structuredErrors} disabled={signed} onChange={(code, value) => {
@@ -2472,7 +2598,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         {document && !signed && (
           <div className="ui-form-actions doctor-record-actions">
             <Button type="button" variant="secondary" busy={sign.isPending}
-              disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending}
+              disabled={formState.isDirty || structuredChanged || diagnosesChanged || save.isPending || Boolean(aiFieldStream)}
               title={formState.isDirty || structuredChanged || diagnosesChanged ? '请先保存当前病历和诊断修改' : '签署当前已保存版本'}
               onClick={() => sign.mutate()}>签署当前版本</Button>
           </div>
@@ -2500,6 +2626,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
                 <span className="doctor-diag-col-management">公共卫生管理 / 临床提示</span>
                 {editing && !signed && <span className="doctor-diag-col-actions">操作</span>}
               </div>
+
+              {editing && !signed && <div ref={aiSurfaceRefs.diagnoses} />}
 
               {diagnoses.length === 0 && (!editing || signed) && (
                 <div className="doctor-diagnosis-empty" role="row">
@@ -2693,7 +2821,9 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
           </Alert>}
         </div>
       </Panel>
-      <OrdersPanel encounter={encounter} allergies={allergies} api={api} editing={editing}
+      <OrdersPanel aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
+        onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
+        aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
         serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy} />
     </aside>
@@ -2908,7 +3038,12 @@ function medicationDraftKey(item: MedicationPlanDraft) {
 }
 
 function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicationDrafts,
-  serviceDrafts, setServiceDrafts, editing, onBusyChange }: {
+  serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
+  aiSuggestionSurfaceRef }: {
+  aiOrderReview?: AiOrderReviewCommand | null
+  onAiOrderReviewConsumed?: () => void
+  onTreatmentKeysChange?: (keys: string[]) => void
+  aiSuggestionSurfaceRef?: (element: HTMLDivElement | null) => void
   encounter: Encounter; allergies: AllergyIntolerance[]; api: RhnApi
   medicationDrafts: MedicationPlanDraft[]
   setMedicationDrafts: Dispatch<SetStateAction<MedicationPlanDraft[]>>
@@ -2927,6 +3062,14 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const prescriptions = useQuery({ queryKey: ['doctor-prescriptions', encounter.id], queryFn: () => api.encounters.prescriptions(encounter.id) })
   const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
   const medications = useQuery({ queryKey: ['doctor-medications', encounter.id], queryFn: () => api.encounters.medicationRequests(encounter.id) })
+  const treatmentKeys = [
+    ...medicationDrafts.map((item) => `MEDICATION:${item.request.catalogItemId}`),
+    ...serviceDrafts.map((item) => `${item.serviceType}:${item.catalogItemId}`),
+    ...(medications.data ?? []).filter((item) => item.status !== 'CANCELLED').map((item) => `MEDICATION:${item.catalogItemId}`),
+    ...(services.data ?? []).filter((item) => item.status !== 'CANCELLED').map((item) => `${item.serviceType}:${item.catalogItemId}`),
+  ].filter((key) => !key.endsWith(':undefined')).sort()
+  const treatmentKeySignature = treatmentKeys.join('|')
+  useEffect(() => onTreatmentKeysChange?.([...new Set(treatmentKeys)]), [onTreatmentKeysChange, treatmentKeySignature])
   const statement = useQuery({ queryKey: ['doctor-billing-statement', encounter.id],
     queryFn: () => api.billing.statement(encounter.id), retry: false })
   const refresh = () => Promise.all([
@@ -2993,7 +3136,8 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
-        : <UnifiedOrderListEditor encounter={encounter} allergies={allergies}
+        : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
+          aiSuggestionSurfaceRef={aiSuggestionSurfaceRef} encounter={encounter} allergies={allergies}
           prescriptions={prescriptions.data ?? []} medications={medications.data ?? []} services={services.data ?? []}
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
           serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} api={api}
@@ -3173,12 +3317,6 @@ function ResultsPanel({ encounter, api }: { encounter: Encounter; api: RhnApi })
   </Panel>
 }
 
-function isAbnormalObservation(item: import('../../shared/api/diagnosticsApi').DiagnosticObservation) {
-  if (item.interpretationCode && !['N', 'NORMAL'].includes(item.interpretationCode.toUpperCase())) return true
-  if (item.valueNumber == null) return false
-  return (item.referenceRangeLow != null && item.valueNumber < item.referenceRangeLow)
-    || (item.referenceRangeHigh != null && item.valueNumber > item.referenceRangeHigh)
-}
 
 const defaultHistoryRecordFields: HistoryRecordField[] = [
   'chiefComplaint', 'presentIllness', 'medicalHistory', 'physicalExam',
@@ -3199,9 +3337,11 @@ interface HistoryCopyGroup {
 
 const historyDiagnosisKey = (code: string): HistoryCopyField => `diagnosis:${code}`
 
-function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = false, onCopy }: {
+function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = false, onCopy, allergies = [], allergyReady = false }: {
   encounters: Encounter[]; currentEncounterId?: string; api: RhnApi; copyDisabled?: boolean
   onCopy?: (draft: HistoryCopyDraft) => void
+  allergies?: AllergyIntolerance[]
+  allergyReady?: boolean
 }) {
   const history = encounters.filter((item) => item.id !== currentEncounterId)
   const historyIds = history.map((item) => item.id).join(',')
@@ -3290,6 +3430,10 @@ function HistoryPanel({ encounters, currentEncounterId, api, copyDisabled = fals
             <Icon name="chevron-right" />
           </button>)}</div>
         <section className="doctor-history-detail" aria-label="历史就诊详情">
+          {selected && <HistoryPrescriptionReference key={selected.id} encounter={selected} api={api}
+            disabled={copyDisabled || !onCopy} allergies={allergies} allergyReady={allergyReady}
+            onStage={(medicationDrafts) => onCopy?.({ requestId: Date.now(), sourceEncounterNo: selected.encounterNo,
+              sourceRegisteredAt: selected.registeredAt, record: {}, medicationDrafts })} />}
           {(documents.error || printRecords.error || downloadRecord.error) && <Alert>
             {errorMessage(documents.error || printRecords.error || downloadRecord.error)}</Alert>}
           {documents.isPending ? <LoadingState label="正在加载历史病历…" /> : <>

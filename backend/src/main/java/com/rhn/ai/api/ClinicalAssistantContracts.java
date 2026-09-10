@@ -25,12 +25,26 @@ public final class ClinicalAssistantContracts {
         }
     }
 
+    public enum ReceptionScene { FIRST_VISIT, CHRONIC_REFILL, REPORT_FOLLOW_UP }
+
+    /** Selection hints only; report facts are always loaded through the authorized server directory. */
+    public record ReceptionSceneContext(
+            @Size(max = 12) List<@NotBlank @Size(max = 100) String> selectedConditions,
+            @Size(max = 50) List<@NotNull @Positive Long> selectedReportIds) {}
+
     public record GenerateRequest(
             @NotBlank @Size(max = 128) String clientContextFingerprint,
             @Size(max = 500) String question,
             @Size(max = 10000) String voiceTranscript,
             @NotNull @Valid Draft draft,
-            @Positive Long parentSuggestionId) {}
+            @Positive Long parentSuggestionId,
+            ReceptionScene receptionScene,
+            @Valid ReceptionSceneContext receptionSceneContext) {
+        public GenerateRequest(String clientContextFingerprint, String question, String voiceTranscript,
+                               Draft draft, Long parentSuggestionId) {
+            this(clientContextFingerprint, question, voiceTranscript, draft, parentSuggestionId, null, null);
+        }
+    }
 
     public record Transcription(String text, String provider, String model, String contentType,
                                 long audioBytes, Instant transcribedAt) {}
@@ -121,7 +135,7 @@ public final class ClinicalAssistantContracts {
             List<String> missingInformation,
             List<SafetyAlert> safetyAlerts,
             List<RecommendedPlan> recommendedPlans,
-            String disclaimer) {}
+            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations) {}
 
     public record RecordDraft(String chiefComplaint, String presentIllness, String medicalHistory,
                               String physicalExam, String treatmentPlan) {}
@@ -133,6 +147,10 @@ public final class ClinicalAssistantContracts {
 
     public record RecommendedPlan(Long templateId, String name, String description, String rationale) {}
 
+    /** The initial pass supplies type/name search intents; only catalog-mapped items reach clients. */
+    public record TreatmentRecommendation(String type, Long catalogItemId, Long medicationId,
+                                          String code, String name, String specification, String rationale) {}
+
     public record SuggestionContent(
             String summary, RecordDraft recordDraft,
             List<DiagnosisCandidate> diagnosisCandidates,
@@ -140,13 +158,20 @@ public final class ClinicalAssistantContracts {
             List<String> missingInformation,
             List<SafetyAlert> safetyAlerts,
             List<RecommendedPlan> recommendedPlans,
-            String disclaimer) {
+            String disclaimer, List<TreatmentRecommendation> treatmentRecommendations) {
+        public SuggestionContent(String summary, RecordDraft recordDraft, List<DiagnosisCandidate> diagnosisCandidates,
+                                 List<DiagnosisCandidate> differentialDiagnoses, List<String> missingInformation,
+                                 List<SafetyAlert> safetyAlerts, List<RecommendedPlan> recommendedPlans, String disclaimer) {
+            this(summary, recordDraft, diagnosisCandidates, differentialDiagnoses, missingInformation,
+                    safetyAlerts, recommendedPlans, disclaimer, List.of());
+        }
         public SuggestionContent {
             diagnosisCandidates = safe(diagnosisCandidates);
             differentialDiagnoses = safe(differentialDiagnoses);
             missingInformation = safe(missingInformation);
             safetyAlerts = safe(safetyAlerts);
             recommendedPlans = safe(recommendedPlans);
+            treatmentRecommendations = safe(treatmentRecommendations);
         }
 
         private static <T> List<T> safe(List<T> values) {

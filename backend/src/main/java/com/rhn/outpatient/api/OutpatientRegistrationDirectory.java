@@ -50,7 +50,8 @@ public interface OutpatientRegistrationDirectory {
                               String practitionerName, String serviceName, String locationName,
                               Instant registeredAt, Instant readyAt, Instant calledAt, Instant startedAt,
                               int callCount, int missedCount, Long currentLocationId,
-                              Instant validUntil) {
+                              Instant validUntil,
+                              String registeredByName, String departmentName, String sdDayPartText) {
         public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                                   Long ticketId, Long serviceQueueId,
                                   Long residentId, String healthRecordNo, String residentName, String gender,
@@ -64,7 +65,24 @@ public interface OutpatientRegistrationDirectory {
                     residentId, healthRecordNo, residentName, gender, birthDate, registrationNo, ticketNo,
                     sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
                     practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
-                    callCount, missedCount, currentLocationId, null);
+                    callCount, missedCount, currentLocationId, null, null, null, null);
+        }
+
+        public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
+                                  Long ticketId, Long serviceQueueId,
+                                  Long residentId, String healthRecordNo, String residentName, String gender,
+                                  LocalDate birthDate, String registrationNo, String ticketNo, int sequenceNo,
+                                  int priority, String registrationSource, String visitType,
+                                  String registrationStatus, String status,
+                                  String practitionerName, String serviceName, String locationName,
+                                  Instant registeredAt, Instant readyAt, Instant calledAt, Instant startedAt,
+                                  int callCount, int missedCount, Long currentLocationId,
+                                  Instant validUntil) {
+            this(registrationId, appointmentId, scheduleId, encounterId, ticketId, serviceQueueId,
+                    residentId, healthRecordNo, residentName, gender, birthDate, registrationNo, ticketNo,
+                    sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
+                    practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
+                    callCount, missedCount, currentLocationId, validUntil, null, null, null);
         }
     }
 }

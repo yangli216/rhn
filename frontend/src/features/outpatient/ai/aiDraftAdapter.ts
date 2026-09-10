@@ -12,6 +12,7 @@ export interface ClinicalAiDraftRequest {
   contextFingerprint: string
   sourceLabel: string
   recordDraft?: ClinicalAiRecordDraft
+  overwriteRecord?: boolean
   diagnoses?: DiagnosisInput[]
   planTemplate?: OutpatientPlanTemplate
   allergyReviewConfirmed?: boolean

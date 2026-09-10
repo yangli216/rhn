@@ -195,6 +195,8 @@ export interface ReceptionQueueItem {
   status: import('./queueingApi').QueueTicketStatus
   practitionerName?: string
   serviceName?: string
+  registeredByName?: string
+  departmentName?: string
   sdDayPartText?: string
   locationName?: string
   registeredAt: string
@@ -205,6 +207,14 @@ export interface ReceptionQueueItem {
   missedCount?: number
   currentLocationId?: string
   validUntil?: string
+}
+
+export const REGISTRATION_SOURCE_LABELS: Record<ReceptionQueueItem['registrationSource'], string> = {
+  WINDOW: '窗口挂号',
+  WALK_IN: '现场自助',
+  DIRECT: '诊间直挂',
+  EMERGENCY: '急诊通道',
+  TRANSFER: '转诊挂号',
 }
 
 export interface RegistrationPageView {

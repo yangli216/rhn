@@ -969,14 +969,16 @@
 .registration-query-filter-form > .ui-field > input:focus, .registration-query-filter-form input:not(.ui-date-range-input):focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
 .registration-query-list-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .registration-query-list-scroll { flex: 1; min-height: 0; overflow: auto; }
-.registration-today-list { min-width: 50rem; }
-.registration-today-list__head, .registration-today-list article { min-height: 4.25rem; padding: 0 var(--space-4); display: grid; grid-template-columns: 3.5rem minmax(9.5rem, 1fr) minmax(9.5rem, 1.05fr) minmax(10.5rem, .95fr) 5.5rem 6rem; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.registration-today-list { min-width: 72rem; }
+.registration-today-list__head, .registration-today-list article { min-height: 4.25rem; padding: 0 var(--space-4); display: grid; grid-template-columns: 4rem minmax(9.5rem, 1fr) minmax(11rem, 1.1fr) minmax(10.5rem, 1.05fr) minmax(9rem, 0.95fr) minmax(8.5rem, 0.9fr) minmax(6.5rem, 0.7fr) 5.5rem 6.5rem; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
 .registration-today-list__head { min-height: 2.5rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); position: sticky; top: 0; z-index: 1; }
 .registration-today-list__head > span:last-child { text-align: right; justify-self: end; }
 .registration-today-list article:last-child { border-bottom: 0; }
 .registration-today-list article > div { min-width: 0; }
 .registration-today-list article strong, .registration-today-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .registration-today-list article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.registration-status-cell { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); }
+.registration-cancelled-mark { display: inline-block; font-size: var(--font-size-small); color: var(--color-danger, #d32f2f); font-weight: var(--font-weight-medium, 500); }
 .registration-ticket { color: var(--color-brand-primary); font-size: var(--font-size-h3); font-variant-numeric: tabular-nums; }
 
 /* Appointment management is a separate operational ledger built on the same scheduling inventory. */

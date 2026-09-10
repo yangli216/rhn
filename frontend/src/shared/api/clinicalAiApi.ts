@@ -1,5 +1,6 @@
 import type { DiagnosisInput } from './encountersApi'
 import type { ApiClient } from './httpClient'
+import { consumeClinicalAiStream } from './clinicalAiStream'
 
 export type ClinicalAiMode = 'DISABLED' | 'LOCAL_ASSIST' | 'MODEL'
 export type ClinicalAiConfigurationScope = 'PLATFORM' | 'TENANT'
@@ -125,7 +126,18 @@ export interface ClinicalAiRecommendedPlan {
   rationale: string
 }
 
+export interface ClinicalAiTreatmentRecommendation {
+  type: 'MEDICATION' | 'LABORATORY' | 'EXAMINATION'
+  catalogItemId: string
+  medicationId?: string
+  code: string
+  name: string
+  specification?: string
+  rationale: string
+}
+
 export interface ClinicalAiSuggestion {
+  treatmentRecommendations?: ClinicalAiTreatmentRecommendation[]
   id: string
   parentSuggestionId?: string
   status: 'GENERATED' | 'PARTIALLY_ADOPTED' | 'ADOPTED' | 'IGNORED' | 'EXPIRED' | 'FAILED'
@@ -146,7 +158,11 @@ export interface ClinicalAiSuggestion {
   disclaimer: string
 }
 
+export type ReceptionSceneType = 'FIRST_VISIT' | 'CHRONIC_REFILL' | 'REPORT_FOLLOW_UP'
+
 export interface GenerateClinicalAiSuggestionInput {
+  receptionScene?: ReceptionSceneType
+  receptionSceneContext?: { selectedConditions: string[]; selectedReportIds: string[] }
   clientContextFingerprint: string
   question?: string
   voiceTranscript?: string
@@ -259,6 +275,10 @@ export function createClinicalAiApi(client: ApiClient) {
         `/api/ai/clinical-assistant/encounters/${encounterId}/suggestions`,
         { method: 'POST', body: JSON.stringify(input) },
       ),
+    generateStream: async (encounterId: string, input: GenerateClinicalAiSuggestionInput,
+      signal: AbortSignal, onDelta: (text: string) => void) => consumeClinicalAiStream(
+        await client.eventStream(`/api/ai/clinical-assistant/encounters/${encounterId}/suggestions/stream`,
+          signal, undefined, { method: 'POST', body: JSON.stringify(input) }), onDelta),
     transcribe: (encounterId: string, audio: Blob) => {
       const body = new FormData()
       const extension = audio.type.includes('wav') ? 'wav' : audio.type.includes('mp4') ? 'mp4'

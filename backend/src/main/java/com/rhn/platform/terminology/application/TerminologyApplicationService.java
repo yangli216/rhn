@@ -259,6 +259,21 @@ public class TerminologyApplicationService implements TerminologyDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<TerminologyConceptSnapshot> findDiseaseByExactName(Long tenantId, String codeSystemCode,
+                                                                      String name, LocalDate atDate) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        String normalized = name.trim();
+        var systemIds = visibleDiseaseSystems(tenantId).stream()
+                .filter(system -> codeSystemCode.equals(system.code())).map(CodeSystem::id).toList();
+        if (systemIds.isEmpty()) return Optional.empty();
+        var matches = conceptRepository.findExactDiseaseNames(systemIds, normalized, TerminologyStatus.ACTIVE, atDate).stream()
+                .map(value -> findConcept(tenantId, codeSystemCode, value.code(), atDate))
+                .flatMap(Optional::stream).distinct().toList();
+        return matches.size() == 1 ? Optional.of(matches.getFirst()) : Optional.empty();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<CodeSystemSnapshot> listCodeSystems() {
         return codeSystemRepository.findAll().stream().map(this::snapshot).toList();
     }

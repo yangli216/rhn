@@ -716,15 +716,17 @@
   .master-data-page .master-data-tabs, .master-data-page .master-data-toolbar, .master-data-page .disease-management-mode { flex: none; }
   .master-data-page .master-data-body { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .master-data-page .master-data-body > .ui-table-shell { min-height: 0; flex: 1; }
-  .master-data-page .master-data-body > .operational-master-data,
   .master-data-page .master-data-body > .attribute-config-center { min-height: 0; flex: 1; overflow: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .master-data-page .master-data-body > .operational-master-data { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
   .master-data-page .master-data-table-wrap { overflow: auto; }
   .master-data-page .master-data-table th { position: sticky; top: 0; z-index: 2; border-bottom: 1px solid var(--color-border); box-shadow: 0 1px 0 var(--color-border); }
 }
-.operational-master-data { min-width: 0; }
-.operational-master-data > .ui-alert { margin: var(--space-4) var(--space-5) 0; }
-.operational-master-data__body { min-height: 28rem; }
-.operational-master-data__toolbar { min-height: 5.5rem; padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
+.operational-master-data { min-width: 0; min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.operational-master-data > .ui-alert { flex: none; margin: var(--space-4) var(--space-5) 0; }
+.operational-master-data > .ui-tabs { flex: none; }
+.operational-master-data__body { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.operational-master-data__body > .ui-table-shell { min-height: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.operational-master-data__toolbar { flex: none; min-height: 5.5rem; padding: var(--space-4) var(--space-5); display: flex; align-items: center; justify-content: space-between; gap: var(--space-5); border-bottom: 1px solid var(--color-border); }
 .operational-master-data__toolbar h3, .operational-master-data__toolbar p, .clinical-configuration h4, .clinical-configuration p, .unit-workspace h4 { margin: 0; }
 .operational-master-data__toolbar p, .clinical-configuration p { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .operational-master-data__toolbar > .ui-select { width: min(30rem, 45%); }

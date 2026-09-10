@@ -32,6 +32,8 @@ import com.rhn.platform.terminology.api.TerminologyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -58,9 +60,10 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class ClinicalAssistantApplicationService {
+    private static final Logger log = LoggerFactory.getLogger(ClinicalAssistantApplicationService.class);
     private static final String ICD10_SYSTEM = "WHO.BD.CS.ICD10";
     private static final String OUTPATIENT_NOTE = "OUTPATIENT_NOTE";
-    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V6";
+    private static final String PROMPT_VERSION = "RHN-CLINICAL-ASSISTANT-V8";
     private static final String LOCAL_PROMPT_VERSION = "local-assist-v1";
     private static final String DISCLAIMER = "本结果仅为本地规则辅助生成的待核对建议，不构成诊断或处方；系统不会自动保存病历、确认诊断、开立医嘱或完成诊毕，须由医生独立判断并确认。";
     private static final String MODEL_DISCLAIMER = "本结果由模型基于当前就诊资料生成，并已通过院内术语、方案白名单和确定性安全规则复核；不构成诊断或处方，须由医生独立判断并确认。";
@@ -82,6 +85,7 @@ public class ClinicalAssistantApplicationService {
     private final ClinicalAiSpeechGateway speechGateway;
     private final ClinicalKnowledgeGateway knowledgeGateway;
     private final ClinicalAiMetrics metrics;
+    private final ClinicalTreatmentRecommendationService treatmentService;
 
     public ClinicalAssistantApplicationService(ClinicalAiRuntimePolicy runtimePolicy,
                                                EncounterDirectory encounterDirectory,
@@ -99,7 +103,7 @@ public class ClinicalAssistantApplicationService {
                                                ClinicalAiModelGateway modelGateway,
                                                ClinicalAiSpeechGateway speechGateway,
                                                ClinicalKnowledgeGateway knowledgeGateway,
-                                               ClinicalAiMetrics metrics) {
+                                               ClinicalAiMetrics metrics, ClinicalTreatmentRecommendationService treatmentService) {
         this.runtimePolicy = runtimePolicy;
         this.encounterDirectory = encounterDirectory;
         this.allergyDirectory = allergyDirectory;
@@ -117,6 +121,7 @@ public class ClinicalAssistantApplicationService {
         this.speechGateway = speechGateway;
         this.knowledgeGateway = knowledgeGateway;
         this.metrics = metrics;
+        this.treatmentService = treatmentService;
     }
 
     public Capabilities capabilities() {
@@ -200,6 +205,11 @@ public class ClinicalAssistantApplicationService {
 
     @Transactional
     public Suggestion generate(Long encounterId, GenerateRequest input) {
+        return generate(encounterId, input, null);
+    }
+
+    @Transactional
+    public Suggestion generate(Long encounterId, GenerateRequest input, java.util.function.Consumer<String> onDelta) {
         long started = System.nanoTime();
         ExecutionContext requestContext = contextProvider.requireCurrent();
         ClinicalAssistantSettings runtime = runtimePolicy.current(requestContext);
@@ -208,10 +218,15 @@ public class ClinicalAssistantApplicationService {
         Access access = requireAccess(encounterId, true);
         Instant now = Instant.now();
         ServerContext serverContext = loadServerContext(access);
+        if (input.receptionSceneContext() != null && input.receptionSceneContext().selectedReportIds() != null
+                && !serverContext.reports().stream().map(DiagnosticReportResponse::id).toList()
+                .containsAll(input.receptionSceneContext().selectedReportIds())) {
+            throw conflict("AI_REPORT_CONTEXT_STALE", "选定报告已变化或不属于可用就诊资料，请刷新后重试");
+        }
         SuggestionContent priorSuggestion = requirePriorSuggestion(access, input, serverContext, now, runtime);
         String contextHash = contextHash(access, input);
         Analysis analysis = runtime.mode() == ClinicalAssistantSettings.Mode.MODEL
-                ? analyzeWithModel(input, serverContext, priorSuggestion, runtime)
+                ? analyzeWithModel(input, serverContext, priorSuggestion, runtime, onDelta)
                 : analyzeLocally(access, input, serverContext);
         SuggestionContent content = analysis.content();
 
@@ -219,6 +234,8 @@ public class ClinicalAssistantApplicationService {
         evidence.put("source", runtime.mode().name());
         evidence.put("promptVersion", runtime.mode() == ClinicalAssistantSettings.Mode.MODEL ? PROMPT_VERSION : null);
         evidence.put("parentSuggestionId", input.parentSuggestionId());
+        evidence.put("receptionScene", input.receptionScene());
+        evidence.put("receptionSceneContext", input.receptionSceneContext());
         evidence.put("clientContextHash", contextHash);
         evidence.put("clinicalDraftHash", clinicalDraftHash(access, input));
         evidence.put("serverContextHash", serverContext.hash());
@@ -343,16 +360,26 @@ public class ClinicalAssistantApplicationService {
     }
 
     private Analysis analyzeWithModel(GenerateRequest input, ServerContext serverContext,
-                                      SuggestionContent priorSuggestion, ClinicalAssistantSettings runtime) {
+                                      SuggestionContent priorSuggestion, ClinicalAssistantSettings runtime,
+                                      java.util.function.Consumer<String> onDelta) {
         SuggestionContent raw;
         try {
-            raw = modelGateway.analyze(new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
+            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION,
                     clean(input.question()), clean(input.voiceTranscript()), input.draft(),
                     serverContext.resident(), serverContext.allergies(),
-                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion), runtime);
+                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), priorSuggestion, input.receptionScene(), input.receptionSceneContext());
+            raw = onDelta == null ? modelGateway.analyze(request, runtime)
+                    : modelGateway.analyzeStreaming(request, runtime, onDelta);
         } catch (RuntimeException exception) {
+            ClinicalAiModelException modelException = exception instanceof ClinicalAiModelException value ? value : null;
+            // Only diagnostic metadata: exception messages/stacks can contain clinical text or provider secrets.
+            log.warn("Clinical AI generation failed, correlationId={}, reason={}, providerStatus={}, exceptionType={}",
+                    contextProvider.requireCurrent().correlationId(),
+                    modelException == null ? ClinicalAiModelException.Reason.UNKNOWN : modelException.reason(),
+                    modelException == null ? null : modelException.providerStatus(), exception.getClass().getSimpleName());
             throw new BusinessException("AI_MODEL_UNAVAILABLE",
-                    "模型辅助暂时不可用，请稍后重试；医生站其他功能不受影响。", HttpStatus.BAD_GATEWAY);
+                    modelException == null ? "模型辅助暂时不可用，请稍后重试；医生站其他功能不受影响。"
+                            : modelException.userMessage(), HttpStatus.BAD_GATEWAY);
         }
         if (raw == null) {
             throw new BusinessException("AI_MODEL_RESPONSE_INVALID", "模型未返回有效的结构化建议，请稍后重试。",
@@ -373,6 +400,18 @@ public class ClinicalAssistantApplicationService {
         }
         SuggestionContent content = new SuggestionContent(summary, recordDraft, candidates, differentials,
                 missing, alerts, plans, MODEL_DISCLAIMER);
+        if (!raw.treatmentRecommendations().isEmpty()) {
+            var request = new ClinicalAiModelGateway.ModelRequest(PROMPT_VERSION, clean(input.question()),
+                    clean(input.voiceTranscript()), input.draft(), serverContext.resident(), serverContext.allergies(),
+                    serverContext.plans(), serverContext.reports(), serverContext.clinicalHistory(), content,
+                    input.receptionScene(), input.receptionSceneContext());
+            var treatment = treatmentService.recommend(raw.treatmentRecommendations(), request, runtime);
+            List<SafetyAlert> completeAlerts = new ArrayList<>(alerts);
+            completeAlerts.addAll(treatment.alerts());
+            alerts = distinctAlerts(completeAlerts, 20);
+            content = new SuggestionContent(summary, recordDraft, candidates, differentials, missing,
+                    alerts, plans, MODEL_DISCLAIMER, treatment.items());
+        }
         String risk = alerts.stream().anyMatch(value -> "CRITICAL".equals(value.level())) ? "CRITICAL"
                 : alerts.isEmpty() ? "INFO" : "MEDIUM";
         return new Analysis(content, risk);
@@ -518,13 +557,17 @@ public class ClinicalAssistantApplicationService {
         Set<String> seen = new LinkedHashSet<>();
         Long tenantId = contextProvider.requireCurrent().tenantId();
         for (DiagnosisCandidate value : values) {
-            if (value == null || blank(value.code()) || result.size() >= limit) continue;
-            String code = value.code().trim().toUpperCase(Locale.ROOT);
-            if (!seen.add(code)) continue;
-            terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, code, LocalDate.now()).ifPresent(concept -> {
+            if (value == null || result.size() >= limit) continue;
+            var concept = blank(value.code()) ? java.util.Optional.<com.rhn.platform.terminology.api.TerminologyConceptSnapshot>empty()
+                    : terminologyDirectory.findConcept(tenantId, ICD10_SYSTEM, value.code().trim().toUpperCase(Locale.ROOT), LocalDate.now());
+            if (concept.isEmpty() && !blank(value.display())) concept = terminologyDirectory
+                    .findDiseaseByExactName(tenantId, ICD10_SYSTEM, value.display(), LocalDate.now());
+            concept.ifPresent(mapped -> {
+                if (!seen.add(mapped.code())) return;
                 String type = "PRIMARY".equals(value.type()) ? "PRIMARY" : "SECONDARY";
-                result.add(new DiagnosisCandidate(concept.code(), concept.display(), type,
-                        Math.max(0, Math.min(value.confidence(), 1)), clipped(value.rationale(), 500)));
+                result.add(new DiagnosisCandidate(mapped.code(), mapped.display(), type,
+                        Double.isFinite(value.confidence()) ? Math.max(0, Math.min(value.confidence(), 1)) : 0,
+                        clipped(value.rationale(), 500)));
             });
         }
         return List.copyOf(result);
@@ -655,6 +698,8 @@ public class ClinicalAssistantApplicationService {
         canonical.put("question", clean(input.question()));
         canonical.put("voiceTranscript", clean(input.voiceTranscript()));
         canonical.put("parentSuggestionId", input.parentSuggestionId());
+        canonical.put("receptionScene", input.receptionScene());
+        canonical.put("receptionSceneContext", input.receptionSceneContext());
         canonical.put("draft", input.draft());
         return sha256(canonical);
     }
@@ -682,11 +727,15 @@ public class ClinicalAssistantApplicationService {
         ClinicalDocumentDirectory.EncounterDocumentAnchor document = clinicalDocumentDirectory
                 .findEncounterDocumentAnchor(access.encounter().id(), OUTPATIENT_NOTE).orElse(null);
         List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> plans = planDirectory.visibleForCurrentContext();
-        List<DiagnosticReportResponse> reports = currentReports(diagnosticReportDirectory
-                .listByEncounter(access.encounter().id()));
+        Instant historySince = Instant.now().minus(java.time.Duration.ofDays(90));
         List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory = historyDirectory
-                .recentForResident(access.encounter().residentId(), access.encounter().id(),
-                        Instant.now().minus(java.time.Duration.ofDays(90)), 5);
+                .recentForResident(access.encounter().residentId(), access.encounter().id(), historySince, 10);
+        List<DiagnosticReportResponse> reportCandidates = new ArrayList<>(diagnosticReportDirectory
+                .listByEncounter(access.encounter().id()));
+        Instant reportSince = Instant.now().minus(java.time.Duration.ofDays(14));
+        clinicalHistory.stream().filter(value -> value.registeredAt() != null && !value.registeredAt().isBefore(reportSince))
+                .forEach(value -> reportCandidates.addAll(diagnosticReportDirectory.listByEncounter(value.encounterId())));
+        List<DiagnosticReportResponse> reports = currentReports(reportCandidates);
 
         Map<String, Object> canonical = new LinkedHashMap<>();
         canonical.put("tenantId", access.context().tenantId());
@@ -720,13 +769,15 @@ public class ClinicalAssistantApplicationService {
     private List<DiagnosticReportResponse> currentReports(List<DiagnosticReportResponse> values) {
         Map<String, DiagnosticReportResponse> current = new LinkedHashMap<>();
         for (DiagnosticReportResponse value : values) {
-            if (value == null || "CANCELLED".equals(value.status())) continue;
-            String key = value.requestId() == null ? safe(value.reportType()) + "|" + safe(value.reportCode())
-                    : "REQUEST|" + value.requestId();
-            current.putIfAbsent(key, value);
-            if (current.size() >= 10) break;
+            if (value == null) continue;
+            String key = value.requestId() + "|" + safe(value.reportCode());
+            DiagnosticReportResponse previous = current.get(key);
+            if (previous == null || value.reportVersion() > previous.reportVersion()) current.put(key, value);
         }
-        return List.copyOf(current.values());
+        return current.values().stream().filter(value -> !"CANCELLED".equals(value.status()))
+                .sorted(Comparator.comparing(DiagnosticReportResponse::issuedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .limit(50).toList();
     }
 
     private Map<String, Object> allergyFact(AllergyDirectory.AllergySnapshot value) {
@@ -782,7 +833,7 @@ public class ClinicalAssistantApplicationService {
         return new Suggestion(value.id(), parentSuggestionId, status, value.contextHash(), value.clientContextFingerprint(),
                 value.providerCode(), value.modelCode(), value.promptVersion(), value.generatedAt(), value.expiresAt(), content.summary(),
                 content.recordDraft(), content.diagnosisCandidates(), content.differentialDiagnoses(),
-                content.missingInformation(), content.safetyAlerts(), content.recommendedPlans(), content.disclaimer());
+                content.missingInformation(), content.safetyAlerts(), content.recommendedPlans(), content.disclaimer(), content.treatmentRecommendations());
     }
 
     private SuggestionContent readContent(AiSuggestion value) {

@@ -410,6 +410,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const linkedResidentId = searchParams.get('residentId')
   const linkedAppointmentId = searchParams.get('appointmentId')
+  const linkedTriageId = searchParams.get('triageId')
+  const linkedDeptId = searchParams.get('deptId')
+  const linkedTriageLevel = searchParams.get('level')
+
+  useEffect(() => {
+    if (linkedTriageLevel === '1' || linkedTriageLevel === '2') {
+      setVisitType('EMERGENCY')
+    }
+  }, [linkedTriageLevel])
 
   useEffect(() => {
     if (!linkedResidentId) {
@@ -474,6 +483,15 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   })
 
   const allAvailable = useMemo(() => availableSchedules(schedules.data ?? []), [schedules.data])
+
+  useEffect(() => {
+    if (linkedDeptId && allAvailable.length > 0 && !scheduleId) {
+      const match = allAvailable.find((item) => item.departmentId === linkedDeptId)
+      if (match) {
+        setScheduleId(match.id)
+      }
+    }
+  }, [linkedDeptId, allAvailable, scheduleId])
   
   // Filter schedules by selected department, category, clinic type (regular vs expert), daypart, and search text
   const filteredSchedules = useMemo(() => {
@@ -837,12 +855,16 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     <PageHeader eyebrow="门诊医疗 · 窗口业务" title="门诊挂号"
       description="检索居民、选择今日排班并确认挂号；成功后自动生成候诊号并进入接诊队列。"
       actions={<><Button variant="secondary" onClick={() => setShowQuickCreate(true)}><Icon name="add" />快速建档 (F2)</Button>
+        <Button variant="secondary" onClick={() => onNavigate('/outpatient/triage')}>预检分诊</Button>
         <Button variant="secondary" onClick={() => onNavigate('/outpatient/registration-query')}>挂号查询</Button>
         <Button variant="secondary" onClick={() => onNavigate('/outpatient/appointments')}>预约管理</Button>
         <Button variant="secondary" onClick={() => onNavigate('/outpatient/scheduling')}>排班与号源</Button>
         <Button variant="secondary" onClick={() => void Promise.all([schedules.refetch(), todayQueue.refetch()])}>
           <Icon name="refresh" />刷新</Button></>} />
 
+    {linkedTriageId && <Alert className="ui-page-feedback" tone="info">
+      已成功关联门诊预检分诊记录（{linkedTriageLevel ? `分诊级别 P${linkedTriageLevel}` : ''}），已智能建议挂号科室与就诊类型。
+    </Alert>}
     {pageError && <Alert className="ui-page-feedback">{errorMessage(pageError)}</Alert>}
     {cancellationResult && <Alert className="ui-page-feedback" tone="success">{cancellationResult}</Alert>}
     {success && <Alert className="ui-page-feedback" tone="success">

@@ -68,12 +68,14 @@ export class ApiClient {
     return response.blob()
   }
 
-  async eventStream(path: string, signal: AbortSignal, lastEventId?: string): Promise<Response> {
+  async eventStream(path: string, signal: AbortSignal, lastEventId?: string, init?: RequestInit): Promise<Response> {
     const response = await fetch(path, {
+      ...init,
       signal,
       credentials: 'include',
       headers: {
         Accept: 'text/event-stream',
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(this.credentials ? { Authorization: `Basic ${encodeBasicCredentials(this.credentials)}` } : {}),
         'X-Tenant-Id': this.tenantId,
         'X-Correlation-Id': crypto.randomUUID(),

@@ -232,4 +232,5 @@ class PatientRegistration {
     Long encounterId() { return encounterId; } String registrationNo() { return registrationNo; }
     String registrationSource() { return registrationSource; } String visitType() { return visitType; }
     String status() { return status; } Instant registeredAt() { return registeredAt; }
+    Long registeredBy() { return registeredBy; }
 }

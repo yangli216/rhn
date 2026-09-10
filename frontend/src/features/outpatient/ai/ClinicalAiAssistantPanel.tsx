@@ -1,7 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import { clinicalAiPreview, type ClinicalAiPreview, type ClinicalAiFieldStream } from '../../../shared/api/clinicalAiStream'
+import { ClinicalAiInlineWorkspace, type ClinicalAiSurfaces, type InlineAiSelection } from './ClinicalAiInlineWorkspace'
+import { assessReceptionScene, recentHistoryEncounters, type ReceptionSceneType } from './receptionSceneAssessment'
 import type {
-  ClinicalAiDraftContext, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
+  ClinicalAiDraftContext, ClinicalAiTreatmentRecommendation, ClinicalAiPlanPreflight, ClinicalAiRecommendedPlan, ClinicalAiSuggestion,
   ClinicalAiSuggestionEventType,
 } from '../../../shared/api/clinicalAiApi'
 import type { DiagnosisInput } from '../../../shared/api/encountersApi'
@@ -12,7 +16,7 @@ import { errorMessage, type RhnApi } from '../../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, StatusBadge, Tabs } from '../../../shared/ui'
 import {
   canApplyClinicalAiSuggestion, clinicalAiContextFingerprint, clinicalAiDraftInput, type ClinicalAiDraftRequest,
-  recordDraftFieldLabels, recordDraftFields,
+  recordDraftFieldLabels, recordDraftFields, stableClinicalAiFingerprint, mergeAiRecordDraft, mergeAiDiagnoses,
 } from './aiDraftAdapter'
 
 interface AiAdoptionIntent {
@@ -20,6 +24,7 @@ interface AiAdoptionIntent {
   request: ClinicalAiDraftRequest
   sectionCode: string
   commandCode: string
+  commandKey?: string
   planTemplateId?: string
   selectedPlanTemplate?: OutpatientPlanTemplate
   closePlan?: boolean
@@ -29,7 +34,8 @@ interface AiAdoptionIntent {
 }
 
 export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies, allergyState, api, disabled,
-  onAdoptionBusyChange, onApply }: {
+  onAdoptionBusyChange, onApply, surfaces, onOpenDetail, onOpenHistory, onOpenResults, historyEncounters, onFieldStream,
+  onReviewTreatment, existingTreatmentKeys = [] }: {
   encounter: Encounter
   currentContext: ClinicalAiDraftContext
   allergies: AllergyIntolerance[]
@@ -38,14 +44,91 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   disabled: boolean
   onAdoptionBusyChange: (busy: boolean) => void
   onApply: (request: ClinicalAiDraftRequest) => void
+  surfaces?: ClinicalAiSurfaces
+  onOpenDetail?: () => void
+  onOpenHistory?: () => void
+  onOpenResults?: () => void
+  historyEncounters?: Encounter[]
+  onFieldStream?: (stream: ClinicalAiFieldStream | null) => void
+  onReviewTreatment?: (items: ClinicalAiTreatmentRecommendation[], onCompleted: (acceptedKeys: string[]) => void) => void
+  existingTreatmentKeys?: string[]
 }) {
   const queryClient = useQueryClient()
+  const reportsQuery = useQuery({
+    queryKey: ['doctor-reports', encounter.id],
+    queryFn: () => api.diagnostics.reportsByEncounter(encounter.id),
+    staleTime: 60 * 1000,
+  })
+
+  const recentHistory = useMemo(() => recentHistoryEncounters(encounter, historyEncounters ?? []), [encounter, historyEncounters])
+  const historyReportQueries = useQueries({ queries: recentHistory
+    .filter((item) => Date.parse(item.registeredAt) >= Date.now() - 14 * 86_400_000)
+    .map((item) => ({ queryKey: ['doctor-reports', item.id], queryFn: () => api.diagnostics.reportsByEncounter(item.id), staleTime: 60_000 })) })
+  const reportDataKey = JSON.stringify([reportsQuery.data ?? [], ...historyReportQueries.map((query) => query.data ?? [])])
+  const diagnosticReports = useMemo(() => JSON.parse(reportDataKey).flat() as import('../../../shared/api/diagnosticsApi').DiagnosticReport[], [reportDataKey])
+  const [sceneOverride, setSceneOverride] = useState<ReceptionSceneType | ''>('')
+  const [reportSelection, setReportSelection] = useState<string[] | null>(null)
+  const [conditionSelection, setConditionSelection] = useState<string[] | null>(null)
+  const assessedScene = useMemo(() => assessReceptionScene({ encounter, historyEncounters,
+    diagnosticReports, currentDraft: currentContext }), [encounter, historyEncounters, diagnosticReports, currentContext])
+  const selectedConditions = conditionSelection === null ? assessedScene.matchedConditions
+    : assessedScene.matchedConditions.filter((item) => conditionSelection.includes(item))
+  const sceneLabels = { FIRST_VISIT: '初诊全科接诊', CHRONIC_REFILL: '慢病复诊配药', REPORT_FOLLOW_UP: '报告回诊' }
+  const sceneAssessment = { ...assessedScene, scene: sceneOverride || assessedScene.scene,
+    sceneLabel: sceneLabels[sceneOverride || assessedScene.scene], matchedConditions: selectedConditions,
+    selectedReportIds: reportSelection === null ? assessedScene.selectedReportIds
+      : assessedScene.selectedReportIds.filter((id) => reportSelection.includes(id)) }
+  useEffect(() => { setSceneOverride(''); setConditionSelection(null); setReportSelection(null) }, [encounter.id, encounter.residentId])
   const [question, setQuestion] = useState('')
   const [voiceTranscript, setVoiceTranscript] = useState('')
+  const [preview, setPreview] = useState<ClinicalAiPreview>({ recordDraft: {} })
+  const [background, setBackground] = useState(false)
+  const [autoEnabled, setAutoEnabled] = useState(() => {
+    try { return localStorage.getItem('rhn:ai-auto-prepare') !== 'off' } catch { return true }
+  })
+  const [resultViewedId, setResultViewedId] = useState<string | null>(null)
+  const generationController = useRef<AbortController | null>(null)
+  const attempted = useRef(new Set<string>())
+  const lastAutoStart = useRef(0)
+  const skipAfterAdopt = useRef(false)
+  const inputKey = stableClinicalAiFingerprint('ai-input', {
+    context: clinicalAiContextFingerprint({ ...currentContext, busy: false }), scene: sceneAssessment.scene,
+    conditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds, reports: diagnosticReports, question: question.trim(), voiceTranscript: voiceTranscript.trim(),
+  })
+  const latestInputKey = useRef(inputKey)
+  latestInputKey.current = inputKey
+  const changeAutoEnabled = (value: boolean) => {
+    setAutoEnabled(value)
+    if (!value && background) generationController.current?.abort()
+    try { localStorage.setItem('rhn:ai-auto-prepare', value ? 'on' : 'off') } catch { /* Session preference still applies. */ }
+  }
   const [knowledgeQuery, setKnowledgeQuery] = useState('')
+  const [suggestionInputKey, setSuggestionInputKey] = useState('')
   const [suggestionVoiceTranscript, setSuggestionVoiceTranscript] = useState('')
-  const [recording, setRecording] = useState(false)
-  const [currentSuggestion, setCurrentSuggestion] = useState<ClinicalAiSuggestion | null>(null)
+  const [storedSuggestion, setCurrentSuggestion] = useState<ClinicalAiSuggestion | null>(null)
+  const adoptedContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
+  const treatmentContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
+  const [acceptedTreatmentKeys, setAcceptedTreatmentKeys] = useState<string[]>([])
+  const controlsKey = stableClinicalAiFingerprint('ai-controls', { question: question.trim(), voiceTranscript: voiceTranscript.trim(),
+    sceneOverride, conditionSelection, reportSelection, diagnosticReports })
+  const currentClinicalFingerprint = clinicalContextWithoutOrdersFingerprint(currentContext)
+  const continuation = Boolean(storedSuggestion && ((adoptedContinuation.current?.id === storedSuggestion.id
+    && adoptedContinuation.current.controls === controlsKey
+    && adoptedContinuation.current.fingerprint === clinicalAiContextFingerprint({ ...currentContext, busy: false }))
+    || (treatmentContinuation.current?.id === storedSuggestion.id
+      && treatmentContinuation.current.controls === controlsKey
+      && treatmentContinuation.current.fingerprint === currentClinicalFingerprint)))
+  const currentSuggestion = storedSuggestion && continuation
+    ? { ...storedSuggestion, clientContextFingerprint: clinicalAiContextFingerprint({ ...currentContext, busy: false }) } : storedSuggestion
+  const streamContext = useRef<string>('')
+  const [, refreshExpiry] = useState(0)
+  useEffect(() => {
+    if (!currentSuggestion) return
+    const delay = new Date(currentSuggestion.expiresAt).getTime() - Date.now()
+    if (!Number.isFinite(delay) || delay < 0) return
+    const timer = window.setTimeout(() => refreshExpiry((value) => value + 1), Math.min(delay + 20, 2147483647))
+    return () => window.clearTimeout(timer)
+  }, [currentSuggestion])
   const [viewMode, setViewMode] = useState<'current' | 'history'>('current')
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null)
   const [localError, setLocalError] = useState('')
@@ -54,10 +137,6 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const adoptionCommands = useRef(new Map<string, string>())
   const latestContext = useRef(currentContext)
   const latestAllergyState = useRef(allergyState)
-  const recorder = useRef<MediaRecorder | null>(null)
-  const recordingStream = useRef<MediaStream | null>(null)
-  const recordingChunks = useRef<Blob[]>([])
-  const discardRecording = useRef(false)
   latestContext.current = currentContext
   latestAllergyState.current = allergyState
   const scopeKey = [encounter.organizationId, encounter.departmentId, encounter.clinicianId ?? 'UNASSIGNED']
@@ -93,7 +172,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
-      setLocalError('当前浏览器环境不支持 Web 实时语音听写，可点击右侧【高精录音转写】使用千问模型。')
+      setLocalError('当前浏览器环境不支持 Web 实时语音听写，推荐使用 Chrome 或 Edge 浏览器并允许麦克风权限。')
       return
     }
 
@@ -122,7 +201,9 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
           }
         }
         if (finalChunk) {
-          setVoiceTranscript((prev) => (prev ? prev + ' ' : '') + finalChunk.trim())
+          const text = finalChunk.trim()
+          setVoiceTranscript((prev) => (prev ? prev + ' ' : '') + text)
+          setQuestion((prev) => (prev ? prev + ' ' : '') + text)
           setInterimTranscript('')
         } else {
           setInterimTranscript(interimChunk)
@@ -155,39 +236,66 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       }
     }
   }, [])
-
-  const transcribe = useMutation({
-    mutationFn: (audio: Blob) => api.clinicalAi.transcribe(encounter.id, audio),
-    onSuccess: (value) => {
-      setVoiceTranscript(value.text)
-      setCurrentSuggestion(null)
-      setSuggestionVoiceTranscript('')
-      setLocalError('')
-    },
-  })
   const generate = useMutation({
-    mutationFn: ({ parentSuggestionId }: { parentSuggestionId?: string }) => {
+    mutationFn: async ({ parentSuggestionId, focus, automatic = false }: {
+      parentSuggestionId?: string; focus?: string; automatic?: boolean
+    }) => {
       const context = latestContext.current
       if (disabled || context.busy || context.encounterId !== encounter.id
-        || context.residentId !== encounter.residentId) {
-        throw new Error('当前就诊上下文正在变化，请稍后再分析。')
-      }
-      return api.clinicalAi.generate(encounter.id, {
+        || context.residentId !== encounter.residentId) throw new Error('当前就诊上下文正在变化，请稍后再分析。')
+      const key = latestInputKey.current
+      streamContext.current = clinicalAiContextFingerprint(context)
+      adoptedContinuation.current = null
+      treatmentContinuation.current = null
+      setAcceptedTreatmentKeys([])
+      attempted.current.add(key)
+      if (attempted.current.size > 64) attempted.current.delete(attempted.current.values().next().value!)
+      if (automatic) lastAutoStart.current = Date.now()
+      generationController.current?.abort()
+      const controller = new AbortController()
+      generationController.current = controller
+      setBackground(automatic); setPreview({ recordDraft: {} }); setLocalError('')
+      const transcript = voiceTranscript.trim()
+      const input = {
         clientContextFingerprint: clinicalAiContextFingerprint(context),
-        question: question.trim() || undefined,
-        voiceTranscript: voiceTranscript.trim() || undefined,
-        draft: clinicalAiDraftInput(context),
-        parentSuggestionId,
-      })
+        question: [focus, question.trim()].filter(Boolean).join('；').slice(0, 500) || undefined,
+        receptionScene: sceneAssessment.scene,
+        receptionSceneContext: { selectedConditions: sceneAssessment.matchedConditions, selectedReportIds: sceneAssessment.selectedReportIds },
+        voiceTranscript: transcript || undefined, draft: clinicalAiDraftInput(context), parentSuggestionId,
+      }
+      let text = '', lastPaint = 0
+      try {
+        const value = capabilities.data?.features.includes('STREAMING_DRAFT') && api.clinicalAi.generateStream
+          ? await api.clinicalAi.generateStream(encounter.id, input, controller.signal, (delta) => {
+            if (controller.signal.aborted || latestInputKey.current !== key) return
+            text += delta
+            if (text.length > 262144) { controller.abort(); return }
+            if (Date.now() - lastPaint >= 60) { setPreview(clinicalAiPreview(text)); lastPaint = Date.now() }
+          }) : await api.clinicalAi.generate(encounter.id, input)
+        if (controller.signal.aborted || latestInputKey.current !== key) throw new DOMException('已取消过期分析', 'AbortError')
+        return { value, transcript, key }
+      } catch (error) {
+        if (controller.signal.aborted) attempted.current.delete(key)
+        if (generationController.current === controller) setPreview({ recordDraft: {} })
+        throw error
+      }
     },
-    onSuccess: (value) => {
-      setCurrentSuggestion(value); setViewMode('current'); setSuggestionVoiceTranscript(voiceTranscript.trim())
-      setQuestion(''); setLocalError('')
+    onSuccess: ({ value, transcript, key }) => {
+      setSuggestionInputKey(key); setCurrentSuggestion(value); setViewMode('current'); setSuggestionVoiceTranscript(transcript)
+      setPreview({ recordDraft: {} }); setLocalError('')
       queryClient.setQueryData<ClinicalAiSuggestion[]>(historyQueryKey, (current) => [
         value, ...(current ?? []).filter((item) => item.id !== value.id),
       ].slice(0, 50))
     },
   })
+  useEffect(() => {
+    setPreview({ recordDraft: {} })
+    if (skipAfterAdopt.current && continuation) { attempted.current.add(inputKey); skipAfterAdopt.current = false }
+    return () => generationController.current?.abort()
+  }, [inputKey])
+  useEffect(() => {
+    if (disabled || currentContext.busy || realtimeListening) generationController.current?.abort()
+  }, [disabled, currentContext.busy, realtimeListening])
   const knowledgeSearch = useMutation({
     mutationFn: () => api.clinicalAi.searchKnowledge(encounter.id, knowledgeQuery.trim()),
     onSuccess: () => setLocalError(''),
@@ -248,8 +356,14 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     },
     onSuccess: (value) => {
       if (!guardCurrent(value.suggestion, latestContext.current, setLocalError, value.request, encounter)) return
-      adoptionCommands.current.delete(`${value.suggestion.id}:${value.sectionCode}`)
+      adoptionCommands.current.delete(`${value.suggestion.id}:${value.commandKey ?? value.sectionCode}`)
       if (value.closePlan) setSelectedPlan(null)
+      skipAfterAdopt.current = true
+      if (!value.request.planTemplate) {
+        const next = mergeAiRecordDraft({ ...latestContext.current, busy: false }, value.request.recordDraft ?? {}, value.request.overwriteRecord)
+        next.diagnoses = mergeAiDiagnoses(next.diagnoses, value.request.diagnoses ?? [])
+        adoptedContinuation.current = { id: value.suggestion.id, fingerprint: clinicalAiContextFingerprint(next), controls: controlsKey }
+      }
       onApply(value.request)
     },
   })
@@ -261,32 +375,45 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       void queryClient.invalidateQueries({ queryKey: historyQueryKey })
     },
   })
-  const actionPending = recording || realtimeListening || transcribe.isPending || generate.isPending
+  const actionPending = realtimeListening || generate.isPending
     || adoptDraft.isPending || ignoreSuggestion.isPending
+  useEffect(() => {
+    onFieldStream?.(generate.isPending && !background && !disabled && !currentContext.busy
+      ? { encounterId: encounter.id, contextFingerprint: streamContext.current, recordDraft: preview.recordDraft } : null)
+  }, [generate.isPending, background, disabled, currentContext.busy, encounter.id, preview, onFieldStream])
+  useEffect(() => () => onFieldStream?.(null), [onFieldStream])
+  const inputBusy = realtimeListening || adoptDraft.isPending || ignoreSuggestion.isPending
+  const hasUsefulInput = [currentContext.chiefComplaint, currentContext.presentIllness, currentContext.medicalHistory,
+    currentContext.physicalExam, currentContext.treatmentPlan, question, voiceTranscript].join('').trim().length >= 10
+  useEffect(() => {
+    if (!surfaces || !autoEnabled || !capabilities.data?.available
+      || !capabilities.data.features.includes('BACKGROUND_DRAFT') || !hasUsefulInput
+      || disabled || currentContext.busy || allergyState !== 'READY' || actionPending
+      || continuation || currentContext.encounterStatus !== 'IN_PROGRESS' || attempted.current.has(inputKey)) return
+    const timer = window.setTimeout(() => {
+      if (document.visibilityState === 'hidden') return
+      generate.mutate({ automatic: true })
+    }, Math.max(2500, lastAutoStart.current + 15000 - Date.now()))
+    return () => window.clearTimeout(timer)
+  }, [inputKey, autoEnabled, disabled, currentContext.busy, currentContext.encounterStatus, allergyState,
+    actionPending, hasUsefulInput, capabilities.data, Boolean(surfaces)])
   useEffect(() => {
     onAdoptionBusyChange(adoptDraft.isPending)
     return () => onAdoptionBusyChange(false)
   }, [adoptDraft.isPending, onAdoptionBusyChange])
   useEffect(() => {
     if (!suggestion || viewed.current.has(suggestion.id)) return
+    if (surfaces && !surfaces.detail && resultViewedId !== suggestion.id) return
     if (!capabilities.data?.features.includes('AUDIT_TRAIL')) return
     viewed.current.add(suggestion.id)
     void api.clinicalAi.recordEvent(suggestion.id, eventInput(suggestion, 'VIEWED', 'RESULT')).catch(() => undefined)
-  }, [api, capabilities.data?.features, suggestion])
-  useEffect(() => () => {
-    discardRecording.current = true
-    const currentRecorder = recorder.current
-    if (currentRecorder && currentRecorder.state !== 'inactive') {
-      currentRecorder.onstop = null
-      currentRecorder.stop()
-    }
-    recordingStream.current?.getTracks().forEach((track) => track.stop())
-  }, [])
+  }, [api, capabilities.data?.features, suggestion, surfaces?.detail, resultViewedId])
 
   const current = !historicalView && suggestion ? canApplyClinicalAiSuggestion(suggestion, currentContext)
-    && voiceTranscript.trim() === suggestionVoiceTranscript : false
+    && (inputKey === suggestionInputKey || continuation) && voiceTranscript.trim() === suggestionVoiceTranscript : false
   const capabilityError = capabilities.error
-  const error = transcribe.error || generate.error || knowledgeSearch.error || templates.error
+  const generationError = (generate.error as Error | null)?.name === 'AbortError' ? null : generate.error
+  const error = generationError || knowledgeSearch.error || templates.error
     || adoptDraft.error || ignoreSuggestion.error
 
   useEffect(() => {
@@ -297,57 +424,25 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     setSuggestionVoiceTranscript('')
   }, [encounter.id])
 
-  const startRecording = async () => {
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setLocalError('当前浏览器不支持录音，请改用文字输入。')
-      return
-    }
-    try {
-      discardRecording.current = false
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus' : 'audio/webm'
-      const value = new MediaRecorder(stream, { mimeType })
-      recordingStream.current = stream
-      recordingChunks.current = []
-      recorder.current = value
-      value.ondataavailable = (event) => { if (event.data.size > 0) recordingChunks.current.push(event.data) }
-      value.onstop = () => {
-        setRecording(false)
-        stream.getTracks().forEach((track) => track.stop())
-        recordingStream.current = null
-        if (discardRecording.current) return
-        const audio = new Blob(recordingChunks.current, { type: value.mimeType || 'audio/webm' })
-        recordingChunks.current = []
-        if (audio.size === 0) { setLocalError('未录到有效声音，请重新录制。'); return }
-        transcribe.mutate(audio)
-      }
-      value.start()
-      setRecording(true)
-      setLocalError('')
-    } catch {
-      recordingStream.current?.getTracks().forEach((track) => track.stop())
-      recordingStream.current = null
-      setRecording(false)
-      setLocalError('无法使用麦克风，请检查浏览器权限或改用文字输入。')
-    }
-  }
-
-  const stopRecording = () => {
-    if (recorder.current?.state === 'recording') recorder.current.stop()
-  }
+  useEffect(() => { setAcceptedTreatmentKeys([]); treatmentContinuation.current = null }, [storedSuggestion?.id])
 
   const ignore = () => {
     if (!suggestion || actionPending) return
     ignoreSuggestion.mutate(suggestion)
   }
 
-  if (capabilities.isPending) return <LoadingState label="正在连接智医助理…" />
-  if (capabilityError) return <EmptyState icon="clinical" title="智医助理暂不可用"
-    copy="AI 能力连接失败；不会影响当前病历、诊断和医嘱操作。" />
+  const availability = (node: ReactNode) => surfaces
+    ? surfaces.summary ? createPortal(<div className="doctor-ai-inline">{node}</div>, surfaces.summary) : null
+    : node
+  if (capabilities.isPending && surfaces) return null
+  if (capabilities.isPending) return availability(<LoadingState label="正在连接智医助理…" />)
+  if (capabilityError && surfaces) return null
+  if (capabilityError) return availability(<EmptyState icon="clinical" title="智医助理暂不可用"
+    copy="AI 能力连接失败；不会影响当前病历、诊断和医嘱操作。" />)
   const capability = capabilities.data
-  if (!capability?.available || capability.mode === 'DISABLED') return <EmptyState icon="clinical"
-    title="智医助理尚未启用" copy={capability?.message || '配置 AI 服务后即可使用；医生站其他功能不受影响。'} />
+  if (surfaces && (!capability?.available || capability.mode === 'DISABLED')) return null
+  if (!capability?.available || capability.mode === 'DISABLED') return availability(<EmptyState icon="clinical"
+    title="智医助理尚未启用" copy={capability?.message || '配置 AI 服务后即可使用；医生站其他功能不受影响。'} />)
 
   const recordFeature = capability.features.includes('RECORD_COMPLETENESS')
   const diagnosisFeature = capability.features.includes('TERMINOLOGY_VALIDATION')
@@ -379,7 +474,50 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     } })
   }
 
-  return <div className="doctor-ai-assistant">
+  const voiceInput = capability.features.includes('VOICE_TRANSCRIPTION') && (
+    <Button
+      size="sm"
+      variant={realtimeListening ? 'primary' : 'secondary'}
+      className={`doctor-ai-voice-btn ${realtimeListening ? 'is-listening' : ''}`}
+      disabled={!isRealtimeSupported || (!realtimeListening && (disabled || inputBusy))}
+      onClick={toggleRealtimeSpeech}
+      title={!isRealtimeSupported
+        ? '当前浏览器不支持实时语音听写（推荐使用最新版 Chrome 或 Edge 浏览器）'
+        : realtimeListening
+          ? '点击停止实时语音听写'
+          : '点击开启语音输入，边说边自动转写文字'}
+    >
+      <Icon name="mic" />
+      <span>{realtimeListening ? '停止听写' : '语音输入'}</span>
+      {realtimeListening && <span className="doctor-ai-voice-pulse" aria-hidden="true" />}
+    </Button>
+  )
+  const planReview = !historicalView && selectedPlan && <AiPlanReviewDialog recommendation={selectedPlan} api={api} encounterId={encounter.id}
+      template={templates.data?.find((value) => value.id === selectedPlan.templateId)}
+      allergies={allergies} allergyState={allergyState} suggestion={suggestion!}
+      recordAvailable={!surfaces && recordEntries.length > 0} diagnosisAvailable={!surfaces && diagnosisDrafts.length > 0}
+      disabled={disabled || !current || !auditFeature} busy={adoptDraft.isPending} error={adoptDraft.error}
+      onClose={() => setSelectedPlan(null)} onApply={(template, safetyConfirmed, overrideReason, includeClinicalDraft,
+        eventDetail) => {
+        if (!guardCurrent(suggestion!, latestContext.current, setLocalError, undefined, encounter)) return
+        const context = latestContext.current
+        const sectionCode = includeClinicalDraft ? 'ALL' : `PLAN:${template.id}`
+        adoptDraft.mutate({ suggestion: suggestion!, planTemplateId: template.id,
+          selectedPlanTemplate: template, closePlan: true,
+          eventDetail,
+          allergyReviewConfirmed: safetyConfirmed, allergyOverrideReason: overrideReason || undefined,
+          sectionCode, commandCode: adoptionCommand(adoptionCommands.current, suggestion!.id, sectionCode),
+          request: { requestId: globalThis.crypto.randomUUID(), sourceSuggestionId: suggestion!.id,
+            encounterId: context.encounterId, residentId: context.residentId,
+            contextFingerprint: suggestion!.clientContextFingerprint,
+            sourceLabel: `智医助理推荐方案“${template.name}”`,
+            recordDraft: includeClinicalDraft && recordEntries.length ? suggestion!.recordDraft : undefined,
+            diagnoses: includeClinicalDraft && diagnosisDrafts.length ? diagnosisDrafts : undefined,
+            allergyReviewConfirmed: safetyConfirmed, allergyOverrideReason: overrideReason || undefined,
+          } })
+      }} />
+
+  const assistantPanel = <div className="doctor-ai-assistant">
     <section className="doctor-ai-assistant__guardrail" aria-label="AI 使用边界">
       <Icon name="sparkles" /><div><strong>AI 只生成建议草稿</strong>
         <small>不会自动保存病历、确认诊断、开立医嘱或完成诊毕。</small></div>
@@ -395,54 +533,22 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
     }} />
     {!historicalView && <>
     <section className="doctor-ai-assistant__prompt">
-      {capability.features.includes('VOICE_TRANSCRIPTION') && <div className="doctor-ai-assistant__voice">
-        <div className="doctor-ai-assistant__voice-head">
-          <div>
-            <strong>语音转写草稿</strong>
-            <small>
-              {realtimeListening ? '正在实时听写（边说边实时出字）…' : recording ? '正在录音…' : transcribe.isPending ? '正在千问高精转写…' : '支持实时语音听写与千问高精录音转写'}
-            </small>
-          </div>
-          <div className="doctor-ai-assistant__voice-actions">
-            {isRealtimeSupported && (
-              <Button
-                size="sm"
-                variant={realtimeListening ? 'primary' : 'secondary'}
-                className={realtimeListening ? 'doctor-ai-voice-active-btn' : ''}
-                disabled={recording || transcribe.isPending || generate.isPending}
-                onClick={toggleRealtimeSpeech}
-              >
-                <Icon name={realtimeListening ? 'mic' : 'sparkles'} />
-                {realtimeListening ? '停止听写' : '实时听写'}
-              </Button>
-            )}
-            {recording ? (
-              <Button size="sm" variant="secondary" onClick={stopRecording}>停止录音</Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="secondary"
-                disabled={actionPending}
-                onClick={() => void startRecording()}
-              >
-                <Icon name="face" />
-                {transcribe.isPending ? '转写中…' : '录音转写'}
-              </Button>
-            )}
-          </div>
+      <div className="doctor-ai-assistant__prompt-head">
+        <FormField label="本次希望重点辅助什么"><textarea value={question} maxLength={500} disabled={inputBusy}
+          onChange={(event) => setQuestion(event.target.value)}
+          placeholder="例如：补全病历要点、检查诊断遗漏、推荐已有诊疗方案（可不填）" /></FormField>
+        <div className="doctor-ai-assistant__prompt-tools">
+          {voiceInput}
+          {question.trim() && <Button size="sm" variant="text" onClick={() => { setQuestion(''); setVoiceTranscript('') }}>清空</Button>}
         </div>
-        {realtimeListening && interimTranscript && (
-          <div className="doctor-ai-assistant__interim-preview">
-            <span className="doctor-ai-assistant__interim-dot" />
-            <span className="doctor-ai-assistant__interim-text">{interimTranscript}</span>
-          </div>
-        )}
-        {voiceTranscript && <FormField label="转写文本（可编辑）"><textarea value={voiceTranscript}
-          maxLength={10000} disabled={actionPending} onChange={(event) => setVoiceTranscript(event.target.value)} /></FormField>}
-      </div>}
-      <FormField label="本次希望重点辅助什么"><textarea value={question} maxLength={500} disabled={actionPending}
-        onChange={(event) => setQuestion(event.target.value)}
-        placeholder="例如：补全病历要点、检查诊断遗漏、推荐已有诊疗方案（可不填）" /></FormField>
+      </div>
+      {interimTranscript && (
+        <div className="doctor-ai-interim-live" role="status" aria-live="polite">
+          <span className="doctor-ai-voice-pulse" aria-hidden="true" />
+          <span className="doctor-ai-interim-live__tag">正在识别</span>
+          <span className="doctor-ai-interim-live__text">{interimTranscript}</span>
+        </div>
+      )}
       <div className="doctor-ai-assistant__quick-prompts" aria-label="快捷辅助方向">
         {['补全病历要点', '检查危险信号', '核对诊断遗漏',
           ...(capability.features.includes('REPORT_INTERPRETATION') ? ['解读检查报告'] : []),
@@ -456,7 +562,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       <div className="doctor-ai-assistant__prompt-actions">
         {capability.features.includes('CONVERSATION_FOLLOW_UP') && suggestion && <Button variant="secondary"
           busy={generate.isPending} disabled={disabled || actionPending || !current || !question.trim()}
-          onClick={() => generate.mutate({ parentSuggestionId: suggestion.id })}>基于本结果追问</Button>}
+          onClick={() => generate.mutate({ parentSuggestionId: continuation ? undefined : suggestion.id })}>基于本结果追问</Button>}
         <Button busy={generate.isPending} disabled={disabled || actionPending}
           onClick={() => generate.mutate({})}><Icon name="sparkles" />分析当前就诊</Button>
       </div>
@@ -524,31 +630,72 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       </div>}
     </> : !historicalView ? <EmptyState icon="clinical" title="尚未生成本次建议"
       copy="助理会基于当前就诊和院内可用数据查漏补缺，结果由你决定是否带入草稿。" /> : null}
-    {!historicalView && selectedPlan && <AiPlanReviewDialog recommendation={selectedPlan} api={api} encounterId={encounter.id}
-      template={templates.data?.find((value) => value.id === selectedPlan.templateId)}
-      allergies={allergies} allergyState={allergyState} suggestion={suggestion!}
-      recordAvailable={recordEntries.length > 0} diagnosisAvailable={diagnosisDrafts.length > 0}
-      disabled={disabled || !current || !auditFeature} busy={adoptDraft.isPending} error={adoptDraft.error}
-      onClose={() => setSelectedPlan(null)} onApply={(template, safetyConfirmed, overrideReason, includeClinicalDraft,
-        eventDetail) => {
-        if (!guardCurrent(suggestion!, latestContext.current, setLocalError, undefined, encounter)) return
-        const context = latestContext.current
-        const sectionCode = includeClinicalDraft ? 'ALL' : `PLAN:${template.id}`
-        adoptDraft.mutate({ suggestion: suggestion!, planTemplateId: template.id,
-          selectedPlanTemplate: template, closePlan: true,
-          eventDetail,
-          allergyReviewConfirmed: safetyConfirmed, allergyOverrideReason: overrideReason || undefined,
-          sectionCode, commandCode: adoptionCommand(adoptionCommands.current, suggestion!.id, sectionCode),
-          request: { requestId: globalThis.crypto.randomUUID(), sourceSuggestionId: suggestion!.id,
-            encounterId: context.encounterId, residentId: context.residentId,
-            contextFingerprint: suggestion!.clientContextFingerprint,
-            sourceLabel: `智医助理推荐方案“${template.name}”`,
-            recordDraft: includeClinicalDraft && recordEntries.length ? suggestion!.recordDraft : undefined,
-            diagnoses: includeClinicalDraft && diagnosisDrafts.length ? diagnosisDrafts : undefined,
-            allergyReviewConfirmed: safetyConfirmed, allergyOverrideReason: overrideReason || undefined,
-          } })
-      }} />}
+
   </div>
+  if (!surfaces) return <>{assistantPanel}{planReview}</>
+  const liveCurrent = Boolean(currentSuggestion && canApplyClinicalAiSuggestion(currentSuggestion, currentContext)
+    && (inputKey === suggestionInputKey || continuation) && voiceTranscript.trim() === suggestionVoiceTranscript)
+  const applyInline = (selection: InlineAiSelection) => {
+    const value = currentSuggestion
+    if (!value || disabled || actionPending || !auditFeature || !liveCurrent
+      || !guardCurrent(value, latestContext.current, setLocalError, undefined, encounter)) return
+    const sectionCode = selection.recordDraft && selection.diagnoses?.length ? 'RECORD_DIAGNOSIS'
+      : selection.recordDraft ? 'RECORD' : 'DIAGNOSIS'
+    const selectionFingerprint = stableClinicalAiFingerprint('selection', selection)
+    const commandKey = `${sectionCode}:${selectionFingerprint}`
+    const context = latestContext.current
+    adoptDraft.mutate({ suggestion: value, sectionCode, commandKey,
+      commandCode: adoptionCommand(adoptionCommands.current, value.id, commandKey),
+      eventDetail: JSON.stringify({ selectedRecordFields: Object.keys(selection.recordDraft ?? {}),
+        diagnosisCodes: selection.diagnoses?.map((item) => item.code) ?? [],
+        selectionFingerprint, overwriteSelectedParagraphs: true }),
+      request: { requestId: globalThis.crypto.randomUUID(), sourceSuggestionId: value.id,
+        encounterId: context.encounterId, residentId: context.residentId,
+        contextFingerprint: value.clientContextFingerprint, sourceLabel: 'AI 共写所选内容',
+        ...selection, overwriteRecord: true },
+    })
+  }
+  const reviewTreatments = (items: ClinicalAiTreatmentRecommendation[]) => {
+    const value = currentSuggestion
+    if (!value || !onReviewTreatment || disabled || actionPending || !liveCurrent || items.length === 0) return
+    onReviewTreatment(items, (acceptedKeys) => {
+      if (!acceptedKeys.length) return
+      setAcceptedTreatmentKeys((current) => [...new Set([...current, ...acceptedKeys])])
+      treatmentContinuation.current = { id: value.id, fingerprint: clinicalContextWithoutOrdersFingerprint(latestContext.current),
+        controls: controlsKey }
+      skipAfterAdopt.current = true
+      attempted.current.add(latestInputKey.current)
+      void api.clinicalAi.recordEvent(value.id, eventInput(value, 'ADOPTED', 'TREATMENT',
+        adoptionCommand(adoptionCommands.current, value.id, `TREATMENT:${acceptedKeys.sort().join('|')}`),
+        JSON.stringify({ treatmentKeys: acceptedKeys }))).catch(() => undefined)
+    })
+  }
+  return <>
+    <ClinicalAiInlineWorkspace surfaces={surfaces}
+      context={currentContext} capability={capability} suggestion={currentSuggestion} current={liveCurrent}
+      busy={actionPending} inputBusy={inputBusy} generating={generate.isPending}
+      preview={preview} background={background} autoEnabled={autoEnabled} onAutoEnabledChange={changeAutoEnabled}
+      onView={() => { if (currentSuggestion) setResultViewedId(currentSuggestion.id) }} disabled={disabled || currentContext.busy}
+      canAdopt={auditFeature} error={localError || (error ? errorMessage(error) : '')}
+      voiceInput={voiceInput} interimTranscript={interimTranscript} question={question} onQuestionChange={setQuestion}
+      onClearVoice={() => { setVoiceTranscript(''); setInterimTranscript('') }}
+      onGenerate={async (focus) => (await generate.mutateAsync({ focus })).value.id} onApply={applyInline}
+      onReviewPlan={(plan) => { setViewMode('current'); setSelectedPlan(plan) }}
+      onOpenDetail={onOpenDetail} onOpenHistory={onOpenHistory} onOpenResults={onOpenResults}
+      onReviewTreatment={reviewTreatments}
+      existingTreatmentKeys={[...new Set([...existingTreatmentKeys, ...acceptedTreatmentKeys])]}
+      templatesPending={templates.isPending}
+      sceneAssessment={sceneAssessment}
+      sceneOverride={sceneOverride} onSceneChange={setSceneOverride}
+      conditionOptions={assessedScene.matchedConditions} onConditionsChange={setConditionSelection}
+      reportOptions={diagnosticReports.filter((report) => assessedScene.selectedReportIds.includes(report.id))}
+      onReportsChange={setReportSelection}
+      sceneLoading={reportsQuery.isPending || historyReportQueries.some((query) => query.isPending)}
+      sceneError={Boolean(reportsQuery.error || historyReportQueries.some((query) => query.error))} />
+    {surfaces.detail && createPortal(assistantPanel, surfaces.detail)}
+    {planReview}
+  </>
+
 }
 
 function SuggestionHistory({ history, selectedId, pending, error, onSelect }: {
@@ -921,4 +1068,10 @@ function eventInput(suggestion: ClinicalAiSuggestion, eventType: ClinicalAiSugge
 function recordEvent(api: RhnApi, suggestion: ClinicalAiSuggestion,
   eventType: ClinicalAiSuggestionEventType, sectionCode: string) {
   return api.clinicalAi.recordEvent(suggestion.id, eventInput(suggestion, eventType, sectionCode)).catch(() => undefined)
+}
+
+function clinicalContextWithoutOrdersFingerprint(value: ClinicalAiDraftContext) {
+  return stableClinicalAiFingerprint('clinical-context', {
+    ...value, busy: false, medicationDraftFingerprint: undefined, serviceDraftFingerprint: undefined,
+  })
 }

@@ -27,6 +27,9 @@ import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.conflict;
 import static com.rhn.shared.api.BusinessErrors.notFound;
 
+import com.rhn.platform.identityaccess.api.IdentityAccessDirectory;
+import com.rhn.platform.organization.api.OrganizationDirectory;
+
 @Service
 public class RegistrationApplicationService implements OutpatientRegistrationDirectory {
     private static final ZoneId BUSINESS_ZONE = ZoneId.of("Asia/Shanghai");
@@ -42,6 +45,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
     private final RegistrationValidityPolicy validityPolicy;
+    private final IdentityAccessDirectory identityAccessDirectory;
+    private final OrganizationDirectory organizationDirectory;
 
     public RegistrationApplicationService(PatientRegistrationRepository registrationRepository,
                                           AppointmentRepository appointmentRepository,
@@ -53,7 +58,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                                           OutpatientScheduleDirectory slotHolds,
                                           ResidentDirectory residentDirectory,
                                           ExecutionContextProvider contextProvider,
-                                          RegistrationValidityPolicy validityPolicy) {
+                                          RegistrationValidityPolicy validityPolicy,
+                                          IdentityAccessDirectory identityAccessDirectory,
+                                          OrganizationDirectory organizationDirectory) {
         this.registrationRepository = registrationRepository;
         this.appointmentRepository = appointmentRepository;
         this.appointmentEventRepository = appointmentEventRepository;
@@ -65,6 +72,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider;
         this.validityPolicy = validityPolicy;
+        this.identityAccessDirectory = identityAccessDirectory;
+        this.organizationDirectory = organizationDirectory;
     }
 
     @Override
@@ -315,8 +324,14 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 .map(id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null))
                 .filter(java.util.Objects::nonNull).collect(Collectors.toMap(ServiceSchedule::id, Function.identity()));
 
+        Map<Long, String> queueOperatorCache = new HashMap<>();
+        Map<Long, String> queueDepartmentCache = new HashMap<>();
         Instant now = Instant.now();
         return registrations.stream().filter(reg -> {
+            LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
+            if (!regDate.isBefore(start) && !regDate.isAfter(end)) {
+                return true;
+            }
             Instant validUntil = validityPolicy.calculateCutoffTime(reg.registeredAt(), context.tenantId(),
                     context.subjectId(), reg.organizationId(), reg.departmentId());
             boolean expired = now.isAfter(validUntil) || now.equals(validUntil);
@@ -325,20 +340,18 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             boolean isCompleted = "COMPLETED".equalsIgnoreCase(ticketStatus)
                     || "CANCELLED".equalsIgnoreCase(ticketStatus)
                     || "CANCELLED".equalsIgnoreCase(reg.status());
-            if (expired && !isCompleted) {
-                return false;
-            }
-            if (expired) {
-                LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
-                return !regDate.isBefore(start) && !regDate.isAfter(end);
-            }
-            return true;
+            return !expired || isCompleted;
         }).map(registration -> {
             TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
             ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
             Instant validUntil = validityPolicy.calculateCutoffTime(registration.registeredAt(), context.tenantId(),
                     context.subjectId(), registration.organizationId(), registration.departmentId());
+            String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), queueOperatorCache);
+            Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
+            String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, queueDepartmentCache);
+            String dayPartText = resolveDayPartText(schedule);
+
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
                     registration.encounterId(), ticket == null ? null : ticket.id(),
                     ticket == null ? null : ticket.serviceQueueId(), resident.id(),
@@ -354,7 +367,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     registration.registeredAt(), ticket == null ? null : ticket.readyAt(),
                     ticket == null ? null : ticket.calledAt(), ticket == null ? null : ticket.startedAt(),
                     ticket == null ? 0 : ticket.callCount(), ticket == null ? 0 : ticket.missedCount(),
-                    ticket == null ? null : ticket.currentLocationId(), validUntil);
+                    ticket == null ? null : ticket.currentLocationId(), validUntil,
+                    registeredByName, departmentName, dayPartText);
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
@@ -399,6 +413,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
         Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new HashMap<>();
         Map<Long, ServiceSchedule> scheduleCache = new HashMap<>();
+        Map<Long, String> operatorCache = new HashMap<>();
+        Map<Long, String> departmentCache = new HashMap<>();
 
         List<PatientRegistration> filtered = registrations.stream().filter(reg -> {
             TicketSnapshot ticket = tickets.get(reg.id());
@@ -429,6 +445,15 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                         if (schedule.locationName() != null && schedule.locationName().toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
                     }
                 }
+                if (reg.registeredBy() != null) {
+                    String opName = resolveOperatorName(context.tenantId(), reg.registeredBy(), operatorCache);
+                    if (opName != null && opName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                }
+                Long dId = reg.departmentId();
+                if (dId != null) {
+                    String deptName = resolveDepartmentName(context.tenantId(), context.organizationId(), dId, departmentCache);
+                    if (deptName != null && deptName.toLowerCase(Locale.ROOT).contains(matchQuery)) return true;
+                }
                 return false;
             }
             return true;
@@ -457,6 +482,11 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             ServiceSchedule schedule = registration.scheduleId() == null ? null :
                     scheduleCache.computeIfAbsent(registration.scheduleId(),
                             id -> scheduleRepository.findByIdAndTenantId(id, context.tenantId()).orElse(null));
+            String registeredByName = resolveOperatorName(context.tenantId(), registration.registeredBy(), operatorCache);
+            Long deptId = registration.departmentId() != null ? registration.departmentId() : (schedule != null ? schedule.departmentId() : null);
+            String departmentName = resolveDepartmentName(context.tenantId(), context.organizationId(), deptId, departmentCache);
+            String dayPartText = resolveDayPartText(schedule);
+
             return new ReceptionQueueItem(registration.id(), registration.appointmentId(), registration.scheduleId(),
                     registration.encounterId(), ticket == null ? null : ticket.id(),
                     ticket == null ? null : ticket.serviceQueueId(), resident.id(), resident.healthRecordNo(),
@@ -471,12 +501,56 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     schedule == null ? null : schedule.locationName(), registration.registeredAt(),
                     ticket == null ? null : ticket.readyAt(), ticket == null ? null : ticket.calledAt(),
                     ticket == null ? null : ticket.startedAt(), ticket == null ? 0 : ticket.callCount(),
-                    ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId());
+                    ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId(),
+                    null, registeredByName, departmentName, dayPartText);
         }).toList();
 
         boolean first = safePage == 0;
         boolean last = totalPages == 0 || safePage >= totalPages - 1;
         return new RegistrationPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
+
+    private String resolveOperatorName(Long tenantId, Long operatorUserId, Map<Long, String> cache) {
+        if (operatorUserId == null) return null;
+        return cache.computeIfAbsent(operatorUserId, id -> {
+            try {
+                var account = identityAccessDirectory.requireAccount(tenantId, id);
+                if (account != null) {
+                    if (account.practitionerId() != null) {
+                        try {
+                            var staff = organizationDirectory.requireStaff(tenantId, account.practitionerId());
+                            if (staff != null && staff.practitioner() != null && staff.practitioner().fullName() != null) {
+                                return staff.practitioner().fullName();
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                    return account.username();
+                }
+            } catch (Exception ignored) {}
+            return null;
+        });
+    }
+
+    private String resolveDepartmentName(Long tenantId, Long organizationId, Long departmentId, Map<Long, String> cache) {
+        if (departmentId == null) return null;
+        return cache.computeIfAbsent(departmentId, id -> {
+            try {
+                var dept = organizationDirectory.requireDepartment(tenantId, organizationId, id);
+                return dept != null ? dept.name() : null;
+            } catch (Exception ignored) {
+                return null;
+            }
+        });
+    }
+
+    private String resolveDayPartText(ServiceSchedule schedule) {
+        if (schedule == null || schedule.dayPart() == null) return null;
+        return switch (schedule.dayPart().toUpperCase(Locale.ROOT)) {
+            case "MORNING" -> "上午";
+            case "AFTERNOON" -> "下午";
+            case "EVENING" -> "晚上";
+            default -> schedule.dayPart();
+        };
     }
 
     private String clean(String value) {

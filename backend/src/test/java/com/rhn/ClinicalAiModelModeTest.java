@@ -6,6 +6,7 @@ import com.rhn.ai.api.ClinicalAssistantContracts.RecommendedPlan;
 import com.rhn.ai.api.ClinicalAssistantContracts.SafetyAlert;
 import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.ai.application.ClinicalAiModelGateway;
+import com.rhn.ai.application.ClinicalAiModelException;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -37,6 +38,74 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
     @MockitoBean ClinicalAiModelGateway modelGateway;
 
     @Test
+    void streamsPreviewThenCommittedSuggestionAndRollsBackOnProviderFailure() throws Exception {
+        String encounterId = createStartedEncounter();
+        when(modelGateway.analyzeStreaming(any(), any(), any())).thenAnswer(invocation -> {
+            java.util.function.Consumer<String> delta = invocation.getArgument(2);
+            delta.accept("{\"summary\":\"合成预览");
+            return new SuggestionContent("合成摘要", new RecordDraft("测试主诉", null, null, null, null),
+                    List.of(), List.of(), List.of(), List.of(), List.of(), "待核对");
+        });
+        String input = "{\"clientContextFingerprint\":\"STREAM-CONTEXT\",\"draft\":{\"diagnoses\":[]}}";
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(input))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(
+                        org.hamcrest.Matchers.containsString("event: delta")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(
+                        org.hamcrest.Matchers.containsString("event: complete")));
+        org.mockito.Mockito.doAnswer(invocation -> {
+            java.util.function.Consumer<String> delta = invocation.getArgument(2);
+            delta.accept("{\"summary\":\"未完成");
+            throw new ClinicalAiModelException(ClinicalAiModelException.Reason.TIMEOUT, null, "provider secret", null);
+        }).when(modelGateway).analyzeStreaming(any(), any(), any());
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions/stream", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(input))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(
+                        org.hamcrest.Matchers.containsString("event: error")))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("event: complete"))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().string(
+                        org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("provider secret"))));
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
+    void providerFailureReturnsActionableMessageAndDoesNotSaveSuggestion() throws Exception {
+        when(modelGateway.analyze(any(), any())).thenThrow(new ClinicalAiModelException(
+                ClinicalAiModelException.Reason.PROVIDER_REJECTED, 400, "secret provider response", null));
+        String encounterId = createStartedEncounter();
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                                {"clientContextFingerprint":"FAILURE-CONTEXT","voiceTranscript":"合成测试文本",
+                                 "draft":{"diagnoses":[]}}
+                                """))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("AI_MODEL_UNAVAILABLE"))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("HTTP 400")))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret"))))
+                .andExpect(jsonPath("$.correlationId").isNotEmpty());
+        mockMvc.perform(get("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+        verify(modelGateway).analyze(argThat(request -> "合成测试文本".equals(request.voiceTranscript())), any());
+    }
+
+    @Test
+    void mapsExactDiagnosisNameWhenModelCodeIsMissingOrInvalid() throws Exception {
+        when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("名称映射",
+                new RecordDraft("高血压复诊", null, null, null, null),
+                List.of(new DiagnosisCandidate("INVALID", "原发性高血压", "PRIMARY", .8, "已有病史")),
+                List.of(), List.of(), List.of(), List.of(), "待确认"));
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", createStartedEncounter())
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"clientContextFingerprint\":\"NAME-MATCH\",\"draft\":{\"diagnoses\":[]}}"))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.diagnosisCandidates[0].code").value("I10"))
+                .andExpect(jsonPath("$.diagnosisCandidates[0].display").value("原发性高血压"));
+    }
+
+    @Test
     void modelOutputIsFilteredThroughHospitalClinicalBoundaries() throws Exception {
         when(modelGateway.analyze(any(), any())).thenReturn(new SuggestionContent("模型摘要",
                 new RecordDraft(null, "待医生核对的现病史", null, null, null),
@@ -61,6 +130,8 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                 {
                                   "clientContextFingerprint":"MODEL-CONTEXT",
                                   "question":"生成结构化临床建议",
+                                  "receptionScene":"CHRONIC_REFILL",
+                                  "receptionSceneContext":{"selectedConditions":["高血压"],"selectedReportIds":[]},
                                   "draft":{
                                     "chiefComplaint":"反复头晕","presentIllness":"","medicalHistory":"高血压病史",
                                     "physicalExam":"","treatmentPlan":"","systolic":186,"diastolic":122,
@@ -79,9 +150,19 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.safetyAlerts[0].level").value("CRITICAL"))
                 .andExpect(jsonPath("$.safetyAlerts[1].level").value("WARNING"))
                 .andExpect(jsonPath("$.recommendedPlans.length()").value(0))
-                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V6"))
+                .andExpect(jsonPath("$.promptVersion").value("RHN-CLINICAL-ASSISTANT-V8"))
                 .andExpect(jsonPath("$.disclaimer").value(org.hamcrest.Matchers.containsString("院内术语")))
                 .andReturn().getResponse().getContentAsString());
+
+        verify(modelGateway).analyze(argThat(request -> request.receptionScene()
+                == com.rhn.ai.api.ClinicalAssistantContracts.ReceptionScene.CHRONIC_REFILL
+                && request.receptionSceneContext().selectedConditions().equals(List.of("高血压"))), any());
+
+        mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                {"clientContextFingerprint":"BAD-REPORT", "draft":{"diagnoses":[]},
+                 "receptionScene":"REPORT_FOLLOW_UP", "receptionSceneContext":{"selectedReportIds":[999999]}}
+                """)).andExpect(status().isConflict());
 
         JsonNode followUp = json(mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/suggestions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

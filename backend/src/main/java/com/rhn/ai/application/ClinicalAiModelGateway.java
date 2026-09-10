@@ -1,6 +1,9 @@
 package com.rhn.ai.application;
 
 import com.rhn.ai.api.ClinicalAssistantContracts.Draft;
+import com.rhn.ai.api.ClinicalAssistantContracts.TreatmentRecommendation;
+import com.rhn.ai.api.ClinicalAssistantContracts.ReceptionScene;
+import com.rhn.ai.api.ClinicalAssistantContracts.ReceptionSceneContext;
 import com.rhn.ai.api.ClinicalAssistantContracts.SuggestionContent;
 import com.rhn.diagnostics.api.DiagnosticReportResponse;
 import com.rhn.healthcore.api.AllergyDirectory;
@@ -14,6 +17,11 @@ import java.util.List;
 public interface ClinicalAiModelGateway {
     SuggestionContent analyze(ModelRequest request, ClinicalAssistantSettings runtimeSettings);
 
+    default SuggestionContent analyzeStreaming(ModelRequest request, ClinicalAssistantSettings runtimeSettings,
+                                              java.util.function.Consumer<String> onDelta) {
+        return analyze(request, runtimeSettings);
+    }
+
     record ModelRequest(
             String promptVersion,
             String question,
@@ -24,8 +32,31 @@ public interface ClinicalAiModelGateway {
             List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> availablePlans,
             List<DiagnosticReportResponse> diagnosticReports,
             List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory,
-            SuggestionContent priorSuggestion) {
+            SuggestionContent priorSuggestion,
+            ReceptionScene receptionScene,
+            ReceptionSceneContext receptionSceneContext,
+            String generationStage, List<TreatmentRecommendation> availableTreatments) {
+        public ModelRequest(String promptVersion, String question, String voiceTranscript, Draft draft,
+                            ResidentDirectory.ResidentSnapshot resident, List<AllergyDirectory.AllergySnapshot> allergies,
+                            List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> availablePlans,
+                            List<DiagnosticReportResponse> diagnosticReports,
+                            List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory,
+                            SuggestionContent priorSuggestion, ReceptionScene receptionScene, ReceptionSceneContext receptionSceneContext) {
+            this(promptVersion, question, voiceTranscript, draft, resident, allergies, availablePlans, diagnosticReports,
+                    clinicalHistory, priorSuggestion, receptionScene, receptionSceneContext, "RECORD_DIAGNOSIS", List.of());
+        }
+        public ModelRequest(String promptVersion, String question, String voiceTranscript, Draft draft,
+                            ResidentDirectory.ResidentSnapshot resident,
+                            List<AllergyDirectory.AllergySnapshot> allergies,
+                            List<OutpatientPlanTemplateDirectory.PlanTemplateSnapshot> availablePlans,
+                            List<DiagnosticReportResponse> diagnosticReports,
+                            List<OutpatientClinicalHistoryDirectory.EncounterHistorySnapshot> clinicalHistory,
+                            SuggestionContent priorSuggestion) {
+            this(promptVersion, question, voiceTranscript, draft, resident, allergies, availablePlans,
+                    diagnosticReports, clinicalHistory, priorSuggestion, null, null);
+        }
         public ModelRequest {
+            availableTreatments = availableTreatments == null ? List.of() : List.copyOf(availableTreatments);
             allergies = allergies == null ? List.of() : List.copyOf(allergies);
             availablePlans = availablePlans == null ? List.of() : List.copyOf(availablePlans);
             diagnosticReports = diagnosticReports == null ? List.of() : List.copyOf(diagnosticReports);

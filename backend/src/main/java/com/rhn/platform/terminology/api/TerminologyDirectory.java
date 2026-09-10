@@ -15,6 +15,8 @@ public interface TerminologyDirectory {
                                               LocalDate atDate);
     Optional<TerminologyConceptSnapshot> findConcept(Long tenantId, String codeSystemCode, String conceptCode,
                                                      LocalDate atDate);
+    Optional<TerminologyConceptSnapshot> findDiseaseByExactName(Long tenantId, String codeSystemCode,
+                                                               String name, LocalDate atDate);
     List<CodeSystemSnapshot> listCodeSystems();
     List<CodeSystemSnapshot> findCodeSystems(Collection<Long> ids);
     Optional<CodeSystemSnapshot> findCodeSystem(Long id);

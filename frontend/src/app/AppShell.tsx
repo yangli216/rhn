@@ -60,6 +60,8 @@ const CareManagementWorkspace = lazy(() => import('../features/care/CareManageme
   .then((module) => ({ default: module.CareManagementWorkspace })))
 const SchedulingWorkspace = lazy(() => import('../features/outpatient/SchedulingWorkspace')
   .then((module) => ({ default: module.SchedulingWorkspace })))
+const OutpatientTriageWorkspace = lazy(() => import('../features/outpatient/triage/OutpatientTriageWorkspace')
+  .then((module) => ({ default: module.OutpatientTriageWorkspace })))
 const OutpatientRegistrationWorkspace = lazy(() => import('../features/outpatient/RegistrationWorkspace')
   .then((module) => ({ default: module.OutpatientRegistrationWorkspace })))
 const RegistrationQueryWorkspace = lazy(() => import('../features/outpatient/RegistrationQueryWorkspace')
@@ -194,6 +196,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
     id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
+      { id: 'outpatient-triage', label: '预检分诊', icon: 'clinical', badge: '四级急慢', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-flow', label: '门诊流转', icon: 'clinical', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
@@ -336,6 +339,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'clinical', closeable: true }
   if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'clinical', closeable: true }
   if (pathname === '/care-management') return { id: pathname, path: pathname, title: '连续照护', icon: 'clinical', closeable: true }
+  if (pathname === '/outpatient/triage') return { id: pathname, path: pathname, title: '预检分诊', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
   if (pathname === '/outpatient/registration-query') return { id: pathname, path: pathname, title: '挂号查询', icon: 'search', closeable: true }
   if (pathname === '/outpatient/flow') return { id: pathname, path: pathname, title: '门诊流转', icon: 'clinical', closeable: true }
@@ -894,6 +898,8 @@ export function AppShell() {
                         && context.organizationId === organizationId && context.departmentId === departmentId)
                       if (selected) void switchWorkContext('CLINICAL', workContextKey(selected))
                     }} />} />
+                  <Route path="/outpatient/triage" element={<OutpatientTriageWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}

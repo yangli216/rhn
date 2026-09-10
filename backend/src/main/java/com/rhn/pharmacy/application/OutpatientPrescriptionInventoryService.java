@@ -202,7 +202,7 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                         si.baseUnitCode(),
                         pkgUnitName,
                         factor,
-                        medView.products()
+                        matchedProduct == null ? List.of() : List.of(matchedProduct)
                 ));
             }
         }

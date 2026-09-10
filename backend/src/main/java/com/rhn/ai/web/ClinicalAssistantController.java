@@ -38,10 +38,12 @@ import static com.rhn.shared.api.BusinessErrors.conflict;
 class ClinicalAssistantController {
     private final ClinicalAssistantApplicationService service;
     private final ClinicalPlanPreflightService planPreflightService;
+    private final com.rhn.shared.json.JsonCodec jsonCodec;
 
     ClinicalAssistantController(ClinicalAssistantApplicationService service,
-                                ClinicalPlanPreflightService planPreflightService) {
+                                ClinicalPlanPreflightService planPreflightService, com.rhn.shared.json.JsonCodec jsonCodec) {
         this.service = service;
+        this.jsonCodec = jsonCodec;
         this.planPreflightService = planPreflightService;
     }
 
@@ -54,6 +56,45 @@ class ClinicalAssistantController {
     @ResponseStatus(HttpStatus.CREATED)
     Suggestion generate(@PathVariable Long encounterId, @Valid @RequestBody GenerateRequest input) {
         return service.generate(encounterId, input);
+    }
+
+    @PostMapping(path = "/encounters/{encounterId}/suggestions/stream", produces = "text/event-stream")
+    void generateStream(@PathVariable Long encounterId, @Valid @RequestBody GenerateRequest input,
+                        jakarta.servlet.http.HttpServletRequest request,
+                        jakarta.servlet.http.HttpServletResponse response) throws IOException {
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-store");
+        response.setHeader("X-Accel-Buffering", "no");
+        try {
+            // Remain on the authenticated request thread. The service transaction commits before 'complete'.
+            Suggestion result = service.generate(encounterId, input,
+                    delta -> sendStreamEvent(response, "delta", java.util.Map.of("text", delta)));
+            sendStreamEvent(response, "complete", result);
+        } catch (RuntimeException exception) {
+            if (!response.isCommitted()) {
+                response.resetBuffer();
+                response.setContentType("application/json");
+                throw exception;
+            }
+            var error = exception instanceof com.rhn.shared.api.BusinessException value ? value : null;
+            sendStreamEvent(response, "error", java.util.Map.of(
+                    "code", error == null ? "AI_STREAM_FAILED" : error.code(),
+                    "message", error == null ? "生成中断，请重新整理。" : error.getMessage(),
+                    "correlationId", java.util.Objects.toString(request.getAttribute(
+                            com.rhn.platform.web.CorrelationIdFilter.ATTRIBUTE_NAME), "")));
+        }
+    }
+
+    private void sendStreamEvent(jakarta.servlet.http.HttpServletResponse response, String event, Object data) {
+        try {
+            var writer = response.getWriter();
+            writer.write("event: " + event + "\ndata: " + jsonCodec.write(data) + "\n\n");
+            writer.flush();
+            if (writer.checkError()) throw new IOException("Stream client disconnected");
+        } catch (IOException exception) {
+            throw new java.io.UncheckedIOException(exception);
+        }
     }
 
     @PostMapping(path = "/encounters/{encounterId}/transcriptions", consumes = "multipart/form-data")

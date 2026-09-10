@@ -156,6 +156,7 @@ public class ClinicalAiAdministrationService {
         body.put("model", model);
         body.put("messages", List.of(Map.of("role", "user", "content", "Hello, please respond with ok")));
         body.put("max_tokens", 10);
+        ClinicalAiRequestOptions.applyNonThinkingDefault(body, URI.create(endpoint), model);
 
         long start = System.nanoTime();
         try {

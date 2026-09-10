@@ -20,6 +20,7 @@ describe('UnifiedOrderListEditor', () => {
         code: 'ORAL', name: '口服', executionType: 'NONE',
       }]),
       services: vi.fn().mockResolvedValue([]),
+      searchServices: vi.fn().mockResolvedValue({ content: [] }),
       itemGroups: vi.fn().mockResolvedValue([]),
     },
   } as unknown as RhnApi
@@ -48,6 +49,79 @@ describe('UnifiedOrderListEditor', () => {
     registeredAt: '2026-09-02T10:00:00Z',
     diagnoses: [],
   }
+
+  it('rechecks multiple AI catalog selections and converts them directly to pending drafts', async () => {
+    const raw = { id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
+      sdStatus: 'ACTIVE', orderable: true, validFrom: '2020-01-01', prices: [], organizationAdoption: {
+        organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true } }
+    vi.mocked(mockApi.masterData.searchServices).mockResolvedValue({ content: [raw] } as never)
+    const consumed = vi.fn(), completed = vi.fn(), setServices = vi.fn(), setMedications = vi.fn()
+    renderComponent({ aiOrderReview: { id: 'review-1', encounterId: 'enc-1', items: [{
+      type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '模型名称', rationale: '评估病因' }],
+      onCompleted: completed },
+      onAiOrderReviewConsumed: consumed, setServiceDrafts: setServices, setMedicationDrafts: setMedications })
+    await waitFor(() => expect(consumed).toHaveBeenCalled())
+    expect(mockApi.masterData.searchServices).toHaveBeenCalledWith('LAB001', 'LABORATORY', 'ACTIVE', 'org-1', 0, 100)
+    expect(setServices).toHaveBeenCalledTimes(1)
+    expect(setServices.mock.calls[0][0]([])).toEqual([expect.objectContaining({
+      catalogItemId: 'lab-1', itemName: '血常规', quantity: 1, clinicalDescription: '评估病因',
+    })])
+    expect(setMedications).not.toHaveBeenCalled()
+    expect(completed).toHaveBeenCalledWith(['LABORATORY:lab-1'])
+    expect(screen.queryByDisplayValue('评估病因')).not.toBeInTheDocument()
+  })
+
+  it('rejects AI projects that are no longer orderable', async () => {
+    vi.mocked(mockApi.masterData.searchServices).mockResolvedValue({ content: [] } as never)
+    renderComponent({ aiOrderReview: { id: 'review-2', encounterId: 'enc-1', items: [{
+      type: 'LABORATORY', catalogItemId: 'missing', code: 'X', name: '不存在项目', rationale: '' }] } })
+    expect(await screen.findByText('不存在项目：已不在本次可用诊疗目录中')).toBeInTheDocument()
+    expect(screen.queryByDisplayValue('不存在项目')).not.toBeInTheDocument()
+  })
+
+  it('converts a medication with catalog defaults directly to an editable pending draft', async () => {
+    const medication = {
+      id: 'm-para', code: 'MED-PARA', name: '对乙酰氨基酚片', preparationSpec: '0.5g', preparationUnit: '片',
+      defaultDose: 0.5, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'QD',
+      sdMedicationType: 'WESTERN', availablePackageQuantity: 20, stockSiteName: '门诊药房', packageUnitName: '盒',
+      products: [{ id: 'product-para', code: 'P-PARA', name: '对乙酰氨基酚片 0.5g', manufacturerName: '示范制药',
+        unitCode: '片', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'package-para', unitCode: 'BOX', unitName: '盒', packageSpec: '0.5g*20片/盒',
+          quantityFactor: 20, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-para', packageId: 'package-para', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }],
+    }
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
+    const setMedications = vi.fn(), completed = vi.fn()
+    renderComponent({ setMedicationDrafts: setMedications, aiOrderReview: {
+      id: 'review-medication', encounterId: 'enc-1', items: [{ type: 'MEDICATION', medicationId: 'm-para',
+        catalogItemId: 'product-para', code: 'MED-PARA', name: '对乙酰氨基酚片', rationale: '退热' }],
+      onCompleted: completed,
+    } })
+    await waitFor(() => expect(completed).toHaveBeenCalledWith(['MEDICATION:product-para']))
+    expect(setMedications).toHaveBeenCalledTimes(1)
+    expect(setMedications.mock.calls[0][0]([])[0]).toMatchObject({
+      medicationName: '对乙酰氨基酚片', productName: '对乙酰氨基酚片 0.5g', unitPrice: 8.6,
+      request: { catalogItemId: 'product-para', doseValue: 0.5, doseUnit: 'g', routeCode: 'ORAL',
+        frequencyCode: 'QD', quantity: 1, quantityUnit: 'BOX' },
+    })
+    expect(screen.queryByDisplayValue('对乙酰氨基酚片')).not.toBeInTheDocument()
+  })
+
+  it('ignores a late catalog response after the editor unmounts', async () => {
+    let resolve!: (value: unknown) => void
+    vi.mocked(mockApi.masterData.searchServices).mockImplementation(() => new Promise((done) => { resolve = done }) as never)
+    const consumed = vi.fn()
+    const rendered = renderComponent({ aiOrderReview: { id: 'late', encounterId: 'enc-1', items: [{
+      type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '' }] }, onAiOrderReviewConsumed: consumed })
+    await waitFor(() => expect(mockApi.masterData.searchServices).toHaveBeenCalled())
+    rendered.unmount()
+    resolve({ content: [] })
+    await Promise.resolve()
+    expect(consumed).not.toHaveBeenCalled()
+  })
 
   const mockMedicationDraft: MedicationPlanDraft = {
     id: 'draft-med-1',

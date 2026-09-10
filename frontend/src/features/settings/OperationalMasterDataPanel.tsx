@@ -2488,21 +2488,139 @@ function GroupDialog({ api, value, services, organization, units, onClose, onSav
   </FormDialog>
 }
 
+function FrequencyConfigurationsDialog({
+  frequency, organization, departments, api, onClose, onSaveConfiguration, onError,
+}: {
+  frequency: OrderFrequency; organization: Organization; departments: Department[]; api: RhnApi
+  onClose: () => void; onSaveConfiguration: (config?: OrderFrequencyConfiguration) => (input: OrderFrequencyConfigurationInput) => Promise<void>
+  onError: (error: unknown) => void
+}) {
+  const [childDialog, setChildDialog] = useState<ReactNode>()
+  const [previewDepartmentId, setPreviewDepartmentId] = useState('')
+  const [previewStart, setPreviewStart] = useState(() => new Date().toISOString().slice(0, 16))
+  const [preview, setPreview] = useState<{ explanation: string; plannedTimes: string[] }>()
+
+  const runPreview = () => api.masterData.previewOrderFrequency(
+    frequency.code, organization.id, previewDepartmentId || undefined, previewStart ? `${previewStart}:00` : undefined, 8,
+  ).then(setPreview).catch(onError)
+
+  if (childDialog) return <>{childDialog}</>
+
+  const openForm = (config?: OrderFrequencyConfiguration) => {
+    setChildDialog(<FrequencyConfigurationDialog
+      frequency={frequency} value={config} organization={organization} departments={departments}
+      onClose={() => setChildDialog(undefined)}
+      onSave={(input) => {
+        return onSaveConfiguration(config)(input).then(() => {
+          setChildDialog(undefined)
+        })
+      }} />)
+  }
+
+  return <Dialog
+    title={`${frequency.name} · 机构/科室执行配置`}
+    eyebrow={`医嘱频次 · ${frequency.code}${frequency.shortName ? ` · ${frequency.shortName}` : ''}`}
+    size="xwide"
+    className="frequency-config-dialog"
+    onClose={onClose}
+    description={`科室配置优先于机构配置；未维护时继承主档默认执行时点（${frequency.defaultExecutionTimes.join('、') || '随医嘱/事件'}）。`}
+    footer={<Button variant="secondary" onClick={onClose}>关闭</Button>}>
+    <div className="frequency-config-dialog__toolbar">
+      <div>
+        <h4>执行配置列表 ({frequency.configurations.length})</h4>
+        <p>支持按不同科室或院区维护差异化执行时间点与首日执行策略。</p>
+      </div>
+      <Button onClick={() => openForm()}><Icon name="add" />新增执行配置</Button>
+    </div>
+    <div className="frequency-config-dialog__content">
+      {!frequency.configurations.length ? (
+        <EmptyState
+          icon="clinical"
+          title="当前频次暂无局部配置"
+          copy={`当前机构各科室统一继承主档默认执行时点：${frequency.defaultExecutionTimes.join('、') || '随医嘱开始时间'}`}
+          action={<Button size="sm" onClick={() => openForm()}><Icon name="add" />立即新增执行配置</Button>}
+        />
+      ) : (
+        <TableShell scrollClassName="master-data-table-wrap">
+          <UiDataTable className="master-data-table">
+            <thead>
+              <tr>
+                <th>作用范围</th>
+                <th>本地显示</th>
+                <th>执行时点</th>
+                <th>首日策略</th>
+                <th>启用状态</th>
+                <th>有效期</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {frequency.configurations.map((config, index) => (
+                <tr key={index}>
+                  <td>
+                    <strong>
+                      {config.departmentId
+                        ? departments.find((item) => item.id === config.departmentId)?.name ?? config.departmentId
+                        : `${organization.name} (机构级)`}
+                    </strong>
+                  </td>
+                  <td>
+                    <span>{config.localName || frequency.name}<small>{config.localCode || frequency.code}</small></span>
+                  </td>
+                  <td>
+                    <strong>{config.executionTimes.join('、') || `继承主档: ${frequency.defaultExecutionTimes.join('、') || '无固定时点'}`}</strong>
+                  </td>
+                  <td>{firstDayPolicyLabel(config.firstDayPolicy)}</td>
+                  <td>
+                    <StatusBadge tone={config.enabled ? 'success' : 'neutral'}>
+                      {config.enabled ? '启用' : '禁用'}
+                    </StatusBadge>
+                  </td>
+                  <td>{`${config.validFrom} 至 ${config.validTo || '长期'}`}</td>
+                  <td>
+                    <Button size="sm" variant="text" onClick={() => openForm(config)}>编辑</Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </UiDataTable>
+        </TableShell>
+      )}
+
+      <div className="frequency-preview">
+        <strong>本频次执行排程试算</strong>
+        <Select
+          value={previewDepartmentId}
+          onChange={setPreviewDepartmentId}
+          placeholder={`机构级配置 (${organization.name})`}
+          showValue
+          options={departments.filter((item) => item.sdOrgStatus === 'ACTIVE').map((item) => ({
+            value: item.id,
+            label: item.name,
+            secondaryText: item.code,
+          }))}
+        />
+        <input
+          type="datetime-local"
+          value={previewStart}
+          onChange={(event) => setPreviewStart(event.target.value)}
+        />
+        <Button variant="secondary" onClick={runPreview}>试算 8 个时点</Button>
+        {preview && (
+          <output>
+            <span>{preview.explanation}</span>
+            <strong>{preview.plannedTimes.length ? preview.plannedTimes.map(formatDateTime).join(' · ') : '无固定执行时点'}</strong>
+          </output>
+        )}
+      </div>
+    </div>
+  </Dialog>
+}
+
 function FrequencyWorkspace({ api, organization, departments, values, loading, onDialog, onDone, onError }: {
   api: RhnApi; organization: Organization; departments: Department[]; values: OrderFrequency[]; loading: boolean
   onDialog: (value?: ReactNode) => void; onDone: (message: string) => Promise<void>; onError: (error: unknown) => void
 }) {
-  const [selectedId, setSelectedId] = useState('')
-  const [previewCode, setPreviewCode] = useState('')
-  const [previewDepartmentId, setPreviewDepartmentId] = useState('')
-  const [previewStart, setPreviewStart] = useState(() => new Date().toISOString().slice(0, 16))
-  const [preview, setPreview] = useState<{ explanation: string; plannedTimes: string[] }>()
-  useEffect(() => {
-    if (!values.length) { setSelectedId(''); setPreviewCode(''); return }
-    if (!values.some((value) => value.id === selectedId)) setSelectedId(values[0].id)
-    if (!values.some((value) => value.code === previewCode)) setPreviewCode(values[0].code)
-  }, [previewCode, selectedId, values])
-  const selected = values.find((value) => value.id === selectedId)
   const saveFrequency = (value?: OrderFrequency) => (input: OrderFrequencyInput) =>
     (value ? api.masterData.updateOrderFrequency(value, input) : api.masterData.createOrderFrequency(input))
       .then(() => onDone(value ? '医嘱频次已更新' : '医嘱频次已新增')).catch(onError)
@@ -2511,56 +2629,70 @@ function FrequencyWorkspace({ api, organization, departments, values, loading, o
       ? api.masterData.updateOrderFrequencyConfiguration(frequency.id, value, input)
       : api.masterData.createOrderFrequencyConfiguration(frequency.id, input))
       .then(() => onDone(value ? '执行时间配置已更新' : '执行时间配置已新增')).catch(onError)
-  const runPreview = () => api.masterData.previewOrderFrequency(previewCode, organization.id,
-    previewDepartmentId || undefined, previewStart ? `${previewStart}:00` : undefined, 8)
-    .then(setPreview).catch(onError)
+
+  const openConfigurations = (frequency: OrderFrequency) => {
+    onDialog(<FrequencyConfigurationsDialog
+      frequency={frequency}
+      organization={organization}
+      departments={departments}
+      api={api}
+      onClose={() => onDialog(undefined)}
+      onSaveConfiguration={(config) => saveConfiguration(frequency, config)}
+      onError={onError}
+    />)
+  }
+
   return <section className="operational-master-data__body frequency-workspace">
-    <div className="operational-master-data__toolbar"><div><h3>医嘱频次主档</h3>
-      <p>稳定编码承载医嘱语义，机构和科室只维护本地名称、启停与标准执行时间。</p></div>
+    <div className="operational-master-data__toolbar">
+      <div>
+        <h3>医嘱频次主档</h3>
+        <p>稳定编码承载医嘱语义，机构和科室只维护本地名称、启停与标准执行时间。</p>
+      </div>
       <Button onClick={() => onDialog(<FrequencyDialog onClose={() => onDialog(undefined)} onSave={saveFrequency()} />)}>
-        <Icon name="add" />新增频次</Button></div>
+        <Icon name="add" />新增频次
+      </Button>
+    </div>
     {loading ? <LoadingState label="正在加载医嘱频次…" /> : !values.length
       ? <EmptyState icon="clinical" title="暂无医嘱频次" copy="请先建立频次规则，再配置机构执行时点。" />
-      : <><DataTable headers={['频次', '规则语义', '适用范围', '默认执行时点', '机构配置', '状态', '操作']} rows={values.map((value) => [
-        <b>{value.name}<code>{value.code}{value.shortName ? ` · ${value.shortName}` : ''}</code></b>,
-        <span>{frequencyRuleLabel(value)}<small>{value.automaticTaskGeneration ? '自动生成执行任务' : '不预生成固定任务'}</small></span>,
-        frequencyApplicabilityLabel(value), value.defaultExecutionTimes.join('、') || '随医嘱/事件',
-        `${value.configurations.length} 条`, <State value={value.status} />,
-        <div className="master-data-row-actions"><Button size="sm" variant="text" onClick={() => setSelectedId(value.id)}>执行配置</Button>
-          <Button size="sm" variant="text" onClick={() => onDialog(<FrequencyDialog value={value}
-            onClose={() => onDialog(undefined)} onSave={saveFrequency(value)} />)}>编辑</Button></div>,
-      ])} />
-      {selected && <div className="frequency-workspace__details">
-        <div className="section-heading"><div><h4>{selected.name} · 机构/科室执行配置</h4>
-          <p>科室配置优先于机构配置；未维护时继承主档默认执行时点。</p></div>
-          <Button onClick={() => onDialog(<FrequencyConfigurationDialog frequency={selected}
-            organization={organization} departments={departments} onClose={() => onDialog(undefined)}
-            onSave={saveConfiguration(selected)} />)}><Icon name="add" />新增执行配置</Button></div>
-        {!selected.configurations.length ? <EmptyState icon="clinical" title="当前频次暂无局部配置"
-          copy={`当前机构将使用主档默认值：${selected.defaultExecutionTimes.join('、') || '随医嘱开始时间'}`} />
-          : <DataTable headers={['作用范围', '本地显示', '执行时点', '首日策略', '启用', '有效期', '操作']}
-            rows={selected.configurations.map((config) => [
-              config.departmentId ? departments.find((item) => item.id === config.departmentId)?.name ?? config.departmentId : organization.name,
-              <span>{config.localName || selected.name}<small>{config.localCode || selected.code}</small></span>,
-              config.executionTimes.join('、') || `继承：${selected.defaultExecutionTimes.join('、') || '无固定时点'}`,
-              firstDayPolicyLabel(config.firstDayPolicy), config.enabled ? '启用' : '禁用',
-              `${config.validFrom} 至 ${config.validTo || '长期'}`,
-              <Button size="sm" variant="text" onClick={() => onDialog(<FrequencyConfigurationDialog
-                frequency={selected} value={config} organization={organization} departments={departments}
-                onClose={() => onDialog(undefined)} onSave={saveConfiguration(selected, config)} />)}>编辑</Button>,
-            ])} />}
-      </div>}
-      <div className="frequency-preview"><strong>执行排程试算</strong>
-        <Select value={previewCode} onChange={setPreviewCode} showValue options={values.filter((value) => value.status === 'ACTIVE')
-          .map((value) => ({ value: value.code, label: value.name, secondaryText: value.code }))} />
-        <Select value={previewDepartmentId} onChange={setPreviewDepartmentId} placeholder="机构级配置" showValue
-          options={departments.filter((value) => value.sdOrgStatus === 'ACTIVE')
-            .map((value) => ({ value: value.id, label: value.name, secondaryText: value.code }))} />
-        <input type="datetime-local" value={previewStart} onChange={(event) => setPreviewStart(event.target.value)} />
-        <Button variant="secondary" disabled={!previewCode} onClick={runPreview}>生成 8 个时点</Button>
-        {preview && <output><span>{preview.explanation}</span>
-          <strong>{preview.plannedTimes.length ? preview.plannedTimes.map(formatDateTime).join(' · ') : '无固定执行时点'}</strong></output>}
-      </div></>}
+      : <TableShell scrollClassName="master-data-table-wrap">
+          <UiDataTable className="master-data-table">
+            <thead>
+              <tr>
+                <th>频次</th>
+                <th>规则语义</th>
+                <th>适用范围</th>
+                <th>默认执行时点</th>
+                <th>机构配置</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {values.map((value) => (
+                <tr key={value.id}>
+                  <td><b>{value.name}<code>{value.code}{value.shortName ? ` · ${value.shortName}` : ''}</code></b></td>
+                  <td><span>{frequencyRuleLabel(value)}<small>{value.automaticTaskGeneration ? '自动生成执行任务' : '不预生成固定任务'}</small></span></td>
+                  <td>{frequencyApplicabilityLabel(value)}</td>
+                  <td>{value.defaultExecutionTimes.join('、') || '随医嘱/事件'}</td>
+                  <td>
+                    <Button size="sm" variant="text" onClick={() => openConfigurations(value)}>
+                      {value.configurations.length} 条配置
+                    </Button>
+                  </td>
+                  <td><State value={value.status} /></td>
+                  <td>
+                    <div className="master-data-row-actions">
+                      <Button size="sm" variant="text" onClick={() => openConfigurations(value)}>执行配置</Button>
+                      <Button size="sm" variant="text" onClick={() => onDialog(<FrequencyDialog value={value}
+                        onClose={() => onDialog(undefined)} onSave={saveFrequency(value)} />)}>编辑</Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </UiDataTable>
+        </TableShell>
+    }
   </section>
 }
 

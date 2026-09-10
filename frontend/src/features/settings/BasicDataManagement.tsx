@@ -48,6 +48,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const [tab, setTab] = useState<Tab>('disease')
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
+  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product'>('knowledge')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -178,10 +179,18 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           { value: 'terms', label: '疾病术语' },
           { value: 'management', label: '管理分类与规则' },
         ]} />}
+      {tab === 'medication' && <Tabs value={medicationMode} onChange={setMedicationMode} label="药品目录视图"
+        variant="line" className="medication-management-mode" items={[
+          { value: 'knowledge', label: '基本信息视角', meta: '通用知识 · 剂型规格 · 默认用法' },
+          { value: 'product', label: '产品信息视角', meta: '厂家产品 · 包装规格 · 批准文号' },
+        ]} />}
       {tab !== 'attribute' && tab !== 'operations' && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
           placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
-            : tab === 'disease' ? '名称、别名、编码或检索码' : tab === 'service' ? '项目名称、编码或分类' : '通用名、别名、剂型或编码'} />
+            : tab === 'disease' ? '名称、别名、编码或检索码'
+            : tab === 'service' ? '项目名称、编码或分类'
+            : medicationMode === 'product' ? '产品名、生产厂家、批准文号或通用名'
+            : '通用名、别名、剂型或编码'} />
         <Select value={typeFilter} onChange={setTypeFilter} showValue placeholder="全部类型" options={typeOptions} />
         <Select value={statusFilter} onChange={setStatusFilter} showValue placeholder="全部状态"
           options={options(dictionaries.data, 'BD_MASTER_STATUS')} />
@@ -244,6 +253,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           onClose={() => setDialog(undefined)} />)} />}
       {tab === 'medication' && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
+        mode={medicationMode} onModeChange={setMedicationMode}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
         onEdit={(value) => setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
           routes={routes.data ?? []} value={value}
@@ -511,53 +521,289 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
   </Table>
 }
 
-function MedicationTable({ values, loading, pagination, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage }: {
-  values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
+export function MedicationTable({ values, loading, pagination, mode = 'knowledge', onModeChange, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage }: {
+  values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode;
+  mode?: 'knowledge' | 'product';
+  onModeChange?: (mode: 'knowledge' | 'product') => void;
+  routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
   onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
-  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void }) {
+  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void
+}) {
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
-  return <TableShell className="master-data-list-shell" scrollClassName="medication-list" footer={pagination}>
-    {values.map((value) => <article className="medication-card" key={value.id}>
-    <header><div className="medication-card__title"><strong>{value.name}</strong><code>{value.code}</code></div>
-      <div className="medication-card__meta">
-        <StatusBadge>{value.sdMedicationTypeText}</StatusBadge><StatusBadge>{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
-        <DataStatus value={value.sdStatus} text={value.sdStatusText} /></div>
-      <div className="medication-card__summary">{medicationSummary(value, routes, frequencies).map((item) =>
-        <span key={item.label}>{item.label}<strong>{item.value}</strong></span>)}</div>
-      <RowActions>
-        <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
-        <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
-        <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
-        <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>新增厂家产品</Button></RowActions></header>
-    {!value.products.length ? <div className="medication-empty">暂无厂家产品，通用药品知识已建立，可通过右上角“新增厂家产品”建档。</div>
-      : <Table compact headers={['产品 / 厂家', '批准文号', '包装规格', '中心状态', '操作']}>
-        {value.products.map((product) => <tr key={product.id}><td className="medication-product"><strong>{product.name}</strong>
-          {product.manufacturerName && <small>{product.manufacturerName}</small>}</td>
-          <td>{product.approvalCode || '—'}</td>
-          <td><PackageChips product={product} onEdit={(item) => onEditPackage(item, product, value)} /></td>
-          <td><DataStatus value={product.sdStatus} text={product.sdStatusText} /></td><td><RowActions>
-            <Button size="sm" variant="text" onClick={() => onEditProduct(product, value)}>编辑</Button>
-            <Button size="sm" variant="text" onClick={() => onPackage(product, value)}>加包装</Button>
-          </RowActions></td></tr>)}</Table>}
-  </article>)}</TableShell>
+
+  if (mode === 'product') {
+    return <MedicationProductTable
+      values={values}
+      pagination={pagination}
+      onModeChange={onModeChange}
+      onProduct={onProduct}
+      onEditProduct={onEditProduct}
+      onPackage={onPackage}
+      onEditPackage={onEditPackage}
+    />
+  }
+
+  return <MedicationKnowledgeTable
+    values={values}
+    pagination={pagination}
+    routes={routes}
+    frequencies={frequencies}
+    onModeChange={onModeChange}
+    onEdit={onEdit}
+    onAttributes={onAttributes}
+    onMappings={onMappings}
+    onProduct={onProduct}
+  />
 }
 
-function medicationSummary(value: MedicationKnowledge, routes: MedicationRoute[], frequencies: ActiveOrderFrequency[]) {
+export function MedicationKnowledgeTable({ values, pagination, routes, frequencies, onModeChange, onEdit, onAttributes, onMappings, onProduct }: {
+  values: MedicationKnowledge[]; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
+  onModeChange?: (mode: 'knowledge' | 'product') => void;
+  onEdit: (value: MedicationKnowledge) => void;
+  onAttributes: (value: MedicationKnowledge) => void;
+  onMappings: (value: MedicationKnowledge) => void;
+  onProduct: (value: MedicationKnowledge) => void;
+}) {
+  return <Table
+    headers={['药品通用名 / 编码', '分类与剂型', '规格与含量', '默认用法', '安全监管', '厂家产品', '状态', '操作']}
+    footer={pagination}
+    className="medication-knowledge-table">
+    {values.map((value) => {
+      const herbal = value.sdMedicationType === 'HERBAL'
+      const vaccine = value.sdMedicationType === 'VACCINE'
+      const routeName = value.defaultRoute
+        ? routes.find((route) => route.code === value.defaultRoute)?.name ?? value.defaultRoute : undefined
+      const frequencyName = value.defaultFrequency
+        ? frequencies.find((frequency) => frequency.code === value.defaultFrequency)?.name ?? value.defaultFrequency : undefined
+      const storageText = formatStorageType(value.sdStorageTypeText, value.sdStorageType)
+
+      const specText = [value.preparationSpec, storageText].filter(Boolean).join(' · ') || '—'
+      const strengthText = herbal ? (value.preparationUnit || '—')
+        : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}`.trim() : '—'
+
+      const usageDose = value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`
+      const usageRouteFreq = [routeName, vaccine ? undefined : frequencyName].filter(Boolean).join(' · ')
+
+      const safetyTags = [
+        value.prescriptionDrug && { label: '处方药', tone: 'warning' as const },
+        value.essentialDrug && { label: '基药', tone: 'success' as const },
+        value.antimicrobial && { label: value.sdAntimicrobialLevelText || '抗菌药', tone: 'danger' as const },
+        value.skinTestRequired && { label: '需皮试', tone: 'danger' as const },
+        value.chronicDiseaseDrug && { label: '慢病', tone: 'info' as const },
+        !value.singleOrder && { label: '仅组合', tone: 'neutral' as const },
+      ].filter(Boolean) as Array<{ label: string; tone: 'warning' | 'success' | 'danger' | 'info' | 'neutral' }>
+
+      return <tr key={value.id} className="medication-knowledge-row">
+        <td className="medication-col-name">
+          <div className="medication-name-wrap">
+            <strong className="medication-item-name" title={`药品编码: ${value.code}`}>{value.name}</strong>
+            <code className="medication-code-tag">{value.code}</code>
+          </div>
+        </td>
+
+        <td className="medication-col-type">
+          <div className="medication-type-wrap">
+            <StatusBadge tone={value.sdMedicationType === 'WESTERN' ? 'info' : value.sdMedicationType === 'HERBAL' ? 'success' : 'neutral'}>
+              {value.sdMedicationTypeText}
+            </StatusBadge>
+            <StatusBadge tone="neutral">{value.sdDoseFormText || '未维护剂型'}</StatusBadge>
+          </div>
+        </td>
+
+        <td className="medication-col-spec">
+          <div className="medication-spec-wrap">
+            <strong title={specText}>{specText}</strong>
+            {strengthText !== '—' && <small title={`含量/单位: ${strengthText}`}>{strengthText}</small>}
+          </div>
+        </td>
+
+        <td className="medication-col-usage">
+          <div className="medication-usage-wrap">
+            <strong>{usageDose || '未设默认剂量'}</strong>
+            <small>{usageRouteFreq || '未设途径频次'}</small>
+          </div>
+        </td>
+
+        <td className="medication-col-safety">
+          <div className="medication-safety-tags">
+            {safetyTags.length ? safetyTags.map((tag) => (
+              <StatusBadge key={tag.label} tone={tag.tone}>{tag.label}</StatusBadge>
+            )) : <small className="medication-safety-normal">普通</small>}
+          </div>
+        </td>
+
+        <td className="medication-col-products">
+          <div className="medication-product-summary-cell">
+            {value.products.length > 0 ? (
+              <button
+                type="button"
+                className="medication-product-count-chip"
+                onClick={() => onModeChange?.('product')}
+                title="点击切换至产品信息视角，查看该药品的厂家产品与包装规格">
+                {value.products.length} 个产品 ›
+              </button>
+            ) : (
+              <span className="medication-product-empty-chip">未建档</span>
+            )}
+            <Button
+              size="sm"
+              variant="text"
+              className="medication-quick-add-btn"
+              onClick={() => onProduct(value)}
+              title="为该通用药品新增厂家产品">
+              +产品
+            </Button>
+          </div>
+        </td>
+
+        <td className="medication-col-status">
+          <DataStatus value={value.sdStatus} text={value.sdStatusText} />
+        </td>
+
+        <td className="medication-col-actions">
+          <RowActions>
+            <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
+            <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
+            <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
+            <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>加产品</Button>
+          </RowActions>
+        </td>
+      </tr>
+    })}
+  </Table>
+}
+
+export function MedicationProductTable({ values, pagination, onModeChange, onProduct, onEditProduct, onPackage, onEditPackage }: {
+  values: MedicationKnowledge[]; pagination: ReactNode;
+  onModeChange?: (mode: 'knowledge' | 'product') => void;
+  onProduct: (value: MedicationKnowledge) => void;
+  onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
+  onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
+  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void
+}) {
+  const productEntries = values.flatMap((medication) =>
+    medication.products.map((product) => ({ product, medication }))
+  )
+  const unmappedMedications = values.filter((m) => m.products.length === 0)
+
+  if (productEntries.length === 0) {
+    return (
+      <TableShell scrollClassName="master-data-table-wrap" footer={pagination}>
+        <EmptyState
+          icon="pharmacy"
+          title="当前页通用药品暂无厂家产品"
+          copy={`当前页共 ${values.length} 种通用药品知识，均尚未建档具体生产企业与批准文号产品。`}
+          action={
+            <div className="medication-empty-actions">
+              <Button onClick={() => onModeChange?.('knowledge')}>返回基本信息视角</Button>
+              {values[0] && (
+                <Button variant="secondary" onClick={() => onProduct(values[0])}>
+                  为「{values[0].name}」新增产品
+                </Button>
+              )}
+            </div>
+          }
+        />
+      </TableShell>
+    )
+  }
+
+  return (
+    <>
+      <Table
+        headers={['厂家产品 / 生产企业', '所属通用药品', '剂型规格 / 含量', '批准文号', '包装规格与换算', '中心状态', '操作']}
+        footer={pagination}
+        className="medication-product-table">
+        {productEntries.map(({ product, medication }) => (
+          <tr key={product.id} className="medication-product-row">
+            <td className="medication-col-product">
+              <div className="medication-product-info">
+                <strong className="medication-product-title">{product.name}</strong>
+                <small className="medication-manufacturer-name">
+                  {product.manufacturerName || '未关联生产企业'}
+                </small>
+              </div>
+            </td>
+
+            <td className="medication-col-parent">
+              <div className="medication-parent-info">
+                <strong className="medication-parent-name" title={`所属通用名: ${medication.name}`}>
+                  {medication.name}
+                </strong>
+                <div className="medication-parent-meta">
+                  <code>{medication.code}</code>
+                  <span> · {medication.sdMedicationTypeText}</span>
+                </div>
+              </div>
+            </td>
+
+            <td className="medication-col-formspec">
+              <div className="medication-formspec-info">
+                <strong>{medication.sdDoseFormText || '未设剂型'}{medication.preparationSpec ? ` · ${medication.preparationSpec}` : ''}</strong>
+                {medication.strengthValue && (
+                  <small>{`${medication.strengthValue} ${medication.strengthUnit || ''}`.trim()}</small>
+                )}
+              </div>
+            </td>
+
+            <td className="medication-col-approval">
+              {product.approvalCode ? (
+                <code className="medication-approval-code" title={product.approvalCode}>{product.approvalCode}</code>
+              ) : (
+                <span className="medication-empty-text">—</span>
+              )}
+            </td>
+
+            <td className="medication-col-packages">
+              <PackageChips product={product} onEdit={(item) => onEditPackage(item, product, medication)} />
+            </td>
+
+            <td className="medication-col-status">
+              <DataStatus value={product.sdStatus} text={product.sdStatusText} />
+            </td>
+
+            <td className="medication-col-actions">
+              <RowActions>
+                <Button size="sm" variant="text" onClick={() => onEditProduct(product, medication)}>编辑产品</Button>
+                <Button size="sm" variant="text" onClick={() => onPackage(product, medication)}>加包装</Button>
+              </RowActions>
+            </td>
+          </tr>
+        ))}
+      </Table>
+
+      {unmappedMedications.length > 0 && (
+        <div className="medication-unmapped-banner">
+          <div className="medication-unmapped-text">
+            <span>当前页还有 <strong>{unmappedMedications.length}</strong> 个通用药品尚未建档厂家产品：</span>
+            <small>{unmappedMedications.slice(0, 4).map((m) => m.name).join('、')}{unmappedMedications.length > 4 ? ' 等' : ''}</small>
+          </div>
+          <Button size="sm" variant="secondary" onClick={() => onModeChange?.('knowledge')}>
+            前往基本信息视角查看与建档
+          </Button>
+        </div>
+      )}
+    </>
+  )
+}
+
+export function medicationSummary(value: MedicationKnowledge, routes: MedicationRoute[], frequencies: ActiveOrderFrequency[]) {
   const herbal = value.sdMedicationType === 'HERBAL'
   const vaccine = value.sdMedicationType === 'VACCINE'
   const routeName = value.defaultRoute
     ? routes.find((route) => route.code === value.defaultRoute)?.name ?? value.defaultRoute : undefined
   const frequencyName = value.defaultFrequency
     ? frequencies.find((frequency) => frequency.code === value.defaultFrequency)?.name ?? value.defaultFrequency : undefined
+  const storageText = formatStorageType(value.sdStorageTypeText, value.sdStorageType)
   return [
     { label: herbal ? '炮制规格' : vaccine ? '剂量规格' : '规格',
-      value: [value.preparationSpec, value.sdStorageTypeText].filter(Boolean).join(' · ') || '—' },
+      value: [value.preparationSpec, storageText].filter(Boolean).join(' · ') || '—' },
     { label: herbal ? '调剂单位' : vaccine ? '每剂含量' : '含量',
       value: herbal ? (value.preparationUnit || '—')
         : value.strengthValue ? `${value.strengthValue} ${value.strengthUnit || ''}`.trim() : '—' },
@@ -569,6 +815,52 @@ function medicationSummary(value: MedicationKnowledge, routes: MedicationRoute[]
         value.antimicrobial && (value.sdAntimicrobialLevelText || '抗菌药'), value.skinTestRequired && '需皮试',
         value.chronicDiseaseDrug && '慢病用药', !value.singleOrder && '仅组合使用'].filter(Boolean).join(' · ') || '普通' },
   ]
+}
+
+const storageTypeLabelMap: Record<string, string> = {
+  NORMAL: '常温',
+  ROOM_TEMPERATURE: '常温',
+  COLD_CHAIN: '冷链',
+  COOL: '阴凉',
+  COOL_DARK: '凉暗',
+  REFRIGERATED: '冷藏',
+  FROZEN: '冷冻',
+  DRY: '干燥',
+  DARK: '避光',
+}
+
+function formatStorageType(text?: string | null, code?: string | null): string | undefined {
+  if (text && storageTypeLabelMap[text]) {
+    return storageTypeLabelMap[text]
+  }
+  if (text && text !== code) {
+    return text
+  }
+  if (code && storageTypeLabelMap[code]) {
+    return storageTypeLabelMap[code]
+  }
+  return text || code || undefined
+}
+
+function ensureStorageTypeValues(values: DictionaryValue[] = []): DictionaryValue[] {
+  const existingCodes = new Set(values.map((v) => v.code))
+  const additions: DictionaryValue[] = [
+    { code: 'ROOM_TEMPERATURE', name: '常温', sortOrder: 10, attributes: {} },
+    { code: 'COLD_CHAIN', name: '冷链', sortOrder: 20, attributes: {} },
+    { code: 'COOL', name: '阴凉', sortOrder: 30, attributes: {} },
+    { code: 'REFRIGERATED', name: '冷藏', sortOrder: 40, attributes: {} },
+    { code: 'FROZEN', name: '冷冻', sortOrder: 50, attributes: {} },
+    { code: 'DRY', name: '干燥', sortOrder: 60, attributes: {} },
+    { code: 'COOL_DARK', name: '凉暗', sortOrder: 70, attributes: {} },
+    { code: 'DARK', name: '避光', sortOrder: 80, attributes: {} },
+  ]
+  const merged = [...values]
+  for (const item of additions) {
+    if (!existingCodes.has(item.code)) {
+      merged.push(item)
+    }
+  }
+  return merged.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
 }
 
 function PackageChips({ product, onEdit }: { product: MedicationProduct; onEdit?: (value: ItemPackage) => void }) {
@@ -1739,8 +2031,9 @@ function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, o
           value={defaultFrequency} onChange={setDefaultFrequency} showValue placeholder="请选择医嘱频次"
           options={frequencies.map((frequency) => ({ value: frequency.code, label: frequency.name,
             secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}` }))} /></FormField>}
-        <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'} values={dictionaries.BD_STORAGE_TYPE}
-          defaultValue={value?.sdStorageType} required={false} />
+        <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'}
+          values={ensureStorageTypeValues(dictionaries.BD_STORAGE_TYPE)}
+          defaultValue={value?.sdStorageType === 'NORMAL' ? 'ROOM_TEMPERATURE' : value?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
           defaultValue={value?.defaultDose} placeholder="如 0.5" /></FormField>
         <FormField label="默认剂量单位"><input name="defaultDoseUnit" defaultValue={value?.defaultDoseUnit}

@@ -15,6 +15,7 @@ const waitingRegistration: ReceptionQueueItem = {
   registrationNo: 'REG001', ticketNo: 'A001', sequenceNo: 1, priority: 0, registrationSource: 'WINDOW',
   visitType: 'GENERAL', registrationStatus: 'REGISTERED', status: 'WAITING', practitionerName: '李医生',
   serviceName: '全科门诊', locationName: '诊室 1', registeredAt: '2026-08-31T01:30:00Z',
+  registeredByName: '张护士', departmentName: '全科医疗科', sdDayPartText: '上午门诊',
 }
 
 const completedRegistration: ReceptionQueueItem = {
@@ -120,7 +121,7 @@ describe('RegistrationQueryWorkspace', () => {
       dateFrom: '2026-08-28', dateTo: '2026-08-28', page: 0,
     })))
 
-    await userEvent.type(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'), 'REG002')
+    await userEvent.type(screen.getByPlaceholderText('姓名、档案号、挂号单、候诊号、科室或挂号员'), 'REG002')
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
     await waitFor(() => expect(api.scheduling.receptionPage).toHaveBeenCalledWith(expect.objectContaining({
       query: 'REG002', page: 0,
@@ -128,7 +129,7 @@ describe('RegistrationQueryWorkspace', () => {
     expect(screen.queryByText('REG001')).not.toBeInTheDocument()
     expect(screen.getByText('REG002')).toBeInTheDocument()
 
-    await userEvent.clear(screen.getByPlaceholderText('姓名、档案号、挂号单或候诊号'))
+    await userEvent.clear(screen.getByPlaceholderText('姓名、档案号、挂号单、候诊号、科室或挂号员'))
     await userEvent.click(screen.getByRole('button', { name: '查询' }))
     await userEvent.click(await screen.findByRole('button', { name: '查看就诊' }))
     expect(onNavigate).toHaveBeenCalledWith(
@@ -156,5 +157,18 @@ describe('RegistrationQueryWorkspace', () => {
     })))
     expect(await screen.findByText(/退号完成，候诊资格已关闭/)).toBeInTheDocument()
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['outpatient-registrations'] })
+  })
+
+  it('displays registration date, time, operator, department, and source label', async () => {
+    const api = apiWithPage([waitingRegistration])
+    renderWorkspace(api)
+
+    expect(await screen.findByText('张三')).toBeInTheDocument()
+    expect(screen.getByText('张护士')).toBeInTheDocument()
+    expect(screen.getByText('经办登记')).toBeInTheDocument()
+    expect(screen.getByText('全科医疗科')).toBeInTheDocument()
+    expect(screen.getByText('上午门诊')).toBeInTheDocument()
+    expect(screen.getByText(/窗口挂号/)).toBeInTheDocument()
+    expect(screen.getByText('2026-08-31')).toBeInTheDocument()
   })
 })

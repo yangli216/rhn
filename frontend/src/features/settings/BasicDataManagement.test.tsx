@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ServiceCatalogItem } from '../../shared/rhnApi'
 import {
   ServiceTable,
+  MedicationTable,
   serviceSubtypeLabel,
   serviceDuplicateRuleLabel,
   serviceTypeTone,
@@ -232,5 +233,201 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getAllByText('收费').length).toBe(3)
     expect(screen.getAllByText('单开').length).toBe(2)
     expect(screen.getByText('组合')).toBeInTheDocument()
+  })
+
+  it('renders MedicationTable in knowledge mode with 8-column clinical master data', async () => {
+    const handleModeChange = vi.fn()
+    const handleEdit = vi.fn()
+    const handleProduct = vi.fn()
+
+    const mockMedications = [
+      {
+        id: 'med-001',
+        revision: 1,
+        itemTypeId: 'type-med',
+        code: 'MED-2026-W001',
+        name: '阿莫西林胶囊',
+        sdMedicationType: 'WESTERN',
+        sdMedicationTypeText: '西药',
+        sdDoseForm: 'CAPSULE',
+        sdDoseFormText: '胶囊剂',
+        preparationSpec: '0.25g',
+        strengthValue: 0.25,
+        strengthUnit: 'g',
+        sdStorageType: 'NORMAL',
+        sdStorageTypeText: '常温',
+        prescriptionDrug: true,
+        essentialDrug: true,
+        antimicrobial: true,
+        sdAntimicrobialLevelText: '非限制级',
+        skinTestRequired: true,
+        chronicDiseaseDrug: false,
+        singleOrder: true,
+        defaultDose: 0.5,
+        defaultDoseUnit: 'g',
+        defaultRoute: 'ORAL',
+        defaultFrequency: 'TID',
+        sdStatus: 'ACTIVE' as const,
+        sdStatusText: '有效',
+        products: [
+          {
+            id: 'prod-001',
+            revision: 1,
+            code: 'PROD-001',
+            name: '阿莫西林胶囊(严迪)',
+            manufacturerName: '哈药集团制药总厂',
+            approvalCode: '国药准字H23021465',
+            sdStatus: 'ACTIVE' as const,
+            sdStatusText: '有效',
+            packages: [
+              {
+                id: 'pkg-001',
+                packageSpec: '0.25g*24粒/盒',
+                unitName: '盒',
+                quantityFactor: 24,
+                sdUsageTypeText: '门诊发药',
+                defaultDispense: true,
+                defaultPurchase: true,
+                defaultSale: true,
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
+    render(
+      <MedicationTable
+        values={mockMedications as any}
+        loading={false}
+        pagination={<div>分页</div>}
+        mode="knowledge"
+        onModeChange={handleModeChange}
+        routes={[{ id: 'r1', code: 'ORAL', name: '口服', systemCode: 'ROUTE', systemVersion: '1', executionType: 'NONE' }]}
+        frequencies={[{ id: 'f1', code: 'TID', name: '每日三次' } as any]}
+        onEdit={handleEdit}
+        onAttributes={vi.fn()}
+        onMappings={vi.fn()}
+        onProduct={handleProduct}
+        onEditProduct={vi.fn()}
+        onPackage={vi.fn()}
+        onEditPackage={vi.fn()}
+      />,
+    )
+
+    // 表头验证
+    expect(screen.getByText('药品通用名 / 编码')).toBeInTheDocument()
+    expect(screen.getByText('分类与剂型')).toBeInTheDocument()
+    expect(screen.getByText('规格与含量')).toBeInTheDocument()
+    expect(screen.getByText('默认用法')).toBeInTheDocument()
+    expect(screen.getByText('安全监管')).toBeInTheDocument()
+    expect(screen.getByText('厂家产品')).toBeInTheDocument()
+
+    // 内容验证
+    expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
+    expect(screen.getByText('MED-2026-W001')).toBeInTheDocument()
+    expect(screen.getByText('西药')).toBeInTheDocument()
+    expect(screen.getByText('胶囊剂')).toBeInTheDocument()
+    expect(screen.getByText('0.25g · 常温')).toBeInTheDocument()
+    expect(screen.getByText('0.5g')).toBeInTheDocument()
+    expect(screen.getByText('口服 · 每日三次')).toBeInTheDocument()
+    expect(screen.getByText('处方药')).toBeInTheDocument()
+    expect(screen.getByText('基药')).toBeInTheDocument()
+    expect(screen.getByText('需皮试')).toBeInTheDocument()
+
+    // 厂家产品微标与点击切换
+    const countChip = screen.getByRole('button', { name: /1 个产品/ })
+    expect(countChip).toBeInTheDocument()
+    countChip.click()
+    expect(handleModeChange).toHaveBeenCalledWith('product')
+  })
+
+  it('renders MedicationTable in product mode with flattened manufacturer product table', () => {
+    const handleEditProduct = vi.fn()
+    const handlePackage = vi.fn()
+
+    const mockMedications = [
+      {
+        id: 'med-001',
+        revision: 1,
+        itemTypeId: 'type-med',
+        code: 'MED-2026-W001',
+        name: '阿莫西林胶囊',
+        sdMedicationType: 'WESTERN',
+        sdMedicationTypeText: '西药',
+        sdDoseForm: 'CAPSULE',
+        sdDoseFormText: '胶囊剂',
+        preparationSpec: '0.25g',
+        strengthValue: 0.25,
+        strengthUnit: 'g',
+        prescriptionDrug: true,
+        essentialDrug: true,
+        antimicrobial: true,
+        skinTestRequired: true,
+        chronicDiseaseDrug: false,
+        singleOrder: true,
+        sdStatus: 'ACTIVE' as const,
+        sdStatusText: '有效',
+        products: [
+          {
+            id: 'prod-001',
+            revision: 1,
+            code: 'PROD-001',
+            name: '阿莫西林胶囊(严迪)',
+            manufacturerName: '哈药集团制药总厂',
+            approvalCode: '国药准字H23021465',
+            sdStatus: 'ACTIVE' as const,
+            sdStatusText: '有效',
+            packages: [
+              {
+                id: 'pkg-001',
+                packageSpec: '0.25g*24粒/盒',
+                unitName: '盒',
+                quantityFactor: 24,
+                sdUsageTypeText: '门诊发药',
+                defaultDispense: true,
+                defaultPurchase: true,
+                defaultSale: true,
+              },
+            ],
+          },
+        ],
+      },
+    ]
+
+    render(
+      <MedicationTable
+        values={mockMedications as any}
+        loading={false}
+        pagination={<div>分页</div>}
+        mode="product"
+        routes={[]}
+        frequencies={[]}
+        onEdit={vi.fn()}
+        onAttributes={vi.fn()}
+        onMappings={vi.fn()}
+        onProduct={vi.fn()}
+        onEditProduct={handleEditProduct}
+        onPackage={handlePackage}
+        onEditPackage={vi.fn()}
+      />,
+    )
+
+    // 产品表头
+    expect(screen.getByText('厂家产品 / 生产企业')).toBeInTheDocument()
+    expect(screen.getByText('所属通用药品')).toBeInTheDocument()
+    expect(screen.getByText('剂型规格 / 含量')).toBeInTheDocument()
+    expect(screen.getByText('批准文号')).toBeInTheDocument()
+    expect(screen.getByText('包装规格与换算')).toBeInTheDocument()
+
+    // 产品内容
+    expect(screen.getByText('阿莫西林胶囊(严迪)')).toBeInTheDocument()
+    expect(screen.getByText('哈药集团制药总厂')).toBeInTheDocument()
+    expect(screen.getByText('国药准字H23021465')).toBeInTheDocument()
+    expect(screen.getByText(/0.25g\*24粒\/盒/)).toBeInTheDocument()
+
+    // 操作按钮
+    expect(screen.getByRole('button', { name: '编辑产品' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '加包装' })).toBeInTheDocument()
   })
 })

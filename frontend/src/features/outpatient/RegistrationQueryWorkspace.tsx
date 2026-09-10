@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ClinicalContext } from '../../app/AppShell'
 import { systemEnumItemName } from '../../shared/api/dictionaryApi'
 import type { CancelEncounterResult } from '../../shared/api/encountersApi'
-import { SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
+import { REGISTRATION_SOURCE_LABELS, SCHEDULING_SYSTEM_ENUM, type ReceptionQueueItem } from '../../shared/api/schedulingApi'
 import { age, genderLabel } from '../../shared/format'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import {
@@ -25,10 +25,28 @@ const fallbackStatusNames: Record<ReceptionQueueItem['status'], string> = {
   CANCELLED: '已取消',
 }
 
-function clock(value: string) {
+function formatRegistrationDate(value?: string) {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat('zh-CN', {
-    timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false,
-  }).format(new Date(value))
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date).replace(/\//g, '-')
+}
+
+function formatRegistrationTime(value?: string) {
+  if (!value) return '--'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
 }
 
 function queueTone(status: ReceptionQueueItem['status']) {
@@ -40,10 +58,12 @@ function queueTone(status: ReceptionQueueItem['status']) {
 
 export function includesQuery(item: ReceptionQueueItem, query: string) {
   if (!query) return true
+  const lowerQuery = query.toLocaleLowerCase('zh-CN')
   return [
     item.residentName, item.healthRecordNo, item.registrationNo, item.ticketNo,
     item.practitionerName, item.serviceName, item.locationName,
-  ].some((value) => value?.toLocaleLowerCase('zh-CN').includes(query))
+    item.registeredByName, item.departmentName,
+  ].some((value) => value?.toLocaleLowerCase('zh-CN').includes(lowerQuery))
 }
 
 export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }: {
@@ -177,7 +197,7 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
           searchable={false} clearable={false}
           onChange={(value) => handleStatusChange(value as ReceptionQueueItem['status'] | '')} /></FormField>
         <FormField label="挂号记录关键词"><input value={query} onChange={(event) => setQuery(event.target.value)}
-          placeholder="姓名、档案号、挂号单或候诊号" /></FormField>
+          placeholder="姓名、档案号、挂号单、候诊号、科室或挂号员" /></FormField>
         <Button type="submit" variant="secondary" busy={registrations.isFetching}>
           <Icon name="search" />查询</Button>
       </form>
@@ -191,24 +211,66 @@ export function RegistrationQueryWorkspace({ api, clinicalContext, onNavigate }:
           action={!submittedQuery && !status
             ? <Button onClick={() => onNavigate('/outpatient/registration')}>办理挂号</Button> : undefined} />
         : <><div className="registration-query-list-scroll"><div className="registration-today-list">
-          <div className="registration-today-list__head"><span>候诊号</span><span>居民</span><span>门诊服务</span>
-            <span>挂号信息</span><span>状态</span><span>操作</span></div>
-          {registrationItems.map((item) => <article key={item.registrationId}>
-            <strong className="registration-ticket">{item.ticketNo}</strong>
-            <div><strong>{item.residentName}</strong><small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small></div>
-            <div><strong>{item.practitionerName || '临时接诊'}</strong>
-              <small>{item.serviceName || visitTypeText(item.visitType)}{item.locationName ? ` · ${item.locationName}` : ''}</small></div>
-            <div><strong>{item.registrationNo}</strong><small>{clock(item.registeredAt)} · {visitTypeText(item.visitType)}</small></div>
-            <StatusBadge tone={queueTone(item.status)}>{statusText(item.status)}</StatusBadge>
-            <span className="registration-row-actions">
-              {['WAITING', 'CALLED', 'MISSED'].includes(item.status) && item.registrationStatus === 'REGISTERED' && <Button size="sm"
-                variant="text" onClick={() => { setCancellationResult(null); setCancelling(item) }}>退号</Button>}
-              <Button size="sm" variant="text"
-                onClick={() => onNavigate(`/outpatient/reception?${new URLSearchParams({
-                  residentId: item.residentId, encounterId: item.encounterId,
-                }).toString()}`)}>{['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
-            </span>
-          </article>)}
+          <div className="registration-today-list__head">
+            <span>候诊号</span>
+            <span>居民</span>
+            <span>挂号单与渠道</span>
+            <span>就诊科室与服务</span>
+            <span>接诊医生与时段</span>
+            <span>挂号时间</span>
+            <span>挂号员</span>
+            <span>状态</span>
+            <span>操作</span>
+          </div>
+          {registrationItems.map((item) => {
+            const sourceLabel = item.registrationSource ? (REGISTRATION_SOURCE_LABELS[item.registrationSource] || item.registrationSource) : '窗口挂号'
+            const deptName = item.departmentName || clinicalContext.department.name
+            const doctorName = item.practitionerName || '临时接诊'
+            const dayPart = item.sdDayPartText || '日间门诊'
+            const regDate = formatRegistrationDate(item.registeredAt)
+            const regTime = formatRegistrationTime(item.registeredAt)
+            const operatorName = item.registeredByName || '系统登记'
+
+            return <article key={item.registrationId}>
+              <strong className="registration-ticket">{item.ticketNo}</strong>
+              <div>
+                <strong>{item.residentName}</strong>
+                <small>{genderLabel(item.gender)} · {age(item.birthDate)} 岁 · {item.healthRecordNo}</small>
+              </div>
+              <div>
+                <strong>{item.registrationNo}</strong>
+                <small>{sourceLabel} · {visitTypeText(item.visitType)}</small>
+              </div>
+              <div>
+                <strong>{deptName}</strong>
+                <small>{item.serviceName || visitTypeText(item.visitType)}{item.locationName ? ` · ${item.locationName}` : ''}</small>
+              </div>
+              <div>
+                <strong>{doctorName}</strong>
+                <small>{dayPart}</small>
+              </div>
+              <div>
+                <strong>{regDate}</strong>
+                <small>{regTime}</small>
+              </div>
+              <div>
+                <strong>{operatorName}</strong>
+                <small>{item.registeredByName ? '经办登记' : '自动办理'}</small>
+              </div>
+              <div className="registration-status-cell">
+                <StatusBadge tone={queueTone(item.status)}>{statusText(item.status)}</StatusBadge>
+                {item.registrationStatus === 'CANCELLED' && <span className="registration-cancelled-mark">已退号</span>}
+              </div>
+              <span className="registration-row-actions">
+                {['WAITING', 'CALLED', 'MISSED'].includes(item.status) && item.registrationStatus === 'REGISTERED' && <Button size="sm"
+                  variant="text" onClick={() => { setCancellationResult(null); setCancelling(item) }}>退号</Button>}
+                <Button size="sm" variant="text"
+                  onClick={() => onNavigate(`/outpatient/reception?${new URLSearchParams({
+                    residentId: item.residentId, encounterId: item.encounterId,
+                  }).toString()}`)}>{['WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED'].includes(item.status) ? '查看就诊' : '查看病历'}</Button>
+              </span>
+            </article>
+          })}
         </div></div>
         <Pagination
           page={pageIndex}

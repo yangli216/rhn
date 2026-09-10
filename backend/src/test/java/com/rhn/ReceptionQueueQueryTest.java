@@ -116,6 +116,9 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         assertTrue(pageResp.has("totalPages"));
         assertTrue(pageResp.get("totalElements").asLong() >= 1);
         assertTrue(containsRegistration(pageResp.get("content"), registrationId));
+        JsonNode firstItem = pageResp.get("content").get(0);
+        assertTrue(firstItem.has("registeredByName"));
+        assertTrue(firstItem.has("departmentName"));
 
         // 验证带关键词查询
         JsonNode queryMatch = json(mockMvc.perform(get("/api/outpatient/reception/page").with(rhnWorkContext())

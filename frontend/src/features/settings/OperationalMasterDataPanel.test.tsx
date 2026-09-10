@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import type { ClinicalConfiguration, RhnApi, ServiceCatalogItem } from '../../shared/rhnApi'
+import type { ClinicalConfiguration, OrderFrequency, RhnApi, ServiceCatalogItem } from '../../shared/rhnApi'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
 
 const mockOrganization = {
@@ -532,5 +532,96 @@ describe('OperationalMasterDataPanel & ClinicalServiceConfigurationDialog', () =
     const clearSearchBtn = screen.getByRole('button', { name: '清空搜索' })
     await user.click(clearSearchBtn)
     expect(searchInput).toHaveValue('')
+  })
+
+  it('opens frequency configuration workbench dialog and triggers add config modal without being pushed out of view', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi()
+    const mockFrequency: OrderFrequency = {
+      id: 'freq-1',
+      code: 'BID',
+      name: '每日两次',
+      shortName: 'BID',
+      description: '每日两次，间隔约12小时',
+      ruleType: 'TIMES_PER_PERIOD',
+      frequencyCount: 2,
+      periodValue: 1,
+      periodUnit: 'D',
+      anchorType: 'STANDARD_TIME',
+      defaultExecutionTimes: ['08:00', '20:00'],
+      outpatientApplicable: true,
+      inpatientApplicable: true,
+      emergencyApplicable: true,
+      medicationApplicable: true,
+      treatmentApplicable: true,
+      nursingApplicable: false,
+      automaticTaskGeneration: true,
+      sortOrder: 1,
+      status: 'ACTIVE',
+      validFrom: '2026-01-01',
+      configurations: [
+        {
+          id: 'cfg-1',
+          frequencyId: 'freq-1',
+          organizationId: 'org-1',
+          localCode: 'BID',
+          localName: '每日两次',
+          executionTimes: ['08:00', '20:00'],
+          firstDayPolicy: 'REMAINING_SLOTS',
+          enabled: true,
+          status: 'ACTIVE',
+          validFrom: '2026-01-01',
+        },
+      ],
+    }
+    api.masterData.orderFrequencies = vi.fn().mockResolvedValue([mockFrequency])
+    api.organization.departments = vi.fn().mockResolvedValue([
+      { id: 'dept-1', code: 'IM', name: '内科', sdOrgStatus: 'ACTIVE' },
+    ])
+    const queryClient = new QueryClient()
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OperationalMasterDataPanel
+          api={api}
+          organization={mockOrganization as any}
+          manufacturers={[]}
+        />
+      </QueryClientProvider>,
+    )
+
+    // 切换到“医嘱频次”卡片
+    await waitFor(() => {
+      expect(screen.getByText('医嘱频次')).toBeInTheDocument()
+    })
+    await user.click(screen.getByText('医嘱频次'))
+
+    // 验证频次列表加载完成
+    await waitFor(() => {
+      expect(screen.getByText('每日两次')).toBeInTheDocument()
+      expect(screen.getByText('1 条配置')).toBeInTheDocument()
+    })
+
+    // 点击“执行配置”
+    const configButton = screen.getByRole('button', { name: '执行配置' })
+    await user.click(configButton)
+
+    // 验证弹出专属配置管理弹窗
+    await waitFor(() => {
+      expect(screen.getByText('每日两次 · 机构/科室执行配置')).toBeInTheDocument()
+      expect(screen.getByText('执行配置列表 (1)')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '新增执行配置' })).toBeInTheDocument()
+      expect(screen.getByText('本频次执行排程试算')).toBeInTheDocument()
+    })
+
+    // 点击“新增执行配置”
+    await user.click(screen.getByRole('button', { name: '新增执行配置' }))
+
+    // 验证调起新增执行配置表单弹窗
+    await waitFor(() => {
+      expect(screen.getByText('每日两次 · 新增执行配置')).toBeInTheDocument()
+      expect(screen.getByText('作用范围')).toBeInTheDocument()
+      expect(screen.getByText('在当前范围启用')).toBeInTheDocument()
+    })
   })
 })

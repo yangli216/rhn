@@ -1,9 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StrictMode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import type { GenerateClinicalAiSuggestionInput, ClinicalAiSuggestion } from '../../shared/api/clinicalAiApi'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { Encounter, Resident } from '../../shared/model'
 import type { ReceptionQueueItem, RhnApi } from '../../shared/rhnApi'
@@ -29,6 +30,8 @@ const mockRegisteredEncounter: Encounter = {
   id: 'encounter-101',
   encounterNo: 'ENC20260902001',
   residentId: 'resident-1',
+  organizationId: 'org-1',
+  departmentId: 'dept-1',
   status: 'REGISTERED',
   visitType: 'GENERAL',
   chiefComplaint: '',
@@ -101,6 +104,10 @@ function createMockApi({
   })
 
   return {
+    clinicalAi: {
+      capabilities: vi.fn().mockResolvedValue({ available: false, mode: 'DISABLED', provider: 'test', features: [] }),
+      history: vi.fn().mockResolvedValue([]),
+    },
     clinicalSafety: {
       vitalSignRules: vi.fn().mockResolvedValue({ rules: [] }),
     },
@@ -147,6 +154,7 @@ function createMockApi({
       prescriptions: vi.fn().mockResolvedValue([]),
       serviceRequests: vi.fn().mockResolvedValue([]),
       medicationRequests: vi.fn().mockResolvedValue([]),
+      orderableMedications: vi.fn().mockResolvedValue([]),
     },
     clinicalDocuments: {
       byEncounter: vi.fn().mockResolvedValue([]),
@@ -233,6 +241,8 @@ function createMockApi({
       services: vi.fn().mockResolvedValue([]),
       activeOrderFrequencies: vi.fn().mockResolvedValue([]),
       activeMedicationRoutes: vi.fn().mockResolvedValue([]),
+      searchServices: vi.fn().mockResolvedValue({ content: [] }),
+      itemGroups: vi.fn().mockResolvedValue([]),
     },
     treatments: {
       skinTestWorklist: vi.fn().mockResolvedValue([]),
@@ -827,5 +837,197 @@ describe('DoctorWorkstation reception flow', () => {
     const updatedRows = document.querySelectorAll('.doctor-diagnosis-row:not(.is-launcher):not(.is-active-composer)')
     expect(updatedRows[0]).toHaveTextContent('2型糖尿病')
     expect(updatedRows[1]).toHaveTextContent('原发性高血压')
+  })
+})
+
+
+describe('DoctorWorkstation inline AI collaboration', () => {
+  function aiApi() {
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    api.clinicalAi.capabilities = vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
+      features: ['RECORD_COMPLETENESS', 'TERMINOLOGY_VALIDATION', 'PLAN_RECOMMENDATIONS', 'AUDIT_TRAIL'] })
+    api.clinicalAi.generate = vi.fn().mockImplementation((_id: string, input: GenerateClinicalAiSuggestionInput) =>
+      Promise.resolve({ id: `ai-${crypto.randomUUID()}`, status: 'GENERATED', contextHash: 'server-context',
+        clientContextFingerprint: input.clientContextFingerprint, provider: 'test', promptVersion: 'V1',
+        generatedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 60000).toISOString(),
+        summary: '本次复诊资料待核对', recordDraft: { chiefComplaint: '高血压复诊', presentIllness: '患者自述规律服药' },
+        diagnosisCandidates: [{ code: 'I10', display: '原发性高血压', type: 'PRIMARY', confidence: 0.8, rationale: '既往记录待核对' }],
+        differentialDiagnoses: [], missingInformation: ['核对近期用药'], safetyAlerts: [], recommendedPlans: [],
+        disclaimer: '仅供参考' } satisfies ClinicalAiSuggestion))
+    api.clinicalAi.recordEvent = vi.fn().mockResolvedValue(undefined)
+    api.masterData.diseases = vi.fn().mockResolvedValue([{ code: 'I10', display: '原发性高血压',
+      sdStatus: 'ACTIVE', systemCode: 'WHO.BD.CS.ICD10' }])
+    return api
+  }
+
+  async function enter(api: RhnApi) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+    render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/outpatient/reception']}>
+      <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+    </MemoryRouter></QueryClientProvider>)
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await screen.findByRole('button', { name: '分析当前病历' })
+    return user
+  }
+
+  it('keeps mapped treatment suggestions available after record and diagnosis adoption', async () => {
+    const api = aiApi()
+    api.masterData.searchServices = vi.fn().mockResolvedValue({ content: [{
+      id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
+      sdStatus: 'ACTIVE', orderable: true, unitCode: '次', validFrom: '2020-01-01', prices: [],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true },
+    }] } as never)
+    const generate = api.clinicalAi.generate
+    api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({ ...await generate(id, input),
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '评估病因' }] }))
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
+    await waitFor(() => expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('高血压复诊'))
+    const diagnosisTable = screen.getByRole('table', { name: '本次诊断连续录入列表' })
+    const orderTable = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+    expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('原发性高血压')
+    await user.click(within(diagnosisTable).getByRole('button', { name: '确认录入' }))
+    await waitFor(() => expect(document.querySelector('.doctor-diagnosis-row')).toHaveTextContent('原发性高血压'))
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+    await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
+    await waitFor(() => expect(within(orderTable).queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument())
+    expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规')
+    expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.stringMatching(/^ai-/),
+      expect.objectContaining({ eventType: 'ADOPTED', sectionCode: 'TREATMENT' }))
+    expect(document.querySelector('.doctor-ai-summary-slot')).not.toBeInTheDocument()
+    await user.type(screen.getByPlaceholderText('既往疾病、手术、过敏及长期用药'), '补充人工病史')
+    expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument()
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+  })
+
+  it('streams into the original fields and restores their values if final audit fails', async () => {
+    const api = aiApi()
+    api.clinicalAi.capabilities = vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
+      features: ['STREAMING_DRAFT', 'RECORD_COMPLETENESS', 'TERMINOLOGY_VALIDATION', 'AUDIT_TRAIL'] })
+    let finish!: (value: ClinicalAiSuggestion) => void
+    let input!: GenerateClinicalAiSuggestionInput
+    api.clinicalAi.generateStream = vi.fn().mockImplementation((_id, value, _signal, delta) => {
+      input = value
+      delta('{"recordDraft":{"chiefComplaint":"发热3天","presentIllness":"患者发热3天')
+      return new Promise<ClinicalAiSuggestion>((resolve) => { finish = resolve })
+    })
+    api.clinicalAi.recordEvent = vi.fn().mockImplementation((_id, event) => event.eventType === 'ADOPTED'
+      ? Promise.reject(new Error('审计暂不可用')) : Promise.resolve())
+    const user = await enter(api)
+    const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.type(chief, '原始主诉')
+    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
+    await waitFor(() => expect(chief).toHaveValue('发热3天'))
+    expect(chief).toHaveAttribute('readonly')
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('患者发热3天')
+    expect(document.querySelector('.doctor-ai-stream-preview')).toBeNull()
+    await act(async () => finish(await api.clinicalAi.generate('enc-1', input)))
+    await waitFor(() => expect(chief).toHaveValue('原始主诉'))
+    expect(chief).not.toHaveAttribute('readonly')
+    expect(screen.queryByRole('button', { name: '撤销本次病历采纳' })).not.toBeInTheDocument()
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+  })
+
+  it('directly fills all five record paragraphs and restores them with one undo', async () => {
+    const api = aiApi()
+    const previousGenerate = api.clinicalAi.generate
+    api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({ ...await previousGenerate(id, input),
+      recordDraft: { chiefComplaint: '发热3天', presentIllness: '患者发热3天，最高体温39℃。',
+        medicalHistory: '既往史待询问', physicalExam: '相关专科查体待完成', treatmentPlan: '拟完善病因评估并随访。' } }))
+    const user = await enter(api)
+    const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.type(chief, '原始主诉')
+    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    await user.type(screen.getByLabelText('问诊要点或辅助要求'), '感冒发热3天，最高体温39度')
+    await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
+    await waitFor(() => expect(chief).toHaveValue('发热3天'))
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('患者发热3天，最高体温39℃。')
+    expect(screen.getByDisplayValue('既往史待询问')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('相关专科查体待完成')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('拟完善病因评估并随访。')).toBeInTheDocument()
+    const diagnosisTable = screen.getByRole('table', { name: '本次诊断连续录入列表' })
+    expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toBeInTheDocument()
+    expect(within(diagnosisTable).getByRole('button', { name: '确认录入' })).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: '撤销本次病历采纳' }))
+    expect(chief).toHaveValue('原始主诉')
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('')
+    expect(screen.queryByDisplayValue('既往史待询问')).not.toBeInTheDocument()
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+  })
+
+  it('shares analysis across clinical areas, applies only checked edits, and can undo record edits without dropping diagnoses', async () => {
+    const api = aiApi()
+    const user = await enter(api)
+    const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    await user.type(chief, '原始主诉')
+    await user.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await user.click(await screen.findByRole('button', { name: /接诊摘要/ }))
+    await screen.findByText('本次复诊资料待核对')
+    expect(screen.queryByRole('tab', { name: '当前建议' })).not.toBeInTheDocument()
+    expect(api.clinicalAi.generate).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('checkbox', { name: /主诉/ }))
+    const proposal = screen.getByRole('textbox', { name: '主诉建议（可编辑）' })
+    await user.clear(proposal)
+    await user.type(proposal, '核对后的复诊主诉')
+    await user.click(screen.getAllByRole('button', { name: /采纳所选草稿/ })[0])
+    await waitFor(() => expect(chief).toHaveValue('核对后的复诊主诉'))
+    expect(screen.getByPlaceholderText('起病、演变、伴随症状及诊治经过')).toHaveValue('')
+    await user.click(within(screen.getByRole('table', { name: '本次诊断连续录入列表' }))
+      .getByRole('button', { name: '确认录入' }))
+    expect(within(screen.getByRole('table', { name: '本次诊断连续录入列表' })).getByText('原发性高血压')).toBeInTheDocument()
+    expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      eventType: 'ADOPTED', sectionCode: 'RECORD', detail: expect.stringContaining('chiefComplaint'),
+    }))
+    expect(api.clinicalAi.recordEvent).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({
+      eventType: 'ADOPTED', sectionCode: 'DIAGNOSIS',
+    }))
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+    expect(api.encounters.complete).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: '撤销本次病历采纳' }))
+    expect(chief).toHaveValue('原始主诉')
+    expect(within(screen.getByRole('table', { name: '本次诊断连续录入列表' })).getByText('原发性高血压')).toBeInTheDocument()
+  })
+
+  it('rejects stale suggestions after a manual edit and keeps the current session when the detail drawer is closed', async () => {
+    const api = aiApi()
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await user.click(await screen.findByRole('button', { name: /接诊摘要/ }))
+    await screen.findByText('本次复诊资料待核对')
+    await user.click(screen.getByRole('checkbox', { name: /主诉/ }))
+    await user.click(screen.getByRole('button', { name: '更多辅助' }))
+    await screen.findByRole('tab', { name: '当前建议' })
+    await user.click(screen.getByRole('button', { name: '关闭扩展工具' }))
+    expect(screen.getByRole('checkbox', { name: /主诉/ })).toBeChecked()
+    await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '新补充的主诉')
+    expect(screen.getByText('资料已变化，等待更新')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /采纳所选草稿/ })).not.toBeInTheDocument()
+    expect(vi.mocked(api.clinicalAi.recordEvent).mock.calls.some(([, event]) => event.eventType === 'ADOPTED')).toBe(false)
+  })
+
+  it('leaves the record untouched when audit fails and does not undo later manual edits', async () => {
+    const api = aiApi()
+    api.clinicalAi.recordEvent = vi.fn().mockImplementation((_id, event) => event.eventType === 'ADOPTED'
+      ? Promise.reject(new Error('采纳留痕失败')) : Promise.resolve())
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '分析当前病历' }))
+    await user.click(await screen.findByRole('button', { name: /接诊摘要/ }))
+    await screen.findByText('本次复诊资料待核对')
+    await user.click(screen.getByRole('checkbox', { name: /主诉/ }))
+    await user.click(screen.getAllByRole('button', { name: /采纳所选草稿/ })[0])
+    expect(await screen.findByText('采纳留痕失败')).toBeInTheDocument()
+    const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
+    expect(chief).toHaveValue('')
+    api.clinicalAi.recordEvent = vi.fn().mockResolvedValue(undefined)
+    await user.click(screen.getAllByRole('button', { name: /采纳所选草稿/ })[0])
+    await waitFor(() => expect(chief).toHaveValue('高血压复诊'))
+    await user.type(chief, '，补充新症状')
+    expect(screen.getByRole('button', { name: '撤销本次病历采纳' })).toBeDisabled()
+    expect(chief).toHaveValue('高血压复诊，补充新症状')
   })
 })

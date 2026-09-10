@@ -31,6 +31,7 @@ import { createClinicalAiApi } from './clinicalAiApi'
 import { createInpatientApi } from './inpatientApi'
 import { createQueueingApi } from './queueingApi'
 import { createClinicalSafetyApi } from './clinicalSafetyApi'
+import { createOutpatientTriageApi } from './outpatientTriageApi'
 
 export * from './encountersApi'
 export * from './dictionaryApi'
@@ -63,6 +64,7 @@ export * from './clinicalAiApi'
 export * from './inpatientApi'
 export * from './queueingApi'
 export * from './clinicalSafetyApi'
+export * from './outpatientTriageApi'
 
 function createApiModules(client: ApiClient) {
   return {
@@ -98,6 +100,7 @@ function createApiModules(client: ApiClient) {
     inpatient: createInpatientApi(client),
     queueing: createQueueingApi(client),
     clinicalSafety: createClinicalSafetyApi(client),
+    outpatientTriage: createOutpatientTriageApi(client),
   }
 }
 

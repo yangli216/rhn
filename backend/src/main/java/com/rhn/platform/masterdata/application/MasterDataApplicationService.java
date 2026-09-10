@@ -185,6 +185,23 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     @Override
     @Transactional(readOnly = true)
+    public List<ServiceView> searchOrderableServices(String query, String serviceType, Long organizationId, LocalDate date) {
+        if (!java.util.Set.of("LABORATORY", "EXAMINATION").contains(serviceType)) return List.of();
+        return searchServices(query, serviceType, "ACTIVE", organizationId, 0, 100).content().stream()
+                .filter(value -> value.orderable() && java.util.Set.of("OUTPATIENT", "COMMON").contains(value.sdUsageType()))
+                .filter(value -> value.validFrom() == null || !value.validFrom().isAfter(date))
+                .filter(value -> value.validTo() == null || !value.validTo().isBefore(date))
+                .filter(value -> value.organizationAdoption() != null
+                        && organizationId.equals(value.organizationAdoption().organizationId())
+                        && "ACTIVE".equals(value.organizationAdoption().sdStatus())
+                        && value.organizationAdoption().orderable() && value.organizationAdoption().executable()
+                        && (value.organizationAdoption().validFrom() == null || !value.organizationAdoption().validFrom().isAfter(date))
+                        && (value.organizationAdoption().validTo() == null || !value.organizationAdoption().validTo().isBefore(date)))
+                .limit(8).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate) {
         ServiceCatalogItem item = requireService(tenantId, catalogItemId);
         LocalDate date = businessDate == null ? LocalDate.now() : businessDate;

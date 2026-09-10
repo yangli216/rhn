@@ -36,7 +36,7 @@ const template: OutpatientPlanTemplate = {
 }
 
 describe('ClinicalAiAssistantPanel plan preflight', () => {
-  it('shows deterministic medication blockers and explicit unevaluated safety boundaries', async () => {
+  it.each(['drawer', 'inline'] as const)('shows deterministic medication blockers and explicit unevaluated safety boundaries (%s)', async (layout) => {
     const preflightPlan = vi.fn().mockResolvedValue({
       templateId: 'plan-1', templateRevision: 3, status: 'BLOCKED', blockingCount: 1, warningCount: 2,
       checkedAt: '2026-09-09T00:00:00Z', medications: [{
@@ -70,12 +70,20 @@ describe('ClinicalAiAssistantPanel plan preflight', () => {
     } as unknown as RhnApi
     const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
-    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel encounter={encounter}
+    const workspace = render(<div><div data-testid="ai-summary" /><div data-testid="ai-note" />
+      <div data-testid="ai-diagnoses" /><div data-testid="ai-plans" /></div>)
+    const surfaces = layout === 'inline' ? {
+      summary: workspace.getByTestId('ai-summary') as HTMLDivElement,
+      note: workspace.getByTestId('ai-note') as HTMLDivElement,
+      diagnoses: workspace.getByTestId('ai-diagnoses') as HTMLDivElement,
+      plans: workspace.getByTestId('ai-plans') as HTMLDivElement, detail: null,
+    } : undefined
+    render(<QueryClientProvider client={client}><ClinicalAiAssistantPanel surfaces={surfaces} encounter={encounter}
       currentContext={context} allergies={[]} allergyState="READY" api={api} disabled={false}
       onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} /></QueryClientProvider>)
 
-    await userEvent.click(await screen.findByRole('button', { name: /分析当前就诊/ }))
-    await userEvent.click(await screen.findByRole('button', { name: '核对后带入' }))
+    await userEvent.click(await screen.findByRole('button', { name: layout === 'inline' ? '分析当前病历' : /分析当前就诊/ }))
+    await userEvent.click(await screen.findByRole('button', { name: layout === 'inline' ? '核对方案' : '核对后带入' }))
 
     expect(await screen.findByText('路由药房库存不足：需要 1 BOX，当前可用 0 BOX')).toBeInTheDocument()
     expect(screen.getByText(/药物相互作用规则源/)).toBeInTheDocument()

@@ -4,6 +4,9 @@ import java.time.LocalDate;
 
 /** Minimal service item contract available to scheduling and other business modules. */
 public interface ServiceCatalogDirectory {
+    java.util.List<MasterDataViews.ServiceView> searchOrderableServices(String query, String serviceType,
+                                                                      Long organizationId, LocalDate businessDate);
+
     ServiceCatalogSnapshot requireActiveService(Long tenantId, Long catalogItemId, LocalDate businessDate);
 
     /**

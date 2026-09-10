@@ -16,6 +16,9 @@ import com.sun.net.httpserver.HttpServer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -35,6 +38,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class OpenAiCompatibleClinicalAiModelGatewayTest {
     private HttpServer server;
@@ -74,8 +80,14 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertEquals("结构化分析完成", result.summary());
         assertEquals("现病史草稿", result.recordDraft().presentIllness());
         assertEquals("Bearer secret-key", authorization.get());
-        assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V6"));
+        assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V8"));
         assertTrue(requestBody.get().contains("语音转写内容"));
+        var sent = jsonCodec.readTree(requestBody.get());
+        var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asText());
+        assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asText());
+        assertEquals(10, context.get("receptionSceneContext").get("selectedReportIds").get(0).asInt());
+        assertEquals(10, context.get("diagnosticReports").get(0).get("reportId").asInt());
+        assertTrue(sent.get("messages").get(0).get("content").asText().contains("不得默认既往体健"));
         assertTrue(requestBody.get().contains("FEMALE"));
         assertTrue(requestBody.get().contains("血常规"));
         assertTrue(requestBody.get().contains("白细胞计数"));
@@ -104,6 +116,137 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                 () -> new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec).analyze(request()));
         assertEquals("模型服务返回非成功状态：503", error.getMessage());
         assertFalse(error.getMessage().contains("provider-secret-error"));
+        assertEquals(ClinicalAiModelException.Reason.PROVIDER_REJECTED, error.reason());
+        assertEquals(503, error.providerStatus());
+    }
+
+    @ParameterizedTest
+    @CsvSource({"400,PROVIDER_REJECTED", "401,AUTHENTICATION", "403,AUTHENTICATION", "429,RATE_LIMIT"})
+    void classifiesProviderErrorsWithoutLeakingResponse(int status, ClinicalAiModelException.Reason reason) throws Exception {
+        stubResponse(status, "provider-secret-error");
+        ClinicalAiModelException error = assertThrows(ClinicalAiModelException.class,
+                () -> new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec).analyze(request()));
+        assertEquals(reason, error.reason());
+        assertEquals(status, error.providerStatus());
+        assertFalse(error.userMessage().contains("provider-secret-error"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"{", "null", "{\"diagnosisCandidates\":\"wrong-type\"}"})
+    void rejectsInvalidStructuredContent(String content) throws Exception {
+        stubResponse(200, jsonCodec.write(Map.of("choices", List.of(Map.of("message", Map.of("content", content))))));
+        ClinicalAiModelException error = assertThrows(ClinicalAiModelException.class,
+                () -> new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec).analyze(request()));
+        assertEquals(ClinicalAiModelException.Reason.INVALID_RESPONSE, error.reason());
+    }
+
+    @Test
+    void rejectsTruncatedOutputEvenWhenPartialContentIsValidJson() throws Exception {
+        stubResponse(200, """
+                {"choices":[{"finish_reason":"length","message":{"content":"{}"}}]}
+                """);
+        ClinicalAiModelException error = assertThrows(ClinicalAiModelException.class,
+                () -> new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec).analyze(request()));
+        assertEquals(ClinicalAiModelException.Reason.OUTPUT_LIMIT, error.reason());
+    }
+
+    @Test
+    void distinguishesTimeoutFromInvalidJson() throws Exception {
+        stubResponse(200, "{}");
+        var client = mock(java.net.http.HttpClient.class);
+        when(client.send(any(java.net.http.HttpRequest.class), any(java.net.http.HttpResponse.BodyHandler.class)))
+                .thenThrow(new java.net.http.HttpTimeoutException("sensitive provider detail"));
+        ClinicalAiModelException error = assertThrows(ClinicalAiModelException.class,
+                () -> new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec, client).analyze(request()));
+        assertEquals(ClinicalAiModelException.Reason.TIMEOUT, error.reason());
+        assertFalse(error.userMessage().contains("sensitive provider detail"));
+    }
+
+    private void stubResponse(int status, String body) throws IOException {
+        startServer(exchange -> {
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(status, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+    }
+
+    @Test
+    void streamsDraftBeforeProviderCompletesAndStillParsesFinalContent() throws Exception {
+        var firstDelta = new java.util.concurrent.CountDownLatch(1);
+        var body = new AtomicReference<String>();
+        String json = "{\"summary\":\"合成测试摘要\",\"recordDraft\":{\"chiefComplaint\":\"测试主诉\"}}";
+        startServer(exchange -> {
+            body.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            var output = exchange.getResponseBody();
+            output.write(deltaFrame(json.substring(0, 16)).getBytes(StandardCharsets.UTF_8));
+            output.flush();
+            try {
+                if (!firstDelta.await(2, java.util.concurrent.TimeUnit.SECONDS)) throw new IOException("Delta was buffered");
+            } catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            output.write((deltaFrame(json.substring(16))
+                    + "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")
+                    .getBytes(StandardCharsets.UTF_8));
+            exchange.close();
+        });
+        var chunks = new StringBuilder();
+        var result = new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                .analyzeStreaming(request(), settings(null), delta -> { chunks.append(delta); firstDelta.countDown(); });
+        assertEquals("合成测试摘要", result.summary());
+        assertEquals(json, chunks.toString());
+        assertTrue(jsonCodec.readTree(body.get()).path("stream").asBoolean());
+        assertTrue(jsonCodec.readTree(body.get()).path("stream_options").path("include_usage").asBoolean());
+    }
+
+    @Test
+    void doesNotAcceptAnInterruptedStreamAsACompleteSuggestion() throws Exception {
+        stubResponse(200, deltaFrame("{\"summary\":\"半成品\"}"));
+        var error = assertThrows(ClinicalAiModelException.class, () ->
+                new OpenAiCompatibleClinicalAiModelGateway(settings(null), jsonCodec)
+                        .analyzeStreaming(request(), settings(null), delta -> { }));
+        assertEquals(ClinicalAiModelException.Reason.INVALID_RESPONSE, error.reason());
+    }
+
+    @Test
+    void disablesThinkingForDashScopeQwenWithoutChangingOtherProviders() {
+        var body = new LinkedHashMap<String, Object>();
+        com.rhn.ai.application.ClinicalAiRequestOptions.applyNonThinkingDefault(body,
+                java.net.URI.create("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"), "qwen3.8-27b");
+        assertEquals(false, body.get("enable_thinking"));
+        body.clear();
+        com.rhn.ai.application.ClinicalAiRequestOptions.applyNonThinkingDefault(body,
+                java.net.URI.create("https://api.example.com/v1/chat/completions"), "qwen3.8-27b");
+        assertFalse(body.containsKey("enable_thinking"));
+    }
+
+    private String deltaFrame(String delta) {
+        return "data: " + jsonCodec.write(Map.of("choices", List.of(Map.of("delta", Map.of("content", delta))))) + "\n\n";
+    }
+
+    @Test
+    void enforcesDeadlineWhenProviderStallsAfterSendingHeaders() throws Exception {
+        var release = new java.util.concurrent.CountDownLatch(1);
+        startServer(exchange -> {
+            exchange.getResponseHeaders().set("Content-Type", "text/event-stream");
+            exchange.sendResponseHeaders(200, 0);
+            exchange.getResponseBody().write(": waiting\n\n".getBytes(StandardCharsets.UTF_8));
+            exchange.getResponseBody().flush();
+            try { release.await(3, java.util.concurrent.TimeUnit.SECONDS); }
+            catch (InterruptedException exception) { Thread.currentThread().interrupt(); }
+            finally { exchange.close(); }
+        });
+        var active = new ClinicalAssistantSettings("MODEL", "test", "test-model", Duration.ofMinutes(30),
+                settings(null).endpoint().toString(), null, Duration.ofMillis(300), 1200,
+                "", "gpt-transcribe", 1024, "", "", 5);
+        try {
+            var error = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(Duration.ofSeconds(2), () ->
+                    assertThrows(ClinicalAiModelException.class, () ->
+                            new OpenAiCompatibleClinicalAiModelGateway(active, jsonCodec)
+                                    .analyzeStreaming(request(), active, delta -> { })));
+            assertEquals(ClinicalAiModelException.Reason.TIMEOUT, error.reason());
+        } finally { release.countDown(); }
     }
 
     private ClinicalAssistantSettings settings(String apiKey) {
@@ -128,11 +271,13 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
                         71L, 1, "ACTIVE", "METFORMIN", "二甲双胍", new BigDecimal("0.5"),
                         "g", "PO", "BID", new BigDecimal("30"), "DAY", new BigDecimal("60"),
                         "片", Instant.parse("2026-08-08T08:10:00Z"))), List.of());
-        return new ModelRequest("RHN-CLINICAL-ASSISTANT-V6", "补全病历", "语音转写内容",
+        return new ModelRequest("RHN-CLINICAL-ASSISTANT-V8", "补全病历", "语音转写内容",
                 new Draft("头晕", "", "高血压病史", "", "", 160, 100, null, 80, 18, 98, List.of()),
                 new ResidentDirectory.ResidentSnapshot(1L, "HRN001", "测试患者", "FEMALE",
                         LocalDate.of(1988, 8, 8), "13800000000", false),
-                List.of(), List.of(plan), List.of(report()), List.of(history), null);
+                List.of(), List.of(plan), List.of(report()), List.of(history), null,
+                com.rhn.ai.api.ClinicalAssistantContracts.ReceptionScene.REPORT_FOLLOW_UP,
+                new com.rhn.ai.api.ClinicalAssistantContracts.ReceptionSceneContext(List.of("高血压"), List.of(10L)));
     }
 
     private DiagnosticReportResponse report() {

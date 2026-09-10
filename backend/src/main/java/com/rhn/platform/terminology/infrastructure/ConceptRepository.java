@@ -20,6 +20,16 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
     List<Concept> findByCodeSystemIdInOrderByDisplay(Collection<Long> codeSystemIds);
 
     @Query("""
+            select c from Concept c where c.codeSystemId in :systemIds and c.status = :activeStatus
+              and c.effectiveFrom <= :date and (c.effectiveTo is null or c.effectiveTo >= :date)
+              and (c.display = :name or c.shortDisplay = :name
+                or exists (select a.id from ConceptAlias a where a.conceptId = c.id
+                  and a.status = :activeStatus and a.aliasName = :name))
+            """)
+    List<Concept> findExactDiseaseNames(@Param("systemIds") Collection<Long> systemIds,
+            @Param("name") String name, @Param("activeStatus") TerminologyStatus activeStatus, @Param("date") LocalDate date);
+
+    @Query("""
             select c from Concept c
             where c.codeSystemId in :systemIds
               and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
