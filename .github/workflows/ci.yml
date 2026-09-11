@@ -18,7 +18,17 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: mvn --batch-mode verify
+      - name: Verify backend
+        run: |
+          mkdir -p ../artifacts
+          mvn --batch-mode verify 2>&1 | tee ../artifacts/backend-verify.log
+      - name: Upload backend diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-diagnostics
+          path: artifacts/backend-verify.log
+          if-no-files-found: warn
 
   frontend:
     runs-on: ubuntu-latest
@@ -33,7 +43,23 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run check
+      - name: Check UI standards
+        run: |
+          mkdir -p ../artifacts
+          npm run ui:check 2>&1 | tee ../artifacts/frontend-ui-check.log
+      - name: Run frontend tests
+        if: always()
+        run: npm run test 2>&1 | tee ../artifacts/frontend-test.log
+      - name: Build frontend
+        if: always()
+        run: npm run build 2>&1 | tee ../artifacts/frontend-build.log
+      - name: Upload frontend diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-diagnostics
+          path: artifacts/frontend-*.log
+          if-no-files-found: warn
 
   api-contract:
     runs-on: ubuntu-latest
@@ -53,9 +79,10 @@ jobs:
         working-directory: frontend
       - name: Verify committed OpenAPI contract and generated types
         run: |
+          mkdir -p artifacts
           cd backend
-          mvn --batch-mode -DskipTests package
-          java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > /tmp/rhn-contract.log 2>&1 &
+          mvn --batch-mode -DskipTests package 2>&1 | tee ../artifacts/api-contract-package.log
+          java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > ../artifacts/api-contract-app.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid"' EXIT
           for attempt in {1..30}; do
@@ -65,12 +92,20 @@ jobs:
             sleep 1
           done
           if ! curl --fail --silent http://localhost:18080/actuator/health > /dev/null; then
-            cat /tmp/rhn-contract.log
+            cat ../artifacts/api-contract-app.log
             exit 1
           fi
           cd ..
           curl --fail --silent --show-error http://localhost:18080/v3/api-docs -o docs/api/openapi.json
           cd frontend
-          npm run api:generate
+          npm run api:generate 2>&1 | tee ../artifacts/api-contract-generate.log
           cd ..
-          git diff --exit-code -- docs/api/openapi.json frontend/src/shared/api/generated.ts
+          git diff -- docs/api/openapi.json frontend/src/shared/api/generated.ts | tee artifacts/api-contract.diff
+          test ! -s artifacts/api-contract.diff
+      - name: Upload API contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-contract-diagnostics
+          path: artifacts/api-contract*
+          if-no-files-found: warn
