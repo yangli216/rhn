@@ -102,12 +102,49 @@ jobs:
             exit 1
           fi
           cd ..
-          curl --fail --silent --show-error http://localhost:18080/v3/api-docs -o docs/api/openapi.json
+
+          # Keep the committed contract untouched. Runtime schema ordering may vary,
+          # so compare canonical JSON and reserve textual diffing for generated TS.
+          curl --fail --silent --show-error http://localhost:18080/v3/api-docs -o artifacts/api-contract-runtime.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          committed = json.loads(Path('docs/api/openapi.json').read_text(encoding='utf-8'))
+          runtime = json.loads(Path('artifacts/api-contract-runtime.json').read_text(encoding='utf-8'))
+          Path('artifacts/api-contract-committed.canonical.json').write_text(
+              json.dumps(committed, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+          Path('artifacts/api-contract-runtime.canonical.json').write_text(
+              json.dumps(runtime, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          openapi_status=0
+          diff -u artifacts/api-contract-committed.canonical.json \
+                  artifacts/api-contract-runtime.canonical.json \
+                  > artifacts/api-contract-openapi.diff || openapi_status=$?
+          if [ "$openapi_status" -gt 1 ]; then
+            echo "Failed to compare canonical OpenAPI contracts"
+            exit "$openapi_status"
+          fi
+
+          # Regenerate from the committed OpenAPI document. This verifies that the
+          # checked-in TypeScript types are synchronized without inheriting runtime
+          # object-key ordering noise.
           cd frontend
           npm run api:generate 2>&1 | tee ../artifacts/api-contract-generate.log
           cd ..
-          git diff -- docs/api/openapi.json frontend/src/shared/api/generated.ts | tee artifacts/api-contract.diff
-          test ! -s artifacts/api-contract.diff
+          generated_status=0
+          git diff --exit-code -- frontend/src/shared/api/generated.ts \
+              > artifacts/api-contract-generated.diff || generated_status=$?
+          if [ "$generated_status" -gt 1 ]; then
+            echo "Failed to compare generated TypeScript contract"
+            exit "$generated_status"
+          fi
+
+          if [ "$openapi_status" -ne 0 ] || [ "$generated_status" -ne 0 ]; then
+            echo "Committed API contract is out of sync. See diagnostic artifacts."
+            exit 1
+          fi
       - name: Upload API contract diagnostics
         if: always()
         uses: actions/upload-artifact@v4
