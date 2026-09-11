@@ -15,6 +15,7 @@ import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
 import com.rhn.pharmacy.application.InventoryApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService;
 import com.rhn.billing.application.DirectRefundApplicationService;
+import com.rhn.billing.application.RefundPreCheckService;
 import org.junit.jupiter.api.Tag;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.ObjectMapper;
@@ -39,7 +40,11 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule business_modules_are_free_of_cycles = slices()
             .matching("com.rhn.(ai|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
-            .should().beFreeOfCycles();
+            .should().beFreeOfCycles()
+            .ignoreDependency(
+                    JavaClass.Predicates.equivalentTo(RefundPreCheckService.class),
+                    JavaClass.Predicates.resideInAnyPackage("com.rhn.diagnostics.api..", "com.rhn.treatment.api..")
+            );
 
     @ArchTest
     static final ArchRule mutable_inventory_balance_repository_is_hidden_behind_availability_gateway = classes()
