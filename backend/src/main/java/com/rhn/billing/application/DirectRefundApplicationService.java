@@ -1,9 +1,12 @@
 package com.rhn.billing.application;
 
 import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
+import com.rhn.billing.api.RefundBillingDirectory;
+import com.rhn.billing.api.RefundBillingDirectory.RefundBillingSnapshot;
+import com.rhn.billing.api.RefundBillingDirectory.RefundChargeSnapshot;
+import com.rhn.billing.api.RefundBillingDirectory.RefundPaymentContext;
 import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
-import com.rhn.billing.api.RefundPreCheckViews.RefundItemPreCheckView;
-import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
+import com.rhn.billing.api.RefundPreCheckViews.RefundPaymentCandidateView;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.ChargeItemComponent;
 import com.rhn.billing.domain.LedgerEntry;
@@ -18,7 +21,6 @@ import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.billing.infrastructure.ReceiptRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
-import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -30,18 +32,22 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
- * 门诊直接退费与协同逆向作废编排服务。
- * billing 仅通过 pharmacy.api 请求药房逆向处理，不再修改药房内部实体或仓储。
+ * Billing-side refund capability.
+ *
+ * Owns accounting facts, charge reversal, payment refund and fiscal receipt red-flush.
+ * Cross-domain eligibility and downstream cancellation are coordinated outside billing.
  */
 @Service
-public class DirectRefundApplicationService {
+public class DirectRefundApplicationService implements RefundBillingDirectory {
     private static final Logger log = LoggerFactory.getLogger(DirectRefundApplicationService.class);
 
     private final PaymentRepository payments;
@@ -51,10 +57,9 @@ public class DirectRefundApplicationService {
     private final LedgerEntryRepository ledger;
     private final SettlementRepository settlements;
     private final ReceiptRepository receipts;
-    private final RefundPharmacyDirectory pharmacy;
     private final PaymentOrchestrationService paymentOrchestration;
     private final ReceiptApplicationService receiptService;
-    private final RefundPreCheckService preCheckService;
+    private final RefundPolicy refundPolicy;
     private final ExecutionContextProvider contextProvider;
 
     public DirectRefundApplicationService(PaymentRepository payments,
@@ -64,10 +69,9 @@ public class DirectRefundApplicationService {
                                           LedgerEntryRepository ledger,
                                           SettlementRepository settlements,
                                           ReceiptRepository receipts,
-                                          RefundPharmacyDirectory pharmacy,
                                           PaymentOrchestrationService paymentOrchestration,
                                           ReceiptApplicationService receiptService,
-                                          RefundPreCheckService preCheckService,
+                                          RefundPolicy refundPolicy,
                                           ExecutionContextProvider contextProvider) {
         this.payments = payments;
         this.accounts = accounts;
@@ -76,26 +80,81 @@ public class DirectRefundApplicationService {
         this.ledger = ledger;
         this.settlements = settlements;
         this.receipts = receipts;
-        this.pharmacy = pharmacy;
         this.paymentOrchestration = paymentOrchestration;
         this.receiptService = receiptService;
-        this.preCheckService = preCheckService;
+        this.refundPolicy = refundPolicy;
         this.contextProvider = contextProvider;
     }
 
-    @Transactional
-    public PaymentOrderView directRefund(Long paymentId, DirectRefundCommand command) {
+    @Override
+    @Transactional(readOnly = true)
+    public RefundBillingSnapshot snapshotForEncounter(Long encounterId) {
         ExecutionContext context = contextProvider.requireCurrent();
-        if (paymentId == null) {
-            throw new BusinessException("PAYMENT_ID_REQUIRED", "退款原支付记录ID不能为空", HttpStatus.BAD_REQUEST);
-        }
-        Payment originalPayment = payments.findByIdAndTenantId(paymentId, context.tenantId())
-                .orElseThrow(() -> new BusinessException("PAYMENT_NOT_FOUND", "未找到对应的原支付记录", HttpStatus.NOT_FOUND));
-
-        if (!"PAYMENT".equals(originalPayment.paymentType())) {
-            throw new BusinessException("INVALID_ORIGINAL_PAYMENT", "只能针对正向支付记录办理退款", HttpStatus.CONFLICT);
+        List<PatientAccount> matchingAccounts = accounts.findByTenantIdAndEncounterIdIn(
+                context.tenantId(), List.of(encounterId));
+        if (matchingAccounts.isEmpty()) {
+            return RefundBillingSnapshot.missingAccount(encounterId);
         }
 
+        PatientAccount account = matchingAccounts.get(0);
+        List<ChargeItem> allCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
+                context.tenantId(), account.id());
+
+        Set<Long> reversedChargeIds = allCharges.stream()
+                .filter(charge -> charge.totalAmount() != null && charge.totalAmount().signum() < 0)
+                .map(ChargeItem::reversesChargeItemId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<RefundChargeSnapshot> chargeSnapshots = allCharges.stream()
+                .filter(charge -> charge.totalAmount() != null && charge.totalAmount().signum() > 0)
+                .map(charge -> new RefundChargeSnapshot(
+                        charge.id(), charge.sourceType(), charge.sourceId(), charge.requestCode(),
+                        charge.itemNameSnapshot(), charge.itemCodeSnapshot(), charge.quantity(),
+                        charge.unitCode(), charge.totalAmount(), reversedChargeIds.contains(charge.id())))
+                .toList();
+
+        List<RefundPaymentCandidateView> candidatePayments = new ArrayList<>();
+        BigDecimal totalPaid = BigDecimal.ZERO;
+        for (Payment payment : payments.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(
+                context.tenantId(), account.id())) {
+            if (!"PAYMENT".equals(payment.paymentType())) {
+                continue;
+            }
+            totalPaid = totalPaid.add(payment.amount());
+            BigDecimal refunded = payments.refundedForPayment(context.tenantId(), payment.id());
+            BigDecimal refundedAmount = refunded == null ? BigDecimal.ZERO : refunded;
+            BigDecimal remaining = payment.amount().subtract(refundedAmount);
+            if (remaining.signum() > 0) {
+                candidatePayments.add(new RefundPaymentCandidateView(
+                        payment.id(), payment.paymentNo(), payment.paymentMethodCode(), payment.amount(),
+                        refundedAmount, remaining, payment.currencyCode(), payment.paidAt()));
+            }
+        }
+
+        boolean directRefundAllowed = refundPolicy.isUnexecutedDirectRefundAllowed(
+                context, account.organizationId(), null);
+
+        return new RefundBillingSnapshot(
+                encounterId, account.id(), account.organizationId(), directRefundAllowed,
+                totalPaid, account.currencyCode(), chargeSnapshots, candidatePayments);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public RefundPaymentContext paymentContext(Long paymentId) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Payment payment = requireOriginalPayment(paymentId, context);
+        PatientAccount account = accounts.findByIdAndTenantId(payment.patientAccountId(), context.tenantId())
+                .orElseThrow(() -> new BusinessException("ACCOUNT_NOT_FOUND", "未找到关联费用账户", HttpStatus.NOT_FOUND));
+        return new RefundPaymentContext(payment.id(), account.id(), account.encounterId());
+    }
+
+    @Override
+    @Transactional
+    public PaymentOrderView executeDirectRefund(Long paymentId, DirectRefundCommand command) {
+        ExecutionContext context = contextProvider.requireCurrent();
+        Payment originalPayment = requireOriginalPayment(paymentId, context);
         PatientAccount account = accounts.findByIdAndTenantId(originalPayment.patientAccountId(), context.tenantId())
                 .orElseThrow(() -> new BusinessException("ACCOUNT_NOT_FOUND", "未找到关联费用账户", HttpStatus.NOT_FOUND));
 
@@ -110,31 +169,8 @@ public class DirectRefundApplicationService {
             throw new BusinessException("REFUND_AMOUNT_EXCEEDED", "退款金额不能超过原支付记录剩余可退金额", HttpStatus.CONFLICT);
         }
 
-        RefundPreCheckSummaryView preCheck = preCheckService.preCheck(account.encounterId());
-
         Set<Long> targetItemIds = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty()
                 ? new HashSet<>(command.chargeItemIds()) : null;
-
-        List<RefundItemPreCheckView> itemsToCheck = preCheck.items().stream()
-                .filter(item -> targetItemIds == null || targetItemIds.contains(item.chargeItemId()))
-                .toList();
-
-        List<RefundItemPreCheckView> blockedItems = itemsToCheck.stream()
-                .filter(item -> !item.allowed())
-                .toList();
-
-        if (!blockedItems.isEmpty()) {
-            String reasons = blockedItems.stream()
-                    .map(item -> item.itemName() + "(" + item.blockReason() + ")")
-                    .reduce((a, b) -> a + "；" + b).orElse("存在阻断项");
-            throw new BusinessException("REFUND_PRECHECK_BLOCKED", "退费前置校验阻断：" + reasons, HttpStatus.CONFLICT);
-        }
-
-        if (!preCheck.eligibleForRefund()) {
-            throw new BusinessException("REFUND_PRECHECK_BLOCKED",
-                    "退费前置校验阻断：" + (preCheck.summaryNotice() != null ? preCheck.summaryNotice() : "当前就诊不满足退费条件"),
-                    HttpStatus.CONFLICT);
-        }
 
         BigDecimal currentBalance = ledger.balance(context.tenantId(), account.id());
         if (currentBalance == null) {
@@ -143,25 +179,29 @@ public class DirectRefundApplicationService {
         BigDecimal currentCredit = currentBalance.signum() < 0 ? currentBalance.abs() : BigDecimal.ZERO;
 
         if (refundAmount.compareTo(currentCredit) > 0) {
-            List<ChargeItem> positiveCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
-                    context.tenantId(), account.id()).stream()
-                    .filter(c -> c.totalAmount() != null && c.totalAmount().signum() > 0)
-                    .filter(c -> targetItemIds == null || targetItemIds.contains(c.id()))
+            List<ChargeItem> accountCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
+                    context.tenantId(), account.id());
+            List<ChargeItem> positiveCharges = accountCharges.stream()
+                    .filter(charge -> charge.totalAmount() != null && charge.totalAmount().signum() > 0)
+                    .filter(charge -> targetItemIds == null || targetItemIds.contains(charge.id()))
                     .toList();
 
-            Set<Long> alreadyReversed = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
-                    context.tenantId(), account.id()).stream()
+            Set<Long> alreadyReversed = accountCharges.stream()
                     .map(ChargeItem::reversesChargeItemId)
                     .filter(Objects::nonNull)
-                    .collect(java.util.stream.Collectors.toSet());
+                    .collect(Collectors.toSet());
 
             BigDecimal neededCredit = refundAmount.subtract(currentCredit);
             BigDecimal credited = BigDecimal.ZERO;
             Instant now = Instant.now();
 
             for (ChargeItem original : positiveCharges) {
-                if (alreadyReversed.contains(original.id())) continue;
-                if (credited.compareTo(neededCredit) >= 0) break;
+                if (alreadyReversed.contains(original.id())) {
+                    continue;
+                }
+                if (credited.compareTo(neededCredit) >= 0) {
+                    break;
+                }
 
                 BigDecimal reversalAmount = original.totalAmount().negate();
                 ChargeItem reversal = charges.save(new ChargeItem(
@@ -171,15 +211,13 @@ public class DirectRefundApplicationService {
                         original.quantity().negate(), original.unitCode(), original.unitPrice(),
                         reversalAmount, original.currencyCode(), original.priceId(),
                         original.priceRevision(), original.priceType(), original.itemCodeSnapshot(),
-                        original.itemNameSnapshot(), now, context.subjectId(), original.id()
-                ));
+                        original.itemNameSnapshot(), now, context.subjectId(), original.id()));
 
                 components.save(new ChargeItemComponent(
                         context.tenantId(), reversal.id(), original.catalogItemId(),
                         original.itemCodeSnapshot(), original.itemNameSnapshot(),
                         original.quantity().negate(), original.unitCode(), BigDecimal.ONE,
-                        original.unitPrice(), reversalAmount
-                ));
+                        original.unitPrice(), reversalAmount));
 
                 Long originalLedger = ledger.findByTenantIdAndChargeItemId(context.tenantId(), original.id())
                         .map(LedgerEntry::id).orElse(null);
@@ -187,8 +225,7 @@ public class DirectRefundApplicationService {
                 ledger.save(new LedgerEntry(
                         context.tenantId(), original.patientAccountId(), "CHARGE_REVERSAL", "CREDIT",
                         original.totalAmount().abs(), original.currencyCode(), reversal.id(),
-                        null, null, originalLedger, now, context.subjectId()
-                ));
+                        null, null, originalLedger, now, context.subjectId()));
 
                 credited = credited.add(original.totalAmount());
             }
@@ -197,44 +234,38 @@ public class DirectRefundApplicationService {
         PaymentOrderView refundOrder = paymentOrchestration.refund(
                 new PaymentOrchestrationService.CreateRefundOrderCommand(
                         paymentId, command.idempotencyKey(), refundAmount, command.reason(),
-                        "DIRECT-REFUND-" + account.encounterId(), command.terminalCode()
-                )
-        );
-
-        for (RefundItemPreCheckView item : itemsToCheck) {
-            if ("MEDICATION_REQUEST".equals(item.sourceType()) && item.sourceId() != null) {
-                cancelPharmacyFulfillment(context.tenantId(), item.sourceId());
-            }
-        }
+                        "DIRECT-REFUND-" + account.encounterId(), command.terminalCode()));
 
         tryRedFlushFiscalReceipts(context.tenantId(), account.id(), command.idempotencyKey(), command.reason());
-
         return refundOrder;
     }
 
-    private void cancelPharmacyFulfillment(Long tenantId, Long requestId) {
-        try {
-            pharmacy.cancelUnfulfilledForRefund(tenantId, requestId);
-            log.info("Direct refund requested pharmacy cancellation for request {}", requestId);
-        } catch (Exception ex) {
-            log.warn("Downstream pharmacy cancellation failed for request {}: {}", requestId, ex.getMessage());
+    private Payment requireOriginalPayment(Long paymentId, ExecutionContext context) {
+        if (paymentId == null) {
+            throw new BusinessException("PAYMENT_ID_REQUIRED", "退款原支付记录ID不能为空", HttpStatus.BAD_REQUEST);
         }
+        Payment payment = payments.findByIdAndTenantId(paymentId, context.tenantId())
+                .orElseThrow(() -> new BusinessException("PAYMENT_NOT_FOUND", "未找到对应的原支付记录", HttpStatus.NOT_FOUND));
+        if (!"PAYMENT".equals(payment.paymentType())) {
+            throw new BusinessException("INVALID_ORIGINAL_PAYMENT", "只能针对正向支付记录办理退款", HttpStatus.CONFLICT);
+        }
+        return payment;
     }
 
     private void tryRedFlushFiscalReceipts(Long tenantId, Long accountId, String idempotencyKey, String reason) {
         try {
             List<Settlement> accountSettlements = settlements
                     .findByTenantIdAndPatientAccountIdOrderByCreatedAtAscIdAsc(tenantId, accountId);
-            for (Settlement s : accountSettlements) {
+            for (Settlement settlement : accountSettlements) {
                 List<Receipt> settlementReceipts = receipts
-                        .findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(tenantId, s.id());
-                for (Receipt r : settlementReceipts) {
-                    if ("ISSUED".equals(r.status()) && !"RED_FLUSH".equals(r.receiptType())) {
-                        Optional<Receipt> redOpt = receipts.findByTenantIdAndReversesReceiptId(tenantId, r.id());
+                        .findByTenantIdAndSettlementIdOrderByCreatedAtAscIdAsc(tenantId, settlement.id());
+                for (Receipt receipt : settlementReceipts) {
+                    if ("ISSUED".equals(receipt.status()) && !"RED_FLUSH".equals(receipt.receiptType())) {
+                        Optional<Receipt> redOpt = receipts.findByTenantIdAndReversesReceiptId(tenantId, receipt.id());
                         if (redOpt.isEmpty()) {
-                            String cmdCode = "RF-" + idempotencyKey;
-                            receiptService.redFlush(r.id(), cmdCode, reason, null);
-                            log.info("Direct refund triggered fiscal receipt red-flush for receipt {}", r.receiptNo());
+                            String commandCode = "RF-" + idempotencyKey;
+                            receiptService.redFlush(receipt.id(), commandCode, reason, null);
+                            log.info("Direct refund triggered fiscal receipt red-flush for receipt {}", receipt.receiptNo());
                         }
                     }
                 }
