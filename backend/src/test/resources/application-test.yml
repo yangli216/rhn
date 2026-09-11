@@ -8,6 +8,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    clean-disabled: false
     locations: classpath:db/migration,classpath:db/local,classpath:db/h2
 rhn:
   ai:
