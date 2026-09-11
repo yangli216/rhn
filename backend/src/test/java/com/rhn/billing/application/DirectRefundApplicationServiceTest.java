@@ -1,10 +1,8 @@
 package com.rhn.billing.application;
 
 import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
+import com.rhn.billing.api.RefundBillingDirectory.RefundBillingSnapshot;
 import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
-import com.rhn.billing.api.RefundPreCheckViews.RefundItemPreCheckView;
-import com.rhn.billing.api.RefundPreCheckViews.RefundPaymentCandidateView;
-import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
 import com.rhn.billing.domain.ChargeItem;
 import com.rhn.billing.domain.PatientAccount;
 import com.rhn.billing.domain.Payment;
@@ -17,7 +15,6 @@ import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.billing.infrastructure.ReceiptRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
-import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -33,6 +30,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -49,10 +47,9 @@ class DirectRefundApplicationServiceTest {
     private LedgerEntryRepository ledger;
     private SettlementRepository settlements;
     private ReceiptRepository receipts;
-    private RefundPharmacyDirectory pharmacy;
     private PaymentOrchestrationService paymentOrchestration;
     private ReceiptApplicationService receiptService;
-    private RefundPreCheckService preCheckService;
+    private RefundPolicy refundPolicy;
     private ExecutionContextProvider contextProvider;
 
     private DirectRefundApplicationService service;
@@ -67,60 +64,72 @@ class DirectRefundApplicationServiceTest {
         ledger = mock(LedgerEntryRepository.class);
         settlements = mock(SettlementRepository.class);
         receipts = mock(ReceiptRepository.class);
-        pharmacy = mock(RefundPharmacyDirectory.class);
         paymentOrchestration = mock(PaymentOrchestrationService.class);
         receiptService = mock(ReceiptApplicationService.class);
-        preCheckService = mock(RefundPreCheckService.class);
+        refundPolicy = mock(RefundPolicy.class);
         contextProvider = mock(ExecutionContextProvider.class);
         when(contextProvider.requireCurrent()).thenReturn(context);
 
         service = new DirectRefundApplicationService(
                 payments, accounts, charges, components, ledger,
-                settlements, receipts, pharmacy,
-                paymentOrchestration, receiptService, preCheckService, contextProvider
-        );
+                settlements, receipts, paymentOrchestration, receiptService,
+                refundPolicy, contextProvider);
     }
 
     @Test
     void whenPaymentNotFound_shouldThrow() {
         when(payments.findByIdAndTenantId(999L, 1L)).thenReturn(Optional.empty());
-        DirectRefundCommand command = new DirectRefundCommand(
-                "IDEMP-1", new BigDecimal("10.00"), "误收退费", "CASHIER", List.of());
-        assertThrows(BusinessException.class, () -> service.directRefund(999L, command));
+        assertThrows(BusinessException.class, () -> service.paymentContext(999L));
     }
 
     @Test
-    void whenPreCheckBlocked_shouldThrow() {
-        Long paymentId = 100L;
-        Payment payment = mock(Payment.class);
-        when(payment.id()).thenReturn(paymentId);
-        when(payment.paymentType()).thenReturn("PAYMENT");
-        when(payment.patientAccountId()).thenReturn(10L);
-        when(payment.amount()).thenReturn(new BigDecimal("50.00"));
-        when(payments.findByIdAndTenantId(paymentId, 1L)).thenReturn(Optional.of(payment));
-
+    void snapshotForEncounter_shouldExposeBillingFactsOnly() {
+        Long encounterId = 200L;
+        Long accountId = 10L;
         PatientAccount account = mock(PatientAccount.class);
-        when(account.id()).thenReturn(10L);
-        when(account.encounterId()).thenReturn(200L);
-        when(accounts.findByIdAndTenantId(10L, 1L)).thenReturn(Optional.of(account));
+        when(account.id()).thenReturn(accountId);
+        when(account.organizationId()).thenReturn(1001L);
+        when(account.currencyCode()).thenReturn("CNY");
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId))).thenReturn(List.of(account));
 
-        RefundItemPreCheckView blockedItem = new RefundItemPreCheckView(
-                501L, "MEDICATION_REQUEST", 8001L, "REQ-001",
-                "阿莫西林", "MED01", new BigDecimal("2"), "盒", new BigDecimal("50.00"),
-                "DISPENSED", "已发药", false, "已发药 · 阻断", "danger", "处方已发药，禁止直接退款");
-        RefundPreCheckSummaryView blockedCheck = new RefundPreCheckSummaryView(
-                200L, 10L, false, "BLOCKED", "处方已发药，禁止直接退款",
-                new BigDecimal("50.00"), BigDecimal.ZERO, "CNY", List.of(blockedItem), List.of());
-        when(preCheckService.preCheck(200L)).thenReturn(blockedCheck);
+        ChargeItem charge = mock(ChargeItem.class);
+        when(charge.id()).thenReturn(501L);
+        when(charge.sourceType()).thenReturn("MEDICATION_REQUEST");
+        when(charge.sourceId()).thenReturn(8001L);
+        when(charge.requestCode()).thenReturn("REQ-001");
+        when(charge.itemNameSnapshot()).thenReturn("阿莫西林");
+        when(charge.itemCodeSnapshot()).thenReturn("MED01");
+        when(charge.quantity()).thenReturn(new BigDecimal("2"));
+        when(charge.unitCode()).thenReturn("盒");
+        when(charge.totalAmount()).thenReturn(new BigDecimal("60.00"));
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, accountId))
+                .thenReturn(List.of(charge));
 
-        DirectRefundCommand command = new DirectRefundCommand(
-                "IDEMP-1", new BigDecimal("50.00"), "患者要求退费", "CASHIER", List.of(501L));
+        Payment payment = mock(Payment.class);
+        when(payment.id()).thenReturn(100L);
+        when(payment.paymentNo()).thenReturn("PAY-100");
+        when(payment.paymentMethodCode()).thenReturn("WECHAT");
+        when(payment.paymentType()).thenReturn("PAYMENT");
+        when(payment.amount()).thenReturn(new BigDecimal("60.00"));
+        when(payment.currencyCode()).thenReturn("CNY");
+        when(payment.paidAt()).thenReturn(Instant.now());
+        when(payments.findByTenantIdAndPatientAccountIdOrderByPaidAtAscIdAsc(1L, accountId))
+                .thenReturn(List.of(payment));
+        when(payments.refundedForPayment(1L, 100L)).thenReturn(BigDecimal.ZERO);
+        when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), eq(1001L), any())).thenReturn(true);
 
-        assertThrows(BusinessException.class, () -> service.directRefund(paymentId, command));
+        RefundBillingSnapshot snapshot = service.snapshotForEncounter(encounterId);
+
+        assertEquals(accountId, snapshot.accountId());
+        assertTrue(snapshot.unexecutedDirectRefundAllowed());
+        assertEquals(new BigDecimal("60.00"), snapshot.totalPaidAmount());
+        assertEquals(1, snapshot.charges().size());
+        assertEquals("MEDICATION_REQUEST", snapshot.charges().get(0).sourceType());
+        assertEquals(1, snapshot.refundablePayments().size());
     }
 
     @Test
-    void whenDirectRefundSuccess_shouldReverseChargesAndRequestPharmacyCancellation() {
+    void executeDirectRefund_shouldReverseChargesAndRefundWithinBilling() {
         Long paymentId = 100L;
         Long encounterId = 200L;
         Long accountId = 10L;
@@ -131,24 +140,12 @@ class DirectRefundApplicationServiceTest {
         when(payment.patientAccountId()).thenReturn(accountId);
         when(payment.amount()).thenReturn(new BigDecimal("60.00"));
         when(payments.findByIdAndTenantId(paymentId, 1L)).thenReturn(Optional.of(payment));
+        when(payments.refundedForPayment(1L, paymentId)).thenReturn(BigDecimal.ZERO);
 
         PatientAccount account = mock(PatientAccount.class);
         when(account.id()).thenReturn(accountId);
         when(account.encounterId()).thenReturn(encounterId);
         when(accounts.findByIdAndTenantId(accountId, 1L)).thenReturn(Optional.of(account));
-
-        RefundItemPreCheckView allowedItem = new RefundItemPreCheckView(
-                501L, "MEDICATION_REQUEST", 8001L, "REQ-001",
-                "阿莫西林", "MED01", new BigDecimal("2"), "盒", new BigDecimal("60.00"),
-                "UNDISPENSED", "未发药", true, "未发药 · 允许退款", "success", null);
-        RefundPaymentCandidateView candidatePayment = new RefundPaymentCandidateView(
-                paymentId, "PAY-100", "WECHAT", new BigDecimal("60.00"),
-                BigDecimal.ZERO, new BigDecimal("60.00"), "CNY", Instant.now());
-        RefundPreCheckSummaryView preCheck = new RefundPreCheckSummaryView(
-                encounterId, accountId, true, "READY", "允许退款",
-                new BigDecimal("60.00"), new BigDecimal("60.00"), "CNY",
-                List.of(allowedItem), List.of(candidatePayment));
-        when(preCheckService.preCheck(encounterId)).thenReturn(preCheck);
 
         ChargeItem originalCharge = mock(ChargeItem.class);
         when(originalCharge.id()).thenReturn(501L);
@@ -156,7 +153,6 @@ class DirectRefundApplicationServiceTest {
         when(originalCharge.residentId()).thenReturn(300L);
         when(originalCharge.encounterId()).thenReturn(encounterId);
         when(originalCharge.catalogItemId()).thenReturn(9001L);
-        when(originalCharge.sourceType()).thenReturn("MEDICATION_REQUEST");
         when(originalCharge.sourceId()).thenReturn(8001L);
         when(originalCharge.requestCode()).thenReturn("REQ-001");
         when(originalCharge.quantity()).thenReturn(new BigDecimal("2"));
@@ -170,15 +166,14 @@ class DirectRefundApplicationServiceTest {
                 .thenReturn(List.of(originalCharge));
         when(charges.save(any(ChargeItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        PaymentOrderView mockRefundOrder = new PaymentOrderView(
+        PaymentOrderView refundOrder = new PaymentOrderView(
                 2001L, 1L, accountId, null, paymentId, "RPO-001",
                 "IDEMP-1", "OUTPATIENT", "CASHIER",
                 "WECHAT", "微信支付", "REFUND", "SUCCEEDED",
                 new BigDecimal("60.00"), new BigDecimal("60.00"), BigDecimal.ZERO,
                 "CNY", "EXT-REF-1", "CORR-1", "CASHIER",
-                null, Instant.now(), Instant.now(),
-                null, null, false, List.of());
-        when(paymentOrchestration.refund(any())).thenReturn(mockRefundOrder);
+                null, Instant.now(), Instant.now(), null, null, false, List.of());
+        when(paymentOrchestration.refund(any())).thenReturn(refundOrder);
 
         Settlement settlement = mock(Settlement.class);
         when(settlement.id()).thenReturn(999L);
@@ -195,14 +190,13 @@ class DirectRefundApplicationServiceTest {
         DirectRefundCommand command = new DirectRefundCommand(
                 "IDEMP-1", new BigDecimal("60.00"), "患者退费", "CASHIER", List.of(501L));
 
-        PaymentOrderView result = service.directRefund(paymentId, command);
+        PaymentOrderView result = service.executeDirectRefund(paymentId, command);
 
         assertNotNull(result);
         assertEquals("RPO-001", result.orderNo());
         verify(charges, times(1)).save(any(ChargeItem.class));
         verify(ledger, times(1)).save(any());
         verify(paymentOrchestration, times(1)).refund(any());
-        verify(pharmacy, times(1)).cancelUnfulfilledForRefund(1L, 8001L);
         verify(receiptService, times(1)).redFlush(eq(888L), any(), eq("患者退费"), any());
     }
 }
