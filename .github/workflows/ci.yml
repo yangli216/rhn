@@ -20,6 +20,7 @@ jobs:
           cache: maven
       - name: Verify backend
         run: |
+          set -o pipefail
           mkdir -p ../artifacts
           mvn --batch-mode verify 2>&1 | tee ../artifacts/backend-verify.log
       - name: Upload backend diagnostics
@@ -45,14 +46,19 @@ jobs:
       - run: npm ci
       - name: Check UI standards
         run: |
+          set -o pipefail
           mkdir -p ../artifacts
           npm run ui:check 2>&1 | tee ../artifacts/frontend-ui-check.log
       - name: Run frontend tests
         if: always()
-        run: npm run test 2>&1 | tee ../artifacts/frontend-test.log
+        run: |
+          set -o pipefail
+          npm run test 2>&1 | tee ../artifacts/frontend-test.log
       - name: Build frontend
         if: always()
-        run: npm run build 2>&1 | tee ../artifacts/frontend-build.log
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee ../artifacts/frontend-build.log
       - name: Upload frontend diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -79,6 +85,7 @@ jobs:
         working-directory: frontend
       - name: Verify committed OpenAPI contract and generated types
         run: |
+          set -o pipefail
           mkdir -p artifacts
           cd backend
           mvn --batch-mode -DskipTests package 2>&1 | tee ../artifacts/api-contract-package.log
