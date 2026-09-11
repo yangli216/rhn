@@ -14,8 +14,6 @@ import com.rhn.pharmacy.infrastructure.InventoryTransactionRepository;
 import com.rhn.pharmacy.infrastructure.InventoryTransactionLineRepository;
 import com.rhn.pharmacy.application.InventoryApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService;
-import com.rhn.billing.application.DirectRefundApplicationService;
-import com.rhn.billing.application.RefundPreCheckService;
 import org.junit.jupiter.api.Tag;
 import org.springframework.security.core.context.SecurityContextHolder;
 import tools.jackson.databind.ObjectMapper;
@@ -40,11 +38,7 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule business_modules_are_free_of_cycles = slices()
             .matching("com.rhn.(ai|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
-            .should().beFreeOfCycles()
-            .ignoreDependency(
-                    JavaClass.Predicates.equivalentTo(RefundPreCheckService.class),
-                    JavaClass.Predicates.resideInAnyPackage("com.rhn.diagnostics..", "com.rhn.treatment..")
-            );
+            .should().beFreeOfCycles();
 
     @ArchTest
     static final ArchRule mutable_inventory_balance_repository_is_hidden_behind_availability_gateway = classes()
@@ -89,8 +83,6 @@ class ArchitectureTest {
                     "com.rhn.ai..", "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
                     "com.rhn.healthplanning..", "com.rhn.inpatient..", "com.rhn.outpatient..", "com.rhn.pharmacy..", "com.rhn.treatment..",
                     "com.rhn.coordination..")
-            .and().doNotHaveFullyQualifiedName(DirectRefundApplicationService.class.getName())
-            .and().doNotHaveFullyQualifiedName(RefundPreCheckService.class.getName())
             .should(new ArchCondition<>("depend on other business modules only through their api packages") {
                 @Override
                 public void check(JavaClass source, ConditionEvents events) {
