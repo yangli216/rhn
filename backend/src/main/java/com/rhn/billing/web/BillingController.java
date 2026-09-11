@@ -9,8 +9,6 @@ import com.rhn.billing.api.BillingViews.PaymentView;
 import com.rhn.billing.api.BillingViews.SettlementView;
 import com.rhn.billing.api.BillingViews.SettlementRecordView;
 import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
-import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
-import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
 import com.rhn.billing.application.BillingApplicationService;
 import com.rhn.billing.application.BillingApplicationService.IssueInvoiceCommand;
 import com.rhn.billing.application.BillingApplicationService.PaymentCommand;
@@ -20,7 +18,6 @@ import com.rhn.billing.application.PaymentOrchestrationService;
 import com.rhn.billing.application.PaymentOrchestrationService.CreatePaymentOrderCommand;
 import com.rhn.billing.application.PaymentOrchestrationService.CreateRefundOrderCommand;
 import com.rhn.billing.application.SettlementApplicationService;
-import com.rhn.coordination.api.RefundCoordinationDirectory;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -49,16 +46,13 @@ public class BillingController {
     private final BillingApplicationService service;
     private final PaymentOrchestrationService payments;
     private final SettlementApplicationService settlements;
-    private final RefundCoordinationDirectory refunds;
 
     public BillingController(BillingApplicationService service,
                              PaymentOrchestrationService payments,
-                             SettlementApplicationService settlements,
-                             RefundCoordinationDirectory refunds) {
+                             SettlementApplicationService settlements) {
         this.service = service;
         this.payments = payments;
         this.settlements = settlements;
-        this.refunds = refunds;
     }
 
     @PostMapping("/encounters/{encounterId}/charges/synchronize")
@@ -166,23 +160,6 @@ public class BillingController {
         return service.dailyReconciliation(businessDate);
     }
 
-    @GetMapping("/encounters/{encounterId}/refund-precheck")
-    public RefundPreCheckSummaryView getRefundPreCheck(@PathVariable Long encounterId) {
-        return refunds.preCheck(encounterId);
-    }
-
-    @PostMapping("/payments/{paymentId}/direct-refund")
-    @ResponseStatus(HttpStatus.CREATED)
-    public PaymentOrderView directRefund(@PathVariable Long paymentId,
-                                         @Valid @RequestBody DirectRefundRequest input) {
-        return refunds.directRefund(paymentId, new DirectRefundCommand(
-                input.idempotencyKey(),
-                input.refundAmount(),
-                input.reason(),
-                input.terminalCode(),
-                input.chargeItemIds()));
-    }
-
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
 
     record IssueInvoiceRequest(
@@ -231,15 +208,6 @@ public class BillingController {
             @NotBlank @Size(max = 1000) String reason,
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode) {}
-
-    record DirectRefundRequest(
-            @NotBlank @Size(max = 128) String idempotencyKey,
-            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
-            BigDecimal refundAmount,
-            @NotBlank @Size(max = 1000) String reason,
-            @Size(max = 128) String correlationId,
-            @Size(max = 128) String terminalCode,
-            List<Long> chargeItemIds) {}
 
     record PaymentRecoveryRequest(
             @NotBlank @Size(max = 128) String batchCode,
