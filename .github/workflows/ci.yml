@@ -84,14 +84,20 @@ jobs:
           mvn --batch-mode -DskipTests package 2>&1 | tee ../artifacts/api-contract-package.log
           java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > ../artifacts/api-contract-app.log 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid"' EXIT
-          for attempt in {1..30}; do
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..90}; do
             if curl --fail --silent http://localhost:18080/actuator/health > /dev/null; then
               break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              echo "Application exited before becoming healthy"
+              cat ../artifacts/api-contract-app.log
+              exit 1
             fi
             sleep 1
           done
           if ! curl --fail --silent http://localhost:18080/actuator/health > /dev/null; then
+            echo "Application did not become healthy within 90 seconds"
             cat ../artifacts/api-contract-app.log
             exit 1
           fi
