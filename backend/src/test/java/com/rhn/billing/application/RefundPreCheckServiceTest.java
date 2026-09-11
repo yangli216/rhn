@@ -8,25 +8,17 @@ import com.rhn.billing.domain.Payment;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
-import com.rhn.diagnostics.domain.DiagnosticReport;
-import com.rhn.diagnostics.infrastructure.DiagnosticReportRepository;
-import com.rhn.pharmacy.domain.DispenseTask;
-import com.rhn.pharmacy.domain.DispenseTaskLine;
-import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
-import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
+import com.rhn.diagnostics.api.DiagnosticRefundDirectory;
+import com.rhn.pharmacy.api.PharmacyRefundDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
-import com.rhn.treatment.domain.TreatmentExecutionItem;
-import com.rhn.treatment.domain.TreatmentExecutionTask;
-import com.rhn.treatment.infrastructure.TreatmentExecutionItemRepository;
-import com.rhn.treatment.infrastructure.TreatmentExecutionTaskRepository;
+import com.rhn.treatment.api.TreatmentRefundDirectory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -43,11 +34,9 @@ class RefundPreCheckServiceTest {
     private PatientAccountRepository accounts;
     private ChargeItemRepository charges;
     private PaymentRepository payments;
-    private DispenseTaskLineRepository taskLines;
-    private DispenseTaskRepository tasks;
-    private DiagnosticReportRepository reports;
-    private TreatmentExecutionItemRepository treatmentItems;
-    private TreatmentExecutionTaskRepository treatmentTasks;
+    private PharmacyRefundDirectory pharmacyRefunds;
+    private DiagnosticRefundDirectory diagnosticRefunds;
+    private TreatmentRefundDirectory treatmentRefunds;
     private RefundPolicy refundPolicy;
     private ExecutionContextProvider contextProvider;
 
@@ -59,19 +48,17 @@ class RefundPreCheckServiceTest {
         accounts = mock(PatientAccountRepository.class);
         charges = mock(ChargeItemRepository.class);
         payments = mock(PaymentRepository.class);
-        taskLines = mock(DispenseTaskLineRepository.class);
-        tasks = mock(DispenseTaskRepository.class);
-        reports = mock(DiagnosticReportRepository.class);
-        treatmentItems = mock(TreatmentExecutionItemRepository.class);
-        treatmentTasks = mock(TreatmentExecutionTaskRepository.class);
+        pharmacyRefunds = mock(PharmacyRefundDirectory.class);
+        diagnosticRefunds = mock(DiagnosticRefundDirectory.class);
+        treatmentRefunds = mock(TreatmentRefundDirectory.class);
         refundPolicy = mock(RefundPolicy.class);
         contextProvider = mock(ExecutionContextProvider.class);
 
         when(contextProvider.requireCurrent()).thenReturn(context);
 
         service = new RefundPreCheckService(
-                accounts, charges, payments, taskLines, tasks,
-                reports, treatmentItems, treatmentTasks, refundPolicy, contextProvider
+                accounts, charges, payments, pharmacyRefunds, diagnosticRefunds,
+                treatmentRefunds, refundPolicy, contextProvider
         );
     }
 
@@ -92,35 +79,14 @@ class RefundPreCheckServiceTest {
     @Test
     void whenMedicationDispensed_shouldBlockRefund() {
         Long encounterId = 100L;
-        PatientAccount account = mock(PatientAccount.class);
-        when(account.id()).thenReturn(10L);
-        when(account.organizationId()).thenReturn(1001L);
-        when(account.currencyCode()).thenReturn("CNY");
-        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId)))
-                .thenReturn(List.of(account));
-
-        ChargeItem charge = mock(ChargeItem.class);
-        when(charge.id()).thenReturn(501L);
-        when(charge.sourceType()).thenReturn("MEDICATION_REQUEST");
-        when(charge.sourceId()).thenReturn(8001L);
-        when(charge.requestCode()).thenReturn("REQ-MED-01");
-        when(charge.itemNameSnapshot()).thenReturn("头孢克肟胶囊");
-        when(charge.itemCodeSnapshot()).thenReturn("MED001");
-        when(charge.quantity()).thenReturn(new BigDecimal("1"));
-        when(charge.unitCode()).thenReturn("盒");
-        when(charge.totalAmount()).thenReturn(new BigDecimal("35.00"));
+        PatientAccount account = account(encounterId);
+        ChargeItem charge = charge(501L, "MEDICATION_REQUEST", 8001L,
+                "REQ-MED-01", "头孢克肟胶囊", "MED001", "35.00", "盒");
         when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
                 .thenReturn(List.of(charge));
-
         when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
-
-        DispenseTaskLine taskLine = mock(DispenseTaskLine.class);
-        when(taskLine.taskId()).thenReturn(9001L);
-        when(taskLines.findByTenantIdAndRequestIdOrderById(1L, 8001L)).thenReturn(List.of(taskLine));
-
-        DispenseTask task = mock(DispenseTask.class);
-        when(task.status()).thenReturn("COMPLETED");
-        when(tasks.findById(9001L)).thenReturn(Optional.of(task));
+        when(pharmacyRefunds.refundFulfillment(1L, 8001L))
+                .thenReturn(new PharmacyRefundDirectory.RefundFulfillmentSnapshot("COMPLETED"));
 
         RefundPreCheckSummaryView result = service.preCheck(encounterId);
 
@@ -138,31 +104,14 @@ class RefundPreCheckServiceTest {
     @Test
     void whenReportIssued_shouldBlockRefund() {
         Long encounterId = 100L;
-        PatientAccount account = mock(PatientAccount.class);
-        when(account.id()).thenReturn(10L);
-        when(account.organizationId()).thenReturn(1001L);
-        when(account.currencyCode()).thenReturn("CNY");
-        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId)))
-                .thenReturn(List.of(account));
-
-        ChargeItem charge = mock(ChargeItem.class);
-        when(charge.id()).thenReturn(502L);
-        when(charge.sourceType()).thenReturn("SERVICE_REQUEST");
-        when(charge.sourceId()).thenReturn(8002L);
-        when(charge.requestCode()).thenReturn("REQ-EXAM-01");
-        when(charge.itemNameSnapshot()).thenReturn("血常规");
-        when(charge.itemCodeSnapshot()).thenReturn("EXAM001");
-        when(charge.quantity()).thenReturn(new BigDecimal("1"));
-        when(charge.unitCode()).thenReturn("次");
-        when(charge.totalAmount()).thenReturn(new BigDecimal("20.00"));
+        account(encounterId);
+        ChargeItem charge = charge(502L, "SERVICE_REQUEST", 8002L,
+                "REQ-EXAM-01", "血常规", "EXAM001", "20.00", "次");
         when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
                 .thenReturn(List.of(charge));
-
         when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
-
-        DiagnosticReport report = mock(DiagnosticReport.class);
-        when(reports.findByTenantIdAndRequestIdOrderByReportVersionDesc(1L, 8002L))
-                .thenReturn(List.of(report));
+        when(diagnosticRefunds.refundExecution(1L, 8002L))
+                .thenReturn(new DiagnosticRefundDirectory.RefundExecutionSnapshot(true));
 
         RefundPreCheckSummaryView result = service.preCheck(encounterId);
 
@@ -177,33 +126,37 @@ class RefundPreCheckServiceTest {
     }
 
     @Test
+    void whenTreatmentInProgress_shouldBlockRefund() {
+        Long encounterId = 100L;
+        account(encounterId);
+        ChargeItem charge = charge(505L, "TREATMENT", 8005L,
+                "REQ-TRT-01", "雾化治疗", "TRT001", "25.00", "次");
+        when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
+                .thenReturn(List.of(charge));
+        when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
+        when(treatmentRefunds.refundExecution(1L, 8005L))
+                .thenReturn(new TreatmentRefundDirectory.RefundExecutionSnapshot("IN_PROGRESS"));
+
+        RefundPreCheckSummaryView result = service.preCheck(encounterId);
+
+        assertFalse(result.eligibleForRefund());
+        assertEquals("EXECUTED", result.items().get(0).executionStatusCode());
+        assertTrue(result.items().get(0).blockReason().contains("治疗处置已在执行或已完成"));
+    }
+
+    @Test
     void whenUnexecutedAndPolicyEnabled_shouldAllowDirectRefund() {
         Long encounterId = 100L;
-        PatientAccount account = mock(PatientAccount.class);
-        when(account.id()).thenReturn(10L);
-        when(account.organizationId()).thenReturn(1001L);
-        when(account.currencyCode()).thenReturn("CNY");
-        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId)))
-                .thenReturn(List.of(account));
-
-        ChargeItem charge = mock(ChargeItem.class);
-        when(charge.id()).thenReturn(503L);
-        when(charge.sourceType()).thenReturn("MEDICATION_REQUEST");
-        when(charge.sourceId()).thenReturn(8003L);
-        when(charge.requestCode()).thenReturn("REQ-MED-03");
-        when(charge.itemNameSnapshot()).thenReturn("感冒清热颗粒");
-        when(charge.itemCodeSnapshot()).thenReturn("MED003");
+        account(encounterId);
+        ChargeItem charge = charge(503L, "MEDICATION_REQUEST", 8003L,
+                "REQ-MED-03", "感冒清热颗粒", "MED003", "30.00", "盒");
         when(charge.quantity()).thenReturn(new BigDecimal("2"));
-        when(charge.unitCode()).thenReturn("盒");
-        when(charge.totalAmount()).thenReturn(new BigDecimal("30.00"));
         when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
                 .thenReturn(List.of(charge));
 
-        // 策略允许直接退款
         when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(true);
-
-        // 未发药
-        when(taskLines.findByTenantIdAndRequestIdOrderById(1L, 8003L)).thenReturn(List.of());
+        when(pharmacyRefunds.refundFulfillment(1L, 8003L))
+                .thenReturn(PharmacyRefundDirectory.RefundFulfillmentSnapshot.notIntake());
 
         Payment payment = mock(Payment.class);
         when(payment.id()).thenReturn(701L);
@@ -234,29 +187,15 @@ class RefundPreCheckServiceTest {
     @Test
     void whenUnexecutedAndPolicyDisabled_shouldBlockAndRequireCancel() {
         Long encounterId = 100L;
-        PatientAccount account = mock(PatientAccount.class);
-        when(account.id()).thenReturn(10L);
-        when(account.organizationId()).thenReturn(1001L);
-        when(account.currencyCode()).thenReturn("CNY");
-        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId)))
-                .thenReturn(List.of(account));
-
-        ChargeItem charge = mock(ChargeItem.class);
-        when(charge.id()).thenReturn(504L);
-        when(charge.sourceType()).thenReturn("MEDICATION_REQUEST");
-        when(charge.sourceId()).thenReturn(8004L);
-        when(charge.requestCode()).thenReturn("REQ-MED-04");
-        when(charge.itemNameSnapshot()).thenReturn("阿莫西林");
-        when(charge.itemCodeSnapshot()).thenReturn("MED004");
-        when(charge.quantity()).thenReturn(new BigDecimal("1"));
-        when(charge.unitCode()).thenReturn("盒");
-        when(charge.totalAmount()).thenReturn(new BigDecimal("18.00"));
+        account(encounterId);
+        ChargeItem charge = charge(504L, "MEDICATION_REQUEST", 8004L,
+                "REQ-MED-04", "阿莫西林", "MED004", "18.00", "盒");
         when(charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(1L, 10L))
                 .thenReturn(List.of(charge));
 
-        // 策略关闭直接退款
         when(refundPolicy.isUnexecutedDirectRefundAllowed(any(), any(), any())).thenReturn(false);
-        when(taskLines.findByTenantIdAndRequestIdOrderById(1L, 8004L)).thenReturn(List.of());
+        when(pharmacyRefunds.refundFulfillment(1L, 8004L))
+                .thenReturn(PharmacyRefundDirectory.RefundFulfillmentSnapshot.notIntake());
 
         RefundPreCheckSummaryView result = service.preCheck(encounterId);
 
@@ -268,5 +207,30 @@ class RefundPreCheckServiceTest {
         assertFalse(item.allowed());
         assertEquals("UNDISPENSED_NEED_CANCEL", item.executionStatusCode());
         assertTrue(item.blockReason().contains("需先由开单医生在门诊工作站作废处方"));
+    }
+
+    private PatientAccount account(Long encounterId) {
+        PatientAccount account = mock(PatientAccount.class);
+        when(account.id()).thenReturn(10L);
+        when(account.organizationId()).thenReturn(1001L);
+        when(account.currencyCode()).thenReturn("CNY");
+        when(accounts.findByTenantIdAndEncounterIdIn(1L, List.of(encounterId)))
+                .thenReturn(List.of(account));
+        return account;
+    }
+
+    private ChargeItem charge(Long id, String sourceType, Long sourceId, String requestCode,
+                              String itemName, String itemCode, String amount, String unitCode) {
+        ChargeItem charge = mock(ChargeItem.class);
+        when(charge.id()).thenReturn(id);
+        when(charge.sourceType()).thenReturn(sourceType);
+        when(charge.sourceId()).thenReturn(sourceId);
+        when(charge.requestCode()).thenReturn(requestCode);
+        when(charge.itemNameSnapshot()).thenReturn(itemName);
+        when(charge.itemCodeSnapshot()).thenReturn(itemCode);
+        when(charge.quantity()).thenReturn(BigDecimal.ONE);
+        when(charge.unitCode()).thenReturn(unitCode);
+        when(charge.totalAmount()).thenReturn(new BigDecimal(amount));
+        return charge;
     }
 }
