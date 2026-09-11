@@ -18,7 +18,17 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: mvn --batch-mode verify
+      - name: Verify backend
+        run: |
+          mkdir -p ../artifacts
+          mvn --batch-mode verify 2>&1 | tee ../artifacts/backend-verify.log
+      - name: Upload backend diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-diagnostics
+          path: artifacts/backend-verify.log
+          if-no-files-found: warn
 
   frontend:
     runs-on: ubuntu-latest
@@ -33,7 +43,23 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run check
+      - name: Check UI standards
+        run: |
+          mkdir -p ../artifacts
+          npm run ui:check 2>&1 | tee ../artifacts/frontend-ui-check.log
+      - name: Run frontend tests
+        if: always()
+        run: npm run test 2>&1 | tee ../artifacts/frontend-test.log
+      - name: Build frontend
+        if: always()
+        run: npm run build 2>&1 | tee ../artifacts/frontend-build.log
+      - name: Upload frontend diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-diagnostics
+          path: artifacts/frontend-*.log
+          if-no-files-found: warn
 
   api-contract:
     runs-on: ubuntu-latest
@@ -53,24 +79,76 @@ jobs:
         working-directory: frontend
       - name: Verify committed OpenAPI contract and generated types
         run: |
+          mkdir -p artifacts
           cd backend
-          mvn --batch-mode -DskipTests package
-          java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > /tmp/rhn-contract.log 2>&1 &
+          mvn --batch-mode -DskipTests package 2>&1 | tee ../artifacts/api-contract-package.log
+          java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > ../artifacts/api-contract-app.log 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid"' EXIT
-          for attempt in {1..30}; do
-            if curl --fail --silent http://localhost:18080/actuator/health > /dev/null; then
+          trap 'kill "$app_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..90}; do
+            if curl --fail --silent http://localhost:18080/v3/api-docs > /dev/null; then
               break
+            fi
+            if ! kill -0 "$app_pid" 2>/dev/null; then
+              echo "Application exited before OpenAPI became available"
+              cat ../artifacts/api-contract-app.log
+              exit 1
             fi
             sleep 1
           done
-          if ! curl --fail --silent http://localhost:18080/actuator/health > /dev/null; then
-            cat /tmp/rhn-contract.log
+          if ! curl --fail --silent http://localhost:18080/v3/api-docs > /dev/null; then
+            echo "OpenAPI endpoint did not become available within 90 seconds"
+            cat ../artifacts/api-contract-app.log
             exit 1
           fi
           cd ..
-          curl --fail --silent --show-error http://localhost:18080/v3/api-docs -o docs/api/openapi.json
+
+          # Keep the committed contract untouched. Runtime schema ordering may vary,
+          # so compare canonical JSON and reserve textual diffing for generated TS.
+          curl --fail --silent --show-error http://localhost:18080/v3/api-docs -o artifacts/api-contract-runtime.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          committed = json.loads(Path('docs/api/openapi.json').read_text(encoding='utf-8'))
+          runtime = json.loads(Path('artifacts/api-contract-runtime.json').read_text(encoding='utf-8'))
+          Path('artifacts/api-contract-committed.canonical.json').write_text(
+              json.dumps(committed, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+          Path('artifacts/api-contract-runtime.canonical.json').write_text(
+              json.dumps(runtime, ensure_ascii=False, sort_keys=True, indent=2) + '\n', encoding='utf-8')
+          PY
+
+          openapi_status=0
+          diff -u artifacts/api-contract-committed.canonical.json \
+                  artifacts/api-contract-runtime.canonical.json \
+                  > artifacts/api-contract-openapi.diff || openapi_status=$?
+          if [ "$openapi_status" -gt 1 ]; then
+            echo "Failed to compare canonical OpenAPI contracts"
+            exit "$openapi_status"
+          fi
+
+          # Regenerate from the committed OpenAPI document. This verifies that the
+          # checked-in TypeScript types are synchronized without inheriting runtime
+          # object-key ordering noise.
           cd frontend
-          npm run api:generate
+          npm run api:generate 2>&1 | tee ../artifacts/api-contract-generate.log
           cd ..
-          git diff --exit-code -- docs/api/openapi.json frontend/src/shared/api/generated.ts
+          generated_status=0
+          git diff --exit-code -- frontend/src/shared/api/generated.ts \
+              > artifacts/api-contract-generated.diff || generated_status=$?
+          if [ "$generated_status" -gt 1 ]; then
+            echo "Failed to compare generated TypeScript contract"
+            exit "$generated_status"
+          fi
+
+          if [ "$openapi_status" -ne 0 ] || [ "$generated_status" -ne 0 ]; then
+            echo "Committed API contract is out of sync. See diagnostic artifacts."
+            exit 1
+          fi
+      - name: Upload API contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-contract-diagnostics
+          path: artifacts/api-contract*
+          if-no-files-found: warn
