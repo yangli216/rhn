@@ -18,12 +18,7 @@ import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
 import com.rhn.billing.infrastructure.ReceiptRepository;
 import com.rhn.billing.infrastructure.SettlementRepository;
-import com.rhn.pharmacy.domain.DispenseTask;
-import com.rhn.pharmacy.domain.DispenseTaskLine;
-import com.rhn.pharmacy.domain.PharmacyFulfillmentAuthorization;
-import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
-import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
-import com.rhn.pharmacy.infrastructure.PharmacyFulfillmentAuthorizationRepository;
+import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -34,9 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -45,7 +38,7 @@ import java.util.Set;
 
 /**
  * 门诊直接退费与协同逆向作废编排服务。
- * 针对未发药未执行医嘱的误收费、患者取消等场景，执行前置校验门禁、账务冲销、渠道退款、逆向作废发药任务与发票红字冲红。
+ * billing 仅通过 pharmacy.api 请求药房逆向处理，不再修改药房内部实体或仓储。
  */
 @Service
 public class DirectRefundApplicationService {
@@ -58,9 +51,7 @@ public class DirectRefundApplicationService {
     private final LedgerEntryRepository ledger;
     private final SettlementRepository settlements;
     private final ReceiptRepository receipts;
-    private final DispenseTaskLineRepository taskLines;
-    private final DispenseTaskRepository tasks;
-    private final PharmacyFulfillmentAuthorizationRepository authorizations;
+    private final RefundPharmacyDirectory pharmacy;
     private final PaymentOrchestrationService paymentOrchestration;
     private final ReceiptApplicationService receiptService;
     private final RefundPreCheckService preCheckService;
@@ -73,9 +64,7 @@ public class DirectRefundApplicationService {
                                           LedgerEntryRepository ledger,
                                           SettlementRepository settlements,
                                           ReceiptRepository receipts,
-                                          DispenseTaskLineRepository taskLines,
-                                          DispenseTaskRepository tasks,
-                                          PharmacyFulfillmentAuthorizationRepository authorizations,
+                                          RefundPharmacyDirectory pharmacy,
                                           PaymentOrchestrationService paymentOrchestration,
                                           ReceiptApplicationService receiptService,
                                           RefundPreCheckService preCheckService,
@@ -87,9 +76,7 @@ public class DirectRefundApplicationService {
         this.ledger = ledger;
         this.settlements = settlements;
         this.receipts = receipts;
-        this.taskLines = taskLines;
-        this.tasks = tasks;
-        this.authorizations = authorizations;
+        this.pharmacy = pharmacy;
         this.paymentOrchestration = paymentOrchestration;
         this.receiptService = receiptService;
         this.preCheckService = preCheckService;
@@ -123,7 +110,6 @@ public class DirectRefundApplicationService {
             throw new BusinessException("REFUND_AMOUNT_EXCEEDED", "退款金额不能超过原支付记录剩余可退金额", HttpStatus.CONFLICT);
         }
 
-        // 1. 执行退费前置防损校验
         RefundPreCheckSummaryView preCheck = preCheckService.preCheck(account.encounterId());
 
         Set<Long> targetItemIds = command.chargeItemIds() != null && !command.chargeItemIds().isEmpty()
@@ -150,7 +136,6 @@ public class DirectRefundApplicationService {
                     HttpStatus.CONFLICT);
         }
 
-        // 2. 检查账户当前可退余额，若尚未冲减收费项，则先执行未发药未执行医嘱的账务冲减
         BigDecimal currentBalance = ledger.balance(context.tenantId(), account.id());
         if (currentBalance == null) {
             currentBalance = BigDecimal.ZERO;
@@ -158,7 +143,6 @@ public class DirectRefundApplicationService {
         BigDecimal currentCredit = currentBalance.signum() < 0 ? currentBalance.abs() : BigDecimal.ZERO;
 
         if (refundAmount.compareTo(currentCredit) > 0) {
-            // 需要为未退费项目生成账务反向冲销项
             List<ChargeItem> positiveCharges = charges.findByTenantIdAndPatientAccountIdOrderByOccurredAtAscIdAsc(
                     context.tenantId(), account.id()).stream()
                     .filter(c -> c.totalAmount() != null && c.totalAmount().signum() > 0)
@@ -210,7 +194,6 @@ public class DirectRefundApplicationService {
             }
         }
 
-        // 3. 调度支付退款（原路退回或现金退记账）
         PaymentOrderView refundOrder = paymentOrchestration.refund(
                 new PaymentOrchestrationService.CreateRefundOrderCommand(
                         paymentId, command.idempotencyKey(), refundAmount, command.reason(),
@@ -218,14 +201,12 @@ public class DirectRefundApplicationService {
                 )
         );
 
-        // 4. 逆向协同下游：取消发药任务与释放库存预留、撤销发药授权
         for (RefundItemPreCheckView item : itemsToCheck) {
             if ("MEDICATION_REQUEST".equals(item.sourceType()) && item.sourceId() != null) {
                 cancelPharmacyFulfillment(context.tenantId(), item.sourceId());
             }
         }
 
-        // 5. 财政电子发票红字冲红（如果已开具电子票据）
         tryRedFlushFiscalReceipts(context.tenantId(), account.id(), command.idempotencyKey(), command.reason());
 
         return refundOrder;
@@ -233,30 +214,8 @@ public class DirectRefundApplicationService {
 
     private void cancelPharmacyFulfillment(Long tenantId, Long requestId) {
         try {
-            List<DispenseTaskLine> lines = taskLines.findByTenantIdAndRequestIdOrderById(tenantId, requestId);
-            for (DispenseTaskLine line : lines) {
-                Optional<DispenseTask> taskOpt = tasks.findById(line.taskId());
-                if (taskOpt.isPresent()) {
-                    DispenseTask task = taskOpt.get();
-                    if (!"COMPLETED".equals(task.status()) && !"CANCELLED".equals(task.status())
-                            && !"RETURNED".equals(task.status())) {
-                        if ("PICKING".equals(task.status())) {
-                            task.releaseReservation();
-                        }
-                        task.cancelRemainingForOrderStop();
-                        tasks.save(task);
-                        log.info("Direct refund cancelled dispense task {} for request {}", task.taskNo(), requestId);
-                    }
-                }
-            }
-
-            Optional<PharmacyFulfillmentAuthorization> authOpt = authorizations
-                    .findTopByTenantIdAndMedicationRequestIdOrderByReadyAtDesc(tenantId, requestId);
-            authOpt.ifPresent(auth -> {
-                auth.revoke(false, Instant.now());
-                authorizations.save(auth);
-                log.info("Direct refund revoked pharmacy authorization for request {}", requestId);
-            });
+            pharmacy.cancelUnfulfilledForRefund(tenantId, requestId);
+            log.info("Direct refund requested pharmacy cancellation for request {}", requestId);
         } catch (Exception ex) {
             log.warn("Downstream pharmacy cancellation failed for request {}: {}", requestId, ex.getMessage());
         }
