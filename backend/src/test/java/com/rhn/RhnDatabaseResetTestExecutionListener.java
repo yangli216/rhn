@@ -17,15 +17,15 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Restores the integration-test database to the migrated baseline after each test class while
- * allowing Spring's TestContext cache to keep the application context alive.
+ * Restores the integration-test database to the migrated baseline while allowing Spring's
+ * TestContext cache to keep the application context alive.
  *
  * <p>The previous strategy marked every {@link RhnIntegrationTestSupport} subclass dirty after the
  * class. That provided database isolation, but it also rebuilt the complete Spring Boot context,
  * Hikari pool, JPA entity manager factory and Flyway state for almost every integration-test class.
  * This listener snapshots each H2 test database immediately after the Spring context has migrated it
- * and restores that snapshot after the class. A context that was replaced during the class falls
- * back to Flyway clean/migrate so isolation is never weakened.</p>
+ * and restores that snapshot after the class. Tests that need method-level database isolation can use
+ * {@link ResetDatabaseBeforeEachTestMethod} without forcing a Spring context rebuild.</p>
  */
 final class RhnDatabaseResetTestExecutionListener extends AbstractTestExecutionListener {
 
@@ -46,13 +46,24 @@ final class RhnDatabaseResetTestExecutionListener extends AbstractTestExecutionL
     }
 
     @Override
+    public void beforeTestMethod(TestContext testContext) {
+        if (testContext.getTestClass().isAnnotationPresent(ResetDatabaseBeforeEachTestMethod.class)) {
+            restoreBaseline(testContext);
+        }
+    }
+
+    @Override
     public void afterTestClass(TestContext testContext) {
+        restoreBaseline(testContext);
+    }
+
+    private static void restoreBaseline(TestContext testContext) {
         DataSource dataSource = testContext.getApplicationContext().getBean(DataSource.class);
         assertInMemoryH2(dataSource);
         Path baseline = BASELINES.get(dataSource);
         if (baseline == null) {
-            // A test may deliberately replace its context (for example BEFORE_EACH_TEST_METHOD).
-            // In that exceptional path, prefer the slower known-safe reset over reusing dirty data.
+            // A test may deliberately replace its context. In that exceptional path, prefer the
+            // slower known-safe reset over reusing dirty data.
             Flyway flyway = testContext.getApplicationContext().getBean(Flyway.class);
             flyway.clean();
             flyway.migrate();
