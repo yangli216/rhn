@@ -4,6 +4,7 @@ import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
 import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
 import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
 import com.rhn.coordination.api.RefundCoordinationDirectory;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -24,6 +25,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/billing")
+@Tag(name = "billing-controller")
 public class RefundCoordinationController {
     private final RefundCoordinationDirectory refunds;
 
