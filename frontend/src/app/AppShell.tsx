@@ -26,6 +26,8 @@ const ParameterManagement = lazy(() => import('../features/settings/ParameterMan
   .then((module) => ({ default: module.ParameterManagement })))
 const AiConfigurationManagement = lazy(() => import('../features/settings/AiConfigurationManagement')
   .then((module) => ({ default: module.AiConfigurationManagement })))
+const PrintTemplateManagement = lazy(() => import('../features/settings/PrintTemplateManagement')
+  .then((module) => ({ default: module.PrintTemplateManagement })))
 const OrganizationPersonnelManagement = lazy(() => import('../features/settings/OrganizationPersonnelManagement')
   .then((module) => ({ default: module.OrganizationPersonnelManagement })))
 const BasicDataManagement = lazy(() => import('../features/settings/BasicDataManagement')
@@ -54,6 +56,8 @@ const DiagnosticWorkspace = lazy(() => import('../features/diagnostics/Diagnosti
   .then((module) => ({ default: module.DiagnosticWorkspace })))
 const TreatmentExecutionWorkspace = lazy(() => import('../features/treatment/TreatmentExecutionWorkspace')
   .then((module) => ({ default: module.TreatmentExecutionWorkspace })))
+const ClinicalPrintingWorkspace = lazy(() => import('../features/treatment/ClinicalPrintingWorkspace')
+  .then((module) => ({ default: module.ClinicalPrintingWorkspace })))
 const SkinTestManagementWorkspace = lazy(() => import('../features/treatment/SkinTestManagementWorkspace')
   .then((module) => ({ default: module.SkinTestManagementWorkspace })))
 const CareManagementWorkspace = lazy(() => import('../features/care/CareManagementWorkspace')
@@ -206,6 +210,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'diagnostics', label: '检查检验', icon: 'clinical', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
       { id: 'skin-tests', label: '皮试管理', icon: 'clinical', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'treatments', label: '治疗执行', icon: 'clinical', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
+      { id: 'clinical-printing', label: '临床打印', icon: 'print', to: '/printing/batches', requiredAuthority: 'TREATMENT.ACCESS' },
     ],
   },
   {
@@ -256,6 +261,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
     id: 'system-config', label: '系统配置', icon: 'settings', children: [
       { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
       { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
+      { id: 'print-templates', label: '打印模板', icon: 'print', to: '/settings/print-templates', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
       { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
       { id: 'announcements', label: '系统公告', icon: 'roadmap', to: '/settings/announcements', requiredAuthority: 'ANNOUNCEMENT.MANAGE' },
@@ -320,7 +326,7 @@ function navigationAncestorsForPath(nodes: NavigationNode[], pathname: string, a
   return null
 }
 
-function tabForPath(pathname: string): WorkspaceTab | null {
+export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/') return HOME_TAB
   if (pathname === '/residents') return { id: pathname, path: pathname, title: '居民中心', icon: 'residents', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
@@ -338,6 +344,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'clinical', closeable: true }
   if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'clinical', closeable: true }
   if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'clinical', closeable: true }
+  if (pathname === '/printing/batches') return { id: pathname, path: pathname, title: '临床打印', icon: 'print', closeable: true }
   if (pathname === '/care-management') return { id: pathname, path: pathname, title: '连续照护', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/triage') return { id: pathname, path: pathname, title: '预检分诊', icon: 'clinical', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
@@ -360,6 +367,7 @@ function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
+  if (pathname === '/settings/print-templates') return { id: pathname, path: pathname, title: '打印模板', icon: 'print', closeable: true }
   if (pathname === '/settings/ai-assistant') return { id: pathname, path: pathname, title: 'AI助理配置', icon: 'sparkles', closeable: true }
   if (pathname === '/settings/dictionaries') return { id: pathname, path: pathname, title: '字典管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/dictionary-attributes') return { id: pathname, path: pathname, title: '字典扩展配置', icon: 'settings', closeable: true }
@@ -844,7 +852,9 @@ export function AppShell() {
           {tabs.map((tab) => {
             const requestedType = workContextTypeForPath(tab.path)
             const tabSlot = activeContexts[requestedType] ?? fallbackSlot
-            const slotKey = `${tab.id}:${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`
+            const slotKey = tab.path === '/outpatient/scheduling'
+              ? tab.id
+              : `${tab.id}:${tabSlot.option.workContextType}:${workContextKey(tabSlot.option)}`
             const tabAuthorities = new Set([...session.authorities, ...(tabSlot.option.authorities ?? [])])
             const requiredAuthority = tab.path === '/billing' ? 'BILLING.ACCESS'
               : requiredAuthorityForPath(NAVIGATION_NODES, tab.path)
@@ -889,6 +899,7 @@ export function AppShell() {
                     clinicalContext={tabSlot.clinicalContext} />} />
                   <Route path="/treatments" element={<TreatmentExecutionWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/printing/batches" element={<ClinicalPrintingWorkspace api={tabSlot.api} />} />
                   <Route path="/care-management" element={<CareManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/scheduling" element={<SchedulingWorkspace api={tabSlot.api}
@@ -941,6 +952,7 @@ export function AppShell() {
                     organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,
                     userId: session.userId,
                   }} />} />
+                  <Route path="/settings/print-templates" element={<PrintTemplateManagement api={tabSlot.api} />} />
                   <Route path="/settings/ai-assistant" element={<AiConfigurationManagement api={tabSlot.api} />} />
                   <Route path="/settings/dictionaries" element={<DictionaryManagement api={tabSlot.api}
                     onOpenAttributeConfiguration={(dictionaryId) => navigate(`/settings/dictionary-attributes?dictionaryId=${dictionaryId}`)} />} />

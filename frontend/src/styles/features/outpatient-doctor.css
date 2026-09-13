@@ -62,20 +62,38 @@
 .doctor-context-allergy.is-error { color: var(--color-danger); background: var(--color-danger-soft); }
 .doctor-context-allergy:hover { box-shadow: inset 0 0 0 1px currentColor; }
 .doctor-context-allergy:disabled { cursor: default; opacity: .7; }
-.doctor-allergy-safety { margin-top: 0; padding: var(--space-1) var(--space-3); align-items: center; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface-subtle); }
-.doctor-allergy-safety--dialog { min-height: 8rem; margin: 0; padding: var(--space-4); align-content: flex-start; gap: var(--space-3); }
-.doctor-allergy-safety.is-risk { border-color: var(--color-danger); background: var(--color-danger-soft); }
-.doctor-allergy-safety.is-clear { border-color: var(--color-success); background: var(--color-success-soft); }
-.doctor-allergy-safety.is-unknown { border-color: var(--color-warning); background: var(--color-warning-soft); }
-.doctor-allergy-heading { min-width: 8.5rem; display: grid; gap: 0; }
-.doctor-allergy-heading span, .doctor-allergy-list small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-allergy-list { min-width: 16rem; flex: 1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.doctor-allergy-list > span { padding: var(--space-1) var(--space-2); display: grid; grid-template-columns: minmax(8rem, auto) auto; align-items: center; column-gap: var(--space-2); border: 1px solid color-mix(in srgb, var(--color-danger) 35%, transparent); border-radius: var(--radius-sm); background: var(--color-surface); }
-.doctor-allergy-list small { grid-column: 1; }
-.doctor-allergy-list .ui-button { grid-column: 2; grid-row: 1 / span 2; }
-.doctor-allergy-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
-.doctor-allergy-editor { width: 100%; padding-top: var(--space-3); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: end; gap: var(--space-3); border-top: 1px solid var(--color-border); }
-.doctor-allergy-editor .ui-field { margin: 0; }
+.doctor-allergy-safety { min-width: 0; display: grid; background: var(--color-surface); }
+.doctor-allergy-overview { min-height: 4.5rem; padding: var(--space-3); display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--color-border); }
+.doctor-allergy-overview__icon { width: 2rem; height: 2rem; display: grid; place-items: center; border-radius: 50%; }
+.doctor-allergy-overview__icon .ui-icon { width: 1rem; height: 1rem; }
+.doctor-allergy-overview > div { min-width: 0; display: grid; gap: .0625rem; }
+.doctor-allergy-overview > div > span, .doctor-allergy-overview small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-allergy-overview strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-allergy-safety.is-risk .doctor-allergy-overview { background: color-mix(in srgb, var(--color-danger-soft) 58%, var(--color-surface)); }
+.doctor-allergy-safety.is-risk .doctor-allergy-overview__icon { color: var(--color-danger); background: var(--color-surface); }
+.doctor-allergy-safety.is-clear .doctor-allergy-overview { background: color-mix(in srgb, var(--color-success-soft) 58%, var(--color-surface)); }
+.doctor-allergy-safety.is-clear .doctor-allergy-overview__icon { color: var(--color-success); background: var(--color-surface); }
+.doctor-allergy-safety.is-unknown .doctor-allergy-overview { background: color-mix(in srgb, var(--color-warning-soft) 58%, var(--color-surface)); }
+.doctor-allergy-safety.is-unknown .doctor-allergy-overview__icon { color: var(--color-warning); background: var(--color-surface); }
+.doctor-allergy-records { padding: var(--space-3); border-bottom: 1px solid var(--color-border); }
+.doctor-allergy-records > header { margin-bottom: var(--space-2); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.doctor-allergy-records > header span { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-allergy-list { display: grid; }
+.doctor-allergy-list article { min-width: 0; min-height: 3.25rem; padding: var(--space-2) 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-2); border-top: 1px solid var(--color-border); }
+.doctor-allergy-list article > div { min-width: 0; display: grid; gap: .125rem; }
+.doctor-allergy-list article strong, .doctor-allergy-list article small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doctor-allergy-list article small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-allergy-empty { margin: 0; padding: var(--space-2) 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-allergy-editor { padding: var(--space-3); display: grid; gap: var(--space-3); }
+.doctor-allergy-editor > header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); }
+.doctor-allergy-editor > header > div { min-width: 0; display: grid; gap: .125rem; }
+.doctor-allergy-editor > header small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.doctor-allergy-editor > header .ui-button { flex: none; }
+.doctor-allergy-editor__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: var(--space-2) var(--space-3); }
+.doctor-allergy-editor__grid .ui-field { min-width: 0; margin: 0; }
+.doctor-allergy-editor__grid .ui-select { width: 100%; }
+.doctor-allergy-editor__wide { grid-column: 1 / -1; }
+.doctor-allergy-editor > footer { padding-top: var(--space-2); display: flex; justify-content: flex-end; border-top: 1px solid var(--color-border); }
 .doctor-allergy-safety > .ui-alert { width: 100%; }
 .doctor-workspace-body { position: relative; min-width: 0; padding-top: var(--space-1); padding-right: 3.35rem; }
 .doctor-workspace-main { min-width: 0; }
@@ -88,6 +106,7 @@
 .doctor-workspace-tools .doctor-tool-label > span { display: block; white-space: nowrap; }
 .doctor-workspace-drawer { position: absolute; z-index: 3; top: var(--space-1); right: 3.25rem; width: min(29rem, calc(100% - 3.7rem)); max-height: calc(100vh - 8rem); display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--color-surface); box-shadow: var(--shadow-modal); }
 .doctor-workspace-drawer.is-history { width: min(52rem, calc(100% - 3.7rem)); }
+.doctor-workspace-drawer.is-allergy { width: min(40rem, calc(100% - 3.7rem)); }
 .doctor-workspace-drawer > header { min-height: 3rem; padding: var(--space-2) var(--space-3); display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); border-bottom: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .doctor-workspace-drawer > header div { display: grid; }
 .doctor-workspace-drawer > header span { color: var(--color-text-secondary); font-size: .7rem; }
@@ -96,6 +115,7 @@
 .doctor-workspace-drawer__content { min-height: 0; padding: var(--space-2); overflow-y: auto; }
 .doctor-workspace-drawer__content > .ui-panel { border: 0; box-shadow: none; }
 .doctor-workspace-drawer.is-history .doctor-workspace-drawer__content { overflow: hidden; }
+.doctor-workspace-drawer.is-allergy .doctor-workspace-drawer__content { padding: 0; }
 .doctor-identity-checks { margin: var(--space-5) 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
 .doctor-identity-checks label { padding: var(--space-5); display: flex; align-items: flex-start; gap: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); cursor: pointer; }
 .doctor-identity-checks input { margin-top: .25rem; inline-size: 1.1rem; block-size: 1.1rem; }
@@ -488,7 +508,6 @@
   color: var(--color-brand-primary);
   font-weight: var(--font-weight-semibold);
 }
-
 /* 组套批量调入成功轻量提示条 */
 .doctor-unified-order-toast {
   display: flex;
@@ -527,22 +546,36 @@
   background: #d1fae5;
 }
 
-.doctor-unified-order-list { min-width: 0; max-width: 100%; width: 100%; position: relative; z-index: 3; overflow-x: auto; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); box-sizing: border-box; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--color-border-strong) 70%, transparent) transparent; }
-.doctor-unified-order-list::-webkit-scrollbar { height: 6px; }
+.doctor-unified-order-list {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  position: relative;
+  z-index: 3;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-sizing: border-box;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-border-strong) 75%, transparent) color-mix(in srgb, var(--color-surface-subtle) 80%, transparent);
+}
+.doctor-unified-order-list::-webkit-scrollbar { height: 8px; }
 .doctor-unified-order-list::-webkit-scrollbar-track { background: var(--color-surface-subtle); border-radius: 0 0 var(--radius-md) var(--radius-md); }
-.doctor-unified-order-list::-webkit-scrollbar-thumb { border-radius: var(--radius-round); background: color-mix(in srgb, var(--color-border-strong) 75%, transparent); }
-.doctor-unified-order-list:hover::-webkit-scrollbar-thumb, .doctor-unified-order-list:focus-within::-webkit-scrollbar-thumb { background: var(--color-brand-primary); }
+.doctor-unified-order-list::-webkit-scrollbar-thumb { border-radius: var(--radius-round); background: color-mix(in srgb, var(--color-border-strong) 85%, transparent); border: 2px solid transparent; background-clip: padding-box; }
+.doctor-unified-order-list:hover::-webkit-scrollbar-thumb, .doctor-unified-order-list:focus-within::-webkit-scrollbar-thumb { background-color: var(--color-brand-primary); }
 .doctor-unified-order-head, .doctor-unified-order-row, .doctor-unified-inline-composer {
-  min-width: 55.5rem;
+  min-width: 66rem;
   display: grid;
-  grid-template-columns: 6.2rem minmax(11rem, 1.8fr) minmax(13.5rem, 2fr) 4.5rem minmax(7.5rem, 1.2fr) 4.5rem 4.5rem 5.5rem;
+  grid-template-columns: 5.8rem minmax(12rem, 1.8fr) minmax(19rem, 2.4fr) 4.5rem minmax(8rem, 1.2fr) 4.5rem 4.6rem 5.5rem;
   align-items: center;
   padding: 0 var(--space-2);
 }
 .doctor-unified-orders.is-readonly .doctor-unified-order-head,
 .doctor-unified-orders.is-readonly .doctor-unified-order-row {
-  min-width: 50.5rem;
-  grid-template-columns: 6.2rem minmax(11rem, 1.8fr) minmax(13.5rem, 2fr) 4.5rem minmax(7.5rem, 1.2fr) 4.5rem 4.5rem;
+  min-width: 60.5rem;
+  grid-template-columns: 5.8rem minmax(12rem, 1.8fr) minmax(19rem, 2.4fr) 4.5rem minmax(8rem, 1.2fr) 4.5rem 4.6rem;
 }
 .doctor-unified-order-head { min-height: 2.25rem; color: var(--color-text-secondary); background: var(--color-surface-subtle); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); border-bottom: 1px solid var(--color-border); }
 .doctor-unified-order-head > span { padding: .25rem var(--space-2); }
@@ -555,7 +588,7 @@
 .doctor-unified-order-row.is-editable { cursor: pointer; }
 .doctor-unified-order-row.is-editable:focus-visible { position: relative; z-index: 1; outline: 2px solid var(--color-brand-primary); outline-offset: -2px; }
 .doctor-unified-order-row > span { min-width: 0; padding: .35rem var(--space-2); overflow: hidden; color: var(--color-text-secondary); text-overflow: ellipsis; white-space: nowrap; }
-.doctor-unified-order-empty { min-width: 54rem; padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-body); text-align: center; }
+.doctor-unified-order-empty { min-width: 66rem; padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-body); text-align: center; }
 
 .doctor-unified-cell-type { display: flex; align-items: center; gap: .3rem; min-width: 0; overflow: visible; }
 .doctor-unified-order-name { display: flex; flex-direction: column; gap: .15rem; min-width: 0; overflow: hidden; justify-content: center; }
@@ -593,9 +626,17 @@
 }
 .doctor-direction-service { display: inline-flex; align-items: center; color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); }
 .doctor-direction-empty { color: var(--color-text-tertiary, var(--color-text-secondary)); }
-.doctor-inline-order-directions-group { display: grid; grid-template-columns: 3.8rem minmax(0, 1fr) minmax(0, 1fr) 3.2rem; gap: .2rem; align-items: center; min-width: 0; }
+.doctor-inline-order-directions-group {
+  display: grid;
+  grid-template-columns: minmax(5.8rem, 1.25fr) minmax(4.2rem, 1fr) minmax(4.8rem, 1.15fr) minmax(3.2rem, 0.75fr);
+  gap: .3rem;
+  align-items: center;
+  min-width: 0;
+}
 .doctor-inline-order-directions-group .doctor-inline-order-field { margin: .55rem 0; }
-.doctor-inline-order-directions-group.is-herbal { grid-template-columns: 3.8rem minmax(0, 1fr) minmax(0, 1fr) 3.2rem; }
+.doctor-inline-order-directions-group.is-herbal {
+  grid-template-columns: minmax(5.2rem, 1fr) minmax(5.2rem, 1.1fr) minmax(4.8rem, 1fr) minmax(3.2rem, 0.75fr);
+}
 .doctor-inline-order-directions-group.is-service { display: flex; align-items: center; }
 .doctor-inline-spec-hint { display: block; margin-top: .15rem; color: var(--color-text-secondary); font-size: var(--font-size-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-unified-order-detail { min-width: 0; overflow: hidden; }
@@ -607,10 +648,57 @@
 .doctor-order-status-stack { display: grid; justify-items: start; gap: .15rem; overflow: visible; white-space: normal; }
 .doctor-unified-order-kind { min-width: 2.75rem; padding: .2rem .45rem; display: inline-flex; justify-content: center; border-radius: var(--radius-sm); color: var(--color-info); background: var(--color-info-soft); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); }
 .doctor-unified-order-kind.is-medication { color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.doctor-unified-order-kind.is-patent { color: #0f766e; background: #ccfbf1; }
+.doctor-unified-order-kind.is-herbal { color: #047857; background: #d1fae5; }
 .doctor-unified-order-kind.is-treatment { color: var(--color-warning-strong, var(--color-warning)); background: var(--color-warning-soft); }
-.doctor-administration-group-badge { display: inline-flex; align-items: center; justify-content: center; gap: .2rem; padding: .12rem .38rem; border: 1px solid color-mix(in srgb, var(--color-brand-primary) 36%, var(--color-border)); border-radius: var(--radius-xs, 3px); background: color-mix(in srgb, var(--color-brand-primary) 10%, var(--color-surface)); color: var(--color-brand-primary); font-size: .7rem; font-weight: var(--font-weight-bold); font-family: var(--font-mono, monospace); line-height: 1.2; white-space: nowrap; flex-shrink: 0; box-shadow: 0 1px 2px rgba(0, 0, 0, .03); }
-.doctor-administration-group-badge.is-subsequent { background: color-mix(in srgb, var(--color-success) 12%, var(--color-surface)); border-color: color-mix(in srgb, var(--color-success) 36%, var(--color-border)); color: var(--color-success); font-weight: var(--font-weight-semibold); }
-.doctor-administration-group-badge .badge-sub { font-size: .62rem; font-weight: normal; margin-left: .15rem; opacity: .85; }
+.doctor-group-bracket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  font-family: monospace, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 900;
+  line-height: 1;
+  user-select: none;
+  flex-shrink: 0;
+}
+.doctor-group-bracket.is-head {
+  color: var(--color-brand-primary);
+}
+.doctor-group-bracket.is-tail,
+.doctor-group-bracket.is-mid {
+  color: color-mix(in srgb, var(--color-brand-primary) 85%, var(--color-text-primary));
+}
+.doctor-unified-group-finish-btn {
+  min-height: 2.1rem;
+  height: 2.1rem;
+  padding: 0 .65rem;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+.doctor-grouping-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--color-brand-soft) 45%, var(--color-surface));
+  border-top: 1px solid color-mix(in srgb, var(--color-brand-primary) 28%, var(--color-border));
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-small);
+}
+.doctor-grouping-banner .doctor-grouping-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+}
+.doctor-grouping-banner .doctor-grouping-tip strong {
+  color: var(--color-brand-primary);
+}
 .doctor-unified-order-actions, .doctor-unified-cell-actions, .doctor-inline-order-actions {
   position: sticky;
   right: 0;
@@ -815,7 +903,8 @@
 .doctor-inline-order-field .ui-select__trigger, .doctor-inline-order-field .ui-remote-search__trigger { height: 2.1rem; min-height: 2.1rem; padding-inline: .3rem; border: 0; background: transparent; box-shadow: none; font-size: var(--font-size-body); }
 
 /* 8 列网格精确映射（类型/药品与项目/用法用量与执行要求/总量/嘱托与说明/单价/状态/操作） */
-.doctor-inline-order-type, .doctor-inline-order-static-type { grid-column: 1; }
+.doctor-inline-order-type { grid-column: 1; display: flex; align-items: center; gap: .3rem; overflow: visible; }
+.doctor-inline-order-static-type { grid-column: 1; }
 .doctor-inline-order-resource, .doctor-inline-order-static-resource { grid-column: 2; }
 .doctor-inline-order-directions-group, .doctor-inline-service-execution { grid-column: 3; }
 .doctor-inline-order-quantity { grid-column: 4; }
@@ -840,14 +929,59 @@
 .doctor-inline-order-static-resource { min-width: 0; display: grid; gap: .1rem; padding-inline: var(--space-2); }
 .doctor-inline-order-static-resource strong, .doctor-inline-order-static-resource small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .doctor-inline-order-static-resource small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.doctor-composer-type-wrap { width: 100%; min-width: 0; }
+.doctor-composer-type-wrap { flex: 1; min-width: 0; }
 .doctor-composer-type-wrap .ui-select__trigger { height: 2.1rem; min-height: 2.1rem; border: 0; font-size: var(--font-size-small); font-weight: var(--font-weight-medium); padding-inline: .45rem; }
-.doctor-entry-input-unit { width: 100%; display: flex; align-items: center; gap: .15rem; padding-inline: .25rem; }
-.doctor-entry-input-unit input { width: 100%; min-width: 0; text-align: center; }
+.doctor-entry-input-unit {
+  width: 100%;
+  height: 1.85rem;
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+  padding-inline: .3rem;
+  box-sizing: border-box;
+  min-width: 0;
+}
+.doctor-entry-input-unit input {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 2.2rem;
+  text-align: right;
+  padding-right: .15rem;
+  font-variant-numeric: tabular-nums;
+}
 .doctor-entry-input-unit input[type="number"]::-webkit-inner-spin-button,
 .doctor-entry-input-unit input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.doctor-entry-input-unit input[type="number"] { -moz-appearance: textfield; }
-.doctor-entry-input-unit small { flex: none; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.doctor-entry-input-unit small { flex: 0 0 auto; color: var(--color-text-secondary); font-size: var(--font-size-small); white-space: nowrap; }
+.doctor-entry-input-unit .doctor-inline-dose-unit-select {
+  flex: 0 0 auto;
+  height: 1.55rem;
+  line-height: 1.55rem;
+  padding: 0 1.1rem 0 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, var(--color-border));
+  border-radius: var(--radius-xs, 3px);
+  background-color: color-mix(in srgb, var(--color-brand-soft) 35%, var(--color-surface));
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  outline: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%230284c7' d='M4 6l4 4 4-4z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.2rem center;
+  background-size: 0.65rem;
+  transition: all var(--motion-fast);
+}
+.doctor-entry-input-unit .doctor-inline-dose-unit-select:hover {
+  border-color: var(--color-brand-primary);
+  background-color: color-mix(in srgb, var(--color-brand-soft) 50%, var(--color-surface));
+}
+.doctor-entry-input-unit .doctor-inline-dose-unit-select:focus-visible {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+}
 .doctor-inline-order-actions { min-height: 100%; padding: .4rem .35rem; background: color-mix(in srgb, var(--color-brand-soft) 18%, var(--color-surface)); }
 .doctor-inline-order-actions .ui-button { min-height: 2.1rem; height: 2.1rem; min-width: 2.1rem; padding: 0 .45rem; display: inline-grid; place-items: center; }
 .doctor-unified-inline-composer.is-draft-editor .doctor-inline-order-actions,
@@ -856,7 +990,7 @@
 .doctor-unified-entry-add-btn .ui-icon, .doctor-unified-entry-close-btn .ui-icon { width: 1.05rem; height: 1.05rem; }
 
 /* 医嘱表格附属行（安全核对、错误提示） */
-.doctor-unified-order-subrow { min-width: 54rem; width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border-top: 1px dashed var(--color-border); font-size: var(--font-size-small); }
+.doctor-unified-order-subrow { min-width: 66rem; width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border-top: 1px dashed var(--color-border); font-size: var(--font-size-small); }
 .doctor-herbal-formula-summary { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); background: var(--color-surface-subtle); color: var(--color-text-secondary); }
 .doctor-herbal-formula-summary strong { color: var(--color-text-primary); }
 
@@ -1399,4 +1533,178 @@
   .presence-overview { grid-template-columns: 1fr; }
   .presence-toolbar { align-items: stretch; flex-wrap: wrap; }
   .presence-toolbar > label:first-child { width: 100%; max-width: none; flex-basis: 100%; }
+}
+
+/* ==========================================================================
+   门诊处方自动分方规则工作台 (PC 端桌面宽屏多列网格卡片流)
+   ========================================================================== */
+.doctor-split-review-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.doctor-split-overview-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.doctor-split-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding-right: var(--space-4);
+  border-right: 1px solid var(--color-border);
+}
+
+.doctor-split-stat:last-child {
+  border-right: none;
+}
+
+.doctor-split-stat span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.doctor-split-stat strong {
+  font-size: var(--font-size-h3);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.doctor-split-stat strong small {
+  font-size: var(--font-size-small);
+  font-weight: normal;
+  color: var(--color-text-muted);
+  margin-left: 0.2rem;
+}
+
+.doctor-split-prescriptions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  gap: var(--space-3);
+  max-height: 58vh;
+  overflow-y: auto;
+  padding: 0.2rem;
+}
+
+.doctor-prescription-preview-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.doctor-prescription-preview-card:hover {
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-md);
+}
+
+.doctor-prescription-preview-card.is-service-card {
+  border-left: 3px solid var(--color-brand-strong);
+}
+
+.doctor-prescription-preview-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.doctor-prescription-preview-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-prescription-preview-card__site {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.doctor-prescription-preview-card__count {
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-brand);
+}
+
+.doctor-prescription-preview-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.4rem var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px dashed var(--color-border);
+}
+
+.doctor-split-rule-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.72rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border: 1px solid color-mix(in srgb, var(--color-brand) 20%, transparent);
+}
+
+.doctor-prescription-preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-small);
+}
+
+.doctor-prescription-preview-table th {
+  background: var(--color-surface-subtle);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.doctor-prescription-preview-table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-border-subtle);
+  vertical-align: middle;
+}
+
+.doctor-prescription-preview-table tr.is-infusion-row {
+  background: color-mix(in srgb, var(--color-brand-soft) 35%, transparent);
+}
+
+.doctor-prescription-preview-table td strong {
+  display: block;
+  color: var(--color-text-primary);
+}
+
+.doctor-prescription-preview-table td small {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+}
+
+.doctor-split-group-badge {
+  display: inline-block;
+  margin-top: 0.15rem;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand);
+  color: var(--color-text-inverse);
 }

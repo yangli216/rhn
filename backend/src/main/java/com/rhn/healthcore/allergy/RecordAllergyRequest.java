@@ -7,6 +7,7 @@ import java.time.Instant;
 
 record RecordAllergyRequest(
         Long encounterId,
+        Long allergenId,
         @NotBlank @Size(max = 32) String assertionType,
         @Size(max = 32) String categoryCode,
         @Size(max = 32) String criticalityCode,

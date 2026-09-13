@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import type { Organization } from '../../shared/model'
 import {
   errorMessage, type CatalogPrice, type DiseaseConcept, type DiseaseInput,
@@ -20,7 +21,7 @@ import {
 } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
-  Pagination, SearchField, Select, StatusBadge, TableShell, Tabs,
+  Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
@@ -521,19 +522,28 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
   </Table>
 }
 
-export function MedicationTable({ values, loading, pagination, mode = 'knowledge', onModeChange, routes, frequencies, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage }: {
+export function MedicationTable({
+  values, loading, pagination, mode = 'knowledge', routes, frequencies,
+  onModeChange, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onViewProducts,
+}: {
   values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode;
   mode?: 'knowledge' | 'product';
-  onModeChange?: (mode: 'knowledge' | 'product') => void;
   routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
+  onModeChange?: (mode: 'knowledge' | 'product') => void;
   onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
   onEditProduct: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
-  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void
+  onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void;
+  onViewProducts?: (value: MedicationKnowledge) => void;
 }) {
+  const [popoverAnchor, setPopoverAnchor] = useState<{
+    medication: MedicationKnowledge
+    anchorRect: DOMRect
+  } | null>(null)
+
   if (loading) return <LoadingState label="正在加载药品目录…" />
   if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
 
@@ -549,26 +559,58 @@ export function MedicationTable({ values, loading, pagination, mode = 'knowledge
     />
   }
 
-  return <MedicationKnowledgeTable
-    values={values}
-    pagination={pagination}
-    routes={routes}
-    frequencies={frequencies}
-    onModeChange={onModeChange}
-    onEdit={onEdit}
-    onAttributes={onAttributes}
-    onMappings={onMappings}
-    onProduct={onProduct}
-  />
+  const handleTogglePopover = (value: MedicationKnowledge, el: HTMLElement) => {
+    onViewProducts?.(value)
+    if (popoverAnchor?.medication.id === value.id) {
+      setPopoverAnchor(null)
+    } else {
+      setPopoverAnchor({ medication: value, anchorRect: el.getBoundingClientRect() })
+    }
+  }
+
+  return <>
+    <MedicationKnowledgeTable
+      values={values}
+      pagination={pagination}
+      routes={routes}
+      frequencies={frequencies}
+      onModeChange={onModeChange}
+      onEdit={onEdit}
+      onAttributes={onAttributes}
+      onMappings={onMappings}
+      onProduct={onProduct}
+      activePopoverMedicationId={popoverAnchor?.medication.id}
+      onTogglePopover={handleTogglePopover}
+      onViewProducts={onViewProducts}
+    />
+    {popoverAnchor && (
+      <MedicationProductPopover
+        medication={popoverAnchor.medication}
+        anchorRect={popoverAnchor.anchorRect}
+        onClose={() => setPopoverAnchor(null)}
+        onProduct={onProduct}
+        onEditProduct={onEditProduct}
+        onPackage={onPackage}
+        onEditPackage={onEditPackage}
+        onModeChange={onModeChange}
+      />
+    )}
+  </>
 }
 
-export function MedicationKnowledgeTable({ values, pagination, routes, frequencies, onModeChange, onEdit, onAttributes, onMappings, onProduct }: {
+export function MedicationKnowledgeTable({
+  values, pagination, routes, frequencies, onModeChange: _onModeChange,
+  onEdit, onAttributes, onMappings, onProduct, activePopoverMedicationId, onTogglePopover, onViewProducts
+}: {
   values: MedicationKnowledge[]; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onModeChange?: (mode: 'knowledge' | 'product') => void;
   onEdit: (value: MedicationKnowledge) => void;
   onAttributes: (value: MedicationKnowledge) => void;
   onMappings: (value: MedicationKnowledge) => void;
   onProduct: (value: MedicationKnowledge) => void;
+  activePopoverMedicationId?: string;
+  onTogglePopover?: (value: MedicationKnowledge, el: HTMLElement) => void;
+  onViewProducts?: (value: MedicationKnowledge) => void;
 }) {
   return <Table
     headers={['药品通用名 / 编码', '分类与剂型', '规格与含量', '默认用法', '安全监管', '厂家产品', '状态', '操作']}
@@ -590,20 +632,18 @@ export function MedicationKnowledgeTable({ values, pagination, routes, frequenci
       const usageDose = value.defaultDose && `${value.defaultDose}${value.defaultDoseUnit || ''}`
       const usageRouteFreq = [routeName, vaccine ? undefined : frequencyName].filter(Boolean).join(' · ')
 
-      const safetyTags = [
-        value.prescriptionDrug && { label: '处方药', tone: 'warning' as const },
-        value.essentialDrug && { label: '基药', tone: 'success' as const },
-        value.antimicrobial && { label: value.sdAntimicrobialLevelText || '抗菌药', tone: 'danger' as const },
-        value.skinTestRequired && { label: '需皮试', tone: 'danger' as const },
-        value.chronicDiseaseDrug && { label: '慢病', tone: 'info' as const },
-        !value.singleOrder && { label: '仅组合', tone: 'neutral' as const },
-      ].filter(Boolean) as Array<{ label: string; tone: 'warning' | 'success' | 'danger' | 'info' | 'neutral' }>
+      const safetyTags = medicationSafetyMarkers(value)
 
       return <tr key={value.id} className="medication-knowledge-row">
         <td className="medication-col-name">
           <div className="medication-name-wrap">
             <strong className="medication-item-name" title={`药品编码: ${value.code}`}>{value.name}</strong>
             <code className="medication-code-tag">{value.code}</code>
+            {value.classifications?.length > 0 && <small className="medication-classification-summary"
+              title={value.classifications.map((item) => `${item.systemName} ${item.systemVersion} · ${item.path || item.display}`).join('\n')}>
+              {value.classifications.map((item) => item.systemCode === 'ATC'
+                ? `ATC ${item.code}` : `${item.systemCode} ${item.systemVersion}`).join(' · ')}
+            </small>}
           </div>
         </td>
 
@@ -633,7 +673,10 @@ export function MedicationKnowledgeTable({ values, pagination, routes, frequenci
         <td className="medication-col-safety">
           <div className="medication-safety-tags">
             {safetyTags.length ? safetyTags.map((tag) => (
-              <StatusBadge key={tag.label} tone={tag.tone}>{tag.label}</StatusBadge>
+              <Tooltip key={`${tag.symbol}-${tag.detail}`} content={tag.detail}>
+                <span className={`ui-badge ui-badge--${tag.tone} medication-safety-marker`}
+                  aria-label={tag.detail} tabIndex={0}>{tag.symbol}</span>
+              </Tooltip>
             )) : <small className="medication-safety-normal">普通</small>}
           </div>
         </td>
@@ -643,9 +686,12 @@ export function MedicationKnowledgeTable({ values, pagination, routes, frequenci
             {value.products.length > 0 ? (
               <button
                 type="button"
-                className="medication-product-count-chip"
-                onClick={() => onModeChange?.('product')}
-                title="点击切换至产品信息视角，查看该药品的厂家产品与包装规格">
+                className={`medication-product-count-chip ${activePopoverMedicationId === value.id ? 'is-active' : ''}`}
+                onClick={(e) => {
+                  if (onTogglePopover) onTogglePopover(value, e.currentTarget)
+                  else onViewProducts?.(value)
+                }}
+                title="点击轻量级查看该药品的厂家产品列表">
                 {value.products.length} 个产品 ›
               </button>
             ) : (
@@ -671,12 +717,477 @@ export function MedicationKnowledgeTable({ values, pagination, routes, frequenci
             <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
             <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
             <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
-            <Button size="sm" variant="secondary" onClick={() => onProduct(value)}>加产品</Button>
           </RowActions>
         </td>
       </tr>
     })}
   </Table>
+}
+
+type MedicationSafetyTone = 'warning' | 'success' | 'danger' | 'info' | 'neutral'
+
+function medicationSafetyMarkers(value: MedicationKnowledge) {
+  const antimicrobialLevel = value.sdAntimicrobialLevelText || '抗菌药物'
+  const antimicrobialSymbol = value.sdAntimicrobialLevel === 'SPECIAL' || antimicrobialLevel.includes('特殊')
+    ? '特' : value.sdAntimicrobialLevel === 'NON_RESTRICTED' || antimicrobialLevel.includes('非限制')
+      ? '非' : value.sdAntimicrobialLevel === 'RESTRICTED' || antimicrobialLevel.includes('限制') ? '限' : '抗'
+  const skinTestMethod = value.skinTestMethod === 'PRICK' ? '点刺试验'
+    : value.skinTestMethod === 'OTHER' ? '其他方式' : '皮内试验'
+  const solutionMode = value.skinTestSolutionMode === 'ORIGINAL_SOLUTION' ? '原液' : '配制皮试液'
+  const skinTestDetail = [
+    '需皮试', skinTestMethod, solutionMode,
+    value.skinTestObservationMinutes && `观察 ${value.skinTestObservationMinutes} 分钟`,
+    value.skinTestResultValidityHours && `结果有效 ${value.skinTestResultValidityHours} 小时`,
+    value.skinTestInstructions,
+  ].filter(Boolean).join(' · ')
+
+  return [
+    value.prescriptionDrug && { symbol: '处', detail: '处方药', tone: 'warning' as const },
+    value.essentialDrug && { symbol: '基', detail: '基本药物', tone: 'success' as const },
+    value.antimicrobial && { symbol: antimicrobialSymbol, detail: `抗菌药物 · ${antimicrobialLevel}`, tone: 'danger' as const },
+    value.antimicrobial && value.antimicrobialOutpatientAllowed === false
+      && { symbol: '住', detail: '仅限住院使用，门诊不可常规开立', tone: 'warning' as const },
+    value.antimicrobial && value.antimicrobialConsultationRequired
+      && { symbol: '审', detail: '需要会诊或审批', tone: 'warning' as const },
+    value.antimicrobial && value.antimicrobialEmergencyAllowed
+      && { symbol: '急', detail: '允许紧急使用后补审批', tone: 'info' as const },
+    value.skinTestRequired && { symbol: '皮', detail: skinTestDetail, tone: 'danger' as const },
+    value.chronicDiseaseDrug && { symbol: '慢', detail: '慢病用药', tone: 'info' as const },
+    !value.singleOrder && { symbol: '组', detail: '仅限组合开立', tone: 'neutral' as const },
+  ].filter(Boolean) as Array<{ symbol: string; detail: string; tone: MedicationSafetyTone }>
+}
+
+export function MedicationProductPopover({
+  medication,
+  anchorRect,
+  onClose,
+  onProduct,
+  onEditProduct,
+  onPackage,
+  onEditPackage,
+  onModeChange,
+}: {
+  medication: MedicationKnowledge
+  anchorRect: DOMRect | null
+  onClose: () => void
+  onProduct?: (value: MedicationKnowledge) => void
+  onEditProduct?: (product: MedicationProduct, medication: MedicationKnowledge) => void
+  onPackage?: (product: MedicationProduct, medication: MedicationKnowledge) => void
+  onEditPackage?: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void
+  onModeChange?: (mode: 'knowledge' | 'product') => void
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(event.target as Node)) {
+        onClose()
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose()
+      }
+    }
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
+    }, 0)
+
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [onClose])
+
+  const style = useMemo<React.CSSProperties>(() => {
+    if (!anchorRect) return { position: 'fixed', top: '15%', left: '50%', transform: 'translate(-50%, 0)' }
+
+    const width = 450
+    const margin = 12
+
+    let left = anchorRect.left - 120
+    if (typeof window !== 'undefined') {
+      if (left + width > window.innerWidth - margin) {
+        left = window.innerWidth - width - margin
+      }
+      if (left < margin) {
+        left = margin
+      }
+    }
+
+    const spaceBelow = typeof window !== 'undefined' ? window.innerHeight - anchorRect.bottom : 500
+    let top = anchorRect.bottom + 6
+    if (spaceBelow < 250 && anchorRect.top > 250) {
+      top = Math.max(margin, anchorRect.top - 340)
+    }
+
+    return {
+      position: 'fixed',
+      top: `${top}px`,
+      left: `${left}px`,
+      width: `${width}px`,
+    }
+  }, [anchorRect])
+
+  const content = (
+    <div
+      ref={popoverRef}
+      className="medication-product-popover"
+      style={style}
+      role="dialog"
+      aria-label={`${medication.name} 厂家产品清单`}
+    >
+      <header className="medication-product-popover__header">
+        <div className="medication-product-popover__title">
+          <span>{medication.name} · 厂家产品</span>
+          <span className="medication-product-popover__count-badge">{medication.products.length}</span>
+        </div>
+        <div className="medication-product-popover__header-actions">
+          {onProduct && (
+            <Button
+              size="sm"
+              variant="text"
+              onClick={() => {
+                onClose()
+                onProduct(medication)
+              }}
+              title="为该通用药品新增厂家产品"
+            >
+              +产品
+            </Button>
+          )}
+          <button
+            type="button"
+            className="medication-product-popover__close-btn"
+            onClick={onClose}
+            aria-label="关闭"
+            title="关闭 (Esc)"
+          >
+            <Icon name="close" />
+          </button>
+        </div>
+      </header>
+
+      <div className="medication-product-popover__list">
+        {medication.products.length === 0 ? (
+          <div className="medication-product-popover__empty">
+            <p>暂未建档厂家产品</p>
+            {onProduct && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  onClose()
+                  onProduct(medication)
+                }}
+              >
+                新增厂家产品
+              </Button>
+            )}
+          </div>
+        ) : (
+          medication.products.map((product) => {
+            const tags = [
+              product.otc ? { label: 'OTC', tone: 'info' as const } : { label: '处方药', tone: 'warning' as const },
+              product.centralPurchase && { label: '集采', tone: 'success' as const },
+              product.orderable ? { label: '可开立', tone: 'neutral' as const } : { label: '禁开', tone: 'danger' as const },
+            ].filter(Boolean) as Array<{ label: string; tone: 'warning' | 'success' | 'danger' | 'info' | 'neutral' }>
+
+            return (
+              <article key={product.id} className="medication-product-popover__item">
+                <div className="medication-product-popover__item-head">
+                  <span className="medication-product-popover__mfg">
+                    {product.manufacturerName || '未关联生产企业'}
+                  </span>
+                  <div className="medication-product-popover__item-tags">
+                    {tags.map((tag) => (
+                      <StatusBadge key={tag.label} tone={tag.tone}>
+                        {tag.label}
+                      </StatusBadge>
+                    ))}
+                    <DataStatus value={product.sdStatus} text={product.sdStatusText} />
+                  </div>
+                </div>
+
+                <div className="medication-product-popover__item-body">
+                  <div className="medication-product-popover__prod-row">
+                    <strong className="medication-product-title">{product.name}</strong>
+                    {product.tradeName && (
+                      <span className="medication-trade-name">（商品名: {product.tradeName}）</span>
+                    )}
+                  </div>
+                  {product.approvalCode && (
+                    <div className="medication-product-popover__approval-row">
+                      <span className="medication-product-popover__meta-label">批准文号:</span>
+                      <code className="medication-approval-code">{product.approvalCode}</code>
+                    </div>
+                  )}
+                  <div className="medication-product-popover__packages-row">
+                    <PackageChips
+                      product={product}
+                      onEdit={
+                        onEditPackage
+                          ? (pkg) => {
+                              onClose()
+                              onEditPackage(pkg, product, medication)
+                            }
+                          : undefined
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="medication-product-popover__item-actions">
+                  {onEditProduct && (
+                    <Button
+                      size="sm"
+                      variant="text"
+                      onClick={() => {
+                        onClose()
+                        onEditProduct(product, medication)
+                      }}
+                    >
+                      编辑产品
+                    </Button>
+                  )}
+                  {onPackage && (
+                    <Button
+                      size="sm"
+                      variant="text"
+                      onClick={() => {
+                        onClose()
+                        onPackage(product, medication)
+                      }}
+                    >
+                      加包装
+                    </Button>
+                  )}
+                </div>
+              </article>
+            )
+          })
+        )}
+      </div>
+
+      {onModeChange && (
+        <footer className="medication-product-popover__footer">
+          <span>编码: {medication.code}</span>
+          <Button
+            size="sm"
+            variant="text"
+            onClick={() => {
+              onClose()
+              onModeChange('product')
+            }}
+          >
+            完整产品视角 ›
+          </Button>
+        </footer>
+      )}
+    </div>
+  )
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content
+}
+
+export function MedicationProductQuickViewDialog({
+  medication,
+  onClose,
+  onProduct,
+  onEditProduct,
+  onPackage,
+  onEditPackage,
+  onModeChange,
+}: {
+  medication: MedicationKnowledge
+  onClose: () => void
+  onProduct?: (value: MedicationKnowledge) => void
+  onEditProduct?: (product: MedicationProduct, medication: MedicationKnowledge) => void
+  onPackage?: (product: MedicationProduct, medication: MedicationKnowledge) => void
+  onEditPackage?: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void
+  onModeChange?: (mode: 'knowledge' | 'product') => void
+}) {
+  return (
+    <Dialog
+      title={`${medication.name} · 厂家产品列表`}
+      eyebrow={`通用编码: ${medication.code} · ${medication.sdDoseFormText || '通用剂型'} · ${medication.preparationSpec || '通用规格'}`}
+      description={`已关联 ${medication.products.length} 个厂家产品与批准文号，以列表方式展示生产企业、包装规格及价格状态。`}
+      size="xwide"
+      onClose={onClose}
+    >
+      <div className="medication-quick-view-dialog">
+        <div className="medication-quick-view-toolbar">
+          <div className="medication-quick-view-summary">
+            <span className="medication-quick-view-tag">通用名: <strong>{medication.name}</strong></span>
+            <span className="medication-quick-view-tag">类型: <strong>{medication.sdMedicationTypeText}</strong></span>
+            {medication.strengthValue && (
+              <span className="medication-quick-view-tag">
+                含量: <strong>{medication.strengthValue}{medication.strengthUnit || ''}</strong>
+              </span>
+            )}
+            <span className="medication-quick-view-tag">
+              厂家产品数: <strong>{medication.products.length} 个</strong>
+            </span>
+          </div>
+          <div className="medication-quick-view-actions">
+            {onProduct && (
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  onClose()
+                  onProduct(medication)
+                }}
+              >
+                + 新增厂家产品
+              </Button>
+            )}
+            {onModeChange && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  onClose()
+                  onModeChange('product')
+                }}
+                title="切换到产品信息视角进行全局筛选与维护"
+              >
+                完整产品视角 ›
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {medication.products.length === 0 ? (
+          <EmptyState
+            icon="pharmacy"
+            title="暂无厂家产品"
+            copy="该通用药品尚未建档具体的生产企业和批准文号产品。"
+            action={
+              onProduct ? (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    onClose()
+                    onProduct(medication)
+                  }}
+                >
+                  立即为「{medication.name}」新增产品
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          <div className="medication-quick-view-table-wrap">
+            <Table
+              headers={['厂家产品 / 生产企业', '产品编码', '批准文号', '包装规格与换算', '属性标签', '状态', '操作']}
+              className="medication-quick-view-table"
+            >
+              {medication.products.map((product) => {
+                const tags = [
+                  product.otc ? { label: 'OTC', tone: 'info' as const } : { label: '处方药', tone: 'warning' as const },
+                  product.centralPurchase && { label: '集采', tone: 'success' as const },
+                  product.orderable ? { label: '可开立', tone: 'neutral' as const } : { label: '禁开', tone: 'danger' as const },
+                  product.traceCode && { label: '追溯码', tone: 'neutral' as const },
+                ].filter(Boolean) as Array<{ label: string; tone: 'warning' | 'success' | 'danger' | 'info' | 'neutral' }>
+
+                return (
+                  <tr key={product.id} className="medication-quick-view-row">
+                    <td className="medication-quick-view-col-product">
+                      <div className="medication-product-info">
+                        <strong className="medication-product-title">{product.name}</strong>
+                        <div className="medication-quick-view-sub">
+                          <small className="medication-manufacturer-name">
+                            {product.manufacturerName || '未关联生产企业'}
+                          </small>
+                          {product.tradeName && (
+                            <small className="medication-trade-name">（商品名: {product.tradeName}）</small>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="medication-quick-view-col-code">
+                      <code className="medication-code-tag">{product.code}</code>
+                    </td>
+
+                    <td className="medication-quick-view-col-approval">
+                      {product.approvalCode ? (
+                        <code className="medication-approval-code" title={product.approvalCode}>
+                          {product.approvalCode}
+                        </code>
+                      ) : (
+                        <span className="medication-empty-text">—</span>
+                      )}
+                    </td>
+
+                    <td className="medication-quick-view-col-packages">
+                      <PackageChips
+                        product={product}
+                        onEdit={
+                          onEditPackage
+                            ? (item) => {
+                                onClose()
+                                onEditPackage(item, product, medication)
+                              }
+                            : undefined
+                        }
+                      />
+                    </td>
+
+                    <td className="medication-quick-view-col-tags">
+                      <div className="medication-safety-tags">
+                        {tags.map((tag) => (
+                          <StatusBadge key={tag.label} tone={tag.tone}>
+                            {tag.label}
+                          </StatusBadge>
+                        ))}
+                      </div>
+                    </td>
+
+                    <td className="medication-quick-view-col-status">
+                      <DataStatus value={product.sdStatus} text={product.sdStatusText} />
+                    </td>
+
+                    <td className="medication-quick-view-col-actions">
+                      <RowActions>
+                        {onEditProduct && (
+                          <Button
+                            size="sm"
+                            variant="text"
+                            onClick={() => {
+                              onClose()
+                              onEditProduct(product, medication)
+                            }}
+                          >
+                            编辑产品
+                          </Button>
+                        )}
+                        {onPackage && (
+                          <Button
+                            size="sm"
+                            variant="text"
+                            onClick={() => {
+                              onClose()
+                              onPackage(product, medication)
+                            }}
+                          >
+                            加包装
+                          </Button>
+                        )}
+                      </RowActions>
+                    </td>
+                  </tr>
+                )
+              })}
+            </Table>
+          </div>
+        )}
+      </div>
+    </Dialog>
+  )
 }
 
 export function MedicationProductTable({ values, pagination, onModeChange, onProduct, onEditProduct, onPackage, onEditPackage }: {
@@ -1953,13 +2464,28 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
   </DataFormDialog>
 }
 
-function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, onSave }: { dictionaries: DictionaryMap;
+export function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, onSave }: { dictionaries: DictionaryMap;
   frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge;
   onClose: () => void; onSave: (input: MedicationInput) => void }) {
   const [medicationType, setMedicationType] = useState(value?.sdMedicationType ?? 'WESTERN')
   const [antimicrobial, setAntimicrobial] = useState(value?.antimicrobial ?? false)
+  const [antimicrobialLevel, setAntimicrobialLevel] = useState(value?.sdAntimicrobialLevel ?? 'NON_RESTRICTED')
+  const [antimicrobialOutpatientAllowed, setAntimicrobialOutpatientAllowed] = useState(
+    value?.antimicrobialOutpatientAllowed ?? true)
+  const [antimicrobialConsultationRequired, setAntimicrobialConsultationRequired] = useState(
+    value?.antimicrobialConsultationRequired ?? false)
+  const [antimicrobialEmergencyAllowed, setAntimicrobialEmergencyAllowed] = useState(
+    value?.antimicrobialEmergencyAllowed ?? false)
+  const [skinTestRequired, setSkinTestRequired] = useState(value?.skinTestRequired ?? false)
   const [defaultFrequency, setDefaultFrequency] = useState(value?.defaultFrequency ?? '')
   const [defaultRoute, setDefaultRoute] = useState(value?.defaultRoute ?? '')
+  const [preparationSpec, setPreparationSpec] = useState(value?.preparationSpec ?? '')
+  const [preparationUnit, setPreparationUnit] = useState(value?.preparationUnit ?? '')
+  const [strengthValue, setStrengthValue] = useState(value?.strengthValue ? String(value.strengthValue) : '')
+  const [strengthUnit, setStrengthUnit] = useState(value?.strengthUnit ?? '')
+  const [defaultDoseUnit, setDefaultDoseUnit] = useState(value?.defaultDoseUnit ?? '')
+  const [specTouched, setSpecTouched] = useState(Boolean(value?.preparationSpec))
+
   const western = medicationType === 'WESTERN'
   const chinesePatent = medicationType === 'CHINESE_PATENT'
   const herbal = medicationType === 'HERBAL'
@@ -1978,25 +2504,85 @@ function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, o
         : vaccine
           ? '维护剂量规格、接种单位、途径与冷链储藏；免疫程序、目标疾病和适龄范围从“类型扩展属性”维护。'
           : '当前药品类型尚未建立维护规则，请先完善类型配置。'
+
+  const generateSpec = (strVal: string, strUnit: string, prepUnit: string) => {
+    const val = strVal.trim()
+    const su = strUnit.trim()
+    const pu = prepUnit.trim()
+    if (!val && !su) return ''
+    if (val && su && pu) return `${val}${su}/${pu}`
+    if (val && su) return `${val}${su}`
+    return ''
+  }
+
+  const handleStrengthValueChange = (val: string) => {
+    setStrengthValue(val)
+    if (!specTouched) {
+      setPreparationSpec(generateSpec(val, strengthUnit, preparationUnit))
+    }
+  }
+
+  const handleStrengthUnitChange = (unit: string) => {
+    setStrengthUnit(unit)
+    if (!specTouched) {
+      setPreparationSpec(generateSpec(strengthValue, unit, preparationUnit))
+    }
+  }
+
+  const handlePreparationUnitChange = (unit: string) => {
+    setPreparationUnit(unit)
+    if (!specTouched) {
+      setPreparationSpec(generateSpec(strengthValue, strengthUnit, unit))
+    }
+  }
+
+  const doseUnitCandidates = Array.from(new Set([
+    strengthUnit?.trim(),
+    preparationUnit?.trim(),
+    herbal ? 'g' : undefined,
+    herbal ? '剂' : undefined,
+    vaccine ? '剂' : undefined,
+  ].filter(Boolean) as string[]))
+
+  const effectiveDoseUnit = (defaultDoseUnit && doseUnitCandidates.includes(defaultDoseUnit))
+    ? defaultDoseUnit
+    : (doseUnitCandidates[0] ?? defaultDoseUnit)
+
   return <DataFormDialog title={value ? '编辑通用药品知识' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
-    size="xwide" description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
+    size="xwide" className="medication-knowledge-dialog"
+    description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
     onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
       sdMedicationType: medicationType, sdDoseForm: optionalText(form, 'sdDoseForm'),
-      preparationSpec: optionalText(form, 'preparationSpec'), preparationUnit: optionalText(form, 'preparationUnit'),
-      strengthValue: herbal ? undefined : optionalNumber(form, 'strengthValue'),
-      strengthUnit: herbal ? undefined : optionalText(form, 'strengthUnit'),
+      preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
+      preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
+      strengthValue: herbal ? undefined : (optionalNumber(form, 'strengthValue') ?? (strengthValue ? Number(strengthValue) : undefined)),
+      strengthUnit: herbal ? undefined : (optionalText(form, 'strengthUnit') || strengthUnit || undefined),
       sdStorageType: optionalText(form, 'sdStorageType'),
       prescriptionDrug: checked(form, 'prescriptionDrug'), essentialDrug: checked(form, 'essentialDrug'),
       antimicrobial: western && antimicrobial,
-      sdAntimicrobialLevel: western && antimicrobial ? optionalText(form, 'sdAntimicrobialLevel') : undefined,
-      skinTestRequired: western && checked(form, 'skinTestRequired'), defaultDose: optionalNumber(form, 'defaultDose'),
-      defaultDoseUnit: optionalText(form, 'defaultDoseUnit'), defaultRoute: defaultRoute || undefined,
+      sdAntimicrobialLevel: western && antimicrobial ? antimicrobialLevel : undefined,
+      antimicrobialOutpatientAllowed: western && antimicrobial ? antimicrobialOutpatientAllowed : undefined,
+      antimicrobialConsultationRequired: western && antimicrobial ? antimicrobialConsultationRequired : undefined,
+      antimicrobialEmergencyAllowed: western && antimicrobial ? antimicrobialEmergencyAllowed : undefined,
+      antimicrobialMaxDays: western && antimicrobial && antimicrobialOutpatientAllowed
+        ? optionalNumber(form, 'antimicrobialMaxDays') : undefined,
+      skinTestRequired: western && skinTestRequired,
+      skinTestMethod: western && skinTestRequired
+        ? optionalText(form, 'skinTestMethod') as MedicationInput['skinTestMethod'] : undefined,
+      skinTestSolutionMode: western && skinTestRequired
+        ? optionalText(form, 'skinTestSolutionMode') as MedicationInput['skinTestSolutionMode'] : undefined,
+      skinTestObservationMinutes: western && skinTestRequired ? optionalNumber(form, 'skinTestObservationMinutes') : undefined,
+      skinTestResultValidityHours: western && skinTestRequired ? optionalNumber(form, 'skinTestResultValidityHours') : undefined,
+      skinTestInstructions: western && skinTestRequired ? optionalText(form, 'skinTestInstructions') : undefined,
+      defaultDose: optionalNumber(form, 'defaultDose'),
+      defaultDoseUnit: effectiveDoseUnit || optionalText(form, 'defaultDoseUnit'),
+      defaultRoute: defaultRoute || undefined,
       defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
       chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
       sdStatus: value?.sdStatus ?? 'ACTIVE' })}>
     <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
-      <FormGrid columns={3}>
+      <FormGrid columns={4}>
         <FormField label="通用药品编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 MED_AMOXICILLIN" autoFocus={!value} required /></FormField>
         <FormField label="通用名称" required><input name="name" defaultValue={value?.name}
@@ -2011,17 +2597,38 @@ function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, o
         </FormField>
         <SelectField name="sdDoseForm" label={doseFormLabel} values={dictionaries.BD_DOSE_FORM}
           defaultValue={value?.sdDoseForm ?? 'TABLET'} />
-        <FormField label={specificationLabel}><input name="preparationSpec" defaultValue={value?.preparationSpec}
-          placeholder={herbal ? '如 净制、切片' : vaccine ? '如 0.5ml/支' : '如 0.5g'} /></FormField>
+        <FormField className="medication-knowledge-dialog__spec" label={specificationLabel} hint="单方制剂推荐按「含量+单位/制剂单位」自动生成；复合制剂可手动录入（如 400mg:57mg/片、5mg/2.5ml 或 复方）。">
+          <div className="master-data-spec-field">
+            <input name="preparationSpec" value={preparationSpec}
+              onChange={(e) => { setPreparationSpec(e.target.value); setSpecTouched(true) }}
+              placeholder={herbal ? '如 净制、切片' : vaccine ? '如 0.5ml/支' : '如 500mg/片 或 400mg:57mg/片'} />
+            {!herbal && (strengthValue || strengthUnit) && (
+              <Tooltip content="根据当前含量、含量单位与制剂单位重新生成规格">
+                <Button variant="secondary" className="master-data-spec-gen-btn"
+                  aria-label="根据当前含量重新生成制剂规格"
+                  onClick={() => {
+                    const gen = generateSpec(strengthValue, strengthUnit, preparationUnit)
+                    setPreparationSpec(gen)
+                    setSpecTouched(false)
+                  }}>
+                  <Icon name="refresh" />生成规格
+                </Button>
+              </Tooltip>
+            )}
+          </div>
+        </FormField>
       </FormGrid>
     </FormSection>
     <FormSection title={`${typeName}属性`} description={typeDescription}>
-      <FormGrid columns={3}>
-        <FormField label={unitLabel}><input name="preparationUnit" defaultValue={value?.preparationUnit}
+      <FormGrid columns={4}>
+        <FormField label={unitLabel}><input name="preparationUnit" value={preparationUnit}
+          onChange={(e) => handlePreparationUnitChange(e.target.value)}
           placeholder={herbal ? 'g、袋' : vaccine ? '支、剂' : '片、粒、支'} /></FormField>
         {!herbal && <><FormField label={vaccine ? '每剂含量' : '结构化含量'}><input name="strengthValue" type="number" min="0" step="any"
-          defaultValue={value?.strengthValue} placeholder={vaccine ? '如 0.5' : '如 500'} /></FormField>
-        <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" defaultValue={value?.strengthUnit}
+          value={strengthValue} onChange={(e) => handleStrengthValueChange(e.target.value)}
+          placeholder={vaccine ? '如 0.5' : '如 500'} /></FormField>
+        <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" value={strengthUnit}
+          onChange={(e) => handleStrengthUnitChange(e.target.value)}
           placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
         <FormField label="默认给药途径"><Select name="defaultRoute" value={defaultRoute}
           onChange={setDefaultRoute} showValue placeholder="请选择给药途径"
@@ -2036,21 +2643,96 @@ function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, o
           defaultValue={value?.sdStorageType === 'NORMAL' ? 'ROOM_TEMPERATURE' : value?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
           defaultValue={value?.defaultDose} placeholder="如 0.5" /></FormField>
-        <FormField label="默认剂量单位"><input name="defaultDoseUnit" defaultValue={value?.defaultDoseUnit}
-          placeholder={herbal ? '如 g、剂' : vaccine ? '如 ml、剂' : '如 g、mg、ml'} /></FormField>
-        {western && antimicrobial && <SelectField name="sdAntimicrobialLevel" label="抗菌药等级"
-          values={dictionaries.BD_ANTIMICROBIAL_LEVEL} defaultValue={value?.sdAntimicrobialLevel ?? 'NON_RESTRICTED'} />}
-        <Checkboxes title="安全与管理属性">
+        <FormField label="默认剂量单位" hint="严格限制只能从「含量单位」或「制剂单位」中二选一，杜绝脏数据。">
+          {doseUnitCandidates.length > 0 ? <Select name="defaultDoseUnit" value={effectiveDoseUnit}
+            onChange={setDefaultDoseUnit} searchable={false} clearable={false}
+            options={doseUnitCandidates.map((u) => {
+                const isStrength = u === strengthUnit?.trim()
+                const isPrep = u === preparationUnit?.trim()
+                const roleTag = isStrength && isPrep ? '含量/制剂同单位' : isStrength ? '含量单位' : isPrep ? '制剂单位' : '标准单位'
+                return { value: u, label: `${u}（${roleTag}）` }
+              })} /> : (
+            <input name="defaultDoseUnit" value={defaultDoseUnit}
+              onChange={(e) => setDefaultDoseUnit(e.target.value)}
+              placeholder="请先在上方填写制剂单位或含量单位" />
+          )}
+        </FormField>
+        <Checkboxes title="安全与管理属性" className="span-full">
           <Checkbox name="prescriptionDrug" label="处方药" defaultChecked={value?.prescriptionDrug ?? true} />
           <Checkbox name="essentialDrug" label="基本药物" defaultChecked={value?.essentialDrug} />
           {western && <Checkbox name="antimicrobial" label="抗菌药物" checked={antimicrobial}
             onChange={(checkedValue) => setAntimicrobial(checkedValue)} />}
-          {western && <Checkbox name="skinTestRequired" label="需要皮试" defaultChecked={value?.skinTestRequired} />}
+          {western && <Checkbox name="skinTestRequired" label="需要皮试" checked={skinTestRequired}
+            onChange={setSkinTestRequired} />}
           {(western || chinesePatent) && <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={value?.chronicDiseaseDrug} />}
           <Checkbox name="singleOrder" label="允许单开" defaultChecked={value?.singleOrder ?? true} />
         </Checkboxes>
       </FormGrid>
     </FormSection>
+    {western && antimicrobial && <FormSection title="抗菌药物临床应用管控"
+      description="分级决定医师处方资质与前置审核强度；特殊使用级抗菌药物门诊默认严禁开立。">
+      <FormGrid columns={4}>
+        <FormField label="抗菌药物管理级别" required><Select name="sdAntimicrobialLevel" value={antimicrobialLevel}
+          searchable={false} clearable={false}
+          onChange={(next) => {
+            setAntimicrobialLevel(next)
+            if (next === 'SPECIAL') { setAntimicrobialOutpatientAllowed(false); setAntimicrobialConsultationRequired(true) }
+          }} options={dictionaries.BD_ANTIMICROBIAL_LEVEL.map((item) => ({ value: item.code, label: item.name }))} /></FormField>
+        <FormField label="门诊单次处方疗程上限 (天)" hint={antimicrobialOutpatientAllowed ? '常规处方最长天数（如 7 天）' : '特殊使用级或非门诊用药不适用'}>
+          <input name="antimicrobialMaxDays" type="number" min={1} max={90}
+            defaultValue={value?.antimicrobialMaxDays ?? 7}
+            disabled={!antimicrobialOutpatientAllowed}
+            placeholder={antimicrobialOutpatientAllowed ? '如 7' : '门诊禁用'} />
+        </FormField>
+        <FormField className="span-2" label="处方资质要求" hint={
+          antimicrobialLevel === 'SPECIAL'
+            ? '特殊使用级：副高及以上专业技术职务医师开具，门诊禁止使用，需抗感染专家/药师会诊。'
+            : antimicrobialLevel === 'RESTRICTED'
+              ? '限制使用级：中级及以上专业技术职务医师开具，门诊按指征慎用。'
+              : '非限制使用级：初级及以上职称医师均可开具，门诊临床常用抗菌药物。'
+        }>
+          <div className="master-data-qualification-field">
+            <StatusBadge tone={antimicrobialLevel === 'SPECIAL' ? 'danger' : antimicrobialLevel === 'RESTRICTED' ? 'warning' : 'neutral'}>
+              {antimicrobialLevel === 'SPECIAL' ? '副高及以上' : antimicrobialLevel === 'RESTRICTED' ? '中级及以上' : '初级及以上'}
+            </StatusBadge>
+            <span className="master-data-qualification-field__text">
+              {antimicrobialLevel === 'SPECIAL' ? '需会诊审批 · 门诊严禁' : antimicrobialLevel === 'RESTRICTED' ? '门诊按指征慎用' : '门诊临床常用'}
+            </span>
+          </div>
+        </FormField>
+        <Checkboxes title="处方准入与审批规则" className="span-full">
+          <Checkbox name="antimicrobialOutpatientAllowed" label="允许门诊常规开立" checked={antimicrobialOutpatientAllowed}
+            onChange={setAntimicrobialOutpatientAllowed} disabled={antimicrobialLevel === 'SPECIAL'} />
+          <Checkbox name="antimicrobialConsultationRequired" label="需专科会诊 / 事前审批"
+            checked={antimicrobialConsultationRequired} onChange={setAntimicrobialConsultationRequired}
+            disabled={antimicrobialLevel === 'SPECIAL'} />
+          <Checkbox name="antimicrobialEmergencyAllowed" label="急危重症允许越级使用 (单日应急)"
+            checked={antimicrobialEmergencyAllowed} onChange={setAntimicrobialEmergencyAllowed} />
+        </Checkboxes>
+      </FormGrid>
+    </FormSection>}
+    {western && skinTestRequired && <FormSection title="皮试临床执行规则 (敏感试验)"
+      description="默认方案会随医嘱生成快照并自动带入护士皮试工作台；执行人员仍可按医嘱现场微调。">
+      <FormGrid columns={4}>
+        <StaticSelectField name="skinTestMethod" label="皮试给药方式" defaultValue={value?.skinTestMethod ?? 'INTRADERMAL'}
+          searchable={false} options={[{ value: 'INTRADERMAL', label: '皮内试验 (推荐)' },
+            { value: 'PRICK', label: '点刺试验' }, { value: 'OTHER', label: '其他方式' }]} />
+        <StaticSelectField name="skinTestSolutionMode" label="皮试液制备方式"
+          defaultValue={value?.skinTestSolutionMode ?? 'DILUTED_SOLUTION'} searchable={false}
+          options={[{ value: 'DILUTED_SOLUTION', label: '稀释配制皮试液' },
+            { value: 'ORIGINAL_SOLUTION', label: '原液直接试验' }]} />
+        <FormField label="皮试观察等待时长 (分钟)" required>
+          <input name="skinTestObservationMinutes" type="number" min={1} max={120}
+            defaultValue={value?.skinTestObservationMinutes ?? 20} placeholder="如 20" required />
+        </FormField>
+        <FormField label="阴性结果有效期 (小时)" required>
+          <input name="skinTestResultValidityHours" type="number" min={1} max={8760}
+            defaultValue={value?.skinTestResultValidityHours ?? 24} placeholder="如 24" required />
+        </FormField>
+        <FormField label="皮试液配制浓度与操作要点" className="span-full"><textarea name="skinTestInstructions" rows={2}
+          defaultValue={value?.skinTestInstructions} placeholder="如：稀释配制浓度（如青霉素 500U/ml）、试验推注剂量（0.1ml）、注射部位及阴阳性判定或复试要求" /></FormField>
+      </FormGrid>
+    </FormSection>}
     {!knownType && <Alert>当前药品类型尚未建立专属模板，本次仅按通用字段维护；请在扩展属性配置中补充类型规则。</Alert>}
   </DataFormDialog>
 }
@@ -2331,11 +3013,12 @@ function PackageDialog({ product, medication, dictionaries, editing, onClose, on
   </DataFormDialog>
 }
 
-function DataFormDialog({ title, eyebrow, description, size = 'wide', onClose, onSubmit, children }: {
+function DataFormDialog({ title, eyebrow, description, size = 'wide', className, onClose, onSubmit, children }: {
   title: string; eyebrow: string; description?: string; size?: 'wide' | 'xwide'
+  className?: string
   onClose: () => void; onSubmit: (form: FormData) => void; children: ReactNode
 }) {
-  return <Dialog title={title} eyebrow={eyebrow} description={description} size={size} onClose={onClose}>
+  return <Dialog title={title} eyebrow={eyebrow} description={description} size={size} className={className} onClose={onClose}>
     <form className="master-data-dialog-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); onSubmit(new FormData(event.currentTarget))
   }}>{children}<div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>取消</Button>
@@ -2356,13 +3039,14 @@ function DateRangeFields({ fromName, toName, fromLabel, toLabel, fromDefault, to
     onChange={(event) => setFrom(event.target.value)} required={required} /></FormField>
     <FormField label={toLabel}><input name={toName} type="date" defaultValue={toDefault} min={from || undefined} /></FormField></>
 }
-function Checkboxes({ title, children }: { title: string; children: ReactNode }) {
-  return <fieldset className="master-data-checkboxes span-2"><legend>{title}</legend><div>{children}</div></fieldset>
+function Checkboxes({ title, className, children }: { title: string; className?: string; children: ReactNode }) {
+  return <fieldset className={`master-data-checkboxes ${className ?? 'span-2'}`.trim()}><legend>{title}</legend><div>{children}</div></fieldset>
 }
-function Checkbox({ name, label, defaultChecked = false, checked: checkedValue, onChange }: { name: string; label: string;
-  defaultChecked?: boolean; checked?: boolean; onChange?: (checked: boolean) => void }) {
+function Checkbox({ name, label, defaultChecked = false, checked: checkedValue, onChange, disabled = false }: { name: string; label: string;
+  defaultChecked?: boolean; checked?: boolean; onChange?: (checked: boolean) => void; disabled?: boolean }) {
   return <label><input type="checkbox" name={name} defaultChecked={checkedValue === undefined ? defaultChecked : undefined}
-    checked={checkedValue} onChange={onChange ? (event) => onChange(event.target.checked) : undefined} />{label}</label>
+    checked={checkedValue} onChange={onChange ? (event) => onChange(event.target.checked) : undefined}
+    disabled={disabled} />{label}</label>
 }
 function SelectField({ name, label, values = [], defaultValue, disabled = false, required = true, placeholder }: { name: string; label: string;
   values?: DictionaryValue[]; defaultValue?: string; disabled?: boolean; required?: boolean; placeholder?: string }) {
@@ -2370,22 +3054,24 @@ function SelectField({ name, label, values = [], defaultValue, disabled = false,
     disabled={disabled} required={required} placeholder={placeholder} options={values.map((item) => ({ value: item.code, label: item.name }))} />
 }
 function StaticSelectField({ name, label, options: values, defaultValue, disabled = false, required = true,
-  placeholder = '请选择' }: { name: string; label: string; options: Array<{ value: string; label: string }>;
-  defaultValue?: string; disabled?: boolean; required?: boolean; placeholder?: string }) {
+  placeholder = '请选择', searchable = true }: { name: string; label: string; options: Array<{ value: string; label: string }>;
+  defaultValue?: string; disabled?: boolean; required?: boolean; placeholder?: string; searchable?: boolean }) {
   const [value, setValue] = useState(defaultValue ?? '')
   return <FormField label={label} required={required}><StaticSelectControl name={name} value={value}
-    onChange={setValue} options={values} placeholder={placeholder} disabled={disabled} required={required} /></FormField>
+    onChange={setValue} options={values} placeholder={placeholder} disabled={disabled} required={required}
+    searchable={searchable} /></FormField>
 }
 function StaticSelectControl({ id, name, className, value, onChange, options: values, placeholder, disabled, required,
-  'aria-describedby': ariaDescribedBy, 'aria-invalid': ariaInvalid, 'aria-required': ariaRequired }: {
+  searchable = true, 'aria-describedby': ariaDescribedBy, 'aria-invalid': ariaInvalid, 'aria-required': ariaRequired }: {
   id?: string; name: string; className?: string; value: string; onChange: (value: string) => void
-  options: Array<{ value: string; label: string }>; placeholder: string; disabled: boolean; required: boolean
+  options: Array<{ value: string; label: string }>; placeholder: string; disabled: boolean; required: boolean; searchable?: boolean
   'aria-describedby'?: string; 'aria-invalid'?: boolean | 'false' | 'true'; 'aria-required'?: boolean | 'false' | 'true'
 }) {
   return <div className="master-data-select-field">
     {disabled && <input type="hidden" name={name} value={value} />}
     <Select id={id} name={disabled ? undefined : name} className={className} value={value} onChange={onChange}
       options={values} placeholder={placeholder} disabled={disabled} clearable={!required}
+      searchable={searchable}
       aria-describedby={ariaDescribedBy} aria-invalid={ariaInvalid} aria-required={ariaRequired} />
   </div>
 }

@@ -184,7 +184,7 @@ describe('OutpatientTriageWorkspace', () => {
 
     // 检查统计指标卡片
     await waitFor(() => {
-      expect(screen.getByText('今日分诊总数')).toBeInTheDocument()
+      expect(screen.getByText('今日评估次数')).toBeInTheDocument()
       expect(screen.getByText('15')).toBeInTheDocument()
     })
 
@@ -193,6 +193,11 @@ describe('OutpatientTriageWorkspace', () => {
       expect(screen.getAllByText('周建国').length).toBeGreaterThanOrEqual(1)
       expect(screen.getByText('A001')).toBeInTheDocument()
     })
+
+    expect(screen.getByRole('tab', { name: /到院初筛/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /待分诊/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /候诊观察/ })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /记录/ })).toBeInTheDocument()
   })
 
   it('点击待分诊队列中的患者后，应当载入右侧患者卡片并进入分诊作业', async () => {
@@ -224,6 +229,21 @@ describe('OutpatientTriageWorkspace', () => {
     })
   })
 
+  it('到院初筛未调入患者时应显示骨架占位，并统一顶部操作控件规格', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    renderWorkspace(api)
+
+    await user.click(screen.getByRole('tab', { name: /到院初筛/ }))
+
+    expect(screen.getByRole('status', { name: '尚未调入患者' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: '待分诊患者' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '查询' })).toHaveClass('ui-button--md')
+    expect(screen.getByRole('combobox', { name: '到院方式' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '陪同情况' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '清空更换' })).toHaveClass('ui-button--md')
+  })
+
   it('输入异常生命体征时，应当实时触发越界报警并计算四级分诊建议等级', async () => {
     const api = buildMockApi()
     renderWorkspace(api)
@@ -247,14 +267,13 @@ describe('OutpatientTriageWorkspace', () => {
     })
   })
 
-  it('点击高频症状标签时应当自动带入主诉，并支持采纳智能推荐科室', async () => {
+  it('挂号前点击高频症状标签时应当自动带入主诉，并支持采纳智能推荐科室', async () => {
     const user = userEvent.setup()
     const api = buildMockApi()
     renderWorkspace(api)
 
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '周建国', level: 3 })).toBeInTheDocument()
-    })
+    await user.click(screen.getByRole('tab', { name: /到院初筛/ }))
+    expect(screen.getByText('智能导诊')).toBeInTheDocument()
 
     // 点击常用症状标签“发热/发烧”
     const feverChip = await screen.findByText('发热/发烧')
@@ -278,6 +297,21 @@ describe('OutpatientTriageWorkspace', () => {
     await waitFor(() => {
       expect(screen.getByText('已采纳')).toBeInTheDocument()
     })
+  })
+
+  it('已挂号待分诊场景应聚焦风险判级与疑似错科复核，不再提供重复采科室操作', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    renderWorkspace(api)
+
+    await waitFor(() => expect(screen.getByText('分级决策辅助')).toBeInTheDocument())
+    await user.click(screen.getByText('发热/发烧'))
+
+    await waitFor(() => {
+      expect(screen.getByText('疑似错科提醒，仅供护士复核')).toBeInTheDocument()
+      expect(screen.getByText(/当前挂号为全科医疗科，症状更匹配发热门诊/)).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: '采纳科室' })).not.toBeInTheDocument()
   })
 
   it('再次点击已选症状时应当同步从主诉中移除', async () => {
@@ -313,7 +347,7 @@ describe('OutpatientTriageWorkspace', () => {
     })
   })
 
-  it('分诊保存成功后，应当弹出分诊热敏小票预览对话框并支持直通挂号', async () => {
+  it('已挂号患者分诊保存成功后，应当弹出分诊热敏小票预览对话框', async () => {
     const user = userEvent.setup()
     const onNavigate = vi.fn()
     const api = buildMockApi()
@@ -339,12 +373,61 @@ describe('OutpatientTriageWorkspace', () => {
       expect(screen.getAllByText(/TRI202609090001/).length).toBeGreaterThanOrEqual(1)
     })
 
-    // 点击直通挂号按钮
-    const gotoRegBtn = screen.getByText('直通挂号')
-    await user.click(gotoRegBtn)
+    expect(screen.queryByText('直通挂号')).not.toBeInTheDocument()
+    expect(onNavigate).not.toHaveBeenCalled()
+  })
 
-    expect(onNavigate).toHaveBeenCalledWith(
-      expect.stringContaining('/outpatient/registration?residentId=resident-101')
-    )
+  it('到院初筛应当允许先选择居民，保存后再直通挂号', async () => {
+    const user = userEvent.setup()
+    const onNavigate = vi.fn()
+    const api = buildMockApi()
+    renderWorkspace(api, onNavigate)
+
+    await user.click(screen.getAllByRole('button', { name: '到院初筛' })[0])
+    const patientSearch = screen.getByPlaceholderText('检索姓名/身份证/档案号...')
+    await user.type(patientSearch, '周建国{Enter}')
+    await user.click(await screen.findByRole('button', { name: /周建国.*男.*41 岁/ }))
+
+    await user.click(screen.getByRole('button', { name: '保存初筛' }))
+    await waitFor(() => expect(api.outpatientTriage.create).toHaveBeenCalled())
+
+    await user.click(screen.getByRole('button', { name: '直通挂号' }))
+    expect(onNavigate).toHaveBeenCalledWith(expect.stringContaining('/outpatient/registration?residentId=resident-101'))
+  })
+
+  it('应当将已分诊且仍候诊的患者移出待分诊并允许新增复评记录', async () => {
+    const user = userEvent.setup()
+    const api = buildMockApi()
+    const observedEncounter: PendingEncounter = {
+      ...mockPendingEncounter,
+      encounterId: 'enc-observed',
+      registrationId: 'reg-observed',
+      residentName: '李春梅',
+      triaged: true,
+      triageId: mockTriageRecord.id,
+      triageNo: mockTriageRecord.triageNo,
+      triageLevel: mockTriageRecord.triageLevel,
+    }
+    vi.mocked(api.outpatientTriage.pendingEncounters).mockResolvedValue([mockPendingEncounter, observedEncounter])
+    renderWorkspace(api)
+
+    await waitFor(() => {
+      expect(screen.getAllByText('周建国').length).toBeGreaterThanOrEqual(1)
+      expect(screen.queryByText('李春梅')).not.toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('tab', { name: /候诊观察/ }))
+    expect(screen.queryByRole('button', { name: '直通挂号' })).not.toBeInTheDocument()
+    await user.click(await screen.findByText('李春梅'))
+    await waitFor(() => {
+      expect(screen.getByText(/本次保存将新增一条复评记录/)).toBeInTheDocument()
+      expect(screen.getByText('候诊风险复评')).toBeInTheDocument()
+      expect(screen.getByText('上次分级')).toBeInTheDocument()
+      expect(screen.getByText('风险趋势')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: '保存复评' }))
+    await waitFor(() => expect(api.outpatientTriage.create).toHaveBeenCalled())
+    expect(api.outpatientTriage.update).not.toHaveBeenCalled()
   })
 })

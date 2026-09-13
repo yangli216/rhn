@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { WorkContextOption } from '../shared/rhnApi'
-import { selectableWarehouseContexts, selectableWorkContexts, workContextTypeForPath } from './AppShell'
+import { selectableWarehouseContexts, selectableWorkContexts, tabForPath, workContextTypeForPath } from './AppShell'
 
 describe('AppShell work context routing', () => {
   it('routes inpatient workspaces to the ward context independently from outpatient clinics', () => {
@@ -78,5 +78,13 @@ describe('AppShell work context routing', () => {
       '门诊药房',
       '住院药房',
     ])
+  })
+
+  it('opens print template management in a workspace tab', () => {
+    expect(tabForPath('/settings/print-templates')).toMatchObject({
+      path: '/settings/print-templates',
+      title: '打印模板',
+      icon: 'print',
+    })
   })
 })

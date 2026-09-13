@@ -107,6 +107,7 @@ export interface AllergyIntolerance {
   revision: number
   residentId: string
   encounterId?: string
+  allergenId?: string
   assertionType: 'ALLERGY' | 'NO_KNOWN_ALLERGY' | 'NO_KNOWN_DRUG_ALLERGY'
   categoryCode?: 'DRUG' | 'FOOD' | 'ENVIRONMENT' | 'BIOLOGIC' | 'OTHER'
   clinicalStatus: 'ACTIVE' | 'INACTIVE'
@@ -127,6 +128,7 @@ export interface AllergyIntolerance {
 
 export interface RecordAllergyInput {
   encounterId?: string
+  allergenId?: string
   assertionType: AllergyIntolerance['assertionType']
   categoryCode?: AllergyIntolerance['categoryCode']
   criticalityCode?: AllergyIntolerance['criticalityCode']
@@ -137,6 +139,17 @@ export interface RecordAllergyInput {
   substanceDisplay?: string
   reactionText?: string
   onsetAt?: string
+}
+
+export interface AllergenTerm {
+  id: string
+  parentId?: string
+  categoryCode: NonNullable<AllergyIntolerance['categoryCode']>
+  conceptType: 'DRUG_INGREDIENT' | 'DRUG_CLASS' | 'FOOD' | 'ENVIRONMENT' | 'BIOLOGIC' | 'MATERIAL' | 'OTHER'
+  codeSystemUri: string
+  code: string
+  display: string
+  aliases?: string
 }
 
 export interface UpdateResidentProfileInput {
@@ -181,6 +194,9 @@ export function createResidentsApi(client: ApiClient) {
     ),
     allergies: (residentId: string, activeOnly = true) => client.request<AllergyIntolerance[]>(
       `/api/residents/${encodeURIComponent(residentId)}/allergies?activeOnly=${activeOnly}`,
+    ),
+    allergenTerms: (category?: AllergyIntolerance['categoryCode'], query = '') => client.request<AllergenTerm[]>(
+      `/api/allergen-terms?category=${encodeURIComponent(category ?? '')}&query=${encodeURIComponent(query)}`,
     ),
     recordAllergy: (residentId: string, input: RecordAllergyInput) => client.request<AllergyIntolerance>(
       `/api/residents/${encodeURIComponent(residentId)}/allergies`, {

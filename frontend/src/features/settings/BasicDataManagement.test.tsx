@@ -1,9 +1,12 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ServiceCatalogItem } from '../../shared/rhnApi'
 import {
   ServiceTable,
   MedicationTable,
+  MedicationDialog,
+  MedicationProductPopover,
+  MedicationProductQuickViewDialog,
   serviceSubtypeLabel,
   serviceDuplicateRuleLabel,
   serviceTypeTone,
@@ -260,7 +263,12 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
         essentialDrug: true,
         antimicrobial: true,
         sdAntimicrobialLevelText: '非限制级',
+        antimicrobialOutpatientAllowed: true,
+        antimicrobialConsultationRequired: false,
+        antimicrobialEmergencyAllowed: false,
+        antimicrobialMaxDays: 7,
         skinTestRequired: true,
+        skinTestObservationMinutes: 20,
         chronicDiseaseDrug: false,
         singleOrder: true,
         defaultDose: 0.5,
@@ -331,15 +339,35 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByText('0.25g · 常温')).toBeInTheDocument()
     expect(screen.getByText('0.5g')).toBeInTheDocument()
     expect(screen.getByText('口服 · 每日三次')).toBeInTheDocument()
-    expect(screen.getByText('处方药')).toBeInTheDocument()
-    expect(screen.getByText('基药')).toBeInTheDocument()
-    expect(screen.getByText('需皮试')).toBeInTheDocument()
+    expect(screen.getByLabelText('处方药')).toHaveTextContent('处')
+    expect(screen.getByLabelText('基本药物')).toHaveTextContent('基')
+    expect(screen.getByLabelText('抗菌药物 · 非限制级')).toHaveTextContent('非')
+    const skinTestMarker = screen.getByLabelText('需皮试 · 皮内试验 · 配制皮试液 · 观察 20 分钟')
+    expect(skinTestMarker).toHaveTextContent('皮')
+    expect(skinTestMarker).not.toHaveAttribute('title')
+    expect(screen.queryByText('20分钟')).not.toBeInTheDocument()
 
-    // 厂家产品微标与点击切换
+    // 操作列中已移除重复的“加产品”按钮
+    expect(screen.queryByRole('button', { name: '加产品' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+产品' })).toBeInTheDocument()
+
+    // 厂家产品微标与点击轻量查看（不跳转页面）
     const countChip = screen.getByRole('button', { name: /1 个产品/ })
     expect(countChip).toBeInTheDocument()
-    countChip.click()
-    expect(handleModeChange).toHaveBeenCalledWith('product')
+    fireEvent.click(countChip)
+
+    // 点击后不调用 handleModeChange（不发生视角跳转）
+    expect(handleModeChange).not.toHaveBeenCalled()
+
+    // 弹出轻量级厂家产品 Popover 气泡浮层（无全屏暗色遮罩），展示列表信息
+    expect(screen.getByRole('dialog', { name: /阿莫西林胶囊 厂家产品清单/ })).toBeInTheDocument()
+    expect(screen.getByText('阿莫西林胶囊(严迪)')).toBeInTheDocument()
+    expect(screen.getByText('哈药集团制药总厂')).toBeInTheDocument()
+    expect(screen.getByText('国药准字H23021465')).toBeInTheDocument()
+
+    // 再次点击同一药品的厂家产品微标，轻量收起
+    fireEvent.click(countChip)
+    expect(screen.queryByRole('dialog', { name: /阿莫西林胶囊 厂家产品清单/ })).not.toBeInTheDocument()
   })
 
   it('renders MedicationTable in product mode with flattened manufacturer product table', () => {
@@ -429,5 +457,178 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     // 操作按钮
     expect(screen.getByRole('button', { name: '编辑产品' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '加包装' })).toBeInTheDocument()
+  })
+
+  it('uses standardized controls and the compact workspace layout in MedicationDialog', () => {
+    render(<MedicationDialog
+      dictionaries={{
+        BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
+        BD_DOSE_FORM: [{ code: 'INJECTION', name: '注射剂' }],
+        BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
+        BD_ANTIMICROBIAL_LEVEL: [{ code: 'RESTRICTED', name: '限制使用级' }],
+      } as any}
+      frequencies={[{ id: 'freq-1', code: 'QD', name: '每日一次', executionTimes: ['08:00'] } as any]}
+      routes={[{ id: 'route-1', code: 'IV', name: '静脉滴注' } as any]}
+      value={{
+        id: 'med-1',
+        code: 'DEMO-DRUG-CRO',
+        name: '头孢曲松钠',
+        sdMedicationType: 'WESTERN',
+        sdDoseForm: 'INJECTION',
+        preparationSpec: '1g/瓶',
+        preparationUnit: '瓶',
+        strengthValue: 1,
+        strengthUnit: 'g',
+        defaultDose: 1,
+        defaultDoseUnit: 'g',
+        antimicrobial: true,
+        sdAntimicrobialLevel: 'RESTRICTED',
+        antimicrobialOutpatientAllowed: true,
+        skinTestRequired: true,
+        skinTestMethod: 'INTRADERMAL',
+        skinTestSolutionMode: 'DILUTED_SOLUTION',
+        sdStatus: 'ACTIVE',
+      } as any}
+      onClose={vi.fn()}
+      onSave={vi.fn()}
+    />)
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveClass('medication-knowledge-dialog')
+    expect(dialog.querySelectorAll('select')).toHaveLength(0)
+    expect(screen.getByRole('combobox', { name: '默认剂量单位' })).toHaveClass('ui-select__trigger')
+    expect(screen.getByRole('combobox', { name: '抗菌药物管理级别' })).toHaveClass('ui-select__trigger')
+    expect(screen.getByRole('combobox', { name: '皮试给药方式' })).toHaveClass('ui-select__trigger')
+    expect(screen.getByRole('combobox', { name: '皮试液制备方式' })).toHaveClass('ui-select__trigger')
+    expect(screen.getByRole('button', { name: '根据当前含量重新生成制剂规格' })).toHaveClass('ui-button')
+  })
+
+  it('renders MedicationProductQuickViewDialog and handles actions correctly', () => {
+    const handleClose = vi.fn()
+    const handleProduct = vi.fn()
+    const handleEditProduct = vi.fn()
+    const handlePackage = vi.fn()
+    const handleModeChange = vi.fn()
+
+    const medication = {
+      id: 'med-001',
+      code: 'MED-2026-W001',
+      name: '阿莫西林胶囊',
+      sdMedicationTypeText: '西药',
+      sdDoseFormText: '胶囊剂',
+      preparationSpec: '0.25g',
+      strengthValue: 0.25,
+      strengthUnit: 'g',
+      products: [
+        {
+          id: 'prod-001',
+          revision: 1,
+          code: 'PROD-001',
+          name: '阿莫西林胶囊(严迪)',
+          manufacturerName: '哈药集团制药总厂',
+          approvalCode: '国药准字H23021465',
+          otc: false,
+          centralPurchase: true,
+          orderable: true,
+          sdStatus: 'ACTIVE' as const,
+          sdStatusText: '有效',
+          packages: [],
+        },
+      ],
+    }
+
+    render(
+      <MedicationProductQuickViewDialog
+        medication={medication as any}
+        onClose={handleClose}
+        onProduct={handleProduct}
+        onEditProduct={handleEditProduct}
+        onPackage={handlePackage}
+        onModeChange={handleModeChange}
+      />
+    )
+
+    // 检查列表展示
+    expect(screen.getByText(/阿莫西林胶囊 · 厂家产品列表/)).toBeInTheDocument()
+    expect(screen.getByText('阿莫西林胶囊(严迪)')).toBeInTheDocument()
+    expect(screen.getByText('哈药集团制药总厂')).toBeInTheDocument()
+    expect(screen.getByText('国药准字H23021465')).toBeInTheDocument()
+    expect(screen.getByText('集采')).toBeInTheDocument()
+
+    // 点击“+ 新增厂家产品”
+    const addProductBtn = screen.getByRole('button', { name: '+ 新增厂家产品' })
+    fireEvent.click(addProductBtn)
+    expect(handleClose).toHaveBeenCalled()
+    expect(handleProduct).toHaveBeenCalledWith(medication)
+
+    // 点击“编辑产品”
+    const editBtn = screen.getByRole('button', { name: '编辑产品' })
+    fireEvent.click(editBtn)
+    expect(handleEditProduct).toHaveBeenCalledWith(medication.products[0], medication)
+
+    // 点击“加包装”
+    const packageBtn = screen.getByRole('button', { name: '加包装' })
+    fireEvent.click(packageBtn)
+    expect(handlePackage).toHaveBeenCalledWith(medication.products[0], medication)
+
+    // 点击“完整产品视角 ›”
+    const modeChangeBtn = screen.getByRole('button', { name: '完整产品视角 ›' })
+    fireEvent.click(modeChangeBtn)
+    expect(handleModeChange).toHaveBeenCalledWith('product')
+  })
+
+  it('renders MedicationProductPopover and handles lightweight popover actions', () => {
+    const handleClose = vi.fn()
+    const handleProduct = vi.fn()
+    const handleEditProduct = vi.fn()
+    const handlePackage = vi.fn()
+    const handleModeChange = vi.fn()
+
+    const medication = {
+      id: 'med-002',
+      code: 'MED-2026-W002',
+      name: '头孢克肟分散片',
+      sdMedicationTypeText: '西药',
+      sdDoseFormText: '片剂',
+      products: [
+        {
+          id: 'prod-002',
+          revision: 1,
+          code: 'PROD-002',
+          name: '头孢克肟分散片(世福素)',
+          manufacturerName: '广州白云山制药股份有限公司',
+          approvalCode: '国药准字H20030588',
+          otc: false,
+          centralPurchase: true,
+          orderable: true,
+          sdStatus: 'ACTIVE' as const,
+          sdStatusText: '有效',
+          packages: [],
+        },
+      ],
+    }
+
+    render(
+      <MedicationProductPopover
+        medication={medication as any}
+        anchorRect={{ top: 100, bottom: 130, left: 200, right: 300, width: 100, height: 30 } as DOMRect}
+        onClose={handleClose}
+        onProduct={handleProduct}
+        onEditProduct={handleEditProduct}
+        onPackage={handlePackage}
+        onModeChange={handleModeChange}
+      />
+    )
+
+    // 检查气泡浮层头部与内容
+    expect(screen.getByRole('dialog', { name: /头孢克肟分散片 厂家产品清单/ })).toBeInTheDocument()
+    expect(screen.getByText('头孢克肟分散片(世福素)')).toBeInTheDocument()
+    expect(screen.getByText('广州白云山制药股份有限公司')).toBeInTheDocument()
+    expect(screen.getByText('国药准字H20030588')).toBeInTheDocument()
+
+    // 点击浮层右上角关闭按钮
+    const closeBtn = screen.getByRole('button', { name: '关闭' })
+    fireEvent.click(closeBtn)
+    expect(handleClose).toHaveBeenCalled()
   })
 })

@@ -267,7 +267,11 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         return new MedicationSnapshot(value.id(), value.itemTypeId(), value.code(), value.name(), value.aliasName(),
                 value.medicationType(), value.doseForm(), value.preparationSpec(), value.preparationUnit(),
                 value.strengthValue(), value.strengthUnit(), value.storageType(), value.prescriptionDrug(),
-                value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(), value.skinTestRequired(),
+                value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),
+                value.antimicrobialOutpatientAllowed(), value.antimicrobialConsultationRequired(),
+                value.antimicrobialEmergencyAllowed(), value.antimicrobialMaxDays(), value.skinTestRequired(),
+                value.skinTestMethod(), value.skinTestSolutionMode(), value.skinTestObservationMinutes(),
+                value.skinTestResultValidityHours(), value.skinTestInstructions(),
                 value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(), value.defaultFrequencyId(), value.defaultFrequency(),
                 value.chronicDiseaseDrug(), value.singleOrder(), value.status());
     }

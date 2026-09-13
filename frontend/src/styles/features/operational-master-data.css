@@ -1549,7 +1549,7 @@
 .master-data-form-grid--2 .span-2 { grid-column: 1 / -1; }
 .master-data-form-grid--3 .span-2, .master-data-form-grid--4 .span-2 { grid-column: span 2; }
 .master-data-field-hint { margin: calc(var(--space-2) * -1) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-small); }
-.master-data-form-grid--3 .span-3, .master-data-form-grid--4 .span-4 { grid-column: 1 / -1; }
+.master-data-form-grid--3 .span-3, .master-data-form-grid--4 .span-4, .master-data-form-grid .span-full { grid-column: 1 / -1; }
 .master-data-select-field, .master-data-select-field .ui-select { min-width: 0; width: 100%; }
 .master-data-attribute-dialog { margin-top: var(--space-5); }
 .master-data-attribute-toolbar { margin-bottom: var(--space-4); display: grid; grid-template-columns: minmax(22rem, 1fr) minmax(18rem, .7fr) auto; align-items: end; gap: var(--space-4); }
@@ -1761,7 +1761,9 @@
 .master-data-checkboxes label { display: inline-flex; align-items: center; gap: var(--space-2); padding: 0.125rem var(--space-1); border-radius: var(--radius-sm); color: var(--color-text-secondary); font-size: var(--font-size-small); cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
 .master-data-checkboxes label:hover { color: var(--color-text-primary); }
 .master-data-checkboxes label:has(input:checked) { color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.master-data-checkboxes label:has(input:disabled) { color: var(--color-text-muted); cursor: not-allowed; }
 .master-data-checkboxes input { width: 1.125rem; height: 1.125rem; accent-color: var(--color-brand-primary); cursor: pointer; }
+.master-data-checkboxes input:disabled { cursor: not-allowed; }
 .master-data-advanced-fields { margin: var(--space-1) 0 var(--space-6); border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-surface-subtle); }
 .master-data-advanced-fields > summary { padding: var(--space-4); color: var(--color-text-secondary); font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); cursor: pointer; }
 .master-data-advanced-fields[open] > summary { border-bottom: 1px solid var(--color-border); color: var(--color-text-primary); }
@@ -1789,6 +1791,7 @@
 
 .medication-knowledge-row td, .medication-product-row td { vertical-align: middle; }
 .medication-name-wrap, .medication-parent-info, .medication-product-info, .medication-spec-wrap, .medication-usage-wrap, .medication-formspec-info { display: flex; flex-direction: column; gap: 2px; }
+.medication-classification-summary { color: var(--color-text-secondary); font-size: var(--font-size-xs); white-space: nowrap; }
 .medication-item-name, .medication-parent-name, .medication-product-title { font-weight: var(--font-weight-semibold); color: var(--color-text-primary); font-size: var(--font-size-body); }
 .medication-code-tag { color: var(--color-text-secondary); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); }
 .medication-type-wrap { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); }
@@ -1797,7 +1800,10 @@
 .medication-parent-meta { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .medication-parent-meta code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 .medication-approval-code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--font-size-small); color: var(--color-text-secondary); background: var(--color-surface-subtle); padding: 0.1rem var(--space-1); border-radius: var(--radius-sm); }
-.medication-safety-tags { display: flex; flex-wrap: wrap; gap: var(--space-1); align-items: center; }
+.medication-safety-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; align-items: center; }
+.medication-safety-marker { width: 1.625rem; min-width: 1.625rem; min-height: 1.625rem; height: 1.625rem; padding: 0; border-radius: 50%; font-weight: var(--font-weight-semibold); letter-spacing: 0; cursor: help; }
+.medication-safety-marker::before { display: none; }
+.medication-safety-marker:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
 .medication-safety-normal { color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .medication-product-summary-cell { display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; }
 .medication-product-count-chip { display: inline-flex; align-items: center; padding: 0.15rem var(--space-2); border-radius: var(--radius-sm); background: var(--color-brand-soft); color: var(--color-brand-primary); font-size: var(--font-size-small); font-weight: var(--font-weight-medium); border: 1px solid transparent; cursor: pointer; transition: all var(--motion-fast) var(--ease-standard); }
@@ -2151,4 +2157,384 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
 .service-col-actions .master-data-row-actions {
   flex-wrap: nowrap;
   gap: var(--space-1);
+}
+
+/* 轻量级厂家产品列表弹窗样式 */
+.medication-quick-view-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 54rem;
+}
+
+.medication-quick-view-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.medication-quick-view-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.medication-quick-view-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.medication-quick-view-tag strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.medication-quick-view-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.medication-quick-view-table-wrap {
+  max-height: 28rem;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.medication-quick-view-table td {
+  vertical-align: middle;
+}
+
+.medication-quick-view-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.medication-trade-name {
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-small);
+}
+
+/* 轻量级厂家产品悬浮气泡卡片 Popover (无全屏暗色遮罩) */
+.medication-product-popover {
+  position: fixed;
+  z-index: var(--z-modal-popover, 55);
+  width: 28rem;
+  max-width: calc(100vw - 2rem);
+  max-height: 26rem;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.16), 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-body);
+  animation: medication-popover-enter 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes medication-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.medication-product-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.medication-product-popover__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.medication-product-popover__count-badge {
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.medication-product-popover__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.medication-product-popover__close-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.medication-product-popover__close-btn:hover {
+  background: var(--color-neutral-soft);
+  color: var(--color-text-primary);
+}
+
+.medication-product-popover__list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-1) 0;
+}
+
+.medication-product-popover__empty {
+  padding: var(--space-4);
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.medication-product-popover__item {
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--color-border);
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.medication-product-popover__item:last-child {
+  border-bottom: 0;
+}
+
+.medication-product-popover__item:hover {
+  background: var(--color-surface-subtle);
+}
+
+.medication-product-popover__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.medication-product-popover__mfg {
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
+.medication-product-popover__item-tags {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.medication-product-popover__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-small);
+}
+
+.medication-product-popover__prod-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.medication-product-popover__approval-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.6875rem;
+}
+
+.medication-product-popover__meta-label {
+  color: var(--color-text-secondary);
+}
+
+.medication-product-popover__packages-row {
+  margin-top: 2px;
+}
+
+.medication-product-popover__item-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-top: 2px;
+}
+
+.medication-product-popover__item-actions button {
+  padding: 0 var(--space-1);
+  font-size: var(--font-size-small);
+}
+
+.medication-product-popover__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.375rem 0.75rem;
+  background: var(--color-surface-subtle);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.medication-product-count-chip.is-active {
+  background: var(--color-brand-primary);
+  color: #fff;
+  box-shadow: 0 0 0 2px var(--color-brand-halo);
+}
+
+.master-data-number-unit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.master-data-number-unit > span {
+  min-width: 2.5rem;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.master-data-qualification-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  cursor: default;
+  user-select: none;
+}
+
+.master-data-qualification-field .ui-status-badge {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  padding: 0.125rem var(--space-2);
+}
+
+.master-data-qualification-field__text {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-regular);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.master-data-spec-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.master-data-spec-field > input {
+  width: 100%;
+}
+
+.master-data-spec-gen-btn {
+  white-space: nowrap;
+}
+
+.master-data-spec-gen-btn .ui-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.medication-knowledge-dialog {
+  width: min(76rem, 100%);
+}
+
+.medication-knowledge-dialog .ui-dialog__description {
+  margin: var(--space-2) 0;
+}
+
+.medication-knowledge-dialog .master-data-dialog-form {
+  margin-top: var(--space-2);
+}
+
+.medication-knowledge-dialog .master-data-form-section {
+  padding: var(--space-3) 0;
+}
+
+.medication-knowledge-dialog .master-data-form-section:last-of-type {
+  padding-bottom: var(--space-3);
+}
+
+.medication-knowledge-dialog .master-data-form-section > header {
+  margin-bottom: var(--space-2);
+  gap: var(--space-4);
+}
+
+.medication-knowledge-dialog .master-data-form-section > header h3 {
+  font-size: 1rem;
+}
+
+.medication-knowledge-dialog .master-data-form-section > header p {
+  max-width: 40rem;
+  line-height: 1.4;
+}
+
+.medication-knowledge-dialog .master-data-form-grid {
+  gap: var(--space-3) var(--space-4);
+}
+
+.medication-knowledge-dialog__spec {
+  grid-column: span 3;
+}
+
+.medication-knowledge-dialog .master-data-checkboxes {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+}
+
+.medication-knowledge-dialog .master-data-checkboxes > div {
+  gap: var(--space-2) var(--space-4);
+}
+
+.medication-knowledge-dialog textarea.ui-field__control {
+  min-height: 4.25rem;
+  padding-top: var(--space-2);
+  padding-bottom: var(--space-2);
+}
+
+.medication-knowledge-dialog .ui-form-actions {
+  margin-top: var(--space-3);
 }

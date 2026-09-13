@@ -193,8 +193,16 @@
 | ANL | `anl.presence_metric_sample` | 在线状态指标样本；一行代表一条在线状态指标样本记录 | `presence_metric_samples` | `RHN_ANL_PRES_METRIC_SAMPLE` | 13 |
 | SYS | `sys.print_job` | 打印作业；一行代表一条打印作业记录 | `print_jobs` | `RHN_SYS_PRINT_JOB` | 10 |
 | SYS | `sys.print_output` | 打印输出；一行代表一条打印输出记录 | `print_outputs` | `RHN_SYS_PRINT_OUTPUT` | 21 |
-| META | `meta.print_template_version` | 打印模板版本；一行代表一条打印模板版本记录 | `print_template_versions` | `RHN_META_PRINT_TMPL_VER` | 9 |
+| META | `meta.print_template_version` | 打印模板版本；一行代表一条打印模板版本记录 | `print_template_versions` | `RHN_META_PRINT_TMPL_VER` | 11 |
+| META | `meta.print_document_definition` | 打印单据定义；一行代表一个可打印的业务单据类型 | `print_document_definitions` | `RHN_META_PRINT_DOC_DEF` | 14 |
+| META | `meta.print_media_profile` | 打印介质档案；一行代表一种可绑定模板的纸张或标签方案 | `print_media_profiles` | `RHN_META_PRINT_MEDIA` | 24 |
+| META | `meta.print_template_draft` | 打印模板草稿；一行代表一份可编辑或待审核的模板内容 | `print_template_drafts` | `RHN_META_PRINT_DRAFT` | 16 |
 | META | `meta.print_template` | 打印模板；一行代表一条打印模板记录 | `print_templates` | `RHN_META_PRINT_TMPL` | 12 |
+| META | `meta.print_device` | 打印设备；一行代表一个浏览器或本地打印桥输出端点 | `print_devices` | `RHN_META_PRINT_DEVICE` | 17 |
+| META | `meta.print_device_binding` | 打印设备绑定；一行代表科室单据和介质到默认设备的路由 | `print_device_bindings` | `RHN_META_PRINT_DEV_BIND` | 14 |
+| SYS | `sys.print_batch` | 打印批次；一行代表一次经过对账的批量打印请求 | `print_batches` | `RHN_SYS_PRINT_BATCH` | 26 |
+| SYS | `sys.print_batch_item` | 打印批次明细；一行代表一个纳入或排除的业务来源 | `print_batch_items` | `RHN_SYS_PRINT_BATCH_ITEM` | 18 |
+| SYS | `sys.print_delivery` | 打印投递；一行代表批次输出向浏览器或本地桥的一次投递 | `print_deliveries` | `RHN_SYS_PRINT_DELIVERY` | 15 |
 | SUP | `sup.purchase_order_line` | 采购医嘱明细；一行代表一条采购医嘱明细记录 | `purchase_order_lines` | `RHN_SUP_PURCH_ORDER_LINE` | 13 |
 | SUP | `sup.purchase_order` | 采购医嘱；一行代表一条采购医嘱记录 | `purchase_orders` | `RHN_SUP_PURCH_ORDER` | 21 |
 | SC | `sc.service_queue` | 服务队列；一行代表一个可独立编号和调度的服务队列 | `service_queues` | `RHN_SC_SVC_QUEUE` | 15 |
@@ -277,7 +285,7 @@
 | SYS | `sys.work_task_history` | 工作任务历史；一行代表一条工作任务历史记录 | `work_task_history` | `RHN_SYS_WORK_TASK_HIST` | 10 |
 | SYS | `sys.work_task` | 工作任务；一行代表一条工作任务记录 | `work_tasks` | `RHN_SYS_WORK_TASK` | 26 |
 
-合计：272 张表。
+合计：280 张表。
 
 ## Oracle 适配器技术列
 

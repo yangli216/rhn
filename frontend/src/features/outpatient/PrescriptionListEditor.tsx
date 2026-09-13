@@ -46,6 +46,7 @@ export interface MedicationPlanDraft {
   currencyCode?: string
   routeName?: string
   routeExecutionType?: 'NONE' | 'ADMINISTRATION' | 'INFUSION'
+  parentRequestId?: string
   administrationGroupKey?: string
   stockSiteName?: string
   availablePackageQuantity?: number
@@ -145,8 +146,9 @@ function PrescriptionEditorSection({
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
   const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
     || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
-  const matchedAllergies = currentMedication ? drugAllergies.filter((item) => item.substanceCode
-    && item.substanceCode.toLowerCase() === currentMedication.code.toLowerCase()) : []
+  const matchedAllergies = currentMedication ? drugAllergies.filter((item) => item.allergenId
+    ? currentMedication.allergenConceptIds?.includes(item.allergenId)
+    : item.substanceCode && item.substanceCode.toLowerCase() === currentMedication.code.toLowerCase()) : []
   const requiresSafetyReview = Boolean(currentMedication && (!allergyReviewRecorded || drugAllergies.length > 0
     || currentMedication.skinTestRequired || currentMedication.antimicrobial))
   const visibleCategories = mode === 'herbal' ? ['HERBAL'] : ['WESTERN', 'CHINESE_PATENT']

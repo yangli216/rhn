@@ -13,7 +13,6 @@ export interface OrderableMedicationKnowledge extends MedicationKnowledge {
   packageUnitName?: string
   packageFactor?: number
 }
-
 type DiagnosisInputContract = components['schemas']['DiagnosisInput']
 type ClinicalRecordContract = components['schemas']['RecordClinicalDataRequest']
 
@@ -327,8 +326,64 @@ export function createEncountersApi(client: ApiClient) {
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/cancel`, {
         method: 'POST', body: JSON.stringify({ expectedRevision, reason }),
       }),
+    autoSplitPreview: (encounterId: string, items: BatchOrderMedicationItem[]) => client.request<SplitPrescriptionPlan[]>(
+      `/api/encounters/${encounterId}/prescriptions/auto-split-preview`, {
+        method: 'POST', body: JSON.stringify(items),
+      },
+    ),
+    batchOrderPrescriptions: (encounterId: string, input: BatchOrderPrescriptionInput) => client.request<Prescription[]>(
+      `/api/encounters/${encounterId}/prescriptions/batch-order`, {
+        method: 'POST', body: JSON.stringify(input),
+      },
+    ),
     orderableMedications: (encounterId: string, query?: string) => client.request<OrderableMedicationKnowledge[]>(
       `/api/encounters/${encounterId}/orderable-medications${query ? `?query=${encodeURIComponent(query)}` : ''}`,
     ),
   }
+}
+
+export interface BatchOrderMedicationItem {
+  medicationId?: string
+  catalogItemId?: string
+  packageId?: string
+  doseValue?: number
+  doseUnit?: string
+  routeCode?: string
+  frequencyCode?: string
+  durationValue?: number
+  durationUnit?: string
+  quantity: number
+  quantityUnit?: string
+  substitutionAllowed?: boolean
+  selfProvided?: boolean
+  medicationInstruction?: string
+  allergyReviewConfirmed?: boolean
+  allergyOverrideReason?: string
+  priceType?: string
+  pricingRequired?: boolean
+  stockSiteId?: string
+  stockSiteName?: string
+  administrationGroupKey?: string
+  routeExecutionType?: string
+  categoryCode?: string
+  reason?: string
+}
+
+export interface BatchOrderPrescriptionInput {
+  items: BatchOrderMedicationItem[]
+  autoSubmit?: boolean
+}
+
+export interface SplitPrescriptionPlan {
+  categoryCode: string
+  title: string
+  stockSiteId: string | number
+  stockSiteName: string
+  routeGroupType: string
+  ruleReasons: string[]
+  items: Array<{
+    item: BatchOrderMedicationItem
+    groupLeader: boolean
+    groupKey?: string
+  }>
 }

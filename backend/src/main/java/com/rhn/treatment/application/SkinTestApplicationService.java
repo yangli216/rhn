@@ -23,6 +23,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import static com.rhn.shared.api.BusinessErrors.conflict;
@@ -87,6 +88,13 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 "SKIN_TEST_NOT_REQUIRED", "当前药品医嘱不需要皮试");
         if (!identityVerified) throw conflict(
                 "SKIN_TEST_IDENTITY_VERIFICATION_REQUIRED", "开始皮试前必须完成患者身份核对");
+        SkinTestConfiguration configuration = configuration(request);
+        if (!Objects.equals(configuration.testMethod(), clean(testMethod))
+                || configuration.originalSolution() != originalSolution
+                || configuration.observationMinutes() != observationMinutes) {
+            throw conflict("SKIN_TEST_CONFIGURATION_MISMATCH",
+                    "皮试执行参数与医嘱生成时的药品配置不一致，请刷新任务后按主数据方案执行");
+        }
         List<SkinTestEvent> history = events.findByTenantIdAndMedicationRequestIdOrderByAttemptNoDesc(
                 context.tenantId(), medicationRequestId);
         SkinTestEvent latest = history.isEmpty() ? null : history.get(0);
@@ -156,6 +164,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private SkinTestWorkItemView view(MedicationRequestSnapshot request, SkinTestSnapshot latest) {
         ResidentDirectory.ResidentSnapshot resident = residents.requireSnapshot(request.residentId());
         SkinTestEvent event = latest == null ? null : events.findById(latest.eventId()).orElse(null);
+        SkinTestConfiguration configuration = configuration(request);
         Gate gate = gate(request);
         String status = derivedStatus(event, gate);
         String gateMessage = Set.of("WAITING_SETTLEMENT", "WAITING_DISPENSE").contains(status)
@@ -164,7 +173,10 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 resident.fullName(), resident.healthRecordNo(), request.encounterId(),
                 request.performerOrganizationId(), request.performerDepartmentId(), request.medicationId(),
                 request.medicationCode(), request.medicationName(), request.itemName(), request.routeCode(),
-                request.doseValue(), request.doseUnit(), status, gateMessage,
+                request.doseValue(), request.doseUnit(), configuration.testMethod(),
+                configuration.solutionMode(), configuration.observationMinutes(), configuration.resultValidityHours(),
+                configuration.instructions(), settlementRequiredBeforeStart(request, configuration),
+                dispenseRequiredBeforeStart(request, configuration), status, gateMessage,
                 event == null ? null : event.id(), event == null ? null : event.revision(),
                 event == null ? null : event.attemptNo(), event == null ? null : event.testMethod(),
                 event != null && event.originalSolution(), event == null ? null : event.solutionCatalogItemId(),
@@ -183,18 +195,30 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     }
 
     private Gate gate(MedicationRequestSnapshot request) {
-        if (request.totalAmount() != null && request.totalAmount().signum() > 0
+        SkinTestConfiguration configuration = configuration(request);
+        if (settlementRequiredBeforeStart(request, configuration)
                 && settlements.finalizedSettlementForRequest(request.tenantId(), request.id(),
                 "MEDICATION_REQUEST").isEmpty()) {
             return new Gate(false, "WAITING_SETTLEMENT", "SKIN_TEST_SETTLEMENT_REQUIRED",
-                    "药品费用尚未完成结算，暂不能开始皮试");
+                    "当前为原液皮试，药品费用尚未完成结算，暂不能开始皮试");
         }
-        if (!request.selfProvided() && !fulfillment.fulfillmentForRequest(
+        if (dispenseRequiredBeforeStart(request, configuration) && !fulfillment.fulfillmentForRequest(
                 request.tenantId(), request.id()).completed()) {
             return new Gate(false, "WAITING_DISPENSE", "SKIN_TEST_DISPENSE_REQUIRED",
-                    "皮试用药尚未完成发药，暂不能开始皮试");
+                    "当前为原液皮试，皮试用药尚未完成发药，暂不能开始皮试");
         }
         return new Gate(true, "PENDING", null, null);
+    }
+
+    private boolean settlementRequiredBeforeStart(MedicationRequestSnapshot request,
+                                                  SkinTestConfiguration configuration) {
+        return configuration.originalSolution() && request.totalAmount() != null
+                && request.totalAmount().signum() > 0;
+    }
+
+    private boolean dispenseRequiredBeforeStart(MedicationRequestSnapshot request,
+                                                SkinTestConfiguration configuration) {
+        return configuration.originalSolution() && !request.selfProvided();
     }
 
     private String derivedStatus(SkinTestEvent event, Gate gate) {
@@ -243,6 +267,36 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 + value.medicationCode() + " " + value.medicationName() + " " + value.itemName())
                 .toUpperCase(Locale.ROOT);
     }
+    private String snapshotText(MedicationRequestSnapshot request, String field, String fallback) {
+        if (request.medicationSnapshot() == null || request.medicationSnapshot().path(field).isMissingNode()
+                || request.medicationSnapshot().path(field).isNull()) return fallback;
+        String value = clean(request.medicationSnapshot().path(field).asText());
+        return value == null ? fallback : value;
+    }
+    private int snapshotInt(MedicationRequestSnapshot request, String field, int fallback) {
+        if (request.medicationSnapshot() == null) return fallback;
+        int value = request.medicationSnapshot().path(field).asInt(fallback);
+        return value > 0 ? value : fallback;
+    }
+    private SkinTestConfiguration configuration(MedicationRequestSnapshot request) {
+        String solutionMode = resolvedAttributeText(request, "MED.SKIN_TEST.SOLUTION_MODE");
+        if (solutionMode == null) solutionMode = snapshotText(request, "skinTestSolutionMode", "DILUTED_SOLUTION");
+        return new SkinTestConfiguration(snapshotText(request, "skinTestMethod", "INTRADERMAL"), solutionMode,
+                snapshotInt(request, "skinTestObservationMinutes", 20),
+                snapshotInt(request, "skinTestResultValidityHours", 24),
+                snapshotText(request, "skinTestInstructions", null));
+    }
+    private String resolvedAttributeText(MedicationRequestSnapshot request, String code) {
+        if (request.itemAttributeSnapshot() == null) return null;
+        var attribute = request.itemAttributeSnapshot().path("attributes").path(code);
+        String sourceLevel = clean(attribute.path("sourceLevel").asText());
+        if (sourceLevel == null || Set.of("DEFINITION_DEFAULT", "TYPE_DEFAULT", "NONE").contains(sourceLevel)) {
+            return null;
+        }
+        var value = attribute.path("value");
+        if (value.isMissingNode() || value.isNull()) return null;
+        return clean(value.asText());
+    }
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();
         if (!context.hasWorkContext() || context.departmentId() == null) throw conflict(
@@ -253,4 +307,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     private record Gate(boolean ready, String status, String code, String message) {}
+    private record SkinTestConfiguration(String testMethod, String solutionMode, int observationMinutes,
+                                         int resultValidityHours, String instructions) {
+        private boolean originalSolution() { return "ORIGINAL_SOLUTION".equals(solutionMode); }
+    }
 }

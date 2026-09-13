@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.Period;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +41,7 @@ public class OutpatientTriageService {
 
     private static final ZoneId SHANGHAI_ZONE = ZoneId.of("Asia/Shanghai");
     private static final DateTimeFormatter TRIAGE_DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private static final Set<String> TRIAGE_QUEUE_STATUSES = Set.of("WAITING", "CALLED", "MISSED");
 
     private final OutpatientTriageRepository triageRepository;
     private final OutpatientRegistrationDirectory registrationDirectory;
@@ -188,7 +191,7 @@ public class OutpatientTriageService {
     @Transactional(readOnly = true)
     public TriageRecordResponse getTriageRecordByEncounter(Long encounterId) {
         Long tenantId = TenantContext.requireTenantId();
-        return triageRepository.findByTenantIdAndEncounterId(tenantId, encounterId)
+        return triageRepository.findTopByTenantIdAndEncounterIdOrderByTriageTimeDesc(tenantId, encounterId)
                 .map(TriageRecordResponse::from)
                 .orElse(null);
     }
@@ -244,20 +247,29 @@ public class OutpatientTriageService {
         Long tenantId = TenantContext.requireTenantId();
         LocalDate queueDate = date != null ? date : LocalDate.now(SHANGHAI_ZONE);
 
-        List<ReceptionQueueItem> rawQueue = registrationDirectory.queue(queueDate);
-        if (rawQueue == null || rawQueue.isEmpty()) {
+        List<ReceptionQueueItem> organizationQueue = registrationDirectory.organizationQueue(queueDate);
+        if (organizationQueue == null || organizationQueue.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<ReceptionQueueItem> rawQueue = organizationQueue.stream()
+                .filter(OutpatientTriageService::isActiveTriageCandidate)
+                .toList();
+        if (rawQueue.isEmpty()) {
             return Collections.emptyList();
         }
 
         Instant fromTime = queueDate.atStartOfDay(SHANGHAI_ZONE).toInstant();
         Instant toTime = queueDate.plusDays(1).atStartOfDay(SHANGHAI_ZONE).minusNanos(1).toInstant();
 
-        // 获取今天所有已分诊记录，建立 encounterId 映射
-        Long orgId = 362387869790210L;
-        List<OutpatientTriageRecord> todayTriages = triageRepository.findTodayRecords(tenantId, orgId, fromTime, toTime);
+        // 只查询当前机构队列中患者的今日分诊记录，避免机构硬编码造成跨机构误判。
+        List<Long> encounterIds = rawQueue.stream().map(ReceptionQueueItem::encounterId).distinct().toList();
+        List<OutpatientTriageRecord> todayTriages = triageRepository
+                .findByTenantIdAndEncounterIdInAndTriageTimeBetween(tenantId, encounterIds, fromTime, toTime);
         Map<Long, OutpatientTriageRecord> triageByEncounter = todayTriages.stream()
                 .filter(t -> t.getEncounterId() != null)
-                .collect(Collectors.toMap(OutpatientTriageRecord::getEncounterId, t -> t, (a, b) -> a));
+                .collect(Collectors.toMap(OutpatientTriageRecord::getEncounterId, t -> t,
+                        (a, b) -> a.getTriageTime().isAfter(b.getTriageTime()) ? a : b));
 
         List<PendingEncounterResponse> results = new ArrayList<>();
         for (ReceptionQueueItem item : rawQueue) {
@@ -269,7 +281,7 @@ public class OutpatientTriageService {
 
             int ageVal = 0;
             if (item.birthDate() != null) {
-                ageVal = Math.max(0, queueDate.getYear() - item.birthDate().getYear());
+                ageVal = Math.max(0, Period.between(item.birthDate(), queueDate).getYears());
             }
 
             results.add(new PendingEncounterResponse(
@@ -281,12 +293,12 @@ public class OutpatientTriageService {
                     item.gender(),
                     item.birthDate(),
                     ageVal,
-                    null, // phone
+                    item.phone(),
                     item.registrationNo(),
                     item.ticketNo(),
                     item.sequenceNo(),
-                    item.serviceQueueId(),
-                    item.serviceName(),
+                    item.departmentId(),
+                    item.departmentName(),
                     item.practitionerName(),
                     item.registeredAt(),
                     triaged,
@@ -300,6 +312,11 @@ public class OutpatientTriageService {
         results.sort(Comparator.comparing(PendingEncounterResponse::triaged)
                 .thenComparing(PendingEncounterResponse::sequenceNo));
         return results;
+    }
+
+    private static boolean isActiveTriageCandidate(ReceptionQueueItem item) {
+        if ("CANCELLED".equalsIgnoreCase(item.registrationStatus())) return false;
+        return item.status() != null && TRIAGE_QUEUE_STATUSES.contains(item.status().toUpperCase());
     }
 
     @Transactional(readOnly = true)

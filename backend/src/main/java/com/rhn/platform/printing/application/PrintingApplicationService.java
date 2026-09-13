@@ -6,10 +6,16 @@ import com.rhn.platform.printing.api.PrintRequest;
 import com.rhn.platform.printing.api.PrintRecordView;
 import com.rhn.platform.printing.api.PrintTemplateView;
 import com.rhn.platform.printing.api.PrintingService;
+import com.rhn.platform.printing.domain.PrintDelivery;
+import com.rhn.platform.printing.domain.PrintDevice;
+import com.rhn.platform.printing.domain.PrintDeviceBinding;
 import com.rhn.platform.printing.domain.PrintJob;
 import com.rhn.platform.printing.domain.PrintOutput;
 import com.rhn.platform.printing.domain.PrintTemplate;
 import com.rhn.platform.printing.domain.PrintTemplateVersion;
+import com.rhn.platform.printing.infrastructure.PrintDeliveryRepository;
+import com.rhn.platform.printing.infrastructure.PrintDeviceBindingRepository;
+import com.rhn.platform.printing.infrastructure.PrintDeviceRepository;
 import com.rhn.platform.printing.infrastructure.PrintJobRepository;
 import com.rhn.platform.printing.infrastructure.PrintOutputRepository;
 import com.rhn.platform.printing.infrastructure.PrintTemplateRepository;
@@ -40,6 +46,9 @@ public class PrintingApplicationService implements PrintingService {
     private final PrintTemplateVersionRepository versionRepository;
     private final PrintOutputRepository outputRepository;
     private final PrintJobRepository jobRepository;
+    private final PrintDeliveryRepository deliveryRepository;
+    private final PrintDeviceBindingRepository bindingRepository;
+    private final PrintDeviceRepository deviceRepository;
     private final ClinicalPdfRenderer renderer;
     private final JsonCodec jsonCodec;
     private final ExecutionContextProvider contextProvider;
@@ -48,10 +57,15 @@ public class PrintingApplicationService implements PrintingService {
                                       PrintTemplateVersionRepository versionRepository,
                                       PrintOutputRepository outputRepository,
                                       PrintJobRepository jobRepository,
+                                      PrintDeliveryRepository deliveryRepository,
+                                      PrintDeviceBindingRepository bindingRepository,
+                                      PrintDeviceRepository deviceRepository,
                                       ClinicalPdfRenderer renderer, JsonCodec jsonCodec,
                                       ExecutionContextProvider contextProvider) {
         this.templateRepository = templateRepository; this.versionRepository = versionRepository;
-        this.outputRepository = outputRepository; this.jobRepository = jobRepository; this.renderer = renderer;
+        this.outputRepository = outputRepository; this.jobRepository = jobRepository;
+        this.deliveryRepository = deliveryRepository; this.bindingRepository = bindingRepository;
+        this.deviceRepository = deviceRepository; this.renderer = renderer;
         this.jsonCodec = jsonCodec; this.contextProvider = contextProvider;
     }
 
@@ -67,7 +81,7 @@ public class PrintingApplicationService implements PrintingService {
         Map<String, Object> snapshot = new LinkedHashMap<>(request.snapshot());
         snapshot.put("sourceType", request.sourceType()); snapshot.put("sourceId", request.sourceId());
         snapshot.put("sourceVersion", request.sourceVersion()); snapshot.put("purposeText", purposeText(request.purpose()));
-        byte[] pdf = renderer.render(request.documentType(), snapshot);
+        byte[] pdf = renderer.render(request.documentType(), version.layoutSchema(), version.configJson(), snapshot);
         String digest = sha256(pdf);
         PrintOutput output = outputRepository.save(new PrintOutput(context.tenantId(), template, version,
                 request.sourceType(), request.sourceId(), request.sourceVersion(), request.documentType(),
@@ -76,7 +90,8 @@ public class PrintingApplicationService implements PrintingService {
                 "SHA-256", digest, context.subjectId()));
         PrintJob job = jobRepository.save(new PrintJob(context.tenantId(), output.id(), null, "ORIGINAL",
                 request.copies(), context.subjectId(), context.correlationId()));
-        return receipt(job, output, template, version);
+        PrintDelivery delivery = createDelivery(context, request.documentType(), version.mediaProfileId(), job.id());
+        return receipt(job, output, template, version, delivery);
     }
 
     @Override
@@ -92,7 +107,8 @@ public class PrintingApplicationService implements PrintingService {
                 copies, context.subjectId(), context.correlationId()));
         PrintTemplate template = templateRepository.findById(output.templateId()).orElseThrow();
         PrintTemplateVersion version = versionRepository.findById(output.templateVersionId()).orElseThrow();
-        return receipt(job, output, template, version);
+        PrintDelivery delivery = createDelivery(context, output.documentType(), version.mediaProfileId(), job.id());
+        return receipt(job, output, template, version, delivery);
     }
 
     @Override
@@ -152,7 +168,7 @@ public class PrintingApplicationService implements PrintingService {
 
     private void validate(PrintRequest request) {
         if (request.sourceType() == null || request.sourceType().isBlank() || request.sourceId() == null
-                || request.sourceVersion() < 1 || request.documentType() == null || request.documentType().isBlank()) {
+                || request.sourceVersion() < 0 || request.documentType() == null || request.documentType().isBlank()) {
             throw badRequest("PRINT_SOURCE_INVALID", "打印来源、版本和文档类型不能为空");
         }
         if (!PURPOSES.contains(request.purpose())) throw badRequest("PRINT_PURPOSE_INVALID", "打印用途不受支持");
@@ -178,11 +194,38 @@ public class PrintingApplicationService implements PrintingService {
         }
     }
 
-    private PrintReceipt receipt(PrintJob job, PrintOutput output, PrintTemplate template, PrintTemplateVersion version) {
+    private PrintReceipt receipt(PrintJob job, PrintOutput output, PrintTemplate template, PrintTemplateVersion version,
+                                 PrintDelivery delivery) {
+        PrintDevice device = delivery.deviceId() == null ? null : deviceRepository.findById(delivery.deviceId()).orElse(null);
+        PrintReceipt.DeliveryReceipt deliveryReceipt = new PrintReceipt.DeliveryReceipt(delivery.id(), delivery.revision(),
+                delivery.deviceId(), device == null ? "浏览器 PDF" : device.deviceName(), delivery.channel(),
+                delivery.status(), delivery.attemptCount());
         return new PrintReceipt(job.id(), output.id(), job.originalJobId(), job.requestType(), job.status(), job.copies(),
                 output.documentType(), template.templateCode(), version.versionNo(), output.fileName(),
                 output.contentDigestAlgorithm(), output.contentDigest(), job.requestedAt(),
-                "/api/platform/printing/outputs/" + output.id() + "/content");
+                "/api/platform/printing/outputs/" + output.id() + "/content", deliveryReceipt);
+    }
+
+    private PrintDelivery createDelivery(ExecutionContext context, String documentType, Long mediaProfileId, Long jobId) {
+        PrintDevice device = mediaProfileId == null ? null : bindingRepository
+                .findFirstByTenantIdAndOrganizationIdAndDepartmentIdAndDocumentTypeAndMediaProfileIdAndStatusOrderByDefaultDeviceDesc(
+                        context.tenantId(), context.organizationId(), context.departmentId(), documentType,
+                        mediaProfileId, "ACTIVE")
+                .map(PrintDeviceBinding::deviceId)
+                .flatMap(deviceRepository::findById)
+                .filter(value -> "ACTIVE".equals(value.status()))
+                .filter(value -> inScope(value, context))
+                .orElse(null);
+        PrintDelivery delivery = new PrintDelivery(context.tenantId(), null, jobId,
+                device == null ? null : device.id(), device == null ? "BROWSER_PDF" : device.channel());
+        if (device != null && "LOCAL_BRIDGE".equals(device.channel())) delivery.queue(0);
+        else delivery.sent(0);
+        return deliveryRepository.save(delivery);
+    }
+
+    private boolean inScope(PrintDevice device, ExecutionContext context) {
+        return (device.organizationId() == null || context.canAccessOrganization(device.organizationId()))
+                && (device.departmentId() == null || context.canAccessDepartment(device.departmentId()));
     }
 
     private PrintRecordView record(PrintOutput output, ExecutionContext context) {

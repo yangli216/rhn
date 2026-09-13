@@ -50,10 +50,12 @@ export class ApiClient {
     return JSON.parse(body) as T
   }
 
-  async download(path: string): Promise<Blob> {
+  async download(path: string, init?: RequestInit): Promise<Blob> {
     const response = await fetch(path, {
+      ...init,
       credentials: 'include',
       headers: {
+        ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
         ...(this.credentials ? { Authorization: `Basic ${encodeBasicCredentials(this.credentials)}` } : {}),
         'X-Tenant-Id': this.tenantId,
         'X-Correlation-Id': crypto.randomUUID(),
@@ -62,6 +64,7 @@ export class ApiClient {
           'X-Organization-Id': this.workContext.organizationId,
           ...(this.workContext.departmentId ? { 'X-Department-Id': this.workContext.departmentId } : {}),
         } : {}),
+        ...init?.headers,
       },
     })
     if (!response.ok) throw await this.readError(response)

@@ -12,7 +12,7 @@ public interface AllergyDirectory {
                                                String substanceDisplay, String reactionText,
                                                Instant onsetAt, Long skinTestEventId);
 
-    record AllergySnapshot(Long id, String assertionType, String categoryCode, String criticalityCode,
+    record AllergySnapshot(Long id, Long allergenId, String assertionType, String categoryCode, String criticalityCode,
                            String reactionSeverity, String substanceCodeSystemUri, String substanceCode,
                            String substanceDisplay, String reactionText) {
         public boolean isDrugAllergy() {

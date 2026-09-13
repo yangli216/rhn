@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -250,21 +251,30 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getAllByText('¥25.00').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('defaults to inserting an empty composer row when order list is empty', async () => {
+  it('defaults to inserting an empty composer row when order list is empty and does not activate/steal focus', async () => {
     renderComponent()
 
     expect(screen.queryByRole('button', { name: '新增医嘱' })).not.toBeInTheDocument()
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
     expect(screen.getByText('搜索药品/项目名称或拼音')).toBeInTheDocument()
+    // 确保新接诊时空白行不自动激活弹出下拉框或抢夺焦点
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('输入通用名、编码或别名')).not.toBeInTheDocument()
   })
 
-  it('shows add order launcher when existing orders are present and composer is closed', async () => {
+  it('shows add order launcher when existing orders are present and automatically enters edit state when clicking add order', async () => {
     renderComponent({ medicationDrafts: [mockMedicationDraft] })
 
     const addOrderLauncher = screen.getByRole('button', { name: '新增医嘱' })
     expect(addOrderLauncher).toBeInTheDocument()
     await userEvent.click(addOrderLauncher)
     expect(screen.getByLabelText('加入医嘱')).toBeInTheDocument()
+
+    // 点击新增医嘱按钮后，新空白行自动进入编辑状态并聚焦检索输入框，无需鼠标再点一次
+    await waitFor(() => {
+      expect(screen.getByRole('listbox')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('输入通用名、编码或别名')).toHaveFocus()
+    })
   })
 
   it('keeps reading mode focused on persisted order content', () => {
@@ -399,15 +409,16 @@ describe('UnifiedOrderListEditor', () => {
     // 在输液途径上敲回车确认，直接跳转到频次，而不是跳到输液分组
     await user.keyboard('{Enter}')
     expect(await screen.findByRole('listbox')).toBeInTheDocument()
-    expect(screen.queryByRole('combobox', { name: '输液分组' })).not.toHaveFocus()
+    expect(screen.queryByRole('combobox', { name: '输液分组' })).toBeNull()
 
-    // 再次回车跳到疗程
+    // 再次回车确认频次并跳到疗程
     await user.keyboard('{Enter}')
     await waitFor(() => expect(screen.getByLabelText('疗程')).toHaveFocus())
   })
 
-  it('shows an explicit infusion group selector and defaults a new infusion to its own group', async () => {
+  it('automatically enters grouping mode when adding an infusion head drug, locks route/frequency, and restores normal mode on finish', async () => {
     const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
     const medication = {
       id: 'm-iv', code: 'IV001', name: '氯化钠注射液', preparationSpec: '100ml', preparationUnit: '瓶',
       defaultDose: 100, defaultDoseUnit: 'ml', defaultRoute: 'IV', defaultFrequency: 'QD',
@@ -425,15 +436,34 @@ describe('UnifiedOrderListEditor', () => {
       { code: 'IV', name: '静脉滴注', executionType: 'INFUSION' },
     ] as never)
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([medication] as never)
-    renderComponent()
+    renderComponent({ setMedicationDrafts })
 
     await ensureComposerOpen(user)
     await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '氯化钠')
     await user.click(await screen.findByRole('option', { name: /氯化钠注射液/ }))
 
-    expect(await screen.findByRole('combobox', { name: '输液分组' })).toBeInTheDocument()
-    expect(screen.getByText(/当前 IV-01/)).toBeInTheDocument()
+    // 点击加入医嘱，首药（组头药）加入待确认后，系统自动激活成组模式
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+
+    // 验证成组模式已激活：出现“成组中”徽标、唯一的“组方完成”横条按钮和成组提示横条
+    expect(await screen.findByText('成组中')).toBeInTheDocument()
+    expect(screen.getByText(/成组录入模式/)).toBeInTheDocument()
+    expect(screen.getByText(/已关联首药：氯化钠注射液/)).toBeInTheDocument()
+    // 操作按钮栏不再挤入重复的“组方完成”，整行仅有 banner 内唯一的“组方完成”按钮
+    const finishBtns = screen.getAllByRole('button', { name: '组方完成' })
+    expect(finishBtns).toHaveLength(1)
+
+    // 验证当前处于成组录入中的草稿行左侧已渲染 ┗ 括线标记，与上方首药形成 [ 方括号
+    const composerBracket = document.querySelector('.doctor-unified-inline-composer .doctor-group-bracket.is-tail')
+    expect(composerBracket).toBeInTheDocument()
+    expect(composerBracket).toHaveTextContent('┗')
+
+    // 点击组方完成，退出成组模式，恢复常规开立
+    await user.click(finishBtns[0])
+    expect(screen.queryByText('成组中')).not.toBeInTheDocument()
+    expect(screen.queryByText(/成组录入模式/)).not.toBeInTheDocument()
+    expect(document.querySelector('.doctor-unified-inline-composer .doctor-group-bracket')).toBeNull()
   })
 
   it('retains herbal formula settings while clearing the ingredient-specific fields', async () => {
@@ -808,7 +838,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(setMedicationDrafts).toHaveBeenCalledTimes(1)
   })
 
-  it('provides intuitive pill buttons for infusion grouping and tags subsequent members as same group', async () => {
+  it('automatically groups subsequent infusion medication, shows bracket without IV-01 or 同组, and allows finishing group', async () => {
     const user = userEvent.setup()
     const setMedicationDrafts = vi.fn()
     const existingDraft = {
@@ -852,13 +882,42 @@ describe('UnifiedOrderListEditor', () => {
     ] as never)
     vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([ceftriaxone] as never)
 
+    const secondDraft = {
+      id: 'draft-iv-2',
+      medicationId: 'm-cef',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      productSpec: '1g/支',
+      categoryCode: 'WESTERN',
+      routeExecutionType: 'INFUSION' as const,
+      routeName: '静脉滴注',
+      administrationGroupKey: 'group-iv-01',
+      unitPrice: 8.6,
+      request: {
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        quantity: 3,
+        quantityUnit: 'VIAL',
+      },
+    }
+
     renderComponent({
-      medicationDrafts: [existingDraft as never],
+      medicationDrafts: [existingDraft as never, secondDraft as never],
       setMedicationDrafts,
     })
 
-    // 验证列表中第一味输液药的组标识正常显示
-    expect(screen.getByText('IV-01')).toBeInTheDocument()
+    // 验证列表中渲染了形如 [ 的纯粹树形成组括线：组头 ┏，组尾 ┗
+    const brackets = screen.getAllByLabelText('输液成组标识')
+    expect(brackets).toHaveLength(2)
+    expect(brackets[0]).toHaveTextContent('┏')
+    expect(brackets[1]).toHaveTextContent('┗')
+
+    // 验证彻底移除了 IV-01 标记与“同组”二字，节省空间
+    expect(screen.queryByText('IV-01')).toBeNull()
+    expect(screen.queryByText('同组')).toBeNull()
 
     // 录入第二味输液药
     await user.click(screen.getByRole('button', { name: '新增医嘱' }))
@@ -866,20 +925,156 @@ describe('UnifiedOrderListEditor', () => {
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '头孢')
     await user.click(await screen.findByRole('option', { name: /注射用头孢曲松钠/ }))
 
-    // 验证输液成组设置中展示了直观的成组选项按钮
-    expect(screen.getByText('输液成组设置：')).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /并入此组/ })).toBeInTheDocument()
-    expect(screen.getByRole('radio', { name: /新建独立输液组/ })).toBeInTheDocument()
-
     // 点击加入医嘱
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
 
     expect(setMedicationDrafts).toHaveBeenCalled()
     const updater = setMedicationDrafts.mock.calls[0][0]
-    const nextDrafts = updater([existingDraft])
-    expect(nextDrafts).toHaveLength(2)
-    // 验证第二味输液药成功继承同属于 group-iv-01
-    expect(nextDrafts[1].administrationGroupKey).toBe('group-iv-01')
+    const nextDrafts = updater([existingDraft, secondDraft])
+    expect(nextDrafts).toHaveLength(3)
+    // 验证新加入的输液药成功继承同属于 group-iv-01
+    expect(nextDrafts[2].administrationGroupKey).toBe('group-iv-01')
+  })
+
+  it('renders bracket connecting single head draft and active composer row during grouping session', async () => {
+    const user = userEvent.setup()
+    const ceftriaxone = {
+      id: 'm-cef', code: 'CEF001', name: '注射用头孢曲松钠', preparationSpec: '1g', preparationUnit: '支',
+      defaultDose: 1, defaultDoseUnit: 'g', defaultRoute: 'IV', defaultFrequency: 'QD',
+      sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药', products: [{
+        id: 'product-cef', code: 'PCEF', name: '注射用头孢曲松钠', manufacturerName: '安康制药',
+        unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'package-cef', unitCode: 'VIAL', unitName: '支', packageSpec: '1g/支',
+          quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-cef', packageId: 'package-cef', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          price: 8.6, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }],
+    }
+
+    vi.mocked(mockApi.masterData.activeMedicationRoutes).mockResolvedValue([
+      { code: 'IV', name: '静脉滴注', executionType: 'INFUSION' },
+    ] as never)
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([ceftriaxone] as never)
+
+    function TestWrapper() {
+      const [drafts, setDrafts] = useState<MedicationPlanDraft[]>([])
+      return (
+        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+          <UnifiedOrderListEditor
+            encounter={mockEncounter}
+            api={mockApi}
+            medicationDrafts={drafts}
+            setMedicationDrafts={setDrafts}
+            serviceDrafts={[]}
+            setServiceDrafts={vi.fn()}
+            allergies={[]}
+          />
+        </QueryClientProvider>
+      )
+    }
+
+    render(<TestWrapper />)
+
+    // 录入第一味输液药（组头药）
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '头孢')
+    await user.click(await screen.findByRole('option', { name: /注射用头孢曲松钠/ }))
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+
+    // 验证成组录入模式已激活
+    expect(await screen.findByText('成组中')).toBeInTheDocument()
+
+    // 待确认列表中首药显示 ┏，正在录入的草稿行左侧显示 ┗，组合成 [
+    const brackets = screen.getAllByLabelText('输液成组标识')
+    expect(brackets).toHaveLength(2)
+    expect(brackets[0]).toHaveTextContent('┏')
+    expect(brackets[1]).toHaveTextContent('┗')
+  })
+
+  it('splits western and patent medicine into separate entry types and records correct category', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const patentMedicine = {
+      id: 'm-patent',
+      code: 'DRUG-PATENT-1',
+      name: '感冒清热颗粒',
+      sdMedicationType: 'CHINESE_PATENT',
+      sdDoseForm: 'GRANULE',
+      defaultRoute: 'ORAL',
+      defaultFrequency: 'TID',
+      strengthValue: 12,
+      strengthUnit: 'g',
+      preparationUnit: '袋',
+      defaultDose: 12,
+      defaultDoseUnit: 'g',
+      products: [{
+        id: 'product-patent',
+        code: 'P-PATENT',
+        name: '感冒清热颗粒',
+        manufacturerName: '北京同仁堂',
+        unitCode: '袋',
+        sdStatus: 'ACTIVE',
+        orderable: true,
+        chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{
+          id: 'package-patent',
+          unitCode: 'BOX',
+          unitName: '盒',
+          packageSpec: '12g*10袋/盒',
+          quantityFactor: 10,
+          sdStatus: 'ACTIVE',
+          validFrom: '2020-01-01',
+          defaultDispense: true,
+          defaultSale: true,
+        }],
+        prices: [{
+          id: 'price-patent',
+          packageId: 'package-patent',
+          sdStatus: 'ACTIVE',
+          sdPriceType: 'SALE',
+          price: 25.5,
+          currencyCode: 'CNY',
+          validFrom: '2020-01-01',
+        }],
+      }],
+    }
+    vi.mocked(mockApi.masterData.activeOrderFrequencies).mockResolvedValue([
+      { code: 'TID', name: '每日三次', executionTimes: ['08:00', '12:00', '18:00'], shortName: '每日三次' },
+    ] as never)
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([patentMedicine] as never)
+
+    renderComponent({ setMedicationDrafts })
+    await ensureComposerOpen(user)
+
+    // 点击医嘱类型下拉框，验证“西药”和“中成药”已拆分为两项
+    await user.click(screen.getByRole('combobox', { name: '医嘱类型' }))
+    expect(await screen.findByRole('option', { name: '西药' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: '中成药' })).toBeInTheDocument()
+
+    // 选中“中成药”
+    await user.click(screen.getByRole('option', { name: '中成药' }))
+    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('中成药')
+
+    // 搜索并选择中成药
+    await user.click(screen.getByRole('combobox', { name: '搜索中成药名称/拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '感冒清热')
+    await user.click(await screen.findByRole('option', { name: /感冒清热颗粒/ }))
+
+    // 验证剂量和单位可正常展示
+    expect(screen.getByLabelText('单次剂量')).toHaveValue(12)
+    const unitSelect = screen.getByLabelText('单次剂量单位')
+    expect(unitSelect).toHaveValue('g')
+
+    // 加入医嘱
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(setMedicationDrafts).toHaveBeenCalled()
+    const updater = setMedicationDrafts.mock.calls[0][0]
+    const drafts = updater([])
+    expect(drafts).toHaveLength(1)
+    expect(drafts[0].categoryCode).toBe('CHINESE_PATENT')
+    expect(drafts[0].medicationName).toBe('感冒清热颗粒')
   })
 
 });

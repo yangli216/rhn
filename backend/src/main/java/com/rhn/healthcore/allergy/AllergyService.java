@@ -3,6 +3,7 @@ package com.rhn.healthcore.allergy;
 import com.rhn.healthcore.api.AllergyDirectory;
 import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
+import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -29,11 +30,14 @@ class AllergyService implements AllergyDirectory {
     private final ResidentDirectory residentDirectory;
     private final ExecutionContextProvider contextProvider;
     private final DomainEventPublisher eventPublisher;
+    private final MedicationTerminologyDirectory terminologyDirectory;
 
     AllergyService(AllergyIntoleranceRepository repository, ResidentDirectory residentDirectory,
-                   ExecutionContextProvider contextProvider, DomainEventPublisher eventPublisher) {
+                   ExecutionContextProvider contextProvider, DomainEventPublisher eventPublisher,
+                   MedicationTerminologyDirectory terminologyDirectory) {
         this.repository = repository; this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
+        this.terminologyDirectory = terminologyDirectory;
     }
 
     @Transactional(readOnly = true)
@@ -82,8 +86,13 @@ class AllergyService implements AllergyDirectory {
             publish(value, "ALLERGY_INACTIVATED", "皮试阳性后停用无已知过敏声明",
                     Map.of("reason", "POSITIVE_SKIN_TEST", "skinTestEventId", skinTestEventId));
         }
-        RecordAllergyRequest input = new RecordAllergyRequest(encounterId, "ALLERGY", "DRUG", "HIGH", null,
-                "CLINICIAN", null, clean(substanceCode), clean(substanceDisplay), clean(reactionText), onsetAt);
+        var matchedTerm = terminologyDirectory.searchAllergens(context.tenantId(), "DRUG", substanceDisplay).stream()
+                .filter(term -> "DRUG_INGREDIENT".equals(term.conceptType())).findFirst().orElse(null);
+        RecordAllergyRequest input = new RecordAllergyRequest(encounterId, matchedTerm == null ? null : matchedTerm.id(),
+                "ALLERGY", "DRUG", "HIGH", null, "CLINICIAN",
+                matchedTerm == null ? null : matchedTerm.codeSystemUri(),
+                matchedTerm == null ? clean(substanceCode) : matchedTerm.code(),
+                matchedTerm == null ? clean(substanceDisplay) : matchedTerm.display(), clean(reactionText), onsetAt);
         validate(input);
         AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), canonicalId,
                 input, context.subjectId(), context.practitionerId()));
@@ -97,7 +106,7 @@ class AllergyService implements AllergyDirectory {
     AllergyResponse record(Long residentId, RecordAllergyRequest raw) {
         ExecutionContext context = contextProvider.requireCurrent();
         Long canonicalId = residentDirectory.resolveCanonicalResidentId(residentId);
-        RecordAllergyRequest input = normalized(raw);
+        RecordAllergyRequest input = standardized(context.tenantId(), normalized(raw));
         validate(input);
         List<AllergyIntolerance> active = repository
                 .findByTenantIdAndResidentIdAndClinicalStatusOrderByRecordedAtDesc(context.tenantId(), canonicalId, "ACTIVE");
@@ -151,16 +160,29 @@ class AllergyService implements AllergyDirectory {
         if ("ALLERGY".equals(input.assertionType())) {
             if (input.categoryCode() == null) throw badRequest("ALLERGY_CATEGORY_REQUIRED", "记录过敏时必须选择类别");
             if (input.substanceDisplay() == null) throw badRequest("ALLERGY_SUBSTANCE_REQUIRED", "记录过敏时必须填写过敏原");
-        } else if (input.categoryCode() != null || input.substanceDisplay() != null || input.substanceCode() != null) {
+        } else if (input.categoryCode() != null || input.allergenId() != null
+                || input.substanceDisplay() != null || input.substanceCode() != null) {
             throw badRequest("NO_KNOWN_ALLERGY_DETAIL_INVALID", "无已知过敏声明不能同时填写具体过敏原");
         }
     }
 
     private RecordAllergyRequest normalized(RecordAllergyRequest value) {
-        return new RecordAllergyRequest(value.encounterId(), upper(value.assertionType()), upper(value.categoryCode()),
+        return new RecordAllergyRequest(value.encounterId(), value.allergenId(), upper(value.assertionType()), upper(value.categoryCode()),
                 upper(value.criticalityCode()), upper(value.reactionSeverity()), upper(value.informationSource()),
                 clean(value.substanceCodeSystemUri()), clean(value.substanceCode()), clean(value.substanceDisplay()),
                 clean(value.reactionText()), value.onsetAt());
+    }
+
+    private RecordAllergyRequest standardized(Long tenantId, RecordAllergyRequest value) {
+        if (value.allergenId() == null) return value;
+        var term = terminologyDirectory.findAllergen(tenantId, value.allergenId())
+                .orElseThrow(() -> badRequest("ALLERGEN_TERM_NOT_FOUND", "未找到有效的标准过敏原"));
+        if (value.categoryCode() != null && !value.categoryCode().equals(term.categoryCode())) {
+            throw badRequest("ALLERGEN_CATEGORY_MISMATCH", "所选过敏原与过敏类别不一致");
+        }
+        return new RecordAllergyRequest(value.encounterId(), term.id(), value.assertionType(), term.categoryCode(),
+                value.criticalityCode(), value.reactionSeverity(), value.informationSource(), term.codeSystemUri(),
+                term.code(), term.display(), value.reactionText(), value.onsetAt());
     }
 
     private void publish(AllergyIntolerance value, String type, String summary, Map<String, Object> details) {

@@ -20,7 +20,11 @@ public final class MasterDataCommands {
             String code, String name, String aliasName, String medicationType, String doseForm,
             String preparationSpec, String preparationUnit, BigDecimal strengthValue, String strengthUnit,
             String storageType, boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-            String antimicrobialLevel, boolean skinTestRequired, BigDecimal defaultDose,
+            String antimicrobialLevel, Boolean antimicrobialOutpatientAllowed,
+            Boolean antimicrobialConsultationRequired, Boolean antimicrobialEmergencyAllowed,
+            Integer antimicrobialMaxDays, boolean skinTestRequired, String skinTestMethod,
+            String skinTestSolutionMode, Integer skinTestObservationMinutes,
+            Integer skinTestResultValidityHours, String skinTestInstructions, BigDecimal defaultDose,
             String defaultDoseUnit, String defaultRoute, String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder, String status) {}
 

@@ -193,6 +193,7 @@ export interface PendingEncounter {
 }
 
 export interface TriageSearchFilter {
+  organizationId?: string
   date?: string
   triageLevel?: string
   status?: string
@@ -207,7 +208,7 @@ export interface OutpatientTriageApi {
   get: (id: string) => Promise<TriageRecord>
   getByEncounter: (encounterId: string) => Promise<TriageRecord | null>
   search: (filter?: TriageSearchFilter) => Promise<{ content: TriageRecord[]; totalElements: number; totalPages: number }>
-  statistics: (date?: string) => Promise<TriageStatistics>
+  statistics: (date?: string, organizationId?: string) => Promise<TriageStatistics>
   pendingEncounters: (date?: string) => Promise<PendingEncounter[]>
   assess: (input: TriageAssessmentInput) => Promise<TriageAssessment>
   recommendDepartments: (params: {
@@ -238,6 +239,7 @@ export function createOutpatientTriageApi(client: ApiClient): OutpatientTriageAp
     getByEncounter: (encounterId) => client.request<TriageRecord | null>(`/api/outpatient/triage/by-encounter/${encounterId}`),
     search: (filter) => {
       const params = new URLSearchParams()
+      if (filter?.organizationId) params.set('organizationId', filter.organizationId)
       if (filter?.date) params.set('date', filter.date)
       if (filter?.triageLevel && filter.triageLevel !== 'ALL') params.set('triageLevel', filter.triageLevel)
       if (filter?.status && filter.status !== 'ALL') params.set('status', filter.status)
@@ -249,9 +251,13 @@ export function createOutpatientTriageApi(client: ApiClient): OutpatientTriageAp
         `/api/outpatient/triage${queryStr ? `?${queryStr}` : ''}`
       )
     },
-    statistics: (date) => client.request<TriageStatistics>(
-      `/api/outpatient/triage/statistics${date ? `?date=${date}` : ''}`
-    ),
+    statistics: (date, organizationId) => {
+      const params = new URLSearchParams()
+      if (date) params.set('date', date)
+      if (organizationId) params.set('organizationId', organizationId)
+      const query = params.toString()
+      return client.request<TriageStatistics>(`/api/outpatient/triage/statistics${query ? `?${query}` : ''}`)
+    },
     pendingEncounters: (date) => client.request<PendingEncounter[]>(
       `/api/outpatient/triage/pending-encounters${date ? `?date=${date}` : ''}`
     ),

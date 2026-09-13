@@ -56,14 +56,15 @@ describe('SchedulingWorkspace', () => {
     await userEvent.click(screen.getByRole('option', { name: /全科门诊/ }))
     await userEvent.click(screen.getByRole('combobox', { name: '排班科室' }))
     await userEvent.click(await screen.findByRole('option', { name: '内科门诊' }))
-    expect(onDepartmentChange).toHaveBeenCalledWith('org-1', 'dept-2')
+    expect(onDepartmentChange).not.toHaveBeenCalled()
     expect(screen.queryByText('请选择医生')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: '生成排班' }))
 
     await waitFor(() => expect(quickCreate).toHaveBeenCalledWith(expect.objectContaining({
       registrationScope: 'DEPARTMENT', practitionerId: undefined, catalogItemId: 'service-1',
     })))
-    expect(await screen.findByText(/已生成 20 个排班/)).toBeInTheDocument()
+    expect(await screen.findByText(/已为【内科门诊】生成 20 个排班/)).toBeInTheDocument()
+    expect(onDepartmentChange).toHaveBeenCalledWith('org-1', 'dept-2')
   })
 
   it('creates a minimal professional timed template when the department enables professional mode', async () => {

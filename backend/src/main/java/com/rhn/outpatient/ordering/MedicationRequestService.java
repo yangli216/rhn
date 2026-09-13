@@ -9,6 +9,7 @@ import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
 import com.rhn.shared.context.ExecutionContext;
@@ -45,6 +46,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final MedicationRouteDirectory routeDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final AllergyDirectory allergyDirectory;
+    private final MedicationTerminologyDirectory terminologyDirectory;
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
@@ -59,6 +61,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              MedicationRouteDirectory routeDirectory,
                              OrganizationDirectory organizationDirectory,
                              AllergyDirectory allergyDirectory,
+                             MedicationTerminologyDirectory terminologyDirectory,
                              DomainEventPublisher eventPublisher,
                              ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
@@ -67,6 +70,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
         this.frequencyDirectory = frequencyDirectory;
         this.routeDirectory = routeDirectory;
         this.organizationDirectory = organizationDirectory; this.allergyDirectory = allergyDirectory;
+        this.terminologyDirectory = terminologyDirectory;
         this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
     }
@@ -182,6 +186,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
             requirePrescriptionDirections(doseValue, doseUnit, route, frequency);
             requirePrescriptionCategory(prescription.categoryCode(), medication.medicationType());
         }
+        validateOutpatientAntimicrobial(medication, input.durationValue(), input.durationUnit());
         MedicationRequest parentRequest = requireAdministrationParent(input.parentRequestId(), tenantId,
                 encounterId, prescription, routeSnapshot, frequency, input.durationValue());
         var activeAllergies = allergyDirectory.activeForResident(encounter.residentId());
@@ -196,8 +201,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (!drugAllergies.isEmpty() && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
             throw conflict("MEDICATION_ALLERGY_REVIEW_REQUIRED", "患者存在有效药物过敏记录，请核对后再加入处方");
         }
-        var matchedAllergies = drugAllergies.stream().filter(allergy -> allergy.substanceCode() != null
-                && allergy.substanceCode().equalsIgnoreCase(medication.code())).toList();
+        var matchedAllergies = drugAllergies.stream().filter(allergy ->
+                allergy.allergenId() != null
+                        ? terminologyDirectory.medicationMatchesAllergen(tenantId, medication.id(), allergy.allergenId())
+                        : allergy.substanceCode() != null
+                        && allergy.substanceCode().equalsIgnoreCase(medication.code())).toList();
         if (!matchedAllergies.isEmpty() && clean(input.allergyOverrideReason()) == null) {
             throw conflict("MEDICATION_ALLERGY_MATCH", "所选药品命中患者过敏原，继续开立必须填写临床理由");
         }
@@ -425,6 +433,26 @@ class MedicationRequestService implements MedicationRequestDirectory {
         }
     }
 
+    private void validateOutpatientAntimicrobial(CatalogLifecycleDirectory.MedicationSnapshot medication,
+                                                  BigDecimal durationValue, String durationUnit) {
+        if (!medication.antimicrobial()) return;
+        if (!medication.antimicrobialOutpatientAllowed()) {
+            throw badRequest("ANTIMICROBIAL_OUTPATIENT_NOT_ALLOWED",
+                    "该药品不允许门诊常规开立，请按住院或紧急用药审批流程处理");
+        }
+        if (medication.antimicrobialMaxDays() == null || durationValue == null) return;
+        BigDecimal days = switch (clean(durationUnit) == null ? "" : clean(durationUnit).toUpperCase()) {
+            case "DAY", "D", "天" -> durationValue;
+            case "WEEK", "W", "周" -> durationValue.multiply(BigDecimal.valueOf(7));
+            case "MONTH", "月" -> durationValue.multiply(BigDecimal.valueOf(30));
+            default -> null;
+        };
+        if (days != null && days.compareTo(BigDecimal.valueOf(medication.antimicrobialMaxDays())) > 0) {
+            throw badRequest("ANTIMICROBIAL_OUTPATIENT_DURATION_EXCEEDED",
+                    "该抗菌药门诊疗程不得超过 " + medication.antimicrobialMaxDays() + " 天");
+        }
+    }
+
     private MedicationRequest requireAdministrationParent(Long parentRequestId, Long tenantId, Long encounterId,
                                                           Prescription prescription,
                                                           MedicationRouteDirectory.RouteSnapshot route,
@@ -481,7 +509,14 @@ class MedicationRequestService implements MedicationRequestDirectory {
         details.put("chargeUnit", value.packageId() == null ? value.baseUnit() : value.quantityUnit());
         details.put("itemCode", value.itemCodeSnapshot());
         details.put("itemName", value.itemNameSnapshot());
-        if (value.requestGroupId() != null) details.put("prescriptionId", value.requestGroupId());
+        if (value.requestGroupId() != null) {
+            details.put("prescriptionId", value.requestGroupId());
+            prescriptionRepository.findByIdAndTenantId(value.requestGroupId(), value.tenantId())
+                    .ifPresent(prescription -> {
+                        details.put("prescriptionNo", prescription.groupNo());
+                        details.put("prescriptionCategory", prescription.categoryCode());
+                    });
+        }
         if (value.parentRequestId() != null) details.put("parentRequestId", value.parentRequestId());
         if (value.doseValue() != null) details.put("doseValue", value.doseValue());
         if (value.doseUnit() != null) details.put("doseUnit", value.doseUnit());

@@ -11,3 +11,5 @@
 @import "./features/diagnostic-execution.css";
 @import "./features/inpatient.css";
 @import "./features/outpatient-triage.css";
+@import "./features/print-template-management.css";
+@import "./features/clinical-printing.css";

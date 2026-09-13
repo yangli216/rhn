@@ -16,5 +16,9 @@ public record PrintReceipt(
         String contentDigestAlgorithm,
         String contentDigest,
         Instant requestedAt,
-        String downloadUrl
-) {}
+        String downloadUrl,
+        DeliveryReceipt delivery
+) {
+    public record DeliveryReceipt(Long id, long revision, Long deviceId, String deviceName,
+            String channel, String status, int attemptCount) {}
+}

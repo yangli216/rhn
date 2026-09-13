@@ -34,6 +34,7 @@ import com.rhn.pharmacy.api.MedicationFulfillmentDirectory.ConsumptionCommand;
 import com.rhn.pharmacy.api.MedicationFulfillmentDirectory.FulfillmentSnapshot;
 import com.rhn.pharmacy.api.WardDeliveryDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
+import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import org.springframework.stereotype.Service;
@@ -66,6 +67,7 @@ public class InpatientOrderApplicationService {
     private final WorkContextDirectory workContexts;
     private final ResidentDirectory residents;
     private final AllergyDirectory allergies;
+    private final MedicationTerminologyDirectory terminologyDirectory;
     private final CareEpisodeRepository episodes;
     private final InpatientEncounterRepository encounters;
     private final InpatientCareRequestRepository requests;
@@ -85,6 +87,7 @@ public class InpatientOrderApplicationService {
             WorkContextDirectory workContexts,
             ResidentDirectory residents,
             AllergyDirectory allergies,
+            MedicationTerminologyDirectory terminologyDirectory,
             CareEpisodeRepository episodes,
             InpatientEncounterRepository encounters,
             InpatientCareRequestRepository requests,
@@ -102,6 +105,7 @@ public class InpatientOrderApplicationService {
         this.workContexts = workContexts;
         this.residents = residents;
         this.allergies = allergies;
+        this.terminologyDirectory = terminologyDirectory;
         this.episodes = episodes;
         this.encounters = encounters;
         this.requests = requests;
@@ -454,7 +458,10 @@ public class InpatientOrderApplicationService {
         }
         RequestDetails details = requestStore.details(request.tenantId(), request.id(), request.orderCategory());
         List<AllergySnapshot> matched = drugAllergies.stream()
-                .filter(value -> value.substanceCode() != null && details.medicationCode() != null
+                .filter(value -> value.allergenId() != null && details.medicationId() != null
+                        ? terminologyDirectory.medicationMatchesAllergen(
+                                request.tenantId(), details.medicationId(), value.allergenId())
+                        : value.substanceCode() != null && details.medicationCode() != null
                         && value.substanceCode().equalsIgnoreCase(details.medicationCode()))
                 .toList();
         String overrideReason = trim(input.allergyOverrideReason());

@@ -201,6 +201,48 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
         assertFalse(containsRegistration(statusMiss.get("content"), registrationId));
     }
 
+    @Test
+    void queue_includes_department_general_patients_in_personal_scope_when_doctor_has_no_personal_schedule() throws Exception {
+        String suffix = Long.toString(GlobalIds.next()).substring(13);
+        JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"普通科室号患者%s","identifiers":[{"system":"9","value":"QUEUE-GEN-%s","useType":"SECONDARY"}],
+                                  "gender":"MALE","birthDate":"1992-03-04","phone":"13800138077"
+                                }
+                                """.formatted(suffix, suffix)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        // 挂一个科室普通门诊号（无医生排班）
+        JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"GEN-QUEUE-%s"
+                                }
+                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String registrationId = encounter.get("registrationId").asText();
+
+        // 当医生没有本人专属排班时，查询 PERSONAL 视角，普通号应该默认出现在待诊队列
+        JsonNode personalQueue = json(mockMvc.perform(get("/api/outpatient/reception/queue")
+                        .with(rhnWorkContext())
+                        .queryParam("scope", "PERSONAL"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertTrue(containsRegistration(personalQueue, registrationId),
+                "当医生坐诊无专属排班时，科室公共普通号默认出现在本人待诊列表中");
+
+        // 查询 DEPARTMENT 视角，同样包含该普通号
+        JsonNode deptQueue = json(mockMvc.perform(get("/api/outpatient/reception/queue")
+                        .with(rhnWorkContext())
+                        .queryParam("scope", "DEPARTMENT"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+        assertTrue(containsRegistration(deptQueue, registrationId));
+    }
+
     private JsonNode queue(LocalDate date) throws Exception {
         return json(mockMvc.perform(get("/api/outpatient/reception/queue").with(rhnWorkContext())
                         .queryParam("date", date.toString()))

@@ -413,7 +413,16 @@ export interface MedicationKnowledge {
   antimicrobial: boolean
   sdAntimicrobialLevel?: string
   sdAntimicrobialLevelText?: string
+  antimicrobialOutpatientAllowed: boolean
+  antimicrobialConsultationRequired: boolean
+  antimicrobialEmergencyAllowed: boolean
+  antimicrobialMaxDays?: number
   skinTestRequired: boolean
+  skinTestMethod?: 'INTRADERMAL' | 'PRICK' | 'OTHER'
+  skinTestSolutionMode?: 'ORIGINAL_SOLUTION' | 'DILUTED_SOLUTION'
+  skinTestObservationMinutes?: number
+  skinTestResultValidityHours?: number
+  skinTestInstructions?: string
   defaultDose?: number
   defaultDoseUnit?: string
   defaultRoute?: string
@@ -423,7 +432,22 @@ export interface MedicationKnowledge {
   singleOrder: boolean
   sdStatus: MasterDataStatus
   sdStatusText: string
+  classifications: MedicationClassification[]
+  allergenConceptIds: string[]
   products: MedicationProduct[]
+}
+
+export interface MedicationClassification {
+  conceptId: string
+  systemCode: 'NEML' | 'ATC' | string
+  systemName: string
+  systemVersion: string
+  classificationType: 'CATALOG' | 'THERAPEUTIC'
+  code: string
+  display: string
+  path?: string
+  mappingRole: 'MEMBERSHIP' | 'THERAPEUTIC_USE'
+  primary: boolean
 }
 
 export interface MedicationRoute {
@@ -510,7 +534,16 @@ export interface MedicationInput {
   essentialDrug: boolean
   antimicrobial: boolean
   sdAntimicrobialLevel?: string
+  antimicrobialOutpatientAllowed?: boolean
+  antimicrobialConsultationRequired?: boolean
+  antimicrobialEmergencyAllowed?: boolean
+  antimicrobialMaxDays?: number
   skinTestRequired: boolean
+  skinTestMethod?: 'INTRADERMAL' | 'PRICK' | 'OTHER'
+  skinTestSolutionMode?: 'ORIGINAL_SOLUTION' | 'DILUTED_SOLUTION'
+  skinTestObservationMinutes?: number
+  skinTestResultValidityHours?: number
+  skinTestInstructions?: string
   defaultDose?: number
   defaultDoseUnit?: string
   defaultRoute?: string

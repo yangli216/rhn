@@ -11,6 +11,7 @@ import com.rhn.outpatient.api.OutpatientPlanTemplateDirectory;
 import com.rhn.outpatient.api.OutpatientPrescriptionInventoryDirectory;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
@@ -45,6 +46,7 @@ public class ClinicalPlanPreflightService {
     private final MedicationRouteDirectory routeDirectory;
     private final OrderFrequencyDirectory frequencyDirectory;
     private final AllergyDirectory allergyDirectory;
+    private final MedicationTerminologyDirectory terminologyDirectory;
     private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final ExecutionContextProvider contextProvider;
     private final ClinicalAiMetrics metrics;
@@ -55,6 +57,7 @@ public class ClinicalPlanPreflightService {
                                         MedicationRouteDirectory routeDirectory,
                                         OrderFrequencyDirectory frequencyDirectory,
                                         AllergyDirectory allergyDirectory,
+                                        MedicationTerminologyDirectory terminologyDirectory,
                                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                                         ExecutionContextProvider contextProvider,
                                         ClinicalAiMetrics metrics) {
@@ -64,6 +67,7 @@ public class ClinicalPlanPreflightService {
         this.routeDirectory = routeDirectory;
         this.frequencyDirectory = frequencyDirectory;
         this.allergyDirectory = allergyDirectory;
+        this.terminologyDirectory = terminologyDirectory;
         this.inventoryDirectory = inventoryDirectory;
         this.contextProvider = contextProvider;
         this.metrics = metrics;
@@ -134,7 +138,7 @@ public class ClinicalPlanPreflightService {
         checkDuration(line, checks);
         checkQuantity(line, catalog, checks);
         checkInventory(line, access, checks);
-        checkAllergy(line, medication, allergies, input, checks);
+        checkAllergy(line, medication, allergies, input, checks, access.context().tenantId());
 
         String status = checks.stream().anyMatch(value -> "BLOCKED".equals(value.status())) ? "BLOCKED"
                 : checks.stream().anyMatch(value -> !"PASS".equals(value.status())) ? "WARNING" : "READY";
@@ -257,7 +261,7 @@ public class ClinicalPlanPreflightService {
     private void checkAllergy(OutpatientPlanTemplateDirectory.MedicationSnapshot line,
                               CatalogLifecycleDirectory.MedicationSnapshot medication,
                               List<AllergyDirectory.AllergySnapshot> allergies,
-                              PlanPreflightRequest input, List<PreflightCheck> checks) {
+                              PlanPreflightRequest input, List<PreflightCheck> checks, Long tenantId) {
         List<AllergyDirectory.AllergySnapshot> drugAllergies = allergies.stream()
                 .filter(AllergyDirectory.AllergySnapshot::isDrugAllergy).toList();
         boolean statusKnown = !drugAllergies.isEmpty() || allergies.stream().anyMatch(value ->
@@ -265,7 +269,9 @@ public class ClinicalPlanPreflightService {
                         || "NO_KNOWN_DRUG_ALLERGY".equals(value.assertionType()));
         String medicationCode = medication == null ? line.medicationCode() : medication.code();
         List<AllergyDirectory.AllergySnapshot> matched = drugAllergies.stream()
-                .filter(value -> value.substanceCode() != null && medicationCode != null
+                .filter(value -> value.allergenId() != null && line.medicationId() != null
+                        ? terminologyDirectory.medicationMatchesAllergen(tenantId, line.medicationId(), value.allergenId())
+                        : value.substanceCode() != null && medicationCode != null
                         && value.substanceCode().equalsIgnoreCase(medicationCode)).toList();
         if (!matched.isEmpty() && !input.allergyReviewConfirmed()) {
             checks.add(blocked("ALLERGY_REVIEW", "患者存在药物过敏记录，必须由医生确认已核对"));

@@ -17713,6 +17713,16 @@
         "comment": "版本编号"
       },
       {
+        "logical": "document_definition_id",
+        "physical": "ID_PRINT_DOC_DEF",
+        "comment": "打印单据定义标识"
+      },
+      {
+        "logical": "media_profile_id",
+        "physical": "ID_PRINT_MEDIA",
+        "comment": "打印介质标识"
+      },
+      {
         "logical": "layout_schema",
         "physical": "JSON_LAYOUT_SCHEMA",
         "comment": "布局模式定义",
@@ -17744,6 +17754,87 @@
         "physical": "ID_USER_PUBLISD",
         "comment": "发布人标识"
       }
+    ]
+  },
+  {
+    "logical": "meta.print_document_definition",
+    "legacy": "print_document_definitions",
+    "physical": "RHN_META_PRINT_DOC_DEF",
+    "domain": "META",
+    "comment": "打印单据定义；一行代表一个可打印的业务单据类型",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_DOC_DEF", "comment": "打印单据定义主键" },
+      { "logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识，为空表示平台定义" },
+      { "logical": "document_type", "physical": "CD_DOC_TYPE", "comment": "单据类型编码" },
+      { "logical": "document_name", "physical": "NA_DOC", "comment": "单据名称" },
+      { "logical": "document_category", "physical": "SD_DOC_CAT", "comment": "单据分类" },
+      { "logical": "layout_mode", "physical": "SD_LAYOUT_MODE", "comment": "布局模式" },
+      { "logical": "data_schema", "physical": "JSON_DATA_SCHEMA", "comment": "打印数据协议" },
+      { "logical": "source_type", "physical": "SD_SOURCE_TYPE", "comment": "业务来源类型" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "状态" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
+    ]
+  },
+  {
+    "logical": "meta.print_media_profile",
+    "legacy": "print_media_profiles",
+    "physical": "RHN_META_PRINT_MEDIA",
+    "domain": "META",
+    "comment": "打印介质档案；一行代表一种可绑定模板的纸张或标签方案",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_MEDIA", "comment": "打印介质主键" },
+      { "logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识，为空表示平台介质" },
+      { "logical": "media_code", "physical": "CD_MEDIA", "comment": "介质编码" },
+      { "logical": "media_name", "physical": "NA_MEDIA", "comment": "介质名称" },
+      { "logical": "media_kind", "physical": "SD_MEDIA_KIND", "comment": "介质类型" },
+      { "logical": "width_mm", "physical": "WIDTH_MM", "comment": "物理宽度毫米" },
+      { "logical": "height_mm", "physical": "HEIGHT_MM", "comment": "物理高度毫米，连续纸可为空" },
+      { "logical": "orientation", "physical": "SD_ORIENTATION", "comment": "打印方向" },
+      { "logical": "margin_top_mm", "physical": "MARGIN_TOP_MM", "comment": "上边距毫米" },
+      { "logical": "margin_right_mm", "physical": "MARGIN_RIGHT_MM", "comment": "右边距毫米" },
+      { "logical": "margin_bottom_mm", "physical": "MARGIN_BOTTOM_MM", "comment": "下边距毫米" },
+      { "logical": "margin_left_mm", "physical": "MARGIN_LEFT_MM", "comment": "左边距毫米" },
+      { "logical": "horizontal_gap_mm", "physical": "GAP_HORIZONTAL_MM", "comment": "水平间隔毫米" },
+      { "logical": "vertical_gap_mm", "physical": "GAP_VERTICAL_MM", "comment": "垂直间隔毫米" },
+      { "logical": "columns", "physical": "QTY_COLUMNS", "comment": "每页排版列数" },
+      { "logical": "rows", "physical": "QTY_ROWS", "comment": "每页排版行数" },
+      { "logical": "dpi", "physical": "QTY_DPI", "comment": "输出分辨率" },
+      { "logical": "sensor_mode", "physical": "SD_SENSOR_MODE", "comment": "走纸传感模式" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "状态" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
+    ]
+  },
+  {
+    "logical": "meta.print_template_draft",
+    "legacy": "print_template_drafts",
+    "physical": "RHN_META_PRINT_DRAFT",
+    "domain": "META",
+    "comment": "打印模板草稿；一行代表一份可编辑或待审核的模板内容",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_DRAFT", "comment": "打印模板草稿主键" },
+      { "logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识" },
+      { "logical": "template_id", "physical": "ID_PRINT_TMPL", "comment": "已关联的发布模板标识" },
+      { "logical": "document_definition_id", "physical": "ID_PRINT_DOC_DEF", "comment": "打印单据定义标识" },
+      { "logical": "media_profile_id", "physical": "ID_PRINT_MEDIA", "comment": "打印介质标识" },
+      { "logical": "published_version_id", "physical": "ID_PRINT_TMPL_VER_PUBLISD", "comment": "草稿发布形成的模板版本标识" },
+      { "logical": "template_code", "physical": "CD_TMPL", "comment": "模板编码" },
+      { "logical": "template_name", "physical": "NA_TMPL", "comment": "模板名称" },
+      { "logical": "layout_schema", "physical": "JSON_LAYOUT_SCHEMA", "comment": "布局协议" },
+      { "logical": "config_json", "physical": "JSON_CONFIG", "comment": "可视化布局配置" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "状态" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
     ]
   },
   {
@@ -25216,6 +25307,501 @@
         "logical": "revision",
         "physical": "REVISION",
         "comment": "乐观锁修订号"
+      }
+    ]
+  },
+  {
+    "logical": "meta.print_device",
+    "legacy": "print_devices",
+    "physical": "RHN_META_PRINT_DEVICE",
+    "domain": "META",
+    "comment": "打印设备；一行代表一个浏览器或本地打印桥输出端点",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRINT_DEVICE",
+        "comment": "打印设备主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "device_code",
+        "physical": "CD_DEVICE",
+        "comment": "设备编码"
+      },
+      {
+        "logical": "device_name",
+        "physical": "NA_DEVICE",
+        "comment": "设备名称"
+      },
+      {
+        "logical": "channel",
+        "physical": "SD_CHANNEL",
+        "comment": "投递通道"
+      },
+      {
+        "logical": "output_language",
+        "physical": "SD_OUTPUT_LANG",
+        "comment": "输出语言"
+      },
+      {
+        "logical": "queue_name",
+        "physical": "NA_QUEUE",
+        "comment": "系统打印队列名称"
+      },
+      {
+        "logical": "capabilities_json",
+        "physical": "JSON_CAPABILITIES",
+        "comment": "设备能力JSON"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "设备状态"
+      },
+      {
+        "logical": "last_seen_at",
+        "physical": "DT_LAST_SEEN",
+        "comment": "最后心跳时间"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
+      }
+    ]
+  },
+  {
+    "logical": "meta.print_device_binding",
+    "legacy": "print_device_bindings",
+    "physical": "RHN_META_PRINT_DEV_BIND",
+    "domain": "META",
+    "comment": "打印设备绑定；一行代表科室单据和介质到默认设备的路由",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRINT_DEV_BIND",
+        "comment": "设备绑定主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "document_type",
+        "physical": "CD_DOC_TYPE",
+        "comment": "单据类型编码"
+      },
+      {
+        "logical": "print_media_id",
+        "physical": "ID_PRINT_MEDIA",
+        "comment": "打印介质标识"
+      },
+      {
+        "logical": "print_device_id",
+        "physical": "ID_PRINT_DEVICE",
+        "comment": "打印设备标识"
+      },
+      {
+        "logical": "default_device",
+        "physical": "FG_DEFAULT",
+        "comment": "是否默认设备"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "状态"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
+      }
+    ]
+  },
+  {
+    "logical": "sys.print_batch",
+    "legacy": "print_batches",
+    "physical": "RHN_SYS_PRINT_BATCH",
+    "domain": "SYS",
+    "comment": "打印批次；一行代表一次经过对账的批量打印请求",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRINT_BATCH",
+        "comment": "打印批次主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "document_type",
+        "physical": "CD_DOC_TYPE",
+        "comment": "单据类型编码"
+      },
+      {
+        "logical": "print_template_id",
+        "physical": "ID_PRINT_TMPL",
+        "comment": "打印模板标识"
+      },
+      {
+        "logical": "print_template_version_id",
+        "physical": "ID_PRINT_TMPL_VER",
+        "comment": "打印模板版本标识"
+      },
+      {
+        "logical": "print_media_id",
+        "physical": "ID_PRINT_MEDIA",
+        "comment": "打印介质标识"
+      },
+      {
+        "logical": "print_device_id",
+        "physical": "ID_PRINT_DEVICE",
+        "comment": "目标打印设备标识"
+      },
+      {
+        "logical": "business_date",
+        "physical": "DA_BUSINESS",
+        "comment": "业务日期"
+      },
+      {
+        "logical": "selection_json",
+        "physical": "JSON_SELECTION",
+        "comment": "选择条件快照JSON"
+      },
+      {
+        "logical": "layout_strategy",
+        "physical": "SD_LAYOUT_STRATEGY",
+        "comment": "批量组版策略"
+      },
+      {
+        "logical": "start_slot",
+        "physical": "SN_START_SLOT",
+        "comment": "预切纸起始格"
+      },
+      {
+        "logical": "idempotency_id",
+        "physical": "ID_IDEMPOTENCY",
+        "comment": "请求幂等键"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "批次状态"
+      },
+      {
+        "logical": "selected_count",
+        "physical": "QTY_SELECTED",
+        "comment": "选择来源数"
+      },
+      {
+        "logical": "included_count",
+        "physical": "QTY_INCLUDED",
+        "comment": "纳入卡片数"
+      },
+      {
+        "logical": "excluded_count",
+        "physical": "QTY_EXCLUDED",
+        "comment": "排除来源数"
+      },
+      {
+        "logical": "page_count",
+        "physical": "QTY_PAGES",
+        "comment": "物理页数"
+      },
+      {
+        "logical": "print_output_id",
+        "physical": "ID_PRINT_OUTPUT",
+        "comment": "批次输出标识"
+      },
+      {
+        "logical": "print_job_id",
+        "physical": "ID_PRINT_JOB",
+        "comment": "批次打印作业标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "创建人标识"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
+      },
+      {
+        "logical": "updated_by",
+        "physical": "ID_USER_UPDATED",
+        "comment": "更新人标识"
+      }
+    ]
+  },
+  {
+    "logical": "sys.print_batch_item",
+    "legacy": "print_batch_items",
+    "physical": "RHN_SYS_PRINT_BATCH_ITEM",
+    "domain": "SYS",
+    "comment": "打印批次明细；一行代表一个纳入或排除的业务来源",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRINT_BATCH_ITEM",
+        "comment": "打印批次明细主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "print_batch_id",
+        "physical": "ID_PRINT_BATCH",
+        "comment": "打印批次标识"
+      },
+      {
+        "logical": "source_type",
+        "physical": "SD_SRC_TYPE",
+        "comment": "业务来源类型"
+      },
+      {
+        "logical": "source_id",
+        "physical": "ID_SRC",
+        "comment": "业务来源标识"
+      },
+      {
+        "logical": "source_version",
+        "physical": "SN_SRC_VER",
+        "comment": "业务来源版本"
+      },
+      {
+        "logical": "patient_id",
+        "physical": "ID_PAT",
+        "comment": "患者标识"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "group_key",
+        "physical": "CD_GROUP_KEY",
+        "comment": "稳定分组键"
+      },
+      {
+        "logical": "item_key",
+        "physical": "ID_ITEM_KEY",
+        "comment": "逻辑卡片幂等键"
+      },
+      {
+        "logical": "snapshot_json",
+        "physical": "JSON_SNAPSHOT",
+        "comment": "不可变打印快照JSON"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "明细状态"
+      },
+      {
+        "logical": "exclusion_reason_code",
+        "physical": "CD_EXCLUDE_REASON",
+        "comment": "排除原因编码"
+      },
+      {
+        "logical": "exclusion_reason",
+        "physical": "DES_EXCLUDE_REASON",
+        "comment": "排除原因说明"
+      },
+      {
+        "logical": "page_no",
+        "physical": "SN_PAGE",
+        "comment": "输出页码"
+      },
+      {
+        "logical": "slot_no",
+        "physical": "SN_SLOT",
+        "comment": "输出格号"
+      },
+      {
+        "logical": "reprint_reason",
+        "physical": "DES_REPRINT_REASON",
+        "comment": "补打原因"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "创建时间"
+      }
+    ]
+  },
+  {
+    "logical": "sys.print_delivery",
+    "legacy": "print_deliveries",
+    "physical": "RHN_SYS_PRINT_DELIVERY",
+    "domain": "SYS",
+    "comment": "打印投递；一行代表批次输出向浏览器或本地桥的一次投递",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_PRINT_DELIVERY",
+        "comment": "打印投递主键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁修订号"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "print_batch_id",
+        "physical": "ID_PRINT_BATCH",
+        "comment": "打印批次标识"
+      },
+      {
+        "logical": "print_job_id",
+        "physical": "ID_PRINT_JOB",
+        "comment": "打印作业标识"
+      },
+      {
+        "logical": "print_device_id",
+        "physical": "ID_PRINT_DEVICE",
+        "comment": "目标设备标识"
+      },
+      {
+        "logical": "channel",
+        "physical": "SD_CHANNEL",
+        "comment": "投递通道"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "投递状态"
+      },
+      {
+        "logical": "attempt_count",
+        "physical": "QTY_ATTEMPT",
+        "comment": "投递尝试次数"
+      },
+      {
+        "logical": "error_code",
+        "physical": "CD_ERROR",
+        "comment": "失败编码"
+      },
+      {
+        "logical": "error_message",
+        "physical": "DES_ERROR",
+        "comment": "失败说明"
+      },
+      {
+        "logical": "queued_at",
+        "physical": "DT_QUEUED",
+        "comment": "入队时间"
+      },
+      {
+        "logical": "sent_at",
+        "physical": "DT_SENT",
+        "comment": "发送时间"
+      },
+      {
+        "logical": "confirmed_at",
+        "physical": "DT_CONFIRMED",
+        "comment": "设备确认时间"
+      },
+      {
+        "logical": "updated_at",
+        "physical": "DT_UPDATED",
+        "comment": "更新时间"
       }
     ]
   }

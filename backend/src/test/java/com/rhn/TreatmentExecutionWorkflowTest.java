@@ -88,7 +88,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
     void self_provided_infusion_lines_are_grouped_as_one_simple_execution_task() throws Exception {
         String suffix = suffix(); String residentId = createResident(suffix); String encounterId = startEncounter(residentId);
         recordNoKnownDrugAllergy(residentId, encounterId);
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"TR-IV-%s","name":"治疗执行测试注射液","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"INJECTION","preparationSpec":"10ml","preparationUnit":"支",
@@ -215,7 +215,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
     void required_skin_test_blocks_medication_execution_and_positive_result_records_allergy() throws Exception {
         String suffix = suffix(); String residentId = createResident(suffix); String encounterId = startEncounter(residentId);
         recordNoKnownDrugAllergy(residentId, encounterId);
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"TR-SKIN-%s","name":"皮试闭环测试注射剂","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"INJECTION","preparationSpec":"80万U","preparationUnit":"支",
@@ -253,6 +253,11 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode skinItem = findSkinTest(skinItems, request.get("id").asText());
         org.junit.jupiter.api.Assertions.assertEquals("PENDING", skinItem.get("status").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("INTRADERMAL", skinItem.get("configuredTestMethod").asText());
+        org.junit.jupiter.api.Assertions.assertEquals("DILUTED_SOLUTION", skinItem.get("configuredSolutionMode").asText());
+        org.junit.jupiter.api.Assertions.assertEquals(20, skinItem.get("configuredObservationMinutes").asInt());
+        org.junit.jupiter.api.Assertions.assertFalse(skinItem.get("settlementRequiredBeforeStart").asBoolean());
+        org.junit.jupiter.api.Assertions.assertFalse(skinItem.get("dispenseRequiredBeforeStart").asBoolean());
         mockMvc.perform(post("/api/treatments/skin-tests/medication-requests/{id}/start", request.get("id").asText())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedMedicationRevision":%d,"identityVerified":false,

@@ -8,7 +8,7 @@ import type {
 import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
 
 type StatusFilter = 'ACTIONABLE' | 'FINISHED' | 'ALL'
 
@@ -128,14 +128,15 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
 }) {
   const [identityVerified, setIdentityVerified] = useState(false)
   const [verificationMethod, setVerificationMethod] = useState<StartSkinTestInput['verificationMethod']>('NAME_AND_IDENTIFIER')
-  const [testMethod, setTestMethod] = useState<StartSkinTestInput['testMethod']>('INTRADERMAL')
-  const [originalSolution, setOriginalSolution] = useState(false)
-  const [solutionName, setSolutionName] = useState('按药品配置配制皮试液')
+  const testMethod = item.configuredTestMethod ?? 'INTRADERMAL'
+  const originalSolution = item.configuredSolutionMode === 'ORIGINAL_SOLUTION'
+  const observationMinutes = item.configuredObservationMinutes ?? 20
+  const [solutionName, setSolutionName] = useState(originalSolution
+    ? (item.itemName || item.medicationName) : '按主数据方案配制的皮试液')
   const [lotNo, setLotNo] = useState('')
   const [concentration, setConcentration] = useState('')
   const [concentrationUnit, setConcentrationUnit] = useState('U/ml')
   const [bodySite, setBodySite] = useState('左前臂屈侧')
-  const [observationMinutes, setObservationMinutes] = useState(20)
   const [result, setResult] = useState<SkinTestResult>('NEGATIVE')
   const [wheal, setWheal] = useState('')
   const [flare, setFlare] = useState('')
@@ -176,6 +177,8 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
   const negativeBeforeObservationEnds = remainingMinutes > 0 && result === 'NEGATIVE'
   const error = start.error || complete.error || cancel.error
   const canStart = ['PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
+  const showConfiguration = ['WAITING_SETTLEMENT', 'WAITING_DISPENSE',
+    'PENDING', 'UNCERTAIN', 'INVALID'].includes(item.status)
   const dose = [item.doseValue, item.doseUnit].filter((value) => value !== undefined && value !== '').join(' ')
 
   return <>
@@ -189,6 +192,19 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
         <small>{item.status === 'NEGATIVE' ? '治疗任务可继续' : '需取得阴性结果'}</small></div>
     </section>
     {error && <Alert>{errorMessage(error)}</Alert>}
+    {showConfiguration && <>
+      <dl className="skin-test-config-strip" aria-label="药品主数据皮试方案">
+        <div><dt>皮试方式</dt><dd>{testMethodLabel(testMethod)}</dd></div>
+        <div><dt>试液类型</dt><dd>{solutionModeLabel(item.configuredSolutionMode)}</dd></div>
+        <div><dt>执行前置</dt><dd>{originalSolution ? '收费并发药后' : '可先皮试'}</dd></div>
+        <div><dt>观察时长</dt><dd>{observationMinutes} 分钟</dd></div>
+      </dl>
+      <Alert tone="info">{originalSolution
+        ? '原液皮试使用本次处方药品，系统将在开始前校验药品已结算且已发药。'
+        : '非原液皮试使用独立配制试液，可在药品结算和发药前进行；阴性后用药仍须完成收费发药。'}
+        {item.configurationInstructions ? ` ${item.configurationInstructions}` : ''}
+        {item.resultValidityHours ? ` 阴性结果有效 ${item.resultValidityHours} 小时。` : ''}</Alert>
+    </>}
     {['WAITING_SETTLEMENT', 'WAITING_DISPENSE'].includes(item.status) && <Alert tone="info">
       {item.gateMessage || '当前药品尚未满足皮试执行条件。'}</Alert>}
     {canStart && <section className="skin-test-action-card">
@@ -198,19 +214,11 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
         onChange={(event) => setIdentityVerified(event.target.checked)} /><span>
         <strong>已当面核对患者身份、药品和皮试液</strong><small>开始前必须完成姓名与证件/卡核对</small></span></label>
       <div className="skin-test-form-grid">
-        <FormField label="核对方式"><select value={verificationMethod}
-          onChange={(event) => setVerificationMethod(event.target.value as typeof verificationMethod)}>
-          <option value="NAME_AND_IDENTIFIER">姓名 + 证件/卡</option><option value="CARD">读卡核对</option>
-          <option value="MANUAL">人工核对</option></select></FormField>
-        <FormField label="皮试方式"><select value={testMethod}
-          onChange={(event) => setTestMethod(event.target.value as typeof testMethod)}>
-          <option value="INTRADERMAL">皮内试验</option><option value="PRICK">点刺试验</option><option value="OTHER">其他</option>
-        </select></FormField>
-        <FormField label="试液类型"><select value={originalSolution ? 'ORIGINAL' : 'PREPARED'}
-          onChange={(event) => setOriginalSolution(event.target.value === 'ORIGINAL')}>
-          <option value="PREPARED">配制皮试液</option><option value="ORIGINAL">原液</option></select></FormField>
-        <FormField label="观察时长"><div className="skin-test-number-unit"><input type="number" min={1} max={120}
-          value={observationMinutes} onChange={(event) => setObservationMinutes(Number(event.target.value))} /><span>分钟</span></div></FormField>
+        <FormField label="核对方式"><Select value={verificationMethod} searchable={false} clearable={false}
+          onChange={(value) => setVerificationMethod(value as typeof verificationMethod)} options={[
+            { value: 'NAME_AND_IDENTIFIER', label: '姓名 + 证件/卡' }, { value: 'CARD', label: '读卡核对' },
+            { value: 'MANUAL', label: '人工核对' },
+          ]} /></FormField>
         <FormField label="试液 / 配制说明"><input value={solutionName} maxLength={300}
           onChange={(event) => setSolutionName(event.target.value)} /></FormField>
         <FormField label="药品或试液批号"><input value={lotNo} maxLength={128} placeholder="可扫码或手工录入"
@@ -221,7 +229,7 @@ function SkinTestDetail({ item, api, departmentName, onRefresh }: {
         <FormField label="皮试部位"><input value={bodySite} maxLength={128}
           onChange={(event) => setBodySite(event.target.value)} /></FormField>
       </div>
-      <div className="ui-form-actions"><Button busy={start.isPending} disabled={!identityVerified || observationMinutes < 1}
+      <div className="ui-form-actions"><Button busy={start.isPending} disabled={!identityVerified}
         onClick={() => start.mutate()}>确认开始并计时</Button></div>
     </section>}
     {item.status === 'IN_PROGRESS' && <section className="skin-test-action-card is-observing">
@@ -278,4 +286,8 @@ function testMethodLabel(value?: SkinTestWorkItem['testMethod']) {
   if (value === 'PRICK') return '点刺试验'
   if (value === 'OTHER') return '其他'
   return '皮内试验'
+}
+
+function solutionModeLabel(value?: SkinTestWorkItem['configuredSolutionMode']) {
+  return value === 'ORIGINAL_SOLUTION' ? '原液' : '非原液（配制试液）'
 }

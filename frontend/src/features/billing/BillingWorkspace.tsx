@@ -834,6 +834,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
                           <div className="billing-doc-card__titles">
                             <strong>{group.docTypeName}</strong>
                             <code>{group.docNo}</code>
+                            {group.charges.length > 1 && (
+                              <StatusBadge tone="neutral">{group.charges.length} 项明细</StatusBadge>
+                            )}
                           </div>
                           {group.isExpired && (
                             <StatusBadge tone="warning">处方已超72小时</StatusBadge>

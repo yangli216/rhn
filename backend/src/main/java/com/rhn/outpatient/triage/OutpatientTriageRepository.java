@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,7 +17,10 @@ public interface OutpatientTriageRepository extends JpaRepository<OutpatientTria
 
     Optional<OutpatientTriageRecord> findByTenantIdAndTriageNo(Long tenantId, String triageNo);
 
-    Optional<OutpatientTriageRecord> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
+    Optional<OutpatientTriageRecord> findTopByTenantIdAndEncounterIdOrderByTriageTimeDesc(Long tenantId, Long encounterId);
+
+    List<OutpatientTriageRecord> findByTenantIdAndEncounterIdInAndTriageTimeBetween(
+            Long tenantId, Collection<Long> encounterIds, Instant fromTime, Instant toTime);
 
     List<OutpatientTriageRecord> findByTenantIdAndResidentIdOrderByTriageTimeDesc(Long tenantId, Long residentId);
 

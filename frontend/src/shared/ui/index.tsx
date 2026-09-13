@@ -19,10 +19,12 @@ import {
 } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon, type IconName } from './Icon'
+import { Tooltip, type TooltipProps } from './Tooltip'
 import type { SemanticTone } from '../presentation'
 
 export { Icon, type IconName } from './Icon'
 export { Popconfirm, type PopconfirmProps } from './Popconfirm'
+export { Tooltip, type TooltipProps }
 export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, type SelectSingleProps } from './Select'
 export { DictionarySelect, type DictionarySelectProps } from './DictionarySelect'
 export { FormSelect } from './FormSelect'
@@ -478,63 +480,19 @@ type FormControlProps = {
 }
 
 function FieldHint({ label, hint, hintId }: { label: ReactNode; hint: string; hintId: string }) {
-  const [open, setOpen] = useState(false)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const [position, setPosition] = useState<{ left: number; top: number; placement: 'top' | 'bottom' }>({
-    left: 0,
-    top: 0,
-    placement: 'top',
-  })
-
-  useEffect(() => {
-    if (!open) return
-    const updatePosition = () => {
-      const trigger = triggerRef.current
-      if (!trigger) return
-      const rect = trigger.getBoundingClientRect()
-      const tooltipHeight = 44
-      const spacing = 8
-      const topPlacement = rect.top - tooltipHeight - spacing
-      const hasTopSpace = topPlacement >= 8
-      setPosition({
-        left: Math.max(8, Math.min(window.innerWidth - 280, rect.left + rect.width / 2 - 130)),
-        top: hasTopSpace ? topPlacement : rect.bottom + spacing,
-        placement: hasTopSpace ? 'top' : 'bottom',
-      })
-    }
-    updatePosition()
-    window.addEventListener('resize', updatePosition)
-    window.addEventListener('scroll', updatePosition, true)
-    return () => {
-      window.removeEventListener('resize', updatePosition)
-      window.removeEventListener('scroll', updatePosition, true)
-    }
-  }, [open])
-
-  return <>
-    <span className="ui-field__hint">
+  return <span className="ui-field__hint">
+    <Tooltip content={hint} openDelayMs={80}>
       <button
-        ref={triggerRef}
         type="button"
         className="ui-field__hint-trigger"
         aria-label={typeof label === 'string' ? `查看${label}提示` : '查看字段提示'}
         aria-describedby={hintId}
-        aria-expanded={open}
-        onMouseEnter={() => setOpen(true)}
-        onMouseLeave={() => setOpen(false)}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
       >
         <Icon name="info" />
       </button>
-      <span id={hintId} className="visually-hidden">{hint}</span>
-    </span>
-    {open && createPortal(<span
-      className={`ui-field__hint-tooltip ui-field__hint-tooltip--${position.placement}`}
-      role="tooltip"
-      style={{ left: position.left, top: position.top }}
-    >{hint}</span>, document.body)}
-  </>
+    </Tooltip>
+    <span id={hintId} className="visually-hidden">{hint}</span>
+  </span>
 }
 
 export function FormField({ label, error, hint, required = false, className = '', children }: {

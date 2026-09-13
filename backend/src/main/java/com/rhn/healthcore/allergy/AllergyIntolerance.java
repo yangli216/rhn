@@ -20,6 +20,7 @@ class AllergyIntolerance {
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
+    @Column(name = "ID_ALLERGEN") private Long allergenId;
     @Column(name = "SD_ASSERTION_TYPE", nullable = false) private String assertionType;
     @Column(name = "CD_CAT") private String categoryCode;
     @Column(name = "SD_CLIN_STATUS", nullable = false) private String clinicalStatus;
@@ -46,7 +47,7 @@ class AllergyIntolerance {
     AllergyIntolerance(Long tenantId, Long residentId, RecordAllergyRequest input,
                        Long recorderUserId, Long recorderPractitionerId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
-        this.encounterId = input.encounterId(); this.assertionType = input.assertionType();
+        this.encounterId = input.encounterId(); this.allergenId = input.allergenId(); this.assertionType = input.assertionType();
         this.categoryCode = input.categoryCode(); this.clinicalStatus = "ACTIVE";
         this.verificationStatus = "CONFIRMED"; this.criticalityCode = input.criticalityCode();
         this.reactionSeverity = input.reactionSeverity(); this.informationSource = input.informationSource();
@@ -67,12 +68,12 @@ class AllergyIntolerance {
     }
 
     AllergySnapshot snapshot() {
-        return new AllergySnapshot(id, assertionType, categoryCode, criticalityCode, reactionSeverity,
+        return new AllergySnapshot(id, allergenId, assertionType, categoryCode, criticalityCode, reactionSeverity,
                 substanceCodeSystemUri, substanceCode, substanceDisplay, reactionText);
     }
 
     AllergyResponse response() {
-        return new AllergyResponse(id, revision, residentId, encounterId, assertionType, categoryCode,
+        return new AllergyResponse(id, revision, residentId, encounterId, allergenId, assertionType, categoryCode,
                 clinicalStatus, verificationStatus, criticalityCode, reactionSeverity, informationSource,
                 substanceCodeSystemUri, substanceCode, substanceDisplay, reactionText, onsetAt, recordedAt,
                 recorderPractitionerId, verifiedAt, verifierPractitionerId, inactivatedAt, inactivationReason);

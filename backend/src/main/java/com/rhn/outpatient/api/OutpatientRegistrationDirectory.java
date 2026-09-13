@@ -31,6 +31,9 @@ public interface OutpatientRegistrationDirectory {
 
     List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo);
 
+    /** Organization-wide queue used by centralized arrival screening and triage stations. */
+    List<ReceptionQueueItem> organizationQueue(LocalDate queueDate);
+
     record RegisterCommand(Long residentId, Long encounterId, Long organizationId, Long departmentId,
                            Long appointmentId, Long scheduleId, Long slotHoldId, String idempotencyCode, String registrationSource,
                            String visitType) {}
@@ -52,7 +55,8 @@ public interface OutpatientRegistrationDirectory {
                               int callCount, int missedCount, Long currentLocationId,
                               Instant validUntil,
                               String registeredByName, String departmentName, String sdDayPartText,
-                              Long practitionerId, String clinicianId, String clinicianName, Instant completedAt) {
+                              Long practitionerId, String clinicianId, String clinicianName, Instant completedAt,
+                              Long departmentId, String phone) {
         public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                                   Long ticketId, Long serviceQueueId,
                                   Long residentId, String healthRecordNo, String residentName, String gender,
@@ -67,7 +71,7 @@ public interface OutpatientRegistrationDirectory {
                     sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
                     practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
                     callCount, missedCount, currentLocationId, null, null, null, null,
-                    null, null, null, null);
+                    null, null, null, null, null, null);
         }
 
         public ReceptionQueueItem(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
@@ -85,7 +89,7 @@ public interface OutpatientRegistrationDirectory {
                     sequenceNo, priority, registrationSource, visitType, registrationStatus, status,
                     practitionerName, serviceName, locationName, registeredAt, readyAt, calledAt, startedAt,
                     callCount, missedCount, currentLocationId, validUntil, null, null, null,
-                    null, null, null, null);
+                    null, null, null, null, null, null);
         }
     }
 }

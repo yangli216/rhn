@@ -39,7 +39,14 @@ class MasterDataImportMapping {
             field("strengthValue", "含量数值"), field("strengthUnit", "含量单位"),
             field("sdStorageType", "储藏方式"), field("prescriptionDrug", "处方药"),
             field("essentialDrug", "基本药物"), field("antimicrobial", "抗菌药"),
-            field("sdAntimicrobialLevel", "抗菌药等级"), field("skinTestRequired", "需要皮试"),
+            field("sdAntimicrobialLevel", "抗菌药等级"), field("antimicrobialOutpatientAllowed", "抗菌药门诊可用"),
+            field("antimicrobialConsultationRequired", "抗菌药需会诊审批"),
+            field("antimicrobialEmergencyAllowed", "抗菌药允许紧急使用"),
+            field("antimicrobialMaxDays", "抗菌药门诊疗程上限"), field("skinTestRequired", "需要皮试"),
+            field("skinTestMethod", "皮试方式"), field("skinTestSolutionMode", "皮试液配置方式"),
+            field("skinTestObservationMinutes", "皮试观察分钟"),
+            field("skinTestResultValidityHours", "皮试结果有效小时"),
+            field("skinTestInstructions", "皮试配置说明"),
             field("defaultDose", "默认剂量"), field("defaultDoseUnit", "默认剂量单位"),
             field("defaultRoute", "默认给药途径"), field("defaultFrequency", "默认频次"),
             field("chronicDiseaseDrug", "慢病用药"), field("singleOrder", "允许单开"),
@@ -80,7 +87,13 @@ class MasterDataImportMapping {
                 string(value, "medicationType"), optional(value, "doseForm"), optional(value, "preparationSpec"),
                 optional(value, "preparationUnit"), decimal(value, "strengthValue"), optional(value, "strengthUnit"),
                 optional(value, "storageType"), bool(value, "prescriptionDrug"), bool(value, "essentialDrug"),
-                bool(value, "antimicrobial"), optional(value, "antimicrobialLevel"), bool(value, "skinTestRequired"),
+                bool(value, "antimicrobial"), optional(value, "antimicrobialLevel"),
+                nullableBool(value, "antimicrobialOutpatientAllowed"),
+                nullableBool(value, "antimicrobialConsultationRequired"),
+                nullableBool(value, "antimicrobialEmergencyAllowed"), integer(value, "antimicrobialMaxDays"),
+                bool(value, "skinTestRequired"), optional(value, "skinTestMethod"),
+                optional(value, "skinTestSolutionMode"), integer(value, "skinTestObservationMinutes"),
+                integer(value, "skinTestResultValidityHours"), optional(value, "skinTestInstructions"),
                 decimal(value, "defaultDose"), optional(value, "defaultDoseUnit"), optional(value, "defaultRoute"),
                 optional(value, "defaultFrequency"), bool(value, "chronicDiseaseDrug"), bool(value, "singleOrder"),
                 string(value, "status"));
@@ -127,7 +140,15 @@ class MasterDataImportMapping {
                 requiredBoolean(value, "essentialDrug", "基本药物", errors),
                 requiredBoolean(value, "antimicrobial", "抗菌药", errors),
                 optional(value, "sdAntimicrobialLevel", 64, errors),
+                optionalBoolean(value, "antimicrobialOutpatientAllowed", "抗菌药门诊可用", errors),
+                optionalBoolean(value, "antimicrobialConsultationRequired", "抗菌药需会诊审批", errors),
+                optionalBoolean(value, "antimicrobialEmergencyAllowed", "抗菌药允许紧急使用", errors),
+                optionalInteger(value, "antimicrobialMaxDays", "抗菌药门诊疗程上限", 1, errors),
                 requiredBoolean(value, "skinTestRequired", "需要皮试", errors),
+                optional(value, "skinTestMethod", 32, errors), optional(value, "skinTestSolutionMode", 32, errors),
+                optionalInteger(value, "skinTestObservationMinutes", "皮试观察分钟", 1, errors),
+                optionalInteger(value, "skinTestResultValidityHours", "皮试结果有效小时", 1, errors),
+                optional(value, "skinTestInstructions", 1000, errors),
                 optionalDecimal(value, "defaultDose", "默认剂量", true, errors),
                 optional(value, "defaultDoseUnit", 64, errors), optional(value, "defaultRoute", 64, errors),
                 optional(value, "defaultFrequency", 64, errors),
@@ -174,6 +195,16 @@ class MasterDataImportMapping {
             case "TRUE", "1", "Y", "YES", "是" -> true;
             case "FALSE", "0", "N", "NO", "否" -> false;
             default -> { error(errors, key, "BOOLEAN_FORMAT", label + "必须填写是/否、Y/N、1/0或true/false"); yield false; }
+        };
+    }
+
+    private Boolean optionalBoolean(Map<String, String> value, String key, String label, List<ImportError> errors) {
+        String raw = text(value.get(key));
+        if (raw == null) return null;
+        return switch (raw.toUpperCase(Locale.ROOT)) {
+            case "TRUE", "1", "Y", "YES", "是" -> true;
+            case "FALSE", "0", "N", "NO", "否" -> false;
+            default -> { error(errors, key, "BOOLEAN_FORMAT", label + "必须填写是/否、Y/N、1/0或true/false"); yield null; }
         };
     }
 
@@ -227,6 +258,9 @@ class MasterDataImportMapping {
         Object result = value.get(key); return result == null ? null : String.valueOf(result);
     }
     private static boolean bool(Map<String, Object> value, String key) { return Boolean.TRUE.equals(value.get(key)); }
+    private static Boolean nullableBool(Map<String, Object> value, String key) {
+        Object result = value.get(key); return result == null ? null : Boolean.valueOf(String.valueOf(result));
+    }
     private static LocalDate date(Map<String, Object> value, String key) {
         Object result = value.get(key); return result == null ? null : LocalDate.parse(String.valueOf(result));
     }

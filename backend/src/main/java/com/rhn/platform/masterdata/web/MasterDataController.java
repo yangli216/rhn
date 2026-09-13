@@ -22,6 +22,7 @@ import com.rhn.platform.masterdata.application.CatalogLifecycleService.PriceInpu
 import com.rhn.shared.api.PageResult;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -293,7 +294,13 @@ public class MasterDataController {
             @Size(max = 32) String sdStorageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
             @Size(max = 64) String sdAntimicrobialLevel,
-            boolean skinTestRequired,
+            Boolean antimicrobialOutpatientAllowed, Boolean antimicrobialConsultationRequired,
+            Boolean antimicrobialEmergencyAllowed, @Min(1) @Max(90) Integer antimicrobialMaxDays,
+            boolean skinTestRequired, @Size(max = 32) String skinTestMethod,
+            @Size(max = 32) String skinTestSolutionMode,
+            @Min(1) @Max(120) Integer skinTestObservationMinutes,
+            @Min(1) @Max(8760) Integer skinTestResultValidityHours,
+            @Size(max = 1000) String skinTestInstructions,
             @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
             @Size(max = 64) String defaultDoseUnit,
             @Size(max = 64) String defaultRoute,
@@ -303,7 +310,10 @@ public class MasterDataController {
         MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
                 sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
                 strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
-                antimicrobial, optional(sdAntimicrobialLevel), skinTestRequired, defaultDose,
+                antimicrobial, optional(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
+                antimicrobialConsultationRequired, antimicrobialEmergencyAllowed, antimicrobialMaxDays,
+                skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
+                skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
                 optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
                 chronicDiseaseDrug, singleOrder, sdStatus); }
     }
@@ -322,7 +332,13 @@ public class MasterDataController {
             @Size(max = 32) String sdStorageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
             @Size(max = 64) String sdAntimicrobialLevel,
-            boolean skinTestRequired,
+            Boolean antimicrobialOutpatientAllowed, Boolean antimicrobialConsultationRequired,
+            Boolean antimicrobialEmergencyAllowed, @Min(1) @Max(90) Integer antimicrobialMaxDays,
+            boolean skinTestRequired, @Size(max = 32) String skinTestMethod,
+            @Size(max = 32) String skinTestSolutionMode,
+            @Min(1) @Max(120) Integer skinTestObservationMinutes,
+            @Min(1) @Max(8760) Integer skinTestResultValidityHours,
+            @Size(max = 1000) String skinTestInstructions,
             @DecimalMin(value = "0", inclusive = false) BigDecimal defaultDose,
             @Size(max = 64) String defaultDoseUnit,
             @Size(max = 64) String defaultRoute,
@@ -332,7 +348,10 @@ public class MasterDataController {
         MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
                 sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
                 strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
-                antimicrobial, optional(sdAntimicrobialLevel), skinTestRequired, defaultDose,
+                antimicrobial, optional(sdAntimicrobialLevel), antimicrobialOutpatientAllowed,
+                antimicrobialConsultationRequired, antimicrobialEmergencyAllowed, antimicrobialMaxDays,
+                skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
+                skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
                 optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
                 chronicDiseaseDrug, singleOrder, sdStatus); }
     }

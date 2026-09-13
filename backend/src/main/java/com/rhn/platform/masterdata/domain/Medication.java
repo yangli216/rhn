@@ -32,7 +32,16 @@ public class Medication {
     @Column(name = "FG_ESSENTIAL_DRUG", nullable = false) private boolean essentialDrug;
     @Column(name = "FG_ANTIMICROBIAL", nullable = false) private boolean antimicrobial;
     @Column(name = "SD_ANTIMICROBIAL_LEVEL") private String antimicrobialLevel;
+    @Column(name = "FG_ANTIMICROBIAL_OUTPATIENT", nullable = false) private boolean antimicrobialOutpatientAllowed;
+    @Column(name = "FG_ANTIMICROBIAL_CONSULT", nullable = false) private boolean antimicrobialConsultationRequired;
+    @Column(name = "FG_ANTIMICROBIAL_EMERGENCY", nullable = false) private boolean antimicrobialEmergencyAllowed;
+    @Column(name = "QTY_ANTIMICROBIAL_MAX_DAYS") private Integer antimicrobialMaxDays;
     @Column(name = "FG_SKIN_TEST_REQUIRED", nullable = false) private boolean skinTestRequired;
+    @Column(name = "SD_SKIN_TEST_METHOD") private String skinTestMethod;
+    @Column(name = "SD_SKIN_TEST_SOLUTION_MODE") private String skinTestSolutionMode;
+    @Column(name = "QTY_SKIN_TEST_OBS_MINUTES") private Integer skinTestObservationMinutes;
+    @Column(name = "QTY_SKIN_TEST_VALID_HOURS") private Integer skinTestResultValidityHours;
+    @Column(name = "DES_SKIN_TEST_INSTRUCTION", length = 1000) private String skinTestInstructions;
     @Column(name = "QTY_DEFAULT_DOSE") private BigDecimal defaultDose;
     @Column(name = "DEFAULT_DOSE_UNIT") private String defaultDoseUnit;
     @Column(name = "ID_CONCEPT_DEFAULT_ROUTE") private Long defaultRouteId;
@@ -53,14 +62,21 @@ public class Medication {
                       String medicationType, String doseForm, String preparationSpec, String preparationUnit,
                       BigDecimal strengthValue, String strengthUnit, String storageType,
                       boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-                      String antimicrobialLevel, boolean skinTestRequired, BigDecimal defaultDose,
+                      String antimicrobialLevel, boolean antimicrobialOutpatientAllowed,
+                      boolean antimicrobialConsultationRequired, boolean antimicrobialEmergencyAllowed,
+                      Integer antimicrobialMaxDays, boolean skinTestRequired, String skinTestMethod,
+                      String skinTestSolutionMode, Integer skinTestObservationMinutes,
+                      Integer skinTestResultValidityHours, String skinTestInstructions, BigDecimal defaultDose,
                       String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
                       boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.itemTypeId = itemTypeId; this.code = code;
         this.createdAt = Instant.now(); this.createdBy = actorId;
         updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
-                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
+                antimicrobialLevel, antimicrobialOutpatientAllowed, antimicrobialConsultationRequired,
+                antimicrobialEmergencyAllowed, antimicrobialMaxDays, skinTestRequired, skinTestMethod,
+                skinTestSolutionMode, skinTestObservationMinutes, skinTestResultValidityHours,
+                skinTestInstructions, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
                 chronicDiseaseDrug, singleOrder, status);
     }
 
@@ -68,14 +84,21 @@ public class Medication {
                        String medicationType, String doseForm, String preparationSpec, String preparationUnit,
                        BigDecimal strengthValue, String strengthUnit, String storageType,
                        boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-                       String antimicrobialLevel, boolean skinTestRequired, BigDecimal defaultDose,
+                       String antimicrobialLevel, boolean antimicrobialOutpatientAllowed,
+                       boolean antimicrobialConsultationRequired, boolean antimicrobialEmergencyAllowed,
+                       Integer antimicrobialMaxDays, boolean skinTestRequired, String skinTestMethod,
+                       String skinTestSolutionMode, Integer skinTestObservationMinutes,
+                       Integer skinTestResultValidityHours, String skinTestInstructions, BigDecimal defaultDose,
                        String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
                        boolean chronicDiseaseDrug, boolean singleOrder, String status) {
         requireRevision(expectedRevision);
         this.itemTypeId = itemTypeId;
         updateValues(actorId, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
                 strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial,
-                antimicrobialLevel, skinTestRequired, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
+                antimicrobialLevel, antimicrobialOutpatientAllowed, antimicrobialConsultationRequired,
+                antimicrobialEmergencyAllowed, antimicrobialMaxDays, skinTestRequired, skinTestMethod,
+                skinTestSolutionMode, skinTestObservationMinutes, skinTestResultValidityHours,
+                skinTestInstructions, defaultDose, defaultDoseUnit, defaultRoute, defaultFrequencyId, defaultFrequency,
                 chronicDiseaseDrug, singleOrder, status);
     }
 
@@ -92,7 +115,11 @@ public class Medication {
                               String preparationSpec, String preparationUnit, BigDecimal strengthValue,
                               String strengthUnit, String storageType, boolean prescriptionDrug,
                               boolean essentialDrug, boolean antimicrobial, String antimicrobialLevel,
-                              boolean skinTestRequired, BigDecimal defaultDose, String defaultDoseUnit,
+                              boolean antimicrobialOutpatientAllowed, boolean antimicrobialConsultationRequired,
+                              boolean antimicrobialEmergencyAllowed, Integer antimicrobialMaxDays,
+                              boolean skinTestRequired, String skinTestMethod, String skinTestSolutionMode,
+                              Integer skinTestObservationMinutes, Integer skinTestResultValidityHours,
+                              String skinTestInstructions, BigDecimal defaultDose, String defaultDoseUnit,
                               String defaultRoute, Long defaultFrequencyId, String defaultFrequency, boolean chronicDiseaseDrug,
                               boolean singleOrder, String status) {
         if (strengthValue != null && strengthValue.signum() <= 0) throw new IllegalArgumentException("含量必须大于0");
@@ -103,7 +130,15 @@ public class Medication {
         this.strengthValue = strengthValue; this.strengthUnit = strengthUnit; this.storageType = storageType;
         this.prescriptionDrug = prescriptionDrug; this.essentialDrug = essentialDrug;
         this.antimicrobial = antimicrobial; this.antimicrobialLevel = antimicrobialLevel;
-        this.skinTestRequired = skinTestRequired; this.defaultDose = defaultDose;
+        this.antimicrobialOutpatientAllowed = antimicrobialOutpatientAllowed;
+        this.antimicrobialConsultationRequired = antimicrobialConsultationRequired;
+        this.antimicrobialEmergencyAllowed = antimicrobialEmergencyAllowed;
+        this.antimicrobialMaxDays = antimicrobialMaxDays;
+        this.skinTestRequired = skinTestRequired; this.skinTestMethod = skinTestMethod;
+        this.skinTestSolutionMode = skinTestSolutionMode;
+        this.skinTestObservationMinutes = skinTestObservationMinutes;
+        this.skinTestResultValidityHours = skinTestResultValidityHours;
+        this.skinTestInstructions = skinTestInstructions; this.defaultDose = defaultDose;
         this.defaultDoseUnit = defaultDoseUnit; this.defaultRoute = defaultRoute;
         this.defaultFrequencyId = defaultFrequencyId; this.defaultFrequency = defaultFrequency; this.chronicDiseaseDrug = chronicDiseaseDrug;
         this.singleOrder = singleOrder; this.status = status;
@@ -123,7 +158,16 @@ public class Medication {
     public String storageType() { return storageType; }
     public boolean prescriptionDrug() { return prescriptionDrug; } public boolean essentialDrug() { return essentialDrug; }
     public boolean antimicrobial() { return antimicrobial; } public String antimicrobialLevel() { return antimicrobialLevel; }
-    public boolean skinTestRequired() { return skinTestRequired; } public BigDecimal defaultDose() { return defaultDose; }
+    public boolean antimicrobialOutpatientAllowed() { return antimicrobialOutpatientAllowed; }
+    public boolean antimicrobialConsultationRequired() { return antimicrobialConsultationRequired; }
+    public boolean antimicrobialEmergencyAllowed() { return antimicrobialEmergencyAllowed; }
+    public Integer antimicrobialMaxDays() { return antimicrobialMaxDays; }
+    public boolean skinTestRequired() { return skinTestRequired; } public String skinTestMethod() { return skinTestMethod; }
+    public String skinTestSolutionMode() { return skinTestSolutionMode; }
+    public Integer skinTestObservationMinutes() { return skinTestObservationMinutes; }
+    public Integer skinTestResultValidityHours() { return skinTestResultValidityHours; }
+    public String skinTestInstructions() { return skinTestInstructions; }
+    public BigDecimal defaultDose() { return defaultDose; }
     public String defaultDoseUnit() { return defaultDoseUnit; }
     public Long defaultRouteId() { return defaultRouteId; } public String defaultRoute() { return defaultRoute; }
     public Long defaultFrequencyId() { return defaultFrequencyId; }

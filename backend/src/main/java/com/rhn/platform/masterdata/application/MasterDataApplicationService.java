@@ -26,6 +26,7 @@ import com.rhn.platform.masterdata.api.MasterDataViews.PriceView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ServiceView;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MedicationTerminologyDirectory;
 import com.rhn.platform.masterdata.domain.CatalogPrice;
 import com.rhn.platform.masterdata.domain.ItemPackage;
 import com.rhn.platform.masterdata.domain.ItemType;
@@ -70,6 +71,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -99,6 +101,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final ExecutionContextProvider contextProvider;
     private final OrderFrequencyDirectory orderFrequencyDirectory;
     private final MedicationRouteDirectory medicationRouteDirectory;
+    private final MedicationTerminologyDirectory medicationTerminologyDirectory;
 
     public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
@@ -119,7 +122,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         OrganizationDirectory organizationDirectory,
                                         ExecutionContextProvider contextProvider,
                                         OrderFrequencyDirectory orderFrequencyDirectory,
-                                        MedicationRouteDirectory medicationRouteDirectory) {
+                                        MedicationRouteDirectory medicationRouteDirectory,
+                                        MedicationTerminologyDirectory medicationTerminologyDirectory) {
         this.serviceRepository = serviceRepository;
         this.supplyRepository = supplyRepository;
         this.medicationRepository = medicationRepository;
@@ -140,6 +144,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         this.contextProvider = contextProvider;
         this.orderFrequencyDirectory = orderFrequencyDirectory;
         this.medicationRouteDirectory = medicationRouteDirectory;
+        this.medicationTerminologyDirectory = medicationTerminologyDirectory;
     }
 
     @Transactional(readOnly = true)
@@ -365,7 +370,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.aliasName(), command.medicationType(), command.doseForm(),
                 command.preparationSpec(), command.preparationUnit(), command.strengthValue(), command.strengthUnit(),
                 command.storageType(), command.prescriptionDrug(), command.essentialDrug(), command.antimicrobial(),
-                command.antimicrobialLevel(), command.skinTestRequired(), command.defaultDose(),
+                command.antimicrobialLevel(), antimicrobialOutpatientAllowed(command),
+                antimicrobialConsultationRequired(command), antimicrobialEmergencyAllowed(command),
+                antimicrobialMaxDays(command), command.skinTestRequired(), skinTestMethod(command),
+                skinTestSolutionMode(command), skinTestObservationMinutes(command),
+                skinTestResultValidityHours(command), skinTestInstructions(command), command.defaultDose(),
                 command.defaultDoseUnit(), route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(),
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
@@ -404,7 +413,11 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
                 command.strengthValue(), command.strengthUnit(), command.storageType(), command.prescriptionDrug(),
                 command.essentialDrug(), command.antimicrobial(), command.antimicrobialLevel(),
-                command.skinTestRequired(), command.defaultDose(), command.defaultDoseUnit(),
+                antimicrobialOutpatientAllowed(command), antimicrobialConsultationRequired(command),
+                antimicrobialEmergencyAllowed(command), antimicrobialMaxDays(command),
+                command.skinTestRequired(), skinTestMethod(command), skinTestSolutionMode(command),
+                skinTestObservationMinutes(command), skinTestResultValidityHours(command),
+                skinTestInstructions(command), command.defaultDose(), command.defaultDoseUnit(),
                 route == null ? null : route.code(), frequency == null ? null : frequency.id(),
                 frequency == null ? null : frequency.code(), command.chronicDiseaseDrug(),
                 command.singleOrder(), command.status());
@@ -713,6 +726,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     private List<MedicationView> medicationViews(Long tenantId, List<Medication> items, Long organizationId) {
         List<Long> medicationIds = items.stream().map(Medication::id).toList();
+        var classifications = medicationTerminologyDirectory.classifications(tenantId, medicationIds);
+        var allergenConceptIds = medicationTerminologyDirectory.allergenConceptIds(tenantId, medicationIds);
         List<MedicationProduct> products = medicationIds.isEmpty() ? List.of()
                 : productRepository.findByTenantIdAndMedicationIdIn(tenantId, medicationIds);
         Map<Long, Manufacturer> manufacturers = manufacturerRepository.findByTenantIdOrderByName(tenantId).stream()
@@ -724,8 +739,13 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.aliasName(), value.medicationType(), value.doseForm(), value.preparationSpec(),
                 value.preparationUnit(), value.strengthValue(), value.strengthUnit(), value.storageType(),
                 value.prescriptionDrug(), value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),
-                value.skinTestRequired(), value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(),
+                value.antimicrobialOutpatientAllowed(), value.antimicrobialConsultationRequired(),
+                value.antimicrobialEmergencyAllowed(), value.antimicrobialMaxDays(), value.skinTestRequired(),
+                value.skinTestMethod(), value.skinTestSolutionMode(), value.skinTestObservationMinutes(),
+                value.skinTestResultValidityHours(), value.skinTestInstructions(),
+                value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(),
                 value.defaultFrequencyId(), value.defaultFrequency(), value.chronicDiseaseDrug(), value.singleOrder(), value.status(),
+                classifications.getOrDefault(value.id(), List.of()), allergenConceptIds.getOrDefault(value.id(), List.of()),
                 productViews.getOrDefault(value.id(), List.of()))).toList();
     }
 
@@ -846,11 +866,40 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         if (!command.antimicrobial() && !blank(command.antimicrobialLevel())) {
             throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_CONFLICT", "非抗菌药物不能设置抗菌药等级");
         }
+        if (command.antimicrobial() && blank(command.antimicrobialLevel())) {
+            throw badRequest("MEDICATION_ANTIMICROBIAL_LEVEL_REQUIRED", "抗菌药物必须设置分级管理等级");
+        }
         if (!western && (command.antimicrobial() || !blank(command.antimicrobialLevel()))) {
             throw badRequest("MEDICATION_ANTIMICROBIAL_TYPE_INVALID", "仅西药和化学药可维护抗菌药物及抗菌药等级");
         }
         if (!western && command.skinTestRequired()) {
             throw badRequest("MEDICATION_SKIN_TEST_TYPE_INVALID", "仅西药和化学药可维护药品皮试属性");
+        }
+        if (command.antimicrobial()) {
+            if (command.antimicrobialMaxDays() != null
+                    && (command.antimicrobialMaxDays() < 1 || command.antimicrobialMaxDays() > 90)) {
+                throw badRequest("MEDICATION_ANTIMICROBIAL_MAX_DAYS_INVALID", "抗菌药门诊疗程上限应为 1 至 90 天");
+            }
+            if ("SPECIAL".equals(command.antimicrobialLevel()) && antimicrobialOutpatientAllowed(command)) {
+                throw badRequest("MEDICATION_SPECIAL_ANTIMICROBIAL_OUTPATIENT_INVALID", "特殊使用级抗菌药不得配置为门诊常规可用");
+            }
+            if ("SPECIAL".equals(command.antimicrobialLevel()) && !antimicrobialConsultationRequired(command)) {
+                throw badRequest("MEDICATION_SPECIAL_ANTIMICROBIAL_CONSULT_REQUIRED", "特殊使用级抗菌药必须配置会诊或审批要求");
+            }
+        }
+        if (command.skinTestRequired()) {
+            if (!Set.of("INTRADERMAL", "PRICK", "OTHER").contains(skinTestMethod(command))) {
+                throw badRequest("MEDICATION_SKIN_TEST_METHOD_INVALID", "皮试方式不正确");
+            }
+            if (!Set.of("ORIGINAL_SOLUTION", "DILUTED_SOLUTION").contains(skinTestSolutionMode(command))) {
+                throw badRequest("MEDICATION_SKIN_TEST_SOLUTION_MODE_INVALID", "皮试液配置方式不正确");
+            }
+            if (skinTestObservationMinutes(command) < 1 || skinTestObservationMinutes(command) > 120) {
+                throw badRequest("MEDICATION_SKIN_TEST_OBSERVATION_INVALID", "皮试观察时长应为 1 至 120 分钟");
+            }
+            if (skinTestResultValidityHours(command) < 1 || skinTestResultValidityHours(command) > 8760) {
+                throw badRequest("MEDICATION_SKIN_TEST_VALIDITY_INVALID", "皮试结果有效期应为 1 至 8760 小时");
+            }
         }
         if (herbal && (command.strengthValue() != null || !blank(command.strengthUnit()))) {
             throw badRequest("MEDICATION_HERBAL_STRENGTH_INVALID", "草药饮片不维护制剂含量，请使用炮制规格和默认剂量");
@@ -865,6 +914,53 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
 
     private void requirePair(Object value, String unit, String code, String message) {
         if ((value == null) != blank(unit)) throw badRequest(code, message);
+    }
+
+    private boolean antimicrobialOutpatientAllowed(MedicationCommand command) {
+        if (!command.antimicrobial()) return false;
+        if (command.antimicrobialOutpatientAllowed() != null) return command.antimicrobialOutpatientAllowed();
+        return !"SPECIAL".equals(command.antimicrobialLevel());
+    }
+
+    private boolean antimicrobialConsultationRequired(MedicationCommand command) {
+        if (!command.antimicrobial()) return false;
+        if (command.antimicrobialConsultationRequired() != null) return command.antimicrobialConsultationRequired();
+        return "SPECIAL".equals(command.antimicrobialLevel());
+    }
+
+    private boolean antimicrobialEmergencyAllowed(MedicationCommand command) {
+        return command.antimicrobial() && Boolean.TRUE.equals(command.antimicrobialEmergencyAllowed());
+    }
+
+    private Integer antimicrobialMaxDays(MedicationCommand command) {
+        return command.antimicrobial() && antimicrobialOutpatientAllowed(command)
+                ? command.antimicrobialMaxDays() : null;
+    }
+
+    private String skinTestMethod(MedicationCommand command) {
+        return command.skinTestRequired() ? defaultIfBlank(command.skinTestMethod(), "INTRADERMAL") : null;
+    }
+
+    private String skinTestSolutionMode(MedicationCommand command) {
+        return command.skinTestRequired() ? defaultIfBlank(command.skinTestSolutionMode(), "DILUTED_SOLUTION") : null;
+    }
+
+    private Integer skinTestObservationMinutes(MedicationCommand command) {
+        return command.skinTestRequired()
+                ? (command.skinTestObservationMinutes() == null ? 20 : command.skinTestObservationMinutes()) : null;
+    }
+
+    private Integer skinTestResultValidityHours(MedicationCommand command) {
+        return command.skinTestRequired()
+                ? (command.skinTestResultValidityHours() == null ? 24 : command.skinTestResultValidityHours()) : null;
+    }
+
+    private String skinTestInstructions(MedicationCommand command) {
+        return command.skinTestRequired() ? clean(command.skinTestInstructions()) : null;
+    }
+
+    private String defaultIfBlank(String value, String defaultValue) {
+        return blank(value) ? defaultValue : value.trim().toUpperCase(Locale.ROOT);
     }
 
     private OrderFrequencyDirectory.FrequencySnapshot resolveMedicationFrequency(ExecutionContext context,
@@ -931,5 +1027,6 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     }
 
     private boolean blank(String value) { return value == null || value.isBlank(); }
+    private String clean(String value) { return blank(value) ? null : value.trim(); }
     private ExecutionContext current() { return contextProvider.requireCurrent(); }
 }

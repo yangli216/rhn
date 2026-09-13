@@ -134,6 +134,12 @@ function createMockApi({
     residents: {
       get: vi.fn().mockResolvedValue(mockResident),
       allergies: vi.fn().mockResolvedValue([]),
+      allergenTerms: vi.fn().mockResolvedValue([{
+        id: 'allergen-penicillin', categoryCode: 'DRUG', conceptType: 'DRUG_INGREDIENT',
+        codeSystemUri: 'http://example.test/allergens', code: 'PENICILLIN', display: '青霉素', aliases: '盘尼西林',
+      }]),
+      recordAllergy: vi.fn().mockResolvedValue({ id: 'allergy-1', revision: 1 }),
+      inactivateAllergy: vi.fn().mockResolvedValue({ id: 'allergy-1', revision: 2, clinicalStatus: 'INACTIVE' }),
       conditions: vi.fn().mockResolvedValue([]),
       medications: vi.fn().mockResolvedValue([]),
       familyMembers: vi.fn().mockResolvedValue([]),
@@ -470,6 +476,105 @@ describe('DoctorWorkstation reception flow', () => {
     await user.click(screen.getByRole('button', { name: '返回患者列表' }))
     expect(await screen.findByRole('heading', { name: '门诊医生站' })).toBeInTheDocument()
     expect(screen.queryByText('阅读状态')).not.toBeInTheDocument()
+  })
+
+  it('hides back-to-list button in editing mode and requires suspend/complete/terminate to finish', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/reception']}>
+        <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // 1. 接诊进入编辑状态
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    expect(await screen.findByRole('heading', { name: '门诊病历' })).toBeInTheDocument()
+
+    // 2. 移除非查看状态下的“返回列表”按钮，防止接诊状态挂起紊乱
+    expect(screen.queryByRole('button', { name: '返回患者列表' })).not.toBeInTheDocument()
+    expect(screen.queryByText('返回列表')).not.toBeInTheDocument()
+
+    // 3. 必须通过暂挂、诊毕或终止诊疗来正常终结接诊
+    expect(screen.getByRole('button', { name: '暂挂' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '诊毕' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '终止诊疗' })).toBeInTheDocument()
+  })
+
+  it('manages allergies in the workstation drawer and records a controlled allergen directly', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    const { container } = renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: /过敏信息：尚未核对/ }))
+
+    const drawer = screen.getByRole('complementary', { name: '过敏信息' })
+    expect(drawer).toHaveClass('is-allergy')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(within(drawer).getByText('新增过敏事实')).toBeInTheDocument()
+    expect(drawer.querySelectorAll('select')).toHaveLength(0)
+
+    await user.click(within(drawer).getByRole('combobox', { name: /标准过敏原/ }))
+    await user.click(await screen.findByRole('option', { name: /青霉素/ }))
+    await user.type(within(drawer).getByLabelText('过敏反应'), '皮疹')
+    await user.click(within(drawer).getByRole('button', { name: '记录过敏事实' }))
+
+    await waitFor(() => expect(api.residents.recordAllergy).toHaveBeenCalledWith('resident-1', {
+      encounterId: 'encounter-101',
+      assertionType: 'ALLERGY',
+      categoryCode: 'DRUG',
+      criticalityCode: 'UNABLE_TO_ASSESS',
+      reactionSeverity: 'MILD',
+      informationSource: 'PATIENT',
+      allergenId: 'allergen-penicillin',
+      substanceDisplay: '青霉素',
+      substanceCodeSystemUri: 'http://example.test/allergens',
+      substanceCode: 'PENICILLIN',
+      reactionText: '皮疹',
+    }))
+    expect(container.querySelector('.ui-dialog-backdrop')).not.toBeInTheDocument()
+  })
+
+  it('confirms no known drug allergy without opening another layer', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: /过敏信息：尚未核对/ }))
+    await user.click(screen.getByRole('button', { name: '确认无已知药物过敏' }))
+
+    await waitFor(() => expect(api.residents.recordAllergy).toHaveBeenCalledWith('resident-1', {
+      encounterId: 'encounter-101', assertionType: 'NO_KNOWN_DRUG_ALLERGY', informationSource: 'PATIENT',
+    }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('uses the shared anchored confirmation before inactivating an allergy record', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS' })
+    api.residents.allergies = vi.fn().mockResolvedValue([{
+      id: 'allergy-1', residentId: 'resident-1', revision: 3, clinicalStatus: 'ACTIVE',
+      assertionType: 'ALLERGY', categoryCode: 'DRUG', criticalityCode: 'HIGH', reactionSeverity: 'SEVERE',
+      informationSource: 'PATIENT', substanceDisplay: '青霉素', reactionText: '呼吸困难',
+      recordedAt: '2026-09-10T08:00:00Z',
+    }])
+    const nativeConfirm = vi.spyOn(window, 'confirm')
+    renderStation(api)
+
+    await user.click(await screen.findByRole('button', { name: '接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: /过敏信息：青霉素/ }))
+    await user.click(screen.getByRole('button', { name: '停用' }))
+
+    expect(nativeConfirm).not.toHaveBeenCalled()
+    expect(screen.getByRole('alertdialog')).toHaveTextContent('停用“青霉素”过敏记录？')
+    await user.click(screen.getByRole('button', { name: '确认停用' }))
+    await waitFor(() => expect(api.residents.inactivateAllergy)
+      .toHaveBeenCalledWith('resident-1', 'allergy-1', 3, '医生复核后停用'))
+    nativeConfirm.mockRestore()
   })
 
   it('renders physical exam inputs without dummy value placeholders and applies reference vitals from history', async () => {
@@ -824,6 +929,33 @@ describe('DoctorWorkstation reception flow', () => {
     await expect(persistOrderDrafts('enc-2', [infusion('m-4', 'draft:conflict'),
       infusion('m-5', 'draft:conflict', 'BID')], [], api, [])).rejects
       .toThrow('同一输液组的给药途径、频次和疗程必须一致')
+  })
+
+  it('delegates to batchOrderPrescriptions when available on api.encounters', async () => {
+    const api = createMockApi()
+    const batchSpy = vi.fn().mockResolvedValue([{ id: 'rx-split-1' }])
+    ;(api.encounters as any).batchOrderPrescriptions = batchSpy
+
+    const drafts = [
+      {
+        id: 'draft-1',
+        categoryCode: 'WESTERN',
+        request: { medicationId: 'm-1', routeCode: 'ORAL', frequencyCode: 'QD', durationValue: 3, quantity: 1 },
+      },
+    ] as any
+
+    await persistOrderDrafts('enc-1', drafts, [], api, [], true)
+
+    expect(batchSpy).toHaveBeenCalledWith('enc-1', {
+      items: [
+        expect.objectContaining({
+          medicationId: 'm-1',
+          routeCode: 'ORAL',
+          frequencyCode: 'QD',
+        }),
+      ],
+      autoSubmit: true,
+    })
   })
 
   it('renders friendly completion dialog with 4-metric fee card, quick phrase chips, and standardized checklist icons', async () => {

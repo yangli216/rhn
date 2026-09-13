@@ -168,7 +168,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5])
   const [dayParts, setDayParts] = useState<ScheduleDayPart[]>(['MORNING', 'AFTERNOON'])
   const [capacity, setCapacity] = useState('50')
-  const [locationName, setLocationName] = useState('全科门诊')
+  const [locationName, setLocationName] = useState(clinicalContext.department.name || '门诊')
   const [morningStart, setMorningStart] = useState('08:00')
   const [morningEnd, setMorningEnd] = useState('12:00')
   const [afternoonStart, setAfternoonStart] = useState('14:00')
@@ -185,6 +185,8 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   } | null>(null)
 
   const currentDepartmentKey = `${clinicalContext.organization.id}:${clinicalContext.department.id}`
+  const [batchDepartmentKey, setBatchDepartmentKey] = useState('')
+
   const selectableDepartments = useMemo(() => {
     const configured = departmentOptions?.length ? departmentOptions : [{
       organizationId: clinicalContext.organization.id,
@@ -197,7 +199,36 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     ])).values())
   }, [clinicalContext, departmentOptions])
 
+  const activeBatchDepartment = useMemo(() => {
+    const found = selectableDepartments.find((item) =>
+      `${item.organizationId}:${item.departmentId}` === (batchDepartmentKey || currentDepartmentKey))
+    return found ?? {
+      organizationId: clinicalContext.organization.id,
+      organizationName: clinicalContext.organization.name,
+      departmentId: clinicalContext.department.id,
+      departmentName: clinicalContext.department.name,
+    }
+  }, [selectableDepartments, batchDepartmentKey, currentDepartmentKey, clinicalContext])
+
+  const batchApi = useMemo(() => {
+    if (typeof api.withWorkContext === 'function' && (
+      activeBatchDepartment.organizationId !== clinicalContext.organization.id ||
+      activeBatchDepartment.departmentId !== clinicalContext.department.id
+    )) {
+      return api.withWorkContext({
+        organizationId: activeBatchDepartment.organizationId,
+        departmentId: activeBatchDepartment.departmentId,
+      })
+    }
+    return api
+  }, [api, activeBatchDepartment, clinicalContext])
+
   const bootstrap = useQuery({ queryKey: ['scheduling-bootstrap', clinicalContext.department.id], queryFn: api.scheduling.bootstrap })
+  const batchBootstrap = useQuery({
+    queryKey: ['scheduling-bootstrap', activeBatchDepartment.departmentId],
+    queryFn: () => batchApi.scheduling.bootstrap(),
+    enabled: showBatchModal,
+  })
   const services = useQuery({
     queryKey: ['scheduling-services', clinicalContext.organization.id],
     queryFn: async () => (await api.masterData.services(
@@ -219,10 +250,10 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   useEffect(() => {
     initialized.current = false
     setPractitionerId('')
-    setRegistrationScope('DEPARTMENT')
     setCatalogItemId('')
+    setLocationName(clinicalContext.department.name || '门诊')
     setWorkspaceMode('SIMPLE')
-  }, [clinicalContext.department.id])
+  }, [clinicalContext.department.id, clinicalContext.department.name])
 
   useEffect(() => {
     if (!bootstrap.data || initialized.current) return
@@ -245,20 +276,36 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     }
   }, [catalogItemId, services.data])
 
+  useEffect(() => {
+    if (!showBatchModal) return
+    setLocationName(activeBatchDepartment.departmentName || '门诊')
+    setPractitionerId('')
+  }, [activeBatchDepartment.departmentId, activeBatchDepartment.departmentName, showBatchModal])
+
+  useEffect(() => {
+    if (!showBatchModal || !batchBootstrap.data) return
+    if (!practitionerId && batchBootstrap.data.practitioners.length) {
+      setPractitionerId(batchBootstrap.data.practitioners[0].id)
+    }
+  }, [batchBootstrap.data, practitionerId, showBatchModal])
+
   const createSchedules = useMutation({
-    mutationFn: () => api.scheduling.quickCreate({
+    mutationFn: () => batchApi.scheduling.quickCreate({
       registrationScope, practitionerId: registrationScope === 'PRACTITIONER' ? practitionerId : undefined,
       catalogItemId, dateFrom, dateTo, weekdays, dayParts,
       morningStart, morningEnd, afternoonStart, afternoonEnd, capacity: Number(capacity),
       locationName: locationName.trim() || undefined, idempotencyCode: crypto.randomUUID(),
     }),
     onSuccess: async (result) => {
-      setSuccess(`已生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复或冲突时段` : ''}`)
+      setSuccess(`已为【${activeBatchDepartment.departmentName}】生成 ${result.generatedCount} 个排班${result.skippedCount ? `，跳过 ${result.skippedCount} 个重复或冲突时段` : ''}`)
       setShowBatchModal(false)
       if (dateFrom) {
         setCurrentWeekMonday(getMonday(dateFrom))
       }
-      await queryClient.invalidateQueries({ queryKey: ['service-schedules', clinicalContext.department.id] })
+      await queryClient.invalidateQueries({ queryKey: ['service-schedules', activeBatchDepartment.departmentId] })
+      if (activeBatchDepartment.departmentId !== clinicalContext.department.id) {
+        onDepartmentChange?.(activeBatchDepartment.organizationId, activeBatchDepartment.departmentId)
+      }
     },
   })
 
@@ -393,7 +440,10 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
             专业模式{bootstrap.data?.sdManagementMode !== 'PROFESSIONAL' ? '（未启用）' : ''}
           </button>
         </div>
-        <Button onClick={() => setShowBatchModal(true)}><Icon name="add" />批量排班</Button>
+        <Button onClick={() => {
+          setBatchDepartmentKey(currentDepartmentKey)
+          setShowBatchModal(true)
+        }}><Icon name="add" />批量排班</Button>
         <Button variant="secondary" onClick={() => void schedules.refetch()}><Icon name="refresh" />刷新</Button>
       </>}
     />
@@ -583,7 +633,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
     {showBatchModal && (
       <Dialog
         title="批量排班"
-        eyebrow={`${clinicalContext.department.name} · 批量生成`}
+        eyebrow={`${activeBatchDepartment.departmentName} · 批量生成`}
         description="按星期与时段批量生成连续日期的排班与号源池，生成后可在周矩阵中直观调整。"
         size="wide"
         onClose={() => setShowBatchModal(false)}
@@ -613,13 +663,9 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
               </FormField>
 
               <FormField label="排班科室" required>
-                <Select value={currentDepartmentKey} clearable={false}
+                <Select value={`${activeBatchDepartment.organizationId}:${activeBatchDepartment.departmentId}`} clearable={false}
                   aria-label="排班科室" onChange={(value) => {
-                    const selected = selectableDepartments.find((item) =>
-                      `${item.organizationId}:${item.departmentId}` === value)
-                    if (selected && value !== currentDepartmentKey) {
-                      onDepartmentChange?.(selected.organizationId, selected.departmentId)
-                    }
+                    setBatchDepartmentKey(value)
                   }} options={selectableDepartments.map((item) => ({
                     value: `${item.organizationId}:${item.departmentId}`,
                     label: item.organizationId === clinicalContext.organization.id
@@ -631,7 +677,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
               {registrationScope === 'PRACTITIONER' ? (
                 <FormField label="出诊医生" required>
                   <Select value={practitionerId} onChange={setPractitionerId}
-                    placeholder="请选择医生" options={(bootstrap.data?.practitioners ?? []).map((item) => ({
+                    placeholder="请选择医生" options={(batchBootstrap.data?.practitioners ?? []).map((item) => ({
                       value: item.id, label: item.name, code: item.code,
                     }))} />
                 </FormField>
@@ -640,7 +686,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                   <Select value={catalogItemId} onChange={setCatalogItemId}
                     aria-label="门诊服务" placeholder="请选择门诊服务" popoverMinWidth={500}
                     options={(services.data ?? []).map((item) => serviceSelectOption(
-                      item, clinicalContext.organization.id, today))} />
+                      item, activeBatchDepartment.organizationId, today))} />
                 </FormField>
               )}
             </div>
@@ -651,7 +697,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                   <Select value={catalogItemId} onChange={setCatalogItemId}
                     aria-label="门诊服务" placeholder="请选择门诊服务" popoverMinWidth={500}
                     options={(services.data ?? []).map((item) => serviceSelectOption(
-                      item, clinicalContext.organization.id, today))} />
+                      item, activeBatchDepartment.organizationId, today))} />
                 </FormField>
                 <FormField label="诊室/地点">
                   <input value={locationName} onChange={(event) => setLocationName(event.target.value)}

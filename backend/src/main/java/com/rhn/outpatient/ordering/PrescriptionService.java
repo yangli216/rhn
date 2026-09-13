@@ -39,19 +39,101 @@ class PrescriptionService {
     private final ExecutionContextProvider contextProvider;
     private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final PrescriptionInventoryFreezePolicy freezePolicy;
+    private final PrescriptionSplitEngine splitEngine;
 
     PrescriptionService(PrescriptionRepository repository, MedicationRequestRepository medicationRepository,
                         MedicationRequestService medicationService, EncounterDirectory encounterDirectory,
                         OrganizationDirectory organizationDirectory, DomainEventPublisher eventPublisher,
                         ExecutionContextProvider contextProvider,
                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
-                        PrescriptionInventoryFreezePolicy freezePolicy) {
+                        PrescriptionInventoryFreezePolicy freezePolicy,
+                        PrescriptionSplitEngine splitEngine) {
         this.repository = repository; this.medicationRepository = medicationRepository;
         this.medicationService = medicationService; this.encounterDirectory = encounterDirectory;
         this.organizationDirectory = organizationDirectory; this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider;
         this.inventoryDirectory = inventoryDirectory;
         this.freezePolicy = freezePolicy;
+        this.splitEngine = splitEngine;
+    }
+
+    @Transactional(readOnly = true)
+    List<SplitPrescriptionPlan> previewSplit(Long encounterId, List<BatchOrderMedicationItem> items) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        return splitEngine.plan(encounter, items);
+    }
+
+    @Transactional
+    List<PrescriptionResponse> batchOrder(Long encounterId, BatchOrderPrescriptionRequest request) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        ExecutionContext context = contextProvider.requireCurrent();
+        Long tenantId = TenantContext.requireTenantId();
+        List<SplitPrescriptionPlan> plans = splitEngine.plan(encounter, request.items());
+        List<PrescriptionResponse> createdPrescriptions = new java.util.ArrayList<>();
+
+        for (SplitPrescriptionPlan plan : plans) {
+            Long organizationId = encounter.organizationId();
+            Long departmentId = encounter.departmentId();
+            requireScope(context, tenantId, organizationId, departmentId);
+
+            Prescription prescription = repository.saveAndFlush(new Prescription(
+                    tenantId, encounter.residentId(), encounterId,
+                    nextPrescriptionNo(), plan.categoryCode(), organizationId, departmentId,
+                    context.subjectId(), plan.title()
+            ));
+            publish(prescription, "PRESCRIPTION_DRAFT_CREATED", "批量自动分方建立处方草稿",
+                    Map.of("itemCount", plan.items().size(), "reasons", plan.ruleReasons()));
+
+            Map<String, Long> groupLeaderIds = new java.util.HashMap<>();
+            for (SplitPrescriptionPlan.PlannedMedicationItem plannedItem : plan.items()) {
+                BatchOrderMedicationItem item = plannedItem.item();
+                Long parentRequestId = null;
+                if (plannedItem.groupKey() != null && !plannedItem.groupLeader()) {
+                    parentRequestId = groupLeaderIds.get(plannedItem.groupKey());
+                }
+
+                CreateMedicationRequest createRequest = new CreateMedicationRequest(
+                        prescription.id(),
+                        item.medicationId(),
+                        item.catalogItemId(),
+                        item.packageId(),
+                        item.doseValue(),
+                        item.doseUnit(),
+                        item.routeCode(),
+                        item.frequencyCode(),
+                        parentRequestId,
+                        item.durationValue(),
+                        item.durationUnit(),
+                        item.quantity(),
+                        item.quantityUnit(),
+                        item.substitutionAllowed(),
+                        item.selfProvided(),
+                        item.medicationInstruction(),
+                        item.allergyReviewConfirmed(),
+                        item.allergyOverrideReason(),
+                        item.priceType(),
+                        item.pricingRequired(),
+                        null,
+                        organizationId,
+                        departmentId,
+                        item.reason() != null ? item.reason() : plan.title()
+                );
+
+                MedicationRequestResponse medResp = medicationService.create(encounterId, createRequest);
+                if (plannedItem.groupKey() != null && plannedItem.groupLeader()) {
+                    groupLeaderIds.put(plannedItem.groupKey(), medResp.id());
+                }
+            }
+
+            if (request.autoSubmit()) {
+                createdPrescriptions.add(submit(encounterId, prescription.id(),
+                        new PrescriptionAction(prescription.revision(), null)));
+            } else {
+                createdPrescriptions.add(response(prescription));
+            }
+        }
+
+        return createdPrescriptions;
     }
 
     @Transactional
@@ -89,22 +171,23 @@ class PrescriptionService {
 
         // 检查系统参数并执行库存冻结
         if (freezePolicy.isInventoryFreezeEnabled(context, encounter.organizationId(), encounter.departmentId())) {
-            List<PrescriptionItemFreezeRequest> freezeItems = drafts.stream().map(req -> new PrescriptionItemFreezeRequest(
-                    req.id(),
-                    req.catalogItemId(),
-                    req.packageId(),
-                    req.quantity(),
-                    req.quantityUnit()
-            )).toList();
-            inventoryDirectory.freezePrescription(new PrescriptionFreezeCommand(
-                    encounter.tenantId(),
-                    encounter.organizationId(),
-                    encounter.departmentId(),
-                    encounterId,
-                    prescriptionId,
-                    freezeItems,
-                    context.subjectId()
-            ));
+            List<PrescriptionItemFreezeRequest> freezeItems = drafts.stream()
+                    .filter(request -> !request.selfProvided())
+                    .map(request -> new PrescriptionItemFreezeRequest(
+                            request.id(), request.catalogItemId(), request.packageId(),
+                            request.quantity(), request.quantityUnit()))
+                    .toList();
+            if (!freezeItems.isEmpty()) {
+                inventoryDirectory.freezePrescription(new PrescriptionFreezeCommand(
+                        encounter.tenantId(),
+                        encounter.organizationId(),
+                        encounter.departmentId(),
+                        encounterId,
+                        prescriptionId,
+                        freezeItems,
+                        context.subjectId()
+                ));
+            }
         }
 
         drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));

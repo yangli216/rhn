@@ -13,4 +13,5 @@ public interface PrintTemplateRepository extends JpaRepository<PrintTemplate, Lo
             String documentType, String status);
     List<PrintTemplate> findByTenantIdAndStatusOrderByDocumentType(Long tenantId, String status);
     List<PrintTemplate> findByTenantIdIsNullAndStatusOrderByDocumentType(String status);
+    Optional<PrintTemplate> findByTenantIdAndTemplateCode(Long tenantId, String templateCode);
 }

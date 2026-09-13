@@ -259,7 +259,7 @@ export function PatientIdentitySearch({
             })}</div>
           </div> : <div className="ui-patient-search__empty"><Icon name="residents" /><div><strong>{emptyTitle}</strong><span>未找到匹配记录，可核对条件后重试。</span></div></div>)}
         </div>
-        <button className="ui-button ui-button--secondary ui-button--sm" type="button" onClick={submit}
+        <button className="ui-button ui-button--secondary ui-button--md" type="button" onClick={submit}
           disabled={disabled || normalized.length < minimumQueryLength || residents.isFetching}>
           {residents.isFetching && <span className="ui-spinner" aria-hidden="true" style={{ width: '0.875rem', height: '0.875rem' }} />}
           <span className="ui-button__label">{residents.isFetching ? '查询中…' : '查询'}</span>

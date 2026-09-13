@@ -16,7 +16,8 @@ import type {
   CreateOutpatientReferralInput, OutpatientReferral, OutpatientReferralStatus, OutpatientReferralType,
 } from '../../shared/api/outpatientReferralsApi'
 import type {
-  ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput, MedicationRequest, Prescription,
+  BatchOrderMedicationItem, ClinicalRecordInput, CompleteEncounterInput, DiagnosisInput,
+  MedicationRequest, Prescription, ServiceRequest, SplitPrescriptionPlan,
 } from '../../shared/api/encountersApi'
 import type { TerminateEncounterInput } from '../../shared/api/outpatientFlowApi'
 import type { OutpatientPlanTemplate, OutpatientPlanTemplateScope } from '../../shared/api/outpatientPlanTemplatesApi'
@@ -27,7 +28,7 @@ import type {
   OutpatientNoteForm, OutpatientNoteFormField,
 } from '../../shared/api/outpatientNoteFormsApi'
 import type { PrintPurpose, PrintReceipt, PrintRecord } from '../../shared/api/printingApi'
-import type { AllergyIntolerance } from '../../shared/api/residentsApi'
+import type { AllergenTerm, AllergyIntolerance } from '../../shared/api/residentsApi'
 import type { ReceptionQueueItem, ReceptionQueueScope } from '../../shared/api/schedulingApi'
 import type { Encounter, Resident } from '../../shared/model'
 import { age, formatTime, genderLabel } from '../../shared/format'
@@ -38,7 +39,7 @@ import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../sha
 import {
   Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
-  type ClinicalResourceOption, type SelectOption,
+  Tooltip, type ClinicalResourceOption, type SelectOption,
 } from '../../shared/ui'
 import {
   isInfusionRoute, type MedicationPlanDraft,
@@ -427,7 +428,7 @@ export function QueueRow({ item, busy, canEdit, onEnter, onView }: {
   </article>
 }
 
-type WorkTool = 'assistant' | 'history' | 'results' | 'coordination'
+type WorkTool = 'assistant' | 'history' | 'results' | 'coordination' | 'allergy'
 type GuardedPatientAction = 'queue' | 'suspend' | 'complete' | 'terminate'
 type HistoryRecordField = 'chiefComplaint' | 'presentIllness' | 'medicalHistory' | 'physicalExam' | 'treatmentPlan'
 type HistoryCopyField = HistoryRecordField | `diagnosis:${string}`
@@ -460,7 +461,6 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
   const [completionOpen, setCompletionOpen] = useState(false)
   const [suspensionOpen, setSuspensionOpen] = useState(false)
   const [terminationOpen, setTerminationOpen] = useState(false)
-  const [allergyOpen, setAllergyOpen] = useState(false)
   const [historyCopy, setHistoryCopy] = useState<HistoryCopyDraft | null>(null)
   const [aiFieldStream, setAiFieldStream] = useState<ClinicalAiFieldStream | null>(null)
   const [aiOrderReview, setAiOrderReview] = useState<AiOrderReviewCommand | null>(null)
@@ -550,7 +550,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     setAiContext(null)
     setAiDraft(null)
     setAiAdoptionBusy(false)
-    setActiveTool((current) => current === 'assistant' ? null : current)
+    setActiveTool((current) => current === 'assistant' || current === 'allergy' ? null : current)
   }, [encounter?.id])
   useEffect(() => {
     if (!hasUnsavedDraft) return
@@ -694,12 +694,14 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
         }] : []),
         { label: '过敏信息', value: <AllergyContextValue allergies={allergies.data ?? []}
           loading={allergies.isPending} error={allergies.error} disabled={!encounter}
-          onClick={() => setAllergyOpen(true)} /> }]}
+          onClick={() => setActiveTool(toggleTool(activeTool, 'allergy'))} /> }]}
       actions={<div className="doctor-context-actions">
-        <Button size="sm" variant="secondary" aria-label="返回患者列表"
-          title="退出当前患者并返回患者列表" onClick={() => requestAction('queue')}>
-          <Icon name="arrow-left" /><span>返回列表</span>
-        </Button>
+        {entryIntent === 'READ' && !editing && (
+          <Button size="sm" variant="secondary" aria-label="返回患者列表"
+            title="退出当前患者并返回患者列表" onClick={() => requestAction('queue')}>
+            <Icon name="arrow-left" /><span>返回列表</span>
+          </Button>
+        )}
         {encounter && <>
           <StatusBadge tone={encounterStatusPresentation(encounter.status).tone}>
             {encounterStatusPresentation(encounter.status).label}</StatusBadge>
@@ -788,9 +790,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted,
               })}
               historyEncounters={encounters.data ?? []} />}
-          {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}`}
+          {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}`}
             aria-label={toolLabel(activeTool)}>
-            <header><div><span>扩展业务</span><strong>{toolLabel(activeTool)}</strong></div>
+            <header><div><span>{activeTool === 'allergy' ? `${resident.fullName} · 患者安全` : '扩展业务'}</span><strong>{toolLabel(activeTool)}</strong></div>
               <button type="button" aria-label="关闭扩展工具" disabled={activeTool === 'assistant' && aiAdoptionBusy}
                 onClick={() => setActiveTool(null)}><Icon name="close" /></button></header>
             <div className="doctor-workspace-drawer__content">
@@ -799,6 +801,9 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 currentEncounterId={encounter.id} api={api} allergies={allergies.data ?? []} allergyReady={allergyState === 'READY'} copyDisabled={!editing || encounter.status !== 'IN_PROGRESS' || outpatientNote?.status === 'SIGNED'}
                 onCopy={(draft) => { setHistoryCopy({ ...draft, targetEncounterId: encounter.id, targetResidentId: encounter.residentId }); setActiveTool(null) }} />}
               {activeTool === 'results' && <ResultsPanel encounter={encounter} api={api} />}
+              {activeTool === 'allergy' && <AllergySafetyPanel resident={resident} encounter={encounter}
+                allergies={allergies.data ?? []} loading={allergies.isPending} error={allergies.error}
+                api={api} readOnly={!editing} />}
               {activeTool === 'coordination' && editing && <ReferralCoordinationPanel encounter={encounter}
                 clinicalContext={clinicalContext} api={api} hasUnsavedDraft={hasUnsavedDraft} onRefresh={refresh} />}
             </div>
@@ -830,13 +835,6 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
     {terminationOpen && encounter && <EncounterTerminationDialog encounter={encounter} api={api}
       busy={terminate.isPending} error={terminate.error} onClose={() => setTerminationOpen(false)}
       onConfirm={(input) => terminate.mutate(input)} />}
-    {allergyOpen && encounter && <Dialog title="过敏信息" eyebrow={`${resident.fullName} · 患者安全`}
-      description={editing ? '核对并维护患者过敏事实，变更将关联当前就诊留痕。' : '当前为阅读状态，仅展示已记录的过敏事实。'}
-      size="wide" onClose={() => setAllergyOpen(false)}
-      footer={<Button variant="secondary" onClick={() => setAllergyOpen(false)}>关闭</Button>}>
-      <AllergySafetyPanel resident={resident} encounter={encounter} allergies={allergies.data ?? []}
-        loading={allergies.isPending} error={allergies.error} api={api} readOnly={!editing} dialog />
-    </Dialog>}
     {guardedAction && <UnsavedPatientWorkDialog residentName={resident.fullName} action={guardedAction}
       labels={draftLabels} saving={draftState.busy} onClose={() => setGuardedAction(null)}
       onSaveAndContinue={() => saveAndContinue(guardedAction)} onDiscard={() => runAction(guardedAction)} />}
@@ -957,8 +955,12 @@ function AllergyContextValue({ allergies, loading, error, disabled, onClick }: {
   const summary = loading ? '加载中…' : error ? '读取失败' : actual.length
     ? `${actual.slice(0, 2).map((item) => item.substanceDisplay).join('、')}${actual.length > 2 ? `等${actual.length}项` : ''}`
     : noKnown ? '无已知药物过敏' : '尚未核对'
-  return <button type="button" className={`doctor-context-allergy is-${tone}`} disabled={disabled}
-    title={`${summary}；点击查看和维护`} onClick={onClick}><span>{summary}</span><Icon name="chevron-right" /></button>
+  return <Tooltip content={`${summary}；点击查看和维护`}>
+    <button type="button" className={`doctor-context-allergy is-${tone}`} disabled={disabled}
+      aria-label={`过敏信息：${summary}，点击查看和维护`} onClick={onClick}>
+      <span>{summary}</span><Icon name="chevron-right" />
+    </button>
+  </Tooltip>
 }
 
 function toggleTool(current: WorkTool | null, next: WorkTool): WorkTool | null {
@@ -966,7 +968,8 @@ function toggleTool(current: WorkTool | null, next: WorkTool): WorkTool | null {
 }
 
 function toolLabel(value: WorkTool) {
-  return ({ assistant: '智医助理', history: '就诊历史', results: '检验检查结果', coordination: '协同业务' } as const)[value]
+  return ({ assistant: '智医助理', history: '就诊历史', results: '检验检查结果', coordination: '协同业务',
+    allergy: '过敏信息' } as const)[value]
 }
 
 function ToolButton({ icon, label, active, onClick }: {
@@ -1227,26 +1230,36 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
   </Dialog>
 }
 
-function AllergySafetyPanel({ resident, encounter, allergies, loading, error, api, readOnly = false, dialog = false }: {
+export function AllergySafetyPanel({ resident, encounter, allergies, loading, error, api, readOnly = false }: {
   resident: Resident; encounter: Encounter; allergies: AllergyIntolerance[]; loading: boolean; error: unknown; api: RhnApi
-  readOnly?: boolean; dialog?: boolean
+  readOnly?: boolean
 }) {
   const queryClient = useQueryClient()
-  const [editing, setEditing] = useState(false)
   const [category, setCategory] = useState<NonNullable<AllergyIntolerance['categoryCode']>>('DRUG')
   const [criticality, setCriticality] = useState<NonNullable<AllergyIntolerance['criticalityCode']>>('UNABLE_TO_ASSESS')
   const [severity, setSeverity] = useState<NonNullable<AllergyIntolerance['reactionSeverity']>>('MILD')
   const [substance, setSubstance] = useState('')
-  const [substanceCode, setSubstanceCode] = useState('')
+  const [selectedAllergenId, setSelectedAllergenId] = useState('')
+  const [customAllergen, setCustomAllergen] = useState(false)
   const [reaction, setReaction] = useState('')
+  const allergenTerms = useQuery({
+    queryKey: ['allergen-terms', category],
+    queryFn: () => typeof api.residents.allergenTerms === 'function'
+      ? api.residents.allergenTerms(category) : Promise.resolve([] as AllergenTerm[]),
+    enabled: !readOnly,
+  })
+  const selectedAllergen = allergenTerms.data?.find((item) => item.id === selectedAllergenId)
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['doctor-allergies', resident.id] })
   const record = useMutation({
     mutationFn: () => api.residents.recordAllergy(resident.id, {
       encounterId: encounter.id, assertionType: 'ALLERGY', categoryCode: category, criticalityCode: criticality,
-      reactionSeverity: severity, informationSource: 'PATIENT', substanceDisplay: substance.trim(),
-      substanceCode: substanceCode.trim() || undefined, reactionText: reaction.trim() || undefined,
+      reactionSeverity: severity, informationSource: 'PATIENT', allergenId: selectedAllergen?.id,
+      substanceDisplay: selectedAllergen?.display ?? substance.trim(),
+      substanceCodeSystemUri: selectedAllergen?.codeSystemUri,
+      substanceCode: selectedAllergen?.code, reactionText: reaction.trim() || undefined,
     }),
-    onSuccess: async () => { setEditing(false); setSubstance(''); setSubstanceCode(''); setReaction(''); await refresh() },
+    onSuccess: async () => { setSubstance(''); setSelectedAllergenId('');
+      setCustomAllergen(false); setReaction(''); await refresh() },
   })
   const noKnown = useMutation({
     mutationFn: () => api.residents.recordAllergy(resident.id, {
@@ -1262,46 +1275,73 @@ function AllergySafetyPanel({ resident, encounter, allergies, loading, error, ap
   const noKnownAssertion = allergies.find((item) => item.assertionType !== 'ALLERGY')
   const mutationError = record.error || noKnown.error || inactivate.error
 
-  return <section className={`doctor-allergy-safety ${dialog ? 'doctor-allergy-safety--dialog ' : ''}${actual.length ? 'is-risk' : noKnownAssertion ? 'is-clear' : 'is-unknown'}`}
+  const categoryOptions = [
+    { value: 'DRUG', label: '药物' }, { value: 'FOOD', label: '食物' },
+    { value: 'ENVIRONMENT', label: '环境' }, { value: 'BIOLOGIC', label: '生物制品' }, { value: 'OTHER', label: '其他' },
+  ]
+
+  return <section className={`doctor-allergy-safety ${actual.length ? 'is-risk' : noKnownAssertion ? 'is-clear' : 'is-unknown'}`}
     aria-label="患者过敏安全信息">
-    <div className="doctor-allergy-heading"><span>过敏安全</span>{loading ? <small>加载中…</small>
-      : actual.length ? <strong>{actual.length} 项有效过敏记录</strong>
-        : noKnownAssertion ? <strong>已确认无已知药物过敏</strong> : <strong>尚未核对过敏信息</strong>}</div>
-    {actual.length > 0 && <div className="doctor-allergy-list">{actual.map((item) => <span key={item.id}>
-      <strong>{item.substanceDisplay}</strong>
-      <small>{[allergyCategoryLabel(item.categoryCode), allergySeverityLabel(item.reactionSeverity), item.reactionText]
-        .filter(Boolean).join(' · ')}</small>
-      {!readOnly && <Button size="sm" variant="text" busy={inactivate.isPending}
-        onClick={() => { if (window.confirm(`确认停用“${item.substanceDisplay}”过敏记录？`)) inactivate.mutate(item) }}>停用</Button>
-      }
-    </span>)}</div>}
-    {!loading && !readOnly && <div className="doctor-allergy-actions">
-      <Button size="sm" variant="secondary" onClick={() => setEditing((value) => !value)}>{editing ? '取消录入' : '记录过敏'}</Button>
-      {allergies.length === 0 && <Button size="sm" variant="text" busy={noKnown.isPending}
+    <div className="doctor-allergy-overview">
+      <span className="doctor-allergy-overview__icon" aria-hidden="true"><Icon name={actual.length ? 'warning' : noKnownAssertion ? 'check' : 'info'} /></span>
+      <div><span>当前过敏状态</span>{loading ? <strong>正在加载</strong>
+        : actual.length ? <strong>{actual.length} 项有效过敏记录</strong>
+          : noKnownAssertion ? <strong>已确认无已知药物过敏</strong> : <strong>尚未核对过敏信息</strong>}
+        <small>{readOnly ? '当前为阅读状态' : '变更将关联本次就诊并留痕'}</small></div>
+      {!loading && !readOnly && allergies.length === 0 && <Button size="sm" variant="secondary" busy={noKnown.isPending}
         onClick={() => noKnown.mutate()}>确认无已知药物过敏</Button>}
-    </div>}
-    {editing && <div className="doctor-allergy-editor">
-      <FormField label="类别" required><select value={category}
-        onChange={(event) => setCategory(event.target.value as typeof category)}>
-        <option value="DRUG">药物</option><option value="FOOD">食物</option><option value="ENVIRONMENT">环境</option>
-        <option value="BIOLOGIC">生物制品</option><option value="OTHER">其他</option>
-      </select></FormField>
-      <FormField label="过敏原" required><input value={substance} maxLength={300}
-        onChange={(event) => setSubstance(event.target.value)} placeholder="如青霉素" /></FormField>
-      <FormField label="药品/物质编码"><input value={substanceCode} maxLength={128}
-        onChange={(event) => setSubstanceCode(event.target.value)} placeholder="有标准编码时填写" /></FormField>
-      <FormField label="危急程度"><select value={criticality}
-        onChange={(event) => setCriticality(event.target.value as typeof criticality)}>
-        <option value="HIGH">高</option><option value="LOW">低</option><option value="UNABLE_TO_ASSESS">无法评估</option>
-      </select></FormField>
-      <FormField label="反应严重度"><select value={severity}
-        onChange={(event) => setSeverity(event.target.value as typeof severity)}>
-        <option value="MILD">轻度</option><option value="MODERATE">中度</option><option value="SEVERE">重度</option>
-      </select></FormField>
+    </div>
+
+    <div className="doctor-allergy-records">
+      <header><strong>有效记录</strong><span>{actual.length} 项</span></header>
+      {actual.length > 0 ? <div className="doctor-allergy-list">{actual.map((item) => <article key={item.id}>
+        <div><strong>{item.substanceDisplay}</strong>
+          <small>{[allergyCategoryLabel(item.categoryCode), allergySeverityLabel(item.reactionSeverity),
+            allergyCriticalityLabel(item.criticalityCode), item.reactionText].filter(Boolean).join(' · ')}</small></div>
+        {!readOnly && <Popconfirm title={`停用“${item.substanceDisplay}”过敏记录？`}
+          description="停用后不再参与处方过敏校验，操作会保留审计记录。" okText="确认停用"
+          onConfirm={async () => { await inactivate.mutateAsync(item) }}>
+          <Button size="sm" variant="text">停用</Button>
+        </Popconfirm>}
+      </article>)}</div> : <p className="doctor-allergy-empty">当前没有有效过敏事实。</p>}
+    </div>
+
+    {!readOnly && <form className="doctor-allergy-editor" onSubmit={(event) => { event.preventDefault(); record.mutate() }}>
+      <header><div><strong>新增过敏事实</strong><small>优先选择标准过敏原，用于处方自动匹配与安全提醒。</small></div>
+        <Button size="sm" variant="text" onClick={() => {
+          setCustomAllergen((value) => !value); setSelectedAllergenId(''); setSubstance('')
+        }}>{customAllergen ? '返回标准过敏原' : '标准库未收录？手工录入'}</Button></header>
+      <div className="doctor-allergy-editor__grid">
+        <FormField label="类别" required><Select value={category} searchable={false} clearable={false}
+          onChange={(next) => { setCategory(next as typeof category); setSelectedAllergenId('');
+            setSubstance(''); setCustomAllergen(false) }} options={categoryOptions} /></FormField>
+        <FormField label="危急程度"><Select value={criticality} searchable={false} clearable={false}
+          onChange={(next) => setCriticality(next as typeof criticality)} options={[
+            { value: 'HIGH', label: '高危' }, { value: 'LOW', label: '低危' }, { value: 'UNABLE_TO_ASSESS', label: '无法评估' },
+          ]} /></FormField>
+        {!customAllergen ? <FormField className="doctor-allergy-editor__wide" label="标准过敏原" required>
+          <Select value={selectedAllergenId} onChange={setSelectedAllergenId} searchable clearable
+          loading={allergenTerms.isLoading} searchPlaceholder="输入名称、别名或编码"
+          placeholder="搜索并选择标准过敏原" options={(allergenTerms.data ?? []).map((item) => ({
+            value: item.id, label: item.display, secondaryText: item.code,
+            description: allergenConceptTypeLabel(item.conceptType),
+            searchKeywords: [item.code, item.aliases ?? ''],
+          }))} />
+        </FormField> : <FormField className="doctor-allergy-editor__wide" label="过敏原（非标准）" required>
+        <input value={substance} maxLength={300} onChange={(event) => setSubstance(event.target.value)}
+          placeholder="输入过敏原名称" />
+      </FormField>}
+      <FormField label="反应严重度"><Select value={severity} searchable={false} clearable={false}
+        onChange={(next) => setSeverity(next as typeof severity)} options={[
+          { value: 'MILD', label: '轻度' }, { value: 'MODERATE', label: '中度' }, { value: 'SEVERE', label: '重度' },
+        ]} /></FormField>
       <FormField label="过敏反应"><input value={reaction} maxLength={1000}
         onChange={(event) => setReaction(event.target.value)} placeholder="如皮疹、呼吸困难" /></FormField>
-      <Button size="sm" busy={record.isPending} disabled={!substance.trim()} onClick={() => record.mutate()}>保存过敏事实</Button>
-    </div>}
+      </div>
+      <footer><Button type="submit" busy={record.isPending} disabled={!selectedAllergenId && !substance.trim()}>
+        <Icon name="check" />记录过敏事实
+      </Button></footer>
+    </form>}
     {(error || mutationError) && <Alert>{errorMessage(error || mutationError)}</Alert>}
   </section>
 }
@@ -1312,6 +1352,15 @@ function allergyCategoryLabel(value?: AllergyIntolerance['categoryCode']) {
 
 function allergySeverityLabel(value?: AllergyIntolerance['reactionSeverity']) {
   return value ? ({ MILD: '轻度', MODERATE: '中度', SEVERE: '重度' } as const)[value] : ''
+}
+
+function allergyCriticalityLabel(value?: AllergyIntolerance['criticalityCode']) {
+  return value ? ({ LOW: '低危', HIGH: '高危', UNABLE_TO_ASSESS: '危急程度未评估' } as const)[value] : ''
+}
+
+function allergenConceptTypeLabel(value: AllergenTerm['conceptType']) {
+  return ({ DRUG_INGREDIENT: '药物成分', DRUG_CLASS: '药物类别', FOOD: '食物', ENVIRONMENT: '环境',
+    BIOLOGIC: '生物制品', MATERIAL: '材料', OTHER: '其他' } as const)[value]
 }
 
 
@@ -1804,76 +1853,112 @@ export function prescriptionSplitSummary(drafts: MedicationPlanDraft[], existing
   }))
 }
 
+export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicationItem {
+  return {
+    medicationId: draft.request.medicationId,
+    catalogItemId: draft.request.catalogItemId,
+    packageId: draft.request.packageId,
+    doseValue: draft.request.doseValue,
+    doseUnit: draft.request.doseUnit,
+    routeCode: draft.request.routeCode,
+    frequencyCode: draft.request.frequencyCode,
+    durationValue: draft.request.durationValue,
+    durationUnit: draft.request.durationUnit,
+    quantity: draft.request.quantity,
+    quantityUnit: draft.request.quantityUnit,
+    substitutionAllowed: draft.request.substitutionAllowed ?? true,
+    selfProvided: draft.request.selfProvided ?? false,
+    medicationInstruction: draft.request.medicationInstruction,
+    allergyReviewConfirmed: draft.request.allergyReviewConfirmed,
+    allergyOverrideReason: draft.request.allergyOverrideReason,
+    priceType: draft.request.priceType,
+    pricingRequired: draft.request.pricingRequired,
+    stockSiteName: draft.stockSiteName,
+    administrationGroupKey: draft.administrationGroupKey,
+    routeExecutionType: draft.routeExecutionType,
+    categoryCode: draft.categoryCode,
+    reason: draft.request.reason,
+  }
+}
+
 export async function persistOrderDrafts(
   encounterId: string | number,
   medDrafts: MedicationPlanDraft[],
   svcDrafts: ServicePlanDraft[],
   api: RhnApi,
-  existingPrescriptions: Prescription[] = []
+  existingPrescriptions: Prescription[] = [],
+  autoSubmit = false,
 ) {
   if (medDrafts.length === 0 && svcDrafts.length === 0) return
   const encId = String(encounterId)
 
-  const prescriptionsByCategory = new Map<string, Prescription[]>()
-  const requestsByPrescription = new Map<string, MedicationRequest[]>()
-  for (const value of existingPrescriptions) {
-    if (value.status === 'DRAFT') {
-      const values = prescriptionsByCategory.get(value.categoryCode) ?? []
-      values.push(value)
-      prescriptionsByCategory.set(value.categoryCode, values)
-    }
-    requestsByPrescription.set(value.id, [...value.medicationRequests])
-  }
-
-  const infusionRoots = new Map<string, string>()
-  const infusionSignatures = new Map<string, string>()
-  for (const prescription of existingPrescriptions) {
-    for (const request of prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED'
-      && isInfusionRoute(value.routeCode, value.routeExecutionType))) {
-      const rootId = request.parentRequestId || request.id
-      infusionRoots.set(`request:${rootId}`, rootId)
-      infusionSignatures.set(`request:${rootId}`, infusionGroupSignature(request))
-    }
-  }
-
-  for (const draft of medDrafts) {
-    const categoryPrescriptions = prescriptionsByCategory.get(draft.categoryCode) ?? []
-    let prescription = draft.categoryCode === 'HERBAL'
-      ? categoryPrescriptions[0]
-      : categoryPrescriptions.find((value) => (requestsByPrescription.get(value.id) ?? [])
-          .filter((request) => request.status !== 'CANCELLED').length < 5)
-    if (!prescription) {
-      prescription = await api.encounters.createPrescription(
-        encId,
-        draft.categoryCode,
-        draft.categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方'
-      )
-      categoryPrescriptions.push(prescription)
-      prescriptionsByCategory.set(draft.categoryCode, categoryPrescriptions)
-      requestsByPrescription.set(prescription.id, [])
-    }
-    const existingRequests = requestsByPrescription.get(prescription.id) ?? []
-    let parentRequestId: string | undefined
-    if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey) {
-      const signature = infusionGroupSignature(draft)
-      const existingSignature = infusionSignatures.get(draft.administrationGroupKey)
-      if (existingSignature && existingSignature !== signature) {
-        throw new Error('同一输液组的给药途径、频次和疗程必须一致')
+  if (medDrafts.length > 0) {
+    if (typeof api.encounters?.batchOrderPrescriptions === 'function') {
+      const items = medDrafts.map(draftToBatchItem)
+      await api.encounters.batchOrderPrescriptions(encId, { items, autoSubmit })
+    } else {
+      const prescriptionsByCategory = new Map<string, Prescription[]>()
+      const requestsByPrescription = new Map<string, MedicationRequest[]>()
+      for (const value of existingPrescriptions) {
+        if (value.status === 'DRAFT') {
+          const values = prescriptionsByCategory.get(value.categoryCode) ?? []
+          values.push(value)
+          prescriptionsByCategory.set(value.categoryCode, values)
+        }
+        requestsByPrescription.set(value.id, [...value.medicationRequests])
       }
-      parentRequestId = infusionRoots.get(draft.administrationGroupKey)
-      infusionSignatures.set(draft.administrationGroupKey, signature)
+
+      const infusionRoots = new Map<string, string>()
+      const infusionSignatures = new Map<string, string>()
+      for (const prescription of existingPrescriptions) {
+        for (const request of prescription.medicationRequests.filter((value) => value.status !== 'CANCELLED'
+          && isInfusionRoute(value.routeCode, value.routeExecutionType))) {
+          const rootId = request.parentRequestId || request.id
+          infusionRoots.set(`request:${rootId}`, rootId)
+          infusionSignatures.set(`request:${rootId}`, infusionGroupSignature(request))
+        }
+      }
+
+      for (const draft of medDrafts) {
+        const categoryPrescriptions = prescriptionsByCategory.get(draft.categoryCode) ?? []
+        let prescription = draft.categoryCode === 'HERBAL'
+          ? categoryPrescriptions[0]
+          : categoryPrescriptions.find((value) => (requestsByPrescription.get(value.id) ?? [])
+              .filter((request) => request.status !== 'CANCELLED').length < 5)
+        if (!prescription) {
+          prescription = await api.encounters.createPrescription(
+            encId,
+            draft.categoryCode,
+            draft.categoryCode === 'HERBAL' ? '门诊草药处方' : '门诊西药/中成药处方'
+          )
+          categoryPrescriptions.push(prescription)
+          prescriptionsByCategory.set(draft.categoryCode, categoryPrescriptions)
+          requestsByPrescription.set(prescription.id, [])
+        }
+        const existingRequests = requestsByPrescription.get(prescription.id) ?? []
+        let parentRequestId: string | undefined
+        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey) {
+          const signature = infusionGroupSignature(draft)
+          const existingSignature = infusionSignatures.get(draft.administrationGroupKey)
+          if (existingSignature && existingSignature !== signature) {
+            throw new Error('同一输液组的给药途径、频次和疗程必须一致')
+          }
+          parentRequestId = infusionRoots.get(draft.administrationGroupKey)
+          infusionSignatures.set(draft.administrationGroupKey, signature)
+        }
+        const created = await api.encounters.createMedicationRequest(encId, {
+          ...draft.request,
+          prescriptionId: prescription.id,
+          parentRequestId,
+        })
+        if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey
+          && !infusionRoots.has(draft.administrationGroupKey)) {
+          infusionRoots.set(draft.administrationGroupKey, created.id)
+        }
+        existingRequests.push(created)
+        requestsByPrescription.set(prescription.id, existingRequests)
+      }
     }
-    const created = await api.encounters.createMedicationRequest(encId, {
-      ...draft.request,
-      prescriptionId: prescription.id,
-      parentRequestId,
-    })
-    if (isInfusionRoute(draft.request.routeCode, draft.routeExecutionType) && draft.administrationGroupKey
-      && !infusionRoots.has(draft.administrationGroupKey)) {
-      infusionRoots.set(draft.administrationGroupKey, created.id)
-    }
-    existingRequests.push(created)
-    requestsByPrescription.set(prescription.id, existingRequests)
   }
 
   for (const draft of svcDrafts) {
@@ -3224,6 +3309,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const [reviewOpen, setReviewOpen] = useState(false)
   const [ordersHovered, setOrdersHovered] = useState(false)
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
+  const [printServiceRequest, setPrintServiceRequest] = useState<ServiceRequest | null>(null)
   useEffect(() => {
     setReviewOpen(false)
   }, [encounter.id])
@@ -3265,15 +3351,23 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       await refresh()
     },
   })
+  const splitPreview = useQuery({
+    queryKey: ['auto-split-preview', encounter.id, medicationDrafts],
+    queryFn: () => medicationDrafts.length > 0
+      ? api.encounters.autoSplitPreview(encounter.id, medicationDrafts.map(draftToBatchItem))
+      : Promise.resolve<SplitPrescriptionPlan[]>([]),
+    enabled: reviewOpen && medicationDrafts.length > 0,
+  })
   const confirmPlan = useMutation({
     mutationFn: async () => {
-      const currentPrescriptions = await api.encounters.prescriptions(encounter.id).catch(() => prescriptions.data ?? [])
-      await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, currentPrescriptions)
+      await persistOrderDrafts(encounter.id, medicationDrafts, serviceDrafts, api, [], true)
       const latest = await api.encounters.prescriptions(encounter.id)
       const draftsToSubmit = latest.filter((value) => value.status === 'DRAFT'
         && value.medicationRequests.some((request) => request.status === 'DRAFT'))
-      await Promise.all(draftsToSubmit.map((value) =>
-        api.encounters.submitPrescription(encounter.id, value.id, value.revision)))
+      if (draftsToSubmit.length > 0) {
+        await Promise.all(draftsToSubmit.map((value) =>
+          api.encounters.submitPrescription(encounter.id, value.id, value.revision)))
+      }
     },
     onSuccess: async () => {
       setMedicationDrafts([])
@@ -3314,21 +3408,136 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending}
           onCancelMedication={(item) => cancelMedication.mutate(item)}
           onCancelService={(item) => cancelService.mutate(item)}
-          onPrint={setPrintPrescription} />}
+          onPrint={setPrintPrescription} onPrintService={setPrintServiceRequest} />}
     </div>
     {reviewOpen && <Dialog title="审核诊疗方案" eyebrow="本次就诊" size="wide" closeOnBackdrop={false}
       onClose={() => !confirmPlan.isPending && setReviewOpen(false)}
       footer={<><Button variant="secondary" disabled={confirmPlan.isPending} onClick={() => setReviewOpen(false)}>返回修改</Button>
         <Button busy={confirmPlan.isPending} disabled={planCount === 0} onClick={() => confirmPlan.mutate()}>确认保存并开立</Button></>}>
-      <div className="doctor-plan-review">
+      <div className="doctor-split-review-container">
         {confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
-        <div><span>西药 / 中成药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'regular').length} 条</strong></div>
-        <div><span>草药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'herbal').length} 条</strong></div>
-        <div><span>检验检查与治疗</span><strong>{serviceDrafts.length} 条</strong></div>
-        {splitSummary.length > 0 && <p className="doctor-prescription-split-summary">
-          预计处方：{splitSummary.map((item) => `${prescriptionCategoryLabel(item.categoryCode)} ${item.medicationCount} 种 / ${item.prescriptionCount} 张`).join('；')}
-        </p>}
-        {persistedDraftCount > 0 && <p>已有待提交医嘱 {persistedDraftCount} 条</p>}
+
+        <div className="doctor-split-overview-bar">
+          <div className="doctor-split-stat">
+            <span>待开立药品</span>
+            <strong>{medicationDrafts.length} <small>项</small></strong>
+          </div>
+          <div className="doctor-split-stat">
+            <span>预估生成处方</span>
+            <strong>{(splitPreview.data?.length ?? splitSummary.reduce((sum, i) => sum + i.prescriptionCount, 0))} <small>张</small></strong>
+          </div>
+          <div className="doctor-split-stat">
+            <span>处置与检查检验</span>
+            <strong>{serviceDrafts.length} <small>项</small></strong>
+          </div>
+          {persistedDraftCount > 0 && <div className="doctor-split-stat">
+            <span>已有待提交草稿</span>
+            <strong>{persistedDraftCount} <small>条</small></strong>
+          </div>}
+        </div>
+
+        {splitPreview.isLoading && <LoadingState />}
+
+        {splitPreview.data && splitPreview.data.length > 0 ? (
+          <div className="doctor-split-prescriptions-grid">
+            {splitPreview.data.map((plan, pIdx) => (
+              <div key={pIdx} className="doctor-prescription-preview-card">
+                <div className="doctor-prescription-preview-card__head">
+                  <div className="doctor-prescription-preview-card__title">
+                    <StatusBadge tone={plan.routeGroupType === 'INFUSION' ? 'warning' : plan.categoryCode === 'HERBAL' ? 'success' : 'info'}>
+                      {plan.title}
+                    </StatusBadge>
+                    <span className="doctor-prescription-preview-card__site">
+                      <Icon name="organization" /> {plan.stockSiteName || '默认药房'}
+                    </span>
+                  </div>
+                  <span className="doctor-prescription-preview-card__count">
+                    {plan.categoryCode === 'HERBAL' ? `${plan.items.length} 味` : `${plan.items.length}/5 种`}
+                  </span>
+                </div>
+
+                {plan.ruleReasons && plan.ruleReasons.length > 0 && (
+                  <div className="doctor-prescription-preview-card__tags">
+                    {plan.ruleReasons.map((reason, rIdx) => (
+                      <span key={rIdx} className="doctor-split-rule-tag">
+                        <Icon name="success" /> {reason}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <table className="doctor-prescription-preview-table">
+                  <thead>
+                    <tr>
+                      <th>药品名称</th>
+                      <th>剂量</th>
+                      <th>途径/频次</th>
+                      <th>数量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {plan.items.map((pi, iIdx) => {
+                      const matchDraft = medicationDrafts.find(d => d.request.medicationId === pi.item.medicationId
+                        || d.request.catalogItemId === pi.item.catalogItemId);
+                      return (
+                        <tr key={iIdx} className={pi.groupKey ? 'is-infusion-row' : ''}>
+                          <td>
+                            <strong>{matchDraft?.medicationName || pi.item.medicationInstruction || '药品'}</strong>
+                            <small>{matchDraft?.preparationSpec || ''}</small>
+                            {pi.groupLeader && <span className="doctor-split-group-badge">输液组首药</span>}
+                          </td>
+                          <td>{pi.item.doseValue ? `${pi.item.doseValue} ${pi.item.doseUnit || ''}` : '—'}</td>
+                          <td>{pi.item.routeCode || '—'} · {pi.item.frequencyCode || '—'}</td>
+                          <td>{pi.item.quantity} {pi.item.quantityUnit || '盒'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+
+            {serviceDrafts.length > 0 && (
+              <div className="doctor-prescription-preview-card is-service-card">
+                <div className="doctor-prescription-preview-card__head">
+                  <div className="doctor-prescription-preview-card__title">
+                    <StatusBadge tone="neutral">门诊检查检验处置单</StatusBadge>
+                    <span className="doctor-prescription-preview-card__site">门诊诊疗</span>
+                  </div>
+                  <span className="doctor-prescription-preview-card__count">{serviceDrafts.length} 项</span>
+                </div>
+                <table className="doctor-prescription-preview-table">
+                  <thead>
+                    <tr>
+                      <th>项目名称</th>
+                      <th>数量</th>
+                      <th>临床说明</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {serviceDrafts.map((svc) => (
+                      <tr key={svc.id}>
+                        <td><strong>{svc.itemName}</strong></td>
+                        <td>{svc.quantity} {svc.unitCode || '项'}</td>
+                        <td>{svc.clinicalDescription || '门诊诊疗申请'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="doctor-plan-review">
+            <div><span>西药 / 中成药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'regular').length} 条</strong></div>
+            <div><span>草药</span><strong>{medicationDrafts.filter((item) => item.editorMode === 'herbal').length} 条</strong></div>
+            <div><span>检验检查与治疗</span><strong>{serviceDrafts.length} 条</strong></div>
+            {splitSummary.length > 0 && <p className="doctor-prescription-split-summary">
+              预计处方：{splitSummary.map((item) => `${prescriptionCategoryLabel(item.categoryCode)} ${item.medicationCount} 种 / ${item.prescriptionCount} 张`).join('；')}
+            </p>}
+            {persistedDraftCount > 0 && <p>已有待提交医嘱 {persistedDraftCount} 条</p>}
+          </div>
+        )}
       </div>
     </Dialog>}
     {printPrescription && <ControlledPrintDialog api={api} title="打印门诊处方"
@@ -3337,6 +3546,13 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       generate={(purpose, copies) => api.printing.prescription(
         encounter.id, printPrescription.id, purpose, copies)}
       onClose={() => setPrintPrescription(null)} />}
+    {printServiceRequest && <ControlledPrintDialog api={api}
+      title={`打印${serviceApplicationLabel(printServiceRequest.serviceType)}申请单`}
+      description="仅生效且未撤销的申请可以生成正式 PDF；每次生成和重打都会留痕。"
+      sourceLabel={`${printServiceRequest.itemName} · ${printServiceRequest.requestNo}`}
+      generate={(purpose, copies) => api.printing.serviceRequest(
+        encounter.id, printServiceRequest.id, purpose, copies)}
+      onClose={() => setPrintServiceRequest(null)} />}
   </Panel>
 }
 
@@ -3355,6 +3571,10 @@ export function prescriptionCategoryLabel(value: string) {
     ?? '门诊处方'
 }
 
+function serviceApplicationLabel(value: ServiceRequest['serviceType']) {
+  return ({ LABORATORY: '检验', EXAMINATION: '检查', TREATMENT: '治疗', OTHER: '诊疗' } as const)[value]
+}
+
 function ControlledPrintDialog({ api, title, description, sourceLabel, generate, onGenerated, onClose }: {
   api: RhnApi
   title: string
@@ -3369,6 +3589,7 @@ function ControlledPrintDialog({ api, title, description, sourceLabel, generate,
   const [receipt, setReceipt] = useState<PrintReceipt | null>(null)
   const [downloadError, setDownloadError] = useState('')
   const download = async (value: PrintReceipt) => {
+    if (value.delivery.channel === 'LOCAL_BRIDGE') return
     try { setDownloadError(''); await api.printing.download(value) }
     catch (error) { setDownloadError(`文件已生成，但自动下载失败：${errorMessage(error)}`) }
   }
@@ -3405,15 +3626,19 @@ function ControlledPrintDialog({ api, title, description, sourceLabel, generate,
           onChange={(event) => setCopies(Math.min(10, Math.max(1, Number(event.target.value) || 1)))} /></FormField>
       </div>
       {receipt && <section className="doctor-print-receipt" aria-label="打印生成结果">
-        <header><StatusBadge tone="success">{receipt.requestType === 'REPRINT' ? '重打已登记' : '文件已生成'}</StatusBadge>
+        <header><StatusBadge tone="success">{receipt.delivery.channel === 'LOCAL_BRIDGE' ? '已进入打印队列'
+          : receipt.requestType === 'REPRINT' ? '重打已登记' : '文件已生成'}</StatusBadge>
           <strong>{receipt.fileName}</strong></header>
         <dl>
           <div><dt>用途与份数</dt><dd>{printPurposeLabel(purpose)} · {receipt.copies} 份</dd></div>
           <div><dt>模板版本</dt><dd>{receipt.templateCode} · V{receipt.templateVersion}</dd></div>
           <div className="doctor-print-digest"><dt>SHA-256</dt><dd><code>{receipt.contentDigest}</code></dd></div>
           <div><dt>任务编号</dt><dd>{receipt.jobId}</dd></div>
+          <div><dt>目标设备</dt><dd>{receipt.delivery.deviceName} · {receipt.delivery.channel === 'LOCAL_BRIDGE' ? '已入队' : '已发起'}</dd></div>
         </dl>
-        <p>如浏览器未自动保存文件，可登记重打后再次下载；重打复用同一份不可变输出。</p>
+        <p>{receipt.delivery.channel === 'LOCAL_BRIDGE'
+          ? '本地打印桥将领取任务并回传设备结果；当前入队不代表已经出纸。'
+          : '如浏览器未自动保存文件，可登记重打后再次下载；重打复用同一份不可变输出。'}</p>
       </section>}
     </div>
   </Dialog>
@@ -3433,6 +3658,7 @@ function HistoricalReprintDialog({ api, record, onReprinted, onClose }: {
     },
     onSuccess: async (value) => {
       setReceipt(value); onReprinted()
+      if (value.delivery.channel === 'LOCAL_BRIDGE') return
       try { setDownloadError(''); await api.printing.download(value) }
       catch (error) { setDownloadError(`补打已登记，但自动下载失败：${errorMessage(error)}`) }
     },
@@ -3442,7 +3668,7 @@ function HistoricalReprintDialog({ api, record, onReprinted, onClose }: {
     onClose={() => !reprint.isPending && onClose()} footer={<>
       <Button variant="secondary" disabled={reprint.isPending} onClick={onClose}>{receipt ? '完成' : '取消'}</Button>
       {!receipt && <Button busy={reprint.isPending} disabled={!sourceJob} onClick={() => reprint.mutate()}>
-        <Icon name="print" />登记补打并下载</Button>}
+        <Icon name="print" />登记补打</Button>}
     </>}>
     <div className="print-confirmation doctor-print-confirmation">
       {(reprint.error || downloadError) && <Alert>{downloadError || errorMessage(reprint.error)}</Alert>}
@@ -3457,7 +3683,9 @@ function HistoricalReprintDialog({ api, record, onReprinted, onClose }: {
         onChange={(event) => setCopies(Math.min(10, Math.max(1, Number(event.target.value) || 1)))} /></FormField>
       <p className="doctor-history-document-digest"><span>{record.contentDigestAlgorithm}</span>
         <code>{record.contentDigest}</code></p>
-      {receipt && <Alert>补打任务 {receipt.jobId} 已登记，共 {receipt.copies} 份；输出摘要保持不变。</Alert>}
+      {receipt && <Alert>补打任务 {receipt.jobId} 已登记，共 {receipt.copies} 份；
+        {receipt.delivery.channel === 'LOCAL_BRIDGE' ? `已进入 ${receipt.delivery.deviceName} 队列。` : '浏览器下载已发起。'}
+        输出摘要保持不变。</Alert>}
     </div>
   </Dialog>
 }

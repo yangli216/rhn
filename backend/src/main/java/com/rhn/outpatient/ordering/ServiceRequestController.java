@@ -16,9 +16,11 @@ import java.util.List;
 @RequestMapping("/api/encounters/{encounterId}/service-requests")
 class ServiceRequestController {
     private final ServiceRequestService service;
+    private final ServiceRequestPrintService printService;
 
-    ServiceRequestController(ServiceRequestService service) {
+    ServiceRequestController(ServiceRequestService service, ServiceRequestPrintService printService) {
         this.service = service;
+        this.printService = printService;
     }
 
     @PostMapping
@@ -38,4 +40,17 @@ class ServiceRequestController {
                                   @Valid @RequestBody CancelServiceRequest request) {
         return service.cancel(encounterId, requestId, request);
     }
+
+    @PostMapping("/{requestId}/print-jobs")
+    @ResponseStatus(HttpStatus.CREATED)
+    com.rhn.platform.printing.api.PrintReceipt print(@PathVariable Long encounterId,
+                                                     @PathVariable Long requestId,
+                                                     @Valid @RequestBody PrintAction action) {
+        return printService.print(encounterId, requestId, action.purpose(), action.copies());
+    }
+
+    record PrintAction(
+            @jakarta.validation.constraints.NotBlank
+            @jakarta.validation.constraints.Pattern(regexp = "CLINICAL_USE|PATIENT_COPY|ARCHIVE_COPY") String purpose,
+            @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(10) int copies) {}
 }

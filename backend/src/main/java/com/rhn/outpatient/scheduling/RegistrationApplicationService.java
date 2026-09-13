@@ -291,6 +291,12 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         return queue(dateFrom, dateTo, ReceptionQueueScope.DEPARTMENT);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReceptionQueueItem> organizationQueue(LocalDate queueDate) {
+        return queue(queueDate, queueDate, ReceptionQueueScope.ORGANIZATION);
+    }
+
     @Transactional(readOnly = true)
     public List<ReceptionQueueItem> queue(LocalDate dateFrom, LocalDate dateTo, ReceptionQueueScope scope) {
         ExecutionContext context = requireOrganizationContext(null);
@@ -339,6 +345,19 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         Map<Long, String> queueDepartmentCache = new HashMap<>();
         Map<String, String> clinicianNameCache = new HashMap<>();
         Instant now = Instant.now();
+
+        boolean hasPersonalSchedule = false;
+        if (!organizationScope && context.practitionerId() != null && context.departmentId() != null) {
+            hasPersonalSchedule = scheduleRepository
+                    .findByTenantIdAndOrganizationIdAndDepartmentIdAndServiceDateBetweenOrderByStartAt(
+                            context.tenantId(), context.organizationId(), context.departmentId(), start, end)
+                    .stream()
+                    .anyMatch(s -> "PUBLISHED".equals(s.status())
+                            && "PRACTITIONER".equalsIgnoreCase(s.registrationScope())
+                            && context.practitionerId().equals(s.practitionerId()));
+        }
+        final boolean doctorHasPersonalSchedule = hasPersonalSchedule;
+
         return registrations.stream().filter(reg -> {
             LocalDate regDate = reg.registeredAt().atZone(BUSINESS_ZONE).toLocalDate();
             if (!regDate.isBefore(start) && !regDate.isAfter(end)) {
@@ -353,8 +372,9 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     || "CANCELLED".equalsIgnoreCase(ticketStatus)
                     || "CANCELLED".equalsIgnoreCase(reg.status());
             return !expired || isCompleted;
-        }).filter(registration -> resolvedScope != ReceptionQueueScope.PERSONAL
-                || belongsToCurrentPractitioner(registration, schedules, encounters, context)).map(registration -> {
+        }).filter(registration -> isVisibleInQueue(
+                registration, schedules, encounters, tickets, context, resolvedScope, doctorHasPersonalSchedule
+        )).map(registration -> {
             TicketSnapshot ticket = tickets.get(registration.id());
             ResidentDirectory.ResidentSnapshot resident = residentDirectory.requireSnapshot(registration.residentId());
             ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
@@ -387,7 +407,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     registeredByName, departmentName, dayPartText,
                     schedule == null ? null : schedule.practitionerId(), clinicianId, clinicianName,
                     encounter != null && encounter.completedAt() != null
-                            ? encounter.completedAt() : ticket == null ? null : ticket.completedAt());
+                            ? encounter.completedAt() : ticket == null ? null : ticket.completedAt(),
+                    deptId, resident.phone());
         }).sorted(Comparator.comparingInt(ReceptionQueueItem::priority).reversed()
                 .thenComparingInt(ReceptionQueueItem::sequenceNo)).toList();
     }
@@ -523,7 +544,7 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                     ticket == null ? 0 : ticket.missedCount(), ticket == null ? null : ticket.currentLocationId(),
                     null, registeredByName, departmentName, dayPartText,
                     schedule == null ? null : schedule.practitionerId(), null, null,
-                    ticket == null ? null : ticket.completedAt());
+                    ticket == null ? null : ticket.completedAt(), deptId, resident.phone());
         }).toList();
 
         boolean first = safePage == 0;
@@ -552,17 +573,77 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
         });
     }
 
-    private boolean belongsToCurrentPractitioner(PatientRegistration registration,
-                                                 Map<Long, ServiceSchedule> schedules,
-                                                 Map<Long, EncounterFlowSnapshot> encounters,
-                                                 ExecutionContext context) {
+    private boolean isExpertSchedule(ServiceSchedule schedule) {
+        if (schedule == null) return false;
+        String text = (java.util.Objects.toString(schedule.serviceName(), "") + " "
+                + java.util.Objects.toString(schedule.practitionerName(), "") + " "
+                + java.util.Objects.toString(schedule.serviceCode(), "")).toLowerCase(Locale.ROOT);
+        return text.contains("专家") || text.contains("名医") || text.contains("名老中医")
+                || text.contains("主任医师") || text.contains("副主任医师") || text.contains("exp");
+    }
+
+    private boolean isVisibleInQueue(PatientRegistration registration,
+                                     Map<Long, ServiceSchedule> schedules,
+                                     Map<Long, EncounterFlowSnapshot> encounters,
+                                     Map<Long, TicketSnapshot> tickets,
+                                     ExecutionContext context,
+                                     ReceptionQueueScope scope,
+                                     boolean hasPersonalSchedule) {
+        ServiceSchedule schedule = registration.scheduleId() == null ? null : schedules.get(registration.scheduleId());
         EncounterFlowSnapshot encounter = encounters.get(registration.encounterId());
-        if (encounter != null && encounter.clinicianId() != null && !encounter.clinicianId().isBlank()) {
-            return encounter.clinicianId().equalsIgnoreCase(context.actor());
+
+        boolean isServingByMe = encounter != null && encounter.clinicianId() != null
+                && encounter.clinicianId().equalsIgnoreCase(context.actor());
+        boolean isServingByOther = encounter != null && encounter.clinicianId() != null
+                && !isServingByMe;
+
+        boolean isMyPersonalSchedule = schedule != null && context.practitionerId() != null
+                && context.practitionerId().equals(schedule.practitionerId());
+        boolean isOtherPractitionerSchedule = schedule != null && schedule.practitionerId() != null
+                && (context.practitionerId() == null || !context.practitionerId().equals(schedule.practitionerId()));
+
+        boolean isExpert = isExpertSchedule(schedule);
+        boolean isDepartmentGeneral = (schedule == null || schedule.practitionerId() == null) && !isExpert;
+
+        if (scope == ReceptionQueueScope.ORGANIZATION) {
+            return true;
         }
-        if (context.practitionerId() == null || registration.scheduleId() == null) return false;
-        ServiceSchedule schedule = schedules.get(registration.scheduleId());
-        return schedule != null && context.practitionerId().equals(schedule.practitionerId());
+
+        if (scope == ReceptionQueueScope.PERSONAL) {
+            // 本人已接诊/接诊中的患者，本人视角永远可见
+            if (isServingByMe) {
+                return true;
+            }
+            // 已被其他医生接诊中的患者，不出现在本人个人待诊池
+            if (isServingByOther) {
+                return false;
+            }
+            // 规则 1：如果医生坐诊时，存在本人的排班类型为医生的专属排班，则默认只能看到自己的
+            if (hasPersonalSchedule) {
+                return isMyPersonalSchedule;
+            }
+            // 规则 2：如果医生坐诊时，没有本人专属的排班信息，且患者挂号挂到科室（普通号），则默认出现在待诊队列
+            return isMyPersonalSchedule || isDepartmentGeneral;
+        }
+
+        if (scope == ReceptionQueueScope.DEPARTMENT) {
+            // 本人专属号或本人接诊中的患者在本科室视角自然可见
+            if (isServingByMe || isMyPersonalSchedule) {
+                return true;
+            }
+            // 规则 1：如果要看到同科室下的，需要切换视角，且只能看到普通号，专家和名医的不行
+            // 排除其他医生的专家号、名医号
+            if (isOtherPractitionerSchedule && isExpert) {
+                return false;
+            }
+            // 排除明确属于其他医生的专属非普通号
+            if (isOtherPractitionerSchedule && !isDepartmentGeneral) {
+                return false;
+            }
+            return true;
+        }
+
+        return true;
     }
 
     private String resolveClinicianName(Long tenantId, String clinicianId, Map<String, String> cache) {

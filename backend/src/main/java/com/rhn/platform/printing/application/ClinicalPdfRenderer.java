@@ -33,8 +33,10 @@ class ClinicalPdfRenderer {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
             .withZone(ZoneId.of("Asia/Shanghai"));
     private final BaseFont cjk;
+    private final ConfigurablePdfRenderer configurableRenderer;
 
-    ClinicalPdfRenderer() {
+    ClinicalPdfRenderer(ConfigurablePdfRenderer configurableRenderer) {
+        this.configurableRenderer = configurableRenderer;
         try {
             try (var stream = ClinicalPdfRenderer.class.getClassLoader()
                     .getResourceAsStream("fonts/ttf/NotoSansSC/NotoSansSC-Regular.ttf")) {
@@ -45,6 +47,13 @@ class ClinicalPdfRenderer {
         } catch (Exception exception) {
             throw new IllegalStateException("Cannot initialize Simplified Chinese PDF font", exception);
         }
+    }
+
+    byte[] render(String documentType, String layoutSchema, String configJson, Map<String, Object> snapshot) {
+        if (configurableRenderer.supports(layoutSchema)) {
+            return configurableRenderer.render(layoutSchema, configJson, snapshot);
+        }
+        return render(documentType, snapshot);
     }
 
     byte[] render(String documentType, Map<String, Object> snapshot) {

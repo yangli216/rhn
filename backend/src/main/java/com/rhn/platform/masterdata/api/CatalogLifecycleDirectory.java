@@ -47,7 +47,11 @@ public interface CatalogLifecycleDirectory {
             String medicationType, String doseForm, String preparationSpec, String preparationUnit,
             java.math.BigDecimal strengthValue, String strengthUnit, String storageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
-            String antimicrobialLevel, boolean skinTestRequired, java.math.BigDecimal defaultDose,
+            String antimicrobialLevel, boolean antimicrobialOutpatientAllowed,
+            boolean antimicrobialConsultationRequired, boolean antimicrobialEmergencyAllowed,
+            Integer antimicrobialMaxDays, boolean skinTestRequired, String skinTestMethod,
+            String skinTestSolutionMode, Integer skinTestObservationMinutes,
+            Integer skinTestResultValidityHours, String skinTestInstructions, java.math.BigDecimal defaultDose,
             String defaultDoseUnit, String defaultRoute, Long defaultFrequencyId, String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder, String status) {}
 }

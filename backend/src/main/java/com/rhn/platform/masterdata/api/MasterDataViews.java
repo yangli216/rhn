@@ -57,9 +57,15 @@ public final class MasterDataViews {
             @DictionaryBinding(MasterDataDictionaryCodes.STORAGE_TYPE) String sdStorageType,
             boolean prescriptionDrug, boolean essentialDrug, boolean antimicrobial,
             @DictionaryBinding(MasterDataDictionaryCodes.ANTIMICROBIAL_LEVEL) String sdAntimicrobialLevel,
-            boolean skinTestRequired, BigDecimal defaultDose, String defaultDoseUnit,
+            boolean antimicrobialOutpatientAllowed, boolean antimicrobialConsultationRequired,
+            boolean antimicrobialEmergencyAllowed, Integer antimicrobialMaxDays,
+            boolean skinTestRequired, String skinTestMethod, String skinTestSolutionMode,
+            Integer skinTestObservationMinutes, Integer skinTestResultValidityHours,
+            String skinTestInstructions, BigDecimal defaultDose, String defaultDoseUnit,
             String defaultRoute, Long defaultFrequencyId, String defaultFrequency, boolean chronicDiseaseDrug, boolean singleOrder,
             @DictionaryBinding(MasterDataDictionaryCodes.STATUS) String sdStatus,
+            List<MedicationTerminologyDirectory.MedicationClassification> classifications,
+            List<Long> allergenConceptIds,
             List<MedicationProductView> products) {}
 
     public record MedicationProductView(

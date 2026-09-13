@@ -183,6 +183,7 @@ export interface ReceptionQueueItem {
   residentId: string
   healthRecordNo: string
   residentName: string
+  phone?: string
   gender: 'MALE' | 'FEMALE' | 'UNKNOWN'
   birthDate: string
   registrationNo: string
@@ -196,6 +197,7 @@ export interface ReceptionQueueItem {
   practitionerName?: string
   serviceName?: string
   registeredByName?: string
+  departmentId?: string
   departmentName?: string
   sdDayPartText?: string
   locationName?: string

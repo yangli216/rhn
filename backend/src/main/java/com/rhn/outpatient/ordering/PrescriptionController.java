@@ -28,6 +28,19 @@ class PrescriptionController {
         return service.create(encounterId, request);
     }
 
+    @PostMapping("/auto-split-preview")
+    List<SplitPrescriptionPlan> previewSplit(@PathVariable Long encounterId,
+                                            @Valid @RequestBody List<BatchOrderMedicationItem> items) {
+        return service.previewSplit(encounterId, items);
+    }
+
+    @PostMapping("/batch-order")
+    @ResponseStatus(HttpStatus.CREATED)
+    List<PrescriptionResponse> batchOrder(@PathVariable Long encounterId,
+                                          @Valid @RequestBody BatchOrderPrescriptionRequest request) {
+        return service.batchOrder(encounterId, request);
+    }
+
     @GetMapping
     List<PrescriptionResponse> list(@PathVariable Long encounterId) { return service.list(encounterId); }
 

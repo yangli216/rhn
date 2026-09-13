@@ -73,7 +73,8 @@ class InpatientCareRequestStoreOracleBindingTest {
         MedicationSnapshot medication = new MedicationSnapshot(
                 20L, 21L, "AMOX", "阿莫西林", null, "WESTERN", "CAPSULE",
                 "0.25g", "粒", new BigDecimal("0.25"), "g", "ROOM_TEMPERATURE",
-                true, true, false, null, false, new BigDecimal("0.25"), "g",
+                true, true, false, null, false, false, false, null,
+                false, null, null, null, null, null, new BigDecimal("0.25"), "g",
                 "ORAL", null, "TID", false, false, "ACTIVE");
         CatalogItemSnapshot item = new CatalogItemSnapshot(
                 10L, 11L, "MED_PRODUCT", medication.id(), "AMOX-025", "阿莫西林胶囊 0.25g",

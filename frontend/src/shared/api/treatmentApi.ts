@@ -101,6 +101,13 @@ export interface SkinTestWorkItem {
   routeCode?: string
   doseValue?: number
   doseUnit?: string
+  configuredTestMethod?: 'INTRADERMAL' | 'PRICK' | 'OTHER'
+  configuredSolutionMode?: 'ORIGINAL_SOLUTION' | 'DILUTED_SOLUTION'
+  configuredObservationMinutes?: number
+  resultValidityHours?: number
+  configurationInstructions?: string
+  settlementRequiredBeforeStart: boolean
+  dispenseRequiredBeforeStart: boolean
   status: SkinTestStatus
   gateMessage?: string
   eventId?: string

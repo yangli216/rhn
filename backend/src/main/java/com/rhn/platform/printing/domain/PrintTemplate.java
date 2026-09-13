@@ -1,5 +1,6 @@
 package com.rhn.platform.printing.domain;
 
+import com.rhn.shared.id.GlobalIds;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -26,11 +27,26 @@ public class PrintTemplate {
 
     protected PrintTemplate() {}
 
+    public PrintTemplate(Long tenantId, String templateCode, String templateName, String documentType,
+                         Long actorId) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId; this.templateCode = templateCode;
+        this.templateName = templateName; this.documentType = documentType; this.status = "ACTIVE";
+        this.currentVersion = 1; this.createdAt = Instant.now(); this.createdBy = actorId;
+        this.updatedAt = createdAt; this.updatedBy = actorId;
+    }
+
+    public void publish(String templateName, String documentType, int versionNo, Long actorId) {
+        this.templateName = templateName; this.documentType = documentType;
+        this.currentVersion = versionNo; this.status = "ACTIVE";
+        this.updatedAt = Instant.now(); this.updatedBy = actorId;
+    }
+
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public String templateCode() { return templateCode; }
     public String templateName() { return templateName; }
     public String documentType() { return documentType; }
+    public String status() { return status; }
     public int currentVersion() { return currentVersion; }
     public Instant updatedAt() { return updatedAt; }
 }

@@ -10,6 +10,7 @@ import { Button, FormField, Icon } from '../../../shared/ui'
 import type { ClinicalAiPreview } from '../../../shared/api/clinicalAiStream'
 import { recordDraftFields, recordDraftFieldLabels } from './aiDraftAdapter'
 import type { ReceptionSceneAssessment } from './receptionSceneAssessment'
+import { ClinicalAiPipelineStepper } from './ClinicalAiPipelineStepper'
 
 export interface ClinicalAiSurfaces {
   summary: HTMLDivElement | null
@@ -126,11 +127,24 @@ export function ClinicalAiInlineWorkspace({ api, encounter, surfaces, context, c
             <span className="doctor-ai-generation__orb" aria-hidden="true"><Icon name="sparkles" /></span>
             <span className="doctor-ai-generation__label">{preview.recordDraft.treatmentPlan ? '正在匹配诊断与院内方案' : '正在共写病历'}</span>
             <span className="doctor-ai-generation__dots" aria-hidden="true"><i /><i /><i /></span>
-            <small>病历 → 诊断 → 治疗建议</small>
-          </span> : <span className={`doctor-ai-status-pill is-${error ? 'error' : current ? 'ready' : suggestion ? 'stale' : 'idle'}`} role="status">
-            <span className="doctor-ai-status-dot" aria-hidden="true" />
-            <span className="doctor-ai-status-text">{error ? '整理未完成' : current ? '建议已准备好' : suggestion ? '资料已变化，等待更新' : '待分析'}</span>
-          </span>}
+            <ClinicalAiPipelineStepper
+              generating={generating}
+              hasTreatmentPlan={Boolean(preview.recordDraft.treatmentPlan)}
+              current={current}
+              surfaces={surfaces}
+            />
+          </span> : <>
+            <span className={`doctor-ai-status-pill is-${error ? 'error' : current ? 'ready' : suggestion ? 'stale' : 'idle'}`} role="status">
+              <span className="doctor-ai-status-dot" aria-hidden="true" />
+              <span className="doctor-ai-status-text">{error ? '整理未完成' : current ? '建议已准备好' : suggestion ? '资料已变化，等待更新' : '待分析'}</span>
+            </span>
+            {current && <ClinicalAiPipelineStepper
+              generating={false}
+              hasTreatmentPlan={Boolean(suggestion?.treatmentRecommendations?.length || suggestion?.recommendedPlans?.length)}
+              current={current}
+              surfaces={surfaces}
+            />}
+          </>}
           {current && <Button size="sm" variant="secondary" className={`doctor-ai-btn--chip ${summaryOpen ? 'is-active' : ''}`} aria-expanded={summaryOpen}
             onClick={() => { setSummaryOpen(!summaryOpen); onView() }}>
             <Icon name="clinical" />
