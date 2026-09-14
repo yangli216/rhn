@@ -8,20 +8,16 @@ import com.rhn.billing.api.BillingViews.InvoiceView;
 import com.rhn.billing.api.BillingViews.PaymentView;
 import com.rhn.billing.api.BillingViews.SettlementView;
 import com.rhn.billing.api.BillingViews.SettlementRecordView;
+import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
 import com.rhn.billing.application.BillingApplicationService;
 import com.rhn.billing.application.BillingApplicationService.IssueInvoiceCommand;
 import com.rhn.billing.application.BillingApplicationService.PaymentCommand;
 import com.rhn.billing.application.BillingApplicationService.RefundCommand;
 import com.rhn.billing.application.BillingApplicationService.SynchronizeCommand;
 import com.rhn.billing.application.PaymentOrchestrationService;
-import com.rhn.billing.application.SettlementApplicationService;
 import com.rhn.billing.application.PaymentOrchestrationService.CreatePaymentOrderCommand;
 import com.rhn.billing.application.PaymentOrchestrationService.CreateRefundOrderCommand;
-import com.rhn.billing.api.PaymentResultDirectory.PaymentOrderView;
-import com.rhn.billing.api.RefundPreCheckViews.DirectRefundCommand;
-import com.rhn.billing.api.RefundPreCheckViews.RefundPreCheckSummaryView;
-import com.rhn.billing.application.DirectRefundApplicationService;
-import com.rhn.billing.application.RefundPreCheckService;
+import com.rhn.billing.application.SettlementApplicationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -50,16 +46,13 @@ public class BillingController {
     private final BillingApplicationService service;
     private final PaymentOrchestrationService payments;
     private final SettlementApplicationService settlements;
-    private final RefundPreCheckService refundPreCheckService;
-    private final DirectRefundApplicationService directRefundService;
 
-    public BillingController(BillingApplicationService service, PaymentOrchestrationService payments,
-                             SettlementApplicationService settlements,
-                             RefundPreCheckService refundPreCheckService,
-                             DirectRefundApplicationService directRefundService) {
-        this.service = service; this.payments = payments; this.settlements = settlements;
-        this.refundPreCheckService = refundPreCheckService;
-        this.directRefundService = directRefundService;
+    public BillingController(BillingApplicationService service,
+                             PaymentOrchestrationService payments,
+                             SettlementApplicationService settlements) {
+        this.service = service;
+        this.payments = payments;
+        this.settlements = settlements;
     }
 
     @PostMapping("/encounters/{encounterId}/charges/synchronize")
@@ -88,7 +81,8 @@ public class BillingController {
     @ResponseStatus(HttpStatus.CREATED)
     PaymentView collect(@PathVariable Long invoiceId, @Valid @RequestBody PaymentRequest input) {
         return service.collectPayment(invoiceId, new PaymentCommand(input.paymentNo(), input.paymentMethodCode(),
-                input.paymentSceneCode(), input.amount(), input.paidAt(), input.externalTransactionNo(), input.description(), null, input.roundingAdjustment()));
+                input.paymentSceneCode(), input.amount(), input.paidAt(), input.externalTransactionNo(),
+                input.description(), null, input.roundingAdjustment()));
     }
 
     @PostMapping("/settlements/{settlementId}/payment-orders")
@@ -166,31 +160,16 @@ public class BillingController {
         return service.dailyReconciliation(businessDate);
     }
 
-    @GetMapping("/encounters/{encounterId}/refund-precheck")
-    public RefundPreCheckSummaryView getRefundPreCheck(@PathVariable Long encounterId) {
-        return refundPreCheckService.preCheck(encounterId);
-    }
-
-    @PostMapping("/payments/{paymentId}/direct-refund")
-    @ResponseStatus(HttpStatus.CREATED)
-    public PaymentOrderView directRefund(@PathVariable Long paymentId,
-                                         @Valid @RequestBody DirectRefundRequest input) {
-        return directRefundService.directRefund(paymentId, new DirectRefundCommand(
-                input.idempotencyKey(),
-                input.refundAmount(),
-                input.reason(),
-                input.terminalCode(),
-                input.chargeItemIds()
-        ));
-    }
-
     record SynchronizeRequest(@NotBlank @Size(max = 128) String requestCode) {}
+
     record IssueInvoiceRequest(
-            @NotBlank @Size(max = 64) String invoiceNo, Instant issuedAt,
+            @NotBlank @Size(max = 64) String invoiceNo,
+            Instant issuedAt,
             @Pattern(regexp = "REGISTRATION|OUTPATIENT|INPATIENT|HOME_BED|PHARMACY") String settlementScene,
             @Pattern(regexp = "CASHIER|DOCTOR_STATION|SELF_SERVICE|MOBILE|ONLINE") String terminalScene,
             @Size(max = 128) String terminalCode,
             List<Long> chargeItemIds) {}
+
     record PaymentRequest(
             @NotBlank @Size(max = 64) String paymentNo,
             @NotBlank @Size(max = 128) String paymentMethodCode,
@@ -198,8 +177,10 @@ public class BillingController {
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
             BigDecimal amount,
             @Digits(integer = 18, fraction = 6) BigDecimal roundingAdjustment,
-            Instant paidAt, @Size(max = 128) String externalTransactionNo,
+            Instant paidAt,
+            @Size(max = 128) String externalTransactionNo,
             @Size(max = 1000) String description) {}
+
     record PaymentOrderRequest(
             @NotBlank @Size(max = 128) String idempotencyKey,
             @NotBlank @Pattern(regexp = "REGISTRATION|OUTPATIENT|INPATIENT|HOME_BED|PHARMACY") String businessScene,
@@ -211,12 +192,15 @@ public class BillingController {
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode,
             Instant expiresAt) {}
+
     record RefundRequest(
             @NotBlank @Size(max = 64) String refundNo,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
             BigDecimal amount,
-            Instant refundedAt, @Size(max = 128) String externalTransactionNo,
+            Instant refundedAt,
+            @Size(max = 128) String externalTransactionNo,
             @NotBlank @Size(max = 1000) String reason) {}
+
     record RefundOrderRequest(
             @NotBlank @Size(max = 128) String idempotencyKey,
             @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
@@ -224,15 +208,9 @@ public class BillingController {
             @NotBlank @Size(max = 1000) String reason,
             @Size(max = 128) String correlationId,
             @Size(max = 128) String terminalCode) {}
-    record DirectRefundRequest(
-            @NotBlank @Size(max = 128) String idempotencyKey,
-            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 18, fraction = 6)
-            BigDecimal refundAmount,
-            @NotBlank @Size(max = 1000) String reason,
-            @Size(max = 128) String correlationId,
-            @Size(max = 128) String terminalCode,
-            List<Long> chargeItemIds) {}
-    record PaymentRecoveryRequest(@NotBlank @Size(max = 128) String batchCode,
-                                  @NotNull @jakarta.validation.constraints.Min(1)
-                                  @jakarta.validation.constraints.Max(100) Integer limit) {}
+
+    record PaymentRecoveryRequest(
+            @NotBlank @Size(max = 128) String batchCode,
+            @NotNull @jakarta.validation.constraints.Min(1)
+            @jakarta.validation.constraints.Max(100) Integer limit) {}
 }
