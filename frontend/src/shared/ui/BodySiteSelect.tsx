@@ -97,6 +97,7 @@ export function BodySiteSelect({
 
       {showChips && presets.length > 0 && (
         <div className="ui-body-site-select__chips" aria-label="快捷部位推荐">
+          <span className="ui-body-site-select__prompt" aria-hidden="true">快捷推荐：</span>
           {presets.map((site) => {
             const isSelected = value === site
             return (

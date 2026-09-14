@@ -176,7 +176,6 @@ export function SkinTestManagementWorkspace({ api, clinicalContext }: {
         <header className="skin-test-section-head">
           <div>
             <h2>皮试队列</h2>
-            <span className="skin-test-counter-tag">{values.length} 项</span>
           </div>
           <input
             aria-label="搜索皮试任务"
