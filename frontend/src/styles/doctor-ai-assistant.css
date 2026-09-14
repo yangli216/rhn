@@ -1008,3 +1008,401 @@
 .doctor-ai-treatment-editor > small { grid-column: 1 / -1; color: var(--color-danger); }
 .doctor-vital-required { color: var(--color-danger); }
 .doctor-vital-input-wrap input[aria-invalid="true"] { box-shadow: inset 0 -1px 0 var(--color-danger); }
+
+/* ==========================================================================
+   Clinical AI Copilot Hub (Header Compact Pill & Command Palette)
+   ========================================================================== */
+.doctor-ai-copilot-hub {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.doctor-record-ai-slot {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+
+.doctor-ai-copilot-pill {
+  height: var(--control-height-sm);
+  min-height: var(--control-height-sm);
+  padding: 0 0.65rem 0 0.5rem;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-brand-soft) 85%, var(--color-surface)), var(--color-surface));
+  color: var(--color-brand-strong);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+  transition: all var(--motion-fast) var(--ease-standard);
+  user-select: none;
+}
+
+.doctor-ai-copilot-pill:hover {
+  border-color: var(--color-brand-primary);
+  background: color-mix(in srgb, var(--color-brand-soft) 95%, var(--color-surface));
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--color-brand-primary) 20%, transparent);
+  transform: translateY(-0.5px);
+}
+
+.doctor-ai-copilot-pill.is-active,
+.doctor-ai-copilot-pill:focus-visible {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
+  outline: none;
+}
+
+.doctor-ai-copilot-pill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-brand-primary);
+}
+
+.doctor-ai-copilot-pill__icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.doctor-ai-copilot-pill__title {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.doctor-ai-copilot-pill__tag {
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-medium);
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-brand-primary) 15%, transparent);
+  color: var(--color-brand-primary);
+  line-height: 1.2;
+}
+
+.doctor-ai-copilot-pill.is-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 45%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-warning-soft) 85%, var(--color-surface)), var(--color-surface));
+  color: color-mix(in srgb, var(--color-warning) 80%, black);
+}
+.doctor-ai-copilot-pill.is-warning .doctor-ai-copilot-pill__icon {
+  color: var(--color-warning);
+}
+.doctor-ai-copilot-pill.is-warning .doctor-ai-copilot-pill__tag {
+  background: color-mix(in srgb, var(--color-warning) 20%, transparent);
+  color: var(--color-warning);
+}
+
+.doctor-ai-copilot-pill.is-info {
+  border-color: color-mix(in srgb, var(--color-info) 45%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--color-info-soft) 85%, var(--color-surface)), var(--color-surface));
+  color: var(--color-brand-strong);
+}
+.doctor-ai-copilot-pill.is-info .doctor-ai-copilot-pill__tag {
+  background: color-mix(in srgb, var(--color-info) 20%, transparent);
+  color: var(--color-info);
+}
+
+.doctor-ai-copilot-pill__dot.is-ready {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-success);
+  display: inline-block;
+}
+
+.doctor-ai-copilot-pill__pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  animation: doctor-ai-pulse 1.4s infinite ease-in-out;
+  display: inline-block;
+}
+
+@keyframes doctor-ai-pulse {
+  0% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.8); opacity: 0.5; }
+}
+
+.doctor-ai-copilot-pill__caret {
+  width: 12px;
+  height: 12px;
+  color: var(--color-text-secondary);
+  margin-left: 0.1rem;
+}
+
+/* ==========================================================================
+   Command Palette Popover Panel
+   ========================================================================== */
+.doctor-ai-copilot-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 1050;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.22), 0 4px 12px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+  animation: ui-popover-enter var(--motion-fast) var(--ease-standard);
+}
+
+.doctor-ai-copilot-popover__head {
+  padding: var(--space-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(to bottom, var(--color-surface-subtle), var(--color-surface));
+}
+
+.doctor-ai-copilot-popover__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-ai-copilot-popover__badge {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.doctor-ai-copilot-popover__badge svg {
+  width: 16px;
+  height: 16px;
+}
+
+.doctor-ai-copilot-popover__title {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.doctor-ai-copilot-popover__subtitle {
+  font-size: 0.725rem;
+  color: var(--color-text-secondary);
+  display: block;
+  margin-top: 1px;
+}
+
+.doctor-ai-copilot-popover__status-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-ai-copilot-popover__close {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: var(--radius-sm);
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all var(--motion-fast);
+}
+
+.doctor-ai-copilot-popover__close:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text-primary);
+}
+
+.doctor-ai-copilot-popover__body {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Insight Card */
+.doctor-ai-insight-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.doctor-ai-insight-card.is-warning {
+  border-color: color-mix(in srgb, var(--color-warning) 40%, transparent);
+  background: color-mix(in srgb, var(--color-warning-soft) 50%, var(--color-surface));
+}
+
+.doctor-ai-insight-card.is-info {
+  border-color: color-mix(in srgb, var(--color-info) 40%, transparent);
+  background: color-mix(in srgb, var(--color-info-soft) 50%, var(--color-surface));
+}
+
+.doctor-ai-insight-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
+.doctor-ai-insight-card__tag {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: var(--font-weight-medium);
+  padding: 0.1rem 0.4rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.doctor-ai-insight-card__summary {
+  margin: 0;
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.doctor-ai-insight-card__pills,
+.doctor-ai-insight-card__reports {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+}
+
+.doctor-ai-insight-card__label {
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.doctor-ai-condition-chip {
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.doctor-ai-insight-card__report-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.doctor-ai-report-highlight-pill {
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+/* Scenario Quick Actions */
+.doctor-ai-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.doctor-ai-quick-actions__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+}
+
+.doctor-ai-quick-actions__title svg {
+  width: 12px;
+  height: 12px;
+  color: var(--color-brand-primary);
+}
+
+.doctor-ai-quick-actions__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.doctor-ai-quick-btn {
+  min-width: 0 !important;
+  width: 100% !important;
+  justify-content: center !important;
+  padding: var(--space-2) var(--space-3) !important;
+  font-size: var(--font-size-small) !important;
+  white-space: nowrap !important;
+  height: auto !important;
+}
+
+.doctor-ai-copilot-popover .doctor-ai-btn--more {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: var(--space-2) var(--space-3) !important;
+  height: auto !important;
+  gap: var(--space-1) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.doctor-ai-quick-btn .ui-button__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Generation box */
+.doctor-ai-generation-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--color-brand-soft);
+  font-size: var(--font-size-small);
+}
+
+/* Review chips */
+.doctor-ai-review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.doctor-ai-review-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+

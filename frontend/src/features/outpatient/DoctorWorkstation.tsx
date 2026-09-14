@@ -2571,6 +2571,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         meta={signed ? '已签署' : document ? `草稿 V${document.currentVersion}` : '尚未保存'}
         actions={<>{editing && <NoteTemplateBar api={api} disabled={signed} currentContent={currentNoteContent}
           onApply={applyNoteTemplate} />}
+          {editing && !signed && <div ref={aiSurfaceRefs.note} className="doctor-record-ai-slot" />}
           {document && signed && <>
             {canEdit && <Button size="sm" variant="secondary" onClick={openAmendment}>发起更正</Button>}
             <Button size="sm" variant="secondary"
@@ -2579,7 +2580,6 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       {document?.status === 'AMENDMENT_IN_PROGRESS' && canEdit && !editing && <Alert tone="warning">
         更正草稿尚未签署。<Button size="sm" busy={sign.isPending} onClick={() => sign.mutate()}>重新签署更正版</Button>
       </Alert>}
-      {editing && !signed && <div ref={aiSurfaceRefs.note} />}
       {error && <Alert>{errorMessage(error)}</Alert>}
       {copyNotice && <div className="doctor-history-copy-notice"><Icon name="roadmap" /><span>{copyNotice}</span>
         {editing && aiRecordUndo && <Button size="sm" variant="text" disabled={!canUndoAiRecord}

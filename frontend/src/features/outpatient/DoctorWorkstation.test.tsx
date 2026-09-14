@@ -1203,6 +1203,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     </MemoryRouter></QueryClientProvider>)
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const aiPill = await screen.findByRole('button', { name: /AI 辅诊/ })
+    await user.click(aiPill)
     await screen.findByRole('button', { name: '分析当前病历' })
     return user
   }
