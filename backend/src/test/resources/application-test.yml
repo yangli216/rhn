@@ -8,6 +8,7 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+    clean-disabled: false
     locations: classpath:db/migration,classpath:db/local,classpath:db/h2
 rhn:
   ai:
@@ -48,3 +49,9 @@ rhn:
 springdoc:
   api-docs:
     enabled: true
+
+# Temporary diagnostic logging for PR #6: identify which test classes create distinct
+# Spring TestContext cache entries before making the next performance change.
+logging:
+  level:
+    org.springframework.test.context.cache: TRACE
