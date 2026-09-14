@@ -54,7 +54,7 @@ class ParameterBaselineFoundationTest extends RhnIntegrationTestSupport {
         ConfigurationValue prescriptionReviewMode = configurationDirectory.resolveCurrent(
                 Long.valueOf(TENANT), null, null, null,
                 "pharmacy.prescription-review.mode");
-        assertEquals("DISABLED", prescriptionReviewMode.value().asText());
+        assertEquals("DISABLED", prescriptionReviewMode.value().asString());
         assertEquals("DEFAULT", prescriptionReviewMode.resolvedScope());
     }
 }

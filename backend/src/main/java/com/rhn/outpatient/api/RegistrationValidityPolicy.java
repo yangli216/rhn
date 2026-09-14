@@ -64,7 +64,7 @@ public class RegistrationValidityPolicy {
                     organizationId, departmentId, PARAMETER_CUTOFF_MODE_KEY);
             if (configured != null && configured.value() != null) {
                 String text = configured.value().isTextual()
-                        ? configured.value().asText()
+                        ? configured.value().asString()
                         : configured.value().toString();
                 return normalizeMode(text);
             }

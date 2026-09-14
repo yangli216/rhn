@@ -99,7 +99,7 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
             }
             JsonNode submitNode = jsonCodec.readTree(submitResponse.body());
             JsonNode outputNode = submitNode == null ? null : submitNode.get("output");
-            String taskId = outputNode == null || outputNode.get("task_id") == null ? null : outputNode.get("task_id").asText();
+            String taskId = outputNode == null || outputNode.get("task_id") == null ? null : outputNode.get("task_id").asString();
             if (taskId == null || taskId.isBlank()) {
                 throw new ClinicalAiModelException("DashScope 语音服务未返回 task_id: " + submitResponse.body());
             }
@@ -125,14 +125,14 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
                 if (taskResponse.statusCode() >= 200 && taskResponse.statusCode() < 300) {
                     JsonNode taskNode = jsonCodec.readTree(taskResponse.body());
                     JsonNode taskOutput = taskNode == null ? null : taskNode.get("output");
-                    String status = taskOutput == null || taskOutput.get("task_status") == null ? "" : taskOutput.get("task_status").asText();
+                    String status = taskOutput == null || taskOutput.get("task_status") == null ? "" : taskOutput.get("task_status").asString();
                     if ("SUCCEEDED".equalsIgnoreCase(status)) {
                         // 提取 transcription_url 并下载结果
                         String transUrl = null;
                         if (taskOutput.get("results") != null && taskOutput.get("results").isArray() && taskOutput.get("results").size() > 0) {
-                            transUrl = taskOutput.get("results").get(0).path("transcription_url").asText(null);
+                            transUrl = taskOutput.get("results").get(0).path("transcription_url").asString(null);
                         } else if (taskOutput.get("result") != null) {
-                            transUrl = taskOutput.get("result").path("transcription_url").asText(null);
+                            transUrl = taskOutput.get("result").path("transcription_url").asString(null);
                         }
                         if (transUrl != null && !transUrl.isBlank()) {
                             HttpRequest fetchReq = HttpRequest.newBuilder(java.net.URI.create(transUrl))
@@ -142,13 +142,13 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
                             HttpResponse<String> fileResp = httpClient.send(fetchReq, HttpResponse.BodyHandlers.ofString());
                             JsonNode fileNode = jsonCodec.readTree(fileResp.body());
                             if (fileNode != null && fileNode.get("transcripts") != null && fileNode.get("transcripts").isArray() && fileNode.get("transcripts").size() > 0) {
-                                String text = fileNode.get("transcripts").get(0).path("text").asText("");
+                                String text = fileNode.get("transcripts").get(0).path("text").asString("");
                                 if (!text.isBlank()) return text.trim();
                             }
                         }
                         throw new ClinicalAiModelException("DashScope 语音转写成功但未获取到有效文本内容");
                     } else if ("FAILED".equalsIgnoreCase(status)) {
-                        String errMsg = taskOutput.path("message").asText("任务执行失败");
+                        String errMsg = taskOutput.path("message").asString("任务执行失败");
                         throw new ClinicalAiModelException("DashScope 语音识别任务失败: " + errMsg);
                     }
                 }
@@ -188,7 +188,7 @@ final class OpenAiCompatibleClinicalAiSpeechGateway implements ClinicalAiSpeechG
                 throw new ClinicalAiModelException("语音转写服务返回非成功状态：" + response.statusCode());
             }
             JsonNode root = jsonCodec.readTree(response.body());
-            String text = root == null || root.get("text") == null ? null : root.get("text").asText();
+            String text = root == null || root.get("text") == null ? null : root.get("text").asString();
             if (text == null || text.isBlank()) throw new ClinicalAiModelException("语音转写服务未返回文本");
             return text.trim();
         } catch (InterruptedException exception) {

@@ -44,13 +44,13 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         JsonNode created = json(mockMvc.perform(post("/api/platform/printing/administration/drafts")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(java.util.Map.of(
-                                "documentDefinitionId", definition.get("id").asText(),
-                                "mediaProfileId", media.get("id").asText(), "templateCode", code,
+                                "documentDefinitionId", definition.get("id").asString(),
+                                "mediaProfileId", media.get("id").asString(), "templateCode", code,
                                 "templateName", "测试口服药卡", "layoutSchema", "RHN_PRINT_CANVAS_V1",
                                 "configJson", config))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString());
-        String draftId = created.get("id").asText();
+        String draftId = created.get("id").asString();
 
         MvcResult preview = mockMvc.perform(post("/api/platform/printing/administration/drafts/{id}/preview", draftId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -77,6 +77,43 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.templateCode == '%s')].scope".formatted(code)).value("TENANT"))
                 .andExpect(jsonPath("$[?(@.templateCode == '%s')].currentVersion".formatted(code)).value(1));
+
+        MvcResult publishedPreview = mockMvc.perform(post(
+                        "/api/platform/printing/administration/templates/{id}/preview",
+                        published.get("templateId").asString())
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sampleData\":{\"patientName\":\"张晓宁\",\"medicationName\":\"阿莫西林胶囊\",\"barcode\":\"RX20260912001\"}}"))
+                .andExpect(status().isOk()).andExpect(content().contentType("application/pdf"))
+                .andReturn();
+        assertTrue(publishedPreview.getResponse().getContentAsByteArray().length > 1000);
+        assertEquals("%PDF-", new String(publishedPreview.getResponse().getContentAsByteArray(),
+                0, 5, StandardCharsets.US_ASCII));
+
+        JsonNode business = json(mockMvc.perform(get("/api/platform/printing/administration/business")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks.length()").value(8))
+                .andExpect(jsonPath("$.organizationName").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode task = find(business.get("tasks"), "taskCode", "TREATMENT.ORAL_MEDICATION_CARD.PRINT");
+        JsonNode implementation = find(business.get("implementations"), "templateCode", code);
+        mockMvc.perform(post("/api/platform/printing/administration/business/bindings")
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(java.util.Map.of(
+                                "expectedRevision", 0, "taskDefinitionId", task.get("id").asString(),
+                                "scopeType", "ORGANIZATION", "purpose", "*",
+                                "implementationId", implementation.get("id").asString(),
+                                "fallbackPolicy", "FAIL_CLOSED"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scopeType").value("ORGANIZATION"));
+        mockMvc.perform(get("/api/platform/printing/administration/business/resolution")
+                        .param("taskCode", task.get("taskCode").asString()).param("purpose", "CLINICAL_USE")
+                        .with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.implementation.implementationCode").value(
+                        implementation.get("implementationCode").asString()))
+                .andExpect(jsonPath("$.binding.scopeType").value("ORGANIZATION"))
+                .andExpect(jsonPath("$.trace[?(@.selected == true)].scopeType").value("ORGANIZATION"));
     }
 
     private JsonNode update(String draftId, int revision, JsonNode definition, JsonNode media, String config,
@@ -84,8 +121,8 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
         MvcResult result = mockMvc.perform(put("/api/platform/printing/administration/drafts/{id}", draftId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(java.util.Map.of(
-                                "expectedRevision", revision, "documentDefinitionId", definition.get("id").asText(),
-                                "mediaProfileId", media.get("id").asText(), "templateName", "测试口服药卡 V2",
+                                "expectedRevision", revision, "documentDefinitionId", definition.get("id").asString(),
+                                "mediaProfileId", media.get("id").asString(), "templateName", "测试口服药卡 V2",
                                 "layoutSchema", "RHN_PRINT_CANVAS_V1", "configJson", config))))
                 .andExpect(expectedStatus).andReturn();
         return result.getResponse().getContentAsString().isBlank()
@@ -101,7 +138,7 @@ class ClinicalPrintingPlatformTest extends RhnIntegrationTestSupport {
     }
 
     private JsonNode find(JsonNode values, String field, String expected) {
-        for (JsonNode value : values) if (expected.equals(value.get(field).asText())) return value;
+        for (JsonNode value : values) if (expected.equals(value.get(field).asString())) return value;
         throw new AssertionError("Missing catalog value " + expected);
     }
 }

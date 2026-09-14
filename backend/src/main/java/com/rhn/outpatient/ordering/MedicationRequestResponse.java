@@ -17,6 +17,7 @@ record MedicationRequestResponse(
         BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
         String medicationCode, String medicationName, String medicationType, String manufacturerName, String doseForm,
         String preparationSpec, String preparationUnit, boolean skinTestRequired,
+        boolean skinTestExempt, String skinTestExemptReason, Long exemptEvidenceEventId,
         boolean antimicrobial, String antimicrobialLevel,
         BigDecimal doseValue, String doseUnit, Long routeId, String routeCode, String routeName,
         String routeExecutionType, String frequencyCode,

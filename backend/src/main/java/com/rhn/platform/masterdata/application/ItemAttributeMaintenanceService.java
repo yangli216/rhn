@@ -268,7 +268,7 @@ public class ItemAttributeMaintenanceService {
         if (value.isArray()) throw badRequest("ITEM_ATTRIBUTE_CARDINALITY_MISMATCH", "单值属性不能提交 JSON 数组");
         validateScalar(definition, value, parseSchema(definition.schemaJson()));
         if ("DICT_REF".equals(definition.dataType())) {
-            String code = value.asText();
+            String code = value.asString();
             boolean found = dictionaryDirectory.resolveActiveItems(current().tenantId(), definition.dictionaryId())
                     .stream().anyMatch(item -> item.code().equals(code));
             if (!found) throw badRequest("ITEM_ATTRIBUTE_DICTIONARY_VALUE_INVALID", "属性值不是字典中的有效编码");
@@ -293,12 +293,12 @@ public class ItemAttributeMaintenanceService {
 
     private void validateTemporal(String dataType, JsonNode value) {
         try {
-            if ("DATE".equals(dataType)) LocalDate.parse(value.asText());
+            if ("DATE".equals(dataType)) LocalDate.parse(value.asString());
             if ("DATETIME".equals(dataType)) {
-                try { Instant.parse(value.asText()); }
-                catch (DateTimeParseException ignored) { OffsetDateTime.parse(value.asText()); }
+                try { Instant.parse(value.asString()); }
+                catch (DateTimeParseException ignored) { OffsetDateTime.parse(value.asString()); }
             }
-            if ("DURATION".equals(dataType)) Duration.parse(value.asText());
+            if ("DURATION".equals(dataType)) Duration.parse(value.asString());
         } catch (DateTimeParseException exception) {
             throw badRequest("ITEM_ATTRIBUTE_TEMPORAL_FORMAT_INVALID", "日期时间属性必须使用 ISO-8601 格式");
         }
@@ -333,7 +333,7 @@ public class ItemAttributeMaintenanceService {
             }
         }
         if (value.isString()) {
-            int length = value.asText().length();
+            int length = value.asString().length();
             if (schema.has("minLength") && length < schema.get("minLength").asInt()) {
                 throw badRequest("ITEM_ATTRIBUTE_SCHEMA_VIOLATION", "属性值长度小于允许的最小长度");
             }
@@ -342,7 +342,7 @@ public class ItemAttributeMaintenanceService {
             }
             if (schema.has("pattern")) {
                 try {
-                    if (!Pattern.compile(schema.get("pattern").asText()).matcher(value.asText()).matches()) {
+                    if (!Pattern.compile(schema.get("pattern").asString()).matcher(value.asString()).matches()) {
                         throw badRequest("ITEM_ATTRIBUTE_SCHEMA_VIOLATION", "属性值不符合格式约束");
                     }
                 } catch (PatternSyntaxException exception) {
@@ -352,8 +352,8 @@ public class ItemAttributeMaintenanceService {
         }
         if (value.isObject() && schema.has("required") && schema.get("required").isArray()) {
             for (JsonNode required : schema.get("required")) {
-                if (!value.has(required.asText())) {
-                    throw badRequest("ITEM_ATTRIBUTE_SCHEMA_VIOLATION", "属性值缺少必填字段 " + required.asText());
+                if (!value.has(required.asString())) {
+                    throw badRequest("ITEM_ATTRIBUTE_SCHEMA_VIOLATION", "属性值缺少必填字段 " + required.asString());
                 }
             }
         }
@@ -382,7 +382,7 @@ public class ItemAttributeMaintenanceService {
             for (JsonNode candidate : declared) if (schemaTypeMatches(candidate, value)) return true;
             return false;
         }
-        String type = declared == null ? "" : declared.asText();
+        String type = declared == null ? "" : declared.asString();
         return switch (type) {
             case "string" -> value.isString();
             case "number" -> value.isNumber();
@@ -399,7 +399,7 @@ public class ItemAttributeMaintenanceService {
         if (schema.path("nullable").asBoolean(false)) return true;
         JsonNode type = schema.get("type");
         if (type != null && type.isArray()) {
-            for (JsonNode candidate : type) if ("null".equals(candidate.asText())) return true;
+            for (JsonNode candidate : type) if ("null".equals(candidate.asString())) return true;
         }
         return false;
     }
@@ -420,7 +420,7 @@ public class ItemAttributeMaintenanceService {
         JsonNode allowed = attribute.allowedScopes();
         boolean found = false;
         if (allowed != null && allowed.isArray()) {
-            for (JsonNode value : allowed) if (scopeType.equals(value.asText())) found = true;
+            for (JsonNode value : allowed) if (scopeType.equals(value.asString())) found = true;
         }
         if (!found) throw badRequest("ITEM_ATTRIBUTE_SCOPE_NOT_ALLOWED", "该属性不允许维护到 " + scopeType + " 作用域");
     }

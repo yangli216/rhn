@@ -21,6 +21,11 @@ public class PrintOutput {
     @Column(name = "ID_SRC", nullable = false) private Long sourceId;
     @Column(name = "SN_SRC_VER", nullable = false) private long sourceVersion;
     @Column(name = "SD_DOC_TYPE", nullable = false) private String documentType;
+    @Column(name = "ID_PRINT_TASK_DEF") private Long taskDefinitionId;
+    @Column(name = "CD_PRINT_TASK") private String taskCode;
+    @Column(name = "ID_PRINT_IMPL") private Long implementationId;
+    @Column(name = "ID_PRINT_IMPL_BIND") private Long implementationBindingId;
+    @Column(name = "CD_PAYLOAD_SCHEMA") private String payloadSchema;
     @Column(name = "ID_PAT") private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
     @Column(name = "ID_ORG") private Long organizationId;
@@ -52,6 +57,21 @@ public class PrintOutput {
         this.generatedAt = Instant.now(); this.generatedBy = actorId;
     }
 
+    public PrintOutput(Long tenantId, PrintTemplate template, PrintTemplateVersion templateVersion,
+                       PrintBusinessDefinition task, PrintImplementation implementation,
+                       PrintImplementationBinding implementationBinding,
+                       String sourceType, Long sourceId, long sourceVersion, String documentType,
+                       Long residentId, Long encounterId, Long organizationId, Long departmentId,
+                       String purpose, String snapshotJson, String fileName, byte[] content,
+                       String digestAlgorithm, String digest, Long actorId) {
+        this(tenantId, template, templateVersion, sourceType, sourceId, sourceVersion, documentType,
+                residentId, encounterId, organizationId, departmentId, purpose, snapshotJson, fileName,
+                content, digestAlgorithm, digest, actorId);
+        this.taskDefinitionId = task.id(); this.taskCode = task.taskCode();
+        this.implementationId = implementation.id(); this.implementationBindingId = implementationBinding.id();
+        this.payloadSchema = task.payloadSchema();
+    }
+
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
     public Long templateId() { return templateId; }
@@ -60,6 +80,11 @@ public class PrintOutput {
     public Long sourceId() { return sourceId; }
     public long sourceVersion() { return sourceVersion; }
     public String documentType() { return documentType; }
+    public Long taskDefinitionId() { return taskDefinitionId; }
+    public String taskCode() { return taskCode; }
+    public Long implementationId() { return implementationId; }
+    public Long implementationBindingId() { return implementationBindingId; }
+    public String payloadSchema() { return payloadSchema; }
     public Long residentId() { return residentId; }
     public Long encounterId() { return encounterId; }
     public Long organizationId() { return organizationId; }

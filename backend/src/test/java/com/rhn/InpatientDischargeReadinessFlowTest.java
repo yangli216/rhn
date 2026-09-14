@@ -34,8 +34,8 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                   "commandCode":"DISCHARGE-READY-ADMIT"
                 }
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         recordAdmissionDiagnosis(encounterId);
 
         JsonNode order = postJson("/api/inpatient/orders", """
@@ -49,7 +49,7 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                   "commandCode":"DISCHARGE-READY-ORDER"
                 }
                 """.formatted(episodeId), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 command(0, "DISCHARGE-READY-SIGN"), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -61,7 +61,7 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                   "commandCode":"DISCHARGE-READY-PLAN"
                 }
                 """.formatted(Instant.now().minusSeconds(60)), 200);
-        String taskId = planned.get("tasks").get(0).get("id").asText();
+        String taskId = planned.get("tasks").get(0).get("id").asString();
         String dischargeRecordId = createDraftDischargeRecord(encounterId);
 
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
@@ -174,7 +174,7 @@ class InpatientDischargeReadinessFlowTest extends RhnIntegrationTestSupport {
                   "changeReason":"创建出院记录"
                 }
                 """.formatted(RESIDENT, encounterId, ORGANIZATION, DEPARTMENT), 201);
-        return response.get("id").asText();
+        return response.get("id").asString();
     }
 
     private void signDocument(String documentId) throws Exception {

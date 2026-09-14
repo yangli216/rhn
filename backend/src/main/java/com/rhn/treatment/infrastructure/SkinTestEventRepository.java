@@ -17,6 +17,9 @@ public interface SkinTestEventRepository extends JpaRepository<SkinTestEvent, Lo
     List<SkinTestEvent> findByTenantIdAndMedicationRequestIdOrderByAttemptNoDesc(
             Long tenantId, Long medicationRequestId);
 
+    List<SkinTestEvent> findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(
+            Long tenantId, Long residentId, Long medicationId, String result);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select e from SkinTestEvent e where e.id=:id and e.tenantId=:tenantId")
     Optional<SkinTestEvent> lockByIdAndTenantId(Long id, Long tenantId);

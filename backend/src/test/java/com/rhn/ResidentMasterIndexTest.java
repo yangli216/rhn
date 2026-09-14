@@ -41,7 +41,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                 """.formatted(duplicateId)))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        String mergeHistoryId = objectMapper.readTree(mergeBody).get("mergeHistoryId").asText();
+        String mergeHistoryId = objectMapper.readTree(mergeBody).get("mergeHistoryId").asString();
 
         mockMvc.perform(get("/api/residents/{id}", duplicateId)
                         .with(rhn()))
@@ -157,7 +157,7 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.identifiers[0].maskedValue").value(org.hamcrest.Matchers.startsWith("TC")))
                 .andReturn().getResponse().getContentAsString();
 
-        String residentId = objectMapper.readTree(body).get("id").asText();
+        String residentId = objectMapper.readTree(body).get("id").asString();
         mockMvc.perform(get("/api/residents/{id}", residentId)
                         .with(rhn()))
                 .andExpect(status().isOk())
@@ -182,6 +182,6 @@ class ResidentMasterIndexTest extends RhnIntegrationTestSupport {
                                 """.formatted(name, nationalIdField, identifiersField)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        return objectMapper.readTree(body).get("id").asText();
+        return objectMapper.readTree(body).get("id").asString();
     }
 }

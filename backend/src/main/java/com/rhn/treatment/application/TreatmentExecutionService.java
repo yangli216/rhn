@@ -177,7 +177,8 @@ public class TreatmentExecutionService {
                 text(event.payload().get("frequencyCode")), longValue(event.payload().get("frequencyId")),
                 text(event.payload().get("frequencyName")), json(event.payload().get("frequencyRule")),
                 decimal(event.payload().get("durationValue")),
-                text(event.payload().get("durationUnit")), bool(event.payload().get("skinTestRequired")),
+                text(event.payload().get("durationUnit")),
+                bool(event.payload().get("skinTestRequired")) && !bool(event.payload().get("skinTestExempt")),
                 positive(event.payload().get("totalAmount")), !selfProvided, event.occurredAt());
     }
 
@@ -267,7 +268,7 @@ public class TreatmentExecutionService {
                     value.doseUnit(), value.routeCode(), value.frequencyCode(), value.frequencyId(),
                     value.frequencyName(), value.frequencyRule() == null ? null : jsonCodec.write(value.frequencyRule()),
                     value.durationValue(),
-                    value.durationUnit(), value.skinTestRequired(),
+                    value.durationUnit(), value.skinTestRequired() && !value.skinTestExempt(),
                     value.totalAmount() != null && value.totalAmount().signum() > 0, !value.selfProvided(),
                     value.authoredAt());
         }

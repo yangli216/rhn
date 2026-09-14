@@ -33,8 +33,8 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                  "admissionReason":"护理记录与正式交接班验收","nursingLevelCode":"LEVEL_I",
                  "commandCode":"IP-NURSING-ADMIT"}
                 """, ward, 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         Instant occurredAt = Instant.now();
         String nursingBody = """
                 {
@@ -50,16 +50,16 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 """.formatted(occurredAt);
         JsonNode nursing = postJson(
                 "/api/inpatient/episodes/" + episodeId + "/nursing-records", nursingBody, ward, 201);
-        String nursingId = nursing.get("id").asText();
-        assertEquals(episodeId, nursing.get("episodeId").asText());
-        assertEquals(encounterId, nursing.get("encounterId").asText());
-        assertEquals("发热观察", nursing.at("/content/focus").asText());
-        assertEquals("FALL", nursing.at("/observationSummary/riskFlags/0").asText());
-        assertEquals("SHA-256", nursing.get("contentDigestAlgorithm").asText());
+        String nursingId = nursing.get("id").asString();
+        assertEquals(episodeId, nursing.get("episodeId").asString());
+        assertEquals(encounterId, nursing.get("encounterId").asString());
+        assertEquals("发热观察", nursing.at("/content/focus").asString());
+        assertEquals("FALL", nursing.at("/observationSummary/riskFlags/0").asString());
+        assertEquals("SHA-256", nursing.get("contentDigestAlgorithm").asString());
 
         JsonNode nursingReplay = postJson("/api/inpatient/episodes/" + episodeId + "/nursing-records",
                 nursingBody, ward, 201);
-        assertEquals(nursingId, nursingReplay.get("id").asText());
+        assertEquals(nursingId, nursingReplay.get("id").asString());
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
                         .with(ward).contentType(MediaType.APPLICATION_JSON)
                         .content(nursingBody.replace("精神可", "嗜睡")))
@@ -82,13 +82,13 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 """.formatted(assessmentAt);
         JsonNode assessment = postJson(
                 "/api/inpatient/episodes/" + episodeId + "/nursing-records", assessmentBody, ward, 201);
-        String assessmentId = assessment.get("id").asText();
-        assertEquals("ASSESSMENT", assessment.get("recordType").asText());
-        assertEquals("HIGH", assessment.at("/assessment/fallRiskLevel").asText());
-        assertEquals("床旁放置防跌倒提示", assessment.at("/assessment/immediateActions/0").asText());
+        String assessmentId = assessment.get("id").asString();
+        assertEquals("ASSESSMENT", assessment.get("recordType").asString());
+        assertEquals("HIGH", assessment.at("/assessment/fallRiskLevel").asString());
+        assertEquals("床旁放置防跌倒提示", assessment.at("/assessment/immediateActions/0").asString());
         assertEquals(assessmentId, postJson(
                 "/api/inpatient/episodes/" + episodeId + "/nursing-records", assessmentBody, ward, 201)
-                .get("id").asText());
+                .get("id").asString());
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/nursing-records", episodeId)
                         .with(ward).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"occurredAt":"%s","recordType":"ASSESSMENT",
@@ -125,14 +125,14 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
                 }
                 """.formatted(shiftFrom, shiftTo, episodeId);
         JsonNode handoff = postJson("/api/inpatient/shift-handoffs", handoffBody, ward, 201);
-        String handoffId = handoff.get("id").asText();
-        String contentEvidenceId = handoff.get("integrityEvidenceId").asText();
-        assertEquals("DRAFT", handoff.get("status").asText());
-        assertEquals("01床", handoff.at("/patients/0/bedNo").asText());
-        assertEquals("夜班复核抢救车", handoff.at("/generalItems/0").asText());
+        String handoffId = handoff.get("id").asString();
+        String contentEvidenceId = handoff.get("integrityEvidenceId").asString();
+        assertEquals("DRAFT", handoff.get("status").asString());
+        assertEquals("01床", handoff.at("/patients/0/bedNo").asString());
+        assertEquals("夜班复核抢救车", handoff.at("/generalItems/0").asString());
 
         JsonNode replayHandoff = postJson("/api/inpatient/shift-handoffs", handoffBody, ward, 201);
-        assertEquals(handoffId, replayHandoff.get("id").asText());
+        assertEquals(handoffId, replayHandoff.get("id").asString());
         mockMvc.perform(post("/api/inpatient/shift-handoffs").with(ward)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(handoffBody.replace("运行平稳", "存在异常")))
@@ -148,23 +148,23 @@ class InpatientNursingAndShiftHandoffTest extends RhnIntegrationTestSupport {
 
         JsonNode submitted = postJson("/api/inpatient/shift-handoffs/" + handoffId + "/submit",
                 "{\"commandCode\":\"IP-HANDOFF-SUBMIT-1\"}", ward, 200);
-        assertEquals("SUBMITTED", submitted.get("status").asText());
-        assertEquals("HANDOVER", submitted.at("/signatures/0/signatureMeaning").asText());
-        String handoverEvidenceId = submitted.at("/signatures/0/signatureEvidenceId").asText();
+        assertEquals("SUBMITTED", submitted.get("status").asString());
+        assertEquals("HANDOVER", submitted.at("/signatures/0/signatureMeaning").asString());
+        String handoverEvidenceId = submitted.at("/signatures/0/signatureEvidenceId").asString();
         assertNotEquals(contentEvidenceId, handoverEvidenceId);
 
         JsonNode submitReplay = postJson("/api/inpatient/shift-handoffs/" + handoffId + "/submit",
                 "{\"commandCode\":\"IP-HANDOFF-SUBMIT-1\"}", ward, 200);
-        assertEquals("SUBMITTED", submitReplay.get("status").asText());
+        assertEquals("SUBMITTED", submitReplay.get("status").asString());
         assertEquals(1, submitReplay.withArray("signatures").size());
 
         JsonNode accepted = postJson("/api/inpatient/shift-handoffs/" + handoffId + "/accept",
                 "{\"commandCode\":\"IP-HANDOFF-ACCEPT-1\"}", ward, 200);
-        assertEquals("ACCEPTED", accepted.get("status").asText());
-        assertEquals("TAKEOVER", accepted.at("/signatures/1/signatureMeaning").asText());
-        assertNotEquals(handoverEvidenceId, accepted.at("/signatures/1/signatureEvidenceId").asText());
-        assertEquals(submitted.at("/signatures/0/signedAt").asText(),
-                accepted.at("/signatures/0/signedAt").asText());
+        assertEquals("ACCEPTED", accepted.get("status").asString());
+        assertEquals("TAKEOVER", accepted.at("/signatures/1/signatureMeaning").asString());
+        assertNotEquals(handoverEvidenceId, accepted.at("/signatures/1/signatureEvidenceId").asString());
+        assertEquals(submitted.at("/signatures/0/signedAt").asString(),
+                accepted.at("/signatures/0/signedAt").asString());
 
         mockMvc.perform(get("/api/inpatient/shift-handoffs/{handoffId}", handoffId).with(rhnWorkContext()))
                 .andExpect(status().isForbidden())

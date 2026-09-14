@@ -31,8 +31,8 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                  "admissionSourceCode":"DIRECT","admissionReason":"入院诊断与用药安全验收",
                  "commandCode":"IP-ADMISSION-SAFETY-ADMIT"}
                 """.formatted(RESIDENT, BED_01), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
 
         String initialDiagnoses = """
                 {"expectedEpisodeRevision":0,
@@ -83,7 +83,7 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                  "itemCode":"NUR-SAFETY-OBS","itemName":"病情观察","instructions":"观察生命体征",
                  "commandCode":"IP-ADMISSION-SAFETY-NURSING"}
                 """.formatted(episodeId), 201);
-        String nursingId = nursing.get("id").asText();
+        String nursingId = nursing.get("id").asString();
         postJson("/api/inpatient/orders/" + nursingId + "/sign",
                 command(0, "IP-ADMISSION-SAFETY-NURSING-SIGN"), 200);
         postJson("/api/inpatient/orders/" + nursingId + "/verify",
@@ -99,7 +99,7 @@ class InpatientAdmissionDiagnosisAndMedicationSafetyTest extends RhnIntegrationT
                  "routeCode":"ORAL","frequencyCode":"TID","instructions":"饭后口服",
                  "commandCode":"IP-ADMISSION-SAFETY-MEDICATION"}
                 """.formatted(episodeId, AMOXICILLIN_PRODUCT), 201);
-        String medicationId = medication.get("id").asText();
+        String medicationId = medication.get("id").asString();
         postError("/api/inpatient/orders/" + medicationId + "/sign",
                 command(0, "IP-ADMISSION-SAFETY-SIGN-UNKNOWN"),
                 "INPATIENT_MEDICATION_ALLERGY_STATUS_UNKNOWN");

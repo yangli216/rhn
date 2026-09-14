@@ -95,10 +95,10 @@ final class OpenAiCompatibleClinicalTriageAiGateway implements ClinicalTriageAiG
     private String extractContent(String responseBody) {
         JsonNode root = jsonCodec.readTree(responseBody);
         JsonNode first = root == null ? null : root.path("choices").path(0);
-        if (first != null && "length".equals(first.path("finish_reason").asText())) {
+        if (first != null && "length".equals(first.path("finish_reason").asString())) {
             throw new ClinicalAiModelException(Reason.OUTPUT_LIMIT, null, "模型输出被长度上限截断", null);
         }
-        String value = first == null ? "" : first.path("message").path("content").asText("").trim();
+        String value = first == null ? "" : first.path("message").path("content").asString("").trim();
         if (value.isBlank()) throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null,
                 "模型服务未返回可解析内容", null);
         if (value.startsWith("```")) {

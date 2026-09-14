@@ -22,4 +22,6 @@ public record SkinTestWorkItemView(
         String result, BigDecimal whealDiameterMm, BigDecimal flareDiameterMm,
         String reactionDescription, String earlyReadReason,
         Long performedByUserId, Long performedByPractitionerId,
-        Long readByUserId, Long readByPractitionerId) {}
+        Long readByUserId, Long readByPractitionerId,
+        Long verifiedByUserId, Long verifiedByPractitionerId,
+        String verifiedByName, Instant verifiedAt) {}

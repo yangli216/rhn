@@ -419,10 +419,10 @@ public class ItemAttributeConfigurationService {
     private boolean declares(JsonNode declared, String expected) {
         if (declared == null) return false;
         if (declared.isArray()) {
-            for (JsonNode value : declared) if (expected.equals(value.asText())) return true;
+            for (JsonNode value : declared) if (expected.equals(value.asString())) return true;
             return false;
         }
-        return expected.equals(declared.asText());
+        return expected.equals(declared.asString());
     }
 
     private String jsonType(String dataType) {
@@ -562,7 +562,7 @@ public class ItemAttributeConfigurationService {
     private List<String> stringList(String value) {
         JsonNode node = json(value);
         List<String> result = new ArrayList<>();
-        if (node != null && node.isArray()) for (JsonNode item : node) result.add(item.asText());
+        if (node != null && node.isArray()) for (JsonNode item : node) result.add(item.asString());
         return List.copyOf(result);
     }
 

@@ -33,7 +33,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.version").value(0))
                 .andReturn().getResponse().getContentAsString());
-        String residentId = resident.get("id").asText();
+        String residentId = resident.get("id").asString();
 
         mockMvc.perform(put("/api/residents/{residentId}/profile", residentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -87,7 +87,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.generatedCount").value(1))
                 .andReturn().getResponse().getContentAsString());
-        String scheduleId = generated.get("schedules").get(0).get("id").asText();
+        String scheduleId = generated.get("schedules").get(0).get("id").asString();
         String requestCode = "registration-" + suffix;
 
         JsonNode encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -103,7 +103,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.appointmentId").isNotEmpty())
                 .andExpect(jsonPath("$.scheduleId").value(scheduleId))
                 .andReturn().getResponse().getContentAsString());
-        String encounterId = encounter.get("id").asText();
+        String encounterId = encounter.get("id").asString();
 
         mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -190,7 +190,7 @@ class PatientManagementIterationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.identifiers.length()").value(2))
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(get("/api/residents/{residentId}/profile", resident.get("id").asText())
+        mockMvc.perform(get("/api/residents/{residentId}/profile", resident.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.demographicProfile.sdResidencyTypeText").value("非户籍常住人口"))

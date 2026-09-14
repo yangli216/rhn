@@ -33,12 +33,12 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
 
         JsonNode tasks = json(mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asText()))
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asString()))
                         .value("WAITING_SETTLEMENT"))
                 .andReturn().getResponse().getContentAsString());
-        JsonNode task = findBy(tasks, "requestId", request.get("id").asText());
+        JsonNode task = findBy(tasks, "requestId", request.get("id").asString());
 
-        mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", task.get("id").asText())
+        mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"specimenNo\":\"SP-%s\"}"
                                 .formatted(task.get("revision").asLong(), suffix)))
@@ -50,12 +50,12 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.charges.length()").value(1))
                 .andReturn().getResponse().getContentAsString());
         JsonNode invoice = json(mockMvc.perform(post("/api/billing/accounts/{id}/invoices",
-                                statement.get("accountId").asText())
+                                statement.get("accountId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"invoiceNo\":\"DX-INV-%s\",\"settlementScene\":\"OUTPATIENT\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/billing/settlements/{id}/payment-orders", invoice.get("id").asText())
+        mockMvc.perform(post("/api/billing/settlements/{id}/payment-orders", invoice.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"DX-PAY-%s","businessScene":"OUTPATIENT",
                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH",
@@ -66,24 +66,24 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
         tasks = json(mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext())
                         .param("requestType", "LABORATORY"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asText()))
+                .andExpect(jsonPath("$[?(@.requestId == '%s')].status".formatted(request.get("id").asString()))
                         .value("READY"))
                 .andReturn().getResponse().getContentAsString());
-        task = findBy(tasks, "requestId", request.get("id").asText());
-        JsonNode collected = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", task.get("id").asText())
+        task = findBy(tasks, "requestId", request.get("id").asString());
+        JsonNode collected = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"specimenNo\":\"SP-%s\",\"note\":\"静脉血\"}"
                                 .formatted(task.get("revision").asLong(), suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COLLECTED"))
                 .andExpect(jsonPath("$.specimenNo").value("SP-" + suffix))
                 .andReturn().getResponse().getContentAsString());
-        JsonNode started = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/start", task.get("id").asText())
+        JsonNode started = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d}".formatted(collected.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                 .andReturn().getResponse().getContentAsString());
 
-        JsonNode report = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/local-reports", task.get("id").asText())
+        JsonNode report = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/local-reports", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"valueType":"NUMBER","observationValue":"5.8",
                                  "unitCode":"10^9/L","referenceRangeLow":3.5,"referenceRangeHigh":9.5,
@@ -96,13 +96,13 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()).param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.requestId == '%s')].reportId"
-                        .formatted(request.get("id").asText())).value(report.get("id").asText()));
+                        .formatted(request.get("id").asString())).value(report.get("id").asString()));
         mockMvc.perform(get("/api/encounters/{id}/diagnostic-reports", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].conclusion").value("白细胞计数在参考范围内"));
     }
 
     private JsonNode findBy(JsonNode values, String field, String expected) {
-        for (JsonNode value : values) if (expected.equals(value.get(field).asText())) return value;
+        for (JsonNode value : values) if (expected.equals(value.get(field).asString())) return value;
         throw new AssertionError("未找到医技任务：" + expected);
     }
 
@@ -114,7 +114,7 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                                 {"fullName":"医技闭环测试居民","identifiers":[{"system":"9","value":"DIAG-%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-08-08"}
                                 """.formatted(tail)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -123,7 +123,7 @@ class DiagnosticExecutionWorkflowTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText())).andExpect(status().isOk());
-        return encounter.get("id").asText();
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString())).andExpect(status().isOk());
+        return encounter.get("id").asString();
     }
 }

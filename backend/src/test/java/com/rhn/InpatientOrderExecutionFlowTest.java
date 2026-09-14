@@ -59,19 +59,19 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                 }
                 """.formatted(episodeId, MEDICATION_PRODUCT);
         JsonNode medication = postJson("/api/inpatient/orders", medicationBody, 201);
-        String medicationId = medication.get("id").asText();
-        assertEquals("DRAFT", medication.get("status").asText());
-        assertEquals("MEDICATION", medication.get("orderCategory").asText());
-        assertEquals("阿莫西林胶囊 0.25g", medication.get("itemName").asText());
+        String medicationId = medication.get("id").asString();
+        assertEquals("DRAFT", medication.get("status").asString());
+        assertEquals("MEDICATION", medication.get("orderCategory").asString());
+        assertEquals("阿莫西林胶囊 0.25g", medication.get("itemName").asString());
 
         JsonNode replay = postJson("/api/inpatient/orders", medicationBody, 201);
-        assertEquals(medicationId, replay.get("id").asText());
+        assertEquals(medicationId, replay.get("id").asString());
         assertEquals(1, count("select count(*) from RHN_EX_CARE_REQ where ID_CARE_REQ = ?", medicationId));
         assertEquals(1, count("select count(*) from RHN_EX_MED_REQ where ID_CARE_REQ = ?", medicationId));
         assertEquals(1, count("select count(*) from RHN_EX_INP_ORDER_WF where ID_CARE_REQ = ?", medicationId));
         assertFalse(tableExists("INPATIENT_ORDERS"));
 
-        recordInpatientNoKnownDrugAllergy(RESIDENT, medication.get("encounterId").asText());
+        recordInpatientNoKnownDrugAllergy(RESIDENT, medication.get("encounterId").asString());
         postJson("/api/inpatient/orders/" + medicationId + "/sign",
                 medicationSign(0, "IP-ORDER-SIGN-MED-01"), 200);
         JsonNode signedReplay = postJson("/api/inpatient/orders/" + medicationId + "/sign",
@@ -89,9 +89,9 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode planReplay = postJson("/api/inpatient/orders/" + medicationId + "/plans",
                 medicationPlan, 200);
         assertEquals(3, planReplay.get("tasks").size());
-        String executeTaskId = plannedMedication.get("tasks").get(0).get("id").asText();
-        String skipTaskId = plannedMedication.get("tasks").get(1).get("id").asText();
-        String returnedMedicationTaskId = plannedMedication.get("tasks").get(2).get("id").asText();
+        String executeTaskId = plannedMedication.get("tasks").get(0).get("id").asString();
+        String skipTaskId = plannedMedication.get("tasks").get(1).get("id").asString();
+        String returnedMedicationTaskId = plannedMedication.get("tasks").get(2).get("id").asString();
 
         mockMvc.perform(get("/api/inpatient/order-tasks/nurse-worklist")
                         .with(rhnWorkContext()).queryParam("episodeId", episodeId))
@@ -140,7 +140,7 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode taskReplay = postJson("/api/inpatient/order-tasks/" + executeTaskId + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"GIVEN","note":"患者已服药", "commandCode":"IP-TASK-EXEC-MED-01"}
                 """, 200);
-        assertEquals("EXECUTED", taskReplay.get("status").asText());
+        assertEquals("EXECUTED", taskReplay.get("status").asString());
         assertEquals(998878L, taskReplay.get("medicationConsumptions").get(0).get("dispenseLineId").asLong());
         mockMvc.perform(post("/api/inpatient/order-tasks/{id}/execute", executeTaskId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -172,10 +172,10 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode stoppedMedication = postJson("/api/inpatient/orders/" + medicationId + "/stop", """
                 {"expectedRevision":3,"reason":"调整治疗方案","commandCode":"IP-ORDER-STOP-MED-01"}
                 """, 200);
-        assertEquals("STOPPED", stoppedMedication.get("status").asText());
-        assertEquals("EXECUTED", stoppedMedication.get("tasks").get(0).get("status").asText());
-        assertEquals("SKIPPED", stoppedMedication.get("tasks").get(1).get("status").asText());
-        assertEquals("CANCELLED", stoppedMedication.get("tasks").get(2).get("status").asText());
+        assertEquals("STOPPED", stoppedMedication.get("status").asString());
+        assertEquals("EXECUTED", stoppedMedication.get("tasks").get(0).get("status").asString());
+        assertEquals("SKIPPED", stoppedMedication.get("tasks").get(1).get("status").asString());
+        assertEquals("CANCELLED", stoppedMedication.get("tasks").get(2).get("status").asString());
 
         String serviceId = createAndCompleteService(episodeId, now.minusSeconds(30));
         String nursingId = createAndCompleteNursing(episodeId, now.minusSeconds(20));
@@ -191,7 +191,7 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.orders.length()").value(3));
 
-        String encounterId = medication.get("encounterId").asText();
+        String encounterId = medication.get("encounterId").asString();
         prepareSignedDischargeRecord(RESIDENT, encounterId, "ORDER-FLOW");
         recordPrimaryDischargeDiagnosis(episodeId, 0, "J18.900", "肺炎", "ORDER-FLOW-DIAGNOSIS");
         discharge(episodeId);
@@ -215,12 +215,12 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
                  "catalogItemId":"%s","instructions":"采集静脉血完成血细胞分析", "commandCode":"IP-ORDER-CREATE-SRV-01"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
-        String id = created.get("id").asText();
+        String id = created.get("id").asString();
         postJson("/api/inpatient/orders/" + id + "/sign", revision(0, "IP-ORDER-SIGN-SRV-01"), 200);
         postJson("/api/inpatient/orders/" + id + "/verify", revision(1, "IP-ORDER-VERIFY-SRV-01"), 200);
         JsonNode planned = postJson("/api/inpatient/orders/" + id + "/plans",
                 plan(2, "IP-ORDER-PLAN-SRV-01", plannedAt), 200);
-        String taskId = planned.get("tasks").get(0).get("id").asText();
+        String taskId = planned.get("tasks").get(0).get("id").asString();
         postJson("/api/inpatient/order-tasks/" + taskId + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-TASK-EXEC-SRV-01"}
                 """, 200);
@@ -235,12 +235,12 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                  "itemCode":"NUR-FASTING","itemName":"检查前禁食","instructions":"午夜后禁食禁饮",
                  "commandCode":"IP-ORDER-CREATE-NUR-01"}
                 """.formatted(episodeId), 201);
-        String id = created.get("id").asText();
+        String id = created.get("id").asString();
         postJson("/api/inpatient/orders/" + id + "/sign", revision(0, "IP-ORDER-SIGN-NUR-01"), 200);
         postJson("/api/inpatient/orders/" + id + "/verify", revision(1, "IP-ORDER-VERIFY-NUR-01"), 200);
         JsonNode planned = postJson("/api/inpatient/orders/" + id + "/plans",
                 plan(2, "IP-ORDER-PLAN-NUR-01", plannedAt), 200);
-        String taskId = planned.get("tasks").get(0).get("id").asText();
+        String taskId = planned.get("tasks").get(0).get("id").asString();
         postJson("/api/inpatient/order-tasks/" + taskId + "/skip", """
                 {"expectedRevision":0,"outcomeCode":"NOT_APPLICABLE","note":"检查取消",
                  "commandCode":"IP-TASK-SKIP-NUR-01"}
@@ -254,7 +254,7 @@ class InpatientOrderExecutionFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"OUTPATIENT","admissionReason":"住院医嘱流程测试",
                  "commandCode":"IP-ORDER-FLOW-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        return response.get("id").asText();
+        return response.get("id").asString();
     }
 
     private void discharge(String episodeId) throws Exception {

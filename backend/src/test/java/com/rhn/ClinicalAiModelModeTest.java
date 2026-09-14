@@ -177,7 +177,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                     "diagnoses":[]
                                   }
                                 }
-                """.formatted(first.get("id").asText())))
+                """.formatted(first.get("id").asString())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(org.hamcrest.Matchers.not(first.get("id").asLong())))
                 .andExpect(jsonPath("$.parentSuggestionId").value(first.get("id").asLong()))
@@ -199,7 +199,7 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                   "question":"继续上一轮分析",
                                   "draft":{"chiefComplaint":"已经变化的主诉","diagnoses":[]}
                                 }
-                                """.formatted(first.get("id").asText())))
+                                """.formatted(first.get("id").asString())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("AI_PARENT_SUGGESTION_DRAFT_CHANGED"));
 
@@ -225,9 +225,9 @@ class ClinicalAiModelModeTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"MODEL-REG-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String encounterId = encounter.get("id").asText();
+        String encounterId = encounter.get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         return encounterId;
     }

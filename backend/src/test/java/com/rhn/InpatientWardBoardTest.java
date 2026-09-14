@@ -29,13 +29,13 @@ class InpatientWardBoardTest extends RhnIntegrationTestSupport {
                  "admissionReason":"病区交接摘要测试","nursingLevelCode":"LEVEL_I",
                  "commandCode":"IP-WARD-BOARD-ADMIT"}
                 """, wardContext(), 201);
-        String episodeId = admission.get("id").asText();
+        String episodeId = admission.get("id").asString();
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"NURSING","durationType":"LONG_TERM",
                  "itemCode":"NUR-VITAL","itemName":"生命体征监测",
                  "instructions":"按计划巡视并记录","commandCode":"IP-WARD-BOARD-ORDER"}
                 """.formatted(episodeId), wardContext(), 201);
-        String orderId = order.get("id").asText();
+        String orderId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + orderId + "/sign",
                 medicationSign(0, "IP-WARD-BOARD-SIGN"), wardContext(), 200);
 

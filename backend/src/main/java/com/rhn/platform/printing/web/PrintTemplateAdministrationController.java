@@ -72,6 +72,17 @@ public class PrintTemplateAdministrationController {
     @PostMapping("/drafts/{draftId}/preview")
     ResponseEntity<byte[]> preview(@PathVariable Long draftId, @RequestBody(required = false) PreviewRequest request) {
         byte[] pdf = service.preview(draftId, request == null ? Map.of() : request.sampleData());
+        return previewResponse(pdf);
+    }
+
+    @PostMapping("/templates/{templateId}/preview")
+    ResponseEntity<byte[]> previewPublished(@PathVariable Long templateId,
+                                            @RequestBody(required = false) PreviewRequest request) {
+        byte[] pdf = service.previewPublished(templateId, request == null ? Map.of() : request.sampleData());
+        return previewResponse(pdf);
+    }
+
+    private ResponseEntity<byte[]> previewResponse(byte[] pdf) {
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
                         .filename("template-preview.pdf", StandardCharsets.UTF_8).build().toString())

@@ -30,7 +30,7 @@ public interface MedicationRequestDirectory {
             String routeName, String routeExecutionType,
             String frequencyCode, Long frequencyId, String frequencyName, JsonNode frequencyRule,
             BigDecimal durationValue, String durationUnit,
-            boolean skinTestRequired,
+            boolean skinTestRequired, boolean skinTestExempt, String skinTestExemptReason, Long exemptEvidenceEventId,
             Long priceId, Long priceRevision, String priceType,
             BigDecimal unitPrice, BigDecimal priceQuantity, BigDecimal totalAmount, String currencyCode,
             JsonNode medicationSnapshot, JsonNode itemAttributeSnapshot, String itemAttributeHash,

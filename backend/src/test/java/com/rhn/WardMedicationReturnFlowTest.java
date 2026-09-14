@@ -41,8 +41,8 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"病区余药反向交接测试","commandCode":"WMR-ADMIT"}
                 """, rhnWorkContext(), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         recordInpatientNoKnownDrugAllergy("362387869790213", encounterId);
 
         JsonNode order = postJson("/api/inpatient/orders", """
@@ -51,7 +51,7 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"TID","instructions":"饭后口服",
                  "commandCode":"WMR-ORDER"}
                 """.formatted(episodeId), rhnWorkContext(), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 medicationSign(0, "WMR-SIGN"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -61,19 +61,19 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":2,"plannedTimes":["%s","%s"],"commandCode":"WMR-PLAN"}
                 """.formatted(atSupplyTime(supplyDate, 9), atSupplyTime(supplyDate, 13)),
                 rhnWorkContext(), 200);
-        String firstTaskId = plan.at("/tasks/0/id").asText();
-        String secondTaskId = plan.at("/tasks/1/id").asText();
+        String firstTaskId = plan.at("/tasks/0/id").asString();
+        String secondTaskId = plan.at("/tasks/1/id").asString();
 
         JsonNode supplyBatch = postJson("/api/pharmacy/ward-supply-batches", """
                 {"stockSiteId":"%s","nursingUnitDepartmentId":"%s","businessDate":"%s",
                  "shiftCode":"DAY","commandCode":"WMR-SUPPLY"}
-                """.formatted(INPATIENT_STOCK_SITE, order.get("departmentId").asText(), supplyDate),
+                """.formatted(INPATIENT_STOCK_SITE, order.get("departmentId").asString(), supplyDate),
                 pharmacyContext(), 201);
         JsonNode supplyLine = postJson("/api/pharmacy/ward-supply-lines/"
-                + supplyBatch.at("/lines/0/id").asText() + "/intake", """
+                + supplyBatch.at("/lines/0/id").asString() + "/intake", """
                 {"stockItemId":"%s","description":"两剂摆药"}
                 """.formatted(INPATIENT_STOCK_ITEM), pharmacyContext(), 201);
-        String dispenseTaskId = supplyLine.get("dispenseTaskId").asText();
+        String dispenseTaskId = supplyLine.get("dispenseTaskId").asString();
         postJson("/api/pharmacy/dispense-tasks/" + dispenseTaskId + "/reviews", """
                 {"result":"PASS","pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT), pharmacyContext(), 200);
@@ -86,14 +86,14 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 {"requestCode":"WMR-DISPENSE","operationQuantity":2,
                  "dispenserPractitionerId":"%s","dispenserAssignmentId":"%s","description":"送病区"}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT), pharmacyContext(), 201);
-        String dispenseId = dispense.get("id").asText();
-        String dispenseLineId = dispense.at("/lines/0/id").asText();
+        String dispenseId = dispense.get("id").asString();
+        String dispenseLineId = dispense.at("/lines/0/id").asString();
 
         JsonNode delivery = postJson("/api/pharmacy/ward-deliveries", """
                 {"deliveryNo":"WMR-DELIVERY","dispenseIds":["%s"]}
                 """.formatted(dispenseId), pharmacyContext(), 201);
-        String deliveryId = delivery.get("id").asText();
-        String deliveryLineId = delivery.at("/lines/0/id").asText();
+        String deliveryId = delivery.get("id").asString();
+        String deliveryLineId = delivery.at("/lines/0/id").asString();
         postJson("/api/pharmacy/ward-deliveries/" + deliveryId + "/dispatch", """
                 {"expectedRevision":0,"commandCode":"WMR-DISPATCH"}
                 """, pharmacyContext(), 200);
@@ -134,9 +134,9 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 wardContext(), 201);
         JsonNode createReplay = postJson("/api/pharmacy/ward-medication-returns", createBody,
                 wardContext(), 201);
-        assertEquals(request.get("id").asText(), createReplay.get("id").asText());
-        String returnRequestId = request.get("id").asText();
-        String returnRequestLineId = request.at("/lines/0/id").asText();
+        assertEquals(request.get("id").asString(), createReplay.get("id").asString());
+        String returnRequestId = request.get("id").asString();
+        String returnRequestLineId = request.at("/lines/0/id").asString();
         assertEquals(1, countId("select count(*) from RHN_SUP_WARD_MED_RETURN_REQ where ID_WARD_MED_RETURN_REQ = ?", returnRequestId));
 
         mockMvc.perform(get("/api/pharmacy/ward-medication-returns/returnable")
@@ -158,7 +158,7 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 handoverBody, wardContext(), 200);
         JsonNode handoverReplay = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/handover",
                 handoverBody, wardContext(), 200);
-        assertEquals("IN_TRANSIT", inTransit.get("status").asText());
+        assertEquals("IN_TRANSIT", inTransit.get("status").asString());
         assertEquals(1, handoverReplay.get("revision").asInt());
         mockMvc.perform(post("/api/pharmacy/ward-medication-returns/{id}/handover", returnRequestId)
                         .with(wardContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -182,9 +182,9 @@ class WardMedicationReturnFlowTest extends RhnIntegrationTestSupport {
                 + "and SD_SRC_TYPE = 'MEDICATION_RETURN'", requestId);
         JsonNode receiveReplay = postJson("/api/pharmacy/ward-medication-returns/" + returnRequestId + "/receive",
                 receiveBody, pharmacyContext(), 200);
-        assertEquals("RECEIVED", received.get("status").asText());
-        assertEquals(received.at("/lines/0/stockReturnId").asText(),
-                receiveReplay.at("/lines/0/stockReturnId").asText());
+        assertEquals("RECEIVED", received.get("status").asString());
+        assertEquals(received.at("/lines/0/stockReturnId").asString(),
+                receiveReplay.at("/lines/0/stockReturnId").asString());
         assertEquals(1, stockReturnCount);
         assertEquals(stockReturnCount,
                 countText("select count(*) from RHN_SUP_STOCK_RETURN where CD_RETURN_NO like ?", "WMR%"));

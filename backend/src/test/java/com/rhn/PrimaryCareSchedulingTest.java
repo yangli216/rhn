@@ -66,9 +66,9 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.schedules[0].totalCount").value(30))
                 .andExpect(jsonPath("$.schedules[0].availableCount").value(30))
                 .andReturn().getResponse().getContentAsString();
-        String generationRunId = json(response).get("generationRunId").asText();
-        String morningScheduleId = json(response).at("/schedules/0/id").asText();
-        String afternoonScheduleId = json(response).at("/schedules/1/id").asText();
+        String generationRunId = json(response).get("generationRunId").asString();
+        String morningScheduleId = json(response).at("/schedules/0/id").asString();
+        String afternoonScheduleId = json(response).at("/schedules/1/id").asString();
 
         mockMvc.perform(post("/api/outpatient/scheduling/quick-schedules")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))
@@ -187,7 +187,7 @@ class PrimaryCareSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.schedules[0].registrationFee").value(10.0))
                 .andReturn().getResponse().getContentAsString();
 
-        Long scheduleId = Long.valueOf(json(response).at("/schedules/0/id").asText());
+        Long scheduleId = Long.valueOf(json(response).at("/schedules/0/id").asString());
         assertEquals("DEPARTMENT", jdbcTemplate.queryForObject(
                 "select SD_REG_SCOPE from RHN_SC_SVC_SCHED where ID_TNT = ? and ID_SVC_SCHED = ?",
                 String.class, Long.valueOf(TENANT), scheduleId));

@@ -168,9 +168,9 @@ class ClinicalAiSpeechTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"SPEECH-REG-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String encounterId = encounter.get("id").asText();
+        String encounterId = encounter.get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         return encounterId;
     }

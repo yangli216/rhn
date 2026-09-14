@@ -17,10 +17,10 @@ class SkinTestEventTest {
         SkinTestEvent event = event(NOW, 20);
 
         BusinessException error = assertThrows(BusinessException.class, () -> event.complete(
-                0, "NEGATIVE", null, null, null, "申请提前判读", 11L, 12L,
+                0, "NEGATIVE", null, null, null, "申请提前判读", 11L, 12L, null, null, null,
                 NOW.plusSeconds(19 * 60L)));
 
-        assertEquals("SKIN_TEST_NEGATIVE_OBSERVATION_NOT_FINISHED", error.code());
+        assertEquals("SKIN_TEST_EARLY_NEGATIVE_FORBIDDEN", error.code());
     }
 
     @Test
@@ -28,8 +28,10 @@ class SkinTestEventTest {
         SkinTestEvent event = event(NOW, 20);
 
         assertDoesNotThrow(() -> event.complete(0, "NEGATIVE", null, null,
-                "观察期满未见异常", null, 11L, 12L, NOW.plusSeconds(20 * 60L)));
+                "观察期满未见异常", null, 11L, 12L, 13L, 14L, "张复核护士", NOW.plusSeconds(20 * 60L)));
         assertEquals("NEGATIVE", event.result());
+        assertEquals("张复核护士", event.verifiedByName());
+        assertEquals(14L, event.verifiedByPractitionerId());
     }
 
     @Test
@@ -37,9 +39,10 @@ class SkinTestEventTest {
         SkinTestEvent event = event(NOW, 20);
 
         assertDoesNotThrow(() -> event.complete(0, "POSITIVE", null, null,
-                "局部风团伴明显红晕", "已出现明确阳性局部反应", 11L, 12L,
+                "局部风团伴明显红晕", "已出现明确阳性局部反应", 11L, 12L, 13L, 14L, "李复核护士",
                 NOW.plusSeconds(5 * 60L)));
         assertEquals("POSITIVE", event.result());
+        assertEquals("李复核护士", event.verifiedByName());
     }
 
     private SkinTestEvent event(Instant startedAt, int observationMinutes) {

@@ -110,7 +110,7 @@ abstract class RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         JsonNode document = json(response);
-        String documentId = document.get("id").asText();
+        String documentId = document.get("id").asString();
         mockMvc.perform(post("/api/clinical-documents/{documentId}/sign", documentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedCurrentVersion":%d,"signatureMeaning":"AUTHOR"}

@@ -33,7 +33,7 @@ class DomainEventProjectionTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        Long residentId = Long.valueOf(objectMapper.readTree(body).get("id").asText());
+        Long residentId = Long.valueOf(objectMapper.readTree(body).get("id").asString());
         Instant now = Instant.now();
         DomainEventEnvelope event = new DomainEventEnvelope(com.rhn.shared.id.GlobalIds.next(), Long.valueOf(TENANT), null,
                 "PROJECTION_IDEMPOTENCY_VERIFIED", 1, "Resident", residentId, 0,

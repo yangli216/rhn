@@ -252,12 +252,12 @@ public class DefaultCryptographicEvidenceService implements CryptographicEvidenc
 
     private String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
-        return value == null || value.isNull() ? "" : value.asText();
+        return value == null || value.isNull() ? "" : value.asString();
     }
 
     private String nullableText(JsonNode node, String field) {
         JsonNode value = node.get(field);
-        return value == null || value.isNull() ? null : value.asText();
+        return value == null || value.isNull() ? null : value.asString();
     }
 
     private Long nullableLong(JsonNode node, String field) {

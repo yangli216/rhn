@@ -26,7 +26,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(put("/api/platform/master-data/manufacturers/{id}", manufacturer.get("id").asText()).with(rhnWorkContext())
+        mockMvc.perform(put("/api/platform/master-data/manufacturers/{id}", manufacturer.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":"0","code":"MFR-MAINT-%s","name":"更新制药企业",
                                  "shortName":"更新制药","sdManufacturerType":"DRUG",
@@ -36,7 +36,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.name").value("更新制药企业"));
 
-        mockMvc.perform(post("/api/platform/master-data/manufacturers/{id}/status", manufacturer.get("id").asText()).with(rhnWorkContext())
+        mockMvc.perform(post("/api/platform/master-data/manufacturers/{id}/status", manufacturer.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":\"1\",\"sdStatus\":\"SUSPENDED\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(2))
@@ -52,7 +52,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(put("/api/pharmacy/suppliers/{id}", supplier.get("id").asText()).with(rhnWorkContext())
+        mockMvc.perform(put("/api/pharmacy/suppliers/{id}", supplier.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":"0","code":"SUP-MAINT-%s","name":"更新药品供应商",
                                  "unifiedCreditCode":"91310000%s","licenseNo":"LIC-%s",
@@ -62,7 +62,7 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.contactName").value("李四"));
 
-        mockMvc.perform(post("/api/pharmacy/suppliers/{id}/status", supplier.get("id").asText()).with(rhnWorkContext())
+        mockMvc.perform(post("/api/pharmacy/suppliers/{id}/status", supplier.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":\"1\",\"status\":\"SUSPENDED\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.revision").value(2))
@@ -72,6 +72,6 @@ class BusinessPartnerMaintenanceTest extends RhnIntegrationTestSupport {
                         .param("organizationId", ORGANIZATION).param("query", "更新药品")
                         .param("status", "SUSPENDED"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(supplier.get("id").asText()));
+                .andExpect(jsonPath("$[0].id").value(supplier.get("id").asString()));
     }
 }

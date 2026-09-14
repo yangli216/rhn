@@ -32,27 +32,27 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
 
         JsonNode first = checkIn(body);
         JsonNode replay = checkIn(body);
-        String ticketId = first.get("id").asText();
+        String ticketId = first.get("id").asString();
 
-        assertEquals(ticketId, replay.get("id").asText());
-        assertEquals(first.get("ticketCode").asText(), replay.get("ticketCode").asText());
+        assertEquals(ticketId, replay.get("id").asString());
+        assertEquals(first.get("ticketCode").asString(), replay.get("ticketCode").asString());
         assertEquals(1, eventCount(ticketId));
 
-        assertEquals("CALLED", action(ticketId, "call", "CALL-1-" + suffix).get("status").asText());
+        assertEquals("CALLED", action(ticketId, "call", "CALL-1-" + suffix).get("status").asString());
         JsonNode recalled = action(ticketId, "recall", "RECALL-" + suffix);
         assertEquals(2, recalled.get("callCount").asInt());
         JsonNode recallReplay = action(ticketId, "recall", "RECALL-" + suffix);
         assertEquals(2, recallReplay.get("callCount").asInt());
-        assertEquals("MISSED", action(ticketId, "miss", "MISS-" + suffix).get("status").asText());
+        assertEquals("MISSED", action(ticketId, "miss", "MISS-" + suffix).get("status").asString());
         JsonNode requeued = action(ticketId, "requeue", "REQUEUE-" + suffix);
-        assertEquals("WAITING", requeued.get("status").asText());
+        assertEquals("WAITING", requeued.get("status").asString());
         assertEquals(1, requeued.get("missedCount").asInt());
-        assertEquals("CALLED", action(ticketId, "call", "CALL-2-" + suffix).get("status").asText());
-        assertEquals("SERVING", action(ticketId, "start", "START-" + suffix).get("status").asText());
-        assertEquals("SUSPENDED", action(ticketId, "suspend", "SUSPEND-" + suffix).get("status").asText());
-        assertEquals("SERVING", action(ticketId, "resume", "RESUME-" + suffix).get("status").asText());
+        assertEquals("CALLED", action(ticketId, "call", "CALL-2-" + suffix).get("status").asString());
+        assertEquals("SERVING", action(ticketId, "start", "START-" + suffix).get("status").asString());
+        assertEquals("SUSPENDED", action(ticketId, "suspend", "SUSPEND-" + suffix).get("status").asString());
+        assertEquals("SERVING", action(ticketId, "resume", "RESUME-" + suffix).get("status").asString());
         JsonNode completed = action(ticketId, "complete", "COMPLETE-" + suffix);
-        assertEquals("COMPLETED", completed.get("status").asText());
+        assertEquals("COMPLETED", completed.get("status").asString());
         assertEquals(3, completed.get("callCount").asInt());
         assertTrue(completed.hasNonNull("startedAt"));
         assertTrue(completed.hasNonNull("completedAt"));
@@ -72,7 +72,7 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
                 residentId, "DIAG_TASK", GlobalIds.next(), 2, true, "MIDDLE-" + suffix));
         JsonNode notReady = checkIn(checkInBody(queueCode, "检验采集", "LAB_COLLECTION", "L",
                 residentId, "DIAG_TASK", GlobalIds.next(), 99, false, "NOT-READY-" + suffix));
-        String queueId = low.get("serviceQueueId").asText();
+        String queueId = low.get("serviceQueueId").asString();
 
         JsonNode page = json(mockMvc.perform(get("/api/queueing/tickets").with(rhnWorkContext())
                         .queryParam("queueId", queueId).queryParam("status", "WAITING")
@@ -83,19 +83,19 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.page").value(0))
                 .andExpect(jsonPath("$.size").value(2))
                 .andReturn().getResponse().getContentAsString());
-        assertEquals(notReady.get("id").asText(), page.at("/content/0/id").asText());
-        assertEquals(high.get("id").asText(), page.at("/content/1/id").asText());
+        assertEquals(notReady.get("id").asString(), page.at("/content/0/id").asString());
+        assertEquals(high.get("id").asString(), page.at("/content/1/id").asString());
 
         JsonNode firstCalled = callNext(queueId, "NEXT-1-" + suffix);
-        assertEquals(high.get("id").asText(), firstCalled.get("id").asText());
+        assertEquals(high.get("id").asString(), firstCalled.get("id").asString());
         JsonNode nextReplay = callNext(queueId, "NEXT-1-" + suffix);
-        assertEquals(firstCalled.get("id").asText(), nextReplay.get("id").asText());
+        assertEquals(firstCalled.get("id").asString(), nextReplay.get("id").asString());
 
         JsonNode secondCalled = callNext(queueId, "NEXT-2-" + suffix);
-        assertEquals(middle.get("id").asText(), secondCalled.get("id").asText());
-        action(notReady.get("id").asText(), "ready", "READY-" + suffix);
+        assertEquals(middle.get("id").asString(), secondCalled.get("id").asString());
+        action(notReady.get("id").asString(), "ready", "READY-" + suffix);
         JsonNode thirdCalled = callNext(queueId, "NEXT-3-" + suffix);
-        assertEquals(notReady.get("id").asText(), thirdCalled.get("id").asText());
+        assertEquals(notReady.get("id").asString(), thirdCalled.get("id").asString());
     }
 
     @Test
@@ -104,7 +104,7 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
         String residentId = createResident(suffix);
         JsonNode pharmacyTicket = checkIn(checkInBody("PHA-" + suffix, "药房发药", "PHARMACY", "P",
                 residentId, "DISP_TASK", GlobalIds.next(), 0, true, "PHA-IN-" + suffix));
-        String queueId = pharmacyTicket.get("serviceQueueId").asText();
+        String queueId = pharmacyTicket.get("serviceQueueId").asString();
 
         try {
             setPermissionActive("PHARMACY.ACCESS", false);
@@ -167,7 +167,7 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix, suffix)))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private int eventCount(String ticketId) {
@@ -177,7 +177,7 @@ class QueueingWorkflowTest extends RhnIntegrationTestSupport {
 
     private boolean containsId(JsonNode values, String id) {
         return StreamSupport.stream(values.spliterator(), false)
-                .anyMatch(value -> id.equals(value.get("id").asText()));
+                .anyMatch(value -> id.equals(value.get("id").asString()));
     }
 
     private void setPermissionActive(String code, boolean active) {

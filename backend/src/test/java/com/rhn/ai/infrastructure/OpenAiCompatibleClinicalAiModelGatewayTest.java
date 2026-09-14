@@ -83,11 +83,11 @@ class OpenAiCompatibleClinicalAiModelGatewayTest {
         assertTrue(requestBody.get().contains("RHN-CLINICAL-ASSISTANT-V8"));
         assertTrue(requestBody.get().contains("语音转写内容"));
         var sent = jsonCodec.readTree(requestBody.get());
-        var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asText());
-        assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asText());
+        var context = jsonCodec.readTree(sent.get("messages").get(1).get("content").asString());
+        assertEquals("REPORT_FOLLOW_UP", context.get("receptionScene").asString());
         assertEquals(10, context.get("receptionSceneContext").get("selectedReportIds").get(0).asInt());
         assertEquals(10, context.get("diagnosticReports").get(0).get("reportId").asInt());
-        assertTrue(sent.get("messages").get(0).get("content").asText().contains("不得默认既往体健"));
+        assertTrue(sent.get("messages").get(0).get("content").asString().contains("不得默认既往体健"));
         assertTrue(requestBody.get().contains("FEMALE"));
         assertTrue(requestBody.get().contains("血常规"));
         assertTrue(requestBody.get().contains("白细胞计数"));

@@ -35,15 +35,15 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"住院检验执行闭环测试",
                  "commandCode":"IP-DX-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
 
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
                  "catalogItemId":"%s","instructions":"复查血细胞分析",
                  "commandCode":"IP-DX-ORDER"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         assertEquals(0, count("select count(*) from RHN_EX_DIAG_EXEC_TASK where ID_CARE_REQ = ?", requestId));
 
         postJson("/api/inpatient/orders/" + requestId + "/sign",
@@ -68,7 +68,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode isolated = json(mockMvc.perform(get("/api/diagnostics/worklist").with(wardWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertFalse(contains(isolated, "requestId", requestId));
-        mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", diagnosticTask.get("id").asText())
+        mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection", diagnosticTask.get("id").asString())
                         .with(wardWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":0,\"specimenNo\":\"IP-DX-WRONG\"}"))
                 .andExpect(status().isForbidden())
@@ -77,22 +77,22 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode plan = postJson("/api/inpatient/orders/" + requestId + "/plans", """
                 {"expectedRevision":2,"plannedTimes":["%s"],"commandCode":"IP-DX-PLAN"}
                 """.formatted(Instant.now().minusSeconds(30)), 200);
-        String inpatientTaskId = plan.at("/tasks/0/id").asText();
+        String inpatientTaskId = plan.at("/tasks/0/id").asString();
 
         JsonNode collected = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection",
-                                diagnosticTask.get("id").asText())
+                                diagnosticTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":0,\"specimenNo\":\"IP-DX-001\",\"note\":\"静脉血\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COLLECTED"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode started = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/start",
-                                diagnosticTask.get("id").asText())
+                                diagnosticTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d}".formatted(collected.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode report = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/local-reports",
-                                diagnosticTask.get("id").asText())
+                                diagnosticTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"valueType":"NUMBER","observationValue":"5.8",
                                  "unitCode":"10^9/L","referenceRangeLow":3.5,"referenceRangeHigh":9.5,
@@ -104,7 +104,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()).param("status", "COMPLETED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.requestId == '%s')].reportId".formatted(requestId))
-                        .value(report.get("id").asText()));
+                        .value(report.get("id").asString()));
         mockMvc.perform(get("/api/encounters/{id}/diagnostic-reports", encounterId).with(wardWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.requestId == '%s')].conclusion".formatted(requestId))
@@ -126,7 +126,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                  "catalogItemId":"%s","instructions":"住院肌内注射治疗",
                  "commandCode":"IP-TR-ORDER"}
                 """.formatted(episodeId, TREATMENT_ITEM), 201);
-        String treatmentRequestId = treatmentOrder.get("id").asText();
+        String treatmentRequestId = treatmentOrder.get("id").asString();
         postJson("/api/inpatient/orders/" + treatmentRequestId + "/sign",
                 command(0, "IP-TR-SIGN"), 200);
         postJson("/api/inpatient/orders/" + treatmentRequestId + "/verify",
@@ -135,16 +135,16 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).param("taskType", "SERVICE"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode treatmentTask = findTreatmentBySource(treatmentWorklist, treatmentRequestId);
-        assertEquals("READY", treatmentTask.get("status").asText());
+        assertEquals("READY", treatmentTask.get("status").asString());
         JsonNode treatmentStarted = json(mockMvc.perform(post("/api/treatments/tasks/{id}/start",
-                                treatmentTask.get("id").asText())
+                                treatmentTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"identityVerified":true,
                                  "verificationMethod":"NAME_AND_IDENTIFIER","executionSite":"住院治疗室"}
                                 """.formatted(treatmentTask.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/treatments/tasks/{id}/complete", treatmentTask.get("id").asText())
+        mockMvc.perform(post("/api/treatments/tasks/{id}/complete", treatmentTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"resultCode":"COMPLETED",
                                  "note":"住院治疗完成","adverseReaction":false}
@@ -154,7 +154,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         JsonNode treatmentPlan = postJson("/api/inpatient/orders/" + treatmentRequestId + "/plans", """
                 {"expectedRevision":2,"plannedTimes":["%s"],"commandCode":"IP-TR-PLAN"}
                 """.formatted(Instant.now().minusSeconds(15)), 200);
-        postJson("/api/inpatient/order-tasks/" + treatmentPlan.at("/tasks/0/id").asText() + "/execute", """
+        postJson("/api/inpatient/order-tasks/" + treatmentPlan.at("/tasks/0/id").asString() + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-TR-EXECUTE"}
                 """, 200);
         assertEquals(1, count("select count(*) from RHN_BIL_CHARGE_ITEM where ID_CARE_REQ = ? "
@@ -170,13 +170,13 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"住院危急值闭环测试",
                  "commandCode":"IP-CV-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String encounterId = admission.get("encounterId").asText();
+        String encounterId = admission.get("encounterId").asString();
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
                  "catalogItemId":"%s","instructions":"急查血细胞分析",
                  "commandCode":"IP-CV-ORDER"}
-                """.formatted(admission.get("id").asText(), SERVICE_ITEM), 201);
-        String requestId = order.get("id").asText();
+                """.formatted(admission.get("id").asString(), SERVICE_ITEM), 201);
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign", command(0, "IP-CV-SIGN"), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify", command(1, "IP-CV-VERIFY"), 200);
 
@@ -184,15 +184,15 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode task = findBy(worklist, "requestId", requestId);
         JsonNode collected = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/collection",
-                                task.get("id").asText())
+                                task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":0,\"specimenNo\":\"IP-CV-001\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        JsonNode started = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/start", task.get("id").asText())
+        JsonNode started = json(mockMvc.perform(post("/api/diagnostics/tasks/{id}/start", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":" + collected.get("revision").asLong() + "}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/diagnostics/tasks/{id}/local-reports", task.get("id").asText())
+        mockMvc.perform(post("/api/diagnostics/tasks/{id}/local-reports", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"valueType":"NUMBER","observationValue":"18.8",
                                  "unitCode":"10^9/L","referenceRangeLow":3.5,"referenceRangeHigh":9.5,
@@ -206,19 +206,19 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         JsonNode alert = findBy(active, "encounterId", encounterId);
         JsonNode acknowledged = json(mockMvc.perform(post("/api/critical-values/{id}/acknowledge",
-                                alert.get("id").asText())
+                                alert.get("id").asString())
                         .with(wardWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":0,\"note\":\"病区已通知值班医生\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACKNOWLEDGED"))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/critical-values/{id}/close", alert.get("id").asText())
+        mockMvc.perform(post("/api/critical-values/{id}/close", alert.get("id").asString())
                         .with(wardWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"dispositionCode":"TREATED",
                                  "note":"已复核患者并完成处置"}
                                 """.formatted(acknowledged.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CLOSED"));
         assertEquals(3, count("select count(*) from RHN_VIS_CRIT_VAL_ALERT_EVT where ID_CRIT_VAL_ALERT = ?",
-                alert.get("id").asText()));
+                alert.get("id").asString()));
         mockMvc.perform(get("/api/critical-values").with(wardWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.encounterId == '%s')]".formatted(encounterId)).isEmpty());
@@ -239,19 +239,19 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
     }
 
     private JsonNode findBy(JsonNode values, String field, String expected) {
-        for (JsonNode value : values) if (expected.equals(value.get(field).asText())) return value;
+        for (JsonNode value : values) if (expected.equals(value.get(field).asString())) return value;
         throw new AssertionError("未找到医技任务：" + expected);
     }
 
     private boolean contains(JsonNode values, String field, String expected) {
-        for (JsonNode value : values) if (expected.equals(value.get(field).asText())) return true;
+        for (JsonNode value : values) if (expected.equals(value.get(field).asString())) return true;
         return false;
     }
 
     private JsonNode findTreatmentBySource(JsonNode values, String sourceId) {
         for (JsonNode task : values) {
             for (JsonNode item : task.get("items")) {
-                if (sourceId.equals(item.get("sourceId").asText())) return task;
+                if (sourceId.equals(item.get("sourceId").asString())) return task;
             }
         }
         throw new AssertionError("未找到治疗执行任务：" + sourceId);

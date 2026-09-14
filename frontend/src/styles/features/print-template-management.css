@@ -1,10 +1,6 @@
 .print-template-page { height: calc(100vh - 112px); min-height: 680px; display: flex; flex-direction: column; gap: 10px; padding: 0 18px 16px; }
 .print-template-actions, .print-review-actions { display: flex; align-items: center; gap: 8px; }
-.print-management-tabs { height: 34px; display: inline-flex; align-items: center; border: 1px solid var(--color-border); background: var(--color-surface-subtle); }
-.print-management-tabs button { height: 32px; padding: 0 10px; border: 0; border-right: 1px solid var(--color-border); display: inline-flex; align-items: center; gap: 6px; background: transparent; color: var(--color-text-secondary); cursor: pointer; }
-.print-management-tabs button:last-child { border-right: 0; }
-.print-management-tabs button.is-active { background: var(--color-surface); color: var(--color-brand-primary); font-weight: 700; }
-.print-management-tabs .ui-icon { width: 14px; height: 14px; }
+.print-management-tabs { min-width: 330px; }
 .print-template-actions .ui-icon, .print-review-actions .ui-icon { width: 15px; height: 15px; }
 .print-template-workbench { flex: 1; min-height: 0; display: grid; grid-template-columns: 286px minmax(540px, 1fr) 318px; border: 1px solid var(--color-border); background: var(--color-surface); overflow: hidden; }
 .print-template-list, .print-template-properties, .print-template-designer { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--color-surface); }
@@ -20,26 +16,47 @@
 .print-template-row { width: 100%; min-height: 54px; padding: 8px; border: 0; border-left: 3px solid transparent; background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 8px; text-align: left; cursor: pointer; }
 .print-template-row:hover { background: var(--color-surface-subtle); }
 .print-template-row.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
-.print-template-row__main, .print-published-row > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.print-template-row__main, .print-published-row__main > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .print-template-row__main strong, .print-published-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--color-text-primary); }
 .print-template-row__main small, .print-published-row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-text-disabled); }
 .print-published-list { margin-top: 10px; border-top: 1px solid var(--color-border); }
-.print-published-row { min-height: 48px; padding: 7px 6px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.print-published-row button { width: 30px; height: 30px; flex: 0 0 30px; border: 0; background: transparent; color: var(--color-text-disabled); cursor: pointer; }
-.print-published-row button:hover { background: var(--color-surface-subtle); color: var(--color-brand-primary); }
+.print-published-row { min-height: 52px; padding: 4px 6px; border-left: 3px solid transparent; display: flex; align-items: center; justify-content: space-between; gap: 4px; }
+.print-published-row:hover { background: var(--color-surface-subtle); }
+.print-published-row.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.print-published-row__main { min-width: 0; height: 42px; flex: 1; padding: 5px; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.print-published-row__actions { flex: 0 0 auto; display: flex; align-items: center; }
+.print-published-row__actions button { width: 28px; height: 28px; padding: 0; border: 0; background: transparent; color: var(--color-text-disabled); cursor: pointer; }
+.print-published-row__actions button:hover { background: var(--color-surface); color: var(--color-brand-primary); }
 .print-published-row .ui-icon { width: 15px; height: 15px; }
 .print-designer-toolbar { height: 40px; padding: 4px 12px; border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: 4px; }
-.print-designer-toolbar > span { margin-left: auto; font-size: 12px; color: var(--color-text-disabled); }
+.print-designer-toolbar > span { margin-left: auto; display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--color-text-disabled); }
+.print-designer-toolbar > span .ui-icon { width: 14px; height: 14px; }
+.print-field-library { flex: 0 0 auto; max-height: 126px; padding: 7px 10px; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 10px; overflow: auto; background: var(--color-surface-subtle); }
+.print-field-library__heading { padding: 4px 0; display: flex; flex-direction: column; gap: 2px; }
+.print-field-library__heading strong { font-size: 12px; color: var(--color-text-primary); }
+.print-field-library__heading span { font-size: 11px; color: var(--color-text-disabled); }
+.print-field-library__groups { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.print-field-library__groups > div { min-width: 0; display: grid; grid-template-columns: 70px minmax(0, 1fr); align-items: start; gap: 4px; }
+.print-field-library__groups > div > span { padding-top: 4px; font-size: 11px; color: var(--color-text-disabled); }
+.print-field-library__groups > div > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.print-field-library button { height: 25px; padding: 0 7px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); display: inline-flex; align-items: center; gap: 3px; font-size: 11px; cursor: pointer; }
+.print-field-library button:hover:not(:disabled) { border-color: var(--color-brand-primary); color: var(--color-brand-primary); }
+.print-field-library button:disabled { opacity: .5; cursor: not-allowed; }
+.print-field-library button .ui-icon { width: 12px; height: 12px; }
 .print-canvas-stage { flex: 1; min-height: 0; padding: 24px; overflow: auto; display: grid; place-items: center; background: var(--color-surface-muted); }
 .print-canvas { position: relative; flex: 0 0 auto; background: var(--color-surface); border: 1px solid var(--color-border-strong); box-shadow: var(--shadow-panel); }
-.print-canvas-element { position: absolute; overflow: hidden; padding: 2px 4px; border: 1px dashed transparent; background: transparent; color: var(--color-text-primary); line-height: 1.2; white-space: pre-wrap; cursor: pointer; letter-spacing: 0; }
+.print-canvas-element { position: absolute; overflow: hidden; padding: 2px 4px; border: 1px dashed transparent; background: transparent; color: var(--color-text-primary); line-height: 1.2; white-space: pre-wrap; cursor: move; touch-action: none; user-select: none; letter-spacing: 0; }
 .print-canvas-element:hover, .print-canvas-element.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
 .print-canvas-element.is-selected { outline: 1px solid var(--color-brand-primary); outline-offset: 1px; }
+.print-canvas-element.has-format-border:not(.is-selected) { border-style: solid; border-color: var(--color-text-primary); }
 .print-canvas-element.is-barcode { padding: 0; display: grid; place-items: stretch; }
 .print-barcode-demo { display: block; width: 100%; height: 100%; background: repeating-linear-gradient(90deg, var(--color-text-primary) 0 2px, transparent 2px 4px, var(--color-text-primary) 4px 5px, transparent 5px 8px); }
 .print-flow-sheet { width: min(720px, 100%); min-height: 760px; padding: 44px 46px; align-self: start; background: var(--color-surface); border: 1px solid var(--color-border-strong); box-shadow: var(--shadow-panel); color: var(--color-text-primary); }
 .print-flow-sheet h1 { margin: 0 0 26px; text-align: center; font-size: 24px; letter-spacing: 0; }
 .print-flow-block { margin-bottom: 14px; }
+.print-flow-block.is-editable { padding: 5px; border: 1px dashed transparent; cursor: pointer; }
+.print-flow-block.is-editable:hover { border-color: var(--color-border-strong); }
+.print-flow-block.is-selected { border-color: var(--color-brand-primary); outline: 1px solid var(--color-brand-primary); outline-offset: 1px; background: var(--color-brand-soft); }
 .print-flow-block h2 { margin: 0 0 6px; font-size: 14px; }
 .print-flow-fields { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--color-border-strong); border-left: 1px solid var(--color-border-strong); }
 .print-flow-fields > div { display: grid; grid-template-columns: 72px 1fr; min-height: 36px; border-right: 1px solid var(--color-border-strong); border-bottom: 1px solid var(--color-border-strong); }
@@ -54,6 +71,10 @@
 .print-element-properties { margin: 16px -2px 0; padding: 12px; border: 1px solid var(--color-border); }
 .print-element-properties legend { padding: 0 6px; font-size: 12px; font-weight: 700; color: var(--color-text-primary); }
 .print-coordinate-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 8px; }
+.print-format-switches { min-height: 34px; margin: 2px 0 10px; display: flex; align-items: center; gap: 18px; }
+.print-block-order-actions { margin: 2px 0 8px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.print-block-order-actions .ui-button { justify-content: center; }
+.print-delete-element { width: 100%; justify-content: center; margin-top: 4px; }
 .print-advanced-config { margin-top: 14px; border-top: 1px solid var(--color-border); padding-top: 12px; }
 .print-advanced-config summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--color-text-secondary); }
 .print-advanced-config textarea { height: 210px; margin-top: 8px; resize: vertical; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -61,6 +82,17 @@
 .print-pdf-preview { width: min(780px, 100%); height: 100%; min-height: 620px; border: 0; background: var(--color-surface); }
 .print-return-designer { position: absolute; margin: 10px; padding: 7px 10px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text-secondary); cursor: pointer; }
 .print-return-designer .ui-icon { width: 14px; height: 14px; vertical-align: -2px; }
+.print-published-preview-empty { flex: 1; min-height: 0; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; background: var(--color-surface-muted); color: var(--color-text-secondary); }
+.print-published-preview-empty > .ui-icon { width: 30px; height: 30px; color: var(--color-brand-primary); }
+.print-published-preview-empty > strong { font-size: 15px; color: var(--color-text-primary); }
+.print-published-preview-empty > span { font-size: 12px; }
+.print-published-preview-empty > .print-pdf-preview { flex: 1; }
+.print-published-properties { padding: 12px; }
+.print-published-properties dl { margin: 0 0 14px; border-top: 1px solid var(--color-border); }
+.print-published-properties dl > div { min-height: 42px; padding: 8px 2px; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 8px; }
+.print-published-properties dt { font-size: 12px; color: var(--color-text-disabled); }
+.print-published-properties dd { min-width: 0; margin: 0; overflow-wrap: anywhere; font-size: 12px; color: var(--color-text-primary); }
+.print-published-properties > .ui-button { width: 100%; justify-content: center; }
 @media (min-width: 1700px) { .print-template-workbench { grid-template-columns: 320px minmax(700px, 1fr) 350px; } }
 
 .print-device-workbench { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 310px minmax(480px, 1fr) 390px; border: 1px solid var(--color-border); background: var(--color-surface); overflow: hidden; }
@@ -95,3 +127,47 @@
 .print-route-list span { color: var(--color-text-secondary); }
 .print-route-list small { grid-column: 1 / -1; color: var(--color-text-disabled); }
 @media (min-width: 1700px) { .print-device-workbench { grid-template-columns: 340px minmax(600px, 1fr) 430px; } }
+
+.print-business-workbench { position: relative; flex: 1; min-height: 0; display: grid; grid-template-columns: 320px minmax(500px, 1fr) 390px; border: 1px solid var(--color-border); background: var(--color-surface); overflow: hidden; }
+.print-business-feedback { position: absolute; z-index: 3; top: 8px; left: 50%; width: min(680px, 62%); transform: translateX(-50%); }
+.print-business-tasks, .print-business-resolution, .print-business-editor { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.print-business-tasks { border-right: 1px solid var(--color-border); }
+.print-business-editor { border-left: 1px solid var(--color-border); }
+.print-business-scroll, .print-business-resolution__body, .print-business-editor__body { min-height: 0; overflow: auto; }
+.print-business-scroll section { padding: 10px 8px 2px; }
+.print-business-scroll h2 { margin: 0 7px 5px; font-size: 12px; color: var(--color-text-disabled); }
+.print-business-task { width: 100%; min-height: 54px; padding: 7px 9px; border: 0; border-left: 3px solid transparent; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; background: transparent; text-align: left; cursor: pointer; }
+.print-business-task:hover { background: var(--color-surface-subtle); }
+.print-business-task.is-active { border-left-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.print-business-task > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.print-business-task strong, .print-business-task small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.print-business-task strong { font-size: 13px; color: var(--color-text-primary); }
+.print-business-task small { font-size: 12px; color: var(--color-text-disabled); }
+.print-business-task i, .print-resolution-trace i { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--color-surface-muted); color: var(--color-text-secondary); font-size: 12px; font-style: normal; font-weight: 700; }
+.print-business-resolution__body, .print-business-editor__body { padding: 14px; }
+.print-business-contract { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 14px; border: 1px solid var(--color-border); }
+.print-business-contract > div { min-width: 0; padding: 10px; border-right: 1px solid var(--color-border); display: flex; flex-direction: column; gap: 4px; }
+.print-business-contract > div:last-child { border-right: 0; }
+.print-business-contract span, .print-effective-implementation > span { font-size: 12px; color: var(--color-text-disabled); }
+.print-business-contract strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-text-primary); }
+.print-business-resolution__body > .ui-field, .print-business-editor__body > .ui-field { margin-bottom: 14px; }
+.print-effective-implementation { padding: 12px; border-left: 3px solid var(--color-brand-primary); background: var(--color-brand-soft); display: flex; flex-direction: column; gap: 4px; }
+.print-effective-implementation strong { font-size: 15px; color: var(--color-text-primary); }
+.print-effective-implementation small { font-size: 12px; color: var(--color-text-secondary); }
+.print-resolution-trace { margin: 14px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--color-border); }
+.print-resolution-trace li { min-height: 54px; padding: 8px 4px; border-bottom: 1px solid var(--color-border); display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.print-resolution-trace li.is-selected i { background: var(--color-brand-primary); color: var(--color-text-inverse); }
+.print-resolution-trace span { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.print-resolution-trace strong { font-size: 12px; color: var(--color-text-primary); }
+.print-resolution-trace small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--color-text-disabled); }
+.print-business-editor__body > .ui-tabs { margin-bottom: 12px; }
+.print-business-editor__body > .ui-alert { margin-bottom: 14px; }
+.print-current-binding { margin: 2px 0 14px; padding: 8px 10px; border: 1px solid var(--color-border); display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--color-text-secondary); }
+.print-current-binding .ui-icon { width: 15px; height: 15px; color: var(--color-brand-primary); }
+.print-business-editor__body > .ui-button { width: 100%; justify-content: center; }
+@media (min-width: 1280px) and (max-width: 1399px) {
+  .print-device-workbench { grid-template-columns: 280px minmax(420px, 1fr) 350px; }
+  .print-business-workbench { grid-template-columns: 280px minmax(400px, 1fr) 330px; }
+  .print-business-resolution__body, .print-business-editor__body { padding: 12px; }
+}
+@media (min-width: 1700px) { .print-business-workbench { grid-template-columns: 360px minmax(650px, 1fr) 430px; } }

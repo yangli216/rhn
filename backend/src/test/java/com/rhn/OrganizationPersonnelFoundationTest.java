@@ -139,7 +139,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdOrgKindText").value("法定机构"))
                 .andExpect(jsonPath("$.sdOrgTypeText").value("医院"))
                 .andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 
     private String createDepartment(String suffix, String organizationId) throws Exception {
@@ -166,7 +166,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdDepartmentTypeText").value("全科医疗科"))
                 .andExpect(jsonPath("$.sdOrgStatusText").value("已启用"))
                 .andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 
     private void addOrganizationProfile(String suffix, String organizationId) throws Exception {
@@ -299,7 +299,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.sdPersonnelStatusText").value("已启用"))
                 .andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 
     private String createPosition(String suffix) throws Exception {
@@ -317,7 +317,7 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.sdPositionTypeText").value("临床"))
                 .andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 
     private String createEmployment(String suffix, String practitionerId, String organizationId) throws Exception {
@@ -336,6 +336,6 @@ class OrganizationPersonnelFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(practitionerId, organizationId, suffix)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 }

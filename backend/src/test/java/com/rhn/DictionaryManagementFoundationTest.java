@@ -117,7 +117,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdDictStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.sdDictStatusText").value("已启用"))
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = created.get("id").asText();
+        String dictionaryId = created.get("id").asString();
 
         mockMvc.perform(post("/api/platform/dictionaries")
                         .with(rhn())
@@ -164,7 +164,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.items.length()").value(1));
 
         String itemId = json(mockMvc.perform(get("/api/platform/dictionaries/{id}", dictionaryId).with(rhn()))
-                .andReturn().getResponse().getContentAsString()).get("items").get(0).get("id").asText();
+                .andReturn().getResponse().getContentAsString()).get("items").get(0).get("id").asString();
         mockMvc.perform(post("/api/platform/dictionaries/{id}/items/{itemId}/disable", dictionaryId, itemId)
                         .with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -206,7 +206,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(PLATFORM_CATEGORY, code, requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = created.get("id").asText();
+        String dictionaryId = created.get("id").asString();
 
         mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
                         .with(rhn())
@@ -235,7 +235,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(TENANT_CATEGORY, suffix, requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = created.get("id").asText();
+        String dictionaryId = created.get("id").asString();
 
         JsonNode withRoot = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
                         .with(rhn())
@@ -247,7 +247,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.items[0].parentItemId").doesNotExist())
                 .andReturn().getResponse().getContentAsString());
-        String rootId = withRoot.get("items").get(0).get("id").asText();
+        String rootId = withRoot.get("items").get(0).get("id").asString();
 
         JsonNode withChild = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
                         .with(rhn())
@@ -260,7 +260,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.items[1].parentItemId").value(Long.parseLong(rootId)))
                 .andExpect(jsonPath("$.items[1].parentItemCode").value("ROOT"))
                 .andReturn().getResponse().getContentAsString());
-        String childId = withChild.get("items").get(1).get("id").asText();
+        String childId = withChild.get("items").get(1).get("id").asString();
 
         mockMvc.perform(get("/api/platform/dictionaries/resolve/TEST_TREE_" + suffix).with(rhn()))
                 .andExpect(status().isOk())
@@ -286,7 +286,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String inactiveRootId = withInactiveRoot.get("items").get(2).get("id").asText();
+        String inactiveRootId = withInactiveRoot.get("items").get(2).get("id").asString();
 
         mockMvc.perform(post("/api/platform/dictionaries/{id}/items/{itemId}/disable", dictionaryId, inactiveRootId)
                         .with(rhn())
@@ -333,7 +333,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.scopeCode").value("TENANT:" + TENANT))
                 .andExpect(jsonPath("$.sdDictCategoryStatus").value("ACTIVE"))
                 .andReturn().getResponse().getContentAsString());
-        String rootId = root.get("id").asText();
+        String rootId = root.get("id").asString();
 
         JsonNode child = json(mockMvc.perform(post("/api/platform/dictionaries/categories")
                         .with(rhn())
@@ -345,7 +345,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.parentId").value(Long.parseLong(rootId)))
                 .andReturn().getResponse().getContentAsString());
-        String childId = child.get("id").asText();
+        String childId = child.get("id").asString();
 
         JsonNode dictionary = json(mockMvc.perform(post("/api/platform/dictionaries")
                         .with(rhn())
@@ -358,7 +358,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.categoryId").value(Long.parseLong(childId)))
                 .andExpect(jsonPath("$.categoryName").value("诊疗业务"))
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = dictionary.get("id").asText();
+        String dictionaryId = dictionary.get("id").asString();
 
         mockMvc.perform(get("/api/platform/dictionaries")
                         .param("categoryId", rootId).with(rhn()))
@@ -470,7 +470,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(TENANT_CATEGORY, requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = created.get("id").asText();
+        String dictionaryId = created.get("id").asString();
 
         JsonNode withItem = json(mockMvc.perform(post("/api/platform/dictionaries/{id}/items", dictionaryId)
                         .with(rhn())
@@ -481,7 +481,7 @@ class DictionaryManagementFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String itemId = withItem.get("items").get(0).get("id").asText();
+        String itemId = withItem.get("items").get(0).get("id").asString();
 
         mockMvc.perform(get("/api/test/dictionary-translation").with(rhn()))
                 .andExpect(status().isOk())

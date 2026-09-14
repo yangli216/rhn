@@ -248,6 +248,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 priceQuantity, input.substitutionAllowed(), input.selfProvided(), clean(input.medicationInstruction()),
                 medication.code(), medication.name(), medication.medicationType(), medication.doseForm(),
                 medication.preparationSpec(), medication.preparationUnit(), medication.skinTestRequired(),
+                Boolean.TRUE.equals(input.skinTestExempt()), clean(input.skinTestExemptReason()), input.exemptEvidenceEventId(),
                 medication.antimicrobial(), medication.antimicrobialLevel(), jsonCodec.write(medication)));
         Map<String, Object> eventDetails = new LinkedHashMap<>();
         eventDetails.put("medicationId", value.medicationId());
@@ -264,6 +265,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (clean(input.allergyOverrideReason()) != null) {
             eventDetails.put("allergyOverrideReason", clean(input.allergyOverrideReason()));
         }
+        eventDetails.put("skinTestExempt", value.skinTestExempt());
+        if (value.skinTestExemptReason() != null) eventDetails.put("skinTestExemptReason", value.skinTestExemptReason());
+        if (value.exemptEvidenceEventId() != null) eventDetails.put("exemptEvidenceEventId", value.exemptEvidenceEventId());
         eventDetails.putAll(financialEventDetails(value, encounter));
         publish(value, prescription == null ? "MEDICATION_REQUEST_AUTHORED" : "MEDICATION_REQUEST_DRAFTED",
                 prescription == null ? "开立药品" : "处方草稿添加药品", eventDetails);
@@ -370,6 +374,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
                 value.frequencyRuleSnapshot() == null ? null : jsonCodec.readTree(value.frequencyRuleSnapshot()),
                 value.durationValue(), value.durationUnit(), value.skinTestRequiredSnapshot(),
+                value.skinTestExempt(), value.skinTestExemptReason(), value.exemptEvidenceEventId(),
                 value.priceId(), value.priceRevision(), value.priceType(), value.unitPrice(),
                 value.priceQuantitySnapshot(), value.totalAmount(), value.currencyCode(),
                 jsonCodec.readTree(value.medicationSnapshot()), jsonCodec.readTree(value.itemAttributeSnapshot()),
@@ -394,7 +399,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 value.priceId(), value.priceRevision(), value.priceType(), value.unitPrice(), value.priceQuantitySnapshot(),
                 value.totalAmount(), value.currencyCode(), value.medicationCodeSnapshot(), value.medicationNameSnapshot(),
                 value.medicationTypeSnapshot(), value.manufacturerNameSnapshot(), value.doseFormSnapshot(), value.preparationSpecSnapshot(),
-                value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(), value.antimicrobialSnapshot(),
+                value.preparationUnitSnapshot(), value.skinTestRequiredSnapshot(),
+                value.skinTestExempt(), value.skinTestExemptReason(), value.exemptEvidenceEventId(),
+                value.antimicrobialSnapshot(),
                 value.antimicrobialLevelSnapshot(), value.doseValue(), value.doseUnit(), value.routeId(),
                 value.routeCode(), value.routeNameSnapshot(), value.routeExecutionTypeSnapshot(),
                 value.frequencyCode(), value.frequencyId(), value.frequencyNameSnapshot(),
@@ -534,6 +541,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
         if (value.durationUnit() != null) details.put("durationUnit", value.durationUnit());
         details.put("selfProvided", value.selfProvided());
         details.put("skinTestRequired", value.skinTestRequiredSnapshot());
+        details.put("skinTestExempt", value.skinTestExempt());
+        if (value.skinTestExemptReason() != null) details.put("skinTestExemptReason", value.skinTestExemptReason());
+        if (value.exemptEvidenceEventId() != null) details.put("exemptEvidenceEventId", value.exemptEvidenceEventId());
         if (value.priceId() != null) details.put("priceId", value.priceId());
         if (value.priceRevision() != null) details.put("priceRevision", value.priceRevision());
         if (value.priceType() != null) details.put("priceType", value.priceType());

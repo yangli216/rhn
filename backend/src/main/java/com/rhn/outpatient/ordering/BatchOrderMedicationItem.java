@@ -30,5 +30,8 @@ public record BatchOrderMedicationItem(
         @Size(max = 128) String administrationGroupKey,
         @Size(max = 32) String routeExecutionType,
         @Size(max = 32) String categoryCode,
+        Boolean skinTestExempt,
+        @Size(max = 500) String skinTestExemptReason,
+        Long exemptEvidenceEventId,
         @Size(max = 1000) String reason
 ) {}

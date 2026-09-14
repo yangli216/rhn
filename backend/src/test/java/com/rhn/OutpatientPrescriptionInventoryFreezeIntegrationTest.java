@@ -56,7 +56,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString());
 
-        String prescriptionId = prescription.get("id").asText();
+        String prescriptionId = prescription.get("id").asString();
 
         // 4. Create medication request associated with prescription (1 box <= 2 available)
         JsonNode medicationRequest = json(mockMvc.perform(post(
@@ -131,7 +131,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString());
 
-        String prescriptionId = prescription.get("id").asText();
+        String prescriptionId = prescription.get("id").asString();
 
         // Request 10 boxes (exceeds available 1 box)
         mockMvc.perform(post("/api/encounters/{encounterId}/medication-requests", encounterId)
@@ -174,7 +174,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 }
                                 """.formatted(digits)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(response).get("id").asText();
+        return json(response).get("id").asString();
     }
 
     private String createAndStartEncounter(String residentId) throws Exception {
@@ -185,7 +185,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 }
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String encounterId = json(response).get("id").asText();
+        String encounterId = json(response).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         return encounterId;
     }
@@ -228,7 +228,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
@@ -238,7 +238,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asText())
+        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"OPD-PICK-%s","name":"门诊测试发药位","binType":"COUNTER",
@@ -248,7 +248,7 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asText())
+        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "lotNo":"OPD-%s","productionDate":"2026-01-01","expiryDate":"2027-12-31",
@@ -265,8 +265,8 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                   "operationQuantity":%d,"unitCost":0.60,"occurredAt":"%s",
                                   "description":"测试入库"
                                 }
-                                """.formatted(suffix, suffix, item.get("id").asText(), bin.get("id").asText(),
-                                lot.get("id").asText(), baseQuantity, Instant.now())))
+                                """.formatted(suffix, suffix, item.get("id").asString(), bin.get("id").asString(),
+                                lot.get("id").asString(), baseQuantity, Instant.now())))
                 .andExpect(status().isCreated());
 
         mockMvc.perform(post("/api/pharmacy/dispense-routes").with(rhnWorkContext())
@@ -276,10 +276,10 @@ class OutpatientPrescriptionInventoryFreezeIntegrationTest extends RhnIntegratio
                                   "careSetting":"OUTPATIENT","sourceDepartmentId":"%s",
                                   "targetStockSiteId":"%s","active":true,"validFrom":"2026-01-01"
                                 }
-                                """.formatted(ORGANIZATION, suffix, suffix, DEPARTMENT, site.get("id").asText())))
+                                """.formatted(ORGANIZATION, suffix, suffix, DEPARTMENT, site.get("id").asString())))
                 .andExpect(status().isCreated());
 
-        return new PharmacyFixture(item.get("id").asText());
+        return new PharmacyFixture(item.get("id").asString());
     }
 
     private record PharmacyFixture(String stockItemId) {}

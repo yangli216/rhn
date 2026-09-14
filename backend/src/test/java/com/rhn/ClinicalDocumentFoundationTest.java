@@ -25,14 +25,14 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                                  "gender":"FEMALE","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String residentId = objectMapper.readTree(residentBody).get("id").asText();
+        String residentId = objectMapper.readTree(residentBody).get("id").asString();
         String encounterBody = mockMvc.perform(post("/api/encounters")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String encounterId = objectMapper.readTree(encounterBody).get("id").asText();
+        String encounterId = objectMapper.readTree(encounterBody).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
 
@@ -46,18 +46,18 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andExpect(jsonPath("$[0].currentVersion").value(2))
                 .andReturn().getResponse().getContentAsString();
-        String documentId = objectMapper.readTree(documents).get(0).get("id").asText();
+        String documentId = objectMapper.readTree(documents).get(0).get("id").asString();
 
         String tasks = mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         JsonNode signTask = StreamSupport.stream(objectMapper.readTree(tasks).spliterator(), false)
-                .filter(node -> "CLINICAL_DOCUMENT_SIGN".equals(node.path("taskType").asText()))
-                .filter(node -> encounterId.equals(node.path("encounterId").asText()))
+                .filter(node -> "CLINICAL_DOCUMENT_SIGN".equals(node.path("taskType").asString()))
+                .filter(node -> encounterId.equals(node.path("encounterId").asString()))
                 .findFirst().orElseThrow();
         org.junit.jupiter.api.Assertions.assertEquals(
                 "/outpatient/reception?residentId=" + residentId + "&encounterId=" + encounterId,
-                signTask.path("routePath").asText());
-        mockMvc.perform(post("/api/tasks/{id}/complete", signTask.get("id").asText())
+                signTask.path("routePath").asString());
+        mockMvc.perform(post("/api/tasks/{id}/complete", signTask.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("TASK_BUSINESS_ACTION_REQUIRED"));
@@ -75,8 +75,8 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
         String remainingTasks = mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         boolean stillOpen = StreamSupport.stream(objectMapper.readTree(remainingTasks).spliterator(), false)
-                .anyMatch(node -> "CLINICAL_DOCUMENT_SIGN".equals(node.path("taskType").asText())
-                        && encounterId.equals(node.path("encounterId").asText()));
+                .anyMatch(node -> "CLINICAL_DOCUMENT_SIGN".equals(node.path("taskType").asString())
+                        && encounterId.equals(node.path("encounterId").asString()));
         org.junit.jupiter.api.Assertions.assertFalse(stillOpen);
         mockMvc.perform(post("/api/encounters/{id}/complete", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"));
@@ -97,7 +97,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String residentId = objectMapper.readTree(residentBody).get("id").asText();
+        String residentId = objectMapper.readTree(residentBody).get("id").asString();
 
         String documentBody = mockMvc.perform(post("/api/clinical-documents")
                         .with(rhn())
@@ -120,7 +120,7 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.history[0].contentDigest").isNotEmpty())
                 .andExpect(jsonPath("$.history[0].integrityEvidenceId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        String documentId = objectMapper.readTree(documentBody).get("id").asText();
+        String documentId = objectMapper.readTree(documentBody).get("id").asString();
 
         update(documentId, 1, "补充后的草稿")
                 .andExpect(status().isOk())
@@ -174,14 +174,14 @@ class ClinicalDocumentFoundationTest extends RhnIntegrationTestSupport {
                                  "gender":"MALE","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String residentId = objectMapper.readTree(residentBody).get("id").asText();
+        String residentId = objectMapper.readTree(residentBody).get("id").asString();
         String encounterBody = mockMvc.perform(post("/api/encounters")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String encounterId = objectMapper.readTree(encounterBody).get("id").asText();
+        String encounterId = objectMapper.readTree(encounterBody).get("id").asString();
 
         createProgressNote(residentId, encounterId, "PROGRESS-20260830-AM", "上午病情平稳")
                 .andExpect(status().isCreated())

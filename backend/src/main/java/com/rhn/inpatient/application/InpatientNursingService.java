@@ -618,7 +618,7 @@ public class InpatientNursingService {
     private List<String> stringList(String json) {
         JsonNode value = jsonCodec.readTree(json);
         List<String> result = new ArrayList<>();
-        value.forEach(item -> result.add(item.asText()));
+        value.forEach(item -> result.add(item.asString()));
         return List.copyOf(result);
     }
 

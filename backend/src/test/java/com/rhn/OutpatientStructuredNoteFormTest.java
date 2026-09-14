@@ -45,7 +45,7 @@ class OutpatientStructuredNoteFormTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         JsonNode current = StreamSupport.stream(objectMapper.readTree(visible).spliterator(), false)
-                .filter(value -> code.equals(value.path("formCode").asText())).findFirst().orElseThrow();
+                .filter(value -> code.equals(value.path("formCode").asString())).findFirst().orElseThrow();
         assertEquals(2, current.path("version").asInt());
 
         mockMvc.perform(post("/api/outpatient/note-forms/{code}/versions", code)
@@ -57,11 +57,11 @@ class OutpatientStructuredNoteFormTest extends RhnIntegrationTestSupport {
         String encounterId = createStartedEncounter();
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content(record(versionOne.get("id").asText(), "{}", "FORM-OLD-" + suffix)))
+                        .content(record(versionOne.get("id").asString(), "{}", "FORM-OLD-" + suffix)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("NOTE_FORM_VERSION_RETIRED"));
 
-        String versionTwoId = versionTwo.get("id").asText();
+        String versionTwoId = versionTwo.get("id").asString();
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(record(versionTwoId, "{\"homeSystolic\":142}", "FORM-MISSING-" + suffix)))
@@ -93,14 +93,14 @@ class OutpatientStructuredNoteFormTest extends RhnIntegrationTestSupport {
                                  "gender":"FEMALE","birthDate":"1988-01-01"}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String residentId = objectMapper.readTree(resident).get("id").asText();
+        String residentId = objectMapper.readTree(resident).get("id").asString();
         String encounter = mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"FORM-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, residentId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String encounterId = objectMapper.readTree(encounter).get("id").asText();
+        String encounterId = objectMapper.readTree(encounter).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         return encounterId;
     }

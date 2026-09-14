@@ -69,7 +69,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 """.formatted(ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"items":[
                                   {"catalogItemId":"362387869795111","packageId":"362387869795401","issuePolicy":"FEFO",
@@ -83,7 +83,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.length()").value(2));
 
-        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items/batch", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"items":[
                                   {"catalogItemId":"362387869795113","packageId":"362387869795403","issuePolicy":"FEFO",
@@ -97,7 +97,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("STOCK_ITEM_DUPLICATE"));
 
-        mockMvc.perform(get("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+        mockMvc.perform(get("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -110,12 +110,12 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
         String residentId = createResident(suffix);
         String encounterId = createActiveEncounter(residentId);
         JsonNode request = createMedicationRequest(encounterId);
-        OverrideRecord changedOverride = changeCurrentAttributeAfterOrdering(suffix, request.get("itemAttributeHash").asText());
+        OverrideRecord changedOverride = changeCurrentAttributeAfterOrdering(suffix, request.get("itemAttributeHash").asString());
 
         mockMvc.perform(get("/api/pharmacy/inbox").with(rhnWorkContext())
                         .queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.request.id == '%s')].taskId".formatted(request.get("id").asText()))
+                .andExpect(jsonPath("$[?(@.request.id == '%s')].taskId".formatted(request.get("id").asString()))
                         .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.nullValue())));
 
         JsonNode site = json(mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
@@ -130,7 +130,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
         JsonNode stockItem = json(mockMvc.perform(post(
-                                "/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+                                "/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
@@ -144,31 +144,31 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         JsonNode task = json(mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake",
-                                request.get("id").asText()).with(rhnWorkContext())
+                                request.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"stockItemId":"%s","description":"窗口接方"}
-                                """.formatted(stockItem.get("id").asText())))
+                                """.formatted(stockItem.get("id").asString())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING_REVIEW"))
-                .andExpect(jsonPath("$.lines[0].requestId").value(request.get("id").asText()))
+                .andExpect(jsonPath("$.lines[0].requestId").value(request.get("id").asString()))
                 .andExpect(jsonPath("$.lines[0].plannedQuantity").value(2))
                 .andExpect(jsonPath("$.lines[0].dispenseUnitCode").value("BOX"))
                 .andExpect(jsonPath("$.lines[0].baseQuantityFactor").value(14))
                 .andExpect(jsonPath("$.lines[0].split").value(false))
                 .andExpect(jsonPath("$.lines[0].itemAttributeHash")
-                        .value(request.get("itemAttributeHash").asText()))
+                        .value(request.get("itemAttributeHash").asString()))
                 .andReturn().getResponse().getContentAsString());
         assertEquals(request.get("itemAttributeSnapshot"), task.get("lines").get(0).get("itemAttributeSnapshot"));
 
-        mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake", request.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake", request.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"stockItemId\":\"%s\"}".formatted(stockItem.get("id").asText())))
+                        .content("{\"stockItemId\":\"%s\"}".formatted(stockItem.get("id").asString())))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(task.get("id").asText()))
+                .andExpect(jsonPath("$.id").value(task.get("id").asString()))
                 .andExpect(jsonPath("$.lines.length()").value(1));
 
         Reviewer clinicalReviewer = createReviewer(suffix + "C", "CLINICAL");
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "result":"PASS",
@@ -179,7 +179,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("PHARMACY_POSITION_TYPE_REQUIRED"));
 
         Reviewer reviewer = createReviewer(suffix);
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "result":"INTERVENE","reasonCode":"DOSE_CONFIRM",
@@ -193,7 +193,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.reviews.length()").value(1))
                 .andExpect(jsonPath("$.reviews[0].result").value("INTERVENE"));
 
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "result":"PASS",
@@ -207,23 +207,23 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.reviews[0].result").value("INTERVENE"))
                 .andExpect(jsonPath("$.reviews[1].result").value("PASS"))
                 .andExpect(jsonPath("$.lines[0].itemAttributeHash")
-                        .value(request.get("itemAttributeHash").asText()));
+                        .value(request.get("itemAttributeHash").asString()));
 
         mockMvc.perform(get("/api/pharmacy/inbox").with(rhnWorkContext())
                         .queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].taskStatus"
-                        .formatted(request.get("id").asText())).value("READY_TO_PICK"))
+                        .formatted(request.get("id").asString())).value("READY_TO_PICK"))
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].latestReviewResult"
-                        .formatted(request.get("id").asText())).value("PASS"))
+                        .formatted(request.get("id").asString())).value("PASS"))
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.encounterId"
-                        .formatted(request.get("id").asText())).value(encounterId))
+                        .formatted(request.get("id").asString())).value(encounterId))
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.encounterNo"
-                        .formatted(request.get("id").asText())).isNotEmpty())
+                        .formatted(request.get("id").asString())).isNotEmpty())
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].clinicalContext.diagnoses"
-                        .formatted(request.get("id").asText())).isArray())
+                        .formatted(request.get("id").asString())).isArray())
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].prescriptionRequests[0].id"
-                        .formatted(request.get("id").asText())).value(request.get("id").asText()));
+                        .formatted(request.get("id").asString())).value(request.get("id").asString()));
 
         disableOverride(changedOverride, suffix);
     }
@@ -255,8 +255,8 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.jsonItemAttrSnapshot.attributes['MED.SKIN_TEST.SOLUTION_MODE'].value")
                         .value("DILUTED_SOLUTION"))
                 .andReturn().getResponse().getContentAsString());
-        assertNotEquals(orderedHash, current.get("hashItemAttrSnapshot").asText());
-        return new OverrideRecord(override.get("id").asText(), override.get("revision").asLong());
+        assertNotEquals(orderedHash, current.get("hashItemAttrSnapshot").asString());
+        return new OverrideRecord(override.get("id").asString(), override.get("revision").asLong());
     }
 
     private void disableOverride(OverrideRecord value, String suffix) throws Exception {
@@ -298,7 +298,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                   "gender":"FEMALE","birthDate":"1988-12-12"
                                 }
                                 """.formatted(digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -307,9 +307,9 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString()))
                 .andExpect(status().isOk());
-        return encounter.get("id").asText();
+        return encounter.get("id").asString();
     }
 
     private Reviewer createReviewer(String suffix) throws Exception {
@@ -337,7 +337,7 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                   "sdEmploymentType":"PERMANENT","primaryEmployment":true,
                                   "hireDate":"2026-01-01"
                                 }
-                                """.formatted(practitioner.get("id").asText(), ORGANIZATION, suffix)))
+                                """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -346,10 +346,10 @@ class PharmacyIntakeReviewTest extends RhnIntegrationTestSupport {
                                   "positionId":"%s","code":"PHARM-ASN-%s","sdAssignmentType":"PRIMARY",
                                   "primaryAssignment":true,"validFrom":"2026-01-01"
                                 }
-                                """.formatted(employment.get("id").asText(), ORGANIZATION, DEPARTMENT,
-                                position.get("id").asText(), suffix)))
+                                """.formatted(employment.get("id").asString(), ORGANIZATION, DEPARTMENT,
+                                position.get("id").asString(), suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new Reviewer(practitioner.get("id").asText(), assignment.get("id").asText());
+        return new Reviewer(practitioner.get("id").asString(), assignment.get("id").asString());
     }
 
     private record Reviewer(String practitionerId, String assignmentId) {}

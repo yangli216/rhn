@@ -33,7 +33,7 @@ class InpatientMedicalRecordFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(RESIDENT, BED)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String encounterId = json(episode).get("encounterId").asText();
+        String encounterId = json(episode).get("encounterId").asString();
 
         String document = mockMvc.perform(post("/api/clinical-documents").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -61,7 +61,7 @@ class InpatientMedicalRecordFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.content.templateId").value("rhn-inpatient-admission"))
                 .andExpect(jsonPath("$.history[0].integrityEvidenceId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString();
-        String documentId = json(document).get("id").asText();
+        String documentId = json(document).get("id").asString();
 
         mockMvc.perform(put("/api/clinical-documents/{documentId}/draft", documentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""

@@ -25,7 +25,7 @@ public class PrescriptionReviewPolicy {
         if (!modeOverride.isBlank()) return parse(modeOverride);
         var configured = configuration.resolveCurrent(context.tenantId(), context.subjectId(),
                 organizationId, departmentId, PARAMETER_KEY);
-        return configured.value() == null ? Mode.DISABLED : parse(configured.value().asText());
+        return configured.value() == null ? Mode.DISABLED : parse(configured.value().asString());
     }
 
     private Mode parse(String value) {

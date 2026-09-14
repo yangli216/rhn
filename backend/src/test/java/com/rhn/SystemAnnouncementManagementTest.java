@@ -30,7 +30,7 @@ class SystemAnnouncementManagementTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/announcements").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
 
-        JsonNode updated = json(mockMvc.perform(put("/api/announcement-management/{id}", draft.get("id").asText())
+        JsonNode updated = json(mockMvc.perform(put("/api/announcement-management/{id}", draft.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":%d,"scopeType":"DEPARTMENT",
@@ -44,7 +44,7 @@ class SystemAnnouncementManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.priority").value("URGENT"))
                 .andReturn().getResponse().getContentAsString());
 
-        JsonNode published = json(mockMvc.perform(post("/api/announcement-management/{id}/publish", draft.get("id").asText())
+        JsonNode published = json(mockMvc.perform(post("/api/announcement-management/{id}/publish", draft.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d}".formatted(updated.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PUBLISHED"))
@@ -56,12 +56,12 @@ class SystemAnnouncementManagementTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/announcements").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(draft.get("id").asLong()))
                 .andExpect(jsonPath("$[0].read").value(false));
-        mockMvc.perform(post("/api/announcements/{id}/read", draft.get("id").asText()).with(rhnWorkContext()))
+        mockMvc.perform(post("/api/announcements/{id}/read", draft.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.read").value(true));
         mockMvc.perform(get("/api/announcements/summary").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.unread").value(0));
 
-        mockMvc.perform(post("/api/announcement-management/{id}/withdraw", draft.get("id").asText())
+        mockMvc.perform(post("/api/announcement-management/{id}/withdraw", draft.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d}".formatted(published.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("WITHDRAWN"));

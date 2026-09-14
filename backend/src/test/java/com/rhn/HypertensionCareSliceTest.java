@@ -50,7 +50,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         assertEquals(1, candidates.size());
         JsonNode candidate = candidates.get(0);
-        assertTrue(Instant.parse(candidate.get("dueAt").asText()).isAfter(Instant.now().plusSeconds(27L * 86400)));
+        assertTrue(Instant.parse(candidate.get("dueAt").asString()).isAfter(Instant.now().plusSeconds(27L * 86400)));
 
         Integer observationCount = jdbcTemplate.queryForObject("""
                 select count(*) from RHN_VIS_OBS where ID_TNT = ? and ID_PAT = ?
@@ -61,8 +61,8 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
         JsonNode workTasks = json(mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertTrue(StreamSupport.stream(workTasks.spliterator(), false)
-                .anyMatch(task -> "CONTINUOUS_CARE".equals(task.path("taskType").asText())
-                        && candidate.get("taskId").asText().equals(task.path("routePath").asText()
+                .anyMatch(task -> "CONTINUOUS_CARE".equals(task.path("taskType").asString())
+                        && candidate.get("taskId").asString().equals(task.path("routePath").asString()
                         .replace("/care-management?taskId=", ""))));
 
         recordClinicalData(encounterId, 148, 94).andExpect(status().isOk());
@@ -105,7 +105,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].verificationStatus").value("SUSPECTED"))
                 .andExpect(jsonPath("$[0].evidenceEvents[0].evidence.decision").value("URGENT_RECHECK"))
                 .andReturn().getResponse().getContentAsString()).get(0);
-        assertFalse(Instant.parse(candidate.get("dueAt").asText()).isAfter(Instant.now().plusSeconds(5)));
+        assertFalse(Instant.parse(candidate.get("dueAt").asString()).isAfter(Instant.now().plusSeconds(5)));
     }
 
     @Test
@@ -130,7 +130,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                                   "birthDate":"%s","phone":"13800138009"
                                 }
                                 """.formatted(name, externalId, birthDate)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -138,7 +138,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
         return encounterId;

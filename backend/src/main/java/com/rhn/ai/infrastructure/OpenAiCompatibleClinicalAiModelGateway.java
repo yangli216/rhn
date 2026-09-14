@@ -220,13 +220,13 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
                         if (chunk.has("error")) throw new IllegalArgumentException("模型流式服务返回错误");
                         recordUsage(data, active);
                         JsonNode choice = chunk.path("choices").path(0);
-                        String delta = choice.path("delta").path("content").asText("");
+                        String delta = choice.path("delta").path("content").asString("");
                         if (!delta.isEmpty()) {
                             content.append(delta);
                             if (content.length() > 262144) throw new IllegalArgumentException("模型流式结果过大");
                             onDelta.accept(delta);
                         }
-                        String reason = choice.path("finish_reason").asText("");
+                        String reason = choice.path("finish_reason").asString("");
                         if (!reason.isBlank()) finishReason = reason;
                     }
                 }
@@ -408,15 +408,15 @@ final class OpenAiCompatibleClinicalAiModelGateway implements ClinicalAiModelGat
         JsonNode root = jsonCodec.readTree(responseBody);
         JsonNode choices = root == null ? null : root.get("choices");
         JsonNode first = choices == null || !choices.isArray() || choices.isEmpty() ? null : choices.get(0);
-        if (first != null && "length".equals(first.path("finish_reason").asText())) {
+        if (first != null && "length".equals(first.path("finish_reason").asString())) {
             throw new ClinicalAiModelException(Reason.OUTPUT_LIMIT, null, "模型输出被长度上限截断", null);
         }
         JsonNode message = first == null ? null : first.get("message");
         JsonNode content = message == null ? null : message.get("content");
-        if (content == null || content.isNull() || content.asText().isBlank()) {
+        if (content == null || content.isNull() || content.asString().isBlank()) {
             throw new ClinicalAiModelException(Reason.INVALID_RESPONSE, null, "模型服务未返回可解析内容", null);
         }
-        String value = content.asText().trim();
+        String value = content.asString().trim();
         if (value.startsWith("```")) {
             value = value.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "").trim();
         }

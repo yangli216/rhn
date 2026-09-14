@@ -115,7 +115,7 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
         ConfigurationValue active = configurationDirectory.resolveCurrent(
                 Long.valueOf(TENANT), null, null, null, childKey);
         assertFalse(active.suppressedByDependency());
-        assertEquals("https://custom.endpoint.com", active.value().asText());
+        assertEquals("https://custom.endpoint.com", active.value().asString());
 
         // 7. Detail API now reports dependencySatisfied = true
         mockMvc.perform(get("/api/platform/configuration/definitions/{id}", childId).with(rhn()))
@@ -130,7 +130,7 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
                                 {"code":"%s","name":"依赖测试分类","sortOrder":100}
                                 """.formatted(code)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private String createDefinition(String categoryId, String key, String name,
@@ -147,7 +147,7 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
                                  "requestCode":"%s"%s}
                                 """.formatted(categoryId, key, name, requestCode(), depFields)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private String createBooleanDefinition(String categoryId, String key, String name, String defaultValue) throws Exception {
@@ -161,7 +161,7 @@ class ParameterDependencyFoundationTest extends RhnIntegrationTestSupport {
                                  "requestCode":"%s"}
                                 """.formatted(categoryId, key, name, defaultValue, requestCode())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private JsonNode saveValue(String definitionId, String scope, String scopeId,

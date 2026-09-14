@@ -39,8 +39,8 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"病区配送交接测试","commandCode":"IP-WD-ADMIT"}
                 """, rhnWorkContext(), 201);
-        String episodeId = admission.get("id").asText();
-        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asText());
+        String episodeId = admission.get("id").asString();
+        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asString());
 
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
@@ -48,7 +48,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"TID","instructions":"饭后口服",
                  "commandCode":"IP-WD-ORDER"}
                 """.formatted(episodeId), rhnWorkContext(), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign", medicationSign(0, "IP-WD-SIGN"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify", revision(1, "IP-WD-VERIFY"), rhnWorkContext(), 200);
         LocalDate supplyDate = LocalDate.now(ORGANIZATION_ZONE).plusDays(1);
@@ -56,20 +56,20 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":2,"plannedTimes":["%s","%s","%s"],"commandCode":"IP-WD-PLAN"}
                 """.formatted(atSupplyTime(supplyDate, 9), atSupplyTime(supplyDate, 11),
                 atSupplyTime(supplyDate, 13)), rhnWorkContext(), 200);
-        String firstOrderTaskId = planned.at("/tasks/0/id").asText();
-        String secondOrderTaskId = planned.at("/tasks/1/id").asText();
-        String thirdOrderTaskId = planned.at("/tasks/2/id").asText();
+        String firstOrderTaskId = planned.at("/tasks/0/id").asString();
+        String secondOrderTaskId = planned.at("/tasks/1/id").asString();
+        String thirdOrderTaskId = planned.at("/tasks/2/id").asString();
 
         JsonNode supplyBatch = postJson("/api/pharmacy/ward-supply-batches", """
                 {"stockSiteId":"%s","nursingUnitDepartmentId":"%s","businessDate":"%s",
                  "shiftCode":"DAY","commandCode":"IP-WD-SUPPLY"}
-                """.formatted(INPATIENT_STOCK_SITE, order.get("departmentId").asText(), supplyDate),
+                """.formatted(INPATIENT_STOCK_SITE, order.get("departmentId").asString(), supplyDate),
                 pharmacyContext(), 201);
         JsonNode taskLine = postJson("/api/pharmacy/ward-supply-lines/"
-                + supplyBatch.at("/lines/0/id").asText() + "/intake", """
+                + supplyBatch.at("/lines/0/id").asString() + "/intake", """
                 {"stockItemId":"%s","description":"三次给药摆药"}
                 """.formatted(INPATIENT_STOCK_ITEM), pharmacyContext(), 201);
-        String taskId = taskLine.get("dispenseTaskId").asText();
+        String taskId = taskLine.get("dispenseTaskId").asString();
         postJson("/api/pharmacy/dispense-tasks/" + taskId + "/reviews", """
                 {"result":"PASS","pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT), pharmacyContext(), 200);
@@ -83,14 +83,14 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
         JsonNode secondDispense = dispense(taskId, "IP-WD-DISPENSE-2");
         JsonNode firstDelivery = postJson("/api/pharmacy/ward-deliveries", """
                 {"deliveryNo":"IP-WD-DELIVERY-1","dispenseIds":["%s","%s"],"note":"送综合病区"}
-                """.formatted(firstDispense.get("id").asText(), secondDispense.get("id").asText()),
+                """.formatted(firstDispense.get("id").asString(), secondDispense.get("id").asString()),
                 pharmacyContext(), 201);
-        assertEquals("PENDING_DISPATCH", firstDelivery.get("status").asText());
-        assertEquals("综合病区", firstDelivery.get("nursingUnitName").asText());
-        assertEquals("阿莫西林胶囊 0.25g", firstDelivery.at("/lines/0/medicationName").asText());
-        String firstDeliveryId = firstDelivery.get("id").asText();
-        String firstLineId = firstDelivery.at("/lines/0/id").asText();
-        String secondLineId = firstDelivery.at("/lines/1/id").asText();
+        assertEquals("PENDING_DISPATCH", firstDelivery.get("status").asString());
+        assertEquals("综合病区", firstDelivery.get("nursingUnitName").asString());
+        assertEquals("阿莫西林胶囊 0.25g", firstDelivery.at("/lines/0/medicationName").asString());
+        String firstDeliveryId = firstDelivery.get("id").asString();
+        String firstLineId = firstDelivery.at("/lines/0/id").asString();
+        String secondLineId = firstDelivery.at("/lines/1/id").asString();
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -100,7 +100,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
         JsonNode dispatched = postJson("/api/pharmacy/ward-deliveries/" + firstDeliveryId + "/dispatch", """
                 {"expectedRevision":0,"commandCode":"IP-WD-DISPATCH-1","note":"药师交出"}
                 """, pharmacyContext(), 200);
-        assertEquals("IN_TRANSIT", dispatched.get("status").asText());
+        assertEquals("IN_TRANSIT", dispatched.get("status").asString());
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -127,8 +127,8 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                  "lines":[{"lineId":"%s","receivedQuantity":1},
                           {"lineId":"%s","receivedQuantity":1}]}
                 """.formatted(firstLineId, secondLineId), rhnWorkContext(), 200);
-        assertEquals("RECEIVED", received.get("status").asText());
-        assertEquals("MATCHED", received.at("/lines/0/status").asText());
+        assertEquals("RECEIVED", received.get("status").asString());
+        assertEquals("MATCHED", received.at("/lines/0/status").asString());
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -144,9 +144,9 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
         JsonNode thirdDispense = dispense(taskId, "IP-WD-DISPENSE-3");
         JsonNode secondDelivery = postJson("/api/pharmacy/ward-deliveries", """
                 {"deliveryNo":"IP-WD-DELIVERY-2","dispenseIds":["%s"]}
-                """.formatted(thirdDispense.get("id").asText()), pharmacyContext(), 201);
-        String secondDeliveryId = secondDelivery.get("id").asText();
-        String thirdLineId = secondDelivery.at("/lines/0/id").asText();
+                """.formatted(thirdDispense.get("id").asString()), pharmacyContext(), 201);
+        String secondDeliveryId = secondDelivery.get("id").asString();
+        String thirdLineId = secondDelivery.at("/lines/0/id").asString();
         postJson("/api/pharmacy/ward-deliveries/" + secondDeliveryId + "/dispatch", """
                 {"expectedRevision":0,"commandCode":"IP-WD-DISPATCH-2"}
                 """, pharmacyContext(), 200);
@@ -155,8 +155,8 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                  "lines":[{"lineId":"%s","receivedQuantity":0,"discrepancyCode":"SHORTAGE",
                             "discrepancyNote":"配送袋内短少 1 粒"}]}
                 """.formatted(thirdLineId), rhnWorkContext(), 200);
-        assertEquals("DISCREPANCY", discrepancy.get("status").asText());
-        assertEquals("SHORTAGE", discrepancy.at("/lines/0/status").asText());
+        assertEquals("DISCREPANCY", discrepancy.get("status").asString());
+        assertEquals("SHORTAGE", discrepancy.at("/lines/0/status").asString());
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -167,8 +167,8 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":2,"commandCode":"IP-WD-RESOLVE-2",
                  "resolutionCode":"ACCEPTED_VARIANCE","note":"病区确认按实际签收零粒处理"}
                 """, pharmacyContext(), 200);
-        assertEquals("RESOLVED", resolved.get("status").asText());
-        assertEquals("ACCEPTED_VARIANCE", resolved.get("resolutionCode").asText());
+        assertEquals("RESOLVED", resolved.get("status").asString());
+        assertEquals("ACCEPTED_VARIANCE", resolved.get("resolutionCode").asString());
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -183,7 +183,7 @@ class WardMedicationDeliveryFlowTest extends RhnIntegrationTestSupport {
         assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_INP_MED_CONSUME", Integer.class));
 
         mockMvc.perform(get("/api/pharmacy/ward-deliveries").with(rhnWorkContext())
-                        .queryParam("status", "ALL").queryParam("encounterId", admission.get("encounterId").asText()))
+                        .queryParam("status", "ALL").queryParam("encounterId", admission.get("encounterId").asString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)));
         assertEquals(7, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_EVT", Integer.class));

@@ -87,7 +87,7 @@ class DispenseRouteManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DISPENSE_ROUTE_RULE_OVERLAP"));
 
-        mockMvc.perform(put("/api/pharmacy/dispense-routes/{id}", route.get("id").asText())
+        mockMvc.perform(put("/api/pharmacy/dispense-routes/{id}", route.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":%s,"organizationId":"%s","code":"GENERAL-WESTERN",

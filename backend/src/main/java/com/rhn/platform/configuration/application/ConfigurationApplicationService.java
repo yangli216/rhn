@@ -392,7 +392,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         JsonNode snapshot = parseSnapshot(target.afterJson());
         ParameterValue value = requireVisibleValue(definitionId, target.valueId(), context.tenantId());
         requireAiValueAuthority(definition.configKey(), value.scopeType());
-        ConfigurationValueMode mode = ConfigurationValueMode.valueOf(snapshot.get("valueMode").asText());
+        ConfigurationValueMode mode = ConfigurationValueMode.valueOf(snapshot.get("valueMode").asString());
         String valueJson = textOrNull(snapshot.get("valueJson"));
         String secretRef = textOrNull(snapshot.get("secretRef"));
         boolean active = snapshot.get("active").asBoolean();
@@ -482,15 +482,15 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         }
         if (actualNode.isNumber()) {
             try {
-                BigDecimal actualNum = new BigDecimal(actualNode.asText());
+                BigDecimal actualNum = new BigDecimal(actualNode.asString());
                 BigDecimal expectedNum = new BigDecimal(cleanExpected);
                 return actualNum.compareTo(expectedNum) == 0;
             } catch (Exception ignored) {
-                return actualNode.asText().equalsIgnoreCase(cleanExpected);
+                return actualNode.asString().equalsIgnoreCase(cleanExpected);
             }
         }
         if (actualNode.isTextual()) {
-            return actualNode.asText().equalsIgnoreCase(cleanExpected);
+            return actualNode.asString().equalsIgnoreCase(cleanExpected);
         }
         return actualNode.toString().equals(cleanExpected);
     }
@@ -765,7 +765,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
 
     private void validateDictionaryValue(String dictionaryCode, String rawJson, Long tenantId) {
         JsonNode value = parseValue(rawJson);
-        String code = value.isBoolean() ? (value.asBoolean() ? "TRUE" : "FALSE") : value.asText();
+        String code = value.isBoolean() ? (value.asBoolean() ? "TRUE" : "FALSE") : value.asString();
         boolean allowed = systemEnumDirectory.findSystemEnum(dictionaryCode)
                 .map(definition -> definition.items().stream().anyMatch(item -> item.code().equals(code)))
                 .orElseGet(() -> dictionaryDirectory.resolveActiveItems(tenantId, dictionaryCode).stream()
@@ -807,7 +807,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
 
     private void validateAiEndpoint(String key, String rawJson) {
         if (!isClinicalAiKey(key) || !key.endsWith("endpoint")) return;
-        String value = parseValue(rawJson).asText();
+        String value = parseValue(rawJson).asString();
         try {
             URI uri = URI.create(value);
             if (!uri.isAbsolute() || !("http".equalsIgnoreCase(uri.getScheme())
@@ -839,7 +839,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         if (schemaJson == null) return;
         JsonNode schema = parseSchema(schemaJson);
         if (schema.has("type")) {
-            if (!schema.get("type").isString() || !schemaTypeMatches(schema.get("type").asText(), valueType)) {
+            if (!schema.get("type").isString() || !schemaTypeMatches(schema.get("type").asString(), valueType)) {
                 throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 type 与参数值类型不一致");
             }
         }
@@ -863,7 +863,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 pattern 必须是字符串");
             }
             try {
-                Pattern.compile(schema.get("pattern").asText());
+                Pattern.compile(schema.get("pattern").asString());
             } catch (PatternSyntaxException exception) {
                 throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 中的正则表达式不合法");
             }
@@ -872,7 +872,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             JsonNode required = schema.get("required");
             if (!required.isArray()) throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 required 必须是数组");
             for (JsonNode field : required) {
-                if (!field.isString() || field.asText().isBlank()) {
+                if (!field.isString() || field.asString().isBlank()) {
                     throw badRequest("PARAMETER_SCHEMA_INVALID", "JSON Schema 的 required 只能包含非空字段名");
                 }
             }
@@ -907,7 +907,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
     }
 
     private void validateAgainstSchema(JsonNode value, JsonNode schema) {
-        if (schema.has("type") && !schemaValueTypeMatches(schema.get("type").asText(), value)) {
+        if (schema.has("type") && !schemaValueTypeMatches(schema.get("type").asString(), value)) {
             throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值与 JSON Schema type 不匹配");
         }
         JsonNode enumeration = schema.get("enum");
@@ -926,7 +926,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             }
         }
         if (value.isString()) {
-            int length = value.asText().length();
+            int length = value.asString().length();
             if (schema.has("minLength") && length < schema.get("minLength").asInt()) {
                 throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值长度小于允许的最小长度");
             }
@@ -935,7 +935,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
             }
             if (schema.has("pattern")) {
                 try {
-                    if (!Pattern.compile(schema.get("pattern").asText()).matcher(value.asText()).matches()) {
+                    if (!Pattern.compile(schema.get("pattern").asString()).matcher(value.asString()).matches()) {
                         throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值不符合 JSON Schema 格式约束");
                     }
                 } catch (PatternSyntaxException exception) {
@@ -945,8 +945,8 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
         }
         if (value.isObject() && schema.has("required") && schema.get("required").isArray()) {
             for (JsonNode required : schema.get("required")) {
-                if (!value.has(required.asText())) {
-                    throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值缺少必填属性 " + required.asText());
+                if (!value.has(required.asString())) {
+                    throw badRequest("PARAMETER_SCHEMA_VIOLATION", "参数值缺少必填属性 " + required.asString());
                 }
             }
         }
@@ -1111,7 +1111,7 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
     }
 
     private JsonNode parseSnapshot(String value) { return value == null ? null : jsonCodec.readTree(value); }
-    private String textOrNull(JsonNode value) { return value == null || value.isNull() ? null : value.asText(); }
+    private String textOrNull(JsonNode value) { return value == null || value.isNull() ? null : value.asString(); }
 
     private ParameterCategory requireCategory(Long id) {
         return categoryRepository.findById(id)

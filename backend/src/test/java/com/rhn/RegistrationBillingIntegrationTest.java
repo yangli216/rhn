@@ -47,21 +47,21 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String intentCode = "REG-INTENT-" + suffix;
 
         JsonNode intent = createIntent(residentId, scheduleId, intentCode);
-        assertEquals("PAYMENT_PENDING", intent.get("status").asText());
-        assertEquals("SELF_PAY", intent.get("settlementMode").asText());
+        assertEquals("PAYMENT_PENDING", intent.get("status").asString());
+        assertEquals("SELF_PAY", intent.get("settlementMode").asString());
         assertEquals(0, new java.math.BigDecimal("10.00").compareTo(intent.get("feeAmount").decimalValue()));
-        String holdId = intent.get("slotHoldId").asText();
+        String holdId = intent.get("slotHoldId").asString();
         assertEquals(1, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
                 Integer.class, Long.valueOf(scheduleId)));
         assertEquals("ACTIVE", jdbc.queryForObject("select SD_STATUS as status from RHN_SC_SCHED_SLOT_HOLD where ID_SCHED_SLOT_HOLD = ?",
                 String.class, Long.valueOf(holdId)));
 
         JsonNode replay = createIntent(residentId, scheduleId, intentCode);
-        assertEquals(intent.get("id").asText(), replay.get("id").asText());
+        assertEquals(intent.get("id").asString(), replay.get("id").asString());
         assertEquals(true, replay.get("duplicate").asBoolean());
 
         JsonNode order = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"REG-PAY-%s","businessScene":"REGISTRATION",
@@ -74,7 +74,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
-                                intent.get("id").asText()).with(rhnWorkContext()))
+                                intent.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.paymentOrderId").value(order.get("id").asLong()))
@@ -102,7 +102,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("IMPORTED"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode reconciled = json(mockMvc.perform(post("/api/billing/reconciliation-batches/{id}/statement",
-                        reconciliation.get("id").asText()).with(rhnWorkContext())
+                        reconciliation.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"externalBatchNo":"EXT-BATCH-%s","transactions":[
                                   {"externalTransactionNo":"%s","transactionType":"PAYMENT",
@@ -118,17 +118,17 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         JsonNode differenceItem = null;
         for (JsonNode item : reconciled.get("items")) {
-            if ("EXTERNAL_ONLY".equals(item.get("matchType").asText())) differenceItem = item;
+            if ("EXTERNAL_ONLY".equals(item.get("matchType").asString())) differenceItem = item;
         }
         if (differenceItem == null) throw new AssertionError("未生成渠道单边对账差异");
-        mockMvc.perform(post("/api/billing/reconciliation-items/{id}/resolve", differenceItem.get("id").asText())
+        mockMvc.perform(post("/api/billing/reconciliation-items/{id}/resolve", differenceItem.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"RESOLVE-RECON-%s\",\"reason\":\"渠道测试流水，不入院内账\",\"ignore\":true}"
                                 .formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("RESOLVED"));
 
         JsonNode receipt = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/receipts",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"RC-%s","receiptType":"RECEIPT","issueChannel":"CASHIER",
                                  "payerName":"挂号收费验收患者"}
@@ -137,26 +137,26 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.externalReceiptNo").isNotEmpty())
                 .andExpect(jsonPath("$.controlledObjectReference").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/billing/receipts/{receiptId}/prints", receipt.get("id").asText())
+        mockMvc.perform(post("/api/billing/receipts/{receiptId}/prints", receipt.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"PRINT-%s\"}".formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.events[1].eventType").value("ISSUE"))
                 .andExpect(jsonPath("$.events[2].eventType").value("PRINT"));
         mockMvc.perform(post("/api/billing/settlements/{settlementId}/receipts",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"RC-%s","receiptType":"RECEIPT","issueChannel":"CASHIER",
                                  "payerName":"挂号收费验收患者"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(receipt.get("id").asLong()))
                 .andExpect(jsonPath("$.duplicate").value(true));
-        mockMvc.perform(post("/api/billing/receipts/{receiptId}/void", receipt.get("id").asText())
+        mockMvc.perform(post("/api/billing/receipts/{receiptId}/void", receipt.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"VOID-%s\",\"reason\":\"测试作废\"}".formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("VOIDED"));
 
         JsonNode pendingReceipt = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/receipts",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"ASYNC-RC-%s","receiptType":"MEDICAL_E_INVOICE",
                                  "issueChannel":"CASHIER","fiscalAuthorityCode":"TEST_PENDING"}
@@ -173,19 +173,19 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].status").value("ISSUED"))
                 .andExpect(jsonPath("$[0].accepted").value(true));
         JsonNode redReceipt = json(mockMvc.perform(post("/api/billing/receipts/{receiptId}/red-flush",
-                                pendingReceipt.get("id").asText()).with(rhnWorkContext())
+                                pendingReceipt.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"RED-%s\",\"reason\":\"测试全额红冲\"}".formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("RED_FLUSHED"))
                 .andExpect(jsonPath("$.reversesReceiptId").value(pendingReceipt.get("id").asLong()))
                 .andExpect(jsonPath("$.amount").value(-10.0))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/billing/receipts/{receiptId}/red-flush", pendingReceipt.get("id").asText())
+        mockMvc.perform(post("/api/billing/receipts/{receiptId}/red-flush", pendingReceipt.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"RED-%s\",\"reason\":\"测试全额红冲\"}".formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(redReceipt.get("id").asLong()))
                 .andExpect(jsonPath("$.duplicate").value(true));
-        mockMvc.perform(get("/api/billing/receipts/{receiptId}", pendingReceipt.get("id").asText())
+        mockMvc.perform(get("/api/billing/receipts/{receiptId}", pendingReceipt.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ISSUED"));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_QUEUE_TICKET qt join RHN_SC_PAT_REG pr " +
@@ -194,7 +194,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 Integer.class, completed.get("encounterId").asLong()));
 
         mockMvc.perform(post("/api/billing/payment-orders/{paymentOrderId}/business-completion/retry",
-                        order.get("id").asText()).with(rhnWorkContext()))
+                        order.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUCCEEDED"));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SC_PAT_REG where ID_ENC = ?",
                 Integer.class, completed.get("encounterId").asLong()));
@@ -215,24 +215,24 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.actualAmount").value(9.0))
                 .andExpect(jsonPath("$.differenceAmount").value(-1.0))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/confirm", cashierClose.get("id").asText())
+        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/confirm", cashierClose.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"CONFIRM-%s\"}".formatted(suffix)))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/confirm", cashierClose.get("id").asText())
+        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/confirm", cashierClose.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"CONFIRM-%s\",\"differenceReason\":\"现金盘点短款1元\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.differenceReason").value("现金盘点短款1元"));
-        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/reverse", cashierClose.get("id").asText())
+        mockMvc.perform(post("/api/billing/cashier-closes/{closeId}/reverse", cashierClose.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"REVERSE-CLOSE-%s\",\"reason\":\"测试撤销交班\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.reversesCloseId").value(cashierClose.get("id").asLong()))
                 .andExpect(jsonPath("$.expectedAmount").value(-10.0));
-        mockMvc.perform(get("/api/billing/cashier-closes/{closeId}", cashierClose.get("id").asText())
+        mockMvc.perform(get("/api/billing/cashier-closes/{closeId}", cashierClose.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("REVERSED"));
     }
@@ -247,10 +247,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
 
         JsonNode intent = createIntent(residentId, scheduleId, INTERNAL_MEDICINE_DEPARTMENT,
                 "REG-CROSS-DEPT-" + suffix);
-        assertEquals(INTERNAL_MEDICINE_DEPARTMENT, intent.get("departmentId").asText());
+        assertEquals(INTERNAL_MEDICINE_DEPARTMENT, intent.get("departmentId").asString());
 
         json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"REG-CROSS-PAY-%s","businessScene":"REGISTRATION",
@@ -263,11 +263,11 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
-                                intent.get("id").asText()).with(rhnWorkContext()))
+                                intent.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andReturn().getResponse().getContentAsString());
-        String encounterId = completed.get("encounterId").asText();
+        String encounterId = completed.get("encounterId").asString();
         assertEquals(Long.valueOf(INTERNAL_MEDICINE_DEPARTMENT), jdbc.queryForObject(
                 "select ID_DEPT from RHN_VIS_ENC where ID_ENC = ?", Long.class, Long.valueOf(encounterId)));
 
@@ -298,7 +298,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         JsonNode intent = createIntent(residentId, scheduleId, "DEPT-INTENT-" + suffix);
 
         mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"DEPT-PAY-%s","businessScene":"REGISTRATION",
@@ -310,7 +310,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("SUCCEEDED"));
 
         JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
-                                intent.get("id").asText()).with(rhnWorkContext()))
+                                intent.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.encounterId").isNotEmpty())
@@ -431,7 +431,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String scheduleId = createTodaySchedule(suffix, 1);
         JsonNode intent = createIntent(residentId, scheduleId, "CANCEL-INTENT-" + suffix);
         json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"CANCEL-PAY-%s","businessScene":"REGISTRATION",
@@ -442,10 +442,10 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("SUCCEEDED"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode completed = json(mockMvc.perform(get("/api/billing/registration-intents/{intentId}",
-                                intent.get("id").asText()).with(rhnWorkContext()))
+                                intent.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andReturn().getResponse().getContentAsString());
-        String encounterId = completed.get("encounterId").asText();
+        String encounterId = completed.get("encounterId").asString();
         String command = "WITHDRAW-" + suffix;
         String body = """
                 {"commandCode":"%s","reason":"患者主动取消就诊","terminalCode":"REGISTRATION-TEST"}
@@ -508,7 +508,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andReturn().getResponse().getContentAsString());
-        String encounterId = intent.get("encounterId").asText();
+        String encounterId = intent.get("encounterId").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
         mockMvc.perform(post("/api/encounters/{encounterId}/cancel", encounterId)
@@ -539,7 +539,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 Integer.class, Long.valueOf(scheduleId)));
         JsonNode winningIntent = json(results.stream().filter(value -> value.getResponse().getStatus() == 201)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/billing/registration-intents/{intentId}/cancel", winningIntent.get("id").asText())
+        mockMvc.perform(post("/api/billing/registration-intents/{intentId}/cancel", winningIntent.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("CANCELLED"));
         assertEquals(0, jdbc.queryForObject("select QTY_HELD from RHN_SC_SCHED_SLOT_POOL where ID_SVC_SCHED = ?",
@@ -554,7 +554,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         String residentId = createResident(suffix);
         JsonNode intent = createIntent(residentId, createTodaySchedule(suffix, 1), "ASYNC-" + suffix);
         JsonNode pendingOrder = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"ASYNC-PAY-%s","businessScene":"REGISTRATION",
@@ -563,7 +563,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDING"))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/billing/registration-intents/{intentId}", intent.get("id").asText())
+        mockMvc.perform(get("/api/billing/registration-intents/{intentId}", intent.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
                 .andExpect(jsonPath("$.paymentOrderId").value(pendingOrder.get("id").asLong()))
@@ -583,7 +583,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                         .value(pendingOrder.get("id").asLong()))
                 .andExpect(jsonPath("$[0].status").value("SUCCEEDED"))
                 .andExpect(jsonPath("$[0].accepted").value(true));
-        mockMvc.perform(get("/api/billing/registration-intents/{intentId}", intent.get("id").asText())
+        mockMvc.perform(get("/api/billing/registration-intents/{intentId}", intent.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.encounterId").isNotEmpty());
@@ -618,11 +618,11 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.coveragePayerName").value("测试医保基金"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode settlement = json(mockMvc.perform(get("/api/billing/settlements/{settlementId}",
-                                intent.get("settlementId").asText()).with(rhnWorkContext()))
+                                intent.get("settlementId").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         long settlementLineId = settlement.at("/lines/0/id").asLong();
         JsonNode claim = json(mockMvc.perform(post("/api/billing/settlements/{settlementId}/insurance/pre-settlements",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "coverageId":"%s","idempotencyKey":"INS-PRE-%s","regionCode":"TEST_REGION",
@@ -642,26 +642,26 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].claimId").value(claim.get("claimId").asLong()))
                 .andExpect(jsonPath("$[0].status").value("PRE_SETTLED"))
                 .andExpect(jsonPath("$[0].accepted").value(true));
-        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/settle", claim.get("claimId").asText())
+        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/settle", claim.get("claimId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"INS-SETTLE-%s\"}".formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SETTLED"));
 
         mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"INS-OVERPAY-%s","businessScene":"REGISTRATION",
                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":10.00}
                                 """.formatted(suffix)))
                 .andExpect(status().isConflict());
         mockMvc.perform(post("/api/billing/settlements/{settlementId}/payment-orders",
-                                intent.get("settlementId").asText()).with(rhnWorkContext())
+                                intent.get("settlementId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"idempotencyKey":"INS-CASH-%s","businessScene":"REGISTRATION",
                                  "paymentSceneCode":"CASHIER","paymentMethodCode":"CASH","amount":3.00}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("SUCCEEDED"));
-        mockMvc.perform(get("/api/billing/settlements/{settlementId}", intent.get("settlementId").asText())
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", intent.get("settlementId").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SETTLED"))
                 .andExpect(jsonPath("$.tenderedAmount").value(10.0))
@@ -674,7 +674,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
         assertEquals(2, jdbc.queryForObject("select count(*) from RHN_BIL_LEDGER_ENTRY where ID_PAT_ACCT = ? " +
                         "and ID_CLAIM_RESP is not null", Integer.class, intent.get("patientAccountId").asLong()));
 
-        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asText())
+        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"INS-REVERSE-%s\",\"reason\":\"整单退费前撤销医保结算\"}"
                                 .formatted(suffix)))
@@ -682,17 +682,17 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.currentOperation").value("REVERSE"))
                 .andExpect(jsonPath("$.reversalReason").value("整单退费前撤销医保结算"))
                 .andExpect(jsonPath("$.reversedAt").exists());
-        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asText())
+        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"INS-REVERSE-%s\",\"reason\":\"整单退费前撤销医保结算\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.duplicate").value(true));
-        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asText())
+        mockMvc.perform(post("/api/billing/insurance-claims/{claimId}/reverse", claim.get("claimId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"commandCode\":\"INS-REVERSE-%s\",\"reason\":\"不一致原因\"}"
                                 .formatted(suffix)))
                 .andExpect(status().isConflict());
-        mockMvc.perform(get("/api/billing/settlements/{settlementId}", intent.get("settlementId").asText())
+        mockMvc.perform(get("/api/billing/settlements/{settlementId}", intent.get("settlementId").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PARTIAL"))
                 .andExpect(jsonPath("$.insuranceAmount").value(0.0))
@@ -751,7 +751,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 {"fullName":"挂号收费验收患者","identifiers":[{"system":"9","value":"33010219920303%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-03-03"}
                                 """.formatted(digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createTodaySchedule(String suffix, int capacity) throws Exception {
@@ -767,7 +767,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                                 """.formatted(REGISTRATION_SERVICE, today, today,
                                 today.getDayOfWeek().getValue(), capacity, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return generated.at("/schedules/0/id").asText();
+        return generated.at("/schedules/0/id").asString();
     }
 
     private String createTodayDepartmentSchedule(String suffix, int capacity) throws Exception {
@@ -786,7 +786,7 @@ class RegistrationBillingIntegrationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.schedules[0].sdRegistrationScope").value("DEPARTMENT"))
                 .andExpect(jsonPath("$.schedules[0].practitionerId").doesNotExist())
                 .andReturn().getResponse().getContentAsString());
-        return generated.at("/schedules/0/id").asText();
+        return generated.at("/schedules/0/id").asString();
     }
 
     @TestConfiguration

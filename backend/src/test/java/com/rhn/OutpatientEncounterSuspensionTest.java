@@ -32,7 +32,7 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                                   "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(suffix, digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -40,7 +40,7 @@ class OutpatientEncounterSuspensionTest extends RhnIntegrationTestSupport {
                                   "idempotencyCode":"SUSPEND-REG-%s"
                                 }
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
 
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));

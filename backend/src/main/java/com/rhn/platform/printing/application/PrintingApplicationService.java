@@ -1,11 +1,15 @@
 package com.rhn.platform.printing.application;
 
 import com.rhn.platform.printing.api.PrintContent;
+import com.rhn.platform.printing.api.PrintDataProvider;
+import com.rhn.platform.printing.api.PrintDataRequest;
+import com.rhn.platform.printing.api.PrintDataSnapshot;
 import com.rhn.platform.printing.api.PrintReceipt;
 import com.rhn.platform.printing.api.PrintRequest;
 import com.rhn.platform.printing.api.PrintRecordView;
 import com.rhn.platform.printing.api.PrintTemplateView;
 import com.rhn.platform.printing.api.PrintingService;
+import com.rhn.platform.printing.api.StandardPrintCommand;
 import com.rhn.platform.printing.domain.PrintDelivery;
 import com.rhn.platform.printing.domain.PrintDevice;
 import com.rhn.platform.printing.domain.PrintDeviceBinding;
@@ -17,12 +21,15 @@ import com.rhn.platform.printing.infrastructure.PrintDeliveryRepository;
 import com.rhn.platform.printing.infrastructure.PrintDeviceBindingRepository;
 import com.rhn.platform.printing.infrastructure.PrintDeviceRepository;
 import com.rhn.platform.printing.infrastructure.PrintJobRepository;
+import com.rhn.platform.printing.infrastructure.PrintImplementationBindingRepository;
+import com.rhn.platform.printing.infrastructure.PrintImplementationRepository;
 import com.rhn.platform.printing.infrastructure.PrintOutputRepository;
 import com.rhn.platform.printing.infrastructure.PrintTemplateRepository;
 import com.rhn.platform.printing.infrastructure.PrintTemplateVersionRepository;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.json.JsonCodec;
+import com.rhn.platform.idempotency.IdempotencyService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +41,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static com.rhn.shared.api.BusinessErrors.badRequest;
 import static com.rhn.shared.api.BusinessErrors.forbidden;
@@ -52,6 +61,11 @@ public class PrintingApplicationService implements PrintingService {
     private final ClinicalPdfRenderer renderer;
     private final JsonCodec jsonCodec;
     private final ExecutionContextProvider contextProvider;
+    private final PrintTaskResolutionService taskResolutionService;
+    private final PrintImplementationRepository implementationRepository;
+    private final PrintImplementationBindingRepository implementationBindingRepository;
+    private final IdempotencyService idempotencyService;
+    private final Map<String, PrintDataProvider> dataProviders;
 
     public PrintingApplicationService(PrintTemplateRepository templateRepository,
                                       PrintTemplateVersionRepository versionRepository,
@@ -61,12 +75,51 @@ public class PrintingApplicationService implements PrintingService {
                                       PrintDeviceBindingRepository bindingRepository,
                                       PrintDeviceRepository deviceRepository,
                                       ClinicalPdfRenderer renderer, JsonCodec jsonCodec,
-                                      ExecutionContextProvider contextProvider) {
+                                      ExecutionContextProvider contextProvider,
+                                      PrintTaskResolutionService taskResolutionService,
+                                      PrintImplementationRepository implementationRepository,
+                                      PrintImplementationBindingRepository implementationBindingRepository,
+                                      IdempotencyService idempotencyService,
+                                      List<PrintDataProvider> dataProviders) {
         this.templateRepository = templateRepository; this.versionRepository = versionRepository;
         this.outputRepository = outputRepository; this.jobRepository = jobRepository;
         this.deliveryRepository = deliveryRepository; this.bindingRepository = bindingRepository;
         this.deviceRepository = deviceRepository; this.renderer = renderer;
         this.jsonCodec = jsonCodec; this.contextProvider = contextProvider;
+        this.taskResolutionService = taskResolutionService;
+        this.implementationRepository = implementationRepository;
+        this.implementationBindingRepository = implementationBindingRepository;
+        this.idempotencyService = idempotencyService;
+        this.dataProviders = dataProviders.stream().collect(Collectors.toUnmodifiableMap(
+                PrintDataProvider::providerCode, Function.identity()));
+    }
+
+    @Override
+    @Transactional
+    public PrintReceipt submit(StandardPrintCommand command) {
+        ExecutionContext context = requireContext();
+        validate(command);
+        PrintTaskResolutionService.ResolvedPrintTask resolved = taskResolutionService
+                .resolve(command.taskCode(), command.purpose(), context);
+        PrintDataProvider provider = dataProviders.get(resolved.task().dataProviderCode());
+        if (provider == null) throw notFound("PRINT_DATA_PROVIDER_NOT_FOUND", "标准打印任务的数据提供器未注册");
+        PrintDataSnapshot data = provider.load(new PrintDataRequest(resolved.task().taskCode(), command.source()));
+        validateData(resolved, command, data);
+        requireScope(context, data.organizationId(), data.departmentId());
+
+        String key = clean(command.idempotencyKey());
+        String operation = "STANDARD_PRINT:" + resolved.task().taskCode();
+        if (key != null) {
+            var reservation = idempotencyService.reserve(operation, key, jsonCodec.write(Map.of(
+                    "taskCode", resolved.task().taskCode(), "sourceType", command.source().sourceType(),
+                    "sourceId", command.source().sourceId(), "purpose", command.purpose(), "copies", command.copies())));
+            if (reservation.replay()) return jsonCodec.read(reservation.responseJson(), PrintReceipt.class);
+        }
+
+        PrintReceipt receipt = generateResolved(context, resolved, data, command.purpose(), command.copies());
+        if (key != null) idempotencyService.complete(operation, key, "PRINT_JOB", receipt.jobId(), 201,
+                jsonCodec.write(receipt));
+        return receipt;
     }
 
     @Override
@@ -75,23 +128,36 @@ public class PrintingApplicationService implements PrintingService {
         ExecutionContext context = requireContext();
         validate(request);
         requireScope(context, request.organizationId(), request.departmentId());
-        PrintTemplate template = resolveTemplate(context.tenantId(), request.documentType());
-        PrintTemplateVersion version = versionRepository.findByTemplateIdAndVersionNo(template.id(), template.currentVersion())
-                .orElseThrow(() -> notFound("PRINT_TEMPLATE_VERSION_NOT_FOUND", "打印模板当前版本不存在"));
-        Map<String, Object> snapshot = new LinkedHashMap<>(request.snapshot());
-        snapshot.put("sourceType", request.sourceType()); snapshot.put("sourceId", request.sourceId());
-        snapshot.put("sourceVersion", request.sourceVersion()); snapshot.put("purposeText", purposeText(request.purpose()));
-        byte[] pdf = renderer.render(request.documentType(), version.layoutSchema(), version.configJson(), snapshot);
+        PrintTaskResolutionService.ResolvedPrintTask resolved = taskResolutionService
+                .resolve(taskCodeForDocumentType(request.documentType()), request.purpose(), context);
+        PrintDataSnapshot data = new PrintDataSnapshot(request.sourceType(), request.sourceId(), request.sourceVersion(),
+                request.residentId(), request.encounterId(), request.organizationId(), request.departmentId(),
+                request.suggestedFileName(), request.snapshot());
+        return generateResolved(context, resolved, data, request.purpose(), request.copies());
+    }
+
+    private PrintReceipt generateResolved(ExecutionContext context, PrintTaskResolutionService.ResolvedPrintTask resolved,
+                                          PrintDataSnapshot data, String purpose, int copies) {
+        PrintTemplate template = resolved.template();
+        PrintTemplateVersion version = resolved.version();
+        Map<String, Object> snapshot = new LinkedHashMap<>(data.payload());
+        snapshot.put("sourceType", data.sourceType()); snapshot.put("sourceId", data.sourceId());
+        snapshot.put("sourceVersion", data.sourceVersion()); snapshot.put("purposeText", purposeText(purpose));
+        snapshot.put("printTaskCode", resolved.task().taskCode());
+        snapshot.put("payloadSchema", resolved.task().payloadSchema());
+        byte[] pdf = renderer.render(template.documentType(), version.layoutSchema(), version.configJson(), snapshot);
         String digest = sha256(pdf);
         PrintOutput output = outputRepository.save(new PrintOutput(context.tenantId(), template, version,
-                request.sourceType(), request.sourceId(), request.sourceVersion(), request.documentType(),
-                request.residentId(), request.encounterId(), request.organizationId(), request.departmentId(),
-                request.purpose(), jsonCodec.write(snapshot), safeFileName(request.suggestedFileName()), pdf,
+                resolved.task(), resolved.implementation(), resolved.binding(), data.sourceType(), data.sourceId(),
+                data.sourceVersion(), template.documentType(), data.residentId(), data.encounterId(),
+                data.organizationId(), data.departmentId(), purpose, jsonCodec.write(snapshot),
+                safeFileName(data.suggestedFileName()), pdf,
                 "SHA-256", digest, context.subjectId()));
         PrintJob job = jobRepository.save(new PrintJob(context.tenantId(), output.id(), null, "ORIGINAL",
-                request.copies(), context.subjectId(), context.correlationId()));
-        PrintDelivery delivery = createDelivery(context, request.documentType(), version.mediaProfileId(), job.id());
-        return receipt(job, output, template, version, delivery);
+                copies, context.subjectId(), context.correlationId()));
+        PrintDelivery delivery = createDelivery(context, template.documentType(), version.mediaProfileId(), job.id());
+        return receipt(job, output, template, version, delivery, resolved.implementation().implementationCode(),
+                resolved.binding().scopeType());
     }
 
     @Override
@@ -108,7 +174,7 @@ public class PrintingApplicationService implements PrintingService {
         PrintTemplate template = templateRepository.findById(output.templateId()).orElseThrow();
         PrintTemplateVersion version = versionRepository.findById(output.templateVersionId()).orElseThrow();
         PrintDelivery delivery = createDelivery(context, output.documentType(), version.mediaProfileId(), job.id());
-        return receipt(job, output, template, version, delivery);
+        return receipt(job, output, template, version, delivery, implementationCode(output), implementationScope(output));
     }
 
     @Override
@@ -158,14 +224,6 @@ public class PrintingApplicationService implements PrintingService {
         return output;
     }
 
-    private PrintTemplate resolveTemplate(Long tenantId, String documentType) {
-        return templateRepository.findFirstByTenantIdAndDocumentTypeAndStatusOrderByUpdatedAtDesc(
-                        tenantId, documentType, "ACTIVE")
-                .or(() -> templateRepository.findFirstByTenantIdIsNullAndDocumentTypeAndStatusOrderByUpdatedAtDesc(
-                        documentType, "ACTIVE"))
-                .orElseThrow(() -> notFound("PRINT_TEMPLATE_NOT_FOUND", "当前文档类型没有已发布的打印模板"));
-    }
-
     private void validate(PrintRequest request) {
         if (request.sourceType() == null || request.sourceType().isBlank() || request.sourceId() == null
                 || request.sourceVersion() < 0 || request.documentType() == null || request.documentType().isBlank()) {
@@ -173,6 +231,27 @@ public class PrintingApplicationService implements PrintingService {
         }
         if (!PURPOSES.contains(request.purpose())) throw badRequest("PRINT_PURPOSE_INVALID", "打印用途不受支持");
         requireCopies(request.copies());
+    }
+
+    private void validate(StandardPrintCommand command) {
+        if (command == null || command.source() == null || command.source().sourceType() == null
+                || command.source().sourceType().isBlank() || command.source().sourceId() == null) {
+            throw badRequest("PRINT_SOURCE_INVALID", "标准打印任务的来源类型和来源标识不能为空");
+        }
+        requireCopies(command.copies());
+        String key = clean(command.idempotencyKey());
+        if (key != null && key.length() > 128) throw badRequest("PRINT_IDEMPOTENCY_KEY_INVALID", "打印幂等键不能超过 128 个字符");
+    }
+
+    private void validateData(PrintTaskResolutionService.ResolvedPrintTask resolved, StandardPrintCommand command,
+                              PrintDataSnapshot data) {
+        if (data == null || data.sourceId() == null || data.organizationId() == null || data.departmentId() == null
+                || data.sourceVersion() < 0) throw badRequest("PRINT_DATA_INVALID", "打印数据提供器返回的数据不完整");
+        if (!resolved.task().sourceType().equals(data.sourceType())
+                || !data.sourceType().equals(command.source().sourceType())
+                || !data.sourceId().equals(command.source().sourceId())) {
+            throw badRequest("PRINT_SOURCE_CONTRACT_MISMATCH", "业务来源与标准打印任务的数据契约不匹配");
+        }
     }
 
     private void requireCopies(int copies) {
@@ -195,13 +274,14 @@ public class PrintingApplicationService implements PrintingService {
     }
 
     private PrintReceipt receipt(PrintJob job, PrintOutput output, PrintTemplate template, PrintTemplateVersion version,
-                                 PrintDelivery delivery) {
+                                 PrintDelivery delivery, String implementationCode, String implementationScope) {
         PrintDevice device = delivery.deviceId() == null ? null : deviceRepository.findById(delivery.deviceId()).orElse(null);
         PrintReceipt.DeliveryReceipt deliveryReceipt = new PrintReceipt.DeliveryReceipt(delivery.id(), delivery.revision(),
                 delivery.deviceId(), device == null ? "浏览器 PDF" : device.deviceName(), delivery.channel(),
                 delivery.status(), delivery.attemptCount());
         return new PrintReceipt(job.id(), output.id(), job.originalJobId(), job.requestType(), job.status(), job.copies(),
-                output.documentType(), template.templateCode(), version.versionNo(), output.fileName(),
+                output.taskCode(), implementationCode, implementationScope, output.payloadSchema(), output.documentType(),
+                template.templateCode(), version.versionNo(), output.fileName(),
                 output.contentDigestAlgorithm(), output.contentDigest(), job.requestedAt(),
                 "/api/platform/printing/outputs/" + output.id() + "/content", deliveryReceipt);
     }
@@ -240,6 +320,7 @@ public class PrintingApplicationService implements PrintingService {
                         job.status(), job.copies(), job.requestedAt(), job.requestedBy()))
                 .toList();
         return new PrintRecordView(output.id(), output.sourceType(), output.sourceId(), output.sourceVersion(),
+                output.taskCode(), output.implementationId(), output.implementationBindingId(), output.payloadSchema(),
                 output.documentType(), output.residentId(), output.encounterId(), output.organizationId(),
                 output.departmentId(), output.purpose(), output.fileName(), output.mediaType(),
                 output.contentDigestAlgorithm(), output.contentDigest(), output.generatedAt(), output.generatedBy(),
@@ -262,4 +343,32 @@ public class PrintingApplicationService implements PrintingService {
     private String purposeText(String purpose) { return switch (purpose) {
         case "CLINICAL_USE" -> "临床使用"; case "ARCHIVE_COPY" -> "归档副本"; default -> "患者副本";
     }; }
+
+    private String taskCodeForDocumentType(String documentType) {
+        return switch (documentType) {
+            case "OUTPATIENT_NOTE" -> "OP.MEDICAL_RECORD.PRINT";
+            case "OUTPATIENT_PRESCRIPTION" -> "OP.PRESCRIPTION.WESTERN.PRINT";
+            case "LABORATORY_APPLICATION" -> "OP.APPLICATION.LAB.PRINT";
+            case "EXAMINATION_APPLICATION" -> "OP.APPLICATION.EXAM.PRINT";
+            case "TREATMENT_APPLICATION" -> "OP.APPLICATION.TREATMENT.PRINT";
+            case "ORAL_MEDICATION_CARD" -> "TREATMENT.ORAL_MEDICATION_CARD.PRINT";
+            case "INFUSION_LABEL" -> "TREATMENT.INFUSION_LABEL.PRINT";
+            case "INFUSION_PATROL_CARD" -> "TREATMENT.INFUSION_PATROL_CARD.PRINT";
+            default -> throw notFound("PRINT_TASK_NOT_FOUND", "当前文档类型没有标准打印任务");
+        };
+    }
+
+    private String implementationCode(PrintOutput output) {
+        if (output.implementationId() == null) return null;
+        return implementationRepository.findById(output.implementationId())
+                .map(value -> value.implementationCode()).orElse("#" + output.implementationId());
+    }
+
+    private String implementationScope(PrintOutput output) {
+        if (output.implementationBindingId() == null) return null;
+        return implementationBindingRepository.findById(output.implementationBindingId())
+                .map(value -> value.scopeType()).orElse("FROZEN");
+    }
+
+    private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 }

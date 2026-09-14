@@ -73,8 +73,8 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.emergencyContactPhone").value("13800000000"))
                 .andExpect(jsonPath("$.admissionNote").value("需要协助办理医保入院"))
                 .andReturn().getResponse().getContentAsString();
-        String episodeId = json(admissionResponse).get("id").asText();
-        String encounterId = json(admissionResponse).get("encounterId").asText();
+        String episodeId = json(admissionResponse).get("id").asString();
+        String encounterId = json(admissionResponse).get("encounterId").asString();
 
         mockMvc.perform(post("/api/inpatient/admissions")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(admissionBody))

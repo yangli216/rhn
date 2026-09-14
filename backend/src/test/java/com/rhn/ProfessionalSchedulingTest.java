@@ -76,7 +76,7 @@ class ProfessionalSchedulingTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.schedules[0].totalCount").value(1))
                 .andExpect(jsonPath("$.schedules[2].totalCount").value(2))
                 .andReturn().getResponse().getContentAsString();
-        String templateId = json(response).at("/template/id").asText();
+        String templateId = json(response).at("/template/id").asString();
 
         mockMvc.perform(post("/api/outpatient/scheduling/professional/templates")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body))

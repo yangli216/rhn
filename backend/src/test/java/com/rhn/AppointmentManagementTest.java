@@ -26,8 +26,8 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
         String residentId = createResident(suffix);
         LocalDate serviceDate = LocalDate.now().plusDays(1);
         JsonNode schedules = createSchedules(serviceDate, suffix);
-        String morningId = schedules.at("/schedules/0/id").asText();
-        String afternoonId = schedules.at("/schedules/1/id").asText();
+        String morningId = schedules.at("/schedules/0/id").asString();
+        String afternoonId = schedules.at("/schedules/1/id").asString();
         String bookingCode = "APPT-BOOK-" + suffix;
         String createBody = """
                 {
@@ -44,7 +44,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.sdBookingSourceText").value("电话预约"))
                 .andExpect(jsonPath("$.residentName").value("预约管理患者" + suffix))
                 .andReturn().getResponse().getContentAsString());
-        String originalId = booked.get("id").asText();
+        String originalId = booked.get("id").asString();
 
         mockMvc.perform(post("/api/outpatient/appointments")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(createBody))
@@ -72,7 +72,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.scheduleId").value(afternoonId))
                 .andExpect(jsonPath("$.rescheduledFromId").value(originalId))
                 .andReturn().getResponse().getContentAsString());
-        String replacementId = replacement.get("id").asText();
+        String replacementId = replacement.get("id").asString();
         mockMvc.perform(post("/api/outpatient/appointments/{appointmentId}/reschedule", originalId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(rescheduleBody))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(replacementId));
@@ -103,14 +103,14 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
         String suffix = "C" + Long.toString(Math.floorMod(GlobalIds.next(), 1_000_000));
         String residentId = createResident(suffix);
         LocalDate scheduleDate = LocalDate.now().plusDays(4);
-        String scheduleId = createSchedules(scheduleDate, suffix).at("/schedules/0/id").asText();
+        String scheduleId = createSchedules(scheduleDate, suffix).at("/schedules/0/id").asString();
         JsonNode appointment = json(mockMvc.perform(post("/api/outpatient/appointments")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","scheduleId":"%s","bookingSource":"WINDOW",
                                  "idempotencyCode":"APPT-CHECKIN-%s"}
                                 """.formatted(residentId, scheduleId, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String appointmentId = appointment.get("id").asText();
+        String appointmentId = appointment.get("id").asString();
         assertPool(scheduleId, 1);
 
         jdbc.update("update RHN_SC_SVC_SCHED set DA_SVC = ? where ID_SVC_SCHED = ?",
@@ -146,7 +146,7 @@ class AppointmentManagementTest extends RhnIntegrationTestSupport {
                                 {"fullName":"预约管理患者%s","identifiers":[{"system":"9","value":"33010219900101%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1990-01-01"}
                                 """.formatted(suffix, digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private JsonNode createSchedules(LocalDate date, String suffix) throws Exception {

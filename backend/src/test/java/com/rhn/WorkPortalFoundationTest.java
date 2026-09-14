@@ -42,7 +42,7 @@ class WorkPortalFoundationTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String residentId = objectMapper.readTree(residentBody).get("id").asText();
+        String residentId = objectMapper.readTree(residentBody).get("id").asString();
 
         String encounterBody = mockMvc.perform(post("/api/encounters")
                         .with(rhnWorkContext())
@@ -52,17 +52,17 @@ class WorkPortalFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String encounterId = objectMapper.readTree(encounterBody).get("id").asText();
+        String encounterId = objectMapper.readTree(encounterBody).get("id").asString();
 
         String tasks = mockMvc.perform(get("/api/tasks").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andReturn().getResponse().getContentAsString();
         JsonNode task = StreamSupport.stream(objectMapper.readTree(tasks).spliterator(), false)
-                .filter(node -> encounterId.equals(node.path("encounterId").asText()))
+                .filter(node -> encounterId.equals(node.path("encounterId").asString()))
                 .findFirst()
                 .orElseThrow();
-        String taskId = task.get("id").asText();
+        String taskId = task.get("id").asString();
 
         mockMvc.perform(post("/api/tasks/{id}/claim", taskId).with(rhnWorkContext()))
                 .andExpect(status().isOk())

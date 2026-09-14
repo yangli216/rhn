@@ -267,8 +267,8 @@ public class MasterDataImportService {
         JsonNode root = jsonCodec.readTree(json);
         List<ImportError> result = new ArrayList<>();
         for (JsonNode value : root) {
-            result.add(new ImportError(value.path("field").asText(), value.path("code").asText(),
-                    value.path("message").asText()));
+            result.add(new ImportError(value.path("field").asString(), value.path("code").asString(),
+                    value.path("message").asString()));
         }
         return result;
     }

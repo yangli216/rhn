@@ -376,8 +376,8 @@ public class ClinicalAiAdministrationService {
     private String resolveText(String key, Scope scope, ExecutionContext context) {
         if (scope == Scope.TENANT) {
             ConfigurationValue resolved = runtimePolicy.resolved(context.tenantId(), key);
-            if (resolved != null && resolved.value() != null && !resolved.value().isNull() && !resolved.value().asText().isBlank()) {
-                return resolved.value().asText().trim();
+            if (resolved != null && resolved.value() != null && !resolved.value().isNull() && !resolved.value().asString().isBlank()) {
+                return resolved.value().asString().trim();
             }
         }
         String fullKey = ClinicalAiRuntimePolicy.PREFIX + key;
@@ -386,14 +386,14 @@ public class ClinicalAiAdministrationService {
                 && platformOverride.valueJson() != null) {
             try {
                 JsonNode node = jsonCodec.readTree(platformOverride.valueJson());
-                if (node != null && !node.isNull() && !node.asText().isBlank()) {
-                    return node.asText().trim();
+                if (node != null && !node.isNull() && !node.asString().isBlank()) {
+                    return node.asString().trim();
                 }
             } catch (RuntimeException ignored) {
             }
         }
         JsonNode fallbackNode = fallbackValue(key);
-        return fallbackNode == null || fallbackNode.isNull() || fallbackNode.asText().isBlank() ? null : fallbackNode.asText().trim();
+        return fallbackNode == null || fallbackNode.isNull() || fallbackNode.asString().isBlank() ? null : fallbackNode.asString().trim();
     }
 
     private String resolveSecret(String key, Scope scope, ExecutionContext context) {

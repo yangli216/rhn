@@ -116,6 +116,9 @@ class PrescriptionService {
                         null,
                         organizationId,
                         departmentId,
+                        item.skinTestExempt(),
+                        item.skinTestExemptReason(),
+                        item.exemptEvidenceEventId(),
                         item.reason() != null ? item.reason() : plan.title()
                 );
 

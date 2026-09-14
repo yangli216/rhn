@@ -26,14 +26,14 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                  "gender":"FEMALE","birthDate":"1992-03-04"}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String residentId = json(resident).get("id").asText();
+        String residentId = json(resident).get("id").asString();
         String encounter = mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"OPD-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String encounterId = json(encounter).get("id").asText();
+        String encounterId = json(encounter).get("id").asString();
 
         mockMvc.perform(post("/api/encounters/{id}/start", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -74,7 +74,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].content.physicalExam").value("神志清，心肺查体未见明显异常"))
                 .andExpect(jsonPath("$[0].content.treatmentPlan").value("完善评估并监测血压"))
                 .andReturn().getResponse().getContentAsString();
-        String documentId = json(documents).get(0).get("id").asText();
+        String documentId = json(documents).get(0).get("id").asString();
         mockMvc.perform(post("/api/clinical-documents/{id}/sign", documentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":2,\"signatureMeaning\":\"AUTHOR\"}"))
@@ -101,13 +101,13 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                 {"fullName":"过敏核对患者","identifiers":[{"system":"9","value":"SAFE%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1988-06-08"}
                                 """.formatted(suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"SAFE-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(post("/api/encounters/{id}/start", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"commandCode":"SAFE-START-%s","factorResults":{"NAME":true,"BIRTH_DATE":true}}
@@ -122,7 +122,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                 """.formatted(encounterId, medicationCode)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.clinicalStatus").value("ACTIVE"))
                 .andReturn().getResponse().getContentAsString();
-        String allergyId = json(allergy).get("id").asText();
+        String allergyId = json(allergy).get("id").asString();
         long allergyRevision = json(allergy).get("revision").asLong();
         mockMvc.perform(get("/api/residents/{id}/allergies", residentId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].substanceCode").value(medicationCode));
@@ -136,11 +136,11 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                                  "defaultRoute":"PO","defaultFrequency":"QD","chronicDiseaseDrug":false,
                                  "singleOrder":false,"sdStatus":"ACTIVE"}
                                 """.formatted(medicationCode)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String prescriptionId = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryCode\":\"OUTPATIENT\"}"))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String baseLine = """
                 {"prescriptionId":"%s","medicationId":"%s","quantity":7,"quantityUnit":"片",
                  "substitutionAllowed":true,"selfProvided":false,"medicationInstruction":"每日一次"%s}
@@ -159,7 +159,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.parentRequestId").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
-        String infusionRootId = json(infusionRoot).get("id").asText();
+        String infusionRootId = json(infusionRoot).get("id").asString();
         mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(prescriptionId, medicationId,
                                 ",\"routeCode\":\"IVGTT\",\"parentRequestId\":\"%s\","

@@ -23,7 +23,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
     @Test
     void shares_one_source_catalog_and_keeps_local_rules_as_overrides() throws Exception {
         JsonNode child = createOrganization("目录共享分中心");
-        String childId = child.get("id").asText();
+        String childId = child.get("id").asString();
 
         mockMvc.perform(put("/api/platform/organizations/{id}/catalog-source", childId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -75,7 +75,7 @@ class OrganizationCatalogSharingIntegrationTest extends RhnIntegrationTestSuppor
                 .adoption().localCode()).isEqualTo("CHILD-LAB-GLU");
 
         JsonNode grandchild = createOrganization("目录共享下级机构");
-        mockMvc.perform(put("/api/platform/organizations/{id}/catalog-source", grandchild.get("id").asText())
+        mockMvc.perform(put("/api/platform/organizations/{id}/catalog-source", grandchild.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"sourceOrganizationId":"%s"}
                                 """.formatted(grandchild.get("revision").asLong(), childId)))

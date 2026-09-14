@@ -13,6 +13,10 @@ describe('UnifiedOrderListEditor', () => {
     encounters: {
       orderableMedications: vi.fn().mockResolvedValue([]),
     },
+    treatments: {
+      skinTestWorklist: vi.fn().mockResolvedValue([]),
+      validNegativeSkinTests: vi.fn().mockResolvedValue([]),
+    },
     masterData: {
       activeOrderFrequencies: vi.fn().mockResolvedValue([{
         code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次',
@@ -38,6 +42,8 @@ describe('UnifiedOrderListEditor', () => {
     vi.mocked(mockApi.masterData.activeMedicationRoutes).mockResolvedValue([{
       code: 'ORAL', name: '口服', executionType: 'NONE',
     }] as never)
+    vi.mocked(mockApi.treatments.skinTestWorklist).mockResolvedValue([])
+    vi.mocked(mockApi.treatments.validNegativeSkinTests).mockResolvedValue([])
   })
 
   const mockEncounter: Encounter = {
@@ -1077,4 +1083,93 @@ describe('UnifiedOrderListEditor', () => {
     expect(drafts[0].medicationName).toBe('感冒清热颗粒')
   })
 
+  it('detects recent negative skin test and applies exemption when clicked', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const skintestMed = {
+      id: 'm-penicillin-test', code: 'PEN001', name: '青霉素V钾片', sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药',
+      preparationSpec: '250mg', preparationUnit: '片', defaultDose: 250, defaultDoseUnit: 'mg',
+      defaultRoute: 'ORAL', defaultFrequency: 'QD', skinTestRequired: true, skinTestResultValidityHours: 24,
+      products: [{
+        id: 'product-pen', code: 'PPEN', name: '青霉素V钾片 250mg', manufacturerName: '华北制药',
+        unitCode: '盒', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'package-pen', unitCode: 'BOX', unitName: '盒', packageSpec: '250mg*12片/盒',
+          quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-pen', packageId: 'package-pen', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          price: 18.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }],
+    }
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([skintestMed] as never)
+    vi.mocked(mockApi.treatments.validNegativeSkinTests).mockResolvedValueOnce([{
+      medicationRequestId: 'mr-old', medicationRequestRevision: 1, requestNo: 'MR20260901',
+      residentId: 'res-1', residentName: '张三', healthRecordNo: 'HR001', encounterId: 'enc-old',
+      organizationId: 'org-1', departmentId: 'dept-1', medicationId: 'm-penicillin-test',
+      medicationCode: 'PEN001', medicationName: '青霉素V钾片', itemName: '青霉素V钾片',
+      settlementRequiredBeforeStart: false, dispenseRequiredBeforeStart: false, status: 'NEGATIVE',
+      eventId: 'evt-999', eventRevision: 1, originalSolution: false, result: 'NEGATIVE',
+      completedAt: '2026-09-13T10:00:00Z', verifiedByName: '王复核护士', resultValidityHours: 24,
+    }] as never)
+
+    renderComponent({ setMedicationDrafts })
+
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '青霉素')
+    await user.click(await screen.findByRole('option', { name: /青霉素V钾片/ }))
+
+    // 验证探测到历史有效皮试
+    expect(await screen.findByText(/探测到历史有效皮试/)).toBeInTheDocument()
+    expect(screen.getByText(/王复核护士/)).toBeInTheDocument()
+
+    // 点击一键引用免试
+    await user.click(screen.getByRole('button', { name: '一键引用免试' }))
+    expect(await screen.findByText(/已引用免试/)).toBeInTheDocument()
+
+    // 点击加入医嘱
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(setMedicationDrafts).toHaveBeenCalledTimes(1)
+    const updater = setMedicationDrafts.mock.calls[0][0]
+    const drafts = updater([])
+    expect(drafts[0].request.skinTestExempt).toBe(true)
+    expect(drafts[0].request.exemptEvidenceEventId).toBe('evt-999')
+  })
+
+  it('warns and blocks ordering when skin test result is positive', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const skintestMed = {
+      id: 'm-penicillin-pos', code: 'PEN002', name: '注射用青霉素钠', sdMedicationType: 'WESTERN', sdMedicationTypeText: '西药',
+      preparationSpec: '80万U', preparationUnit: '支', defaultDose: 800000, defaultDoseUnit: 'U',
+      defaultRoute: 'ORAL', defaultFrequency: 'QD', skinTestRequired: true,
+      products: [{
+        id: 'product-pen2', code: 'PPEN2', name: '注射用青霉素钠 80万U', manufacturerName: '华北制药',
+        unitCode: '支', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'package-pen2', unitCode: 'VIAL', unitName: '支', packageSpec: '80万U/支',
+          quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-pen2', packageId: 'package-pen2', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          price: 5.0, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }],
+    }
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValueOnce([skintestMed] as never)
+    vi.mocked(mockApi.treatments.skinTestWorklist).mockResolvedValue([
+      { medicationId: 'm-penicillin-pos', status: 'POSITIVE' } as never,
+    ])
+
+    renderComponent({ setMedicationDrafts })
+
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '青霉素')
+    await user.click(await screen.findByRole('option', { name: /注射用青霉素钠/ }))
+
+    // 验证出现严正警示
+    expect(await screen.findByText(/严正警示：患者当前药品皮试结果为【阳性】，禁止开立！/)).toBeInTheDocument()
+
+    // 点击加入医嘱会被拦截
+    await user.click(screen.getByRole('button', { name: '加入医嘱' }))
+    expect(await screen.findByText(/当前药品患者皮试结果为【阳性】（严重禁忌），系统禁止开立！/)).toBeInTheDocument()
+    expect(setMedicationDrafts).not.toHaveBeenCalled()
+  })
 });

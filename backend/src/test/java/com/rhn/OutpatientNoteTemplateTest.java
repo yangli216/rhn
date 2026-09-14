@@ -42,7 +42,7 @@ class OutpatientNoteTemplateTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.content.diagnoses").doesNotExist())
                 .andReturn().getResponse().getContentAsString());
 
-        String templateId = created.get("id").asText();
+        String templateId = created.get("id").asString();
         mockMvc.perform(get("/api/outpatient/note-templates").with(rhnWorkContext())
                         .param("keyword", suffix).param("specialtyCode", "GENERAL_PRACTICE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(Long.valueOf(templateId)));

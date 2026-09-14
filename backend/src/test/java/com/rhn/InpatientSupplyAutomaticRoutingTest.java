@@ -112,7 +112,7 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                  where ID_DEPT_NURS_UNIT = ? and DA_BUSINESS = ? and CD_SHIFT = 'DAY'
                    and SD_MED_TYPE_SNAP = 'HERBAL'
                    and ID_DISP_ROUTE = ? and ID_STOCK_SITE = ? and SD_STATUS = 'SUCCEEDED'
-                """, WARD_DEPARTMENT, BUSINESS_DATE, herbalRoute.get("id").asText(), HERBAL_SITE));
+                """, WARD_DEPARTMENT, BUSINESS_DATE, herbalRoute.get("id").asString(), HERBAL_SITE));
     }
 
     @Test
@@ -198,8 +198,8 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"住院供药自动路由专项测试","commandCode":"%s"}
                 """.formatted(RESIDENT, BED, commandCode));
-        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asText());
-        return admission.get("id").asText();
+        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asString());
+        return admission.get("id").asString();
     }
 
     private String createPlannedMedication(String episodeId, String productId, String plannedAt,
@@ -210,7 +210,7 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"QD","instructions":"自动路由专项验证",
                  "commandCode":"%s-ORDER"}
                 """.formatted(episodeId, productId, commandPrefix));
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign", """
                 {"expectedRevision":0,"allergyReviewConfirmed":true,"commandCode":"%s-SIGN"}
                 """.formatted(commandPrefix));
@@ -237,24 +237,24 @@ class InpatientSupplyAutomaticRoutingTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         return StreamSupport.stream(response.spliterator(), false)
-                .filter(value -> code.equals(value.get("code").asText()))
+                .filter(value -> code.equals(value.get("code").asString()))
                 .findFirst().orElseThrow();
     }
 
     private JsonNode setRouteActive(JsonNode route, boolean active) throws Exception {
         String medicationType = route.get("medicationType").isNull()
-                ? "null" : "\"" + route.get("medicationType").asText() + "\"";
-        String response = mockMvc.perform(put("/api/pharmacy/dispense-routes/{id}", route.get("id").asText())
+                ? "null" : "\"" + route.get("medicationType").asString() + "\"";
+        String response = mockMvc.perform(put("/api/pharmacy/dispense-routes/{id}", route.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"organizationId":"%s","code":"%s","name":"%s",
                                  "careSetting":"%s","sourceDepartmentId":"%s","medicationType":%s,
                                  "targetStockSiteId":"%s","active":%s,"validFrom":"%s",
                                  "description":"%s"}
                                 """.formatted(route.get("revision").asLong(), ORGANIZATION,
-                                route.get("code").asText(), route.get("name").asText(),
-                                route.get("careSetting").asText(), route.get("sourceDepartmentId").asText(),
-                                medicationType, route.get("targetStockSiteId").asText(), active,
-                                route.get("validFrom").asText(), route.get("description").asText())))
+                                route.get("code").asString(), route.get("name").asString(),
+                                route.get("careSetting").asString(), route.get("sourceDepartmentId").asString(),
+                                medicationType, route.get("targetStockSiteId").asString(), active,
+                                route.get("validFrom").asString(), route.get("description").asString())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         return json(response);
     }

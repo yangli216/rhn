@@ -44,7 +44,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"parentId":"%s","code":"TREE_CHILD_%s","name":"子节点","sortOrder":10}
-                                """.formatted(first.get("id").asText(), suffix)))
+                                """.formatted(first.get("id").asString(), suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
         JsonNode reordered = json(mockMvc.perform(put("/api/platform/configuration/categories/reorder")
@@ -55,12 +55,12 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                   {"id":"%s","expectedRevision":0,"sortOrder":20},
                                   {"id":"%s","expectedRevision":0,"parentId":"%s","sortOrder":10}
                                 ]}
-                                """.formatted(second.get("id").asText(), first.get("id").asText(),
-                                child.get("id").asText(), second.get("id").asText())))
+                                """.formatted(second.get("id").asString(), first.get("id").asString(),
+                                child.get("id").asString(), second.get("id").asString())))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        JsonNode movedChild = findById(reordered, child.get("id").asText());
-        JsonNode movedSecond = findById(reordered, second.get("id").asText());
-        assertEquals(second.get("id").asText(), movedChild.get("parentId").asText());
+        JsonNode movedChild = findById(reordered, child.get("id").asString());
+        JsonNode movedSecond = findById(reordered, second.get("id").asString());
+        assertEquals(second.get("id").asString(), movedChild.get("parentId").asString());
         assertEquals(10, movedSecond.get("sortOrder").asInt());
 
         mockMvc.perform(put("/api/platform/configuration/categories/reorder")
@@ -70,9 +70,9 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                   {"id":"%s","expectedRevision":%s,"parentId":"%s","sortOrder":10},
                                   {"id":"%s","expectedRevision":%s,"parentId":"%s","sortOrder":10}
                                 ]}
-                                """.formatted(second.get("id").asText(), movedSecond.get("revision").asText(),
-                                child.get("id").asText(), child.get("id").asText(), movedChild.get("revision").asText(),
-                                second.get("id").asText())))
+                                """.formatted(second.get("id").asString(), movedSecond.get("revision").asString(),
+                                child.get("id").asString(), child.get("id").asString(), movedChild.get("revision").asString(),
+                                second.get("id").asString())))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("PARAMETER_CATEGORY_CYCLE"));
     }
@@ -218,7 +218,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                 .andExpect(jsonPath("$.defaultValueJson").doesNotExist())
                 .andExpect(jsonPath("$.hasDefaultValue").value(true))
                 .andReturn().getResponse().getContentAsString());
-        String definitionId = definition.get("id").asText();
+        String definitionId = definition.get("id").asString();
 
         mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", definitionId)
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
@@ -264,11 +264,11 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                         .content("""
                                 {"code":"%s","name":"参数测试分类","sortOrder":10}
                                 """.formatted(code)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private JsonNode findById(JsonNode array, String id) {
-        for (JsonNode item : array) if (id.equals(item.get("id").asText())) return item;
+        for (JsonNode item : array) if (id.equals(item.get("id").asString())) return item;
         throw new AssertionError("未找到分类 " + id);
     }
 
@@ -285,7 +285,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                 """.formatted(categoryId, key, allowedScopes, category,
                                 inheritanceEnabled, cacheEnabled, requestCode())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private String createSecretDefinition(String categoryId, String key) throws Exception {
@@ -299,7 +299,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                  "requestCode":"%s"}
                                 """.formatted(categoryId, key, requestCode())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private JsonNode saveValue(String definitionId, String scope, String scopeId,
@@ -333,7 +333,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                 {"parentId":"%s","code":"%s","name":"参数测试子机构",
                                  "type":"CLINIC","validFrom":"2026-01-01"}
                                 """.formatted(parentId, code)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createDepartment(String organizationId, String parentId, String code) throws Exception {
@@ -344,7 +344,7 @@ class HierarchicalConfigurationFoundationTest extends RhnIntegrationTestSupport 
                                 {"organizationId":"%s","code":"%s","name":"参数测试科室",
                                  "type":"CLINICAL","validFrom":"2026-01-01"%s}
                                 """.formatted(organizationId, code, parentField)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private Long createUser(String username) {

@@ -22,14 +22,14 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
     void count_variance_approval_adjustment_and_stale_snapshot_protection_form_closed_loop() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         JsonNode site = createSite(suffix);
-        JsonNode item = createItem(site.get("id").asText());
-        JsonNode bin = createBin(site.get("id").asText());
-        JsonNode lot = createLot(item.get("id").asText(), suffix);
+        JsonNode item = createItem(site.get("id").asString());
+        JsonNode bin = createBin(site.get("id").asString());
+        JsonNode lot = createLot(item.get("id").asString(), suffix);
         receive("CT-RCV-" + suffix, item, bin, lot, 1);
 
         JsonNode count = createCount(site, "CT-" + suffix);
-        String id = count.get("id").asText();
-        String lineId = count.at("/lines/0/id").asText();
+        String id = count.get("id").asString();
+        String lineId = count.at("/lines/0/id").asString();
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/start", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("COUNTING"));
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/records", id).with(rhnWorkContext())
@@ -52,28 +52,28 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/post", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.inventoryTransactionId")
-                        .value(posted.get("inventoryTransactionId").asText()));
+                        .value(posted.get("inventoryTransactionId").asString()));
         mockMvc.perform(get("/api/pharmacy/inventory/balances").with(rhnWorkContext())
-                        .param("stockSiteId", site.get("id").asText())
-                        .param("stockItemId", item.get("id").asText()))
+                        .param("stockSiteId", site.get("id").asString())
+                        .param("stockItemId", item.get("id").asString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].quantityOnHand").value(12.0));
         mockMvc.perform(get("/api/pharmacy/inventory/balances").with(rhnWorkContext())
-                        .param("stockSiteId", site.get("id").asText()))
+                        .param("stockSiteId", site.get("id").asString()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].stockItemId").value(item.get("id").asText()))
+                .andExpect(jsonPath("$[0].stockItemId").value(item.get("id").asString()))
                 .andExpect(jsonPath("$[0].quantityOnHand").value(12.0));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(rhnWorkContext())
-                        .param("stockSiteId", site.get("id").asText())
-                        .param("stockItemId", item.get("id").asText())
+                        .param("stockSiteId", site.get("id").asString())
+                        .param("stockItemId", item.get("id").asString())
                         .param("allPeriods", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
                 .andExpect(jsonPath("$[*].lines[0].stockItemId")
-                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.equalTo(item.get("id").asText()))));
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.equalTo(item.get("id").asString()))));
 
         JsonNode stale = createCount(site, "CT-STALE-" + suffix);
-        String staleId = stale.get("id").asText();
-        String staleLineId = stale.at("/lines/0/id").asText();
+        String staleId = stale.get("id").asString();
+        String staleLineId = stale.at("/lines/0/id").asString();
         mockMvc.perform(post("/api/pharmacy/stock-counts/{id}/start", staleId).with(rhnWorkContext()))
                 .andExpect(status().isOk());
         receive("CT-LATE-" + suffix, item, bin, lot, 1);
@@ -95,7 +95,7 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
         return json(mockMvc.perform(post("/api/pharmacy/stock-counts").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"stockSiteId":"%s","requestCode":"%s","countType":"FULL","reason":"月末盘点"}
-                                """.formatted(site.get("id").asText(), request)))
+                                """.formatted(site.get("id").asString(), request)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 
@@ -142,8 +142,8 @@ class StockCountWorkflowTest extends RhnIntegrationTestSupport {
                                 {"requestCode":"%s","sourceCode":"%s","stockItemId":"%s","stockBinId":"%s",
                                  "stockLotId":"%s","operationQuantity":%d,"unitCost":10,
                                  "occurredAt":"%s"}
-                                """.formatted(request, request, item.get("id").asText(), bin.get("id").asText(),
-                                lot.get("id").asText(), quantity, Instant.now())))
+                                """.formatted(request, request, item.get("id").asString(), bin.get("id").asString(),
+                                lot.get("id").asString(), quantity, Instant.now())))
                 .andExpect(status().isCreated());
     }
 }

@@ -42,37 +42,37 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         JsonNode earlyLot = createLot(fixture.stockItemId(), "EARLY-" + suffix, "2027-02-01");
         JsonNode lateLot = createLot(fixture.stockItemId(), "LATE-" + suffix, "2027-12-31");
 
-        JsonNode earlyReceipt = receive("INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asText(), "1");
-        receive("INV-RCV-L-" + suffix, fixture, lateLot.get("id").asText(), "2");
+        JsonNode earlyReceipt = receive("INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asString(), "1");
+        receive("INV-RCV-L-" + suffix, fixture, lateLot.get("id").asString(), "2");
         assertEquals(14, earlyReceipt.at("/lines/0/quantityDelta").decimalValue().intValueExact());
 
         mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(receiptBody(
-                                "INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asText(), "1")))
+                                "INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asString(), "1")))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(earlyReceipt.get("id").asText()));
+                .andExpect(jsonPath("$.id").value(earlyReceipt.get("id").asString()));
         mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(receiptBody(
-                                "INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asText(), "2")))
+                                "INV-RCV-E-" + suffix, fixture, earlyLot.get("id").asString(), "2")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVENTORY_REQUEST_CODE_PAYLOAD_MISMATCH"));
 
         Reviewer reviewer = createReviewer(suffix);
         JsonNode task1 = createReviewedTask(suffix + "A", fixture.stockItemId(), reviewer, 2);
-        JsonNode reserved = reserve(task1.get("id").asText());
-        assertEquals("PICKING", reserved.get("taskStatus").asText());
+        JsonNode reserved = reserve(task1.get("id").asString());
+        assertEquals("PICKING", reserved.get("taskStatus").asString());
         assertEquals(28, reserved.get("reservedBaseQuantity").decimalValue().intValueExact());
         assertEquals(2, reserved.get("allocations").size());
-        assertEquals(earlyLot.get("id").asText(), reserved.at("/allocations/0/stockLotId").asText());
+        assertEquals(earlyLot.get("id").asString(), reserved.at("/allocations/0/stockLotId").asString());
         assertEquals(14, reserved.at("/allocations/0/quantityReserved").decimalValue().intValueExact());
-        assertEquals(lateLot.get("id").asText(), reserved.at("/allocations/1/stockLotId").asText());
+        assertEquals(lateLot.get("id").asString(), reserved.at("/allocations/1/stockLotId").asString());
 
-        JsonNode duplicate = reserve(task1.get("id").asText());
-        assertEquals(reserved.at("/allocations/0/id").asText(), duplicate.at("/allocations/0/id").asText());
+        JsonNode duplicate = reserve(task1.get("id").asString());
+        assertEquals(reserved.at("/allocations/0/id").asString(), duplicate.at("/allocations/0/id").asString());
         assertEquals(2, duplicate.get("allocations").size());
 
         JsonNode released = json(mockMvc.perform(post(
-                                "/api/pharmacy/dispense-tasks/{taskId}/reservations/release", task1.get("id").asText())
+                                "/api/pharmacy/dispense-tasks/{taskId}/reservations/release", task1.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"reason\":\"患者暂缓取药，释放占用\"}"))
                 .andExpect(status().isOk())
@@ -80,7 +80,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.reservedBaseQuantity").value(0))
                 .andReturn().getResponse().getContentAsString());
         for (JsonNode allocation : released.get("allocations")) {
-            assertEquals("RELEASED", allocation.get("status").asText());
+            assertEquals("RELEASED", allocation.get("status").asString());
         }
 
         JsonNode balancesAfterRelease = balances(fixture);
@@ -89,14 +89,14 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         assertEquals(42, sum(balancesAfterRelease, "quantityAvailable"));
 
         JsonNode task2 = createReviewedTask(suffix + "B", fixture.stockItemId(), reviewer, 2);
-        CompletableFuture<MvcResult> first = reserveAsync(task1.get("id").asText());
-        CompletableFuture<MvcResult> second = reserveAsync(task2.get("id").asText());
+        CompletableFuture<MvcResult> first = reserveAsync(task1.get("id").asString());
+        CompletableFuture<MvcResult> second = reserveAsync(task2.get("id").asString());
         List<MvcResult> results = List.of(first.join(), second.join());
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 200).count());
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 409).count());
         JsonNode failure = json(results.stream().filter(value -> value.getResponse().getStatus() == 409)
                 .findFirst().orElseThrow().getResponse().getContentAsString());
-        assertEquals("INVENTORY_RESERVATION_INSUFFICIENT", failure.get("code").asText());
+        assertEquals("INVENTORY_RESERVATION_INSUFFICIENT", failure.get("code").asString());
 
         JsonNode balancesAfterRace = balances(fixture);
         assertEquals(28, sum(balancesAfterRace, "quantityReserved"));
@@ -110,22 +110,22 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 Instant.now().minusSeconds(60), Long.valueOf(TENANT), winner.at("/allocations/0/requestId").asLong());
         inventoryService.expireDueReservations();
         JsonNode expired = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/reservations",
-                        winner.get("taskId").asText()).with(rhnWorkContext()))
+                        winner.get("taskId").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("READY_TO_PICK"))
                 .andExpect(jsonPath("$.reservedBaseQuantity").value(0))
                 .andReturn().getResponse().getContentAsString());
         int expiredAllocationCount = 0;
         for (JsonNode allocation : expired.get("allocations")) {
-            assertTrue(!"ACTIVE".equals(allocation.get("status").asText()));
-            if ("EXPIRED".equals(allocation.get("status").asText())) expiredAllocationCount++;
+            assertTrue(!"ACTIVE".equals(allocation.get("status").asString()));
+            if ("EXPIRED".equals(allocation.get("status").asString())) expiredAllocationCount++;
         }
         assertEquals(2, expiredAllocationCount);
         assertEquals(0, sum(balances(fixture), "quantityReserved"));
 
         mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(receiptBody(
-                                "INV-RCV-FRACTION-" + suffix, fixture, lateLot.get("id").asText(), "0.5")))
+                                "INV-RCV-FRACTION-" + suffix, fixture, lateLot.get("id").asString(), "0.5")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVENTORY_RECEIPT_QUANTITY_PRECISION_INVALID"));
 
@@ -137,11 +137,11 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                   "occurredAt":"2026-08-27T12:00:00Z","description":"人工登记拆零"
                                 }
                                 """.formatted(suffix, fixture.siteId(), fixture.binId(),
-                                fixture.stockItemId(), earlyLot.get("id").asText())))
+                                fixture.stockItemId(), earlyLot.get("id").asString())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.remainingBaseQuantity").value(14))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/pharmacy/inventory/open-packages/{id}/events", openPackage.get("id").asText())
+        mockMvc.perform(get("/api/pharmacy/inventory/open-packages/{id}/events", openPackage.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
@@ -181,12 +181,12 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture fixture = createPharmacy(suffix);
         JsonNode lot = createLot(fixture.stockItemId(), "DSP-" + suffix, "2027-12-31");
-        receive("DSP-RCV-" + suffix, fixture, lot.get("id").asText(), "3");
+        receive("DSP-RCV-" + suffix, fixture, lot.get("id").asString(), "3");
         Reviewer pharmacist = createReviewer("D" + suffix);
         JsonNode task = createReviewedTask("D" + suffix, fixture.stockItemId(), pharmacist, 2);
-        reserve(task.get("id").asText());
+        reserve(task.get("id").asString());
 
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/picking/complete", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/picking/complete", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "pickerPractitionerId":"%s","pickerAssignmentId":"%s",
@@ -198,7 +198,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
 
         jdbcTemplate.update("update RHN_SUP_STOCK_ITEM set FG_CONTROLLED = true, SD_CONTROL_LEVEL = 'LEVEL_1' "
                 + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(dispenseBody("DSP-SPECIAL-" + suffix, "1", pharmacist)))
                 .andExpect(status().isConflict())
@@ -207,12 +207,12 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 + "where ID_TNT = ? and ID_STOCK_ITEM = ?", Long.valueOf(TENANT), Long.valueOf(fixture.stockItemId()));
 
         String firstCode = "DSP-1-" + suffix;
-        JsonNode first = dispense(task.get("id").asText(), firstCode, "1", pharmacist);
-        assertEquals("DISPENSE", first.get("dispenseType").asText());
+        JsonNode first = dispense(task.get("id").asString(), firstCode, "1", pharmacist);
+        assertEquals("DISPENSE", first.get("dispenseType").asString());
         assertEquals(1, first.get("lines").size());
-        assertEquals(lot.get("id").asText(), first.at("/lines/0/stockLotId").asText());
+        assertEquals(lot.get("id").asString(), first.at("/lines/0/stockLotId").asString());
         JsonNode afterFirst = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace",
-                        task.get("id").asText()).with(rhnWorkContext()))
+                        task.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("PARTIALLY_DISPENSED"))
                 .andExpect(jsonPath("$.dispensedQuantity").value(1))
@@ -220,22 +220,22 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         assertEquals(1, afterFirst.get("events").size());
         JsonNode reservationAfterFirst = json(mockMvc.perform(get(
-                        "/api/pharmacy/dispense-tasks/{taskId}/reservations", task.get("id").asText())
+                        "/api/pharmacy/dispense-tasks/{taskId}/reservations", task.get("id").asString())
                         .with(rhnWorkContext())).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
         assertEquals(14, reservationAfterFirst.at("/allocations/0/quantityConsumed").decimalValue().intValueExact());
-        assertEquals("PARTIAL", reservationAfterFirst.at("/allocations/0/status").asText());
+        assertEquals("PARTIAL", reservationAfterFirst.at("/allocations/0/status").asString());
 
-        JsonNode duplicateFirst = dispense(task.get("id").asText(), firstCode, "1", pharmacist);
-        assertEquals(first.get("id").asText(), duplicateFirst.get("id").asText());
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asText())
+        JsonNode duplicateFirst = dispense(task.get("id").asString(), firstCode, "1", pharmacist);
+        assertEquals(first.get("id").asString(), duplicateFirst.get("id").asString());
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(dispenseBody(firstCode, "2", pharmacist)))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("MEDICATION_DISPENSE_REQUEST_REUSED"));
 
-        JsonNode second = dispense(task.get("id").asText(), "DSP-2-" + suffix, "1", pharmacist);
-        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asText())
+        JsonNode second = dispense(task.get("id").asString(), "DSP-2-" + suffix, "1", pharmacist);
+        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("COMPLETED"))
@@ -247,10 +247,10 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
 
         String returnOne = "RET-1-" + suffix;
         JsonNode returnedFirst = returnMedication(first, returnOne, pharmacist, "RESTOCK");
-        assertEquals(first.get("id").asText(), returnedFirst.get("originalDispenseId").asText());
+        assertEquals(first.get("id").asString(), returnedFirst.get("originalDispenseId").asString());
         JsonNode duplicateReturn = returnMedication(first, returnOne, pharmacist, "RESTOCK");
-        assertEquals(returnedFirst.get("id").asText(), duplicateReturn.get("id").asText());
-        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asText())
+        assertEquals(returnedFirst.get("id").asString(), duplicateReturn.get("id").asString());
+        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("PARTIALLY_RETURNED"))
@@ -259,7 +259,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
 
         returnMedication(second, "RET-2-" + suffix, pharmacist, "QUARANTINE");
         JsonNode trace = json(mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace",
-                        task.get("id").asText()).with(rhnWorkContext()))
+                        task.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("RETURNED"))
                 .andExpect(jsonPath("$.returnedQuantity").value(2))
@@ -273,10 +273,10 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         assertEquals(42, sum(finalBalances, "quantityAvailable"));
         int availableStatus = 0; int quarantineStatus = 0;
         for (JsonNode balance : finalBalances) {
-            if ("AVAILABLE".equals(balance.get("stockStatus").asText())) {
+            if ("AVAILABLE".equals(balance.get("stockStatus").asString())) {
                 availableStatus += balance.get("quantityOnHand").decimalValue().intValueExact();
             }
-            if ("QUARANTINE".equals(balance.get("stockStatus").asText())) {
+            if ("QUARANTINE".equals(balance.get("stockStatus").asString())) {
                 quarantineStatus += balance.get("quantityOnHand").decimalValue().intValueExact();
             }
         }
@@ -289,8 +289,8 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         int dispenses = 0; int returns = 0;
         for (JsonNode transaction : transactions) {
-            if ("DISPENSE".equals(transaction.get("transactionType").asText())) dispenses++;
-            if ("RETURN".equals(transaction.get("transactionType").asText())) returns++;
+            if ("DISPENSE".equals(transaction.get("transactionType").asString())) dispenses++;
+            if ("RETURN".equals(transaction.get("transactionType").asString())) returns++;
         }
         assertEquals(2, dispenses); assertEquals(2, returns);
     }
@@ -300,21 +300,21 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 10).toUpperCase();
         PharmacyFixture fixture = createPharmacy("R" + suffix);
         JsonNode lot = createLot(fixture.stockItemId(), "RACE-" + suffix, "2027-12-31");
-        receive("RACE-RCV-" + suffix, fixture, lot.get("id").asText(), "1");
+        receive("RACE-RCV-" + suffix, fixture, lot.get("id").asString(), "1");
         Reviewer pharmacist = createReviewer("R" + suffix);
         JsonNode task = createReviewedTask("R" + suffix, fixture.stockItemId(), pharmacist, 1);
-        reserve(task.get("id").asText());
-        completePicking(task.get("id").asText(), pharmacist);
+        reserve(task.get("id").asString());
+        completePicking(task.get("id").asString(), pharmacist);
 
         CompletableFuture<MvcResult> first = dispenseAsync(
-                task.get("id").asText(), "RACE-DSP-A-" + suffix, pharmacist);
+                task.get("id").asString(), "RACE-DSP-A-" + suffix, pharmacist);
         CompletableFuture<MvcResult> second = dispenseAsync(
-                task.get("id").asText(), "RACE-DSP-B-" + suffix, pharmacist);
+                task.get("id").asString(), "RACE-DSP-B-" + suffix, pharmacist);
         List<MvcResult> results = List.of(first.join(), second.join());
 
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 201).count());
         assertEquals(1, results.stream().filter(value -> value.getResponse().getStatus() == 409).count());
-        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asText())
+        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("COMPLETED"))
@@ -373,7 +373,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
 
     private JsonNode returnMedication(JsonNode dispense, String returnNo, Reviewer pharmacist,
                                       String disposition) throws Exception {
-        return json(mockMvc.perform(post("/api/pharmacy/dispenses/{dispenseId}/returns", dispense.get("id").asText())
+        return json(mockMvc.perform(post("/api/pharmacy/dispenses/{dispenseId}/returns", dispense.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "returnNo":"%s","reasonCode":"PATIENT_NOT_USE",
@@ -386,7 +386,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                   }]
                                 }
                                 """.formatted(returnNo, pharmacist.practitionerId(), pharmacist.assignmentId(),
-                                dispense.at("/lines/0/id").asText(), disposition)))
+                                dispense.at("/lines/0/id").asString(), disposition)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
 
@@ -463,7 +463,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items",
-                                site.get("id").asText()).with(rhnWorkContext())
+                                site.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
@@ -473,7 +473,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins",
-                                site.get("id").asText()).with(rhnWorkContext())
+                                site.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"PICK-A","name":"A区拣货位","binType":"BIN",
@@ -482,7 +482,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new PharmacyFixture(site.get("id").asText(), item.get("id").asText(), bin.get("id").asText());
+        return new PharmacyFixture(site.get("id").asString(), item.get("id").asString(), bin.get("id").asString());
     }
 
     private JsonNode createReviewedTask(String suffix, String stockItemId, Reviewer reviewer, int quantity) throws Exception {
@@ -498,11 +498,11 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 """.formatted(PRODUCT_ID, PACKAGE_ID, quantity)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode task = json(mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake",
-                                request.get("id").asText()).with(rhnWorkContext())
+                                request.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"stockItemId\":\"%s\"}".formatted(stockItemId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return json(mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+        return json(mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "result":"PASS","pharmacistPractitionerId":"%s",
@@ -520,7 +520,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 {"fullName":"库存并发患者","identifiers":[{"system":"9","value":"33010219910101%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1991-01-01"}
                                 """.formatted(digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -529,9 +529,9 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString()))
                 .andExpect(status().isOk());
-        return encounter.get("id").asText();
+        return encounter.get("id").asString();
     }
 
     private Reviewer createReviewer(String suffix) throws Exception {
@@ -551,7 +551,7 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                   "practitionerId":"%s","organizationId":"%s","code":"INV-E-%s",
                                   "sdEmploymentType":"PERMANENT","primaryEmployment":true,"hireDate":"2026-01-01"
                                 }
-                                """.formatted(practitioner.get("id").asText(), ORGANIZATION, suffix)))
+                                """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -560,10 +560,10 @@ class InventoryLedgerReservationTest extends RhnIntegrationTestSupport {
                                   "positionId":"%s","code":"INV-A-%s","sdAssignmentType":"PRIMARY",
                                   "primaryAssignment":true,"validFrom":"2026-01-01"
                                 }
-                                """.formatted(employment.get("id").asText(), ORGANIZATION, DEPARTMENT,
-                                position.get("id").asText(), suffix)))
+                                """.formatted(employment.get("id").asString(), ORGANIZATION, DEPARTMENT,
+                                position.get("id").asString(), suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new Reviewer(practitioner.get("id").asText(), assignment.get("id").asText());
+        return new Reviewer(practitioner.get("id").asString(), assignment.get("id").asString());
     }
 
     private record PharmacyFixture(String siteId, String stockItemId, String binId) {}

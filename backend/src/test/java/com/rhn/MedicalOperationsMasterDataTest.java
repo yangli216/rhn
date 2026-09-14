@@ -19,7 +19,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode laboratoryItem = laboratoryItems.get(0);
 
-        mockMvc.perform(put("/api/platform/master-data/services/{id}", laboratoryItem.get("id").asText())
+        mockMvc.perform(put("/api/platform/master-data/services/{id}", laboratoryItem.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"code":"%s","name":"%s",
                          "orderable":%s,"chargeable":%s,"sdStatus":"%s",
@@ -27,10 +27,10 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                          "sdUsageType":"%s","medicalTechnology":%s,
                          "combinationItem":%s,"singleOrder":%s,"pregnancyAlert":%s}
                         """.formatted(laboratoryItem.get("revision").asLong(),
-                                laboratoryItem.get("code").asText(), laboratoryItem.get("name").asText(),
+                                laboratoryItem.get("code").asString(), laboratoryItem.get("name").asString(),
                                 laboratoryItem.get("orderable").asBoolean(), laboratoryItem.get("chargeable").asBoolean(),
-                                laboratoryItem.get("sdStatus").asText(), laboratoryItem.get("validFrom").asText(),
-                                laboratoryItem.get("sdUsageType").asText(), laboratoryItem.get("medicalTechnology").asBoolean(),
+                                laboratoryItem.get("sdStatus").asString(), laboratoryItem.get("validFrom").asString(),
+                                laboratoryItem.get("sdUsageType").asString(), laboratoryItem.get("medicalTechnology").asBoolean(),
                                 laboratoryItem.get("combinationItem").asBoolean(), laboratoryItem.get("singleOrder").asBoolean(),
                                 laboratoryItem.get("pregnancyAlert").asBoolean())))
                 .andExpect(status().isBadRequest())
@@ -94,7 +94,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795103/examination-charge-plan")
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"bodySiteCodes":["LEFT","RIGHT","ABDOMEN"],"selectedAttachmentIds":["%s"]}
-                        """.formatted(attachment.get("id").asText())))
+                        """.formatted(attachment.get("id").asString())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.siteCount").value(3))
                 .andExpect(jsonPath("$.extraSiteCount").value(2))
@@ -108,7 +108,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         JsonNode specimen = laboratory.get("laboratory").get("specimens").get(0);
         mockMvc.perform(put("/api/platform/master-data/operations/services/362387869795101/specimens/"
-                        + specimen.get("id").asText()).with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        + specimen.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"specimenItemId":"%s","containerItemId":"%s",
                          "minimumQuantity":2,"minimumQuantityUnit":"ML","defaultSpecimen":true,
                          "requiredSpecimen":true,"sortOrder":10,"collectionDescription":"EDTA分管",
@@ -116,15 +116,15 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                          "tubeSharingMode":"BY_TEST_COUNT","baseTubeCount":1,"maxTestsPerTube":3,
                          "tubeChargeMode":"PER_TUBE","tubeChargeItemId":"362387869795102",
                          "includedTubeCount":0,"tubeChargeQuantity":1}
-                        """.formatted(specimen.get("revision").asLong(), specimen.get("specimenItemId").asText(),
-                        specimen.get("containerItemId").asText())))
+                        """.formatted(specimen.get("revision").asLong(), specimen.get("specimenItemId").asString(),
+                        specimen.get("containerItemId").asString())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.laboratory.specimens[0].tubeGroupCode").value("EDTA_HEMATOLOGY"));
 
         mockMvc.perform(post("/api/platform/master-data/operations/laboratory-tube-plan")
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"items":[{"serviceId":"362387869795101","specimenConfigurationId":"%s","quantity":5}]}
-                        """.formatted(specimen.get("id").asText())))
+                        """.formatted(specimen.get("id").asString())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.groups[0].tubeCount").value(2))
                 .andExpect(jsonPath("$.groups[0].sharingMode").value("BY_TEST_COUNT"))
@@ -168,7 +168,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode inactiveDefaultRow = inactiveDefault.get("laboratory").get("specimens").get(2);
         mockMvc.perform(post("/api/platform/master-data/operations/services/362387869795101/specimens/%s/status"
-                        .formatted(inactiveDefaultRow.get("id").asText())).with(rhn())
+                        .formatted(inactiveDefaultRow.get("id").asString())).with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"status":"ACTIVE"}
                         """.formatted(inactiveDefaultRow.get("revision").asLong())))
@@ -206,7 +206,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.supplyType").value("CONSUMABLE"))
                 .andReturn().getResponse().getContentAsString());
 
-        supply = json(mockMvc.perform(put("/api/platform/master-data/operations/supplies/" + supply.get("id").asText())
+        supply = json(mockMvc.perform(put("/api/platform/master-data/operations/supplies/" + supply.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"supplyType":"DEVICE","code":"SUP-%s","name":"一次性无菌注射器（器械）",
                          "unitCode":"EA","orderable":true,"chargeable":true,"stocked":true,"status":"ACTIVE",
@@ -245,7 +245,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.members.length()").value(2))
                 .andExpect(jsonPath("$.members[0].serviceType").value("LABORATORY"))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(put("/api/platform/master-data/operations/item-groups/" + group.get("id").asText())
+        mockMvc.perform(put("/api/platform/master-data/operations/item-groups/" + group.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"code":"LIS-%s","name":"入院检验组套（修订）",
                          "groupType":"LIS","usageType":"INPATIENT","pointOfCare":false,"status":"ACTIVE",
@@ -262,21 +262,21 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"catalogItemId":"%s","fromUnitCode":"BOX","toUnitCode":"EA","factor":50,
                          "validFrom":"2026-01-01","status":"ACTIVE"}
-                        """.formatted(supply.get("id").asText())))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.scopeCode").value("ITEM:" + supply.get("id").asText()))
+                        """.formatted(supply.get("id").asString())))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.scopeCode").value("ITEM:" + supply.get("id").asString()))
                 .andReturn().getResponse().getContentAsString());
-        conversion = json(mockMvc.perform(put("/api/platform/master-data/operations/unit-conversions/" + conversion.get("id").asText())
+        conversion = json(mockMvc.perform(put("/api/platform/master-data/operations/unit-conversions/" + conversion.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"catalogItemId":"%s","fromUnitCode":"BOX","toUnitCode":"EA",
                          "factor":40,"offset":0,"validFrom":"2026-01-01","status":"ACTIVE"}
-                        """.formatted(conversion.get("revision").asLong(), supply.get("id").asText())))
+                        """.formatted(conversion.get("revision").asLong(), supply.get("id").asString())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.factor").value(40))
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/platform/master-data/operations/unit-conversions/convert")
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"quantity":2,"fromUnitCode":"BOX","toUnitCode":"EA",
                          "catalogItemId":"%s","effectiveDate":"2026-08-29"}
-                        """.formatted(supply.get("id").asText())))
+                        """.formatted(supply.get("id").asString())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.result").value(80))
                 .andExpect(jsonPath("$.path[0]").value("BOX"))
                 .andExpect(jsonPath("$.path[1]").value("EA"));
@@ -287,7 +287,7 @@ class MedicalOperationsMasterDataTest extends RhnIntegrationTestSupport {
                          "decimalScale":0,"status":"ACTIVE"}
                         """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(put("/api/platform/master-data/operations/units/" + unit.get("id").asText())
+        mockMvc.perform(put("/api/platform/master-data/operations/units/" + unit.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"expectedRevision":%d,"code":"VIAL%s","name":"西林瓶","symbol":"瓶",
                          "dimension":"COUNT","decimalScale":0,"status":"INACTIVE"}

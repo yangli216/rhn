@@ -38,6 +38,13 @@ public class SkinTestController {
         return service.worklist(status, keyword, encounterId);
     }
 
+    @GetMapping("/valid-negative")
+    List<SkinTestWorkItemView> validNegative(@RequestParam Long residentId,
+                                             @RequestParam Long medicationId,
+                                             @RequestParam(required = false) Integer validityHours) {
+        return service.validRecentNegativeSkinTests(residentId, medicationId, validityHours);
+    }
+
     @PostMapping("/medication-requests/{medicationRequestId}/start")
     @ResponseStatus(HttpStatus.CREATED)
     SkinTestWorkItemView start(@PathVariable Long medicationRequestId,
@@ -53,7 +60,8 @@ public class SkinTestController {
     SkinTestWorkItemView complete(@PathVariable Long eventId,
                                   @Valid @RequestBody CompleteSkinTestRequest input) {
         return service.complete(eventId, input.expectedRevision(), input.result(), input.whealDiameterMm(),
-                input.flareDiameterMm(), input.reactionDescription(), input.earlyReadReason());
+                input.flareDiameterMm(), input.reactionDescription(), input.earlyReadReason(),
+                input.verifiedByPractitionerId(), input.verifiedByName());
     }
 
     @PostMapping("/events/{eventId}/cancel")
@@ -83,7 +91,9 @@ public class SkinTestController {
             @DecimalMin("0") BigDecimal whealDiameterMm,
             @DecimalMin("0") BigDecimal flareDiameterMm,
             @Size(max = 1000) String reactionDescription,
-            @Size(max = 1000) String earlyReadReason) {}
+            @Size(max = 1000) String earlyReadReason,
+            Long verifiedByPractitionerId,
+            @Size(max = 128) String verifiedByName) {}
 
     record CancelSkinTestRequest(@NotNull Long expectedRevision,
                                  @NotNull @Size(min = 1, max = 1000) String reason) {}

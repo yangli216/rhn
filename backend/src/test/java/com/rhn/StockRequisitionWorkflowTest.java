@@ -21,13 +21,13 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
     @Test
     void department_requisition_approval_fefo_picking_and_issue_form_closed_loop() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
-        JsonNode site = createSite(suffix); String siteId = site.get("id").asText();
-        JsonNode item = createItem(siteId); String itemId = item.get("id").asText();
-        JsonNode bin = createBin(siteId); String binId = bin.get("id").asText();
+        JsonNode site = createSite(suffix); String siteId = site.get("id").asString();
+        JsonNode item = createItem(siteId); String itemId = item.get("id").asString();
+        JsonNode bin = createBin(siteId); String binId = bin.get("id").asString();
         JsonNode early = createLot(itemId, "REQ-E-" + suffix, "2027-01-01");
         JsonNode late = createLot(itemId, "REQ-L-" + suffix, "2028-01-01");
-        receive("REQ-RCV-E-" + suffix, itemId, binId, early.get("id").asText(), 1);
-        receive("REQ-RCV-L-" + suffix, itemId, binId, late.get("id").asText(), 2);
+        receive("REQ-RCV-E-" + suffix, itemId, binId, early.get("id").asString(), 1);
+        receive("REQ-RCV-L-" + suffix, itemId, binId, late.get("id").asString(), 2);
 
         JsonNode requisition = json(mockMvc.perform(post("/api/pharmacy/stock-requisitions").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -36,7 +36,7 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
                                 """.formatted(siteId, suffix, itemId)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString());
-        String id = requisition.get("id").asText(); String lineId = requisition.at("/lines/0/id").asText();
+        String id = requisition.get("id").asString(); String lineId = requisition.at("/lines/0/id").asString();
         mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/submit", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUBMITTED"));
         mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/approve", id).with(rhnWorkContext())
@@ -47,7 +47,7 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/pick", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PICKING"))
                 .andExpect(jsonPath("$.lines[0].allocations.length()").value(2))
-                .andExpect(jsonPath("$.lines[0].allocations[0].stockLotId").value(early.get("id").asText()))
+                .andExpect(jsonPath("$.lines[0].allocations[0].stockLotId").value(early.get("id").asString()))
                 .andExpect(jsonPath("$.lines[0].allocations[0].allocatedQuantity").value(14))
                 .andExpect(jsonPath("$.lines[0].allocations[1].allocatedQuantity").value(6));
         JsonNode issued = json(mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/issue", id)
@@ -57,7 +57,7 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/pharmacy/stock-requisitions/{id}/issue", id).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.inventoryTransactionId")
-                        .value(issued.get("inventoryTransactionId").asText()));
+                        .value(issued.get("inventoryTransactionId").asString()));
         mockMvc.perform(get("/api/pharmacy/inventory/transactions").with(rhnWorkContext())
                         .param("stockSiteId", siteId))
                 .andExpect(status().isOk())
@@ -65,8 +65,8 @@ class StockRequisitionWorkflowTest extends RhnIntegrationTestSupport {
         mockMvc.perform(get("/api/pharmacy/inventory/balances").with(rhnWorkContext())
                         .param("stockSiteId", siteId).param("stockItemId", itemId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.stockLotId == '%s')].quantityOnHand".formatted(early.get("id").asText())).value(0.0))
-                .andExpect(jsonPath("$[?(@.stockLotId == '%s')].quantityOnHand".formatted(late.get("id").asText())).value(22.0))
+                .andExpect(jsonPath("$[?(@.stockLotId == '%s')].quantityOnHand".formatted(early.get("id").asString())).value(0.0))
+                .andExpect(jsonPath("$[?(@.stockLotId == '%s')].quantityOnHand".formatted(late.get("id").asString())).value(22.0))
                 .andExpect(jsonPath("$[*].quantityReserved").value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.comparesEqualTo(0.0))));
     }
 

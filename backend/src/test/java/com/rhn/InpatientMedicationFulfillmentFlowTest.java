@@ -39,8 +39,8 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"住院药品履约闭环测试","commandCode":"IP-MED-FLOW-ADMIT"}
                 """, rhnWorkContext(), 201);
-        String episodeId = admission.get("id").asText();
-        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asText());
+        String episodeId = admission.get("id").asString();
+        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asString());
 
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
@@ -48,7 +48,7 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"TID","instructions":"饭后口服",
                  "commandCode":"IP-MED-FLOW-ORDER"}
                 """.formatted(episodeId), rhnWorkContext(), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 medicationSign(0, "IP-MED-FLOW-SIGN"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -59,27 +59,27 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "commandCode":"IP-MED-FLOW-PLAN"}
                 """.formatted(atSupplyTime(supplyDate, 9, 0), atSupplyTime(supplyDate, 13, 0)),
                 rhnWorkContext(), 200);
-        String firstTaskId = plan.at("/tasks/0/id").asText();
-        String secondTaskId = plan.at("/tasks/1/id").asText();
+        String firstTaskId = plan.at("/tasks/0/id").asString();
+        String secondTaskId = plan.at("/tasks/1/id").asString();
 
         assertMoney("1", jdbc.queryForObject("select QTY_ORDERED as quantity from RHN_EX_MED_REQ where ID_CARE_REQ = ?",
                 BigDecimal.class, Long.valueOf(requestId)));
         assertMoney("0.533333", jdbc.queryForObject("select AMT_TOTAL as total_amount from RHN_EX_CARE_REQ where ID_CARE_REQ = ?",
                 BigDecimal.class, Long.valueOf(requestId)));
 
-        JsonNode supplyBatch = generateSupplyBatch(supplyDate, order.get("departmentId").asText(),
+        JsonNode supplyBatch = generateSupplyBatch(supplyDate, order.get("departmentId").asString(),
                 "IP-MED-FLOW-SUPPLY");
         JsonNode supplyLine = supplyBatch.at("/lines/0");
         assertEquals(2, supplyLine.get("occurrenceCount").asInt());
-        JsonNode intakenLine = postJson("/api/pharmacy/ward-supply-lines/" + supplyLine.get("id").asText()
+        JsonNode intakenLine = postJson("/api/pharmacy/ward-supply-lines/" + supplyLine.get("id").asString()
                 + "/intake", """
                 {"stockItemId":"%s","description":"住院病区两剂摆药"}
                 """.formatted(INPATIENT_STOCK_ITEM), pharmacyContext(), 201);
-        String dispenseTaskId = intakenLine.get("dispenseTaskId").asText();
+        String dispenseTaskId = intakenLine.get("dispenseTaskId").asString();
         JsonNode dispenseTask = getJson("/api/pharmacy/dispense-tasks/" + dispenseTaskId, pharmacyContext());
-        assertEquals("INPATIENT", dispenseTask.get("taskType").asText());
+        assertEquals("INPATIENT", dispenseTask.get("taskType").asString());
         assertMoney("2", dispenseTask.at("/lines/0/plannedQuantity").decimalValue());
-        assertEquals("粒", dispenseTask.at("/lines/0/dispenseUnitCode").asText());
+        assertEquals("粒", dispenseTask.at("/lines/0/dispenseUnitCode").asString());
 
         postJson("/api/pharmacy/dispense-tasks/" + dispenseTaskId + "/reviews", """
                 {"result":"PASS","pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"}
@@ -93,14 +93,14 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                 {"requestCode":"IP-MED-FLOW-DISPENSE","operationQuantity":2,
                  "dispenserPractitionerId":"%s","dispenserAssignmentId":"%s","description":"发往病区"}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT), pharmacyContext(), 201);
-        String dispenseId = dispense.get("id").asText();
-        String dispenseLineId = dispense.at("/lines/0/id").asText();
+        String dispenseId = dispense.get("id").asString();
+        String dispenseLineId = dispense.at("/lines/0/id").asString();
 
         JsonNode delivery = postJson("/api/pharmacy/ward-deliveries", """
                 {"deliveryNo":"IP-MED-FLOW-DELIVERY","dispenseIds":["%s"]}
                 """.formatted(dispenseId), pharmacyContext(), 201);
-        String deliveryId = delivery.get("id").asText();
-        String deliveryLineId = delivery.at("/lines/0/id").asText();
+        String deliveryId = delivery.get("id").asString();
+        String deliveryLineId = delivery.at("/lines/0/id").asString();
         postJson("/api/pharmacy/ward-deliveries/" + deliveryId + "/dispatch", """
                 {"expectedRevision":0,"commandCode":"IP-MED-FLOW-DISPATCH"}
                 """, pharmacyContext(), 200);
@@ -114,15 +114,15 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "commandCode":"IP-MED-FLOW-EXECUTE-1"}
                 """, rhnWorkContext(), 200);
         assertEquals(1, executed.get("medicationConsumptions").size());
-        assertEquals(dispenseLineId, executed.at("/medicationConsumptions/0/dispenseLineId").asText());
+        assertEquals(dispenseLineId, executed.at("/medicationConsumptions/0/dispenseLineId").asString());
         assertMoney("1", executed.at("/medicationConsumptions/0/consumedBaseQuantity").decimalValue());
 
         JsonNode stopped = postJson("/api/inpatient/orders/" + requestId + "/stop", """
                 {"expectedRevision":3,"reason":"患者停用","commandCode":"IP-MED-FLOW-STOP"}
                 """, rhnWorkContext(), 200);
-        assertEquals("RETURN_REQUIRED", stopped.at("/medicationClosure/status").asText());
+        assertEquals("RETURN_REQUIRED", stopped.at("/medicationClosure/status").asString());
         assertMoney("1", stopped.at("/medicationClosure/returnableQuantity").decimalValue());
-        assertEquals("WARD_RETURN", stopped.at("/medicationClosure/action").asText());
+        assertEquals("WARD_RETURN", stopped.at("/medicationClosure/action").asString());
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/discharge-readiness", episodeId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -151,7 +151,7 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "lines":[{"originalDispenseLineId":"%s","quantity":1,
                             "disposition":"RESTOCK"}]}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT, dispenseLineId), pharmacyContext(), 201);
-        assertEquals("CONFIRMED", returned.get("status").asText());
+        assertEquals("CONFIRMED", returned.get("status").asString());
         mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}", dispenseTaskId).with(pharmacyContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.closureStatus").value("STOPPED"));
@@ -180,15 +180,15 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
             throws Exception {
         OrderFacts facts = createPlannedOrder("IP-MED-STOP-PREP", 2);
         JsonNode dispenseTask = intakeAndPrepare(facts, "IP-MED-STOP-PREP");
-        String dispenseTaskId = dispenseTask.get("id").asText();
+        String dispenseTaskId = dispenseTask.get("id").asString();
         assertEquals(1, count("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? and SD_STATUS = 'ACTIVE'",
                 facts.requestId()));
 
         JsonNode stopped = postJson("/api/inpatient/orders/" + facts.requestId() + "/stop", """
                 {"expectedRevision":3,"reason":"医师停嘱","commandCode":"IP-MED-STOP-PREP-STOP"}
                 """, rhnWorkContext(), 200);
-        assertEquals("CANCELLED", stopped.at("/medicationClosure/status").asText());
-        assertEquals("AUTO_CANCELLED", stopped.at("/medicationClosure/action").asText());
+        assertEquals("CANCELLED", stopped.at("/medicationClosure/status").asString());
+        assertEquals("AUTO_CANCELLED", stopped.at("/medicationClosure/action").asString());
         assertEquals("CANCELLED", jdbc.queryForObject(
                 "select SD_STATUS as status from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, Long.valueOf(dispenseTaskId)));
         assertEquals("CANCELLED", jdbc.queryForObject(
@@ -212,18 +212,18 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
             throws Exception {
         OrderFacts facts = createPlannedOrder("IP-MED-STOP-PART", 3);
         JsonNode dispenseTask = intakeAndPrepare(facts, "IP-MED-STOP-PART");
-        String dispenseTaskId = dispenseTask.get("id").asText();
+        String dispenseTaskId = dispenseTask.get("id").asString();
         JsonNode dispense = postJson("/api/pharmacy/dispense-tasks/" + dispenseTaskId + "/dispenses", """
                 {"requestCode":"IP-MED-STOP-PART-DISPENSE","operationQuantity":2,
                  "dispenserPractitionerId":"%s","dispenserAssignmentId":"%s","description":"先发两剂"}
                 """.formatted(PHARMACIST, PHARMACIST_ASSIGNMENT), pharmacyContext(), 201);
-        String dispenseId = dispense.get("id").asText();
-        String dispenseLineId = dispense.at("/lines/0/id").asText();
+        String dispenseId = dispense.get("id").asString();
+        String dispenseLineId = dispense.at("/lines/0/id").asString();
         JsonNode delivery = postJson("/api/pharmacy/ward-deliveries", """
                 {"deliveryNo":"IP-MED-STOP-PART-DELIVERY","dispenseIds":["%s"]}
                 """.formatted(dispenseId), pharmacyContext(), 201);
-        String deliveryId = delivery.get("id").asText();
-        String deliveryLineId = delivery.at("/lines/0/id").asText();
+        String deliveryId = delivery.get("id").asString();
+        String deliveryLineId = delivery.at("/lines/0/id").asString();
         postJson("/api/pharmacy/ward-deliveries/" + deliveryId + "/dispatch", """
                 {"expectedRevision":0,"commandCode":"IP-MED-STOP-PART-DISPATCH"}
                 """, pharmacyContext(), 200);
@@ -238,11 +238,11 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
         JsonNode stopped = postJson("/api/inpatient/orders/" + facts.requestId() + "/stop", """
                 {"expectedRevision":3,"reason":"发生不良反应","commandCode":"IP-MED-STOP-PART-STOP"}
                 """, rhnWorkContext(), 200);
-        assertEquals("RETURN_REQUIRED", stopped.at("/medicationClosure/status").asText());
+        assertEquals("RETURN_REQUIRED", stopped.at("/medicationClosure/status").asString());
         assertMoney("2", stopped.at("/medicationClosure/dispensedQuantity").decimalValue());
         assertMoney("1", stopped.at("/medicationClosure/consumedQuantity").decimalValue());
         assertMoney("1", stopped.at("/medicationClosure/returnableQuantity").decimalValue());
-        assertEquals("WARD_RETURN", stopped.at("/medicationClosure/action").asText());
+        assertEquals("WARD_RETURN", stopped.at("/medicationClosure/action").asString());
         assertEquals("CANCELLED", jdbc.queryForObject(
                 "select SD_STATUS as status from RHN_SUP_DISP_TASK where ID_DISP_TASK = ?", String.class, Long.valueOf(dispenseTaskId)));
         assertEquals(0, count("select count(*) from RHN_SUP_INV_RESV where ID_CARE_REQ = ? "
@@ -278,14 +278,14 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"停嘱药房收口测试","commandCode":"%s-ADMIT"}
                 """.formatted(prefix), rhnWorkContext(), 201);
-        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asText());
+        recordInpatientNoKnownDrugAllergy("362387869790213", admission.get("encounterId").asString());
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
                  "catalogItemId":"362387869795111","dosageAmount":0.25,"dosageUnit":"g",
                  "routeCode":"ORAL","frequencyCode":"TID","instructions":"饭后口服",
                  "commandCode":"%s-ORDER"}
-                """.formatted(admission.get("id").asText(), prefix), rhnWorkContext(), 201);
-        String requestId = order.get("id").asText();
+                """.formatted(admission.get("id").asString(), prefix), rhnWorkContext(), 201);
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign", medicationSign(0, prefix + "-SIGN"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify", revision(1, prefix + "-VERIFY"), rhnWorkContext(), 200);
         LocalDate supplyDate = LocalDate.now(ORGANIZATION_ZONE).plusDays(1);
@@ -298,16 +298,16 @@ class InpatientMedicationFulfillmentFlowTest extends RhnIntegrationTestSupport {
                 {"expectedRevision":2,"plannedTimes":[%s],"commandCode":"%s-PLAN"}
                 """.formatted(times, prefix), rhnWorkContext(), 200);
         String[] taskIds = new String[occurrences];
-        for (int index = 0; index < occurrences; index++) taskIds[index] = planned.at("/tasks/" + index + "/id").asText();
-        JsonNode batch = generateSupplyBatch(supplyDate, order.get("departmentId").asText(), prefix + "-SUPPLY");
-        return new OrderFacts(requestId, taskIds, batch.at("/lines/0/id").asText());
+        for (int index = 0; index < occurrences; index++) taskIds[index] = planned.at("/tasks/" + index + "/id").asString();
+        JsonNode batch = generateSupplyBatch(supplyDate, order.get("departmentId").asString(), prefix + "-SUPPLY");
+        return new OrderFacts(requestId, taskIds, batch.at("/lines/0/id").asString());
     }
 
     private JsonNode intakeAndPrepare(OrderFacts facts, String prefix) throws Exception {
         JsonNode line = postJson("/api/pharmacy/ward-supply-lines/" + facts.supplyLineId() + "/intake", """
                 {"stockItemId":"%s","description":"停嘱收口摆药"}
                 """.formatted(INPATIENT_STOCK_ITEM), pharmacyContext(), 201);
-        String taskId = line.get("dispenseTaskId").asText();
+        String taskId = line.get("dispenseTaskId").asString();
         JsonNode task = getJson("/api/pharmacy/dispense-tasks/" + taskId, pharmacyContext());
         postJson("/api/pharmacy/dispense-tasks/" + taskId + "/reviews", """
                 {"result":"PASS","pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s"}

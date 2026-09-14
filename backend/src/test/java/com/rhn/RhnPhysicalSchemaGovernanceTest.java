@@ -39,11 +39,11 @@ class RhnPhysicalSchemaGovernanceTest extends RhnIntegrationTestSupport {
         Map<String, Map<String, String>> mappedColumnComments = new TreeMap<>();
 
         for (JsonNode table : catalog) {
-            String logical = table.get("logical").asText();
-            String legacy = upper(table.get("legacy").asText());
-            String physical = upper(table.get("physical").asText());
-            String domain = upper(table.get("domain").asText());
-            String tableComment = table.get("comment").asText();
+            String logical = table.get("logical").asString();
+            String legacy = upper(table.get("legacy").asString());
+            String physical = upper(table.get("physical").asString());
+            String domain = upper(table.get("domain").asString());
+            String tableComment = table.get("comment").asString();
             assertTrue(DOMAINS.contains(domain), () -> "Unknown domain: " + domain);
             assertTrue(logical.matches("^[a-z]+\\.[a-z][a-z0-9_]*$"),
                     () -> "Invalid canonical logical table name: " + logical);
@@ -63,9 +63,9 @@ class RhnPhysicalSchemaGovernanceTest extends RhnIntegrationTestSupport {
             Set<String> columns = new TreeSet<>();
             Map<String, String> columnComments = new TreeMap<>();
             for (JsonNode column : table.get("columns")) {
-                String logicalColumn = column.get("logical").asText();
-                String physicalColumn = upper(column.get("physical").asText());
-                String columnComment = column.get("comment").asText();
+                String logicalColumn = column.get("logical").asString();
+                String physicalColumn = upper(column.get("physical").asString());
+                String columnComment = column.get("comment").asString();
                 assertTrue(logicalColumn.matches("^[a-z][a-z0-9_]*$"),
                         () -> "Invalid logical column: " + logical + "." + logicalColumn);
                 assertTrue(physicalColumn.matches("^[A-Z][A-Z0-9_]*$") && physicalColumn.length() <= 30,

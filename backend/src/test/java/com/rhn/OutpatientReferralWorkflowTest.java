@@ -56,7 +56,7 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_CONSULTATION_PENDING"));
 
-        String requestId = request.get("id").asText();
+        String requestId = request.get("id").asString();
         mockMvc.perform(get("/api/outpatient/referrals/inbox").with(targetWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.id == '%s')].residentName".formatted(requestId))
@@ -109,7 +109,7 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.visits[?(@.encounterId == '%s')].nextDestination".formatted(sourceEncounterId))
                         .value("内科门诊"));
 
-        String requestId = request.get("id").asText();
+        String requestId = request.get("id").asString();
         String acceptCommand = "TRANSFER-ACCEPT-" + suffix;
         JsonNode accepted = json(mockMvc.perform(post("/api/outpatient/referrals/{id}/accept", requestId)
                         .with(targetWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -118,7 +118,7 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.targetEncounterId").isNotEmpty())
                 .andExpect(jsonPath("$.targetRegistrationId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
-        String targetEncounterId = accepted.get("targetEncounterId").asText();
+        String targetEncounterId = accepted.get("targetEncounterId").asString();
 
         mockMvc.perform(post("/api/outpatient/referrals/{id}/accept", requestId)
                         .with(targetWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -174,13 +174,13 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
                                 {"fullName":"%s","identifiers":[{"system":"9","value":"33010219950505%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1995-05-05"}
                                 """.formatted(residentName, digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"REF-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -193,7 +193,7 @@ class OutpatientReferralWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode documents = json(mockMvc.perform(get("/api/clinical-documents").with(rhnWorkContext())
                         .queryParam("encounterId", encounterId))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/clinical-documents/{id}/sign", documents.get(0).get("id").asText())
+        mockMvc.perform(post("/api/clinical-documents/{id}/sign", documents.get(0).get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":1,\"signatureMeaning\":\"AUTHOR\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SIGNED"));

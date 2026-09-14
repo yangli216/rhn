@@ -30,17 +30,17 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
         receive("PA-R1-" + suffix, fixture, lotId, "2");
 
         JsonNode stale = createAdjustment(fixture, "PA-STALE-" + suffix, "10.00");
-        submitApprove(stale.get("id").asText());
+        submitApprove(stale.get("id").asString());
         receive("PA-R2-" + suffix, fixture, lotId, "1");
-        mockMvc.perform(post("/api/pharmacy/inventory-price-adjustments/{id}/post", stale.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/inventory-price-adjustments/{id}/post", stale.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRICE_ADJUSTMENT_PREVIEW_STALE"));
 
         JsonNode current = createAdjustment(fixture, "PA-CURRENT-" + suffix, "10.50");
-        JsonNode submitted = submitApprove(current.get("id").asText());
+        JsonNode submitted = submitApprove(current.get("id").asString());
         assertEquals(0, submitted.get("totalAdjustmentAmount").decimalValue().compareTo(new BigDecimal("84.000000")));
-        mockMvc.perform(post("/api/pharmacy/inventory-price-adjustments/{id}/post", current.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/inventory-price-adjustments/{id}/post", current.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("POSTED"))
@@ -54,10 +54,10 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
         assertEquals(0, balances.get(0).get("quantityOnHand").decimalValue().compareTo(new BigDecimal("42")));
         assertEquals(0, balances.get(0).get("averageUnitCost").decimalValue().compareTo(new BigDecimal("10.5")));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_INV_VALUAT_ENTRY where ID_SRC = ?",
-                Integer.class, Long.valueOf(current.get("id").asText())));
+                Integer.class, Long.valueOf(current.get("id").asString())));
 
         JsonNode period = periods(fixture.siteId()).get(0);
-        JsonNode close = json(mockMvc.perform(post("/api/pharmacy/inventory-periods/{id}/close-runs", period.get("id").asText())
+        JsonNode close = json(mockMvc.perform(post("/api/pharmacy/inventory-periods/{id}/close-runs", period.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"requestCode\":\"PA-CLOSE-%s\",\"currencyCode\":\"CNY\"}".formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
@@ -112,7 +112,7 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
                                 {"lotNo":"%s","productionDate":"2026-01-01","expiryDate":"2027-12-31",
                                  "manufacturerNameSnapshot":"示例制药企业","qualityStatus":"QUALIFIED"}
                                 """.formatted(lotNo)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private Fixture createFixture(String suffix) throws Exception {
@@ -123,20 +123,20 @@ class InventoryPriceAdjustmentWorkflowTest extends RhnIntegrationTestSupport {
                                  "validFrom":"2026-01-01"}
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-items", site.get("id").asText())
+        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
                                  "negativeAllowed":false,"lotRequired":true,"traceRequired":false,
                                  "splitAllowed":true,"coldChain":false,"controlled":false,"highAlert":false}
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-bins", site.get("id").asText())
+        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"PA-A","name":"调价货位","binType":"BIN","stockDefault":"AVAILABLE",
                                  "receiveAllowed":true,"pickAllowed":true,"countAllowed":true,"sortOrder":1}
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new Fixture(site.get("id").asText(), item.get("id").asText(), bin.get("id").asText());
+        return new Fixture(site.get("id").asString(), item.get("id").asString(), bin.get("id").asString());
     }
 
     private record Fixture(String siteId, String itemId, String binId) {}

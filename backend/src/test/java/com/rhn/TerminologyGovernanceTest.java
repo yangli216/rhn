@@ -90,7 +90,7 @@ class TerminologyGovernanceTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String codeSystemId = objectMapper.readTree(response).get("id").asText();
+        String codeSystemId = objectMapper.readTree(response).get("id").asString();
 
         mockMvc.perform(post("/api/platform/terminology/code-systems/{id}/concepts", codeSystemId)
                         .with(rhnWorkContext())

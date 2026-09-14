@@ -33,13 +33,13 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.code").value("TEST_REVIEWER"))
                 .andReturn().getResponse().getContentAsString();
-        String roleId = json(roleBody).get("id").asText();
+        String roleId = json(roleBody).get("id").asString();
 
         String permissionsBody = mockMvc.perform(get("/api/platform/iam/permissions").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String taskReadId = json(permissionsBody).valueStream()
-                .filter(value -> "TASK.READ".equals(value.get("code").asText()))
-                .findFirst().orElseThrow().get("id").asText();
+                .filter(value -> "TASK.READ".equals(value.get("code").asString()))
+                .findFirst().orElseThrow().get("id").asString();
 
         mockMvc.perform(put("/api/platform/iam/roles/{roleId}/permissions", roleId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -60,7 +60,7 @@ class IdentityAccessAuthorizationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.effective").value(true))
                 .andReturn().getResponse().getContentAsString();
-        String assignmentId = json(assignmentBody).get("id").asText();
+        String assignmentId = json(assignmentBody).get("id").asString();
 
         mockMvc.perform(delete("/api/platform/iam/user-role-assignments/{id}", assignmentId).with(rhnWorkContext()))
                 .andExpect(status().isNoContent());

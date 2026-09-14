@@ -171,6 +171,9 @@ export interface MedicationRequest {
   preparationSpec?: string
   preparationUnit?: string
   skinTestRequired: boolean
+  skinTestExempt?: boolean
+  skinTestExemptReason?: string
+  exemptEvidenceEventId?: string
   antimicrobial: boolean
   antimicrobialLevel?: string
   doseValue?: number
@@ -223,6 +226,9 @@ export interface CreateMedicationRequestInput {
   quantityUnit?: string
   substitutionAllowed: boolean
   selfProvided: boolean
+  skinTestExempt?: boolean
+  skinTestExemptReason?: string
+  exemptEvidenceEventId?: string
   medicationInstruction?: string
   allergyReviewConfirmed?: boolean
   allergyOverrideReason?: string
@@ -366,6 +372,9 @@ export interface BatchOrderMedicationItem {
   administrationGroupKey?: string
   routeExecutionType?: string
   categoryCode?: string
+  skinTestExempt?: boolean
+  skinTestExemptReason?: string
+  exemptEvidenceEventId?: string
   reason?: string
 }
 

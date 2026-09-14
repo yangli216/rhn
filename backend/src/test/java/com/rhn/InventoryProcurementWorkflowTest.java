@@ -39,9 +39,9 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode order = createApprovedOrder(fixture, supplier);
 
         JsonNode receipt = createReceipt(fixture, order, "GR-HAPPY-" + fixture.suffix());
-        String receiptId = receipt.get("id").asText();
-        String receiptLine1 = receipt.at("/lines/0/id").asText();
-        String receiptLine2 = receipt.at("/lines/1/id").asText();
+        String receiptId = receipt.get("id").asString();
+        String receiptLine1 = receipt.at("/lines/0/id").asString();
+        String receiptLine2 = receipt.at("/lines/1/id").asString();
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/inspect", receiptId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"description":"逐项验收并记录拒收原因","lines":[
@@ -72,7 +72,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.lines[0].inventoryTransactionId").isNotEmpty())
                 .andExpect(jsonPath("$.lines[1].inventoryTransactionId").isNotEmpty())
                 .andReturn().getResponse().getContentAsString());
-        String transaction1 = posted.at("/lines/0/inventoryTransactionId").asText();
+        String transaction1 = posted.at("/lines/0/inventoryTransactionId").asString();
 
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/post", receiptId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.lines[0].inventoryTransactionId").value(transaction1));
@@ -82,7 +82,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                         .param("allPeriods", "true"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.sourceType == 'GOODS_RECEIPT')].sourceCode")
-                        .value(receipt.get("receiptNo").asText()));
+                        .value(receipt.get("receiptNo").asString()));
         mockMvc.perform(get("/api/pharmacy/inventory-documents/GOODS_RECEIPT/{id}/events", receiptId)
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk())
@@ -92,7 +92,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
 
         assertEquals(1, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
                 "where SD_SRC_TYPE = 'GOODS_RECEIPT' and CD_SRC = ?", Integer.class,
-                receipt.get("receiptNo").asText()));
+                receipt.get("receiptNo").asString()));
         assertEquals(24, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
                 "where ID_STOCK_ITEM = ?", Integer.class, Long.valueOf(fixture.item1Id())));
         assertEquals(40, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
@@ -110,16 +110,16 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                 {"requestCode":"OPEN-TRACE-%s","stockSiteId":"%s","stockBinId":"%s",
                                  "stockItemId":"%s","stockLotId":"%s","occurredAt":"2026-08-29T00:00:00Z"}
                                 """.formatted(fixture.suffix(), fixture.siteId(), fixture.bin1Id(),
-                                fixture.item1Id(), traceA.get("stockLotId").asText())))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.traceCodeId").value(traceA.get("id").asText()))
+                                fixture.item1Id(), traceA.get("stockLotId").asString())))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.traceCodeId").value(traceA.get("id").asString()))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/pharmacy/inventory/trace-codes/{id}", traceA.get("id").asText())
+        mockMvc.perform(get("/api/pharmacy/inventory/trace-codes/{id}", traceA.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.code.status").value("OPENED"))
                 .andExpect(jsonPath("$.code.remainingBaseQuantity").value(24))
                 .andExpect(jsonPath("$.events[1].eventType").value("SPLIT_OPEN"))
                 .andExpect(jsonPath("$.events[1].balanceAfter").value(24));
-        assertEquals(traceA.get("id").asText(), opened.get("traceCodeId").asText());
+        assertEquals(traceA.get("id").asString(), opened.get("traceCodeId").asString());
         Long sourceDispenseId = 88001L;
         splitEventRepository.saveAndFlush(new InventorySplitEvent(Long.valueOf(TENANT),
                 opened.get("id").asLong(), "CONSUME", "MEDICATION_DISPENSE", sourceDispenseId,
@@ -144,18 +144,18 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
         configureSupply(supplier, PRODUCT_2, PACKAGE_2, "6.50");
         JsonNode order = createApprovedOrder(fixture, supplier);
         JsonNode receipt = createReceipt(fixture, order, "GR-ROLLBACK-" + fixture.suffix());
-        String receiptId = receipt.get("id").asText();
+        String receiptId = receipt.get("id").asString();
         mockMvc.perform(post("/api/pharmacy/goods-receipts/{id}/inspect", receiptId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lines":[
                                   {"goodsReceiptLineId":"%s","acceptedQuantity":2,"rejectedQuantity":0},
                                   {"goodsReceiptLineId":"%s","acceptedQuantity":3,"rejectedQuantity":0}
                                 ]}
-                                """.formatted(receipt.at("/lines/0/id").asText(), receipt.at("/lines/1/id").asText())))
+                                """.formatted(receipt.at("/lines/0/id").asString(), receipt.at("/lines/1/id").asString())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ACCEPTED"));
-        registerTraceCodes(receiptId, receipt.at("/lines/0/id").asText(),
+        registerTraceCodes(receiptId, receipt.at("/lines/0/id").asString(),
                 List.of("TRACE-R1-" + fixture.suffix(), "TRACE-R2-" + fixture.suffix()),
-                receipt.at("/lines/1/id").asText(), List.of("TRACE-R3-" + fixture.suffix(),
+                receipt.at("/lines/1/id").asString(), List.of("TRACE-R3-" + fixture.suffix(),
                         "TRACE-R4-" + fixture.suffix(), "TRACE-R5-" + fixture.suffix()));
         jdbcTemplate.update("update RHN_SUP_STOCK_BIN set FG_RECEIVE = false where ID_STOCK_BIN = ?", Long.valueOf(fixture.bin2Id()));
 
@@ -163,7 +163,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STOCK_BIN_NOT_RECEIVABLE"));
         assertEquals(0, jdbcTemplate.queryForObject("select count(*) from RHN_SUP_INV_TXN " +
                 "where SD_SRC_TYPE = 'GOODS_RECEIPT' and CD_SRC = ?", Integer.class,
-                receipt.get("receiptNo").asText()));
+                receipt.get("receiptNo").asString()));
         assertEquals("ACCEPTED", jdbcTemplate.queryForObject("select SD_STATUS as status from RHN_SUP_GOOD_RCPT where ID_GOOD_RCPT = ?",
                 String.class, Long.valueOf(receiptId)));
     }
@@ -188,7 +188,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
     }
 
     private void configureSupply(JsonNode supplier, String productId, String packageId, String price) throws Exception {
-        mockMvc.perform(post("/api/pharmacy/suppliers/{id}/supply-items", supplier.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/suppliers/{id}/supply-items", supplier.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","agreementPrice":%s,
                                  "taxRate":0.13,"validFrom":"2026-01-01"}
@@ -204,13 +204,13 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                    {"stockItemId":"%s","packageId":"%s","orderedQuantity":2,"unitPrice":12.80,"taxRate":0.13},
                                    {"stockItemId":"%s","packageId":"%s","orderedQuantity":3,"unitPrice":6.50,"taxRate":0.13}
                                  ]}
-                                """.formatted(fixture.siteId(), supplier.get("id").asText(), fixture.suffix(),
+                                """.formatted(fixture.siteId(), supplier.get("id").asString(), fixture.suffix(),
                                 fixture.item1Id(), PACKAGE_1, fixture.item2Id(), PACKAGE_2)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/pharmacy/purchase-orders/{id}/submit", order.get("id").asText()).with(rhnWorkContext()))
+        mockMvc.perform(post("/api/pharmacy/purchase-orders/{id}/submit", order.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SUBMITTED"));
-        return json(mockMvc.perform(post("/api/pharmacy/purchase-orders/{id}/approve", order.get("id").asText())
+        return json(mockMvc.perform(post("/api/pharmacy/purchase-orders/{id}/approve", order.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("APPROVED"))
                 .andReturn().getResponse().getContentAsString());
@@ -226,9 +226,9 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                    {"purchaseOrderLineId":"%s","destinationBinId":"%s","lotNo":"LOT-B-%s",
                                     "productionDate":"2026-06-01","expiryDate":"2028-06-01","deliveredQuantity":3}
                                  ]}
-                                """.formatted(order.get("id").asText(), requestCode, fixture.suffix(),
-                                order.at("/lines/0/id").asText(), fixture.bin1Id(), fixture.suffix(),
-                                order.at("/lines/1/id").asText(), fixture.bin2Id(), fixture.suffix())))
+                                """.formatted(order.get("id").asString(), requestCode, fixture.suffix(),
+                                order.at("/lines/0/id").asString(), fixture.bin1Id(), fixture.suffix(),
+                                order.at("/lines/1/id").asString(), fixture.bin2Id(), fixture.suffix())))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("RECEIVED"))
                 .andReturn().getResponse().getContentAsString());
     }
@@ -241,7 +241,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                  "siteType":"WAREHOUSE","serviceScope":"MIXED","validFrom":"2026-01-01"}
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String siteId = site.get("id").asText();
+        String siteId = site.get("id").asString();
         String item1 = createStockItem(siteId, PRODUCT_1, PACKAGE_1);
         String item2 = createStockItem(siteId, PRODUCT_2, PACKAGE_2);
         String bin1 = createBin(siteId, "RCV-A", "收货合格区A");
@@ -257,7 +257,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                  "splitAllowed":true,"coldChain":false,"controlled":false,"highAlert":false}
                                 """.formatted(productId, packageId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return item.get("id").asText();
+        return item.get("id").asString();
     }
 
     private String createBin(String siteId, String code, String name) throws Exception {
@@ -267,7 +267,7 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                  "receiveAllowed":true,"pickAllowed":true,"countAllowed":true,"sortOrder":10}
                                 """.formatted(code, name)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return bin.get("id").asText();
+        return bin.get("id").asString();
     }
 
     private record Fixture(String suffix, String siteId, String item1Id, String item2Id,

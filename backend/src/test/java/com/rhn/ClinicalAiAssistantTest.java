@@ -77,8 +77,8 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(0, diagnosisBaseline);
 
         JsonNode suggestion = generateSuggestion(encounterId, "AI-CONTEXT-" + suffix, planName);
-        String suggestionId = suggestion.get("id").asText();
-        String contextHash = suggestion.get("contextHash").asText();
+        String suggestionId = suggestion.get("id").asString();
+        String contextHash = suggestion.get("contextHash").asString();
 
         assertEquals(1, jdbcTemplate.queryForObject(
                 "select count(*) from RHN_AI_SUGGEST where ID_TNT=? and ID_AI_SUGGEST=? and ID_ENC=? and SD_STATUS='GENERATED'",
@@ -145,7 +145,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals("GENERATED", suggestionStatus(suggestionId));
         assertEquals(anchoredBaseline, clinicalCounts(encounterId), "锚点冲突不得改写主要临床表");
 
-        Instant expiredAt = Instant.parse(suggestion.get("generatedAt").asText()).plusMillis(10);
+        Instant expiredAt = Instant.parse(suggestion.get("generatedAt").asString()).plusMillis(10);
         while (!Instant.now().isAfter(expiredAt)) {
             Thread.onSpinWait();
         }
@@ -174,7 +174,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
         assertEquals(diagnosisBaseline, diagnosisCount(encounterId), "过期建议不得被采纳为诊断");
 
         JsonNode freshSuggestion = generateSuggestion(encounterId, "AI-CONTEXT-FRESH-" + suffix, planName);
-        String freshSuggestionId = freshSuggestion.get("id").asText();
+        String freshSuggestionId = freshSuggestion.get("id").asString();
         int freshEventBaseline = eventCount(freshSuggestionId);
 
         mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", freshSuggestionId)
@@ -199,7 +199,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                   "commandCode":"AI-ADOPT-VALID-%s","eventType":"ADOPTED","sectionCode":"ALL",
                                   "contextHash":"%s","detail":"医生确认采纳当前建议"
                                 }
-                                """.formatted(suffix, freshSuggestion.get("contextHash").asText())))
+                                """.formatted(suffix, freshSuggestion.get("contextHash").asString())))
                 .andExpect(status().isNoContent());
         assertEquals(1, eventCount(freshSuggestionId, "ADOPTED"));
 
@@ -209,7 +209,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                   "commandCode":"AI-ADOPT-DUPLICATE-%s","eventType":"ADOPTED","sectionCode":"ALL",
                                   "contextHash":"%s","detail":"重复采纳终态建议"
                                 }
-                                """.formatted(suffix, freshSuggestion.get("contextHash").asText())))
+                                """.formatted(suffix, freshSuggestion.get("contextHash").asString())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("AI_SUGGESTION_STATE_INVALID"));
         assertEquals(1, eventCount(freshSuggestionId, "ADOPTED"), "终态建议不得重复记录采纳事件");
@@ -217,7 +217,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
 
         assertEquals(1, jdbcTemplate.update(
                 "update RHN_AI_SUGGEST set DT_EXPIRES=? where ID_TNT=? and ID_AI_SUGGEST=?",
-                Instant.parse(freshSuggestion.get("generatedAt").asText()).plusMillis(10),
+                Instant.parse(freshSuggestion.get("generatedAt").asString()).plusMillis(10),
                 Long.valueOf(TENANT), Long.valueOf(freshSuggestionId)));
         mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", freshSuggestionId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -225,31 +225,31 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                   "commandCode":"AI-VIEW-TERMINAL-%s","eventType":"VIEWED","sectionCode":"ALL",
                                   "contextHash":"%s","detail":"查看已采纳的历史建议"
                                 }
-                                """.formatted(suffix, freshSuggestion.get("contextHash").asText())))
+                                """.formatted(suffix, freshSuggestion.get("contextHash").asString())))
                 .andExpect(status().isNoContent());
         assertEquals("ADOPTED", suggestionStatus(freshSuggestionId));
         assertEquals(0, eventCount(freshSuggestionId, "EXPIRED"), "终态建议查看不得伪造过期事件");
         assertEquals(1, eventCount(freshSuggestionId, "VIEWED"));
 
         JsonNode partial = generateSuggestion(encounterId, "AI-CONTEXT-PARTIAL-" + suffix, planName);
-        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", partial.get("id").asText())
+        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", partial.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "commandCode":"AI-ADOPT-PARTIAL-%s","eventType":"ADOPTED","sectionCode":"RECORD_DRAFT",
                                   "contextHash":"%s","detail":"仅采纳病历草稿"
                                 }
-                                """.formatted(suffix, partial.get("contextHash").asText())))
+                                """.formatted(suffix, partial.get("contextHash").asString())))
                 .andExpect(status().isNoContent());
-        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", partial.get("id").asText())
+        mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events", partial.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "commandCode":"AI-IGNORE-PARTIAL-%s","eventType":"IGNORED","sectionCode":"ALL",
                                   "contextHash":"%s","detail":"尝试忽略已部分采纳建议"
                                 }
-                                """.formatted(suffix, partial.get("contextHash").asText())))
+                                """.formatted(suffix, partial.get("contextHash").asString())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("AI_SUGGESTION_STATE_INVALID"));
-        assertEquals("PARTIALLY_ADOPTED", suggestionStatus(partial.get("id").asText()));
+        assertEquals("PARTIALLY_ADOPTED", suggestionStatus(partial.get("id").asString()));
 
         JsonNode beforeSuspend = generateSuggestion(encounterId, "AI-CONTEXT-SUSPEND-" + suffix, planName);
         mockMvc.perform(post("/api/encounters/{id}/suspend", encounterId).with(rhnWorkContext())
@@ -259,16 +259,16 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SUSPENDED"));
         mockMvc.perform(post("/api/ai/clinical-assistant/suggestions/{suggestionId}/events",
-                        beforeSuspend.get("id").asText()).with(rhnWorkContext())
+                        beforeSuspend.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "commandCode":"AI-ADOPT-SUSPENDED-%s","eventType":"ADOPTED","sectionCode":"ALL",
                                   "contextHash":"%s","detail":"暂挂后尝试采纳"
                                 }
-                                """.formatted(suffix, beforeSuspend.get("contextHash").asText())))
+                                """.formatted(suffix, beforeSuspend.get("contextHash").asString())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("AI_ENCOUNTER_NOT_ACTIVE"));
-        assertEquals(0, eventCount(beforeSuspend.get("id").asText(), "ADOPTED"));
+        assertEquals(0, eventCount(beforeSuspend.get("id").asString(), "ADOPTED"));
         assertEquals(anchoredBaseline, clinicalCounts(encounterId), "所有 AI 操作均不得改写主要临床表");
     }
 
@@ -314,7 +314,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -323,7 +323,7 @@ class ClinicalAiAssistantTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));

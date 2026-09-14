@@ -1877,6 +1877,9 @@ export function draftToBatchItem(draft: MedicationPlanDraft): BatchOrderMedicati
     administrationGroupKey: draft.administrationGroupKey,
     routeExecutionType: draft.routeExecutionType,
     categoryCode: draft.categoryCode,
+    skinTestExempt: draft.request.skinTestExempt,
+    skinTestExemptReason: draft.request.skinTestExemptReason,
+    exemptEvidenceEventId: draft.request.exemptEvidenceEventId,
     reason: draft.request.reason,
   }
 }

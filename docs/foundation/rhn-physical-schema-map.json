@@ -17687,7 +17687,108 @@
         "logical": "generated_by",
         "physical": "ID_USER_GENERATED",
         "comment": "生成人标识"
+      },
+      {
+        "logical": "print_task_definition_id",
+        "physical": "ID_PRINT_TASK_DEF",
+        "comment": "生成输出时冻结的标准打印任务标识"
+      },
+      {
+        "logical": "print_task_code",
+        "physical": "CD_PRINT_TASK",
+        "comment": "生成输出时冻结的标准打印任务编码"
+      },
+      {
+        "logical": "print_implementation_id",
+        "physical": "ID_PRINT_IMPL",
+        "comment": "生成输出时冻结的打印实现标识"
+      },
+      {
+        "logical": "print_implementation_binding_id",
+        "physical": "ID_PRINT_IMPL_BIND",
+        "comment": "生成输出时冻结的实现绑定标识"
+      },
+      {
+        "logical": "payload_schema_code",
+        "physical": "CD_PAYLOAD_SCHEMA",
+        "comment": "生成输出时冻结的数据契约编码"
       }
+    ]
+  },
+  {
+    "logical": "meta.print_task_definition",
+    "legacy": "print_task_definitions",
+    "physical": "RHN_META_PRINT_TASK_DEF",
+    "domain": "META",
+    "comment": "标准打印任务定义；一行代表一个业务模块稳定依赖的打印任务",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_TASK_DEF", "comment": "标准打印任务主键" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "task_code", "physical": "CD_TASK", "comment": "稳定打印任务编码" },
+      { "logical": "task_name", "physical": "NA_TASK", "comment": "打印任务名称" },
+      { "logical": "category", "physical": "SD_CATEGORY", "comment": "打印任务分类" },
+      { "logical": "source_type", "physical": "SD_SOURCE_TYPE", "comment": "业务数据源类型" },
+      { "logical": "data_provider_code", "physical": "CD_DATA_PROVIDER", "comment": "数据提供器编码" },
+      { "logical": "payload_schema_code", "physical": "CD_PAYLOAD_SCHEMA", "comment": "打印数据契约编码" },
+      { "logical": "schema_version", "physical": "SN_SCHEMA_VER", "comment": "数据契约版本号" },
+      { "logical": "purposes_json", "physical": "JSON_PURPOSES", "comment": "允许的打印用途集合" },
+      { "logical": "batch_enabled", "physical": "FG_BATCH", "comment": "是否支持批量打印" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "任务状态" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
+    ]
+  },
+  {
+    "logical": "meta.print_implementation",
+    "legacy": "print_implementations",
+    "physical": "RHN_META_PRINT_IMPL",
+    "domain": "META",
+    "comment": "打印实现注册；一行代表一个内部模板或受控外部报表实现",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_IMPL", "comment": "打印实现主键" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "tenant_id", "physical": "ID_TNT", "comment": "所属租户标识，为空表示平台实现" },
+      { "logical": "implementation_code", "physical": "CD_IMPL", "comment": "打印实现编码" },
+      { "logical": "implementation_name", "physical": "NA_IMPL", "comment": "打印实现名称" },
+      { "logical": "renderer_type", "physical": "SD_RENDERER", "comment": "渲染器类型" },
+      { "logical": "adapter_code", "physical": "CD_ADAPTER", "comment": "渲染适配器编码" },
+      { "logical": "print_template_id", "physical": "ID_PRINT_TMPL", "comment": "内部打印模板标识" },
+      { "logical": "payload_schema_code", "physical": "CD_PAYLOAD_SCHEMA", "comment": "适用的数据契约编码" },
+      { "logical": "output_format", "physical": "SD_OUTPUT_FORMAT", "comment": "输出格式" },
+      { "logical": "config_json", "physical": "JSON_CONFIG", "comment": "实现扩展配置" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "实现状态" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
+    ]
+  },
+  {
+    "logical": "meta.print_implementation_binding",
+    "legacy": "print_implementation_bindings",
+    "physical": "RHN_META_PRINT_IMPL_BIND",
+    "domain": "META",
+    "comment": "打印实现绑定；一行代表一条平台、租户、机构或科室级解析规则",
+    "columns": [
+      { "logical": "id", "physical": "ID_PRINT_IMPL_BIND", "comment": "打印实现绑定主键" },
+      { "logical": "revision", "physical": "REVISION", "comment": "乐观锁修订号" },
+      { "logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识" },
+      { "logical": "organization_id", "physical": "ID_ORG", "comment": "机构标识" },
+      { "logical": "department_id", "physical": "ID_DEPT", "comment": "科室标识" },
+      { "logical": "print_task_definition_id", "physical": "ID_PRINT_TASK_DEF", "comment": "标准打印任务标识" },
+      { "logical": "purpose", "physical": "SD_PURPOSE", "comment": "打印用途" },
+      { "logical": "print_implementation_id", "physical": "ID_PRINT_IMPL", "comment": "打印实现标识" },
+      { "logical": "scope", "physical": "SD_SCOPE", "comment": "覆盖范围层级" },
+      { "logical": "fallback_policy", "physical": "SD_FALLBACK", "comment": "回退策略" },
+      { "logical": "valid_from", "physical": "DT_VALID_FROM", "comment": "生效时间" },
+      { "logical": "valid_to", "physical": "DT_VALID_TO", "comment": "失效时间" },
+      { "logical": "status", "physical": "SD_STATUS", "comment": "绑定状态" },
+      { "logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间" },
+      { "logical": "created_by", "physical": "ID_USER_CREATED", "comment": "创建人标识" },
+      { "logical": "updated_at", "physical": "DT_UPDATED", "comment": "更新时间" },
+      { "logical": "updated_by", "physical": "ID_USER_UPDATED", "comment": "更新人标识" }
     ]
   },
   {

@@ -26,8 +26,8 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
         recordDrugAllergy(residentId, encounterId);
         createPharmacyWithStock(suffix, 2);
         JsonNode plan = createPlan(suffix);
-        String planId = plan.get("id").asText();
-        String lineId = plan.at("/medications/0/lineId").asText();
+        String planId = plan.get("id").asString();
+        String lineId = plan.at("/medications/0/lineId").asString();
 
         mockMvc.perform(post("/api/ai/clinical-assistant/encounters/{encounterId}/plan-templates/{templateId}/preflight",
                         encounterId, planId).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -89,7 +89,7 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
                                   "gender":"MALE","birthDate":"1975-06-18"
                                 }
                                 """.formatted(suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createStartedEncounter(String residentId, String suffix) throws Exception {
@@ -98,7 +98,7 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"AI-PREFLIGHT-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
         return encounterId;
     }
@@ -142,21 +142,21 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
                                  "validFrom":"2026-01-01"}
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
                                  "negativeAllowed":false,"lotRequired":true,"traceRequired":false,
                                  "splitAllowed":false,"coldChain":false,"controlled":false,"highAlert":false}
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asText())
+        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"AIPF-BIN-%s","name":"AI预检发药位","binType":"COUNTER",
                                  "stockDefault":"AVAILABLE","receiveAllowed":true,"pickAllowed":true,
                                  "countAllowed":true,"sortOrder":10}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asText())
+        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lotNo":"AIPF-%s","productionDate":"2026-01-01","expiryDate":"2027-12-31",
                                  "manufacturerNameSnapshot":"示例制药企业","qualityStatus":"QUALIFIED"}
@@ -167,15 +167,15 @@ class ClinicalAiPlanPreflightTest extends RhnIntegrationTestSupport {
                                 {"requestCode":"AIPF-RCV-%s","sourceCode":"AIPF-OPEN-%s",
                                  "stockItemId":"%s","stockBinId":"%s","stockLotId":"%s",
                                  "operationQuantity":%d,"unitCost":0.60,"occurredAt":"%s","description":"AI预检入库"}
-                                """.formatted(suffix, suffix, item.get("id").asText(), bin.get("id").asText(),
-                                lot.get("id").asText(), baseQuantity, Instant.now())))
+                                """.formatted(suffix, suffix, item.get("id").asString(), bin.get("id").asString(),
+                                lot.get("id").asString(), baseQuantity, Instant.now())))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/pharmacy/dispense-routes").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"organizationId":"%s","code":"AIPF-ROUTE-%s","name":"AI预检发药路由",
                                  "careSetting":"OUTPATIENT","sourceDepartmentId":"%s","targetStockSiteId":"%s",
                                  "active":true,"validFrom":"2026-01-01"}
-                                """.formatted(ORGANIZATION, suffix, DEPARTMENT, site.get("id").asText())))
+                                """.formatted(ORGANIZATION, suffix, DEPARTMENT, site.get("id").asString())))
                 .andExpect(status().isCreated());
     }
 }

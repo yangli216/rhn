@@ -782,12 +782,12 @@ class SchedulingApplicationService {
 
     private PeriodDefault periodValue(ExecutionContext context, String key) {
         ConfigurationValue value = value(context, key);
-        return new PeriodDefault(LocalTime.parse(value.value().get("start").asText()),
-                LocalTime.parse(value.value().get("end").asText()));
+        return new PeriodDefault(LocalTime.parse(value.value().get("start").asString()),
+                LocalTime.parse(value.value().get("end").asString()));
     }
 
     private int intValue(ExecutionContext context, String key) { return value(context, key).value().asInt(); }
-    private String textValue(ExecutionContext context, String key) { return value(context, key).value().asText(); }
+    private String textValue(ExecutionContext context, String key) { return value(context, key).value().asString(); }
 
     private ConfigurationValue value(ExecutionContext context, String key) {
         return configurationDirectory.resolveCurrent(context.tenantId(), context.subjectId(),

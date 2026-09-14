@@ -31,4 +31,7 @@ record CreateMedicationRequest(
         LocalDate businessDate,
         Long performerOrganizationId,
         Long performerDepartmentId,
+        Boolean skinTestExempt,
+        @Size(max = 500) String skinTestExemptReason,
+        Long exemptEvidenceEventId,
         @Size(max = 1000) String reason) {}

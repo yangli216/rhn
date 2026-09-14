@@ -64,10 +64,10 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"QUEUE-DATE-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String registrationId = encounter.get("registrationId").asText();
+        String registrationId = encounter.get("registrationId").asString();
         LocalDate queriedDate = LocalDate.now(BUSINESS_ZONE).minusDays(2);
         Instant nextDayStart = queriedDate.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
         jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGISTERED = ? where ID_PAT_REG = ?",
@@ -98,11 +98,11 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"QUEUE-OWN-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString()))
                 .andExpect(status().isOk());
 
         JsonNode personal = json(mockMvc.perform(get("/api/outpatient/reception/queue")
@@ -111,10 +111,10 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString());
         JsonNode item = StreamSupport.stream(personal.spliterator(), false)
-                .filter(value -> encounter.get("registrationId").asText().equals(value.get("registrationId").asText()))
+                .filter(value -> encounter.get("registrationId").asString().equals(value.get("registrationId").asString()))
                 .findFirst().orElseThrow();
 
-        assertEquals("doctor", item.get("clinicianId").asText());
+        assertEquals("doctor", item.get("clinicianId").asString());
         assertTrue(item.hasNonNull("clinicianName"));
     }
 
@@ -143,10 +143,10 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"PAGE-TEST-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String registrationId = encounter.get("registrationId").asText();
+        String registrationId = encounter.get("registrationId").asString();
 
         // 验证基本分页返回
         JsonNode pageResp = json(mockMvc.perform(get("/api/outpatient/reception/page").with(rhnWorkContext())
@@ -220,10 +220,10 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
                                   "residentId":"%s","organizationId":"%s","departmentId":"%s",
                                   "idempotencyCode":"GEN-QUEUE-%s"
                                 }
-                                """.formatted(resident.get("id").asText(), ORGANIZATION, DEPARTMENT, suffix)))
+                                """.formatted(resident.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String registrationId = encounter.get("registrationId").asText();
+        String registrationId = encounter.get("registrationId").asString();
 
         // 当医生没有本人专属排班时，查询 PERSONAL 视角，普通号应该默认出现在待诊队列
         JsonNode personalQueue = json(mockMvc.perform(get("/api/outpatient/reception/queue")
@@ -252,7 +252,7 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
 
     private boolean containsRegistration(JsonNode registrations, String registrationId) {
         return StreamSupport.stream(registrations.spliterator(), false)
-                .anyMatch(value -> registrationId.equals(value.get("registrationId").asText()));
+                .anyMatch(value -> registrationId.equals(value.get("registrationId").asString()));
     }
 
     private void setPermissionActive(String code, boolean active) {

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type {
-  PrintAdministrationCatalog, PrintTemplateDraft, RhnApi, SavePrintDraft,
+  PrintAdministrationCatalog, PrintTemplateDraft, PublishedPrintTemplate, RhnApi, SavePrintDraft,
 } from '../../shared/rhnApi'
 import { PrintTemplateManagement } from './PrintTemplateManagement'
 
@@ -34,7 +34,13 @@ function draft(status: PrintTemplateDraft['status'] = 'DRAFT', revision = 1): Pr
   }
 }
 
-function renderManagement(initial = draft()) {
+const publishedTemplate: PublishedPrintTemplate = {
+  id: 'template-1', templateCode: 'ORAL_MEDICATION_CARD_80', templateName: '口服药卡 80mm',
+  documentType: 'ORAL_MEDICATION_CARD', scope: 'PLATFORM', currentVersion: 3,
+  layoutSchema: 'RHN_PRINT_CANVAS_V1',
+}
+
+function renderManagement(initial = draft(), published: PublishedPrintTemplate[] = []) {
   let current = initial
   const updateTemplateDraft = vi.fn(async (_id: string, value: Omit<SavePrintDraft, 'templateCode'> & { expectedRevision: number }) => {
     current = { ...current, revision: current.revision + 1, templateName: value.templateName, configJson: value.configJson }
@@ -51,17 +57,18 @@ function renderManagement(initial = draft()) {
   const updateClinicalPrintDevice = vi.fn(async (_id: string, value: Record<string, unknown>) => ({
     ...device, ...value, revision: 3,
   }))
+  const previewPublishedTemplate = vi.fn(async () => new Blob(['%PDF-preview'], { type: 'application/pdf' }))
   const api = { printing: {
     administrationCatalog: vi.fn().mockResolvedValue(catalog),
-    templateDrafts: vi.fn(async () => [current]), templates: vi.fn().mockResolvedValue([]),
+    templateDrafts: vi.fn(async () => [current]), templates: vi.fn().mockResolvedValue(published),
     createTemplateDraft: vi.fn(), updateTemplateDraft, transitionTemplateDraft,
-    clonePublishedTemplate: vi.fn(), previewTemplateDraft: vi.fn(),
+    clonePublishedTemplate: vi.fn(), previewTemplateDraft: vi.fn(), previewPublishedTemplate,
     clinicalPrintDeviceManagement: vi.fn().mockResolvedValue({ devices: [device], bindings: [] }),
     createClinicalPrintDevice: vi.fn(), updateClinicalPrintDevice, bindClinicalPrintDevice: vi.fn(),
   } } as unknown as RhnApi
   const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
   render(<QueryClientProvider client={client}><PrintTemplateManagement api={api} /></QueryClientProvider>)
-  return { updateTemplateDraft, transitionTemplateDraft, updateClinicalPrintDevice }
+  return { updateTemplateDraft, transitionTemplateDraft, updateClinicalPrintDevice, previewPublishedTemplate }
 }
 
 describe('PrintTemplateManagement', () => {
@@ -95,6 +102,33 @@ describe('PrintTemplateManagement', () => {
     expect(screen.getByRole('button', { name: '退回' })).toBeEnabled()
     expect(screen.queryByRole('button', { name: '提交审核' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '保存' })).toBeDisabled()
+  })
+
+  it('adds a predefined business field and exposes common display formatting', async () => {
+    const user = userEvent.setup()
+    const { updateTemplateDraft } = renderManagement()
+
+    await user.click(await screen.findByRole('button', { name: '药品名称' }))
+    expect(screen.getByDisplayValue('药品名称：{{medicationName}}')).toBeInTheDocument()
+    await user.click(screen.getByRole('switch', { name: '粗体' }))
+    await user.click(screen.getByRole('switch', { name: '边框' }))
+    await user.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => expect(updateTemplateDraft).toHaveBeenCalledTimes(1))
+    expect(JSON.parse(updateTemplateDraft.mock.calls[0][1].configJson).elements.at(-1)).toMatchObject({
+      type: 'text', template: '药品名称：{{medicationName}}', bold: true, border: true,
+    })
+  })
+
+  it('previews an immutable published version from the published template list', async () => {
+    const user = userEvent.setup()
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:published-preview')
+    const { previewPublishedTemplate } = renderManagement(draft(), [publishedTemplate])
+
+    await user.click(await screen.findByRole('button', { name: '预览已发布模板 口服药卡 80mm' }))
+    await waitFor(() => expect(previewPublishedTemplate).toHaveBeenCalledWith('template-1', expect.objectContaining({ patientName: '张晓宁' })))
+    expect(await screen.findByTitle('已发布打印模板 PDF 预览')).toHaveAttribute('src', 'blob:published-preview')
+    createObjectUrl.mockRestore()
   })
 
   it('edits a local bridge device in the same print management workspace', async () => {

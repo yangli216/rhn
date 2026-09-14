@@ -51,7 +51,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(post("/api/platform/master-data/order-frequencies/{id}/configurations",
-                        created.get("id").asText()).with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        created.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"organizationId":"%s","departmentId":"%s","localName":"每三小时",
                          "firstDayPolicy":"FROM_ORDER_TIME","enabled":true,"status":"ACTIVE",
                          "validFrom":"2026-01-01"}

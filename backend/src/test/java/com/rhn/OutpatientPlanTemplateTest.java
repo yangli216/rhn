@@ -38,7 +38,7 @@ class OutpatientPlanTemplateTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.diagnoses.length()").value(2))
                 .andReturn().getResponse().getContentAsString());
 
-        String templateId = created.get("id").asText();
+        String templateId = created.get("id").asString();
         mockMvc.perform(get("/api/outpatient/plan-templates").with(rhnWorkContext()).param("keyword", suffix))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(Long.valueOf(templateId)))
                 .andExpect(jsonPath("$[0].useCount").value(0));

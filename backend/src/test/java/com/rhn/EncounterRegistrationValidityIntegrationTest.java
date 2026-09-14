@@ -41,7 +41,7 @@ class EncounterRegistrationValidityIntegrationTest extends RhnIntegrationTestSup
                                   "gender":"MALE","birthDate":"1990-01-01","phone":"13900139000"
                                 }
                                 """.formatted(suffix, digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
 
         // 2. 发起首次挂号（处于当日效期内）
         String firstEncounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -51,7 +51,7 @@ class EncounterRegistrationValidityIntegrationTest extends RhnIntegrationTestSup
                                   "idempotencyCode":"VAL-REG-1-%s"
                                 }
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
 
         // 3. 效期内再次挂号，验证被阻断并抛出 ENCOUNTER_ACTIVE_DUPLICATE
         mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
@@ -85,7 +85,7 @@ class EncounterRegistrationValidityIntegrationTest extends RhnIntegrationTestSup
                                   "idempotencyCode":"VAL-REG-2-%s"
                                 }
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
 
         assertNotNull(secondEncounterId);
 

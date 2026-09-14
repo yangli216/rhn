@@ -25,7 +25,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         String residentId = createResident(suffix);
         String encounterId = createActiveEncounter(residentId);
         JsonNode request = createRequest(encounterId, "362387869795101", "危急值闭环测试");
-        String requestNo = request.get("requestNo").asText();
+        String requestNo = request.get("requestNo").asString();
 
         JsonNode report = json(mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -35,14 +35,14 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
 
         JsonNode active = json(mockMvc.perform(get("/api/critical-values").with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.reportId == '%s')].status".formatted(report.get("id").asText()))
+                .andExpect(jsonPath("$[?(@.reportId == '%s')].status".formatted(report.get("id").asString()))
                         .value("OPEN"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode alert = null;
-        for (JsonNode item : active) if (item.get("reportId").asText().equals(report.get("id").asText())) alert = item;
+        for (JsonNode item : active) if (item.get("reportId").asString().equals(report.get("id").asString())) alert = item;
         if (alert == null) throw new AssertionError("危急值未形成持久化告警");
 
-        mockMvc.perform(post("/api/critical-values/{id}/acknowledge", alert.get("id").asText())
+        mockMvc.perform(post("/api/critical-values/{id}/acknowledge", alert.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"note\":\"已确认并联系患者\"}"
                                 .formatted(alert.get("revision").asLong())))
@@ -56,7 +56,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("CORRECTED"));
         mockMvc.perform(get("/api/critical-values").with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[?(@.reportId == '%s')]".formatted(report.get("id").asText())).isEmpty());
+                .andExpect(jsonPath("$[?(@.reportId == '%s')]".formatted(report.get("id").asString())).isEmpty());
         assertEquals("SUPERSEDED", jdbcTemplate.queryForObject(
                 "select SD_STATUS as status from RHN_VIS_CRIT_VAL_ALERT where ID_CRIT_VAL_ALERT = ?", String.class, alert.get("id").asLong()));
     }
@@ -68,10 +68,10 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
         String encounterId = createActiveEncounter(residentId);
 
         JsonNode laboratory = createRequest(encounterId, "362387869795101", "血常规复查");
-        String laboratoryId = laboratory.get("id").asText();
-        String requestNo = laboratory.get("requestNo").asText();
-        assertEquals("LABORATORY", laboratory.get("serviceType").asText());
-        assertEquals("WHOLE_BLOOD", laboratory.get("specimenType").asText());
+        String laboratoryId = laboratory.get("id").asString();
+        String requestNo = laboratory.get("requestNo").asString();
+        assertEquals("LABORATORY", laboratory.get("serviceType").asString());
+        assertEquals("WHOLE_BLOOD", laboratory.get("specimenType").asString());
 
         JsonNode outbound = json(mockMvc.perform(post(
                                 "/api/integration/diagnostics/requests/{id}/outbound-messages", laboratoryId)
@@ -88,13 +88,13 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"endpointCode\":\"LIS-DEMO\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(outbound.get("id").asText()))
+                .andExpect(jsonPath("$.id").value(outbound.get("id").asString()))
                 .andExpect(jsonPath("$.duplicate").value(true));
         mockMvc.perform(get("/api/integration/diagnostics/outbound-messages")
                         .param("endpointCode", "LIS-DEMO").param("status", "PENDING").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].businessMessageId").value(requestNo + "-R0"));
-        mockMvc.perform(post("/api/integration/diagnostics/outbound-messages/{id}/delivery", outbound.get("id").asText())
+        mockMvc.perform(post("/api/integration/diagnostics/outbound-messages/{id}/delivery", outbound.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"delivered\":true}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SENT"));
@@ -129,7 +129,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(reportV1))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(firstReport.get("id").asText()));
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(firstReport.get("id").asString()));
 
         mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -144,7 +144,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.reportVersion").value(2))
                 .andExpect(jsonPath("$.status").value("CORRECTED"))
-                .andExpect(jsonPath("$.replacesReportId").value(firstReport.get("id").asText()))
+                .andExpect(jsonPath("$.replacesReportId").value(firstReport.get("id").asString()))
                 .andExpect(jsonPath("$.observations[0].status").value("CORRECTED"));
 
         mockMvc.perform(get("/api/service-requests/{id}/diagnostic-reports", laboratoryId).with(rhnWorkContext()))
@@ -152,8 +152,8 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].reportVersion").value(2));
 
         JsonNode imaging = createRequest(encounterId, "362387869795103", "腹痛待查");
-        String imagingRequestNo = imaging.get("requestNo").asText();
-        assertEquals("EXAMINATION", imaging.get("serviceType").asText());
+        String imagingRequestNo = imaging.get("requestNo").asString();
+        assertEquals("EXAMINATION", imaging.get("serviceType").asString());
         mockMvc.perform(post("/api/integration/diagnostics/inbound/reports")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
@@ -219,7 +219,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                                 {"fullName":"诊断交换测试居民","identifiers":[{"system":"9","value":"33010219920808%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-08-08"}
                                 """.formatted(tail)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -228,7 +228,7 @@ class DiagnosticExchangeTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String encounterId = encounter.get("id").asText();
+        String encounterId = encounter.get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
         return encounterId;

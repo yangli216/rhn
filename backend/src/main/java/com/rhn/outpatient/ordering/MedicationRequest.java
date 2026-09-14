@@ -95,6 +95,9 @@ class MedicationRequest {
     @Column(name = "PREPARATION_SPEC_SNAPSHOT", table = "RHN_EX_MED_REQ") private String preparationSpecSnapshot;
     @Column(name = "PREPARATION_UNIT_SNAPSHOT", table = "RHN_EX_MED_REQ") private String preparationUnitSnapshot;
     @Column(name = "FG_SKIN_TEST_REQUIRED_SNAP", table = "RHN_EX_MED_REQ", nullable = false) private boolean skinTestRequiredSnapshot;
+    @Column(name = "FG_SKIN_TEST_EXEMPT", table = "RHN_EX_MED_REQ", nullable = false) private boolean skinTestExempt;
+    @Column(name = "DES_SKIN_TEST_EXEMPT_REASON", table = "RHN_EX_MED_REQ") private String skinTestExemptReason;
+    @Column(name = "ID_EXEMPT_EVIDENCE_EVENT", table = "RHN_EX_MED_REQ") private Long exemptEvidenceEventId;
     @Column(name = "FG_ANTIMICROBIAL_SNAP", table = "RHN_EX_MED_REQ", nullable = false) private boolean antimicrobialSnapshot;
     @Column(name = "SD_ANTIMICROBIAL_LEVEL_SNAP", table = "RHN_EX_MED_REQ") private String antimicrobialLevelSnapshot;
     @Lob @Column(name = "MEDICATION_SNAPSHOT", table = "RHN_EX_MED_REQ", nullable = false) private String medicationSnapshot;
@@ -118,6 +121,7 @@ class MedicationRequest {
                       boolean substitutionAllowed, boolean selfProvided, String medicationInstruction,
                       String medicationCode, String medicationName, String medicationType, String doseForm,
                       String preparationSpec, String preparationUnit, boolean skinTestRequired,
+                      boolean skinTestExempt, String skinTestExemptReason, Long exemptEvidenceEventId,
                       boolean antimicrobial, String antimicrobialLevel, String medicationSnapshot) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.medicationTenantId = tenantId;
         this.residentId = residentId; this.encounterId = encounterId; this.requestNo = requestNo;
@@ -150,8 +154,16 @@ class MedicationRequest {
         this.medicationCodeSnapshot = medicationCode; this.medicationNameSnapshot = medicationName;
         this.medicationTypeSnapshot = medicationType; this.doseFormSnapshot = doseForm;
         this.preparationSpecSnapshot = preparationSpec; this.preparationUnitSnapshot = preparationUnit;
-        this.skinTestRequiredSnapshot = skinTestRequired; this.antimicrobialSnapshot = antimicrobial;
+        this.skinTestRequiredSnapshot = skinTestRequired;
+        this.skinTestExempt = skinTestExempt;
+        this.skinTestExemptReason = clean(skinTestExemptReason);
+        this.exemptEvidenceEventId = exemptEvidenceEventId;
+        this.antimicrobialSnapshot = antimicrobial;
         this.antimicrobialLevelSnapshot = antimicrobialLevel; this.medicationSnapshot = medicationSnapshot;
+    }
+
+    private static String clean(String str) {
+        return str == null || str.isBlank() ? null : str.trim();
     }
 
     void cancel(long expectedRevision, String reason, Long actorId) {
@@ -207,6 +219,8 @@ class MedicationRequest {
     String medicationNameSnapshot() { return medicationNameSnapshot; } String medicationTypeSnapshot() { return medicationTypeSnapshot; }
     String doseFormSnapshot() { return doseFormSnapshot; } String preparationSpecSnapshot() { return preparationSpecSnapshot; }
     String preparationUnitSnapshot() { return preparationUnitSnapshot; } boolean skinTestRequiredSnapshot() { return skinTestRequiredSnapshot; }
+    boolean skinTestExempt() { return skinTestExempt; } String skinTestExemptReason() { return skinTestExemptReason; }
+    Long exemptEvidenceEventId() { return exemptEvidenceEventId; }
     boolean antimicrobialSnapshot() { return antimicrobialSnapshot; } String antimicrobialLevelSnapshot() { return antimicrobialLevelSnapshot; }
     String medicationSnapshot() { return medicationSnapshot; } Instant cancelledAt() { return cancelledAt; }
     Long cancelledBy() { return cancelledBy; } String cancelReason() { return cancelReason; }

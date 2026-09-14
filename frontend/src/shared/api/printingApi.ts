@@ -9,6 +9,10 @@ export interface PrintReceipt {
   requestType: 'ORIGINAL' | 'REPRINT'
   status: 'GENERATED' | 'FAILED'
   copies: number
+  taskCode: string
+  implementationCode: string
+  implementationScope: 'PLATFORM' | 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT' | 'FROZEN'
+  payloadSchema: string
   documentType: string
   templateCode: string
   templateVersion: number
@@ -43,6 +47,10 @@ export interface PrintRecord {
   sourceType: string
   sourceId: string
   sourceVersion: number
+  taskCode: string
+  implementationId: string
+  implementationBindingId: string
+  payloadSchema: string
   documentType: string
   residentId?: string | null
   encounterId?: string | null
@@ -135,6 +143,82 @@ export interface SavePrintDraft {
   templateName: string
   layoutSchema: 'RHN_PRINT_FLOW_V1' | 'RHN_PRINT_CANVAS_V1'
   configJson: string
+}
+
+export type PrintImplementationScope = 'PLATFORM' | 'TENANT' | 'ORGANIZATION' | 'DEPARTMENT'
+
+export interface PrintBusinessTask {
+  id: string
+  revision: number
+  taskCode: string
+  taskName: string
+  category: string
+  sourceType: string
+  dataProviderCode: string
+  payloadSchema: string
+  schemaVersion: number
+  allowedPurposes: PrintPurpose[]
+  batchSupported: boolean
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
+export interface PrintImplementation {
+  id: string
+  revision: number
+  implementationCode: string
+  implementationName: string
+  rendererType: 'INTERNAL_TEMPLATE' | 'EXTERNAL_REPORT' | 'LEGACY_REPORT'
+  adapterCode: string
+  templateId?: string | null
+  templateCode?: string | null
+  templateName?: string | null
+  payloadSchema: string
+  outputFormat: 'PDF' | 'HTML' | 'RAW'
+  scope: 'PLATFORM' | 'TENANT'
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
+export interface PrintImplementationBinding {
+  id: string
+  revision: number
+  taskDefinitionId: string
+  purpose: PrintPurpose | '*'
+  implementationId: string
+  scopeType: PrintImplementationScope
+  ownerName: string
+  fallbackPolicy: 'FAIL_CLOSED' | 'PLATFORM_DEFAULT'
+  validFrom: string
+  validTo?: string | null
+  status: 'ACTIVE' | 'INACTIVE'
+}
+
+export interface PrintBusinessOverview {
+  tasks: PrintBusinessTask[]
+  implementations: PrintImplementation[]
+  bindings: PrintImplementationBinding[]
+  tenantId: string
+  organizationId: string
+  departmentId: string
+  organizationName: string
+}
+
+export interface PrintTaskResolution {
+  task: PrintBusinessTask
+  binding: PrintImplementationBinding
+  implementation: PrintImplementation
+  templateCode: string
+  templateName: string
+  templateVersion: number
+  trace: Array<{ scopeType: PrintImplementationScope; result: string; selected: boolean; bindingId?: string | null }>
+}
+
+export interface SavePrintImplementationBinding {
+  expectedRevision: number
+  taskDefinitionId: string
+  scopeType: Exclude<PrintImplementationScope, 'PLATFORM'>
+  purpose: PrintPurpose | '*'
+  implementationId: string
+  fallbackPolicy: 'FAIL_CLOSED' | 'PLATFORM_DEFAULT'
 }
 
 export type ClinicalPrintDocumentType = 'ORAL_MEDICATION_CARD' | 'INFUSION_LABEL' | 'INFUSION_PATROL_CARD'
@@ -275,6 +359,14 @@ export function createPrintingApi(client: ApiClient) {
     templates: () => client.request<PublishedPrintTemplate[]>('/api/platform/printing/templates'),
     administrationCatalog: () => client.request<PrintAdministrationCatalog>(
       '/api/platform/printing/administration/catalog'),
+    printBusinessOverview: () => client.request<PrintBusinessOverview>(
+      '/api/platform/printing/administration/business'),
+    previewPrintTaskResolution: (taskCode: string, purpose: PrintPurpose) => {
+      const query = new URLSearchParams({ taskCode, purpose })
+      return client.request<PrintTaskResolution>(`/api/platform/printing/administration/business/resolution?${query}`)
+    },
+    bindPrintImplementation: (value: SavePrintImplementationBinding) => client.request<PrintImplementationBinding>(
+      '/api/platform/printing/administration/business/bindings', { method: 'POST', body: JSON.stringify(value) }),
     templateDrafts: () => client.request<PrintTemplateDraft[]>('/api/platform/printing/administration/drafts'),
     createTemplateDraft: (value: SavePrintDraft) => client.request<PrintTemplateDraft>(
       '/api/platform/printing/administration/drafts', { method: 'POST', body: JSON.stringify(value) }),
@@ -290,6 +382,10 @@ export function createPrintingApi(client: ApiClient) {
       `/api/platform/printing/administration/templates/${templateId}/drafts`, { method: 'POST' }),
     previewTemplateDraft: (draftId: string, sampleData: Record<string, unknown>) => client.download(
       `/api/platform/printing/administration/drafts/${draftId}/preview`, {
+        method: 'POST', body: JSON.stringify({ sampleData }),
+      }),
+    previewPublishedTemplate: (templateId: string, sampleData: Record<string, unknown>) => client.download(
+      `/api/platform/printing/administration/templates/${templateId}/preview`, {
         method: 'POST', body: JSON.stringify({ sampleData }),
       }),
     clinicalDocument: (documentId: string, purpose: PrintPurpose = 'PATIENT_COPY', copies = 1) =>

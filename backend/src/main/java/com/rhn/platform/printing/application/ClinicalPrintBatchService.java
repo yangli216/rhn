@@ -1,5 +1,6 @@
 package com.rhn.platform.printing.application;
 
+import com.rhn.platform.printing.api.PrintTaskCodes;
 import com.rhn.platform.printing.domain.ClinicalPrintBatch;
 import com.rhn.platform.printing.domain.ClinicalPrintBatchItem;
 import com.rhn.platform.printing.domain.PrintDelivery;
@@ -73,6 +74,7 @@ public class ClinicalPrintBatchService {
     private final BatchPdfComposer composer;
     private final JsonCodec jsonCodec;
     private final ExecutionContextProvider contextProvider;
+    private final PrintTaskResolutionService taskResolutionService;
 
     public ClinicalPrintBatchService(TreatmentExecutionService treatmentService,
             PrintTemplateRepository templates, PrintTemplateVersionRepository versions,
@@ -80,12 +82,14 @@ public class ClinicalPrintBatchService {
             PrintDeviceBindingRepository bindings, ClinicalPrintBatchRepository batches,
             ClinicalPrintBatchItemRepository batchItems, PrintOutputRepository outputs,
             PrintJobRepository jobs, PrintDeliveryRepository deliveries, ClinicalPdfRenderer renderer,
-            BatchPdfComposer composer, JsonCodec jsonCodec, ExecutionContextProvider contextProvider) {
+            BatchPdfComposer composer, JsonCodec jsonCodec, ExecutionContextProvider contextProvider,
+            PrintTaskResolutionService taskResolutionService) {
         this.treatmentService = treatmentService; this.templates = templates; this.versions = versions;
         this.mediaProfiles = mediaProfiles; this.devices = devices; this.bindings = bindings;
         this.batches = batches; this.batchItems = batchItems; this.outputs = outputs; this.jobs = jobs;
         this.deliveries = deliveries; this.renderer = renderer; this.composer = composer;
         this.jsonCodec = jsonCodec; this.contextProvider = contextProvider;
+        this.taskResolutionService = taskResolutionService;
     }
 
     @Transactional
@@ -193,7 +197,8 @@ public class ClinicalPrintBatchService {
         outputSnapshot.put("selection", selection); outputSnapshot.put("cards", frozenSnapshots);
         String fileName = documentName(documentType) + "-" + LocalDate.now(BUSINESS_ZONE) + "-" + batch.id() + ".pdf";
         PrintOutput output = outputs.saveAndFlush(new PrintOutput(context.tenantId(), resolved.template,
-                resolved.version, "CLINICAL_PRINT_BATCH", batch.id(), 1, documentType, null, null,
+                resolved.version, resolved.task.task(), resolved.task.implementation(), resolved.task.binding(),
+                "CLINICAL_PRINT_BATCH", batch.id(), 1, documentType, null, null,
                 context.organizationId(), context.departmentId(), "CLINICAL_USE", jsonCodec.write(outputSnapshot),
                 fileName, pdf.content(), "SHA-256", sha256(pdf.content()), context.subjectId()));
         boolean reprint = originalJobId != null;
@@ -448,15 +453,12 @@ public class ClinicalPrintBatchService {
     }
 
     private ResolvedTemplate resolveTemplate(ExecutionContext context, String documentType) {
-        PrintTemplate template = templates.findFirstByTenantIdAndDocumentTypeAndStatusOrderByUpdatedAtDesc(
-                        context.tenantId(), documentType, "ACTIVE")
-                .or(() -> templates.findFirstByTenantIdIsNullAndDocumentTypeAndStatusOrderByUpdatedAtDesc(
-                        documentType, "ACTIVE"))
-                .orElseThrow(() -> notFound("PRINT_TEMPLATE_NOT_FOUND", "当前卡片类型没有已发布模板"));
-        PrintTemplateVersion version = versions.findByTemplateIdAndVersionNo(template.id(), template.currentVersion())
-                .orElseThrow(() -> notFound("PRINT_TEMPLATE_VERSION_NOT_FOUND", "打印模板当前版本不存在"));
+        PrintTaskResolutionService.ResolvedPrintTask task = taskResolutionService.resolve(
+                taskCode(documentType), "CLINICAL_USE", context);
+        PrintTemplate template = task.template();
+        PrintTemplateVersion version = task.version();
         PrintMediaProfile media = requireMedia(version.mediaProfileId(), context.tenantId());
-        return new ResolvedTemplate(template, version, media);
+        return new ResolvedTemplate(task, template, version, media);
     }
 
     private List<PrintMediaProfile> compatibleMedia(ExecutionContext context, ResolvedTemplate resolved) {
@@ -627,7 +629,7 @@ public class ClinicalPrintBatchService {
         try {
             var codes = jsonCodec.readTree(device.capabilitiesJson()).path("mediaCodes");
             if (!codes.isArray() || codes.isEmpty()) return true;
-            for (var code : codes) if (mediaCode.equals(code.asText())) return true;
+            for (var code : codes) if (mediaCode.equals(code.asString())) return true;
             return false;
         } catch (RuntimeException ignored) {
             return false;
@@ -681,7 +683,20 @@ public class ClinicalPrintBatchService {
         case "INFUSION_PATROL_CARD" -> "输液巡视卡"; default -> value;
     }; }
 
-    private record ResolvedTemplate(PrintTemplate template, PrintTemplateVersion version, PrintMediaProfile media) {}
+    private String taskCode(String documentType) { return switch (documentType) {
+        case "OUTPATIENT_NOTE" -> PrintTaskCodes.OUTPATIENT_MEDICAL_RECORD;
+        case "OUTPATIENT_PRESCRIPTION" -> PrintTaskCodes.OUTPATIENT_WESTERN_PRESCRIPTION;
+        case "LABORATORY_APPLICATION" -> PrintTaskCodes.LABORATORY_APPLICATION;
+        case "EXAMINATION_APPLICATION" -> PrintTaskCodes.EXAMINATION_APPLICATION;
+        case "TREATMENT_APPLICATION" -> PrintTaskCodes.TREATMENT_APPLICATION;
+        case "ORAL_MEDICATION_CARD" -> PrintTaskCodes.ORAL_MEDICATION_CARD;
+        case "INFUSION_LABEL" -> PrintTaskCodes.INFUSION_LABEL;
+        case "INFUSION_PATROL_CARD" -> PrintTaskCodes.INFUSION_PATROL_CARD;
+        default -> throw badRequest("PRINT_DOCUMENT_TYPE_INVALID", "当前文档类型没有标准打印任务");
+    }; }
+
+    private record ResolvedTemplate(PrintTaskResolutionService.ResolvedPrintTask task, PrintTemplate template,
+                                    PrintTemplateVersion version, PrintMediaProfile media) {}
 
     private record PendingBatchItem(TreatmentExecutionTaskView task, CandidateView candidate,
             Map<String, Object> snapshot, boolean include, String exclusionCode, String exclusionReason,

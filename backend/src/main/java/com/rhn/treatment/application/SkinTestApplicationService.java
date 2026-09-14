@@ -59,7 +59,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
         ExecutionContext context = requireWorkContext();
         List<MedicationRequestSnapshot> requests = medicationRequests.activeForExecution(
                 context.organizationId(), context.departmentId()).stream()
-                .filter(MedicationRequestSnapshot::skinTestRequired).toList();
+                .filter(MedicationRequestSnapshot::skinTestRequired)
+                .filter(value -> !value.skinTestExempt()).toList();
         Map<Long, SkinTestSnapshot> latest = latestForMedicationRequests(context.tenantId(),
                 requests.stream().map(MedicationRequestSnapshot::id).toList());
         String statusFilter = upper(status); String term = upper(keyword);
@@ -68,6 +69,22 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 .filter(value -> statusFilter == null || statusFilter.equals(value.status()))
                 .filter(value -> term == null || searchable(value).contains(term))
                 .sorted((left, right) -> right.medicationRequestId().compareTo(left.medicationRequestId()))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<SkinTestWorkItemView> validRecentNegativeSkinTests(Long residentId, Long medicationId, Integer validityHours) {
+        ExecutionContext context = requireWorkContext();
+        int hours = validityHours != null && validityHours > 0 ? validityHours : 72;
+        Instant threshold = Instant.now().minus(java.time.Duration.ofHours(hours));
+        List<SkinTestEvent> history = events.findByTenantIdAndResidentIdAndMedicationIdAndResultOrderByCompletedAtDesc(
+                context.tenantId(), residentId, medicationId, "NEGATIVE");
+        return history.stream()
+                .filter(e -> e.completedAt() != null && e.completedAt().isAfter(threshold))
+                .map(event -> {
+                    MedicationRequestSnapshot req = medicationRequests.requireForRouting(event.tenantId(), event.medicationRequestId());
+                    return view(req, snapshot(event));
+                })
                 .toList();
     }
 
@@ -86,6 +103,8 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 "SKIN_TEST_MEDICATION_STATE_INVALID", "只有有效药品医嘱可以执行皮试");
         if (!request.skinTestRequired()) throw conflict(
                 "SKIN_TEST_NOT_REQUIRED", "当前药品医嘱不需要皮试");
+        if (request.skinTestExempt()) throw conflict(
+                "SKIN_TEST_EXEMPTED", "当前药品医嘱已标记为免皮试，无需执行皮试");
         if (!identityVerified) throw conflict(
                 "SKIN_TEST_IDENTITY_VERIFICATION_REQUIRED", "开始皮试前必须完成患者身份核对");
         SkinTestConfiguration configuration = configuration(request);
@@ -119,14 +138,15 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     @Transactional
     public SkinTestWorkItemView complete(Long eventId, long expectedRevision, String result,
                                          BigDecimal whealDiameterMm, BigDecimal flareDiameterMm,
-                                         String reactionDescription, String earlyReadReason) {
+                                         String reactionDescription, String earlyReadReason,
+                                         Long verifiedByPractitionerId, String verifiedByName) {
         ExecutionContext context = requireWorkContext();
         SkinTestEvent value = requireAccessibleEvent(eventId, context);
         MedicationRequestSnapshot request = requireAccessibleRequest(value.medicationRequestId(), context);
         Instant now = Instant.now();
         value.complete(expectedRevision, result, whealDiameterMm, flareDiameterMm,
                 clean(reactionDescription), clean(earlyReadReason), context.subjectId(),
-                context.practitionerId(), now);
+                context.practitionerId(), null, verifiedByPractitionerId, verifiedByName, now);
         events.flush();
         if ("POSITIVE".equals(value.result())) {
             allergies.recordPositiveDrugSkinTest(value.residentId(), value.encounterId(),
@@ -191,7 +211,11 @@ public class SkinTestApplicationService implements SkinTestDirectory {
                 event == null ? null : event.performedByUserId(),
                 event == null ? null : event.performedByPractitionerId(),
                 event == null ? null : event.readByUserId(),
-                event == null ? null : event.readByPractitionerId());
+                event == null ? null : event.readByPractitionerId(),
+                event == null ? null : event.verifiedByUserId(),
+                event == null ? null : event.verifiedByPractitionerId(),
+                event == null ? null : event.verifiedByName(),
+                event == null ? null : event.verifiedAt());
     }
 
     private Gate gate(MedicationRequestSnapshot request) {
@@ -270,7 +294,7 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String snapshotText(MedicationRequestSnapshot request, String field, String fallback) {
         if (request.medicationSnapshot() == null || request.medicationSnapshot().path(field).isMissingNode()
                 || request.medicationSnapshot().path(field).isNull()) return fallback;
-        String value = clean(request.medicationSnapshot().path(field).asText());
+        String value = clean(request.medicationSnapshot().path(field).asString());
         return value == null ? fallback : value;
     }
     private int snapshotInt(MedicationRequestSnapshot request, String field, int fallback) {
@@ -289,13 +313,13 @@ public class SkinTestApplicationService implements SkinTestDirectory {
     private String resolvedAttributeText(MedicationRequestSnapshot request, String code) {
         if (request.itemAttributeSnapshot() == null) return null;
         var attribute = request.itemAttributeSnapshot().path("attributes").path(code);
-        String sourceLevel = clean(attribute.path("sourceLevel").asText());
+        String sourceLevel = clean(attribute.path("sourceLevel").asString());
         if (sourceLevel == null || Set.of("DEFINITION_DEFAULT", "TYPE_DEFAULT", "NONE").contains(sourceLevel)) {
             return null;
         }
         var value = attribute.path("value");
         if (value.isMissingNode() || value.isNull()) return null;
-        return clean(value.asText());
+        return clean(value.asString());
     }
     private ExecutionContext requireWorkContext() {
         ExecutionContext context = contextProvider.requireCurrent();

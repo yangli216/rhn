@@ -33,8 +33,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"床日记账测试",
                  "commandCode":"IP-BED-DAY-ADMIT"}
                 """.formatted(RESIDENT, "362387869898512"), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         Instant admittedAt = LocalDate.now().minusDays(2).atTime(8, 0)
                 .atZone(ZoneId.of("Asia/Shanghai")).toInstant();
         jdbcTemplate.update("update RHN_VIS_CARE_EPISODE set DT_START = ? where ID_CARE_EPISODE = ?", admittedAt, Long.valueOf(episodeId));
@@ -78,8 +78,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"床日缺价门禁测试",
                  "commandCode":"IP-BED-NO-PRICE-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         jdbcTemplate.update("update RHN_BD_CATALOG_PRICE set SD_STATUS = 'INACTIVE' where ID_CATALOG_PRICE = 362387869898522");
         try {
             mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/bed-days/post", episodeId)
@@ -104,13 +104,13 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"日清单预计费用测试",
                  "commandCode":"IP-DAILY-ESTIMATE-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
+        String episodeId = admission.get("id").asString();
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"SERVICE","durationType":"TEMPORARY",
                  "catalogItemId":"%s","instructions":"明日住院血细胞分析",
                  "commandCode":"IP-DAILY-ESTIMATE-ORDER"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 command(0, "IP-DAILY-ESTIMATE-SIGN"), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -141,8 +141,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"住院费用工作面测试",
                  "commandCode":"IP-BILLING-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         String executedTaskId = completeServiceOrder(episodeId);
         postJson("/api/inpatient/order-tasks/" + executedTaskId + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-BILLING-ORDER-EXECUTE"}
@@ -166,7 +166,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                         .value("SRV-CBC"))
                 .andExpect(jsonPath("$.costLines[?(@.category == 'BED')].unitCode").value("床日"))
                 .andReturn().getResponse().getContentAsString());
-        String accountId = initialAccount.get("patientAccountId").asText();
+        String accountId = initialAccount.get("patientAccountId").asString();
 
         mockMvc.perform(get("/api/inpatient/episodes/{episodeId}/billing/daily-statement", episodeId)
                         .param("businessDate", LocalDate.now().toString()).with(rhnWorkContext()))
@@ -196,14 +196,14 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         }
         JsonNode deposit = postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits",
                 depositBody, 201);
-        assertEquals(accountId, deposit.at("/account/patientAccountId").asText());
+        assertEquals(accountId, deposit.at("/account/patientAccountId").asString());
         assertEquals(false, deposit.get("duplicate").asBoolean());
         assertEquals(0, new BigDecimal("10").compareTo(deposit.at("/account/depositAmount").decimalValue()));
         assertEquals(0, new BigDecimal("28").compareTo(
                 deposit.at("/account/estimatedOutstandingAmount").decimalValue()));
         assertEquals(0, new BigDecimal("8").compareTo(deposit.at("/account/ledgerBalance").decimalValue()));
         assertEquals(1, deposit.at("/account/deposits").size());
-        assertEquals("IP-DEP-0001", deposit.at("/account/deposits/0/paymentNo").asText());
+        assertEquals("IP-DEP-0001", deposit.at("/account/deposits/0/paymentNo").asString());
         assertEquals(0, new BigDecimal("10").compareTo(
                 deposit.at("/account/deposits/0/originalAmount").decimalValue()));
         assertEquals(0, new BigDecimal("10").compareTo(
@@ -212,7 +212,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode replay = postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits",
                 depositBody, 201);
         assertEquals(true, replay.get("duplicate").asBoolean());
-        assertEquals(deposit.get("paymentId").asText(), replay.get("paymentId").asText());
+        assertEquals(deposit.get("paymentId").asString(), replay.get("paymentId").asString());
         assertEquals(1, count("select count(*) from RHN_BIL_PAT_ACCT where ID_PAT_ACCT = ? and SD_ACCT_TYPE = 'INPATIENT'",
                 accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? and ID_INVOICE is null "
@@ -240,13 +240,13 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 {"invoiceNo":"IP-SETTLE-0001","currencyCode":"CNY","terminalCode":"WARD-CASHIER",
                  "commandCode":"IP-BILLING-FINAL"}
                 """, 201);
-        assertEquals("PARTIAL", settlement.get("status").asText());
+        assertEquals("PARTIAL", settlement.get("status").asString());
         assertEquals(0, new BigDecimal("38").compareTo(settlement.get("netAmount").decimalValue()));
         assertEquals(0, new BigDecimal("10").compareTo(settlement.get("prepaymentAmount").decimalValue()));
         assertEquals(0, new BigDecimal("28").compareTo(settlement.get("outstandingAmount").decimalValue()));
-        assertEquals("PENDING_PAYMENT", settlement.get("financialStatus").asText());
+        assertEquals("PENDING_PAYMENT", settlement.get("financialStatus").asString());
         assertEquals(0, settlement.get("refundableAmount").decimalValue().compareTo(BigDecimal.ZERO));
-        assertEquals("OPEN", settlement.at("/account/accountStatus").asText());
+        assertEquals("OPEN", settlement.at("/account/accountStatus").asString());
         assertEquals(0, new BigDecimal("20").compareTo(
                 settlement.at("/account/postedChargeAmount").decimalValue().subtract(new BigDecimal("18"))));
         assertEquals(0, settlement.at("/account/estimatedBedAmount").decimalValue().compareTo(BigDecimal.ZERO));
@@ -276,7 +276,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 + "and SD_SRC_TYPE = 'INPATIENT_BED_DAY'", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_STL where ID_PAT_ACCT = ?", accountId));
         assertEquals(1, count("select count(*) from RHN_BIL_STL_TENDER where ID_STL = ? "
-                + "and SD_TENDER_TYPE = 'PREPAYMENT'", settlement.get("settlementId").asText()));
+                + "and SD_TENDER_TYPE = 'PREPAYMENT'", settlement.get("settlementId").asString()));
 
         long settlementRevision = settlement.at("/account/financialSettlement/revision").asLong();
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/billing/final-settlement/payments", episodeId)
@@ -294,8 +294,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode payment = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/payments", paymentBody, 201);
         assertEquals(false, payment.get("duplicate").asBoolean());
-        assertEquals("SETTLED", payment.at("/settlement/financialStatus").asText());
-        assertEquals("CLOSED", payment.at("/account/accountStatus").asText());
+        assertEquals("SETTLED", payment.at("/settlement/financialStatus").asString());
+        assertEquals("CLOSED", payment.at("/account/accountStatus").asString());
         assertEquals(0, payment.at("/account/ledgerBalance").decimalValue().compareTo(BigDecimal.ZERO));
         JsonNode replayPayment = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/payments", paymentBody, 201);
@@ -311,13 +311,13 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"住院预交金退余测试",
                  "commandCode":"IP-REFUND-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         JsonNode deposit = postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits", """
                 {"paymentNo":"IP-REFUND-DEPOSIT","amount":50,"currencyCode":"CNY",
                  "paymentMethodCode":"CASH","description":"退余测试预交金"}
                 """, 201);
-        String accountId = deposit.at("/account/patientAccountId").asText();
+        String accountId = deposit.at("/account/patientAccountId").asString();
         prepareSignedDischargeRecord(RESIDENT, encounterId, "IP-REFUND");
         recordPrimaryDischargeDiagnosis(episodeId, 0, "Z51.900", "住院观察", "IP-REFUND-DIAGNOSIS");
         postJson("/api/inpatient/episodes/" + episodeId + "/discharge", """
@@ -329,11 +329,11 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 {"invoiceNo":"IP-REFUND-SETTLE","currencyCode":"CNY","terminalCode":"WARD-CASHIER",
                  "commandCode":"IP-REFUND-FINAL"}
                 """, 201);
-        assertEquals("SETTLED", settlement.get("status").asText());
-        assertEquals("PENDING_REFUND", settlement.get("financialStatus").asText());
+        assertEquals("SETTLED", settlement.get("status").asString());
+        assertEquals("PENDING_REFUND", settlement.get("financialStatus").asString());
         assertEquals(0, new BigDecimal("30").compareTo(settlement.get("refundableAmount").decimalValue()));
         assertEquals(0, new BigDecimal("30").compareTo(settlement.at("/account/depositAmount").decimalValue()));
-        assertEquals("OPEN", settlement.at("/account/accountStatus").asText());
+        assertEquals("OPEN", settlement.at("/account/accountStatus").asString());
 
         long revision = settlement.at("/account/financialSettlement/revision").asLong();
         String refundBody = """
@@ -343,8 +343,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode refund = postJson("/api/inpatient/episodes/" + episodeId
                 + "/billing/final-settlement/refunds", refundBody, 201);
         assertEquals(false, refund.get("duplicate").asBoolean());
-        assertEquals("SETTLED", refund.at("/settlement/financialStatus").asText());
-        assertEquals("CLOSED", refund.at("/account/accountStatus").asText());
+        assertEquals("SETTLED", refund.at("/settlement/financialStatus").asString());
+        assertEquals("CLOSED", refund.at("/account/accountStatus").asString());
         assertEquals(0, refund.at("/account/depositAmount").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(0, refund.at("/account/ledgerBalance").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
@@ -363,8 +363,8 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "admissionSourceCode":"DIRECT","admissionReason":"零应付结算测试",
                  "commandCode":"IP-ZERO-ADMIT"}
                 """.formatted(RESIDENT, BED), 201);
-        String episodeId = admission.get("id").asText();
-        String encounterId = admission.get("encounterId").asText();
+        String episodeId = admission.get("id").asString();
+        String encounterId = admission.get("encounterId").asString();
         completeServiceOrder(episodeId);
         postJson("/api/inpatient/episodes/" + episodeId + "/billing/deposits", """
                 {"paymentNo":"IP-ZERO-DEPOSIT","amount":38,"currencyCode":"CNY",
@@ -383,16 +383,16 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                 """, 201);
         assertEquals(0, settlement.get("outstandingAmount").decimalValue().compareTo(BigDecimal.ZERO));
         assertEquals(0, settlement.get("refundableAmount").decimalValue().compareTo(BigDecimal.ZERO));
-        assertEquals("SETTLED", settlement.get("status").asText());
-        assertEquals("SETTLED", settlement.get("financialStatus").asText());
-        assertEquals("CLOSED", settlement.at("/account/accountStatus").asText());
+        assertEquals("SETTLED", settlement.get("status").asString());
+        assertEquals("SETTLED", settlement.get("financialStatus").asString());
+        assertEquals("CLOSED", settlement.at("/account/accountStatus").asString());
         assertEquals(1, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ?",
-                settlement.at("/account/patientAccountId").asText()));
+                settlement.at("/account/patientAccountId").asString()));
         assertEquals(0, count("select count(*) from RHN_BIL_PAY where ID_PAT_ACCT = ? "
                         + "and CD_PAY_SCENE = 'CASHIER'",
-                settlement.at("/account/patientAccountId").asText()));
+                settlement.at("/account/patientAccountId").asString()));
         assertEquals(1, count("select count(*) from RHN_BIL_STL_EVT where ID_STL = ? "
-                + "and SD_EVT_TYPE = 'FINALIZE'", settlement.get("settlementId").asText()));
+                + "and SD_EVT_TYPE = 'FINALIZE'", settlement.get("settlementId").asString()));
     }
 
     private String completeServiceOrder(String episodeId) throws Exception {
@@ -401,7 +401,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "catalogItemId":"%s","instructions":"住院血细胞分析",
                  "commandCode":"IP-BILLING-ORDER"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 command(0, "IP-BILLING-ORDER-SIGN"), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -409,7 +409,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode plan = postJson("/api/inpatient/orders/" + requestId + "/plans", """
                 {"expectedRevision":2,"plannedTimes":["%s"],"commandCode":"IP-BILLING-ORDER-PLAN"}
                 """.formatted(Instant.now().minusSeconds(60)), 200);
-        String taskId = plan.at("/tasks/0/id").asText();
+        String taskId = plan.at("/tasks/0/id").asString();
         postJson("/api/inpatient/order-tasks/" + taskId + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"COMPLETED","commandCode":"IP-BILLING-ORDER-EXECUTE"}
                 """, 200);
@@ -422,7 +422,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
                  "catalogItemId":"%s","instructions":"患者拒绝的住院检查",
                  "commandCode":"IP-BILLING-SKIP-ORDER"}
                 """.formatted(episodeId, SERVICE_ITEM), 201);
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 command(0, "IP-BILLING-SKIP-SIGN"), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
@@ -430,7 +430,7 @@ class InpatientBillingFlowTest extends RhnIntegrationTestSupport {
         JsonNode plan = postJson("/api/inpatient/orders/" + requestId + "/plans", """
                 {"expectedRevision":2,"plannedTimes":["%s"],"commandCode":"IP-BILLING-SKIP-PLAN"}
                 """.formatted(Instant.now().minusSeconds(30)), 200);
-        postJson("/api/inpatient/order-tasks/" + plan.at("/tasks/0/id").asText() + "/skip", """
+        postJson("/api/inpatient/order-tasks/" + plan.at("/tasks/0/id").asString() + "/skip", """
                 {"expectedRevision":0,"outcomeCode":"PATIENT_REFUSED",
                  "note":"患者拒绝本次检查","commandCode":"IP-BILLING-SKIP-TASK"}
                 """, 200);

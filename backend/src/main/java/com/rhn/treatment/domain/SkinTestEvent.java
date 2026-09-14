@@ -55,6 +55,10 @@ public class SkinTestEvent {
     @Column(name = "ID_PRACT_PERFORMED") private Long performedByPractitionerId;
     @Column(name = "ID_USER_READ") private Long readByUserId;
     @Column(name = "ID_PRACT_READ") private Long readByPractitionerId;
+    @Column(name = "ID_USER_VERIFIED") private Long verifiedByUserId;
+    @Column(name = "ID_PRACT_VERIFIED") private Long verifiedByPractitionerId;
+    @Column(name = "NA_PRACT_VERIFIED", length = 160) private String verifiedByName;
+    @Column(name = "DT_VERIFIED") private Instant verifiedAt;
     @Column(name = "DT_CANCELLED") private Instant cancelledAt;
     @Column(name = "ID_USER_CANCELLED") private Long cancelledBy;
     @Column(name = "DES_CANCEL_REASON", length = 1000) private String cancelReason;
@@ -89,39 +93,43 @@ public class SkinTestEvent {
         this.lotNoSnapshot = clean(lotNo); this.concentration = concentration;
         this.concentrationUnit = clean(concentrationUnit); this.bodySite = clean(bodySite);
         this.verificationMethod = clean(verificationMethod) == null
-                ? "NAME_AND_IDENTIFIER" : clean(verificationMethod);
+                ? "NAME_AND_IDENTIFIER" : upper(verificationMethod);
         this.observationMinutes = observationMinutes; this.performedByUserId = actorId;
-        this.performedByPractitionerId = practitionerId; this.startedAt = startedAt; this.createdAt = startedAt;
+        this.performedByPractitionerId = practitionerId; this.startedAt = startedAt; this.createdAt = Instant.now();
     }
 
     public void complete(long expectedRevision, String result, BigDecimal whealDiameterMm,
-                         BigDecimal flareDiameterMm, String reactionDescription, String earlyReadReason,
-                         Long actorId, Long practitionerId, Instant occurredAt) {
+                         BigDecimal flareDiameterMm, String reactionDescription,
+                         String earlyReadReason, Long actorId, Long practitionerId,
+                         Long verifiedByUserId, Long verifiedByPractitionerId, String verifiedByName,
+                         Instant occurredAt) {
         requireRevision(expectedRevision);
         if (!"IN_PROGRESS".equals(status)) throw conflict(
-                "SKIN_TEST_COMPLETE_STATE_INVALID", "只有进行中的皮试可以判读结果");
+                "SKIN_TEST_COMPLETE_STATE_INVALID", "只有进行中的皮试可以判读完成");
         String outcome = upper(result);
-        if (!RESULTS.contains(outcome)) throw badRequest("SKIN_TEST_RESULT_INVALID", "皮试结果不正确");
-        requireNonNegative(whealDiameterMm, "SKIN_TEST_WHEAL_INVALID", "风团直径不能小于 0");
-        requireNonNegative(flareDiameterMm, "SKIN_TEST_FLARE_INVALID", "红晕直径不能小于 0");
+        if (!RESULTS.contains(outcome)) throw badRequest("SKIN_TEST_RESULT_INVALID", "判读结果不正确");
+        requireNonNegative(whealDiameterMm, "SKIN_TEST_WHEAL_INVALID", "风团直径不能为负数");
+        requireNonNegative(flareDiameterMm, "SKIN_TEST_FLARE_INVALID", "红晕直径不能为负数");
         String reaction = clean(reactionDescription);
         if ("POSITIVE".equals(outcome) && reaction == null) {
-            throw badRequest("SKIN_TEST_POSITIVE_REACTION_REQUIRED", "皮试阳性时必须记录局部或全身反应");
+            throw badRequest("SKIN_TEST_POSITIVE_REACTION_REQUIRED", "皮试阳性必须记录临床反应描述");
         }
         String earlyReason = clean(earlyReadReason);
-        boolean observationNotFinished = occurredAt.isBefore(
-                startedAt.plus(Duration.ofMinutes(observationMinutes)));
-        if (observationNotFinished && "NEGATIVE".equals(outcome)) {
-            throw conflict("SKIN_TEST_NEGATIVE_OBSERVATION_NOT_FINISHED",
-                    "皮试阴性必须完成规定观察时间后才能判读");
-        }
-        if (observationNotFinished && earlyReason == null) {
-            throw conflict("SKIN_TEST_OBSERVATION_NOT_FINISHED", "尚未达到规定观察时间；如需提前判读必须填写临床原因");
+        Instant plannedEnd = startedAt.plus(Duration.ofMinutes(observationMinutes));
+        if (occurredAt.isBefore(plannedEnd)) {
+            if ("NEGATIVE".equals(outcome)) throw conflict(
+                    "SKIN_TEST_EARLY_NEGATIVE_FORBIDDEN", "阴性结果必须完成规定观察时长后方可判读");
+            if (earlyReason == null) throw badRequest(
+                    "SKIN_TEST_EARLY_READ_REASON_REQUIRED", "提前判读必须说明临床原因");
         }
         this.status = "COMPLETED"; this.completedAt = occurredAt; this.result = outcome;
         this.whealDiameterMm = whealDiameterMm; this.flareDiameterMm = flareDiameterMm;
         this.reactionDescription = reaction; this.earlyReadReason = earlyReason;
         this.readByUserId = actorId; this.readByPractitionerId = practitionerId;
+        this.verifiedByUserId = verifiedByUserId;
+        this.verifiedByPractitionerId = verifiedByPractitionerId;
+        this.verifiedByName = clean(verifiedByName);
+        this.verifiedAt = occurredAt;
     }
 
     public void cancel(long expectedRevision, String reason, Long actorId, Instant occurredAt) {
@@ -188,5 +196,9 @@ public class SkinTestEvent {
     public Long performedByPractitionerId() { return performedByPractitionerId; }
     public Long readByUserId() { return readByUserId; }
     public Long readByPractitionerId() { return readByPractitionerId; }
+    public Long verifiedByUserId() { return verifiedByUserId; }
+    public Long verifiedByPractitionerId() { return verifiedByPractitionerId; }
+    public String verifiedByName() { return verifiedByName; }
+    public Instant verifiedAt() { return verifiedAt; }
     public Instant cancelledAt() { return cancelledAt; }
 }

@@ -37,8 +37,8 @@ class InpatientTemperatureChartTest extends RhnIntegrationTestSupport {
                                 """.formatted(RESIDENT, BED_01)))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
-        String episodeId = json(admissionResponse).get("id").asText();
-        String encounterId = json(admissionResponse).get("encounterId").asText();
+        String episodeId = json(admissionResponse).get("id").asString();
+        String encounterId = json(admissionResponse).get("encounterId").asString();
 
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/chart-events", episodeId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -84,7 +84,7 @@ class InpatientTemperatureChartTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.systolicBloodPressure").value(128))
                 .andExpect(jsonPath("$.status").value("RECORDED"))
                 .andReturn().getResponse().getContentAsString();
-        String observationId = json(observationResponse).get("id").asText();
+        String observationId = json(observationResponse).get("id").asString();
 
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/vital-observations", episodeId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -129,7 +129,7 @@ class InpatientTemperatureChartTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        Instant dischargedAt = Instant.parse(json(dischargeResponse).get("dischargedAt").asText());
+        Instant dischargedAt = Instant.parse(json(dischargeResponse).get("dischargedAt").asString());
 
         mockMvc.perform(post("/api/inpatient/episodes/{episodeId}/vital-observations", episodeId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

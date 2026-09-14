@@ -5,9 +5,15 @@ import com.rhn.platform.printing.api.PrintReceipt;
 import com.rhn.platform.printing.api.PrintRecordView;
 import com.rhn.platform.printing.api.PrintTemplateView;
 import com.rhn.platform.printing.api.PrintingService;
+import com.rhn.platform.printing.api.PrintSourceRef;
+import com.rhn.platform.printing.api.StandardPrintCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,6 +25,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.http.HttpStatus;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -32,6 +40,14 @@ public class PrintingController {
 
     @GetMapping("/templates")
     List<PrintTemplateView> templates() { return printingService.visibleTemplates(); }
+
+    @PostMapping("/tasks")
+    @ResponseStatus(HttpStatus.CREATED)
+    PrintReceipt submit(@Valid @RequestBody StandardTaskRequest request) {
+        return printingService.submit(new StandardPrintCommand(request.taskCode(),
+                new PrintSourceRef(request.source().sourceType(), request.source().sourceId(),
+                        request.source().encounterId()), request.purpose(), request.copies(), request.idempotencyKey()));
+    }
 
     @GetMapping("/records")
     List<PrintRecordView> records(@RequestParam Long encounterId) {
@@ -56,4 +72,12 @@ public class PrintingController {
     }
 
     record ReprintRequest(@Min(1) @Max(10) int copies) {}
+    record StandardTaskRequest(
+            @NotBlank @Size(max = 100) String taskCode,
+            @NotNull @Valid SourceRequest source,
+            @NotBlank @Pattern(regexp = "CLINICAL_USE|PATIENT_COPY|ARCHIVE_COPY") String purpose,
+            @Min(1) @Max(10) int copies,
+            @NotBlank @Size(max = 128) String idempotencyKey) {}
+    record SourceRequest(@NotBlank @Size(max = 80) String sourceType, @NotNull Long sourceId,
+                         Long encounterId) {}
 }

@@ -27,13 +27,13 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
                                 {"fullName":"门诊重试患者","identifiers":[{"system":"9","value":"RETRY%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1991-05-06"}
                                 """.formatted(suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"RETRY-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
 
         String start = """
                 {"commandCode":"RETRY-START-%s","terminalCode":"TEST-RETRY",
@@ -93,7 +93,7 @@ class OutpatientCommandRetryTest extends RhnIntegrationTestSupport {
 
         String documentId = json(mockMvc.perform(get("/api/clinical-documents").param("encounterId", encounterId)
                         .with(rhnWorkContext())).andExpect(status().isOk())
-                .andReturn().getResponse().getContentAsString()).get(0).get("id").asText();
+                .andReturn().getResponse().getContentAsString()).get(0).get("id").asString();
         mockMvc.perform(post("/api/clinical-documents/{id}/sign", documentId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":1,\"signatureMeaning\":\"AUTHOR\"}"))

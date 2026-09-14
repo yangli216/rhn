@@ -32,6 +32,33 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
+    void standard_task_endpoint_is_idempotent_and_hides_print_implementation_details() throws Exception {
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+        String residentId = createResident(suffix);
+        String encounterId = createActiveEncounter(residentId);
+        String documentId = createAndSignDocument(residentId, encounterId, "OUTPATIENT_NOTE",
+                "门诊病历", "标准打印任务测试");
+        String idempotencyKey = "PRINT-TASK-" + suffix;
+        String request = """
+                {"taskCode":"OP.MEDICAL_RECORD.PRINT",
+                 "source":{"sourceType":"ClinicalDocument","sourceId":"%s","encounterId":"%s"},
+                 "purpose":"PATIENT_COPY","copies":1,"idempotencyKey":"%s"}
+                """.formatted(documentId, encounterId, idempotencyKey);
+        JsonNode first = json(mockMvc.perform(post("/api/platform/printing/tasks").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.taskCode").value("OP.MEDICAL_RECORD.PRINT"))
+                .andExpect(jsonPath("$.implementationCode").value("PLATFORM_OUTPATIENT_NOTE"))
+                .andReturn().getResponse().getContentAsString());
+        JsonNode replay = json(mockMvc.perform(post("/api/platform/printing/tasks").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        assertEquals(first.get("jobId").asString(), replay.get("jobId").asString());
+        assertEquals(first.get("outputId").asString(), replay.get("outputId").asString());
+    }
+
+    @Test
     void signed_note_and_active_prescription_generate_immutable_pdf_and_reprint_audit() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         String residentId = createResident(suffix);
@@ -52,8 +79,8 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .param("encounterId", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         org.junit.jupiter.api.Assertions.assertEquals("RHN.OUTPATIENT_NOTE.V3",
-                documents.get(0).get("contentSchema").asText());
-        String documentId = documents.get(0).get("id").asText();
+                documents.get(0).get("contentSchema").asString());
+        String documentId = documents.get(0).get("id").asString();
 
         mockMvc.perform(post("/api/clinical-documents/{id}/print-jobs", documentId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -70,6 +97,9 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .content("{\"purpose\":\"PATIENT_COPY\",\"copies\":1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("GENERATED"))
+                .andExpect(jsonPath("$.taskCode").value("OP.MEDICAL_RECORD.PRINT"))
+                .andExpect(jsonPath("$.implementationScope").value("PLATFORM"))
+                .andExpect(jsonPath("$.payloadSchema").value("RHN.PRINT.OUTPATIENT_NOTE.V1"))
                 .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_NOTE_A4"))
                 .andExpect(jsonPath("$.delivery.channel").value("BROWSER_PDF"))
                 .andExpect(jsonPath("$.delivery.status").value("SENT"))
@@ -79,15 +109,17 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         assertPdf(notePdf);
 
         JsonNode reprint = json(mockMvc.perform(post("/api/platform/printing/jobs/{id}/reprints",
-                                noteReceipt.get("jobId").asText()).with(rhnWorkContext())
+                                noteReceipt.get("jobId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"copies\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.requestType").value("REPRINT"))
                 .andExpect(jsonPath("$.copies").value(2))
+                .andExpect(jsonPath("$.implementationCode").value("PLATFORM_OUTPATIENT_NOTE"))
+                .andExpect(jsonPath("$.implementationScope").value("PLATFORM"))
                 .andExpect(jsonPath("$.delivery.status").value("SENT"))
                 .andReturn().getResponse().getContentAsString());
-        assertEquals(noteReceipt.get("outputId").asText(), reprint.get("outputId").asText());
-        assertEquals(noteReceipt.get("jobId").asText(), reprint.get("originalJobId").asText());
+        assertEquals(noteReceipt.get("outputId").asString(), reprint.get("outputId").asString());
+        assertEquals(noteReceipt.get("jobId").asString(), reprint.get("originalJobId").asString());
         assertArrayEquals(notePdf, download(reprint));
 
         createPharmacyWithStock(suffix, 30);
@@ -95,7 +127,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"categoryCode\":\"OUTPATIENT\",\"note\":\"控制血压\"}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String prescriptionId = prescription.get("id").asText();
+        String prescriptionId = prescription.get("id").asString();
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/print-jobs",
                                 encounterId, prescriptionId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -122,6 +154,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .content("{\"purpose\":\"PATIENT_COPY\",\"copies\":1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.templateCode").value("OUTPATIENT_PRESCRIPTION_A4"))
+                .andExpect(jsonPath("$.taskCode").value("OP.PRESCRIPTION.WESTERN.PRINT"))
                 .andExpect(jsonPath("$.delivery.deviceName").value("全科门诊浏览器 PDF"))
                 .andReturn().getResponse().getContentAsString());
         assertPdf(download(prescriptionReceipt));
@@ -133,7 +166,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                                 """.formatted(LABORATORY_SERVICE_ID)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
-        String serviceRequestId = serviceRequest.get("id").asText();
+        String serviceRequestId = serviceRequest.get("id").asString();
         JsonNode applicationPrinter = json(mockMvc.perform(post("/api/platform/printing/devices")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(java.util.Map.of(
@@ -146,7 +179,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":0,"documentType":"LABORATORY_APPLICATION",
                                  "mediaProfileId":"270000000000201","deviceId":"%s"}
-                                """.formatted(applicationPrinter.get("id").asText())))
+                                """.formatted(applicationPrinter.get("id").asString())))
                 .andExpect(status().isOk());
         JsonNode applicationReceipt = json(mockMvc.perform(post(
                                 "/api/encounters/{encounterId}/service-requests/{requestId}/print-jobs",
@@ -155,6 +188,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .content("{\"purpose\":\"CLINICAL_USE\",\"copies\":1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.documentType").value("LABORATORY_APPLICATION"))
+                .andExpect(jsonPath("$.taskCode").value("OP.APPLICATION.LAB.PRINT"))
                 .andExpect(jsonPath("$.templateCode").value("LABORATORY_APPLICATION_A4"))
                 .andExpect(jsonPath("$.delivery.channel").value("LOCAL_BRIDGE"))
                 .andExpect(jsonPath("$.delivery.status").value("QUEUED"))
@@ -162,12 +196,12 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
         assertPdf(download(applicationReceipt));
         JsonNode applicationBridgeJob = json(mockMvc.perform(post(
                                 "/api/platform/printing/bridge/devices/{code}/jobs/claim",
-                                applicationPrinter.get("deviceCode").asText()).with(rhnWorkContext()))
+                                applicationPrinter.get("deviceCode").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.batchId").doesNotExist())
                 .andExpect(jsonPath("$.outputLanguage").value("PDF"))
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/platform/printing/bridge/deliveries/{id}/acknowledgements",
-                        applicationBridgeJob.get("deliveryId").asText()).with(rhnWorkContext())
+                        applicationBridgeJob.get("deliveryId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"status":"DEVICE_CONFIRMED"}
                                 """.formatted(applicationBridgeJob.get("revision").asLong())))
@@ -190,14 +224,14 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         assertEquals(3, printRecords.size());
         JsonNode noteRecord = java.util.stream.StreamSupport.stream(printRecords.spliterator(), false)
-                .filter(item -> "OUTPATIENT_NOTE".equals(item.get("documentType").asText()))
+                .filter(item -> "OUTPATIENT_NOTE".equals(item.get("documentType").asString()))
                 .findFirst().orElseThrow();
-        assertEquals(documentId, noteRecord.get("sourceId").asText());
-        assertEquals("PATIENT_COPY", noteRecord.get("purpose").asText());
-        assertEquals(noteReceipt.get("contentDigest").asText(), noteRecord.get("contentDigest").asText());
+        assertEquals(documentId, noteRecord.get("sourceId").asString());
+        assertEquals("PATIENT_COPY", noteRecord.get("purpose").asString());
+        assertEquals(noteReceipt.get("contentDigest").asString(), noteRecord.get("contentDigest").asString());
         assertEquals(2, noteRecord.get("jobs").size());
-        assertEquals("REPRINT", noteRecord.get("jobs").get(0).get("requestType").asText());
-        assertEquals(noteReceipt.get("outputId").asText(), noteRecord.get("outputId").asText());
+        assertEquals("REPRINT", noteRecord.get("jobs").get(0).get("requestType").asString());
+        assertEquals(noteReceipt.get("outputId").asString(), noteRecord.get("outputId").asString());
         assertArrayEquals(notePdf, download(noteRecord));
 
         mockMvc.perform(get("/api/platform/printing/templates").with(rhnWorkContext()))
@@ -210,12 +244,14 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                 Long.valueOf(TENANT)));
         assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
+        assertEquals(3, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_OUTPUT where ID_TNT = ? and CD_PRINT_TASK is not null and ID_PRINT_IMPL is not null and ID_PRINT_IMPL_BIND is not null", Integer.class,
+                Long.valueOf(TENANT)));
         assertEquals(4, jdbcTemplate.queryForObject("select count(*) from RHN_SYS_PRINT_DELIVERY where ID_TNT = ?", Integer.class,
                 Long.valueOf(TENANT)));
     }
 
     private byte[] download(JsonNode receipt) throws Exception {
-        MvcResult result = mockMvc.perform(get(receipt.get("downloadUrl").asText()).with(rhnWorkContext()))
+        MvcResult result = mockMvc.perform(get(receipt.get("downloadUrl").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(content().contentType("application/pdf"))
                 .andReturn();
         return result.getResponse().getContentAsByteArray();
@@ -233,7 +269,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"fullName":"打印测试居民","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
                                 """.formatted(nationalId)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createActiveEncounter(String residentId) throws Exception {
@@ -242,7 +278,7 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String encounterId = encounter.get("id").asText();
+        String encounterId = encounter.get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk());
         return encounterId;
@@ -256,21 +292,21 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                                  "validFrom":"2026-01-01"}
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
                                  "negativeAllowed":false,"lotRequired":true,"traceRequired":false,
                                  "splitAllowed":true,"coldChain":false,"controlled":false,"highAlert":false}
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asText())
+        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"code":"PRINT-PICK-%s","name":"打印测试发药位","binType":"COUNTER",
                                  "stockDefault":"AVAILABLE","receiveAllowed":true,"pickAllowed":true,
                                  "countAllowed":true,"sortOrder":10}
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asText())
+        JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots", item.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lotNo":"PRINT-%s","productionDate":"2026-01-01","expiryDate":"2027-12-31",
                                  "manufacturerNameSnapshot":"示例制药企业","qualityStatus":"QUALIFIED"}
@@ -281,15 +317,15 @@ class ControlledPrintingTest extends RhnIntegrationTestSupport {
                                 {"requestCode":"PRINT-RCV-%s","sourceCode":"PRINT-OPEN-%s",
                                  "stockItemId":"%s","stockBinId":"%s","stockLotId":"%s",
                                  "operationQuantity":%d,"unitCost":0.60,"occurredAt":"%s","description":"打印流程测试入库"}
-                                """.formatted(suffix, suffix, item.get("id").asText(), bin.get("id").asText(),
-                                lot.get("id").asText(), baseQuantity, Instant.now())))
+                                """.formatted(suffix, suffix, item.get("id").asString(), bin.get("id").asString(),
+                                lot.get("id").asString(), baseQuantity, Instant.now())))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/pharmacy/dispense-routes").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"organizationId":"%s","code":"PRINT-ROUTE-%s","name":"打印测试发药路由",
                                  "careSetting":"OUTPATIENT","sourceDepartmentId":"%s","targetStockSiteId":"%s",
                                  "active":true,"validFrom":"2026-01-01"}
-                                """.formatted(ORGANIZATION, suffix, DEPARTMENT, site.get("id").asText())))
+                                """.formatted(ORGANIZATION, suffix, DEPARTMENT, site.get("id").asString())))
                 .andExpect(status().isCreated());
     }
 }

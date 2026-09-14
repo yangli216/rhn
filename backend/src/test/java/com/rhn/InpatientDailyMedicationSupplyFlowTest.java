@@ -47,8 +47,8 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                  "admissionReason":"住院长期药品按日滚动供药测试",
                  "commandCode":"IP-DAILY-SUPPLY-ADMIT"}
                 """.formatted(RESIDENT, BED), rhnWorkContext(), 201);
-        String episodeId = admission.get("id").asText();
-        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asText());
+        String episodeId = admission.get("id").asString();
+        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asString());
 
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
@@ -56,16 +56,16 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"BID","instructions":"早晚口服",
                  "commandCode":"IP-DAILY-SUPPLY-ORDER"}
                 """.formatted(episodeId, PRODUCT), rhnWorkContext(), 201);
-        String requestId = order.get("id").asText();
-        String nursingUnitDepartmentId = order.get("departmentId").asText();
+        String requestId = order.get("id").asString();
+        String nursingUnitDepartmentId = order.get("departmentId").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 medicationSign(0, "IP-DAILY-SUPPLY-SIGN"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + requestId + "/verify",
                 revision(1, "IP-DAILY-SUPPLY-VERIFY"), rhnWorkContext(), 200);
 
         JsonNode firstPlan = plan(requestId, 2, firstDate, "IP-DAILY-SUPPLY-PLAN-1");
-        String firstTaskId = firstPlan.at("/tasks/0/id").asText();
-        String secondTaskId = firstPlan.at("/tasks/1/id").asText();
+        String firstTaskId = firstPlan.at("/tasks/0/id").asString();
+        String secondTaskId = firstPlan.at("/tasks/1/id").asString();
 
         JsonNode companionOrder = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
@@ -73,7 +73,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"BID","instructions":"同批另一长期医嘱",
                  "commandCode":"IP-DAILY-SUPPLY-ORDER-COMPANION"}
                 """.formatted(episodeId, PRODUCT), rhnWorkContext(), 201);
-        String companionRequestId = companionOrder.get("id").asText();
+        String companionRequestId = companionOrder.get("id").asString();
         postJson("/api/inpatient/orders/" + companionRequestId + "/sign",
                 medicationSign(0, "IP-DAILY-SUPPLY-SIGN-COMPANION"), rhnWorkContext(), 200);
         postJson("/api/inpatient/orders/" + companionRequestId + "/verify",
@@ -81,12 +81,12 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         plan(companionRequestId, 2, firstDate, "IP-DAILY-SUPPLY-PLAN-COMPANION");
 
         JsonNode firstBatch = generate(firstDate, nursingUnitDepartmentId, "IP-DAILY-SUPPLY-GENERATE-1");
-        assertEquals(firstDate.toString(), firstBatch.get("businessDate").asText());
-        assertEquals("DAY", firstBatch.get("shiftCode").asText());
+        assertEquals(firstDate.toString(), firstBatch.get("businessDate").asString());
+        assertEquals("DAY", firstBatch.get("shiftCode").asString());
         assertEquals(2, firstBatch.get("lines").size());
         JsonNode firstSupplyLine = findLine(firstBatch, requestId);
         JsonNode companionSupplyLine = findLine(firstBatch, companionRequestId);
-        assertEquals(requestId, firstSupplyLine.get("requestId").asText());
+        assertEquals(requestId, firstSupplyLine.get("requestId").asString());
         assertEquals(2, firstSupplyLine.get("occurrenceCount").asInt());
         assertEquals(2, firstSupplyLine.get("occurrences").size());
         assertEquals("SUBMITTED", jdbc.queryForObject("""
@@ -94,35 +94,35 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                 """, String.class, firstBatch.get("id").asLong()));
 
         JsonNode commandReplay = generate(firstDate, nursingUnitDepartmentId, "IP-DAILY-SUPPLY-GENERATE-1");
-        assertEquals(firstBatch.get("id").asText(), commandReplay.get("id").asText());
+        assertEquals(firstBatch.get("id").asString(), commandReplay.get("id").asString());
         JsonNode windowReplay = generate(firstDate, nursingUnitDepartmentId,
                 "IP-DAILY-SUPPLY-GENERATE-1-RETRY");
-        assertEquals(firstBatch.get("id").asText(), windowReplay.get("id").asText());
+        assertEquals(firstBatch.get("id").asString(), windowReplay.get("id").asString());
         assertSingleActiveSupply(firstTaskId);
         assertSingleActiveSupply(secondTaskId);
 
-        JsonNode firstIntake = intakeBatch(firstBatch.get("id").asText(),
-                List.of(firstSupplyLine.get("id").asText(), companionSupplyLine.get("id").asText()),
+        JsonNode firstIntake = intakeBatch(firstBatch.get("id").asString(),
+                List.of(firstSupplyLine.get("id").asString(), companionSupplyLine.get("id").asString()),
                 "第一日整批接方");
         String firstDispenseTaskLineId = findLine(firstIntake, requestId)
-                .get("dispenseTaskLineId").asText();
-        String firstDispenseTaskId = findLine(firstIntake, requestId).get("dispenseTaskId").asText();
-        String companionDispenseTaskId = findLine(firstIntake, companionRequestId).get("dispenseTaskId").asText();
+                .get("dispenseTaskLineId").asString();
+        String firstDispenseTaskId = findLine(firstIntake, requestId).get("dispenseTaskId").asString();
+        String companionDispenseTaskId = findLine(firstIntake, companionRequestId).get("dispenseTaskId").asString();
         assertEquals("INPATIENT_SUPPLY_LINE", jdbc.queryForObject("""
                 select SD_FULFILL_SRC_TYPE as fulfillment_source_type from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?
                 """, String.class, Long.valueOf(firstDispenseTaskLineId)));
         assertEquals(Long.valueOf(firstSupplyLine.get("id").asLong()), jdbc.queryForObject("""
                 select ID_FULFILL_SRC as fulfillment_source_id from RHN_SUP_DISP_TASK_LINE where ID_DISP_TASK_LINE = ?
                 """, Long.class, Long.valueOf(firstDispenseTaskLineId)));
-        JsonNode firstIntakeReplay = intakeBatch(firstBatch.get("id").asText(),
-                List.of(firstSupplyLine.get("id").asText(), companionSupplyLine.get("id").asText()),
+        JsonNode firstIntakeReplay = intakeBatch(firstBatch.get("id").asString(),
+                List.of(firstSupplyLine.get("id").asString(), companionSupplyLine.get("id").asString()),
                 "第一日整批接方重放");
         assertEquals(firstDispenseTaskLineId,
-                findLine(firstIntakeReplay, requestId).get("dispenseTaskLineId").asText());
+                findLine(firstIntakeReplay, requestId).get("dispenseTaskLineId").asString());
         assertEquals(1, count("""
                 select count(*) from RHN_SUP_DISP_TASK_LINE
                  where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
-                """, firstSupplyLine.get("id").asText()));
+                """, firstSupplyLine.get("id").asString()));
 
         // The whole action is one transaction: a shortage on the second task must roll back
         // the first task's review and reservation instead of leaving a half-prepared ward batch.
@@ -133,7 +133,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                  where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/review-reserve",
-                        firstBatch.get("id").asText()).with(pharmacyContext())
+                        firstBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"pharmacistPractitionerId":"%s","reviewerAssignmentId":"%s",
                                  "expiryMinutes":30,"description":"库存不足事务回滚验证"}
@@ -157,9 +157,9 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                        QTY_AVAILABLE = 240, REVISION = REVISION + 1
                  where ID_TNT = ? and ID_STOCK_ITEM = ? and SD_STOCK_STATUS = 'AVAILABLE'
                 """, Long.valueOf(TENANT), Long.valueOf(INPATIENT_STOCK_ITEM));
-        JsonNode preparedBatch = reviewAndReserve(firstBatch.get("id").asText());
-        assertEquals("PICKING", findLine(preparedBatch, requestId).get("dispenseTaskStatus").asText());
-        assertEquals("PICKING", findLine(preparedBatch, companionRequestId).get("dispenseTaskStatus").asText());
+        JsonNode preparedBatch = reviewAndReserve(firstBatch.get("id").asString());
+        assertEquals("PICKING", findLine(preparedBatch, requestId).get("dispenseTaskStatus").asString());
+        assertEquals("PICKING", findLine(preparedBatch, companionRequestId).get("dispenseTaskStatus").asString());
         assertEquals(2, jdbc.queryForObject("""
                 select count(*) from RHN_SUP_PHARM_REVIEW where ID_DISP_TASK in (?, ?)
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
@@ -169,20 +169,20 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                  where l.ID_DISP_TASK in (?, ?) and r.SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
-        JsonNode preparedReplay = reviewAndReserve(firstBatch.get("id").asText());
-        assertEquals("PICKING", findLine(preparedReplay, requestId).get("dispenseTaskStatus").asText());
+        JsonNode preparedReplay = reviewAndReserve(firstBatch.get("id").asString());
+        assertEquals("PICKING", findLine(preparedReplay, requestId).get("dispenseTaskStatus").asString());
         assertEquals(2, jdbc.queryForObject("""
                 select count(*) from RHN_SUP_PHARM_REVIEW where ID_DISP_TASK in (?, ?)
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
 
-        JsonNode pickingCompleted = completePicking(firstBatch.get("id").asText());
-        assertEquals("READY_TO_DISPENSE", findLine(pickingCompleted, requestId).get("dispenseTaskStatus").asText());
+        JsonNode pickingCompleted = completePicking(firstBatch.get("id").asString());
+        assertEquals("READY_TO_DISPENSE", findLine(pickingCompleted, requestId).get("dispenseTaskStatus").asString());
         assertEquals("READY_TO_DISPENSE", findLine(pickingCompleted, companionRequestId)
-                .get("dispenseTaskStatus").asText());
-        JsonNode pickingReplay = completePicking(firstBatch.get("id").asText());
-        assertEquals("READY_TO_DISPENSE", findLine(pickingReplay, requestId).get("dispenseTaskStatus").asText());
+                .get("dispenseTaskStatus").asString());
+        JsonNode pickingReplay = completePicking(firstBatch.get("id").asString());
+        assertEquals("READY_TO_DISPENSE", findLine(pickingReplay, requestId).get("dispenseTaskStatus").asString());
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/picking/complete",
-                        firstBatch.get("id").asText()).with(pharmacyContext())
+                        firstBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"pickerPractitionerId":"%s","pickerAssignmentId":"%s",
                                  "description":"变更说明后重放"}
@@ -198,7 +198,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                    and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().minusSeconds(60), expiredTaskId);
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/dispense-deliveries",
-                        firstBatch.get("id").asText()).with(pharmacyContext())
+                        firstBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"dispenserPractitionerId":"%s","dispenserAssignmentId":"%s",
                                  "description":"整批发药事务回滚验证"}
@@ -218,12 +218,12 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                    and SD_STATUS in ('ACTIVE','PARTIAL')
                 """, Instant.now().plusSeconds(1800), Long.valueOf(firstDispenseTaskId),
                 Long.valueOf(companionDispenseTaskId));
-        JsonNode fulfillment = dispenseAndDeliver(firstBatch.get("id").asText());
-        assertEquals("PENDING_DISPATCH", fulfillment.at("/deliveries/0/status").asText());
+        JsonNode fulfillment = dispenseAndDeliver(firstBatch.get("id").asString());
+        assertEquals("PENDING_DISPATCH", fulfillment.at("/deliveries/0/status").asString());
         assertEquals(2, fulfillment.at("/deliveries/0/lines").size());
         assertEquals("COMPLETED", findLine(fulfillment.get("batch"), requestId)
-                .get("dispenseTaskStatus").asText());
-        assertEquals("ISSUED", findLine(fulfillment.get("batch"), requestId).get("status").asText());
+                .get("dispenseTaskStatus").asString());
+        assertEquals("ISSUED", findLine(fulfillment.get("batch"), requestId).get("status").asString());
         assertEquals(2, jdbc.queryForObject("""
                 select count(*) from RHN_SUP_MED_DISP where ID_DISP_TASK in (?, ?)
                   and SD_DISP_TYPE = 'DISPENSE'
@@ -231,13 +231,13 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
         assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_LINE", Integer.class));
 
-        JsonNode fulfillmentReplay = dispenseAndDeliver(firstBatch.get("id").asText());
-        assertEquals(fulfillment.at("/deliveries/0/id").asText(),
-                fulfillmentReplay.at("/deliveries/0/id").asText());
+        JsonNode fulfillmentReplay = dispenseAndDeliver(firstBatch.get("id").asString());
+        assertEquals(fulfillment.at("/deliveries/0/id").asString(),
+                fulfillmentReplay.at("/deliveries/0/id").asString());
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
         assertEquals(2, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV_LINE", Integer.class));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/dispense-deliveries",
-                        firstBatch.get("id").asText()).with(pharmacyContext())
+                        firstBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"dispenserPractitionerId":"1","dispenserAssignmentId":"%s",
                                  "description":"住院滚动供药整批发药并建立配送交接"}
@@ -249,66 +249,66 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
                 """, Integer.class, Long.valueOf(firstDispenseTaskId), Long.valueOf(companionDispenseTaskId)));
         assertEquals(1, jdbc.queryForObject("select count(*) from RHN_SUP_WARD_DELIV", Integer.class));
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/intake",
-                        firstBatch.get("id").asText()).with(pharmacyContext())
+                        firstBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lines":[{"lineId":"%s","stockItemId":"1"}],
                                  "description":"变更药品后重放"}
-                                """.formatted(firstSupplyLine.get("id").asText())))
+                                """.formatted(firstSupplyLine.get("id").asString())))
                 .andExpect(status().isConflict());
         assertEquals(1, count("""
                 select count(*) from RHN_SUP_DISP_TASK_LINE
                  where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
-                """, firstSupplyLine.get("id").asText()));
+                """, firstSupplyLine.get("id").asString()));
 
         // The first daily line is already accepted by pharmacy. Appending the next clinical day must remain legal.
         JsonNode secondPlan = plan(requestId, 3, secondDate, "IP-DAILY-SUPPLY-PLAN-2");
         assertEquals(4, secondPlan.get("tasks").size());
-        String thirdTaskId = secondPlan.at("/tasks/2/id").asText();
-        String fourthTaskId = secondPlan.at("/tasks/3/id").asText();
+        String thirdTaskId = secondPlan.at("/tasks/2/id").asString();
+        String fourthTaskId = secondPlan.at("/tasks/3/id").asString();
 
         JsonNode secondBatch = generate(secondDate, nursingUnitDepartmentId,
                 "IP-DAILY-SUPPLY-GENERATE-2");
-        assertNotEquals(firstBatch.get("id").asText(), secondBatch.get("id").asText());
-        assertEquals(secondDate.toString(), secondBatch.get("businessDate").asText());
+        assertNotEquals(firstBatch.get("id").asString(), secondBatch.get("id").asString());
+        assertEquals(secondDate.toString(), secondBatch.get("businessDate").asString());
         assertEquals(1, secondBatch.get("lines").size());
         JsonNode secondSupplyLine = secondBatch.at("/lines/0");
-        assertNotEquals(firstSupplyLine.get("id").asText(), secondSupplyLine.get("id").asText());
+        assertNotEquals(firstSupplyLine.get("id").asString(), secondSupplyLine.get("id").asString());
         assertEquals(2, secondSupplyLine.get("occurrenceCount").asInt());
 
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/intake",
-                        secondBatch.get("id").asText()).with(pharmacyContext())
+                        secondBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lines":[
                                   {"lineId":"%s","stockItemId":"%s"},
                                   {"lineId":"%s","stockItemId":"%s"}
                                 ],"description":"包含外批次明细"}
-                                """.formatted(secondSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM,
-                                firstSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM)))
+                                """.formatted(secondSupplyLine.get("id").asString(), INPATIENT_STOCK_ITEM,
+                                firstSupplyLine.get("id").asString(), INPATIENT_STOCK_ITEM)))
                 .andExpect(status().isBadRequest());
         assertEquals(0, count("""
                 select count(*) from RHN_SUP_DISP_TASK_LINE
                  where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
-                """, secondSupplyLine.get("id").asText()));
+                """, secondSupplyLine.get("id").asString()));
 
         mockMvc.perform(post("/api/pharmacy/ward-supply-batches/{batchId}/intake",
-                        secondBatch.get("id").asText()).with(pharmacyContext())
+                        secondBatch.get("id").asString()).with(pharmacyContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"lines":[
                                   {"lineId":"%s","stockItemId":"%s"},
                                   {"lineId":"%s","stockItemId":"%s"}
                                 ],"description":"重复明细"}
-                                """.formatted(secondSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM,
-                                secondSupplyLine.get("id").asText(), INPATIENT_STOCK_ITEM)))
+                                """.formatted(secondSupplyLine.get("id").asString(), INPATIENT_STOCK_ITEM,
+                                secondSupplyLine.get("id").asString(), INPATIENT_STOCK_ITEM)))
                 .andExpect(status().isBadRequest());
         assertEquals(0, count("""
                 select count(*) from RHN_SUP_DISP_TASK_LINE
                  where SD_FULFILL_SRC_TYPE = 'INPATIENT_SUPPLY_LINE' and ID_FULFILL_SRC = ?
-                """, secondSupplyLine.get("id").asText()));
+                """, secondSupplyLine.get("id").asString()));
 
-        JsonNode secondIntake = intakeBatch(secondBatch.get("id").asText(),
-                List.of(secondSupplyLine.get("id").asText()), "第二日整批接方");
+        JsonNode secondIntake = intakeBatch(secondBatch.get("id").asString(),
+                List.of(secondSupplyLine.get("id").asString()), "第二日整批接方");
         String secondDispenseTaskLineId = findLine(secondIntake, requestId)
-                .get("dispenseTaskLineId").asText();
+                .get("dispenseTaskLineId").asString();
         assertNotEquals(firstDispenseTaskLineId, secondDispenseTaskLineId);
         assertEquals(2, count("""
                 select count(*) from RHN_SUP_DISP_TASK_LINE
@@ -368,7 +368,7 @@ class InpatientDailyMedicationSupplyFlowTest extends RhnIntegrationTestSupport {
 
     private JsonNode findLine(JsonNode batch, String requestId) {
         return StreamSupport.stream(batch.get("lines").spliterator(), false)
-                .filter(line -> requestId.equals(line.get("requestId").asText()))
+                .filter(line -> requestId.equals(line.get("requestId").asString()))
                 .findFirst().orElseThrow();
     }
 

@@ -36,7 +36,7 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                  "routeCode":"ORAL","frequencyCode":"TID","commandCode":"IP-CONS-CREATE"}
                 """.formatted(episodeId, PRODUCT), 201);
         long requestId = order.get("id").asLong();
-        String encounterId = order.get("encounterId").asText();
+        String encounterId = order.get("encounterId").asString();
         recordInpatientNoKnownDrugAllergy(RESIDENT, encounterId);
         postJson("/api/inpatient/orders/" + requestId + "/sign",
                 medicationSign(0, "IP-CONS-SIGN"), 200);
@@ -60,26 +60,26 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
         else assertEquals(0, unitPrice.compareTo(totalAmount));
 
         PharmacyFacts facts = seedPartialDispenseWithReturn(requestId, Long.parseLong(encounterId));
-        String firstTask = planned.get("tasks").get(0).get("id").asText();
-        String secondTask = planned.get("tasks").get(1).get("id").asText();
-        String thirdTask = planned.get("tasks").get(2).get("id").asText();
+        String firstTask = planned.get("tasks").get(0).get("id").asString();
+        String secondTask = planned.get("tasks").get(1).get("id").asString();
+        String thirdTask = planned.get("tasks").get(2).get("id").asString();
 
         JsonNode executed = postJson("/api/inpatient/order-tasks/" + firstTask + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"GIVEN","commandCode":"IP-CONS-EXEC-1"}
                 """, 200);
-        assertEquals("EXECUTED", executed.get("status").asText());
+        assertEquals("EXECUTED", executed.get("status").asString());
         assertEquals(facts.dispenseId(), executed.get("medicationConsumptions").get(0).get("dispenseId").asLong());
         assertEquals(facts.dispenseLineId(),
                 executed.get("medicationConsumptions").get(0).get("dispenseLineId").asLong());
         assertEquals(0, new BigDecimal("1").compareTo(new BigDecimal(
-                executed.get("medicationConsumptions").get(0).get("consumedBaseQuantity").asText())));
+                executed.get("medicationConsumptions").get(0).get("consumedBaseQuantity").asString())));
         assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_CONSUME where ID_INP_ORDER_TASK = ?",
                 Long.parseLong(firstTask)));
 
         JsonNode replay = postJson("/api/inpatient/order-tasks/" + firstTask + "/execute", """
                 {"expectedRevision":0,"outcomeCode":"GIVEN","commandCode":"IP-CONS-EXEC-1"}
                 """, 200);
-        assertEquals("EXECUTED", replay.get("status").asText());
+        assertEquals("EXECUTED", replay.get("status").asString());
         assertEquals(1, count("select count(*) from RHN_SUP_INP_MED_CONSUME where ID_INP_ORDER_TASK = ?",
                 Long.parseLong(firstTask)));
 
@@ -109,7 +109,7 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 {"organizationId":"%s","departmentId":"%s","code":"IP-PHARM","name":"住院药房",
                  "siteType":"PHARMACY","serviceScope":"INPATIENT","validFrom":"2026-01-01"}
                 """.formatted(ORGANIZATION, DEPARTMENT), 201);
-        JsonNode items = postJson("/api/pharmacy/stock-sites/" + site.get("id").asText() + "/stock-items/batch", """
+        JsonNode items = postJson("/api/pharmacy/stock-sites/" + site.get("id").asString() + "/stock-items/batch", """
                 {"items":[{"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
                  "negativeAllowed":false,"lotRequired":true,"traceRequired":false,"splitAllowed":true,
                  "coldChain":false,"controlled":false,"highAlert":false}]}
@@ -256,7 +256,7 @@ class InpatientMedicationDispenseConsumptionTest extends RhnIntegrationTestSuppo
                 {"residentId":"%s","bedId":"%s","admissionTypeCode":"GENERAL",
                  "admissionSourceCode":"OUTPATIENT","admissionReason":"住院药品核销测试",
                  "commandCode":"IP-CONS-ADMIT"}
-                """.formatted(RESIDENT, BED), 201).get("id").asText();
+                """.formatted(RESIDENT, BED), 201).get("id").asString();
     }
 
     private JsonNode postJson(String path, String body, int expectedStatus) throws Exception {

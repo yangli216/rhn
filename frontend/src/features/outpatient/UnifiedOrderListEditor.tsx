@@ -7,6 +7,7 @@ import type { SkinTestWorkItem } from '../../shared/api/treatmentApi'
 import type { ClinicalAiTreatmentRecommendation } from '../../shared/api/clinicalAiApi'
 import type { Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
+import { formatTime } from '../../shared/format'
 import {
   Alert, Button, ClinicalResourceSearch, Icon, Popconfirm, Select, StatusBadge,
   type ClinicalResource, type ClinicalResourceOption, type OrderSearchMode,
@@ -85,6 +86,9 @@ interface MedicationEntry {
   stockSiteName?: string
   availablePackageQuantity?: number
   packageUnitName?: string
+  skinTestExempt?: boolean
+  skinTestExemptReason?: string
+  exemptEvidenceEventId?: string
 }
 
 export function calculatePackageQuantity({
@@ -174,6 +178,7 @@ const emptyMedicationEntry = (): MedicationEntry => ({
   dispenseOptionKey: '', instruction: '', herbalDoseCount: 7, herbalMethod: '水煎服', safetyReviewed: false,
   allergyOverrideReason: '', isManualQuantity: false,
   stockSiteId: undefined, stockSiteName: undefined, availablePackageQuantity: undefined, packageUnitName: undefined,
+  skinTestExempt: false, skinTestExemptReason: '', exemptEvidenceEventId: undefined,
 })
 
 function newAdministrationGroupKey() {
@@ -407,7 +412,20 @@ export function UnifiedOrderListEditor({
   const isSkinTest = Boolean(currentMedication?.skinTestRequired)
   const isAntimicrobial = Boolean(currentMedication?.antimicrobial)
   const isAllergyHit = matchedAllergies.length > 0
-  const hasSafetyAlert = Boolean(currentMedication && (isAllergyHit || hasKnownAllergies || isSkinTest || isAntimicrobial))
+  const recentNegativeQuery = useQuery({
+    queryKey: ['recent-negative-skin-test', encounter.residentId, currentMedication?.id],
+    queryFn: () => (currentMedication?.skinTestRequired && currentMedication?.id)
+      ? api.treatments.validNegativeSkinTests(encounter.residentId, currentMedication.id, currentMedication.skinTestResultValidityHours)
+      : Promise.resolve([]),
+    enabled: Boolean(currentMedication?.skinTestRequired && currentMedication?.id),
+    staleTime: 30_000,
+  })
+  const recentNegativeItem = recentNegativeQuery.data?.[0]
+  const hasPositiveSkinTest = Boolean(
+    currentMedication?.id &&
+    (skinTests.data ?? []).some((item) => item.medicationId === currentMedication.id && item.status === 'POSITIVE')
+  )
+  const hasSafetyAlert = Boolean(currentMedication && (isAllergyHit || hasKnownAllergies || isSkinTest || isAntimicrobial || hasPositiveSkinTest))
   const isStockInsufficient = Boolean(
     isMedication
     && medicationEntry.availablePackageQuantity != null
@@ -571,6 +589,9 @@ export function UnifiedOrderListEditor({
       stockSiteName: rawOrderable?.stockSiteName,
       availablePackageQuantity: rawOrderable?.availablePackageQuantity,
       packageUnitName: rawOrderable?.packageUnitName,
+      skinTestExempt: false,
+      skinTestExemptReason: '',
+      exemptEvidenceEventId: undefined,
     })
     setValidationError('')
     if (option && entryType !== 'HERBAL') focusControlAfterSelection('doctor-unified-dose')
@@ -882,6 +903,14 @@ export function UnifiedOrderListEditor({
       setValidationError('命中已知过敏原，必须填写继续开立理由')
       return
     }
+    if (hasPositiveSkinTest) {
+      setValidationError('当前药品患者皮试结果为【阳性】（严重禁忌），系统禁止开立！')
+      return
+    }
+    if (medicationEntry.skinTestExempt && !medicationEntry.skinTestExemptReason?.trim()) {
+      setValidationError('已勾选免做皮试，必须选择或填写免试原因')
+      return
+    }
 
     if (isMedication && isStockInsufficient) {
       setValidationError(`开立数量(${medicationEntry.quantity})超过【${medicationEntry.stockSiteName || '药房'}】当前可用库存(${medicationEntry.availablePackageQuantity}${medicationEntry.packageUnitName || '包装'})，请调减数量`)
@@ -923,6 +952,11 @@ export function UnifiedOrderListEditor({
           : medicationEntry.instruction.trim(),
         allergyReviewConfirmed: medicationEntry.safetyReviewed || allergyReviewRecorded || !hasSafetyAlert,
         allergyOverrideReason: medicationEntry.allergyOverrideReason.trim() || undefined,
+        skinTestExempt: medicationEntry.skinTestExempt,
+        skinTestExemptReason: medicationEntry.skinTestExempt
+          ? (medicationEntry.skinTestExemptReason?.trim() || '周期内已有阴性结果（有效时间内）')
+          : undefined,
+        exemptEvidenceEventId: medicationEntry.exemptEvidenceEventId,
         priceType: product.priceType, pricingRequired: true,
         reason: herbal ? '门诊草药处方' : '门诊处方',
         dispensePackageOptionKey: product.key,
@@ -1489,8 +1523,13 @@ export function UnifiedOrderListEditor({
                   </span>
                 )}
                 {isSkinTest && (
-                  <span className="doctor-safety-tag is-skintest">
-                    <Icon name="info" /> 需皮试药品（开立后自动派发皮试任务）
+                  <span className={`doctor-safety-tag ${hasPositiveSkinTest ? 'is-danger' : medicationEntry.skinTestExempt ? 'is-exempt' : 'is-skintest'}`}>
+                    <Icon name={hasPositiveSkinTest ? 'warning' : 'info'} />
+                    {hasPositiveSkinTest
+                      ? '严正警示：患者当前药品皮试结果为【阳性】，禁止开立！'
+                      : medicationEntry.skinTestExempt
+                      ? `已免做皮试：${medicationEntry.skinTestExemptReason || '符合免试规则'}`
+                      : '需皮试药品（默认派发皮试任务）'}
                   </span>
                 )}
                 {isAntimicrobial && (
@@ -1502,8 +1541,72 @@ export function UnifiedOrderListEditor({
                   <input aria-label="继续开立理由" value={medicationEntry.allergyOverrideReason}
                     placeholder="命中已知过敏，请输入继续开立理由" onChange={(event) => updateMedication('allergyOverrideReason', event.target.value)} />
                 )}
-
               </div>
+              {isSkinTest && !hasPositiveSkinTest && (
+                <div className="doctor-skintest-interactive-bar">
+                  {recentNegativeItem && (
+                    <div className="doctor-skintest-evidence-alert">
+                      <span className="doctor-evidence-badge">探测到历史有效皮试</span>
+                      <span className="doctor-evidence-info">
+                        记录 #{recentNegativeItem.eventId}（阴性，完成于 {recentNegativeItem.completedAt ? formatTime(recentNegativeItem.completedAt) : '近期'}
+                        {recentNegativeItem.verifiedByName ? `，复核护士：${recentNegativeItem.verifiedByName}` : ''}
+                        {recentNegativeItem.resultValidityHours ? `，有效期 ${recentNegativeItem.resultValidityHours} 小时` : ''}）
+                      </span>
+                      {!medicationEntry.skinTestExempt ? (
+                        <Button size="sm" variant="secondary" onClick={() => {
+                          setMedicationEntry((curr) => ({
+                            ...curr,
+                            skinTestExempt: true,
+                            skinTestExemptReason: `周期内皮试阴性有效（引用记录 #${recentNegativeItem.eventId}）`,
+                            exemptEvidenceEventId: recentNegativeItem.eventId,
+                          }))
+                        }}>
+                          一键引用免试
+                        </Button>
+                      ) : (
+                        <span className="doctor-evidence-applied-tag">已引用免试</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="doctor-skintest-exempt-options">
+                    <label className="doctor-exempt-toggle">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(medicationEntry.skinTestExempt)}
+                        onChange={(e) => {
+                          const checked = e.target.checked
+                          setMedicationEntry((curr) => ({
+                            ...curr,
+                            skinTestExempt: checked,
+                            skinTestExemptReason: checked
+                              ? (curr.skinTestExemptReason || '周期内已有阴性结果（有效时间内）')
+                              : '',
+                            exemptEvidenceEventId: checked ? curr.exemptEvidenceEventId : undefined,
+                          }))
+                        }}
+                      />
+                      <span>免做皮试</span>
+                    </label>
+                    {medicationEntry.skinTestExempt && (
+                      <div className="doctor-exempt-reason-select">
+                        <Select
+                          value={medicationEntry.skinTestExemptReason || '周期内已有阴性结果（有效时间内）'}
+                          options={[
+                            { value: '周期内已有阴性结果（有效时间内）', label: '周期内已有阴性结果（有效时间内）' },
+                            { value: '同批号连续用药', label: '同批号连续用药' },
+                            { value: '外院有效皮试结果证明', label: '外院有效皮试结果证明' },
+                            { value: '患者既往近期规则耐受使用', label: '患者既往近期规则耐受使用' },
+                            { value: '其他临床裁量免试', label: '其他临床裁量免试' },
+                          ]}
+                          searchable={false}
+                          clearable={false}
+                          onChange={(val) => setMedicationEntry((curr) => ({ ...curr, skinTestExemptReason: val }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1572,8 +1675,12 @@ function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, is
       <StatusBadge tone={value.status === 'ACTIVE' ? 'success' : value.status === 'DRAFT' ? 'warning' : 'neutral'}>
         {orderStatusLabel(value.status)}
       </StatusBadge>
-      {value.skinTestRequired && <StatusBadge tone={skinTest?.status === 'NEGATIVE' ? 'success'
-        : skinTest?.status === 'POSITIVE' ? 'danger' : 'warning'}>{doctorSkinTestLabel(skinTest?.status)}</StatusBadge>}
+      {value.skinTestExempt ? (
+        <span title={value.skinTestExemptReason || '已免做皮试'}><StatusBadge tone="info">免皮试</StatusBadge></span>
+      ) : value.skinTestRequired ? (
+        <StatusBadge tone={skinTest?.status === 'NEGATIVE' ? 'success'
+          : skinTest?.status === 'POSITIVE' ? 'danger' : 'warning'}>{doctorSkinTestLabel(skinTest?.status)}</StatusBadge>
+      ) : null}
     </span>
     {!readOnly && <span className="doctor-unified-order-actions">
       {onPrint && <Button size="sm" variant="text" onClick={onPrint}>打印</Button>}
@@ -1973,6 +2080,9 @@ function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove }: 
     <span className="doctor-unified-price">{formatUnitPrice(value.unitPrice, value.currencyCode)}</span>
     <span className="doctor-order-status-stack">
       <StatusBadge tone="warning">待确认</StatusBadge>
+      {value.request.skinTestExempt && (
+        <span title={value.request.skinTestExemptReason || '已免做皮试'}><StatusBadge tone="info">免皮试</StatusBadge></span>
+      )}
     </span>
     <span className="doctor-unified-order-actions">
       <Popconfirm

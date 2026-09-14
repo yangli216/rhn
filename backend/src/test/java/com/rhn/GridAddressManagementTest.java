@@ -52,7 +52,7 @@ class GridAddressManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
-        String provinceId = province.get("id").asText();
+        String provinceId = province.get("id").asString();
 
         JsonNode city = json(mockMvc.perform(post("/api/platform/grid-addresses").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -97,7 +97,7 @@ class GridAddressManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("GRID_ADDRESS_CHILD_ACTIVE"));
 
-        mockMvc.perform(put("/api/platform/grid-addresses/{id}", city.get("id").asText()).with(rhn())
+        mockMvc.perform(put("/api/platform/grid-addresses/{id}", city.get("id").asString()).with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"expectedRevision":0,"parentId":"%s","name":"测试新城",
@@ -107,7 +107,7 @@ class GridAddressManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.revision").value(1))
                 .andExpect(jsonPath("$.fullPath").value("测试省" + suffix + "/测试新城"));
 
-        mockMvc.perform(put("/api/platform/grid-addresses/{id}", city.get("id").asText()).with(rhn())
+        mockMvc.perform(put("/api/platform/grid-addresses/{id}", city.get("id").asString()).with(rhn())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"expectedRevision":0,"parentId":"%s","name":"过期修改",

@@ -26,22 +26,22 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
         receive("MC-R1-" + suffix, fixture, lotId, "2", "2026-08-27T08:00:00Z");
         JsonNode period = period(fixture.siteId(), "202608");
 
-        JsonNode first = prepare(period.get("id").asText(), "MC-CLOSE-1-" + suffix);
-        assertEquals("VALIDATED", first.get("status").asText());
+        JsonNode first = prepare(period.get("id").asString(), "MC-CLOSE-1-" + suffix);
+        assertEquals("VALIDATED", first.get("status").asString());
         assertEquals(0, first.get("differenceCount").asInt());
         assertEquals(1, first.get("dimensionCount").asInt());
         assertEquals(0, first.at("/totals/0/valueDifference").decimalValue().signum());
-        assertEquals(0, differences(first.get("id").asText()).size());
+        assertEquals(0, differences(first.get("id").asString()).size());
 
         receive("MC-R2-" + suffix, fixture, lotId, "1", "2026-08-28T08:00:00Z");
         mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post",
-                        first.get("id").asText()).with(rhnWorkContext()))
+                        first.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("INVENTORY_CLOSE_STALE"));
 
-        JsonNode second = prepare(period.get("id").asText(), "MC-CLOSE-2-" + suffix);
+        JsonNode second = prepare(period.get("id").asString(), "MC-CLOSE-2-" + suffix);
         mockMvc.perform(post("/api/pharmacy/inventory-periods/close-runs/{id}/post",
-                        second.get("id").asText()).with(rhnWorkContext()))
+                        second.get("id").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("POSTED"))
                 .andExpect(jsonPath("$.differenceCount").value(0));
@@ -51,10 +51,10 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].periodCode").value("202609"))
                 .andExpect(jsonPath("$[0].status").value("OPEN"))
-                .andExpect(jsonPath("$[0].previousPeriodId").value(period.get("id").asText()))
+                .andExpect(jsonPath("$[0].previousPeriodId").value(period.get("id").asString()))
                 .andExpect(jsonPath("$[1].periodCode").value("202608"))
                 .andExpect(jsonPath("$[1].status").value("CLOSED"))
-                .andExpect(jsonPath("$[1].closingRunId").value(second.get("id").asText()));
+                .andExpect(jsonPath("$[1].closingRunId").value(second.get("id").asString()));
 
         mockMvc.perform(post("/api/pharmacy/inventory/receipts").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -83,7 +83,7 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode values = json(mockMvc.perform(get("/api/pharmacy/inventory-periods").with(rhnWorkContext())
                         .queryParam("stockSiteId", siteId))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        for (JsonNode value : values) if (code.equals(value.get("periodCode").asText())) return value;
+        for (JsonNode value : values) if (code.equals(value.get("periodCode").asString())) return value;
         throw new AssertionError("Missing inventory period " + code);
     }
 
@@ -115,7 +115,7 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                                   "manufacturerNameSnapshot":"示例制药企业","qualityStatus":"QUALIFIED"
                                 }
                                 """.formatted(lotNo)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private Fixture createFixture(String suffix) throws Exception {
@@ -129,7 +129,7 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-items",
-                                site.get("id").asText()).with(rhnWorkContext())
+                                site.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
@@ -139,7 +139,7 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-bins",
-                                site.get("id").asText()).with(rhnWorkContext())
+                                site.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MC-A","name":"月结货位","binType":"BIN","stockDefault":"AVAILABLE",
@@ -147,7 +147,7 @@ class InventoryPeriodCloseWorkflowTest extends RhnIntegrationTestSupport {
                                 }
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new Fixture(site.get("id").asText(), item.get("id").asText(), bin.get("id").asText());
+        return new Fixture(site.get("id").asString(), item.get("id").asString(), bin.get("id").asString());
     }
 
     private record Fixture(String siteId, String itemId, String binId) {}

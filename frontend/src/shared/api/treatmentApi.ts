@@ -135,6 +135,10 @@ export interface SkinTestWorkItem {
   performedByPractitionerId?: string
   readByUserId?: string
   readByPractitionerId?: string
+  verifiedByUserId?: string
+  verifiedByPractitionerId?: string
+  verifiedByName?: string
+  verifiedAt?: string
 }
 
 export interface StartSkinTestInput {
@@ -160,6 +164,8 @@ export interface CompleteSkinTestInput {
   flareDiameterMm?: number
   reactionDescription?: string
   earlyReadReason?: string
+  verifiedByPractitionerId?: string
+  verifiedByName?: string
 }
 
 export function createTreatmentApi(client: ApiClient) {
@@ -185,6 +191,13 @@ export function createTreatmentApi(client: ApiClient) {
       if (keyword?.trim()) query.set('keyword', keyword.trim())
       if (encounterId) query.set('encounterId', encounterId)
       return client.request<SkinTestWorkItem[]>(`/api/treatments/skin-tests/worklist${query.size ? `?${query}` : ''}`)
+    },
+    validNegativeSkinTests: (residentId: string, medicationId: string, validityHours?: number) => {
+      const query = new URLSearchParams()
+      query.set('residentId', residentId)
+      query.set('medicationId', medicationId)
+      if (validityHours) query.set('validityHours', String(validityHours))
+      return client.request<SkinTestWorkItem[]>(`/api/treatments/skin-tests/valid-negative?${query}`)
     },
     startSkinTest: (medicationRequestId: string, input: StartSkinTestInput) =>
       client.request<SkinTestWorkItem>(

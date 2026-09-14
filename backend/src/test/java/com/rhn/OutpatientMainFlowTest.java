@@ -145,16 +145,16 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                         .queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.request.id == '%s')]"
-                        .formatted(medicationRequest.get("id").asText())).isEmpty());
+                        .formatted(medicationRequest.get("id").asString())).isEmpty());
         mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake",
-                        medicationRequest.get("id").asText())
+                        medicationRequest.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"stockItemId\":\"%s\"}".formatted(pharmacy.stockItemId())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("MEDICATION_REQUEST_SETTLEMENT_REQUIRED"));
 
         JsonNode invoice = json(mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices",
-                                statement.get("accountId").asText())
+                                statement.get("accountId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "invoiceNo":"OPD-INV-%s","settlementScene":"OUTPATIENT",
@@ -167,7 +167,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         JsonNode paymentOrder = json(mockMvc.perform(post(
-                                "/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asText())
+                                "/api/billing/settlements/{settlementId}/payment-orders", invoice.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"OPD-PAY-%s","businessScene":"OUTPATIENT",
@@ -184,9 +184,9 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                         .queryParam("organizationId", ORGANIZATION))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.request.id == '%s')].request.status"
-                        .formatted(medicationRequest.get("id").asText())).value("ACTIVE"));
+                        .formatted(medicationRequest.get("id").asString())).value("ACTIVE"));
         JsonNode task = json(mockMvc.perform(post("/api/pharmacy/requests/{requestId}/intake",
-                                medicationRequest.get("id").asText())
+                                medicationRequest.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"stockItemId\":\"%s\",\"description\":\"结算后窗口接方\"}"
                                 .formatted(pharmacy.stockItemId())))
@@ -195,7 +195,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         Reviewer pharmacist = createReviewer(suffix);
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reviews", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "result":"PASS","pharmacistPractitionerId":"%s",
@@ -203,13 +203,13 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(pharmacist.practitionerId(), pharmacist.assignmentId())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("READY_TO_PICK"));
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reservations", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/reservations", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expiryMinutes\":30}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.taskStatus").value("PICKING"))
                 .andExpect(jsonPath("$.reservedBaseQuantity").value(14));
-        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/picking/complete", task.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispense-tasks/{taskId}/picking/complete", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "pickerPractitionerId":"%s","pickerAssignmentId":"%s",
@@ -218,7 +218,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 """.formatted(pharmacist.practitionerId(), pharmacist.assignmentId())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.taskStatus").value("READY_TO_DISPENSE"));
         JsonNode dispense = json(mockMvc.perform(post(
-                                "/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asText())
+                                "/api/pharmacy/dispense-tasks/{taskId}/dispenses", task.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "requestCode":"OPD-DSP-%s","operationQuantity":1,
@@ -230,7 +230,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.dispenseType").value("DISPENSE"))
                 .andExpect(jsonPath("$.operationQuantity").value(1))
                 .andReturn().getResponse().getContentAsString());
-        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asText())
+        mockMvc.perform(get("/api/pharmacy/dispense-tasks/{taskId}/trace", task.get("id").asString())
                         .with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.taskStatus").value("COMPLETED"))
                 .andExpect(jsonPath("$.netDispensedQuantity").value(1));
@@ -242,7 +242,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
-        mockMvc.perform(post("/api/pharmacy/dispenses/{dispenseId}/returns", dispense.get("id").asText())
+        mockMvc.perform(post("/api/pharmacy/dispenses/{dispenseId}/returns", dispense.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "returnNo":"OPD-RET-%s","reasonCode":"PATIENT_NOT_USE",
@@ -251,7 +251,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "lines":[{"originalDispenseLineId":"%s","quantity":1,"disposition":"RESTOCK"}]
                                 }
                                 """.formatted(suffix, pharmacist.practitionerId(), pharmacist.assignmentId(),
-                                dispense.at("/lines/0/id").asText())))
+                                dispense.at("/lines/0/id").asString())))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("CONFIRMED"));
 
         JsonNode afterReturn = json(mockMvc.perform(get(
@@ -264,15 +264,15 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.accountBalance").value(-18.6))
                 .andReturn().getResponse().getContentAsString());
         JsonNode creditInvoice = json(mockMvc.perform(post("/api/billing/accounts/{accountId}/invoices",
-                                statement.get("accountId").asText())
+                                statement.get("accountId").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"invoiceNo\":\"OPD-CRN-%s\"}".formatted(suffix)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.invoiceType").value("CREDIT"))
                 .andExpect(jsonPath("$.netAmount").value(-18.6))
                 .andReturn().getResponse().getContentAsString());
-        assertEquals("CREDIT", creditInvoice.get("invoiceType").asText());
+        assertEquals("CREDIT", creditInvoice.get("invoiceType").asString());
         mockMvc.perform(post("/api/billing/payments/{paymentId}/refund-orders",
-                                afterReturn.at("/payments/0/id").asText())
+                                afterReturn.at("/payments/0/id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "idempotencyKey":"OPD-RF-%s","amount":18.60,
@@ -296,7 +296,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "gender":"FEMALE","birthDate":"1988-08-08","phone":"13800138000"
                                 }
                                 """.formatted(digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String createAndStartEncounter(String residentId) throws Exception {
@@ -305,9 +305,9 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText()))
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
-        return encounter.get("id").asText();
+        return encounter.get("id").asString();
     }
 
     private void recordNoKnownDrugAllergy(String residentId, String encounterId) throws Exception {
@@ -347,7 +347,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asText())
+        JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-items", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
@@ -356,7 +356,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(PRODUCT_ID, PACKAGE_ID)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asText())
+        JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"OPD-PICK","name":"门诊发药位","binType":"COUNTER",
@@ -366,7 +366,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                 """))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode lot = json(mockMvc.perform(post("/api/pharmacy/stock-items/{stockItemId}/lots",
-                                item.get("id").asText())
+                                item.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "lotNo":"OPD-%s","productionDate":"2026-01-01","expiryDate":"2027-12-31",
@@ -382,8 +382,8 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "operationQuantity":10,"unitCost":0.60,"occurredAt":"%s",
                                   "description":"门诊主流程期初库存"
                                 }
-                                """.formatted(suffix, suffix, item.get("id").asText(), bin.get("id").asText(),
-                                lot.get("id").asText(), Instant.now())))
+                                """.formatted(suffix, suffix, item.get("id").asString(), bin.get("id").asString(),
+                                lot.get("id").asString(), Instant.now())))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/pharmacy/dispense-routes").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -392,9 +392,9 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "careSetting":"OUTPATIENT","sourceDepartmentId":"%s",
                                   "targetStockSiteId":"%s","active":true,"validFrom":"2026-01-01"
                                 }
-                                """.formatted(ORGANIZATION, suffix, suffix, DEPARTMENT, site.get("id").asText())))
+                                """.formatted(ORGANIZATION, suffix, suffix, DEPARTMENT, site.get("id").asString())))
                 .andExpect(status().isCreated());
-        return new PharmacyFixture(item.get("id").asText());
+        return new PharmacyFixture(item.get("id").asString());
     }
 
     private Reviewer createReviewer(String suffix) throws Exception {
@@ -415,7 +415,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "sdEmploymentType":"PERMANENT","primaryEmployment":true,
                                   "hireDate":"2026-01-01"
                                 }
-                                """.formatted(practitioner.get("id").asText(), ORGANIZATION, suffix)))
+                                """.formatted(practitioner.get("id").asString(), ORGANIZATION, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode assignment = json(mockMvc.perform(post("/api/platform/assignments").with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -424,17 +424,17 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "positionId":"%s","code":"OPD-ASN-%s","sdAssignmentType":"PRIMARY",
                                   "primaryAssignment":true,"validFrom":"2026-01-01"
                                 }
-                                """.formatted(employment.get("id").asText(), ORGANIZATION, DEPARTMENT,
-                                position.get("id").asText(), suffix)))
+                                """.formatted(employment.get("id").asString(), ORGANIZATION, DEPARTMENT,
+                                position.get("id").asString(), suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        return new Reviewer(practitioner.get("id").asText(), assignment.get("id").asText());
+        return new Reviewer(practitioner.get("id").asString(), assignment.get("id").asString());
     }
 
     private void signClinicalDocument(String encounterId) throws Exception {
         JsonNode documents = json(mockMvc.perform(get("/api/clinical-documents")
                         .with(rhnWorkContext()).queryParam("encounterId", encounterId))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(post("/api/clinical-documents/{documentId}/sign", documents.get(0).get("id").asText())
+        mockMvc.perform(post("/api/clinical-documents/{documentId}/sign", documents.get(0).get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":1,\"signatureMeaning\":\"AUTHOR\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SIGNED"));

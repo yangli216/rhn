@@ -43,16 +43,18 @@ public class PrintTemplateAdministrationService {
     private final ClinicalPdfRenderer renderer;
     private final JsonCodec jsonCodec;
     private final ExecutionContextProvider contextProvider;
+    private final PrintBusinessAdministrationService businessAdministration;
 
     public PrintTemplateAdministrationService(PrintDocumentDefinitionRepository definitionRepository,
             PrintMediaProfileRepository mediaRepository, PrintTemplateDraftRepository draftRepository,
             PrintTemplateRepository templateRepository, PrintTemplateVersionRepository versionRepository,
             PrintLayoutValidator validator, ClinicalPdfRenderer renderer, JsonCodec jsonCodec,
-            ExecutionContextProvider contextProvider) {
+            ExecutionContextProvider contextProvider, PrintBusinessAdministrationService businessAdministration) {
         this.definitionRepository = definitionRepository; this.mediaRepository = mediaRepository;
         this.draftRepository = draftRepository; this.templateRepository = templateRepository;
         this.versionRepository = versionRepository; this.validator = validator; this.renderer = renderer;
         this.jsonCodec = jsonCodec; this.contextProvider = contextProvider;
+        this.businessAdministration = businessAdministration;
     }
 
     @Transactional(readOnly = true)
@@ -153,6 +155,7 @@ public class PrintTemplateAdministrationService {
                 draft.configJson(), sha256(draft.configJson()), context.subjectId()));
         template.publish(draft.templateName(), definition.documentType(), nextVersion, context.subjectId());
         templateRepository.saveAndFlush(template);
+        businessAdministration.ensureInternalTemplateImplementation(template, definition.dataSchema(), context.subjectId());
         draft.publish(template.id(), version.id(), expectedRevision, context.subjectId());
         return view(draftRepository.saveAndFlush(draft));
     }
@@ -182,6 +185,23 @@ public class PrintTemplateAdministrationService {
         PrintTemplateDraft draft = requireDraft(draftId, context.tenantId());
         PrintDocumentDefinition definition = validate(draft, context.tenantId());
         return renderer.render(definition.documentType(), draft.layoutSchema(), draft.configJson(),
+                sampleData == null ? Map.of() : new LinkedHashMap<>(sampleData));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] previewPublished(Long templateId, Map<String, Object> sampleData) {
+        ExecutionContext context = context();
+        PrintTemplate template = templateRepository.findById(templateId)
+                .filter(value -> "ACTIVE".equals(value.status()))
+                .filter(value -> value.tenantId() == null || value.tenantId().equals(context.tenantId()))
+                .orElseThrow(() -> notFound("PRINT_TEMPLATE_NOT_FOUND", "未找到可预览的已发布模板"));
+        PrintTemplateVersion version = versionRepository
+                .findByTemplateIdAndVersionNo(template.id(), template.currentVersion())
+                .orElseThrow(() -> notFound("PRINT_TEMPLATE_VERSION_NOT_FOUND", "已发布模板版本不存在"));
+        PrintDocumentDefinition definition = requireDefinition(version.documentDefinitionId(), context.tenantId());
+        PrintMediaProfile media = requireMedia(version.mediaProfileId(), context.tenantId());
+        validator.validate(version.layoutSchema(), version.configJson(), definition, media);
+        return renderer.render(definition.documentType(), version.layoutSchema(), version.configJson(),
                 sampleData == null ? Map.of() : new LinkedHashMap<>(sampleData));
     }
 

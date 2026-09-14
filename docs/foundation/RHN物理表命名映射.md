@@ -192,7 +192,10 @@
 | SYS | `sys.practitioner` | 医务人员；一行代表一条医务人员记录 | `practitioners` | `RHN_SYS_PRACT` | 12 |
 | ANL | `anl.presence_metric_sample` | 在线状态指标样本；一行代表一条在线状态指标样本记录 | `presence_metric_samples` | `RHN_ANL_PRES_METRIC_SAMPLE` | 13 |
 | SYS | `sys.print_job` | 打印作业；一行代表一条打印作业记录 | `print_jobs` | `RHN_SYS_PRINT_JOB` | 10 |
-| SYS | `sys.print_output` | 打印输出；一行代表一条打印输出记录 | `print_outputs` | `RHN_SYS_PRINT_OUTPUT` | 21 |
+| SYS | `sys.print_output` | 打印输出；一行代表一条打印输出记录 | `print_outputs` | `RHN_SYS_PRINT_OUTPUT` | 26 |
+| META | `meta.print_task_definition` | 标准打印任务定义；一行代表一个业务模块稳定依赖的打印任务 | `print_task_definitions` | `RHN_META_PRINT_TASK_DEF` | 16 |
+| META | `meta.print_implementation` | 打印实现注册；一行代表一个内部模板或受控外部报表实现 | `print_implementations` | `RHN_META_PRINT_IMPL` | 16 |
+| META | `meta.print_implementation_binding` | 打印实现绑定；一行代表一条平台、租户、机构或科室级解析规则 | `print_implementation_bindings` | `RHN_META_PRINT_IMPL_BIND` | 17 |
 | META | `meta.print_template_version` | 打印模板版本；一行代表一条打印模板版本记录 | `print_template_versions` | `RHN_META_PRINT_TMPL_VER` | 11 |
 | META | `meta.print_document_definition` | 打印单据定义；一行代表一个可打印的业务单据类型 | `print_document_definitions` | `RHN_META_PRINT_DOC_DEF` | 14 |
 | META | `meta.print_media_profile` | 打印介质档案；一行代表一种可绑定模板的纸张或标签方案 | `print_media_profiles` | `RHN_META_PRINT_MEDIA` | 24 |
@@ -285,7 +288,7 @@
 | SYS | `sys.work_task_history` | 工作任务历史；一行代表一条工作任务历史记录 | `work_task_history` | `RHN_SYS_WORK_TASK_HIST` | 10 |
 | SYS | `sys.work_task` | 工作任务；一行代表一条工作任务记录 | `work_tasks` | `RHN_SYS_WORK_TASK` | 26 |
 
-合计：280 张表。
+合计：283 张表。
 
 ## Oracle 适配器技术列
 

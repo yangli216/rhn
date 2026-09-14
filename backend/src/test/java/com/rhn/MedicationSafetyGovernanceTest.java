@@ -53,12 +53,12 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
                                 {"fullName":"类别过敏测试患者","identifiers":[{"system":"9","value":"CLASS%s",
                                 "useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1990-01-01"}
                                 """.formatted(suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId)).andExpect(status().isOk());
 
         mockMvc.perform(post("/api/residents/{id}/allergies", residentId).with(rhnWorkContext())
@@ -129,12 +129,12 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
                                 {"fullName":"抗菌药规则患者","identifiers":[{"system":"9","value":"33010219990909%s",
                                 "useType":"SECONDARY"}],"gender":"FEMALE","birthDate":"1999-09-09"}
                                 """.formatted(suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(resident, ORGANIZATION, DEPARTMENT)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounter)).andExpect(status().isOk());
 
         mockMvc.perform(get("/api/encounters/{id}/orderable-medications", encounter)

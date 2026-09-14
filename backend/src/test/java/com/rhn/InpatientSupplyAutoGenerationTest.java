@@ -34,8 +34,8 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
                  "admissionTypeCode":"GENERAL","admissionSourceCode":"DIRECT",
                  "admissionReason":"住院供药自动生成测试","commandCode":"IP-AUTO-SUPPLY-ADMIT"}
                 """.formatted(RESIDENT, BED));
-        String episodeId = admission.get("id").asText();
-        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asText());
+        String episodeId = admission.get("id").asString();
+        recordInpatientNoKnownDrugAllergy(RESIDENT, admission.get("encounterId").asString());
 
         JsonNode order = postJson("/api/inpatient/orders", """
                 {"episodeId":"%s","orderCategory":"MEDICATION","durationType":"LONG_TERM",
@@ -43,7 +43,7 @@ class InpatientSupplyAutoGenerationTest extends RhnIntegrationTestSupport {
                  "routeCode":"ORAL","frequencyCode":"BID","instructions":"自动生成供药批次",
                  "commandCode":"IP-AUTO-SUPPLY-ORDER"}
                 """.formatted(episodeId, PRODUCT));
-        String requestId = order.get("id").asText();
+        String requestId = order.get("id").asString();
         postJson("/api/inpatient/orders/" + requestId + "/sign", """
                 {"expectedRevision":0,"allergyReviewConfirmed":true,"commandCode":"IP-AUTO-SUPPLY-SIGN"}
                 """);

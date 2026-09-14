@@ -2,7 +2,9 @@ package com.rhn;
 
 import org.junit.jupiter.api.Test;
 import org.openpdf.text.pdf.PdfReader;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 
 import java.util.UUID;
@@ -15,6 +17,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
+    @Autowired JdbcTemplate jdbc;
+
     @Test
     void batch_printing_freezes_snapshot_enforces_reprint_and_completes_bridge_receipt() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
@@ -42,10 +46,10 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                                  "durationValue":1,"durationUnit":"DAY","substitutionAllowed":true,
                                  "selfProvided":true,"pricingRequired":false,"medicationInstruction":"静脉滴注",
                                  "allergyReviewConfirmed":true}
-                                """.formatted(prescription.get("id").asText(), medication.get("id").asText())))
+                                """.formatted(prescription.get("id").asString(), medication.get("id").asString())))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/submit",
-                        encounterId, prescription.get("id").asText()).with(rhnWorkContext())
+                        encounterId, prescription.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"expectedRevision\":0}"))
                 .andExpect(status().isOk());
 
@@ -56,14 +60,23 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         JsonNode candidate = findCandidate(candidates, encounterId);
         assertTrue(candidate.get("eligible").asBoolean());
-        String taskId = candidate.get("sourceId").asText();
+        String taskId = candidate.get("sourceId").asString();
 
         String key = "PRINT-BATCH-" + suffix;
         JsonNode batch = createBatch(taskId, "270000000000301", key, null, status().isOk());
         assertEquals(1, batch.get("includedCount").asInt());
         assertEquals(0, batch.get("excludedCount").asInt());
-        assertEquals("GENERATED", batch.get("status").asText());
-        byte[] pdf = mockMvc.perform(get(batch.get("downloadUrl").asText()).with(rhnWorkContext()))
+        assertEquals("GENERATED", batch.get("status").asString());
+        assertEquals("TREATMENT.INFUSION_LABEL.PRINT", jdbc.queryForObject(
+                "select CD_PRINT_TASK from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = ?", String.class,
+                batch.get("outputId").asLong()));
+        assertEquals(270000000000407L, jdbc.queryForObject(
+                "select ID_PRINT_IMPL from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = ?", Long.class,
+                batch.get("outputId").asLong()));
+        assertEquals(270000000000507L, jdbc.queryForObject(
+                "select ID_PRINT_IMPL_BIND from RHN_SYS_PRINT_OUTPUT where ID_PRINT_OUTPUT = ?", Long.class,
+                batch.get("outputId").asLong()));
+        byte[] pdf = mockMvc.perform(get(batch.get("downloadUrl").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         assertTrue(pdf.length > 1_000);
         assertEquals(1, new PdfReader(pdf).getNumberOfPages());
@@ -77,13 +90,13 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         assertTrue(findCandidate(sheetCandidates, encounterId).get("eligible").asBoolean());
         JsonNode sheetBatch = createSheetBatch(taskId, "PRINT-SHEET-" + suffix);
-        assertEquals("SHEET_GRID", sheetBatch.get("layoutStrategy").asText());
-        assertEquals("A4_LABEL_70X50_8_UP", sheetBatch.get("mediaCode").asText());
+        assertEquals("SHEET_GRID", sheetBatch.get("layoutStrategy").asString());
+        assertEquals("A4_LABEL_70X50_8_UP", sheetBatch.get("mediaCode").asString());
         assertEquals(8, sheetBatch.get("startSlot").asInt());
         assertEquals(1, sheetBatch.get("pageCount").asInt());
         assertEquals(1, sheetBatch.at("/items/0/pageNo").asInt());
         assertEquals(8, sheetBatch.at("/items/0/slotNo").asInt());
-        byte[] sheetPdf = mockMvc.perform(get(sheetBatch.get("downloadUrl").asText()).with(rhnWorkContext()))
+        byte[] sheetPdf = mockMvc.perform(get(sheetBatch.get("downloadUrl").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
         PdfReader sheetReader = new PdfReader(sheetPdf);
         assertEquals(1, sheetReader.getNumberOfPages());
@@ -92,8 +105,8 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
         sheetReader.close();
 
         JsonNode sameBatch = createBatch(taskId, "270000000000301", key, null, status().isOk());
-        assertEquals(batch.get("id").asText(), sameBatch.get("id").asText());
-        mockMvc.perform(post("/api/platform/printing/batches/{id}/dispatch", batch.get("id").asText())
+        assertEquals(batch.get("id").asString(), sameBatch.get("id").asString());
+        mockMvc.perform(post("/api/platform/printing/batches/{id}/dispatch", batch.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("SENT"))
                 .andExpect(jsonPath("$.delivery.status").value("SENT"));
@@ -111,26 +124,26 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.devices[*].deviceCode", org.hamcrest.Matchers.hasItem("BRIDGE-" + suffix)))
                 .andExpect(jsonPath("$.devices[?(@.deviceCode == 'BRIDGE-" + suffix + "')].status",
                         org.hamcrest.Matchers.hasItem("ACTIVE")));
-        JsonNode reprint = createBatch(taskId, device.get("id").asText(), "PRINT-REPRINT-" + suffix,
+        JsonNode reprint = createBatch(taskId, device.get("id").asString(), "PRINT-REPRINT-" + suffix,
                 "标签被输液液体污染", status().isOk());
         JsonNode queued = json(mockMvc.perform(post("/api/platform/printing/batches/{id}/dispatch",
-                        reprint.get("id").asText()).with(rhnWorkContext())
+                        reprint.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("QUEUED"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode bridgeJob = json(mockMvc.perform(post("/api/platform/printing/bridge/devices/{code}/jobs/claim",
-                        device.get("deviceCode").asText()).with(rhnWorkContext()))
+                        device.get("deviceCode").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.outputLanguage").value("PDF"))
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/platform/printing/bridge/deliveries/{id}/acknowledgements",
-                        bridgeJob.get("deliveryId").asText()).with(rhnWorkContext())
+                        bridgeJob.get("deliveryId").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"status":"DEVICE_CONFIRMED"}
                                 """.formatted(bridgeJob.get("revision").asLong())))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("DEVICE_CONFIRMED"))
                 .andExpect(jsonPath("$.delivery.attemptCount").value(1));
         assertEquals(1, queued.get("items").size());
-        assertEquals("标签被输液液体污染", queued.at("/items/0/reprintReason").asText());
+        assertEquals("标签被输液液体污染", queued.at("/items/0/reprintReason").asString());
     }
 
     private JsonNode createBatch(String taskId, String deviceId, String key, String reason,
@@ -158,7 +171,7 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
 
     private JsonNode findCandidate(JsonNode preparation, String encounterId) {
         for (JsonNode value : preparation.get("candidates")) {
-            if (encounterId.equals(value.get("encounterId").asText())) return value;
+            if (encounterId.equals(value.get("encounterId").asString())) return value;
         }
         throw new AssertionError("未找到打印候选任务");
     }
@@ -170,7 +183,7 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                                 {"fullName":"打印闭环测试居民","identifiers":[{"system":"9","value":"33010219920808%s","useType":"SECONDARY"}],
                                  "gender":"FEMALE","birthDate":"1992-08-08"}
                                 """.formatted(digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
     }
 
     private String startEncounter(String residentId) throws Exception {
@@ -179,8 +192,8 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asText())).andExpect(status().isOk());
-        return encounter.get("id").asText();
+        mockMvc.perform(verifiedEncounterStart(encounter.get("id").asString())).andExpect(status().isOk());
+        return encounter.get("id").asString();
     }
 
     private void recordNoKnownDrugAllergy(String residentId, String encounterId) throws Exception {

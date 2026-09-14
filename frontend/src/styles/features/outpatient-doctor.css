@@ -1107,6 +1107,14 @@
 .doctor-safety-tag.is-warning { color: #b45309; background: color-mix(in srgb, #f59e0b 15%, var(--color-surface)); }
 .doctor-safety-tag.is-skintest { color: #b45309; background: color-mix(in srgb, #f59e0b 15%, var(--color-surface)); font-weight: var(--font-weight-semibold); }
 .doctor-safety-tag.is-antimicrobial { color: #0369a1; background: color-mix(in srgb, #0ea5e9 15%, var(--color-surface)); }
+.doctor-safety-tag.is-exempt { color: #047857; background: color-mix(in srgb, #10b981 15%, var(--color-surface)); font-weight: var(--font-weight-semibold); }
+.doctor-skintest-interactive-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; width: 100%; margin-top: .35rem; padding: .35rem .6rem; background: color-mix(in srgb, var(--color-primary) 6%, var(--color-surface)); border: 1px dashed color-mix(in srgb, var(--color-primary) 30%, transparent); border-radius: var(--radius-sm); }
+.doctor-skintest-evidence-alert { display: flex; align-items: center; gap: .5rem; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+.doctor-evidence-badge { background: #10b981; color: #ffffff; padding: .1rem .4rem; border-radius: var(--radius-xs); font-size: 11px; font-weight: var(--font-weight-semibold); }
+.doctor-evidence-applied-tag { color: #047857; font-weight: var(--font-weight-semibold); font-size: var(--font-size-small); }
+.doctor-skintest-exempt-options { display: inline-flex; align-items: center; gap: .5rem; margin-left: auto; }
+.doctor-exempt-toggle { display: inline-flex; align-items: center; gap: .3rem; cursor: pointer; font-size: var(--font-size-small); color: var(--color-text-primary); font-weight: var(--font-weight-medium); }
+.doctor-exempt-reason-select { width: 240px; }
 .doctor-safety-content input:not([type="checkbox"]) { height: 1.85rem; border: 1px solid var(--color-border); border-radius: var(--radius-xs); background: var(--color-surface); padding: 0 .4rem; font: inherit; flex: 1 1 14rem; }
 .doctor-safety-checkbox { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; color: var(--color-text-primary); font-weight: var(--font-weight-semibold); white-space: nowrap; margin-left: auto; }
 .doctor-safety-checkbox input[type="checkbox"] { width: 1.05rem; height: 1.05rem; min-width: 1.05rem; min-height: 1.05rem; margin: 0; flex: 0 0 auto; cursor: pointer; }

@@ -61,7 +61,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                                 """.formatted(TENANT_DICTIONARY_CATEGORY, dictionaryCode, requestCode())))
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString());
-        String dictionaryId = dictionary.get("id").asText();
+        String dictionaryId = dictionary.get("id").asString();
         addDictionaryItem(dictionaryId, 0, "TRUE", "是", 10);
         addDictionaryItem(dictionaryId, 1, "FALSE", "否", 20);
 
@@ -78,7 +78,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values",
-                        booleanDefinition.get("id").asText())
+                        booleanDefinition.get("id").asString())
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"scopeType":"TENANT","valueMode":"OVERRIDE","valueJson":"false",
@@ -123,7 +123,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.hasExampleValue").value(true))
                 .andExpect(jsonPath("$.revision").value(0))
                 .andReturn().getResponse().getContentAsString());
-        String definitionId = definition.get("id").asText();
+        String definitionId = definition.get("id").asString();
 
         String saveRequest = requestCode();
         JsonNode withTenantValue = json(mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", definitionId)
@@ -136,7 +136,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.values[0].sdParamScopeTypeText").value("租户"))
                 .andExpect(jsonPath("$.values[0].sdParamValueModeText").value("覆盖"))
                 .andReturn().getResponse().getContentAsString());
-        String valueId = withTenantValue.get("values").get(0).get("id").asText();
+        String valueId = withTenantValue.get("values").get(0).get("id").asString();
 
         mockMvc.perform(put("/api/platform/configuration/definitions/{id}/values", definitionId)
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
@@ -183,8 +183,8 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
         String originalValueChangeId = null;
         for (JsonNode change : changes) {
-            if (change.hasNonNull("valueId") && "CREATE".equals(change.get("sdParamChangeType").asText())) {
-                originalValueChangeId = change.get("id").asText();
+            if (change.hasNonNull("valueId") && "CREATE".equals(change.get("sdParamChangeType").asString())) {
+                originalValueChangeId = change.get("id").asString();
             }
         }
 
@@ -193,7 +193,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"expectedRevision":"%s","reason":"恢复已验证值","requestCode":"%s"}
-                                """.formatted(reset.get("values").get(0).get("revision").asText(), requestCode())))
+                                """.formatted(reset.get("values").get(0).get("revision").asString(), requestCode())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.values[0].valueJson").value("30"))
                 .andExpect(jsonPath("$.values[0].id").value(valueId));
@@ -208,7 +208,7 @@ class FoundationPlatformTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.sdParamStatusText").value("已启用"))
                 .andReturn().getResponse().getContentAsString();
-        return json(body).get("id").asText();
+        return json(body).get("id").asString();
     }
 
     private void addDictionaryItem(String dictionaryId, int revision, String code, String name,

@@ -80,7 +80,7 @@ public class ClinicalAiRuntimePolicy {
     private String text(Long tenantId, String suffix, String fallbackValue) {
         ConfigurationValue value = resolve(tenantId, suffix);
         JsonNode node = value == null ? null : value.value();
-        return node == null || node.isNull() || node.asText().isBlank() ? fallbackValue : node.asText().trim();
+        return node == null || node.isNull() || node.asString().isBlank() ? fallbackValue : node.asString().trim();
     }
 
     private long number(Long tenantId, String suffix, long fallbackValue) {

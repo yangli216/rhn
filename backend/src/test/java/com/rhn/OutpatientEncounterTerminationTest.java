@@ -33,13 +33,13 @@ class OutpatientEncounterTerminationTest extends RhnIntegrationTestSupport {
                                 {"fullName":"门诊终止患者%s","identifiers":[{"system":"9","value":"33010219911212%s","useType":"SECONDARY"}],
                                  "gender":"MALE","birthDate":"1991-12-12"}
                                 """.formatted(suffix, digits)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String encounterId = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"residentId":"%s","organizationId":"%s","departmentId":"%s",
                                  "idempotencyCode":"TERMINATE-REG-%s"}
                                 """.formatted(residentId, ORGANIZATION, DEPARTMENT, suffix)))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asText();
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         mockMvc.perform(verifiedEncounterStart(encounterId))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("IN_PROGRESS"));
 
@@ -60,7 +60,7 @@ class OutpatientEncounterTerminationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("ENCOUNTER_TERMINATION_BLOCKED"));
 
         mockMvc.perform(post("/api/encounters/{encounterId}/service-requests/{requestId}/cancel",
-                                encounterId, request.get("id").asText()).with(rhnWorkContext())
+                                encounterId, request.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"reason":"患者离院，项目未执行"}
                                 """.formatted(request.get("revision").asLong())))

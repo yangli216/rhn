@@ -58,7 +58,7 @@ class PrescriptionSplitEngineTest {
                 BigDecimal.valueOf(7), "天", BigDecimal.ONE, "盒",
                 true, false, "遵医嘱", true, null,
                 "SALE", true, stockSiteId, stockSiteName,
-                adminKey, routeExecType, category, "门诊开立"
+                adminKey, routeExecType, category, false, null, null, "门诊开立"
         );
     }
 

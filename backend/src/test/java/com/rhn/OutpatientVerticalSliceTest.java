@@ -52,7 +52,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.prescriptionNo").value(org.hamcrest.Matchers.startsWith("RX")))
                 .andExpect(jsonPath("$.medicationRequests").isEmpty())
                 .andReturn().getResponse().getContentAsString());
-        String prescriptionId = prescription.get("id").asText();
+        String prescriptionId = prescription.get("id").asString();
 
         JsonNode line = json(mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -63,7 +63,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                   "durationValue":14,"durationUnit":"DAY","businessDate":"2026-08-27",
                                   "medicationInstruction":"每日一次"
                                 }
-                                """.formatted(prescriptionId, medication.get("id").asText())))
+                                """.formatted(prescriptionId, medication.get("id").asString())))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.prescriptionId").value(prescriptionId))
@@ -96,7 +96,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                   "prescriptionId":"%s","medicationId":"%s","quantity":1,
                                   "quantityUnit":"片","substitutionAllowed":true,"selfProvided":false
                                 }
-                                """.formatted(prescriptionId, medication.get("id").asText())))
+                                """.formatted(prescriptionId, medication.get("id").asString())))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("PRESCRIPTION_NOT_EDITABLE"));
 
@@ -112,8 +112,8 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
 
         mockMvc.perform(get("/api/encounters/{id}/prescriptions", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].prescriptionNo").value(prescription.get("prescriptionNo").asText()))
-                .andExpect(jsonPath("$[0].medicationRequests[0].id").value(line.get("id").asText()));
+                .andExpect(jsonPath("$[0].prescriptionNo").value(prescription.get("prescriptionNo").asString()))
+                .andExpect(jsonPath("$[0].medicationRequests[0].id").value(line.get("id").asString()));
     }
 
     @Test
@@ -155,10 +155,10 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                   "chargeable":true,"stocked":true,"shelfLifeValue":24,
                                   "sdShelfLifeUnit":"MONTH","sdStatus":"ACTIVE","validFrom":"2026-01-01"
                                 }
-                                """.formatted(medication.get("id").asText(), manufacturer.get("id").asText(),
+                                """.formatted(medication.get("id").asString(), manufacturer.get("id").asString(),
                                 suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String productId = product.get("id").asText();
+        String productId = product.get("id").asString();
         JsonNode itemPackage = json(mockMvc.perform(post(
                                 "/api/platform/master-data/catalog-items/{id}/packages", productId).with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -170,7 +170,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted("690" + Math.floorMod(suffix.hashCode(), 100000000))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String packageId = itemPackage.get("id").asText();
+        String packageId = itemPackage.get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions", productId)
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -231,7 +231,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].baseQuantity").value(40))
                 .andExpect(jsonPath("$[0].totalAmount").value(37.6));
         mockMvc.perform(post("/api/encounters/{encounterId}/medication-requests/{requestId}/cancel",
-                                encounterId, request.get("id").asText()).with(rhnWorkContext())
+                                encounterId, request.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedRevision\":%d,\"reason\":\"调整处方\"}"
                                 .formatted(request.get("revision").asLong())))
@@ -255,7 +255,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        String itemId = item.get("id").asText();
+        String itemId = item.get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions", itemId)
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
@@ -303,7 +303,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/prices/{id}/replace",
-                                originalPrice.get("id").asText()).with(rhn())
+                                originalPrice.get("id").asString()).with(rhn())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":%d,"organizationId":"%s","priceType":"SALE",
@@ -320,7 +320,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].unitPrice").value(12.5));
 
         mockMvc.perform(post("/api/encounters/{encounterId}/service-requests/{requestId}/cancel",
-                                encounterId, request.get("id").asText())
+                                encounterId, request.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"expectedRevision":%d,"reason":"患者取消"}
                                 """.formatted(request.get("revision").asLong())))
@@ -388,7 +388,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString();
-        String clinicalDocumentId = objectMapper.readTree(clinicalDocuments).get(0).get("id").asText();
+        String clinicalDocumentId = objectMapper.readTree(clinicalDocuments).get(0).get("id").asString();
         mockMvc.perform(post("/api/clinical-documents/{id}/sign", clinicalDocumentId)
                         .with(rhn()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":1,\"signatureMeaning\":\"AUTHOR\"}"))
