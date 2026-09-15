@@ -189,7 +189,7 @@
       "package": "quality",
       "artifact": "rhn-quality",
       "owner": "quality",
-      "status": "reserved",
+      "status": "active",
       "allowedDependencies": [
         "shared",
         "platform",

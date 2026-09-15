@@ -31,6 +31,17 @@ class ArchitectureTest {
     private static final ModuleCatalog CATALOG = ModuleCatalog.INSTANCE;
 
     @ArchTest
+    static final ArchRule clinical_does_not_depend_on_quality_implementation = noClasses()
+            .that().resideInAnyPackage("com.rhn.outpatient..", "com.rhn.inpatient..", "com.rhn.pharmacy..")
+            .should().dependOnClassesThat().resideInAPackage("com.rhn.quality..");
+
+    @ArchTest
+    static final ArchRule quality_domain_has_no_application_or_storage_dependencies = noClasses()
+            .that().resideInAPackage("com.rhn.quality.medication.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.rhn.quality.medication.application..", "com.rhn.quality.medication.infrastructure..");
+
+    @ArchTest
     static final ArchRule analytics_layers_are_free_of_cycles = slices()
             .matching("com.rhn.analytics.(*)..")
             .should().beFreeOfCycles();

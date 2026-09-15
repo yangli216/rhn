@@ -9,3 +9,13 @@
 新增或修改表时，同时更新 PostgreSQL、Oracle 迁移及这份 JSON；存在 H2 长文本类型差异时更新 H2 兼容迁移。`RhnPhysicalSchemaGovernanceTest` 验证完整表/字段集合、名称与注释一致性，`ArchitectureTest` 验证代码模块边界。
 
 数据库初始化与历史迁移处理见 [数据库基线](../../backend/src/main/resources/db/README.md)。
+
+## QMED-1 合理用药评价基础
+
+| 领域 | 规范逻辑名 | 中文说明 | 旧物理表名 | RHN 物理表名 | 字段数 |
+|---|---|---|---|---|---:|
+| AUD | `aud.quality_rule_definition` | 合理用药规则定义；一行代表一条平台级规则定义 | `quality_rule_definition` | `RHN_AUD_MED_RULE` | 4 |
+| AUD | `aud.quality_rule_version` | 合理用药规则版本；一行代表一条不可变规则版本及证据 | `quality_rule_version` | `RHN_AUD_MED_RULE_VER` | 12 |
+| AUD | `aud.quality_evaluation` | 合理用药评价；一行代表一次完整处方的旁路安全评价 | `quality_evaluation` | `RHN_AUD_MED_EVAL` | 18 |
+| AUD | `aud.quality_finding` | 合理用药风险发现；一行代表某次评价中一条规则的风险发现 | `quality_finding` | `RHN_AUD_MED_FINDING` | 11 |
+| AUD | `aud.quality_override` | 合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由 | `quality_override` | `RHN_AUD_MED_OVERRIDE` | 7 |

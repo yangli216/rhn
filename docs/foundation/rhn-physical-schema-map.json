@@ -7479,5 +7479,310 @@
       {"logical": "id_user_released", "physical": "ID_USER_RELEASED", "comment": "释放用户标识"},
       {"logical": "des_release_reason", "physical": "DES_RELEASE_REASON", "comment": "释放原因"}
     ]
+  },
+  {
+    "logical": "aud.quality_rule_definition",
+    "legacy": "quality_rule_definition",
+    "physical": "RHN_AUD_MED_RULE",
+    "domain": "AUD",
+    "comment": "合理用药规则定义；一行代表一条平台级规则定义",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RULE",
+        "comment": "规则标识"
+      },
+      {
+        "logical": "code",
+        "physical": "CD_RULE",
+        "comment": "稳定规则编码"
+      },
+      {
+        "logical": "category",
+        "physical": "CD_CATEGORY",
+        "comment": "规则分类"
+      },
+      {
+        "logical": "title",
+        "physical": "NA_RULE",
+        "comment": "规则名称"
+      }
+    ]
+  },
+  {
+    "logical": "aud.quality_rule_version",
+    "legacy": "quality_rule_version",
+    "physical": "RHN_AUD_MED_RULE_VER",
+    "domain": "AUD",
+    "comment": "合理用药规则版本；一行代表一条不可变规则版本及证据",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RULE_VER",
+        "comment": "规则版本标识"
+      },
+      {
+        "logical": "rule_id",
+        "physical": "ID_RULE",
+        "comment": "规则定义标识"
+      },
+      {
+        "logical": "version",
+        "physical": "NO_VERSION",
+        "comment": "不可变规则版本号"
+      },
+      {
+        "logical": "rule_set_version",
+        "physical": "CD_RULE_SET_VER",
+        "comment": "规则集版本"
+      },
+      {
+        "logical": "implementation",
+        "physical": "CD_IMPLEMENTATION",
+        "comment": "强类型执行定义版本"
+      },
+      {
+        "logical": "status",
+        "physical": "SD_STATUS",
+        "comment": "发布状态"
+      },
+      {
+        "logical": "severity",
+        "physical": "SD_SEVERITY",
+        "comment": "风险严重程度"
+      },
+      {
+        "logical": "decision",
+        "physical": "SD_DECISION",
+        "comment": "执行动作"
+      },
+      {
+        "logical": "override_policy",
+        "physical": "SD_OVERRIDE_POLICY",
+        "comment": "覆盖策略"
+      },
+      {
+        "logical": "effective_from",
+        "physical": "DT_EFFECTIVE_FROM",
+        "comment": "生效时间"
+      },
+      {
+        "logical": "effective_to",
+        "physical": "DT_EFFECTIVE_TO",
+        "comment": "失效时间"
+      },
+      {
+        "logical": "evidence",
+        "physical": "JSON_EVIDENCE",
+        "comment": "不可变来源证据快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.quality_evaluation",
+    "legacy": "quality_evaluation",
+    "physical": "RHN_AUD_MED_EVAL",
+    "domain": "AUD",
+    "comment": "合理用药评价；一行代表一次完整处方的旁路安全评价",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_EVAL",
+        "comment": "评价标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "prescription_id",
+        "physical": "ID_PRESCRIPTION",
+        "comment": "目标处方标识"
+      },
+      {
+        "logical": "target_revision",
+        "physical": "NO_TARGET_REV",
+        "comment": "处方乐观锁版本"
+      },
+      {
+        "logical": "encounter_id",
+        "physical": "ID_ENC",
+        "comment": "就诊标识"
+      },
+      {
+        "logical": "resident_id",
+        "physical": "ID_PAT",
+        "comment": "居民标识"
+      },
+      {
+        "logical": "organization_id",
+        "physical": "ID_ORG",
+        "comment": "机构标识"
+      },
+      {
+        "logical": "department_id",
+        "physical": "ID_DEPT",
+        "comment": "科室标识"
+      },
+      {
+        "logical": "input_hash",
+        "physical": "CD_INPUT_HASH",
+        "comment": "完整输入的哈希值"
+      },
+      {
+        "logical": "rule_set_version",
+        "physical": "CD_RULE_SET_VER",
+        "comment": "规则集版本"
+      },
+      {
+        "logical": "engine_version",
+        "physical": "CD_ENGINE_VER",
+        "comment": "引擎版本"
+      },
+      {
+        "logical": "mode",
+        "physical": "SD_MODE",
+        "comment": "评价模式"
+      },
+      {
+        "logical": "decision",
+        "physical": "SD_DECISION",
+        "comment": "聚合执行动作"
+      },
+      {
+        "logical": "input",
+        "physical": "JSON_INPUT",
+        "comment": "完整处方输入快照"
+      },
+      {
+        "logical": "result",
+        "physical": "JSON_RESULT",
+        "comment": "评价结果与每条规则执行记录"
+      },
+      {
+        "logical": "started_at",
+        "physical": "DT_STARTED",
+        "comment": "评价开始时间"
+      },
+      {
+        "logical": "completed_at",
+        "physical": "DT_COMPLETED",
+        "comment": "评价完成时间"
+      },
+      {
+        "logical": "actor_id",
+        "physical": "ID_USER_ACTOR",
+        "comment": "发起用户标识"
+      }
+    ]
+  },
+  {
+    "logical": "aud.quality_finding",
+    "legacy": "quality_finding",
+    "physical": "RHN_AUD_MED_FINDING",
+    "domain": "AUD",
+    "comment": "合理用药风险发现；一行代表某次评价中一条规则的风险发现",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_FINDING",
+        "comment": "风险发现标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "evaluation_id",
+        "physical": "ID_EVAL",
+        "comment": "评价标识"
+      },
+      {
+        "logical": "rule_version_id",
+        "physical": "ID_RULE_VER",
+        "comment": "实际执行规则版本标识"
+      },
+      {
+        "logical": "severity",
+        "physical": "SD_SEVERITY",
+        "comment": "风险严重程度"
+      },
+      {
+        "logical": "decision",
+        "physical": "SD_DECISION",
+        "comment": "执行动作"
+      },
+      {
+        "logical": "message",
+        "physical": "DES_MESSAGE",
+        "comment": "风险说明"
+      },
+      {
+        "logical": "request_ids",
+        "physical": "JSON_REQUEST_IDS",
+        "comment": "涉及药品请求标识列表"
+      },
+      {
+        "logical": "evidence",
+        "physical": "JSON_EVIDENCE",
+        "comment": "证据快照"
+      },
+      {
+        "logical": "override_policy",
+        "physical": "SD_OVERRIDE_POLICY",
+        "comment": "覆盖策略"
+      },
+      {
+        "logical": "suggested_action",
+        "physical": "DES_ACTION",
+        "comment": "建议处理方式"
+      }
+    ]
+  },
+  {
+    "logical": "aud.quality_override",
+    "legacy": "quality_override",
+    "physical": "RHN_AUD_MED_OVERRIDE",
+    "domain": "AUD",
+    "comment": "合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_OVERRIDE",
+        "comment": "覆盖记录标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "evaluation_id",
+        "physical": "ID_EVAL",
+        "comment": "评价标识"
+      },
+      {
+        "logical": "finding_id",
+        "physical": "ID_FINDING",
+        "comment": "风险发现标识"
+      },
+      {
+        "logical": "actor_id",
+        "physical": "ID_USER_ACTOR",
+        "comment": "覆盖用户标识"
+      },
+      {
+        "logical": "reason",
+        "physical": "DES_REASON",
+        "comment": "覆盖理由"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "覆盖时间"
+      }
+    ]
   }
 ]
