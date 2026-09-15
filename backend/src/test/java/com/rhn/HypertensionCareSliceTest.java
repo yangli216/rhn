@@ -150,7 +150,7 @@ class HypertensionCareSliceTest extends RhnIntegrationTestSupport {
                 .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {
                           "chiefComplaint":"血压筛查","systolic":%d,"diastolic":%d,
-                          "diagnoses":[{"code":"R05","display":"咳嗽","type":"SECONDARY"}]
+                          "diagnoses":[{"code":"R05","display":"咳嗽","type":"PRIMARY"}]
                         }
                         """.formatted(systolic, diastolic)));
     }

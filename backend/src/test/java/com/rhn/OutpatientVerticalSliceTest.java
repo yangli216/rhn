@@ -19,16 +19,22 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ResetDatabaseBeforeEachTestMethod
 class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
     private static final String NATIONAL_ID = "330102199001011234";
     @Autowired
     OutboxEventRepository outboxEventRepository;
+    @Autowired
+    org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     @Test
-    void generic_medication_prescription_groups_draft_submit_and_cancel_without_product_or_price() throws Exception {
+    void generic_medication_prescription_groups_draft_submit_and_cancel_when_inventory_freeze_disabled() throws Exception {
+        // Inventory enforcement with the default setting has its own integration suite.
+        jdbc.update("update RHN_SYS_PARAM_DEF set JSON_DEFAULT_VAL = 'false' where CD_PARAM_KEY = ?",
+                "outpatient.prescription.inventory-freeze.enabled");
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String identitySuffix = "%04d".formatted(Math.floorMod((suffix + "RX").hashCode(), 10000));
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED-GENERIC-%s","name":"通用名处方测试药品","aliasName":"通用处方药",
@@ -120,7 +126,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
     void medication_request_freezes_generic_product_package_conversion_and_price_snapshots() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String identitySuffix = "%04d".formatted(Math.floorMod((suffix + "MED").hashCode(), 10000));
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED-ORDER-%s","name":"处方快照药品","aliasName":"快照药",
@@ -135,7 +141,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhn())
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MFR-ORDER-%s","name":"处方测试制药企业","shortName":"测试制药",
@@ -144,7 +150,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode product = json(mockMvc.perform(post("/api/platform/master-data/medication-products").with(rhn())
+        JsonNode product = json(mockMvc.perform(post("/api/platform/master-data/medication-products").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "medicationId":"%s","manufacturerId":"%s","code":"MEDP-ORDER-%s",
@@ -160,7 +166,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String productId = product.get("id").asString();
         JsonNode itemPackage = json(mockMvc.perform(post(
-                                "/api/platform/master-data/catalog-items/{id}/packages", productId).with(rhn())
+                                "/api/platform/master-data/catalog-items/{id}/packages", productId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "unitCode":"盒","unitName":"盒","packageSpec":"20片/盒",
@@ -173,7 +179,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String packageId = itemPackage.get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions", productId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","localCode":"DRUG-%s","localName":"机构处方药品",
                                   "orderable":true,"executable":false,"chargeable":true,"purchasable":true,
@@ -183,7 +189,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                 """.formatted(ORGANIZATION, suffix)))
                 .andExpect(status().isCreated());
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/prices", productId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","packageId":"%s","priceType":"SALE","price":18.80,
                                   "currencyCode":"CNY","priceDocumentCode":"DRUG-%s","priceReason":"盒装销售价",
@@ -244,7 +250,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
     void service_request_freezes_catalog_adoption_price_attribute_and_mapping_snapshots() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String identitySuffix = "%04d".formatted(Math.floorMod(suffix.hashCode(), 10000));
-        JsonNode item = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhn())
+        JsonNode item = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"SRV-ORDER-%s","name":"门诊开立快照项目","unitCode":"次",
@@ -258,7 +264,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String itemId = item.get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/adoptions", itemId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","localCode":"OP-%s","localName":"机构开立项目",
                                   "orderable":true,"executable":true,"chargeable":true,
@@ -269,7 +275,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated());
         JsonNode priceLifecycle = json(mockMvc.perform(post(
                                 "/api/platform/master-data/catalog-lifecycle/catalog-items/{id}/prices", itemId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","priceType":"SALE","price":12.50,
                                   "currencyCode":"CNY","priceDocumentCode":"OP-%s",
@@ -303,7 +309,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/prices/{id}/replace",
-                                originalPrice.get("id").asString()).with(rhn())
+                                originalPrice.get("id").asString()).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":%d,"organizationId":"%s","priceType":"SALE",
@@ -333,7 +339,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
     void resident_to_completed_encounter_is_projected_to_health_timeline() throws Exception {
         long outboxCountBefore = outboxEventRepository.countByTenantId(Long.valueOf(TENANT));
         String residentBody = mockMvc.perform(post("/api/residents")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -370,7 +376,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
 
         mockMvc.perform(put("/api/encounters/{id}/clinical-record", encounterId)
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -384,13 +390,13 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.diagnoses[0].code").value("I10"));
 
         String clinicalDocuments = mockMvc.perform(get("/api/clinical-documents")
-                        .param("encounterId", encounterId).with(rhn()))
+                        .param("encounterId", encounterId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andReturn().getResponse().getContentAsString();
         String clinicalDocumentId = objectMapper.readTree(clinicalDocuments).get(0).get("id").asString();
         mockMvc.perform(post("/api/clinical-documents/{id}/sign", clinicalDocumentId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("{\"expectedCurrentVersion\":1,\"signatureMeaning\":\"AUTHOR\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("SIGNED"));
@@ -401,18 +407,19 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
 
         mockMvc.perform(get("/api/residents/{id}/timeline", residentId)
-                .with(rhn()))
+                .with(rhnWorkContext()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(10))
+                .andExpect(jsonPath("$.length()").value(11))
                 .andExpect(jsonPath("$[0].eventType").value("ENCOUNTER_COMPLETED"))
                 .andExpect(jsonPath("$[1].eventType").value("QUEUE_TICKET_COMPLETED"))
                 .andExpect(jsonPath("$[2].eventType").value("CLINICAL_DOCUMENT_SIGNED"))
                 .andExpect(jsonPath("$[3].eventType").value("DIAGNOSIS_RECORDED"))
-                .andExpect(jsonPath("$[4].details.systolic").value(148));
+                .andExpect(jsonPath("$[4].details.systolic").value(148))
+                .andExpect(jsonPath("$[5].eventType").value("CARE_TASK_READY"));
 
         var outboxEvents = outboxEventRepository.findByAggregateIdOrderByRecordedAt(Long.valueOf(encounterId));
         assertEquals(5, outboxEvents.size());
-        assertEquals(outboxCountBefore + 11, outboxEventRepository.countByTenantId(Long.valueOf(TENANT)));
+        assertEquals(outboxCountBefore + 12, outboxEventRepository.countByTenantId(Long.valueOf(TENANT)));
         assertTrue(outboxEvents.stream().allMatch(event -> event.publicationStatus().equals("PENDING")));
         assertEquals(5, outboxEvents.stream().map(OutboxEvent::eventId).distinct().count());
     }

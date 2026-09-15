@@ -41,7 +41,7 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
                   "paymentMethodCode":"BASIC_MEDICAL_INSURANCE",
                   "referralOrganizationName":"青禾社区卫生服务站",
                   "emergencyContactName":"李家属",
-                  "emergencyContactRelationship":"CHILD",
+                  "emergencyContactRelationship":"2",
                   "emergencyContactPhone":"13800000000",
                   "admissionNote":"需要协助办理医保入院",
                   "nursingLevelCode":"LEVEL_III",
@@ -51,7 +51,7 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
                 """.formatted(RESIDENT, BED_01, admissionCommand);
         mockMvc.perform(post("/api/inpatient/admissions")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content(admissionBody.replace("CHILD", "INVALID_RELATIONSHIP")
+                        .content(admissionBody.replace("\"emergencyContactRelationship\":\"2\"", "\"emergencyContactRelationship\":\"INVALID_RELATIONSHIP\"")
                                 .replace(admissionCommand, "TEST-INPATIENT-INVALID-RELATIONSHIP")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INPATIENT_CONTACT_RELATIONSHIP_INVALID"));
@@ -68,8 +68,8 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.conditionCode").value("URGENT"))
                 .andExpect(jsonPath("$.paymentMethodCode").value("BASIC_MEDICAL_INSURANCE"))
                 .andExpect(jsonPath("$.emergencyContactName").value("李家属"))
-                .andExpect(jsonPath("$.emergencyContactRelationship").value("CHILD"))
-                .andExpect(jsonPath("$.emergencyContactRelationshipText").value("子女"))
+                .andExpect(jsonPath("$.emergencyContactRelationship").value("2"))
+                .andExpect(jsonPath("$.emergencyContactRelationshipText").value("子"))
                 .andExpect(jsonPath("$.emergencyContactPhone").value("13800000000"))
                 .andExpect(jsonPath("$.admissionNote").value("需要协助办理医保入院"))
                 .andReturn().getResponse().getContentAsString();
@@ -163,7 +163,7 @@ class InpatientAdmissionFlowTest extends RhnIntegrationTestSupport {
         assertEquals("13800000000", jdbcTemplate.queryForObject(
                 "select EMERGENCY_CONTACT_PHONE from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
-        assertEquals("CHILD", jdbcTemplate.queryForObject(
+        assertEquals("2", jdbcTemplate.queryForObject(
                 "select EMERGENCY_CONTACT_RELATIONSHIP from RHN_VIS_INP_EPISODE_DETAIL where ID_CARE_EPISODE = ?",
                 String.class, Long.valueOf(episodeId)));
     }

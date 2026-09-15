@@ -91,7 +91,7 @@ mvn -DskipTests install
 mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring-boot.run.arguments=--server.port=8080
 ```
 
-需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，避免后续 Maven 构建覆盖正在加载的 Spring Boot fat jar。
+需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，运行副本保存在 `.runtime/backend/`，避免后续 Maven 构建或清理影响正在运行的服务。
 
 首次启动会初始化表结构和开发基础数据；以后启动只执行尚未应用的迁移，已维护的业务数据会保留。详细规则见 [Oracle 持久化开发环境](docs/foundation/Oracle持久化开发环境.md)。
 
@@ -110,6 +110,10 @@ cd frontend && npm run check
 
 覆盖范围和完成判定见 [门诊主流程验收基线](docs/foundation/门诊主流程验收基线.md)。
 
+前端测试就近放置在组件或工具源码旁，使用 `*.test.ts(x)`；共享测试设置放在 `src/test/`。测试依赖属于开发依赖，测试文件参与类型检查，Vite 生产构建只沿应用入口的导入关系打包。
+
+后端测试复用通过 `@ResetDatabaseBeforeEachTestMethod` 显式启用：在随机 H2 中逐用例恢复数据并清空字典/参数缓存，禁用后台调度，禁止并行执行；类结束仍销毁上下文。修改登录会话、实时连接、模拟外部服务状态或测试调度的用例继续保留原有上下文隔离。
+
 前端 `check` 会同时执行 [UI 规范门禁](frontend/scripts/check-ui-standards.mjs) 与生产构建；共享组件的使用方式见 [共享 UI 使用说明](frontend/src/shared/ui/README.md)。
 
 当前开发账号只用于本地验证。监控、备份、发布和正式安全工程按本阶段边界暂不实际推进。
@@ -117,3 +121,7 @@ cd frontend && npm run check
 本地/测试配置会启用 `development-jca` 以验证完整链路；它不是合规密码产品。默认生产配置不启用任何密码提供者，并对关键数据写入失败关闭。接入真实数据前必须通过 `RHN_CRYPTO_ACTIVE_PROVIDER` 配置经项目核验的 SM2/SM3 密码服务适配器，并完成个人证书、可信时间戳、密钥生命周期和密码应用方案评估。
 
 前端端口可通过各工作区忽略的 `frontend/.env.local` 设置 `RHN_FRONTEND_PORT` 和 `RHN_API_TARGET`。统计分析工作区默认 `15176` / `http://localhost:18086`；原主工作区使用 `5173` / `http://localhost:8080`，并保持后端 `oracle-local` 服务运行。
+
+## 仓库维护
+
+保留当前设计、接口契约、标准来源和可执行测试；历史截图、阶段验收记录与一次性输出放入忽略的 `artifacts/`，过程历史通过 Git 查询。任务状态表只维护当前状态和未解决事项。数据库脚本的用途与新库初始化见 [数据库基线](backend/src/main/resources/db/README.md)。

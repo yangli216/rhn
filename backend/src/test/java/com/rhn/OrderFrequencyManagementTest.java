@@ -16,13 +16,13 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
     void resolves_organization_schedule_and_previews_structured_frequency() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/order-frequencies/active")
                         .param("organizationId", ORGANIZATION).param("departmentId", DEPARTMENT)
-                        .param("scene", "OUTPATIENT").param("orderType", "MEDICATION").with(rhn()))
+                        .param("scene", "OUTPATIENT").param("orderType", "MEDICATION").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'BID')].name").value("每日两次"))
                 .andExpect(jsonPath("$[?(@.code == 'BID')].executionTimes.length()").value(2))
                 .andExpect(jsonPath("$[?(@.code == 'BID')].executionTimes[0]").value("08:00"));
 
-        mockMvc.perform(post("/api/platform/master-data/order-frequencies/preview").with(rhn())
+        mockMvc.perform(post("/api/platform/master-data/order-frequencies/preview").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"BID","organizationId":"%s","departmentId":"%s",
                          "start":"2026-08-30T10:00:00","occurrences":3}
@@ -37,7 +37,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
     @Test
     void creates_frequency_and_department_override_with_validation() throws Exception {
         String code = "Q3H" + UUID.randomUUID().toString().substring(0, 4).toUpperCase();
-        JsonNode created = json(mockMvc.perform(post("/api/platform/master-data/order-frequencies").with(rhn())
+        JsonNode created = json(mockMvc.perform(post("/api/platform/master-data/order-frequencies").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"%s","name":"每三小时一次","shortName":"Q3H","description":"测试频次",
                          "ruleType":"FIXED_INTERVAL","frequencyCount":1,"periodValue":3,"periodUnit":"H",
@@ -51,7 +51,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(post("/api/platform/master-data/order-frequencies/{id}/configurations",
-                        created.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        created.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"organizationId":"%s","departmentId":"%s","localName":"每三小时",
                          "firstDayPolicy":"FROM_ORDER_TIME","enabled":true,"status":"ACTIVE",
                          "validFrom":"2026-01-01"}
@@ -59,7 +59,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.configurations[0].departmentId").value(DEPARTMENT));
 
-        mockMvc.perform(post("/api/platform/master-data/order-frequencies").with(rhn())
+        mockMvc.perform(post("/api/platform/master-data/order-frequencies").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"BADTIME","name":"错误时点","ruleType":"TIMES_PER_PERIOD",
                          "frequencyCount":2,"periodValue":1,"periodUnit":"D","anchorType":"STANDARD_TIME",
@@ -76,7 +76,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
     void medication_default_frequency_is_a_validated_master_data_reference() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"MED-FREQ-%s","name":"频次引用测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
@@ -89,7 +89,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.defaultFrequencyId").isNotEmpty());
 
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"MED-BADFREQ-%s","name":"非法频次测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
@@ -103,14 +103,14 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
     @Test
     void medication_routes_are_controlled_and_aliases_are_normalized() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/medication-routes/active")
-                        .param("scene", "OUTPATIENT").with(rhn()))
+                        .param("scene", "OUTPATIENT").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'ORAL')].name").value("口服"))
                 .andExpect(jsonPath("$[?(@.code == 'IVGTT')].executionType").value("INFUSION"));
 
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"MED-ROUTE-%s","name":"途径引用测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"INJECTION","preparationSpec":"1ml","preparationUnit":"支",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
@@ -121,7 +121,7 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.defaultRoute").value("IVGTT"));
 
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                         {"code":"MED-BADROUTE-%s","name":"非法途径测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,

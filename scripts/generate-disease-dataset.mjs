@@ -229,10 +229,13 @@ function generateSql(isOracle = false) {
 }
 
 const rootDir = process.cwd();
-const genericPath = path.join(rootDir, "backend/src/main/resources/db/migration/V1_2_0__rhn_clinical_disease.sql");
-const oraclePath = path.join(rootDir, "backend/src/main/resources/db/oracle/V1_2_0__rhn_clinical_disease.sql");
+// Generated candidates must be reviewed before becoming a new versioned migration.
+const outputDir = path.join(rootDir, "artifacts/generated-disease");
+fs.mkdirSync(outputDir, { recursive: true });
+const genericPath = path.join(outputDir, "postgresql.sql");
+const oraclePath = path.join(outputDir, "oracle.sql");
 
 fs.writeFileSync(genericPath, generateSql(false), "utf8");
 fs.writeFileSync(oraclePath, generateSql(true), "utf8");
 
-console.log("Generated rich clinical disease dataset for migration and oracle.");
+console.log("Generated disease import candidates in artifacts/generated-disease; review against the current baseline before use.");

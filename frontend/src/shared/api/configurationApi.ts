@@ -43,9 +43,12 @@ export interface ParameterCategory extends CategoryContract {
   sdParamStatusText: string
 }
 
+// Form clearing uses null; the generated wire schema also permits omitted dependency fields.
+type DependencyField = 'dependsOnKey' | 'dependsOnValue' | 'dependencyBehavior' | 'dependsOnName' | 'dependencySatisfied'
+
 export type ConfigurationDependencyBehavior = 'DISABLE_AND_SUPPRESS' | 'HIDE'
 
-export interface ParameterDefinitionSummary extends SummaryContract {
+export interface ParameterDefinitionSummary extends Omit<SummaryContract, DependencyField> {
   id: string
   revision: number
   categoryId: string
@@ -85,7 +88,7 @@ export interface ParameterValue extends ValueContract {
   updatedAt: string
 }
 
-export interface ParameterDefinition extends DetailContract {
+export interface ParameterDefinition extends Omit<DetailContract, DependencyField> {
   id: string
   revision: number
   categoryId: string
@@ -130,7 +133,7 @@ export interface ParameterChange extends ChangeContract {
   changedBy: string
 }
 
-export interface ParameterDefinitionInput extends Omit<DefinitionRequestContract, 'requestCode' | 'expectedRevision'> {
+export interface ParameterDefinitionInput extends Omit<DefinitionRequestContract, 'requestCode' | 'expectedRevision' | DependencyField> {
   reason?: string
   dependsOnKey?: string | null
   dependsOnValue?: string | null

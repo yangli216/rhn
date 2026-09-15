@@ -28,7 +28,7 @@ mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring
 `.env.oracle.local.example` 查看字段格式。该文件只能包含简单的 `KEY=value` 配置，不得提交真实连接信息。
 也可通过 `RHN_ORACLE_ENV_FILE` 指向其他本机安全路径。
 
-脚本要求三个 Oracle 连接项齐全，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
+脚本要求三个 Oracle 连接项齐全，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从 `.runtime/backend/` 中的副本启动；该路径不会被 Maven clean 删除。不得在 Java 进程直接加载 `backend/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
 
 可选使用 `RHN_DEV_USERNAME`、`RHN_DEV_PASSWORD` 覆盖本地体验账号。该账号和 `development-jca` 只用于开发验证，不得承载真实医疗数据或作为生产安全方案。
 
@@ -41,7 +41,7 @@ mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring
 - 一个本地体验账号；
 - 字典、术语、参数、人员、权限、审计、密码证据等底座表结构。
 
-普通字典和业务参数不预置臆造值，首次启动时对应表可以为空；通过管理界面维护后即持久保存。系统枚举仍由代码统一发布，不重复落入普通字典表。
+标准字典、业务参数、受控打印定义等随基线初始化，医院、人员、库房及药品样例仅由开发数据脚本提供。系统枚举仍由代码统一发布。
 
 ## 4. 多数据库映射规则
 
@@ -55,7 +55,7 @@ mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring
 
 PostgreSQL 迁移位于 `db/migration`，Oracle 迁移位于 `db/oracle`，H2 的少量兼容迁移位于 `db/h2`；本地体验数据分别位于 `db/local` 和 `db/oracle-local`。后续新增表结构时必须保持 PostgreSQL 与 Oracle 两套迁移的版本号、说明、字段语义、唯一约束和外键语义一致，并在 H2 存在类型差异时补充最小兼容迁移。
 
-已经应用到持久化数据库的迁移文件不得改写。需要调整表结构时新增更高版本迁移；应用启动会校验历史校验和，只执行尚未应用的版本。
+当前采用 Flyway 基线迁移 `B1_42_1`，供空 Schema 一次性建立最终结构和标准元数据；后续变更新增更高版本。V1 历史脚本保存在 Git 提交 `0634c88`，不再随应用重复发布。现有 Oracle 开发库保留迁移历史，不执行 B 基线，仅补齐后续演示数据和目录注释；不支持未升级到 V1.42 的旧库直接跨越。PostgreSQL 严格校验的旧开发库请使用空 Schema 重建，不能直接删除 Flyway 历史后重跑。详见 [数据库基线](../../backend/src/main/resources/db/README.md)。
 
 ## 6. 使用边界
 

@@ -136,7 +136,8 @@ describe('PrintTemplateManagement', () => {
     const { updateClinicalPrintDevice } = renderManagement()
 
     await user.click(await screen.findByRole('tab', { name: '设备与路由' }))
-    expect(await screen.findByText('治疗室标签机')).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: /治疗室标签机/ }))
+    expect(await screen.findByDisplayValue('治疗室标签机')).toBeInTheDocument()
     fireEvent.change(screen.getByDisplayValue('治疗室标签机'), { target: { value: '门诊治疗室标签机' } })
     await user.click(screen.getByRole('button', { name: '保存设备' }))
 

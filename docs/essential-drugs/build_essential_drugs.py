@@ -634,7 +634,7 @@ with open(json_path, 'w', encoding='utf-8') as f:
 
 # 4. Generate Deliverable 5: SQL seed file
 sql_path = os.path.join(SQL_DIR, 'V1_28_0__national_essential_medications_2026.sql')
-sql_copy_path = os.path.join(OUTPUT_DIR, 'national_essential_medications_2026.sql')
+sql_copy_path = sql_path
 print(f"Generating Deliverable 5: {sql_path}...")
 
 base_id = 362387880000000
@@ -693,8 +693,6 @@ for idx, item in enumerate(unique_varieties, start=1):
 
 sql_content = '\n'.join(sql_lines)
 with open(sql_path, 'w', encoding='utf-8') as f:
-    f.write(sql_content)
-with open(sql_copy_path, 'w', encoding='utf-8') as f:
     f.write(sql_content)
 
 print(f"Deliverable 5 created: {sql_path} ({len(unique_varieties)} varieties)")
@@ -775,7 +773,7 @@ doc_md = f"""# 《国家基本药物目录（2026年版）》数据梳理与主�
 
 ### 方式二：通过数据库种子初始化导入
 1. 若系统部署时需要预置该批基药种子数据，直接执行 [`national_essential_medications_2026.sql`](file://{os.path.abspath(sql_copy_path)}) 即可；
-2. 脚本采用标准的 Flyway 种子迁移编号规范 `V1_28_0__national_essential_medications_2026.sql`，可放置于 `backend/src/main/resources/db/migration/` 或 `seeds/` 随系统自动发布。
+2. 脚本采用标准的 Flyway 种子迁移编号规范 `V1_28_0__national_essential_medications_2026.sql`，仅作为 PostgreSQL 可选导入脚本；`db/seeds` 不在 Flyway 扫描路径，不会自动执行。先检查租户、标识冲突和当前字段约束，再在目标开发库导入。
 
 ---
 

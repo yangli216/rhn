@@ -30,7 +30,7 @@ fi
 
 rhn_build_artifact="$rhn_backend_dir/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar"
 rhn_artifact_digest="$(shasum -a 256 "$rhn_build_artifact" | awk '{print substr($1, 1, 16)}')"
-rhn_runtime_dir="$rhn_backend_dir/target/runtime"
+rhn_runtime_dir="$rhn_project_root/.runtime/backend"
 rhn_runtime_artifact="$rhn_runtime_dir/rhn-application-$rhn_artifact_digest.jar"
 mkdir -p "$rhn_runtime_dir"
 if [[ ! -f "$rhn_runtime_artifact" ]]; then

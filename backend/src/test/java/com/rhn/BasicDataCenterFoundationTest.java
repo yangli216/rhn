@@ -20,6 +20,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@ResetDatabaseBeforeEachTestMethod
 class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Autowired
     CatalogLifecycleDirectory catalogLifecycleDirectory;
@@ -27,7 +28,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void medication_product_setup_creates_common_his_profile_atomically() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED-SETUP-%s","name":"建档测试药品","sdMedicationType":"WESTERN",
@@ -38,7 +39,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhn())
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MFR-SETUP-%s","name":"建档测试制药企业",
@@ -47,7 +48,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhn())
+        mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "product":{
@@ -88,7 +89,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void catalog_lifecycle_preserves_versions_resolves_business_date_and_audits_partial_batches() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        JsonNode item = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhn())
+        JsonNode item = json(mockMvc.perform(post("/api/platform/master-data/services").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"SRV-LIFE-%s","name":"生命周期测试项目","unitCode":"次",
@@ -103,7 +104,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
         JsonNode first = json(mockMvc.perform(post(
                                 "/api/platform/master-data/catalog-lifecycle/catalog-items/{itemId}/adoptions", itemId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","localCode":"LIFE-A","localName":"机构项目A",
                                   "orderable":true,"executable":true,"chargeable":true,
@@ -117,7 +118,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         JsonNode adoption = first.get("currentAdoption");
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/adoptions/{id}/replace",
-                                adoption.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                                adoption.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "expectedRevision":%d,"organizationId":"%s",
@@ -134,14 +135,14 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.currentAdoption.replacesAdoptionId").value(adoption.get("id").asString()));
 
         mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/catalog-items/{itemId}", itemId)
-                        .param("organizationId", ORGANIZATION).param("businessDate", "2026-12-01").with(rhn()))
+                        .param("organizationId", ORGANIZATION).param("businessDate", "2026-12-01").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.currentAdoption.localCode").value("LIFE-A"));
         mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/catalog-items/{itemId}", itemId)
-                        .param("organizationId", ORGANIZATION).param("businessDate", "2027-01-01").with(rhn()))
+                        .param("organizationId", ORGANIZATION).param("businessDate", "2027-01-01").with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.currentAdoption.localCode").value("LIFE-B"));
 
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/catalog-items/{itemId}/prices", itemId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "organizationId":"%s","priceType":"SALE","price":20.00,
                                   "currencyCode":"CNY","priceDocumentCode":"LIFE-2026",
@@ -163,7 +164,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 }
                 """.formatted(requestCode, ORGANIZATION, itemId, itemId);
         JsonNode batch = json(mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/price-batches")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(batchRequest))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(batchRequest))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PARTIAL"))
                 .andExpect(jsonPath("$.succeededRows").value(1))
@@ -172,15 +173,15 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.rows[1].errorCode").value("BATCH_ROW_INVALID"))
                 .andReturn().getResponse().getContentAsString());
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/price-batches")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(batchRequest))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(batchRequest))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(batch.get("id").asString()));
         mockMvc.perform(post("/api/platform/master-data/catalog-lifecycle/price-batches")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(batchRequest.replace("21.00", "99.00")))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CATALOG_CHANGE_REQUEST_REUSED"));
         mockMvc.perform(get("/api/platform/master-data/catalog-lifecycle/batches/{id}", batch.get("id").asString())
-                        .with(rhn())).andExpect(status().isOk()).andExpect(jsonPath("$.rows.length()").value(2));
+                        .with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$.rows.length()").value(2));
         var operational = catalogLifecycleDirectory.resolve(Long.valueOf(TENANT), Long.valueOf(itemId),
                 Long.valueOf(ORGANIZATION), null, "SALE", java.time.LocalDate.parse("2027-02-01"));
         org.assertj.core.api.Assertions.assertThat(operational.adoption().localCode()).isEqualTo("LIFE-B");
@@ -190,19 +191,19 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void standard_mapping_preserves_history_rejects_overlapping_primary_and_resolves_by_business_date() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/standard-mappings/code-systems")
-                        .param("authorityType", "NATIONAL").param("businessDate", "2026-08-27").with(rhn()))
+                        .param("authorityType", "NATIONAL").param("businessDate", "2026-08-27").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'WHO.BD.CS.ICD10')].version").value("2019"))
                 .andExpect(jsonPath("$[?(@.code == 'WHO.BD.CS.ICD10')].authorityType").value("NATIONAL"));
         mockMvc.perform(get("/api/platform/master-data/standard-mappings/terms")
                         .param("codeSystemId", "362387869795001").param("query", "高血压")
-                        .param("businessDate", "2026-08-27").with(rhn()))
+                        .param("businessDate", "2026-08-27").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].code").value("I10"));
 
         JsonNode first = json(mockMvc.perform(post(
                                 "/api/platform/master-data/standard-mappings/CATALOG_ITEM/362387869795101")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "conceptId":"362387869795011","mappingType":"CLINICAL",
                                   "equivalence":"EXACT","primaryMapping":true,
@@ -216,7 +217,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         JsonNode firstMapping = first.get("history").get(0);
 
         mockMvc.perform(post("/api/platform/master-data/standard-mappings/CATALOG_ITEM/362387869795101")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "conceptId":"362387869795012","mappingType":"CLINICAL",
                                   "equivalence":"RELATED","primaryMapping":true,
@@ -227,7 +228,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("ITEM_MAPPING_PRIMARY_OVERLAP"));
 
         mockMvc.perform(post("/api/platform/master-data/standard-mappings/CATALOG_ITEM/362387869795101")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "conceptId", "362387869795012", "mappingType", "CLINICAL",
                                 "equivalence", "EXACT", "primaryMapping", true,
@@ -240,12 +241,12 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.effectiveMappings[0].termCode").value("E11.9"));
 
         mockMvc.perform(get("/api/platform/master-data/standard-mappings/CATALOG_ITEM/362387869795101")
-                        .param("businessDate", "2026-12-01").with(rhn()))
+                        .param("businessDate", "2026-12-01").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.effectiveMappings.length()").value(1))
                 .andExpect(jsonPath("$.effectiveMappings[0].termCode").value("I10"));
         mockMvc.perform(get("/api/platform/master-data/standard-mappings/CATALOG_ITEM/362387869795101")
-                        .param("businessDate", "2027-01-01").with(rhn()))
+                        .param("businessDate", "2027-01-01").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.effectiveMappings.length()").value(1))
                 .andExpect(jsonPath("$.effectiveMappings[0].termCode").value("E11.9"));
@@ -266,7 +267,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 csv.getBytes(StandardCharsets.UTF_8));
 
         JsonNode preflight = json(mockMvc.perform(multipart("/api/platform/master-data/imports/preflight")
-                        .file(file).param("importType", "SERVICE").param("requestCode", requestCode).with(rhn()))
+                        .file(file).param("importType", "SERVICE").param("requestCode", requestCode).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("INVALID"))
                 .andExpect(jsonPath("$.totalRows").value(2))
@@ -277,7 +278,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String batchId = preflight.get("id").asString();
         JsonNode invalidRow = preflight.get("rows").get(1);
 
-        mockMvc.perform(get("/api/platform/master-data/imports/{batchId}/errors.csv", batchId).with(rhn()))
+        mockMvc.perform(get("/api/platform/master-data/imports/{batchId}/errors.csv", batchId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(result -> org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsString(StandardCharsets.UTF_8)).contains("CODE_FORMAT"));
@@ -296,7 +297,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         corrected.put("允许单开", "是");
         corrected.put("孕期提醒", "否");
         JsonNode correctedBatch = json(mockMvc.perform(put("/api/platform/master-data/imports/{batchId}/rows/{rowId}",
-                        batchId, invalidRow.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        batchId, invalidRow.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "expectedRevision", invalidRow.get("revision").asLong(), "values", corrected))))
                 .andExpect(status().isOk())
@@ -307,7 +308,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         JsonNode correctedRow = correctedBatch.get("rows").get(1);
         corrected.put("名称", "批量导入检查B修正");
         mockMvc.perform(put("/api/platform/master-data/imports/{batchId}/rows/{rowId}",
-                        batchId, correctedRow.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        batchId, correctedRow.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(Map.of(
                                 "expectedRevision", correctedRow.get("revision").asLong(), "values", corrected))))
                 .andExpect(status().isOk())
@@ -315,7 +316,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.rows[1].source.名称").value("批量导入检查B修正"));
 
         JsonNode committed = json(mockMvc.perform(post("/api/platform/master-data/imports/{batchId}/commit", batchId)
-                        .with(rhn()))
+                        .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.importedRows").value(2))
@@ -323,13 +324,13 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.rows[1].targetId").isString())
                 .andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(get("/api/platform/master-data/services").param("query", firstCode).with(rhn()))
+        mockMvc.perform(get("/api/platform/master-data/services").param("query", firstCode).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value("批量导入检查A"));
-        mockMvc.perform(get("/api/platform/master-data/services").param("query", secondCode).with(rhn()))
+        mockMvc.perform(get("/api/platform/master-data/services").param("query", secondCode).with(rhnWorkContext()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].name").value("批量导入检查B修正"));
 
         mockMvc.perform(multipart("/api/platform/master-data/imports/preflight")
-                        .file(file).param("importType", "SERVICE").param("requestCode", requestCode).with(rhn()))
+                        .file(file).param("importType", "SERVICE").param("requestCode", requestCode).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(committed.get("id").asString()))
                 .andExpect(jsonPath("$.status").value("COMPLETED"));
@@ -359,7 +360,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", content);
         JsonNode preflight = json(mockMvc.perform(multipart("/api/platform/master-data/imports/preflight")
                         .file(file).param("importType", "MEDICATION")
-                        .param("requestCode", UUID.randomUUID().toString()).with(rhn()))
+                        .param("requestCode", UUID.randomUUID().toString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("READY"))
                 .andExpect(jsonPath("$.readyRows").value(1))
@@ -367,17 +368,17 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(post("/api/platform/master-data/imports/{batchId}/commit", preflight.get("id").asString())
-                        .with(rhn()))
+                        .with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.rows[0].targetId").isString());
-        mockMvc.perform(get("/api/platform/master-data/medications").param("query", code).with(rhn()))
+        mockMvc.perform(get("/api/platform/master-data/medications").param("query", code).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("批量导入测试药品"))
                 .andExpect(jsonPath("$[0].sdMedicationType").value("WESTERN"));
 
         mockMvc.perform(get("/api/platform/master-data/imports/template")
-                        .param("importType", "MEDICATION").param("format", "XLSX").with(rhn()))
+                        .param("importType", "MEDICATION").param("format", "XLSX").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(result -> org.assertj.core.api.Assertions.assertThat(
                         result.getResponse().getContentAsByteArray()).startsWith((byte) 'P', (byte) 'K'));
@@ -386,13 +387,13 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void item_type_tree_exposes_platform_service_and_medication_types() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/item-types")
-                        .param("subjectType", "CATALOG_ITEM").with(rhn()))
+                        .param("subjectType", "CATALOG_ITEM").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'SERVICE')].name").value("诊疗服务"))
                 .andExpect(jsonPath("$[?(@.code == 'SERVICE.LAB_TEST')].parentId").value("362387869797002"));
 
         mockMvc.perform(get("/api/platform/master-data/item-types")
-                        .param("subjectType", "MEDICATION").with(rhn()))
+                        .param("subjectType", "MEDICATION").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'MEDICATION.WESTERN')].name").value("西药和化学药"));
     }
@@ -401,7 +402,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void item_attributes_merge_type_schema_and_resolve_scope_override_with_projection() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/item-attributes/schema")
                         .param("subjectType", "MEDICATION")
-                        .param("targetId", "362387869795201").with(rhn()))
+                        .param("targetId", "362387869795201").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.itemTypeId").value("362387869797012"))
                 .andExpect(jsonPath("$.attributes.length()").value(2))
@@ -409,7 +410,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("PROJECTED"));
 
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION",
@@ -432,7 +433,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("PROJECTED"));
 
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION",
@@ -461,7 +462,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 }
                 """;
         JsonNode first = json(mockMvc.perform(post("/api/platform/master-data/item-attributes/snapshot")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(request))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(request))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.hashItemAttrSnapshot").isString())
                 .andExpect(jsonPath("$.jsonItemAttrSnapshot.contractVersion").value(1))
@@ -473,7 +474,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("PROJECTED"))
                 .andReturn().getResponse().getContentAsString());
         JsonNode second = json(mockMvc.perform(post("/api/platform/master-data/item-attributes/snapshot")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(request))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(request))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         org.assertj.core.api.Assertions.assertThat(first.get("hashItemAttrSnapshot").asString())
                 .hasSize(64).isEqualTo(second.get("hashItemAttrSnapshot").asString());
@@ -482,7 +483,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void laboratory_and_examination_variant_attribute_scenarios_resolve_with_typed_relations() throws Exception {
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"CATALOG_ITEM","targetId":"362387869795101",
@@ -498,7 +499,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("TENANT"));
 
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"SERVICE_VARIANT","targetId":"362387869797303",
@@ -518,7 +519,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void item_attribute_values_are_validated_versioned_audited_and_resolved() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "code":"MED-ATTR-%s","name":"扩展属性测试药品","aliasName":null,
@@ -536,14 +537,14 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String medicationId = medication.get("id").asString();
 
         mockMvc.perform(get("/api/platform/master-data/item-attributes/maintenance")
-                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhn()))
+                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schema.attributes.length()").value(2))
                 .andExpect(jsonPath("$.baseValues.length()").value(0));
 
         String baseRequest = UUID.randomUUID().toString();
         JsonNode maintenance = json(mockMvc.perform(put("/api/platform/master-data/item-attributes/base-value")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s",
@@ -559,7 +560,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String baseValueId = maintenance.get("baseValues").get(0).get("id").asString();
 
         mockMvc.perform(put("/api/platform/master-data/item-attributes/base-value")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s",
@@ -572,7 +573,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("ITEM_ATTRIBUTE_SCHEMA_VIOLATION"));
 
         mockMvc.perform(put("/api/platform/master-data/item-attributes/base-value")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s",
@@ -603,7 +604,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String overrideId = overrideMaintenance.get("overrides").get(0).get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s","businessDate":"2026-08-27",
@@ -625,7 +626,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 }
                 """.formatted(medicationId, ORGANIZATION, DEPARTMENT);
         JsonNode persistedSnapshot = json(mockMvc.perform(post("/api/platform/master-data/item-attributes/snapshot")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(snapshotRequest))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(snapshotRequest))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.jsonItemAttrSnapshot.attributes['MED.SKIN_TEST.SOLUTION_MODE'].value")
                         .value("DILUTED_SOLUTION"))
@@ -651,7 +652,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.overrides[0].value").value("ORIGINAL_SOLUTION"));
 
         JsonNode currentSnapshot = json(mockMvc.perform(post("/api/platform/master-data/item-attributes/snapshot")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content(snapshotRequest))
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(snapshotRequest))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.jsonItemAttrSnapshot.attributes['MED.SKIN_TEST.SOLUTION_MODE'].value")
                         .value("ORIGINAL_SOLUTION"))
@@ -663,7 +664,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .isNotEqualTo(currentSnapshot.get("hashItemAttrSnapshot").asString());
 
         mockMvc.perform(get("/api/platform/master-data/item-attributes/changes")
-                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhn()))
+                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(3))
                 .andExpect(jsonPath("$[?(@.requestCode == '%s')].targetType".formatted(baseRequest))
@@ -677,7 +678,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void disease_search_uses_versioned_terminology_aliases_and_dictionary_text() throws Exception {
         mockMvc.perform(get("/api/platform/terminology/diseases")
-                        .param("query", "高血压病").with(rhn()))
+                        .param("query", "高血压病").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
                 .andExpect(jsonPath("$[0].code").value("I10"))
@@ -691,7 +692,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].aliases[0].name").value("高血压病"));
 
         mockMvc.perform(get("/api/platform/terminology/diseases")
-                        .param("query", "肝阳上亢").with(rhn()))
+                        .param("query", "肝阳上亢").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].code").value("GY_SK_ZHENG"))
                 .andExpect(jsonPath("$[0].sdDiagnosisDomain").value("TCM_SYNDROME"))
@@ -701,7 +702,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void disease_management_programs_support_multi_member_configuration_and_reporting_metadata() throws Exception {
         JsonNode created = json(mockMvc.perform(post("/api/platform/terminology/disease-management-programs")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "productScope":false,"code":"SPECIAL_TEST_REGISTRY","name":"专项登记测试",
                                   "sdManagementType":"SPECIAL_REGISTRY","sdTriggerAction":"PROMPT_CONFIRMATION",
@@ -713,7 +714,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(put("/api/platform/terminology/disease-management-programs/{id}/members",
-                                created.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                                created.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"expectedRevision":%d,"conceptIds":["362387869795011","362387869795012"]}
                                 """.formatted(created.get("revision").asLong())))
@@ -722,7 +723,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.members[?(@.code == 'I10')].display").value("原发性高血压"))
                 .andExpect(jsonPath("$.members[?(@.code == 'E11.9')].display").value("2型糖尿病，不伴并发症"));
 
-        mockMvc.perform(get("/api/platform/terminology/disease-management-programs").with(rhn()))
+        mockMvc.perform(get("/api/platform/terminology/disease-management-programs").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.code == 'NOTIFIABLE_DISEASE')].reportCardType")
                         .value("INFECTIOUS_DISEASE"));
@@ -731,7 +732,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void disease_management_scope_supports_rules_paged_search_and_exact_exceptions() throws Exception {
         JsonNode created = json(mockMvc.perform(post("/api/platform/terminology/disease-management-programs")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "productScope":false,"code":"RULE_BASED_TEST","name":"规则化疾病管理测试",
                                   "sdManagementType":"CHRONIC_CARE","sdTriggerAction":"PROMPT_CONFIRMATION",
@@ -741,7 +742,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(put("/api/platform/terminology/disease-management-programs/{id}/scope",
-                                created.get("id").asString()).with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                                created.get("id").asString()).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "expectedRevision":%d,
@@ -763,7 +764,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.members[?(@.code == 'I10')].inclusionMode").value("EXCLUDE"));
 
         mockMvc.perform(get("/api/platform/terminology/diseases/search")
-                        .param("query", "高血压病").param("page", "0").param("size", "10").with(rhn()))
+                        .param("query", "高血压病").param("page", "0").param("size", "10").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.content[0].code").value("I10"))
@@ -771,7 +772,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
         mockMvc.perform(get("/api/platform/terminology/diseases/search")
                         .param("query", "E11.9").param("diagnosisDomain", "WESTERN_MEDICINE")
-                        .param("page", "0").param("size", "10").with(rhn()))
+                        .param("page", "0").param("size", "10").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].managementPrograms[?(@.code == 'RULE_BASED_TEST')].name")
                         .value("规则化疾病管理测试"));
@@ -780,21 +781,21 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void services_and_medications_keep_org_adoption_price_product_and_package_separate() throws Exception {
         mockMvc.perform(get("/api/platform/master-data/services")
-                        .param("query", "血细胞分析").param("organizationId", ORGANIZATION).with(rhn()))
+                        .param("query", "血细胞分析").param("organizationId", ORGANIZATION).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sdServiceTypeText").exists())
                 .andExpect(jsonPath("$[0].organizationAdoption.organizationId").value(ORGANIZATION))
                 .andExpect(jsonPath("$[0].prices[0].sdPriceTypeText").value("销售价"));
 
         mockMvc.perform(get("/api/platform/master-data/services")
-                        .param("query", "血细胞分析").with(rhn()))
+                        .param("query", "血细胞分析").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].laboratory.sdLaboratoryMethodText").value("血液学检测"))
                 .andExpect(jsonPath("$[0].laboratory.specimens[0].specimenItemId")
                         .value("362387869797111"));
 
         mockMvc.perform(get("/api/platform/master-data/services")
-                        .param("query", "腹部超声").with(rhn()))
+                        .param("query", "腹部超声").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].examination.sdExaminationTypeText").value("超声检查"))
                 .andExpect(jsonPath("$[0].examination.bodySiteRequired").value(true))
@@ -802,7 +803,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$[0].examination.variants[0].sdMethodTypeText").value("常规方式"));
 
         mockMvc.perform(get("/api/platform/master-data/medications")
-                        .param("query", "阿莫西林").param("organizationId", ORGANIZATION).with(rhn()))
+                        .param("query", "阿莫西林").param("organizationId", ORGANIZATION).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sdMedicationTypeText").value("西药"))
                 .andExpect(jsonPath("$[0].products[0].manufacturerName").value("示范制药有限公司"))
@@ -814,7 +815,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void service_creation_persists_catalog_and_strong_typed_service_detail() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode created = json(mockMvc.perform(post("/api/platform/master-data/services")
-                        .param("organizationId", ORGANIZATION).with(rhn())
+                        .param("organizationId", ORGANIZATION).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -851,7 +852,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(get("/api/platform/master-data/services")
-                        .param("query", created.get("code").asString()).with(rhn()))
+                        .param("query", created.get("code").asString()).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].name").value("动态心电图检查"))
                 .andExpect(jsonPath("$[0].sdStatusText").value("有效"));
@@ -861,7 +862,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void medication_creation_persists_safety_and_default_order_fields() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -903,7 +904,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void non_antimicrobial_cannot_carry_an_antimicrobial_level() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn())
+                        .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -940,7 +941,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
 
         mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "code":"HERBAL-INVALID-%s","name":"错误抗菌草药","aliasName":null,
@@ -948,7 +949,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "preparationSpec":"净制","preparationUnit":"g",
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
-                                  "sdAntimicrobialLevel":null,"skinTestRequired":false,
+                                  "sdAntimicrobialLevel":"NON_RESTRICTED","skinTestRequired":false,
                                   "defaultDose":10,"defaultDoseUnit":"g","defaultRoute":"口服",
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
@@ -958,7 +959,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("MEDICATION_ANTIMICROBIAL_TYPE_INVALID"));
 
         mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "code":"VACCINE-INVALID-%s","name":"错误频次疫苗","aliasName":null,
@@ -976,7 +977,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.code").value("MEDICATION_VACCINE_FREQUENCY_INVALID"));
 
         JsonNode herbal = json(mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "code":"HERBAL-VALID-%s","name":"类型锁定草药","aliasName":null,
@@ -995,7 +996,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(put("/api/platform/master-data/medications/{id}", herbal.get("id").asString())
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON)
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
                                   "expectedRevision":0,
@@ -1020,7 +1021,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         int attributeOrder = 1000 + Math.abs(suffix.hashCode() % 1000000);
 
         mockMvc.perform(get("/api/platform/master-data/item-attribute-configurations")
-                        .param("subjectType", "MEDICATION").with(rhn()))
+                        .param("subjectType", "MEDICATION").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tenantNamespace").value("TNT.QINGHE-DEMO."))
                 .andExpect(jsonPath("$.itemTypes[?(@.code == 'MEDICATION.WESTERN')].id")
@@ -1029,7 +1030,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String definitionRequest = UUID.randomUUID().toString();
         JsonNode definition = json(mockMvc.perform(post(
                                 "/api/platform/master-data/item-attribute-configurations/definitions")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"TNT.QINGHE-DEMO.MED.LOCAL_NOTE.%s",
                                   "name":"科室用药提示","description":"由具体开立科室维护的本地提示。",
@@ -1047,7 +1048,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String definitionId = definition.get("id").asString();
 
         mockMvc.perform(post("/api/platform/master-data/item-attribute-configurations/definitions")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"TNT.QINGHE-DEMO.MED.LOCAL_NOTE.%s",
                                   "name":"科室用药提示","description":"由具体开立科室维护的本地提示。",
@@ -1061,7 +1062,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(definitionId));
 
         mockMvc.perform(post("/api/platform/master-data/item-attribute-configurations/definitions")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED.INVALID.%s","name":"非法命名空间","description":"用于校验。",
                                   "dataType":"TEXT","cardinality":"SINGLE","schema":{"type":"string"},
@@ -1076,7 +1077,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String assignmentRequest = UUID.randomUUID().toString();
         JsonNode assignment = json(mockMvc.perform(post(
                                 "/api/platform/master-data/item-attribute-configurations/assignments")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "itemTypeId":"362387869797012","definitionId":"%s","required":false,
                                   "defaultValue":null,"widgetType":"INPUT","groupName":"机构个性化",
@@ -1093,7 +1094,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String assignmentId = assignment.get("id").asString();
 
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED-CFG-%s","name":"租户属性测试药品","aliasName":null,
                                   "sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
@@ -1109,13 +1110,13 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String medicationId = medication.get("id").asString();
 
         mockMvc.perform(get("/api/platform/master-data/item-attributes/maintenance")
-                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhn()))
+                        .param("subjectType", "MEDICATION").param("targetId", medicationId).with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.schema.attributes[?(@.definitionId == '%s')].code".formatted(definitionId))
                         .value("TNT.QINGHE-DEMO.MED.LOCAL_NOTE." + suffix));
 
         mockMvc.perform(put("/api/platform/master-data/item-attributes/base-value")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s","definitionId":"%s",
                                   "value":"不可写入公共值","validFrom":"2026-08-27","validTo":null,
@@ -1140,7 +1141,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("EXPLICIT_NULL"));
 
         mockMvc.perform(post("/api/platform/master-data/item-attributes/resolve")
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "subjectType":"MEDICATION","targetId":"%s","businessDate":"2026-08-27",
                                   "ordering":{"organizationId":"%s","departmentId":"%s"},
@@ -1152,7 +1153,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                         .value("EXPLICIT_NULL"));
 
         mockMvc.perform(put("/api/platform/master-data/item-attribute-configurations/definitions/{id}", definitionId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":0,"name":"科室用药提示","description":"由具体开立科室维护的本地提示。",
                                   "dataType":"INTEGER","cardinality":"SINGLE","dictionaryId":null,"unitCode":null,
@@ -1165,7 +1166,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ITEM_ATTRIBUTE_DEFINITION_IN_USE"));
 
-        mockMvc.perform(get("/api/platform/master-data/item-attribute-configurations/changes").with(rhn()))
+        mockMvc.perform(get("/api/platform/master-data/item-attribute-configurations/changes").with(rhnWorkContext()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.requestCode == '%s')].targetType".formatted(definitionRequest))
                         .value("DEFINITION"))
@@ -1174,12 +1175,11 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
         mockMvc.perform(get("/api/platform/master-data/item-attribute-configurations")
                         .param("subjectType", "MEDICATION").with(rhn("362387869790210")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.definitions[?(@.id == '%s')]".formatted(definitionId)).isEmpty())
-                .andExpect(jsonPath("$.assignments[?(@.id == '%s')]".formatted(assignmentId)).isEmpty());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("WORK_CONTEXT_REQUIRED"));
 
         mockMvc.perform(post("/api/platform/master-data/item-attribute-configurations/assignments/{id}/status", assignmentId)
-                        .with(rhn()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "expectedRevision":0,"status":"INACTIVE",
                                   "reason":"结束隔离测试并避免影响其他西药快照场景","requestCode":"%s"
