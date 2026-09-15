@@ -205,6 +205,7 @@ class MedicationRequest {
     Long routeId() { return routeId; } String routeCode() { return routeCode; }
     String routeNameSnapshot() { return routeNameSnapshot; }
     String routeExecutionTypeSnapshot() { return routeExecutionTypeSnapshot; }
+    String routeResolutionStatus() { return routeResolutionStatus; }
     String frequencyCode() { return frequencyCode; } Long frequencyId() { return frequencyId; }
     String frequencyNameSnapshot() { return frequencyNameSnapshot; } String frequencyRuleSnapshot() { return frequencyRuleSnapshot; }
     BigDecimal durationValue() { return durationValue; }

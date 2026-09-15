@@ -298,3 +298,13 @@
 |---|---|---|
 | `RHN_SUP_INP_MED_SUPPLY_BATCH` | `submit_cmd_scope_key` | `ID_TNT_SUBMIT_SCOPE` |
 | `RHN_SUP_INP_MED_SUPPLY_BATCH` | `cancel_cmd_scope_key` | `ID_TNT_CANCEL_SCOPE` |
+
+## QMED-1 合理用药评价基础
+
+| 领域 | 规范逻辑名 | 中文说明 | 旧物理表名 | RHN 物理表名 | 字段数 |
+|---|---|---|---|---|---:|
+| AUD | `aud.quality_rule_definition` | 合理用药规则定义；一行代表一条平台级规则定义 | `quality_rule_definition` | `RHN_AUD_MED_RULE` | 4 |
+| AUD | `aud.quality_rule_version` | 合理用药规则版本；一行代表一条不可变规则版本及证据 | `quality_rule_version` | `RHN_AUD_MED_RULE_VER` | 12 |
+| AUD | `aud.quality_evaluation` | 合理用药评价；一行代表一次完整处方的旁路安全评价 | `quality_evaluation` | `RHN_AUD_MED_EVAL` | 18 |
+| AUD | `aud.quality_finding` | 合理用药风险发现；一行代表某次评价中一条规则的风险发现 | `quality_finding` | `RHN_AUD_MED_FINDING` | 11 |
+| AUD | `aud.quality_override` | 合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由 | `quality_override` | `RHN_AUD_MED_OVERRIDE` | 7 |
