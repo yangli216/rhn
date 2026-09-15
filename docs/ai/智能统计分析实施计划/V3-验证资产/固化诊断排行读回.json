@@ -1,0 +1,19 @@
+{
+  "id": "92914517498945536",
+  "spec": {
+    "title": "本月门诊诊断记录排行",
+    "template": "RANKING",
+    "metrics": [
+      "DIAGNOSIS_RECORDS"
+    ],
+    "dimension": "DIAGNOSIS",
+    "scope": "CURRENT",
+    "period": {
+      "kind": "MONTH_TO_DATE",
+      "startDate": null,
+      "endDate": null
+    },
+    "limit": 10
+  },
+  "savedAt": "2026-09-14T09:29:07.240317Z"
+}

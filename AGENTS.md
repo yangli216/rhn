@@ -8,13 +8,13 @@
 
 ## Services for manual verification
 
-- Treat the backend on port `8080` and the frontend on port `5173` as persistent manual-verification services. Do not stop them when automated checks or browser QA finish.
-- The persistent backend on port `8080` must use the `oracle-local` profile. Never start the persistent manual-verification service with the ephemeral `local` or `test` profile.
-- Backend tests must keep using the isolated `test` profile and its random H2 database. Tests must not connect to the manual Oracle schema or bind to port `8080`.
-- Before handing work back for manual verification, confirm both `http://localhost:8080/actuator/health` and `http://localhost:5173` are reachable. If either project service is unavailable, start or restore it and report the URLs and status.
-- Temporary test instances must use dedicated non-project ports and may be cleaned up after their check. Never terminate a pre-existing service on `8080` or `5173` as part of temporary cleanup.
-- Never use broad process termination such as `pkill` or `killall` for project verification. Track and stop only the exact temporary process that the current task started.
-- Leave browser task spaces and project services in different lifecycles: completing an ego-lite task space must not stop the backend or frontend processes.
+- Preserve both checkouts' persistent manual-verification services: the main checkout `/Users/yangl/IdeaProjects/rhn` uses backend `8080` / frontend `5173`; the analytics checkout uses backend `18086` / frontend `15176`.
+- Both persistent backends must use `oracle-local`. Never start them with ephemeral `local` or `test` profiles.
+- Backend tests must use the isolated `test` profile and random H2 databases, never the manual Oracle schema or persistent service ports.
+- Frontend ports and API targets can be set per checkout through ignored `frontend/.env.local`: `RHN_FRONTEND_PORT` and `RHN_API_TARGET`. Preserve existing overrides when merging branches.
+- Before handing work back, verify both backends' `/actuator/health` and both frontend URLs are reachable. Restore unavailable project services and report status.
+- Temporary test instances must use dedicated non-project ports. Track and stop only exact temporary processes started by the current task; never use broad termination such as `pkill` or `killall`.
+- Completing browser task spaces must not stop persistent project services.
 
 ## Git submission rules
 

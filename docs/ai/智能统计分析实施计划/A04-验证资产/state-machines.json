@@ -1,0 +1,426 @@
+{
+  "version": "a04-contract-v1",
+  "notice": "边是必要条件；事务、动作、所有权、版本及事件守卫仍必须验证，不是仅按字符串跳转。",
+  "machines": {
+    "session": {
+      "initial": "OPEN",
+      "states": [
+        "OPEN",
+        "CLARIFICATION_REQUIRED",
+        "READY",
+        "ARCHIVED"
+      ],
+      "terminal": [
+        "ARCHIVED"
+      ],
+      "transitions": [
+        [
+          "OPEN",
+          "CLARIFICATION_REQUIRED",
+          "ambiguous_intent"
+        ],
+        [
+          "OPEN",
+          "READY",
+          "valid_draft"
+        ],
+        [
+          "CLARIFICATION_REQUIRED",
+          "READY",
+          "clarifications_resolved"
+        ],
+        [
+          "CLARIFICATION_REQUIRED",
+          "OPEN",
+          "new_intent"
+        ],
+        [
+          "READY",
+          "OPEN",
+          "query_change"
+        ],
+        [
+          "READY",
+          "CLARIFICATION_REQUIRED",
+          "new_ambiguity"
+        ],
+        [
+          "OPEN",
+          "ARCHIVED",
+          "archive"
+        ],
+        [
+          "READY",
+          "ARCHIVED",
+          "archive"
+        ],
+        [
+          "CLARIFICATION_REQUIRED",
+          "ARCHIVED",
+          "archive"
+        ]
+      ]
+    },
+    "proposal": {
+      "initial": "PROPOSED",
+      "states": [
+        "PROPOSED",
+        "ACCEPTED",
+        "REJECTED",
+        "CONFLICTED"
+      ],
+      "terminal": [
+        "ACCEPTED",
+        "REJECTED",
+        "CONFLICTED"
+      ],
+      "transitions": [
+        [
+          "PROPOSED",
+          "ACCEPTED",
+          "accept_matching_base"
+        ],
+        [
+          "PROPOSED",
+          "REJECTED",
+          "reject"
+        ],
+        [
+          "PROPOSED",
+          "CONFLICTED",
+          "stale_base_or_deleted_component"
+        ]
+      ]
+    },
+    "run": {
+      "initial": "QUEUED",
+      "states": [
+        "QUEUED",
+        "RUNNING",
+        "CANCEL_REQUESTED",
+        "SUCCEEDED",
+        "FAILED",
+        "REJECTED",
+        "CANCELLED"
+      ],
+      "terminal": [
+        "SUCCEEDED",
+        "FAILED",
+        "REJECTED",
+        "CANCELLED"
+      ],
+      "transitions": [
+        [
+          "QUEUED",
+          "RUNNING",
+          "revalidated_and_admitted"
+        ],
+        [
+          "QUEUED",
+          "REJECTED",
+          "policy_or_catalog_changed"
+        ],
+        [
+          "QUEUED",
+          "CANCELLED",
+          "cancel_before_start"
+        ],
+        [
+          "RUNNING",
+          "SUCCEEDED",
+          "protected_result_and_audit_ready"
+        ],
+        [
+          "RUNNING",
+          "FAILED",
+          "execution_failed_and_resources_released"
+        ],
+        [
+          "RUNNING",
+          "CANCEL_REQUESTED",
+          "cancel_or_timeout_or_revoke"
+        ],
+        [
+          "CANCEL_REQUESTED",
+          "CANCELLED",
+          "database_stopped_resources_released"
+        ]
+      ]
+    },
+    "delivery": {
+      "initial": "UNAVAILABLE",
+      "states": [
+        "UNAVAILABLE",
+        "AVAILABLE",
+        "REVOKED",
+        "EXPIRED",
+        "PURGED"
+      ],
+      "terminal": [
+        "PURGED"
+      ],
+      "transitions": [
+        [
+          "UNAVAILABLE",
+          "AVAILABLE",
+          "run_succeeded_and_current_policy_allows"
+        ],
+        [
+          "UNAVAILABLE",
+          "REVOKED",
+          "rights_revoked"
+        ],
+        [
+          "AVAILABLE",
+          "REVOKED",
+          "rights_or_policy_changed"
+        ],
+        [
+          "AVAILABLE",
+          "EXPIRED",
+          "ttl_elapsed"
+        ],
+        [
+          "UNAVAILABLE",
+          "PURGED",
+          "failed_run_cleanup"
+        ],
+        [
+          "REVOKED",
+          "PURGED",
+          "retention_cleanup"
+        ],
+        [
+          "EXPIRED",
+          "PURGED",
+          "retention_cleanup"
+        ]
+      ]
+    },
+    "assetVersion": {
+      "initial": "DRAFT",
+      "states": [
+        "DRAFT",
+        "IN_REVIEW",
+        "PUBLISHED",
+        "SUSPENDED",
+        "RETIRED"
+      ],
+      "terminal": [
+        "RETIRED"
+      ],
+      "transitions": [
+        [
+          "DRAFT",
+          "IN_REVIEW",
+          "submit_shared_review"
+        ],
+        [
+          "IN_REVIEW",
+          "DRAFT",
+          "reject_or_withdraw"
+        ],
+        [
+          "IN_REVIEW",
+          "PUBLISHED",
+          "scoped_approval_and_dependency_check"
+        ],
+        [
+          "DRAFT",
+          "PUBLISHED",
+          "owner_saves_private_asset"
+        ],
+        [
+          "PUBLISHED",
+          "SUSPENDED",
+          "suspend"
+        ],
+        [
+          "SUSPENDED",
+          "PUBLISHED",
+          "reauthorized_resume"
+        ],
+        [
+          "DRAFT",
+          "RETIRED",
+          "retire"
+        ],
+        [
+          "IN_REVIEW",
+          "RETIRED",
+          "retire"
+        ],
+        [
+          "PUBLISHED",
+          "RETIRED",
+          "retire"
+        ],
+        [
+          "SUSPENDED",
+          "RETIRED",
+          "retire"
+        ]
+      ]
+    },
+    "assetLifecycle": {
+      "initial": "ACTIVE",
+      "states": [
+        "ACTIVE",
+        "SUSPENDED",
+        "RETIRED"
+      ],
+      "terminal": [
+        "RETIRED"
+      ],
+      "transitions": [
+        [
+          "ACTIVE",
+          "SUSPENDED",
+          "governance_suspend_all_versions"
+        ],
+        [
+          "SUSPENDED",
+          "ACTIVE",
+          "reauthorized_resume"
+        ],
+        [
+          "ACTIVE",
+          "RETIRED",
+          "retire_asset"
+        ],
+        [
+          "SUSPENDED",
+          "RETIRED",
+          "retire_asset"
+        ]
+      ]
+    }
+  },
+  "guard_scenarios": [
+    {
+      "id": "G01",
+      "given": "已发布 v1，提交新 v2 审核",
+      "expected": "v1 继续可运行；v2 为 IN_REVIEW；发布指针仍指 v1"
+    },
+    {
+      "id": "G02",
+      "given": "v2 审核通过且 assetRevision 匹配",
+      "expected": "原子发布 v2 并移动指针；v1 内容不变"
+    },
+    {
+      "id": "G03",
+      "given": "v2 审核期间作者修改草稿",
+      "expected": "新建草稿版本；不覆盖审核快照；原审核只适用所提交版本"
+    },
+    {
+      "id": "G04",
+      "given": "已发布版本被请求原地改 QuerySpec",
+      "expected": "409 ANALYTICS_VERSION_IMMUTABLE"
+    },
+    {
+      "id": "G05",
+      "given": "两个请求同 baseDraftVersion 并发修改",
+      "expected": "一个成功创建新版本，另一个 409 ANALYTICS_DRAFT_VERSION_CONFLICT"
+    },
+    {
+      "id": "G06",
+      "given": "旧 run 返回而当前草稿已变更",
+      "expected": "保留历史记录；不覆盖当前预览"
+    },
+    {
+      "id": "G07",
+      "given": "相同用户/上下文/operation 幂等键，相同请求重试",
+      "expected": "重新鉴权后返回同一资源 ID，不创建第二个任务"
+    },
+    {
+      "id": "G08",
+      "given": "相同幂等键但 payload 不同",
+      "expected": "409 IDEMPOTENCY_KEY_REUSED"
+    },
+    {
+      "id": "G09",
+      "given": "别的用户使用相同幂等键",
+      "expected": "独立命名空间，绝不能重放另一人的响应"
+    },
+    {
+      "id": "G10",
+      "given": "撤权后重放先前成功请求",
+      "expected": "拒绝业务结果，不能从幂等响应缓存绕过当前鉴权"
+    },
+    {
+      "id": "G11",
+      "given": "RUNNING 收到取消但数据库语句尚未停止",
+      "expected": "CANCEL_REQUESTED，交付不可用，不伪报 CANCELLED"
+    },
+    {
+      "id": "G12",
+      "given": "完成与取消竞争 CAS",
+      "expected": "只有先提交者赢；取消先提交则不得转 SUCCEEDED/交付"
+    },
+    {
+      "id": "G13",
+      "given": "SUCCEEDED 结果读取前撤权",
+      "expected": "执行状态保留；delivery 变 REVOKED，返回 403"
+    },
+    {
+      "id": "G14",
+      "given": "隐私必要审计不可用",
+      "expected": "停止执行/交付，无无保护降级"
+    },
+    {
+      "id": "G15",
+      "given": "仅修改 ViewSpec 且查询/范围/策略/水位条件仍匹配",
+      "expected": "新草稿版本可引用同一受控结果，不重复查询"
+    },
+    {
+      "id": "G16",
+      "given": "只有颜色/小数位修改，之后已撤权",
+      "expected": "不得读取原结果；样式缓存不是数据授权"
+    },
+    {
+      "id": "G17",
+      "given": "回滚到已退休/目录停用的旧版",
+      "expected": "拒绝回滚，不修改当前发布指针"
+    },
+    {
+      "id": "G18",
+      "given": "有 APPROVE 但审核范围不符或作者自审",
+      "expected": "403，不发布"
+    },
+    {
+      "id": "G19",
+      "given": "共享版本 DRAFT 使用私有保存事件绕过审核",
+      "expected": "拒绝；owner_saves_private_asset 只适用 PRIVATE ACL"
+    },
+    {
+      "id": "G20",
+      "given": "草稿确认后日期跨月或授权范围改变",
+      "expected": "409 ANALYTICS_CONFIRMATION_STALE，重新解释实际范围"
+    },
+    {
+      "id": "G21",
+      "given": "运行 CANDIDATE 真实指标",
+      "expected": "422 ANALYTICS_CATALOG_NOT_APPROVED；不受 schema 合法性影响"
+    },
+    {
+      "id": "G22",
+      "given": "同幂等键记录过期后重试运行/发布",
+      "expected": "通过持久命令 receipt 保持同一操作身份，不能仅依赖底座 24h 缓存"
+    },
+    {
+      "id": "G23",
+      "given": "撤销/重做历史草稿",
+      "expected": "追加全新递增版本，保留旧内容；重新分类查询变化"
+    },
+    {
+      "id": "G24",
+      "given": "安全停止本人任务但已无 RUN 权限",
+      "expected": "受信身份+同租户+所有权允许取消，不允许读取数据；他人任务需 MANAGE_EXECUTION"
+    },
+    {
+      "id": "G25",
+      "given": "资产整体 SUSPENDED，但客户端指定旧 PUBLISHED 版本",
+      "expected": "拒绝运行；所有版本受资产总停用约束"
+    }
+  ]
+}

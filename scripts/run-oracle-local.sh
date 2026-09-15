@@ -3,7 +3,7 @@ set -euo pipefail
 
 rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_backend_dir="$rhn_project_root/backend"
-rhn_server_port="${RHN_SERVER_PORT:-8080}"
+rhn_server_port="${RHN_SERVER_PORT:-${RHN_PORT:-18086}}"
 rhn_oracle_env_file="${RHN_ORACLE_ENV_FILE:-$rhn_project_root/.env.oracle.local}"
 
 if [[ -f "$rhn_oracle_env_file" ]]; then

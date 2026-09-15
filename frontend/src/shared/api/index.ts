@@ -1,3 +1,4 @@
+import { createAnalyticsApi } from './analyticsApi'
 import { createEncountersApi } from './encountersApi'
 import { createDictionaryApi } from './dictionaryApi'
 import { createConfigurationApi } from './configurationApi'
@@ -68,6 +69,7 @@ export * from './outpatientTriageApi'
 
 function createApiModules(client: ApiClient) {
   return {
+    analytics: createAnalyticsApi(client),
     session: createSessionApi(client),
     organization: createOrganizationApi(client),
     residents: createResidentsApi(client),

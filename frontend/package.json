@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev": "vite --config vite.config.ts",
+    "build": "tsc -b && vite build --config vite.config.ts",
     "check": "npm run ui:check && npm run test && npm run build",
     "test": "vitest run",
     "ui:check": "node scripts/check-ui-standards.mjs",
     "api:generate": "openapi-typescript ../docs/api/openapi.json -o src/shared/api/generated.ts",
-    "preview": "vite preview"
+    "preview": "vite preview --config vite.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

@@ -1,0 +1,107 @@
+{
+  "version": "a04-contract-v1",
+  "realExecutionEnabled": false,
+  "metrics": [
+    {
+      "a02Id": "M01",
+      "ref": "registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M02",
+      "ref": "non_transfer_registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M03",
+      "ref": "transfer_registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M04",
+      "ref": "cohort_cancelled_registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M05",
+      "ref": "cohort_not_cancelled_registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M06",
+      "ref": "cancelled_registration_event_count@1",
+      "datasetRef": "outpatient_cancellation_events@1",
+      "timeBasis": "CANCELLATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M07",
+      "ref": "completed_encounter_count@1",
+      "datasetRef": "outpatient_completed_encounter@1",
+      "timeBasis": "COMPLETION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M08",
+      "ref": "cohort_completed_registration_count@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M09",
+      "ref": "cohort_cancellation_ratio@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M10",
+      "ref": "cohort_completion_ratio@1",
+      "datasetRef": "outpatient_registration_cohort@1",
+      "timeBasis": "REGISTRATION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": false
+    },
+    {
+      "a02Id": "M11",
+      "ref": "completed_encounter_monthly_delta@1",
+      "datasetRef": "outpatient_completed_encounter@1",
+      "timeBasis": "COMPLETION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": true
+    },
+    {
+      "a02Id": "M12",
+      "ref": "completed_encounter_monthly_growth@1",
+      "datasetRef": "outpatient_completed_encounter@1",
+      "timeBasis": "COMPLETION",
+      "reviewStatus": "CANDIDATE",
+      "requiresComparison": true
+    }
+  ],
+  "unsupported": [
+    "M13",
+    "return_visit_rate"
+  ],
+  "notice": "局部契约映射，不是已部署目录；合成验证通过不改变 CANDIDATE 状态。"
+}

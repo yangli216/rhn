@@ -1,0 +1,569 @@
+{
+  "version": "a03-synthetic-v1",
+  "synthetic": true,
+  "evaluation_time": "2026-09-14T02:00:00Z",
+  "notice": "独立于 A02 的虚构组织；无 IAM 导入或生产授权效力。M01–M12 仅在此合成情境假设已治理，实际目录仍 CANDIDATE。",
+  "organizations": [
+    {
+      "tenant": "T_A",
+      "organization": "H_A",
+      "departments": [
+        "D_A1",
+        "D_A2",
+        "D_A3"
+      ]
+    },
+    {
+      "tenant": "T_A",
+      "organization": "H_B",
+      "departments": [
+        "D_B1"
+      ]
+    },
+    {
+      "tenant": "T_B",
+      "organization": "H_C",
+      "departments": [
+        "D_C1"
+      ]
+    }
+  ],
+  "actors": [
+    {
+      "id": "U_CLIN",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": []
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [],
+        "metrics": [],
+        "purposes": [],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": null,
+        "dimensions": [],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_D1",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_MULTI",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1",
+          "D_A2"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_HOSP",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN",
+          "ANALYTICS.PUBLISH_ORGANIZATION"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1",
+          "D_A2",
+          "D_A3"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_HB",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_B",
+        "department": "D_B1"
+      },
+      "action_grant": {
+        "organization": "H_B",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_B",
+        "departments": [
+          "D_B1"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_TB",
+      "tenant": "T_B",
+      "work_context": {
+        "organization": "H_C",
+        "department": "D_C1"
+      },
+      "action_grant": {
+        "organization": "H_C",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_C",
+        "departments": [
+          "D_C1"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_REVIEW",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.APPROVE"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [],
+        "metrics": [],
+        "purposes": [],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": null,
+        "dimensions": [],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_CATALOG",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.MANAGE_CATALOG"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [],
+        "metrics": [],
+        "purposes": [],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": null,
+        "dimensions": [],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_EXPORT",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN",
+          "ANALYTICS.EXPORT",
+          "ANALYTICS.DETAIL"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_REVOKED",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1"
+        ],
+        "metrics": [
+          "M01",
+          "M02",
+          "M03",
+          "M04",
+          "M05",
+          "M06",
+          "M07",
+          "M08",
+          "M09",
+          "M10",
+          "M11",
+          "M12"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "REVOKED",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    },
+    {
+      "id": "U_LIMIT",
+      "tenant": "T_A",
+      "work_context": {
+        "organization": "H_A",
+        "department": "D_A1"
+      },
+      "action_grant": {
+        "organization": "H_A",
+        "actions": [
+          "ANALYTICS.READ",
+          "ANALYTICS.CREATE",
+          "ANALYTICS.RUN"
+        ]
+      },
+      "statistics_grant": {
+        "organization": "H_A",
+        "departments": [
+          "D_A1"
+        ],
+        "metrics": [
+          "M07"
+        ],
+        "purposes": [
+          "OPERATIONS_REVIEW"
+        ],
+        "status": "ACTIVE",
+        "valid_from": "2026-09-01T00:00:00Z",
+        "valid_until_exclusive": "2026-10-01T00:00:00Z",
+        "dataset": "outpatient-aggregate-synthetic@1",
+        "dimensions": [
+          "organization",
+          "department",
+          "calendar_period",
+          "registration_source",
+          "visit_type"
+        ],
+        "policy_version": "a03-proposal-v1",
+        "grant_source": "SYNTHETIC_SPECIFICATION"
+      }
+    }
+  ],
+  "assets": [
+    {
+      "id": "AS_SHARED",
+      "tenant": "T_A",
+      "organization": "H_A",
+      "owner": "U_HOSP",
+      "acl": "ORGANIZATION_TEMPLATE",
+      "review_status": "PUBLISHED_SYNTHETIC"
+    },
+    {
+      "id": "AS_PRIVATE",
+      "tenant": "T_A",
+      "organization": "H_A",
+      "owner": "U_D1",
+      "acl": "OWNER_ONLY",
+      "review_status": "DRAFT_SYNTHETIC"
+    }
+  ],
+  "default_flags": {
+    "aggregate_only": true,
+    "detail_enabled": false,
+    "export_enabled": false,
+    "external_model_enabled": false,
+    "speech_enabled": false,
+    "real_data_enabled": false
+  },
+  "review_grants": [
+    {
+      "actor": "U_REVIEW",
+      "tenant": "T_A",
+      "organization": "H_A",
+      "department": "D_A1",
+      "review_type": "DEPARTMENT_TEMPLATE",
+      "self_review_allowed": false
+    }
+  ],
+  "catalog_management_grants": [
+    {
+      "actor": "U_CATALOG",
+      "tenant": "T_A",
+      "organization": "H_A",
+      "can_edit_candidate": true,
+      "can_self_approve": false
+    }
+  ]
+}

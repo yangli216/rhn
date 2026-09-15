@@ -1,0 +1,404 @@
+[
+  {
+    "code": "CHARGE",
+    "version": 1,
+    "name": "门诊费用明细",
+    "grain": "每条已记账费用明细一行，含负数冲销行",
+    "definition": "按费用发生日期统计已绑定门诊就诊的人民币已记账费用，含未结算费用，冲销以负数计入净发生额；不是实际收款、已结算收入或医保到账。未绑定就诊的费用不计入。平均金额是每条费用行均值，不是次均费用；去重就诊或患者含冲销涉及对象。",
+    "relation": "RHN_BIL_CHARGE_ITEM → RHN_VIS_ENC：ID_ENC + ID_TNT，多对一；费用通过 ID_CARE_REQ + ID_TNT + ID_ENC 左关联 RHN_EX_CARE_REQ（多对一）；可按关联医嘱类别和状态筛选，未关联医嘱的费用仅在不筛选医嘱条件时保留。",
+    "dimensions": [
+      "DAY",
+      "MONTH",
+      "DEPARTMENT",
+      "ITEM",
+      "ORDER_TYPE"
+    ],
+    "fields": [
+      {
+        "code": "chargeId",
+        "name": "费用明细条数",
+        "databaseType": "NUMBER",
+        "unit": "条",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "encounterId",
+        "name": "涉及就诊",
+        "databaseType": "NUMBER",
+        "unit": "人次",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "patientId",
+        "name": "涉及患者",
+        "databaseType": "NUMBER",
+        "unit": "人",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "orderId",
+        "name": "费用关联医嘱",
+        "databaseType": "NUMBER",
+        "unit": "条",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "amount",
+        "name": "费用金额",
+        "databaseType": "NUMBER",
+        "unit": "元",
+        "aggregates": [
+          "SUM",
+          "AVG"
+        ],
+        "operators": [
+          "EQ",
+          "GTE",
+          "LTE"
+        ],
+        "values": {}
+      },
+      {
+        "code": "itemName",
+        "name": "收费项目名称",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      },
+      {
+        "code": "itemCode",
+        "name": "收费项目编码",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      },
+      {
+        "code": "sourceType",
+        "name": "费用来源",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      },
+      {
+        "code": "orderKind",
+        "name": "关联医嘱类别",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN"
+        ],
+        "values": {
+          "MEDICATION": "药品医嘱",
+          "SERVICE": "检查检验及其他服务医嘱"
+        }
+      },
+      {
+        "code": "orderStatus",
+        "name": "关联医嘱状态",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN"
+        ],
+        "values": {
+          "ACTIVE": "有效",
+          "COMPLETED": "已完成",
+          "CANCELLED": "已取消",
+          "DRAFT": "草稿"
+        }
+      }
+    ]
+  },
+  {
+    "code": "ENCOUNTER",
+    "version": 1,
+    "name": "门诊就诊",
+    "grain": "每次就诊一行",
+    "definition": "按就诊登记日期统计门诊就诊；默认包含所有当前就诊状态，可筛选状态。患者去重是当前查询范围内去重，各分组合计不一定等于去重总人数。",
+    "relation": "RHN_VIS_ENC 为就诊主表，ID_ENC 唯一；机构及科室权限按就诊归属控制。",
+    "dimensions": [
+      "DAY",
+      "MONTH",
+      "DEPARTMENT",
+      "STATUS"
+    ],
+    "fields": [
+      {
+        "code": "encounterId",
+        "name": "就诊次数",
+        "databaseType": "NUMBER",
+        "unit": "人次",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "patientId",
+        "name": "就诊患者",
+        "databaseType": "NUMBER",
+        "unit": "人",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "status",
+        "name": "就诊状态",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN"
+        ],
+        "values": {
+          "COMPLETED": "诊毕",
+          "CANCELLED": "退号",
+          "IN_PROGRESS": "接诊中",
+          "TRANSFERRED": "转科",
+          "REGISTERED": "已挂号",
+          "SUSPENDED": "暂挂",
+          "TERMINATED": "终止"
+        }
+      }
+    ]
+  },
+  {
+    "code": "DIAGNOSIS",
+    "version": 1,
+    "name": "门诊确诊记录",
+    "grain": "每条本次就诊有效确诊记录一行",
+    "definition": "按诊断首次记录日期统计，限本次就诊、当前有效且已确诊的记录，包含主次诊断。患者及就诊可按范围去重。",
+    "relation": "RHN_VIS_ENC_DIAG → RHN_VIS_ENC：ID_ENC + ID_TNT，多对一。",
+    "dimensions": [
+      "DAY",
+      "MONTH",
+      "DEPARTMENT",
+      "DIAGNOSIS"
+    ],
+    "fields": [
+      {
+        "code": "recordId",
+        "name": "确诊记录",
+        "databaseType": "NUMBER",
+        "unit": "条",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "patientId",
+        "name": "确诊患者",
+        "databaseType": "NUMBER",
+        "unit": "人",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "encounterId",
+        "name": "确诊就诊",
+        "databaseType": "NUMBER",
+        "unit": "人次",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "diagnosisName",
+        "name": "诊断名称",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      },
+      {
+        "code": "diagnosisCode",
+        "name": "诊断编码",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      }
+    ]
+  },
+  {
+    "code": "ORDER",
+    "version": 1,
+    "name": "门诊医嘱",
+    "grain": "每条医嘱一行，不是处方张数或药品数量",
+    "definition": "按医嘱开立日期统计药品及服务医嘱；默认包含草稿、有效、已完成和取消状态，统计有效医嘱时必须筛选 ACTIVE。科室是就诊归属科室，不是执行科室。",
+    "relation": "RHN_EX_CARE_REQ → RHN_VIS_ENC：ID_ENC + ID_TNT，多对一；不与收费明细直接展开连接。",
+    "dimensions": [
+      "DAY",
+      "MONTH",
+      "DEPARTMENT",
+      "ITEM",
+      "ORDER_TYPE",
+      "STATUS"
+    ],
+    "fields": [
+      {
+        "code": "orderId",
+        "name": "医嘱条数",
+        "databaseType": "NUMBER",
+        "unit": "条",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "encounterId",
+        "name": "有医嘱的就诊",
+        "databaseType": "NUMBER",
+        "unit": "人次",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "patientId",
+        "name": "有医嘱的患者",
+        "databaseType": "NUMBER",
+        "unit": "人",
+        "aggregates": [
+          "COUNT",
+          "COUNT_DISTINCT"
+        ],
+        "operators": [],
+        "values": {}
+      },
+      {
+        "code": "status",
+        "name": "医嘱状态",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN"
+        ],
+        "values": {
+          "ACTIVE": "有效",
+          "COMPLETED": "已完成",
+          "CANCELLED": "已取消",
+          "DRAFT": "草稿"
+        }
+      },
+      {
+        "code": "kind",
+        "name": "医嘱类别",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN"
+        ],
+        "values": {
+          "MEDICATION": "药品医嘱",
+          "SERVICE": "检查检验及其他服务医嘱"
+        }
+      },
+      {
+        "code": "itemName",
+        "name": "医嘱项目名称",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      },
+      {
+        "code": "itemCode",
+        "name": "医嘱项目编码",
+        "databaseType": "VARCHAR2",
+        "unit": "",
+        "aggregates": [],
+        "operators": [
+          "EQ",
+          "IN",
+          "CONTAINS"
+        ],
+        "values": {}
+      }
+    ]
+  }
+]

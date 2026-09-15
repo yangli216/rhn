@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { ModuleSearch } from './ModuleSearch'
 import { LoginScreen } from '../features/auth/LoginScreen'
 import { Dashboard } from '../features/dashboard/Dashboard'
 import type { Department, Organization, Session } from '../shared/model'
@@ -11,6 +12,10 @@ import { formatTime } from '../shared/format'
 import { RealtimeBridge } from '../shared/realtime/RealtimeBridge'
 import { CriticalValueCenter } from '../shared/realtime/CriticalValueCenter'
 import { AnnouncementCenter } from '../shared/realtime/AnnouncementCenter'
+
+const analyticsEntryEnabled = import.meta.env.VITE_ANALYTICS_ENABLED === 'true'
+const AnalyticsEntry = lazy(() => import('../features/analytics/AnalyticsEntry')
+  .then((module) => ({ default: module.AnalyticsEntry })))
 
 const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
   .then((module) => ({ default: module.DoctorWorkstation })))
@@ -196,6 +201,7 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
 const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management']
 
 const NAVIGATION_NODES: NavigationNode[] = [
+  ...(analyticsEntryEnabled ? [{ id: 'analytics', label: '智能统计分析', icon: 'roadmap' as const, to: '/analytics', requiredAuthority: 'PORTAL.ACCESS' }] : []),
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
@@ -328,6 +334,7 @@ function navigationAncestorsForPath(nodes: NavigationNode[], pathname: string, a
 
 export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/') return HOME_TAB
+  if (pathname === '/analytics' && analyticsEntryEnabled) return { id: pathname, path: pathname, title: '智能统计分析', icon: 'roadmap', closeable: true }
   if (pathname === '/residents') return { id: pathname, path: pathname, title: '居民中心', icon: 'residents', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
   if (pathname === '/pharmacy') return { id: pathname, path: pathname, title: '门诊发药', icon: 'pharmacy', closeable: true }
@@ -834,6 +841,7 @@ export function AppShell() {
           <WorkspaceTabs tabs={tabs} activeTabId={activeTabId} onActivate={(path) => navigate(path)}
             onClose={closeTab} onManage={manageTabs} />
           <div className="top-actions">
+            <ModuleSearch nodes={visibleNavigation} onNavigate={(path) => { closeNavigationAfterNavigate(); navigate(path) }} />
             <CriticalValueCenter api={activeSlot.api} contextKey={activeContextKey}
               workContextType={activeSlot.option.workContextType}
               onNavigate={(path) => navigate(path)} />
@@ -968,6 +976,7 @@ export function AppShell() {
                     canTerminate={tabAuthorities.has('PRESENCE.SESSION.TERMINATE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/access-control" element={<AccessControlManagement api={tabSlot.api}
                     context={tabSlot.clinicalContext} />} />
+                  {analyticsEntryEnabled && <Route path="/analytics" element={<AnalyticsEntry api={tabSlot.api} />} />}
                   <Route path="/roadmap/:module" element={<PlannedPage title="后续业务模块" copy="该模块将在门诊主链后按业务优先级接入共享底座。" />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes></Suspense>}

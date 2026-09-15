@@ -67,7 +67,13 @@ npm install
 npm run dev
 ```
 
-打开 <http://localhost:5173>。前端开发环境通过 Vite 将 `/api` 代理到后端。
+本分支默认前端地址为 <http://localhost:15176>，后端地址为 <http://localhost:18086>，健康检查为 <http://localhost:18086/actuator/health>。前端通过 Vite 将 `/api` 和 `/actuator` 代理到此后端。`npm run dev` 和 `npm run preview` 均使用 15176，端口被占用时会报错，不会自动换端口。
+
+后端可通过 `RHN_PORT` 覆盖端口；Oracle 启动脚本优先使用 `RHN_SERVER_PORT`，其次使用 `RHN_PORT`。更换后端端口时，前端需同步设置 `RHN_API_TARGET`。统计体验脚本也使用相同默认端口，支持 `RHN_ANALYTICS_PORT` 优先覆盖。
+
+统计分析支持通用模板、字段组合、多轮 AI 修改和可视化方案编辑，操作方式及边界见 [V5：连续修改与可视化方案编辑](docs/ai/智能统计分析实施计划/V5-连续修改与可视化方案编辑.md)。
+
+顶部“搜索模块”支持按名称或所属分类查找当前可访问的模块，快捷键为 `Ctrl / ⌘ K`，回车进入首项。统计体验入口位于左侧菜单顶部；启动前端时设置 `VITE_ANALYTICS_ENABLED=true`，后端通过 `./scripts/run-analytics-preview.sh` 启动，使用当前 Oracle 业务数据。
 
 刷新后保持登录默认关闭。需要启用基础版本时设置 `RHN_REFRESH_LOGIN_ENABLED=true`；登录有效期默认 8 小时，
 可通过 `RHN_REFRESH_LOGIN_TTL` 调整（例如 `PT4H`）。正式集群使用共享 Redis 保存登录令牌，并要求通过 HTTPS
@@ -108,3 +114,5 @@ cd frontend && npm run check
 当前开发账号只用于本地验证。监控、备份、发布和正式安全工程按本阶段边界暂不实际推进。
 
 本地/测试配置会启用 `development-jca` 以验证完整链路；它不是合规密码产品。默认生产配置不启用任何密码提供者，并对关键数据写入失败关闭。接入真实数据前必须通过 `RHN_CRYPTO_ACTIVE_PROVIDER` 配置经项目核验的 SM2/SM3 密码服务适配器，并完成个人证书、可信时间戳、密钥生命周期和密码应用方案评估。
+
+前端端口可通过各工作区忽略的 `frontend/.env.local` 设置 `RHN_FRONTEND_PORT` 和 `RHN_API_TARGET`。统计分析工作区默认 `15176` / `http://localhost:18086`；原主工作区使用 `5173` / `http://localhost:8080`，并保持后端 `oracle-local` 服务运行。

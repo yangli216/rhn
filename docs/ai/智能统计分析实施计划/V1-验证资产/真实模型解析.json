@@ -1,0 +1,26 @@
+[
+  {
+    "request": "这个月各个科室完成接诊的情况，想用柱形图比较一下",
+    "response": {
+      "status": "READY",
+      "message": "已解析为：指标=诊毕人次，时间范围=2026-09-01至2026-09-14（本月截至今天），范围=当前机构可访问科室，分组=按科室，图表=柱形图。请确认后生成分析。",
+      "query": {
+        "metric": "COMPLETED",
+        "dimension": "DEPARTMENT",
+        "scope": "AUTHORIZED",
+        "startDate": "2026-09-01",
+        "endDate": "2026-09-14"
+      },
+      "chart": "BAR"
+    }
+  },
+  {
+    "request": "查看本月诊断数量排行",
+    "response": {
+      "status": "UNSUPPORTED",
+      "message": "当前不支持查询诊断数量排行，请提供挂号人次、退号人次、诊毕人次或退号率等受支持的指标。",
+      "query": null,
+      "chart": null
+    }
+  }
+]

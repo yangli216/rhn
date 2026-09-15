@@ -7908,6 +7908,166 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/analytics/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["current_3"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pilot/saved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["saved"];
+        put?: never;
+        post: operations["save"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pilot/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["query_2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pilot/ai-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["aiStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pilot/interpret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["interpret"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/saved": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analyticsPagesSaved"];
+        put?: never;
+        post: operations["analyticsPagesSave"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/query": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsPagesQuery"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["analyticsPagesGenerate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analyticsPagesCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/analytics/pages/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["analyticsPagesSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -18332,6 +18492,224 @@ export interface components {
             model?: string;
             message?: string;
             features?: string[];
+        };
+        AnalyticsCapabilities: {
+            enabled?: boolean;
+            queryExecutionEnabled?: boolean;
+            contractVersion?: string;
+            pilotEnabled?: boolean;
+        };
+        PilotAnalysisQuery: {
+            /** @enum {string} */
+            metric: "REGISTERED" | "CANCELLED" | "COMPLETED" | "CANCELLATION_RATE";
+            /** @enum {string} */
+            dimension: "DAY" | "MONTH" | "DEPARTMENT";
+            /** @enum {string} */
+            scope: "CURRENT" | "AUTHORIZED";
+            /** Format: date */
+            startDate: string;
+            /** Format: date */
+            endDate: string;
+        };
+        PilotAnalysisSave: {
+            title: string;
+            query: components["schemas"]["PilotAnalysisQuery"];
+            /** @enum {string} */
+            chart: "BAR" | "LINE" | "TABLE";
+        };
+        PilotAnalysisSaved: {
+            /** @example 824633720832983041 */
+            id?: string;
+            title?: string;
+            query?: components["schemas"]["PilotAnalysisQuery"];
+            /** @enum {string} */
+            chart?: "BAR" | "LINE" | "TABLE";
+            /** Format: date-time */
+            savedAt?: string;
+        };
+        PilotAnalysisResult: {
+            query?: components["schemas"]["PilotAnalysisQuery"];
+            metricName?: string;
+            unit?: string;
+            scopeName?: string;
+            timezone?: string;
+            /** Format: date-time */
+            fetchedAt?: string;
+            rows?: components["schemas"]["PilotAnalysisRow"][];
+            /** Format: int64 */
+            registered?: number;
+            /** Format: int64 */
+            cancelled?: number;
+            /** Format: int64 */
+            completed?: number;
+            /** Format: double */
+            total?: number;
+            /** Format: double */
+            changePercent?: number;
+            /** Format: date */
+            comparisonStart?: string;
+            /** Format: date */
+            comparisonEnd?: string;
+            definition?: string;
+        };
+        PilotAnalysisRow: {
+            label?: string;
+            /** Format: int64 */
+            registered?: number;
+            /** Format: int64 */
+            cancelled?: number;
+            /** Format: int64 */
+            completed?: number;
+            /** Format: double */
+            value?: number;
+        };
+        Interpretation: {
+            /** @enum {string} */
+            status?: "READY" | "UNSUPPORTED" | "CLARIFY";
+            message?: string;
+            query?: components["schemas"]["PilotAnalysisQuery"];
+            /** @enum {string} */
+            chart?: "BAR" | "LINE" | "TABLE";
+        };
+        InterpretRequest: {
+            text: string;
+            base: components["schemas"]["PilotAnalysisQuery"];
+            /** @enum {string} */
+            chart: "BAR" | "LINE" | "TABLE";
+        };
+        Status: {
+            available?: boolean;
+            model?: string;
+            message?: string;
+        };
+        AnalysisPageMetric: {
+            code?: string;
+            name?: string;
+            unit?: string;
+            definition?: string;
+            dimensions?: ("DAY" | "MONTH" | "DEPARTMENT" | "DIAGNOSIS" | "ITEM" | "ORDER_TYPE" | "STATUS")[];
+        };
+        AnalysisPageGenerate: {
+            requirement: string;
+            /** @enum {string} */
+            template: "AUTO" | "LIST" | "RANKING" | "TREND" | "COMPARISON" | "DASHBOARD" | "CUSTOM";
+            currentSpec?: components["schemas"]["AnalysisPageSpec"];
+            history?: components["schemas"]["AnalysisPageTurn"][];
+        };
+        AnalysisPageSaved: {
+            /** @example 824633720832983041 */
+            id?: string;
+            spec?: components["schemas"]["AnalysisPageSpec"];
+            /** Format: date-time */
+            savedAt?: string;
+        };
+        AnalysisPageResult: {
+            spec?: components["schemas"]["AnalysisPageSpec"];
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+            scopeName?: string;
+            timezone?: string;
+            /** Format: date-time */
+            fetchedAt?: string;
+            series?: components["schemas"]["AnalysisPageSeries"][];
+        };
+        AnalysisPageProposal: {
+            /** @enum {string} */
+            status?: "READY" | "CLARIFY" | "UNSUPPORTED";
+            message?: string;
+            spec?: components["schemas"]["AnalysisPageSpec"];
+        };
+        AnalysisPageSeries: {
+            code?: string;
+            name?: string;
+            unit?: string;
+            definition?: string;
+            /** Format: double */
+            total?: number;
+            /** Format: int32 */
+            groupCount?: number;
+            points?: components["schemas"]["AnalysisPagePoint"][];
+        };
+        AnalysisPagePoint: {
+            key?: string;
+            label?: string;
+            /** Format: double */
+            value?: number;
+        };
+        AnalysisPageSpec: {
+            title: string;
+            /** @enum {string} */
+            template: "AUTO" | "LIST" | "RANKING" | "TREND" | "COMPARISON" | "DASHBOARD" | "CUSTOM";
+            metrics: string[];
+            /** @enum {string} */
+            dimension: "DAY" | "MONTH" | "DEPARTMENT" | "DIAGNOSIS" | "ITEM" | "ORDER_TYPE" | "STATUS";
+            /** @enum {string} */
+            scope: "CURRENT" | "AUTHORIZED";
+            period: components["schemas"]["AnalysisPagePeriod"];
+            /** Format: int32 */
+            limit?: number;
+            measures?: components["schemas"]["AnalysisPlanMeasure"][];
+            widgets?: components["schemas"]["AnalysisPageWidget"][];
+        };
+        AnalysisPagePeriod: {
+            /** @enum {string} */
+            kind: "MONTH_TO_DATE" | "LAST_MONTH" | "LAST_30_DAYS" | "YEAR_TO_DATE" | "FIXED";
+            /** Format: date */
+            startDate?: string;
+            /** Format: date */
+            endDate?: string;
+        };
+        AnalysisPlanFilter: {
+            field?: string;
+            /** @enum {string} */
+            operator?: "EQ" | "IN" | "CONTAINS" | "GTE" | "LTE";
+            values?: string[];
+        };
+        AnalysisPlanMeasure: {
+            code?: string;
+            name?: string;
+            source?: string;
+            /** Format: int32 */
+            sourceVersion?: number;
+            /** @enum {string} */
+            aggregate?: "COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG";
+            field?: string;
+            filters?: components["schemas"]["AnalysisPlanFilter"][];
+        };
+        AnalysisSourceField: {
+            code?: string;
+            name?: string;
+            databaseType?: string;
+            unit?: string;
+            aggregates?: ("COUNT" | "COUNT_DISTINCT" | "SUM" | "AVG")[];
+            operators?: ("EQ" | "IN" | "CONTAINS" | "GTE" | "LTE")[];
+            values?: {
+                [key: string]: string;
+            };
+        };
+        AnalysisSourceCatalog: {
+            code?: string;
+            /** Format: int32 */
+            version?: number;
+            name?: string;
+            grain?: string;
+            definition?: string;
+            relation?: string;
+            dimensions?: string[];
+            fields?: components["schemas"]["AnalysisSourceField"][];
+        };
+        AnalysisPageTurn: {
+            /** @enum {string} */
+            role: "USER" | "ASSISTANT";
+            content: string;
+        };
+        AnalysisPageWidget: {
+            title: string;
+            /** @enum {string} */
+            type: "KPI" | "BAR" | "LINE" | "TABLE";
+            metrics: string[];
         };
     };
     responses: never;
@@ -37375,6 +37753,378 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    current_3: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalyticsCapabilities"];
+                };
+            };
+        };
+    };
+    saved: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PilotAnalysisSaved"][];
+                };
+            };
+        };
+    };
+    save: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotAnalysisSave"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PilotAnalysisSaved"];
+                };
+            };
+        };
+    };
+    query_2: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PilotAnalysisQuery"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PilotAnalysisResult"];
+                };
+            };
+        };
+    };
+    aiStatus: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Status"];
+                };
+            };
+        };
+    };
+    interpret: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InterpretRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Interpretation"];
+                };
+            };
+        };
+    };
+    analyticsPagesSaved: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"][];
+                };
+            };
+        };
+    };
+    analyticsPagesSave: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageSpec"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageSaved"];
+                };
+            };
+        };
+    };
+    analyticsPagesQuery: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageSpec"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageResult"];
+                };
+            };
+        };
+    };
+    analyticsPagesGenerate: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalysisPageGenerate"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageProposal"];
+                };
+            };
+        };
+    };
+    analyticsPagesCatalog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisPageMetric"][];
+                };
+            };
+        };
+    };
+    analyticsPagesSources: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["AnalysisSourceCatalog"][];
+                };
             };
         };
     };

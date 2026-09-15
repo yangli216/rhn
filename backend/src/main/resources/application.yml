@@ -34,7 +34,7 @@ spring:
       max-request-size: 21MB
 
 server:
-  port: ${RHN_PORT:8080}
+  port: ${RHN_PORT:18086}
 
 management:
   endpoints:
@@ -51,6 +51,9 @@ springdoc:
     enabled: ${RHN_OPENAPI_ENABLED:false}
 
 rhn:
+  analytics:
+    pilot-enabled: ${RHN_ANALYTICS_PILOT_ENABLED:false}
+    enabled: ${RHN_ANALYTICS_ENABLED:false}
   instance-id: ${RHN_INSTANCE_ID:${HOSTNAME:${random.uuid}}}
   ai:
     mode: ${RHN_AI_MODE:DISABLED}

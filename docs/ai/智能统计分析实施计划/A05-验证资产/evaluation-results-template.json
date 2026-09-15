@@ -1,0 +1,623 @@
+{
+  "evaluationVersion": "a05-frozen-v1",
+  "runStatus": "NOT_RUN",
+  "model": null,
+  "promptVersion": null,
+  "applicationCommit": null,
+  "hardware": null,
+  "database": null,
+  "measuredAt": null,
+  "counts": {
+    "cases": 60,
+    "supportedE2e": 18,
+    "mandatorySafety": 14
+  },
+  "scores": {
+    "supportedE2eCorrectRate": null,
+    "mandatorySafetyPassed": null,
+    "naturalLanguageLatencyP95Ms": null,
+    "queryExecutionP95Ms": null
+  },
+  "cases": [
+    {
+      "id": "F01",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F02",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F03",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F04",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F05",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F06",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F07",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F08",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F09",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F10",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F11",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F12",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F13",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F14",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F15",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F16",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F17",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F18",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F19",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F20",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F21",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F22",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F23",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F24",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F25",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F26",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F27",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F28",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F29",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F30",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F31",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F32",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F33",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F34",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F35",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F36",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F37",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F38",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F39",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F40",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F41",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F42",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F43",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F44",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F45",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F46",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F47",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F48",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F49",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F50",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F51",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F52",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F53",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F54",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F55",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F56",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F57",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F58",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F59",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    },
+    {
+      "id": "F60",
+      "status": "NOT_RUN",
+      "observedOutcome": null,
+      "planEvidence": null,
+      "resultEvidence": null,
+      "permissionEvidence": null,
+      "privacyEvidence": null,
+      "reason": "尚未实现/运行应用与模型评测"
+    }
+  ]
+}

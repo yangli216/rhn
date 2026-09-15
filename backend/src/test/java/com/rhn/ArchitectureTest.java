@@ -29,7 +29,24 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @Tag("outpatient-main-flow")
 class ArchitectureTest {
     private static final Set<String> BUSINESS_MODULES = Set.of(
-            "ai", "billing", "coordination", "diagnostics", "healthcore", "healthplanning", "inpatient", "outpatient", "pharmacy", "treatment");
+            "ai", "analytics", "billing", "coordination", "diagnostics", "healthcore", "healthplanning", "inpatient", "outpatient", "pharmacy", "treatment");
+
+    @ArchTest
+    static final ArchRule analytics_layers_are_free_of_cycles = slices()
+            .matching("com.rhn.analytics.(*)..")
+            .should().beFreeOfCycles();
+
+    @ArchTest
+    static final ArchRule analytics_domain_has_no_adapter_dependencies = noClasses()
+            .that().resideInAPackage("com.rhn.analytics.domain..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.rhn.analytics.application..", "com.rhn.analytics.infrastructure..", "com.rhn.analytics.web..");
+
+    @ArchTest
+    static final ArchRule analytics_web_uses_application_only = noClasses()
+            .that().resideInAPackage("com.rhn.analytics.web..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "com.rhn.analytics.infrastructure..", "com.rhn.analytics.domain..");
 
     @ArchTest
     static final ArchRule persistent_model_does_not_reintroduce_uuid_identifiers = noClasses()
@@ -37,7 +54,7 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule business_modules_are_free_of_cycles = slices()
-            .matching("com.rhn.(ai|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
+            .matching("com.rhn.(ai|analytics|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
             .should().beFreeOfCycles();
 
     @ArchTest
@@ -80,7 +97,7 @@ class ArchitectureTest {
     @ArchTest
     static final ArchRule business_modules_depend_only_on_other_business_modules_public_api = classes()
             .that().resideInAnyPackage(
-                    "com.rhn.ai..", "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
+                    "com.rhn.ai..", "com.rhn.analytics..", "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
                     "com.rhn.healthplanning..", "com.rhn.inpatient..", "com.rhn.outpatient..", "com.rhn.pharmacy..", "com.rhn.treatment..",
                     "com.rhn.coordination..")
             .should(new ArchCondition<>("depend on other business modules only through their api packages") {

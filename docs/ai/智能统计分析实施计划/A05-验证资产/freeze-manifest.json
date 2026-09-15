@@ -1,0 +1,41 @@
+{
+  "version": "a05-freeze-v1",
+  "createdAt": "2026-09-14",
+  "evaluationVersion": "a05-frozen-v1",
+  "status": "REGRESSION_BASELINE_NOT_BLIND_HOLDOUT",
+  "files": [
+    {
+      "path": "development-requests.json",
+      "sha256": "ecacaa1a084eeb0b1e6bfe160e4549374caeb4bad93041b05c1d12466c69f478"
+    },
+    {
+      "path": "frozen-evaluation.json",
+      "sha256": "10ec61e453170caeb4aad46b6faceda322f6b6d93d551e191120fce2e7073716"
+    },
+    {
+      "path": "evaluation-context.json",
+      "sha256": "46d47a42ddee0667eac2e4ab1d2bbf3ae8b38f38198ec4efecad0f09e7bef143"
+    },
+    {
+      "path": "../A02-验证资产/synthetic-facts.json",
+      "sha256": "74dc787cb79c212ff1fd9b523939da02ccbfcd72a76f5b8c7aa3700d04fe95af"
+    },
+    {
+      "path": "../A02-验证资产/golden-expected.json",
+      "sha256": "73b4e7b1743ff4266c5d4fa50cdcf216d04d9268543853bd561bc693cbe8e1e7"
+    },
+    {
+      "path": "../A03-验证资产/synthetic-identities.json",
+      "sha256": "e4c4ab9cbd2233c2c0c93519d1e97d213f611febac5a21a14a7cce6439dcbdec"
+    },
+    {
+      "path": "../A04-验证资产/analysis-contract.schema.json",
+      "sha256": "1989d4d5974b601ea707cf32ffbd08a83161bf19a664971cb9ecb7784415b8a2"
+    },
+    {
+      "path": "../A04-验证资产/candidate-catalog.json",
+      "sha256": "cd53f29a4cff85cfb32f91cccbd5eb49be3f8dc08bd99e48fab4e2195672fdc7"
+    }
+  ],
+  "changeRule": "经审阅创建新版本及变更记录后才能更新指纹；验证器不改期望文件。"
+}

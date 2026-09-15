@@ -1,0 +1,171 @@
+{
+  "fixture_version": "a02-synthetic-v1",
+  "authoring": "人工枚举成员及分数；验证器只读取，不写回",
+  "metrics": {
+    "M01": {
+      "value": 10,
+      "members": [
+        "R02",
+        "R03",
+        "R04",
+        "R05",
+        "R06",
+        "R07",
+        "R08",
+        "R13",
+        "R14",
+        "R15"
+      ]
+    },
+    "M02": {
+      "value": 9,
+      "members": [
+        "R02",
+        "R03",
+        "R04",
+        "R06",
+        "R07",
+        "R08",
+        "R13",
+        "R14",
+        "R15"
+      ]
+    },
+    "M03": {
+      "value": 1,
+      "members": [
+        "R05"
+      ]
+    },
+    "M04": {
+      "value": 2,
+      "members": [
+        "R03",
+        "R08"
+      ]
+    },
+    "M05": {
+      "value": 8,
+      "members": [
+        "R02",
+        "R04",
+        "R05",
+        "R06",
+        "R07",
+        "R13",
+        "R14",
+        "R15"
+      ]
+    },
+    "M06": {
+      "value": 2,
+      "members": [
+        "R03",
+        "R12"
+      ]
+    },
+    "M07": {
+      "value": 4,
+      "members": [
+        "R01",
+        "R02",
+        "R05",
+        "R06"
+      ]
+    },
+    "M08": {
+      "value": 3,
+      "members": [
+        "R02",
+        "R05",
+        "R06"
+      ]
+    },
+    "M09": {
+      "fraction": [
+        2,
+        10
+      ]
+    },
+    "M10": {
+      "fraction": [
+        3,
+        10
+      ]
+    },
+    "M11": {
+      "value": 2,
+      "current": 4,
+      "previous": 2
+    },
+    "M12": {
+      "fraction": [
+        2,
+        2
+      ]
+    },
+    "M13": {
+      "value": 3,
+      "members": [
+        "P01",
+        "P02",
+        "P04"
+      ],
+      "release": "BLOCKED_MPI_POLICY"
+    }
+  },
+  "boundaries": {
+    "january_by_department": {
+      "DA": 6,
+      "DB": 4
+    },
+    "cancellations_by_department": {
+      "DA": 1,
+      "DB": 1
+    },
+    "january_first_day": [
+      "R02"
+    ],
+    "wrong_encounter_registered_time_january_count": 9,
+    "completed_by_department": {
+      "DA": 2,
+      "DB": 2
+    },
+    "distinct_patients_by_department": {
+      "DA": 2,
+      "DB": 2
+    },
+    "previous_completed": [
+      "R10",
+      "R11"
+    ],
+    "january_cohort_cancelled_at_february_first": [
+      "R03"
+    ],
+    "raw_cancellation_delivery_count_in_january": 3,
+    "deduplicated_cancellation_count_in_january": 2,
+    "naive_completed_left_join_diagnoses_count": 5,
+    "registration_closed_in_january_count": 6,
+    "encounter_completed_timestamp_only_in_january_count": 5,
+    "registration_status_completed_count": 0,
+    "unfiltered_completed_count": 6,
+    "ratio_of_sums": [
+      2,
+      10
+    ],
+    "incorrect_mean_of_department_ratios": [
+      5,
+      24
+    ],
+    "zero_denominator_result": null,
+    "empty_department_count": 0,
+    "historical_department_counts": {
+      "DA": 6,
+      "DB": 4
+    },
+    "wrong_current_successor_counts": {
+      "DA": 6,
+      "DC": 4
+    }
+  }
+}

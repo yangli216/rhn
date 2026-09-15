@@ -1,0 +1,108 @@
+{
+  "requirement": "统计本月门诊收费项目的费用净发生额，查看前10项",
+  "proposal": {
+    "status": "READY",
+    "message": "已识别指标：费用净发生额。2026-09-01 至 2026-09-14，当前工作科室，按项目展示。按值降序，显示前 10 项。请检查页面预览及统计口径后确认。",
+    "spec": {
+      "title": "本月门诊收费项目费用净发生额TOP10",
+      "template": "RANKING",
+      "metrics": [
+        "M1"
+      ],
+      "dimension": "ITEM",
+      "scope": "CURRENT",
+      "period": {
+        "kind": "MONTH_TO_DATE",
+        "startDate": null,
+        "endDate": null
+      },
+      "limit": 10,
+      "measures": [
+        {
+          "code": "M1",
+          "name": "费用净发生额",
+          "source": "CHARGE",
+          "sourceVersion": 1,
+          "aggregate": "SUM",
+          "field": "amount",
+          "filters": []
+        }
+      ]
+    }
+  },
+  "result": {
+    "spec": {
+      "title": "本月门诊收费项目费用净发生额TOP10",
+      "template": "RANKING",
+      "metrics": [
+        "M1"
+      ],
+      "dimension": "ITEM",
+      "scope": "CURRENT",
+      "period": {
+        "kind": "MONTH_TO_DATE",
+        "startDate": null,
+        "endDate": null
+      },
+      "limit": 10,
+      "measures": [
+        {
+          "code": "M1",
+          "name": "费用净发生额",
+          "source": "CHARGE",
+          "sourceVersion": 1,
+          "aggregate": "SUM",
+          "field": "amount",
+          "filters": []
+        }
+      ]
+    },
+    "startDate": "2026-09-01",
+    "endDate": "2026-09-14",
+    "scopeName": "全科门诊",
+    "timezone": "Asia/Shanghai",
+    "fetchedAt": "2026-09-14T10:08:36.901736Z",
+    "series": [
+      {
+        "code": "M1",
+        "name": "费用净发生额",
+        "unit": "元",
+        "definition": "门诊费用明细 · 费用金额 · 求和；未追加筛选。按费用发生日期统计已绑定门诊就诊的人民币已记账费用，含未结算费用，冲销以负数计入净发生额；不是实际收款、已结算收入或医保到账。未绑定就诊的费用不计入。平均金额是每条费用行均值，不是次均费用；去重就诊或患者含冲销涉及对象。",
+        "total": 266.4,
+        "groupCount": 6,
+        "points": [
+          {
+            "key": "362387869795104",
+            "label": "全科门诊诊查",
+            "value": 90.0
+          },
+          {
+            "key": "362387871000201",
+            "label": "C反应蛋白测定",
+            "value": 75.0
+          },
+          {
+            "key": "362387871000302",
+            "label": "注射用头孢曲松钠 1g",
+            "value": 54.4
+          },
+          {
+            "key": "362387871000301",
+            "label": "对乙酰氨基酚片 0.5g",
+            "value": 34.4
+          },
+          {
+            "key": "362387869795114",
+            "label": "维生素B1注射液 100mg/2ml",
+            "value": 8.4
+          },
+          {
+            "key": "362387872000301",
+            "label": "注射用青霉素钠 80万单位",
+            "value": 4.2
+          }
+        ]
+      }
+    ]
+  }
+}

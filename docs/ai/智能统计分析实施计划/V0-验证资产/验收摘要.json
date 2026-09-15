@@ -1,0 +1,84 @@
+{
+  "date": "2026-09-14",
+  "goal": "首个可实际操作的本地业务统计版本",
+  "frontend_url": "http://localhost:15176/analytics",
+  "backend_profile": "oracle-local",
+  "backend_port": 18086,
+  "oracle_runtime": "19.22",
+  "migration_applied": "V1_42_0",
+  "backend_tests": {
+    "AnalyticsFoundationTest": {
+      "tests": 4,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "AnalyticsPilotTest": {
+      "tests": 3,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "OutpatientMainFlowTest": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "OutpatientFlowCoordinationTest": {
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  },
+  "frontend_tests": {
+    "passed": 15,
+    "failed": 0
+  },
+  "frontend_build": "PASS",
+  "runtime_workflow": {
+    "real_query": true,
+    "chart_and_table_match": true,
+    "point_selection": true,
+    "save_definition": true,
+    "reload_and_relogin": true,
+    "saved_chart_restored": true,
+    "query_after_preview_backend_restart": true
+  },
+  "observations": {
+    "period": [
+      "2026-08-16",
+      "2026-09-14"
+    ],
+    "scope": "全科门诊",
+    "registered": 14,
+    "cancelled": 0,
+    "completed": 3,
+    "table_rows": 30,
+    "authorized_department_count": 12,
+    "final_requery_registered": 15,
+    "note": "首次对账14；后续实际业务变化后再查询15。"
+  },
+  "desktop_viewports": [
+    "1280x900",
+    "1440x1000",
+    "1920x1080"
+  ],
+  "deferred": [
+    "真实大模型",
+    "正式统计授权/审计治理",
+    "异步取消/专用查询池",
+    "真实PostgreSQL验证",
+    "语音/共享/导出"
+  ],
+  "preexisting_checks": {
+    "architecture": "21/22; existing 32 cycles",
+    "ui": "existing violations; none in analytics files"
+  },
+  "desktop_checks": {
+    "all_primary_run_buttons_visible": true,
+    "all_page_horizontal_overflow": false,
+    "all_library_horizontal_overflow": false
+  }
+}

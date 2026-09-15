@@ -1,0 +1,46 @@
+{
+  "StructuredAnalysisPageTest": {
+    "tests": "6",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "AnalysisPageTest": {
+    "tests": "4",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "AnalyticsPilotTest": {
+    "tests": "3",
+    "failures": "0",
+    "errors": "0",
+    "skipped": "0"
+  },
+  "frontend": {
+    "testFiles": 5,
+    "tests": 21,
+    "passed": true,
+    "build": "passed",
+    "uiStandards": "other existing pages still fail; no violations in changed dynamic analysis component/styles"
+  },
+  "browser": {
+    "tool": "ego-browser",
+    "viewportWidths": [
+      1440,
+      1920
+    ],
+    "flows": [
+      "real model generation",
+      "Oracle query",
+      "confirm and save",
+      "reload saved plans",
+      "switch saved nodes"
+    ],
+    "horizontalOverflow": false,
+    "savedFunctions": [
+      "本月门诊药品医嘱与费用分析",
+      "本月门诊收费项目排行"
+    ]
+  }
+}

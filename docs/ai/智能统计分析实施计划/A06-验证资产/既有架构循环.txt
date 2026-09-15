@@ -1,0 +1,33 @@
+HEAD 原架构规则与加入 analytics 后规则均报告 32 个循环；无 analytics 参与。
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice outpatient -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice outpatient -> Slice healthplanning -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice outpatient -> Slice healthplanning -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice outpatient -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice diagnostics -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice outpatient -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice outpatient -> Slice healthplanning -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice outpatient -> Slice healthplanning -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice outpatient -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice outpatient -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice outpatient -> Slice healthplanning -> Slice healthcore -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice outpatient -> Slice healthplanning -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice outpatient -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice pharmacy -> Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice platform -> Slice treatment -> Slice billing
+Cycle detected: Slice billing ->  Slice treatment -> Slice billing
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice healthcore
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice outpatient -> Slice healthcore
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice outpatient -> Slice healthplanning -> Slice healthcore
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice pharmacy -> Slice healthcore
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice pharmacy -> Slice outpatient -> Slice healthcore
+Cycle detected: Slice healthcore ->  Slice platform -> Slice treatment -> Slice pharmacy -> Slice outpatient -> Slice healthplanning -> Slice healthcore
+Cycle detected: Slice healthplanning ->  Slice platform -> Slice treatment -> Slice outpatient -> Slice healthplanning
+Cycle detected: Slice healthplanning ->  Slice platform -> Slice treatment -> Slice pharmacy -> Slice outpatient -> Slice healthplanning
+Cycle detected: Slice outpatient ->  Slice platform -> Slice treatment -> Slice outpatient
+Cycle detected: Slice outpatient ->  Slice platform -> Slice treatment -> Slice pharmacy -> Slice outpatient
+Cycle detected: Slice pharmacy ->  Slice platform -> Slice treatment -> Slice pharmacy
+Cycle detected: Slice platform ->  Slice treatment -> Slice platform

@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "querySpec": {
+    "datasetRef": "outpatient_completed_encounter@1",
+    "metricRefs": [
+      "completed_encounter_count@1"
+    ],
+    "dimensions": [
+      "department"
+    ],
+    "filters": [],
+    "timeParameter": "period",
+    "scopeParameter": "scope",
+    "comparison": "NONE",
+    "asOfPolicy": "LATEST_COMPARABLE_WATERMARK"
+  },
+  "viewSpec": {
+    "gridColumns": 12,
+    "components": [
+      {
+        "componentId": "c_dept",
+        "type": "BAR",
+        "title": "分科室完成接诊人次",
+        "metricRefs": [
+          "completed_encounter_count@1"
+        ],
+        "dimensions": [
+          "department"
+        ],
+        "columnSpan": 8,
+        "decimals": 0
+      },
+      {
+        "componentId": "c_table",
+        "type": "TABLE",
+        "title": "数据表",
+        "metricRefs": [
+          "completed_encounter_count@1"
+        ],
+        "dimensions": [
+          "department"
+        ],
+        "columnSpan": 4,
+        "decimals": 0
+      }
+    ]
+  },
+  "parameterSchema": {
+    "period": {
+      "type": "TIME_WINDOW",
+      "defaultValue": {
+        "kind": "RELATIVE",
+        "preset": "PREVIOUS_CALENDAR_MONTH"
+      }
+    },
+    "scope": {
+      "type": "SCOPE_INTENT",
+      "defaultValue": {
+        "kind": "CURRENT_AUTHORIZED"
+      }
+    }
+  }
+}

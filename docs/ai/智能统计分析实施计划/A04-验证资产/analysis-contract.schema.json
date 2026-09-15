@@ -1,0 +1,618 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$ref": "#/$defs/AnalysisSpec",
+  "$defs": {
+    "TimeChoice": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "FIXED"
+            },
+            "startDate": {
+              "type": "string",
+              "format": "date"
+            },
+            "endDateExclusive": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "required": [
+            "kind",
+            "startDate",
+            "endDateExclusive"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "RELATIVE"
+            },
+            "preset": {
+              "enum": [
+                "PREVIOUS_CALENDAR_MONTH"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "preset"
+          ]
+        }
+      ]
+    },
+    "ScopeIntent": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "CURRENT_DEPARTMENT",
+                "CURRENT_AUTHORIZED",
+                "FULL_CURRENT_ORGANIZATION"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "const": "EXPLICIT_DEPARTMENTS"
+            },
+            "departmentIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]{0,18}$"
+              },
+              "minItems": 1,
+              "maxItems": 100,
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "kind",
+            "departmentIds"
+          ]
+        }
+      ]
+    },
+    "QuerySpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "datasetRef": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]{0,63}@[1-9][0-9]{0,5}$"
+        },
+        "metricRefs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,63}@[1-9][0-9]{0,5}$"
+          },
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "department",
+              "calendar_day",
+              "calendar_month",
+              "registration_source",
+              "visit_type"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 3,
+          "uniqueItems": true
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "const": "registration_source"
+                  },
+                  "operator": {
+                    "const": "IN"
+                  },
+                  "values": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "DIRECT",
+                        "WINDOW",
+                        "WALK_IN",
+                        "EMERGENCY",
+                        "TRANSFER"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "field",
+                  "operator",
+                  "values"
+                ]
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "field": {
+                    "const": "visit_type"
+                  },
+                  "operator": {
+                    "const": "IN"
+                  },
+                  "values": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "GENERAL",
+                        "FOLLOW_UP",
+                        "EMERGENCY",
+                        "TRANSFER"
+                      ]
+                    },
+                    "minItems": 1,
+                    "maxItems": 4,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "field",
+                  "operator",
+                  "values"
+                ]
+              }
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 2
+        },
+        "timeParameter": {
+          "const": "period"
+        },
+        "scopeParameter": {
+          "const": "scope"
+        },
+        "comparison": {
+          "enum": [
+            "NONE",
+            "PREVIOUS_CALENDAR_MONTH"
+          ]
+        },
+        "asOfPolicy": {
+          "const": "LATEST_COMPARABLE_WATERMARK"
+        }
+      },
+      "required": [
+        "datasetRef",
+        "metricRefs",
+        "dimensions",
+        "filters",
+        "timeParameter",
+        "scopeParameter",
+        "comparison",
+        "asOfPolicy"
+      ]
+    },
+    "ViewSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gridColumns": {
+          "const": 12
+        },
+        "components": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "componentId": {
+                "type": "string",
+                "pattern": "^c_[a-z0-9_]{1,30}$"
+              },
+              "type": {
+                "enum": [
+                  "KPI",
+                  "TABLE",
+                  "BAR",
+                  "LINE"
+                ]
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "metricRefs": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,63}@[1-9][0-9]{0,5}$"
+                },
+                "minItems": 1,
+                "maxItems": 4,
+                "uniqueItems": true
+              },
+              "dimensions": {
+                "type": "array",
+                "items": {
+                  "enum": [
+                    "department",
+                    "calendar_day",
+                    "calendar_month",
+                    "registration_source",
+                    "visit_type"
+                  ]
+                },
+                "minItems": 0,
+                "maxItems": 3,
+                "uniqueItems": true
+              },
+              "columnSpan": {
+                "type": "integer",
+                "minimum": 3,
+                "maximum": 12
+              },
+              "decimals": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 4
+              }
+            },
+            "required": [
+              "componentId",
+              "type",
+              "title",
+              "metricRefs",
+              "dimensions",
+              "columnSpan",
+              "decimals"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 8
+        }
+      },
+      "required": [
+        "gridColumns",
+        "components"
+      ]
+    },
+    "ParameterSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "TIME_WINDOW"
+            },
+            "defaultValue": {
+              "$ref": "#/$defs/TimeChoice"
+            }
+          },
+          "required": [
+            "type",
+            "defaultValue"
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "const": "SCOPE_INTENT"
+            },
+            "defaultValue": {
+              "$ref": "#/$defs/ScopeIntent"
+            }
+          },
+          "required": [
+            "type",
+            "defaultValue"
+          ]
+        }
+      },
+      "required": [
+        "period",
+        "scope"
+      ]
+    },
+    "AnalysisSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schemaVersion": {
+          "const": 1
+        },
+        "querySpec": {
+          "$ref": "#/$defs/QuerySpec"
+        },
+        "viewSpec": {
+          "$ref": "#/$defs/ViewSpec"
+        },
+        "parameterSchema": {
+          "$ref": "#/$defs/ParameterSchema"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "querySpec",
+        "viewSpec",
+        "parameterSchema"
+      ]
+    },
+    "AnnotationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseDraftVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "componentId": {
+          "type": "string",
+          "pattern": "^c_[a-z0-9_]{1,30}$"
+        },
+        "fieldRef": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]{0,63}@[1-9][0-9]{0,5}$"
+            },
+            {
+              "enum": [
+                "department",
+                "calendar_day",
+                "calendar_month",
+                "registration_source",
+                "visit_type"
+              ]
+            }
+          ]
+        },
+        "dimensionValue": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        }
+      },
+      "required": [
+        "baseDraftVersion",
+        "componentId",
+        "text"
+      ]
+    },
+    "ApplyChangeRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "baseDraftVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "proposalId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "proposedSpec": {
+          "$ref": "#/$defs/AnalysisSpec"
+        }
+      },
+      "required": [
+        "baseDraftVersion",
+        "proposalId",
+        "proposedSpec"
+      ]
+    },
+    "RunRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "DRAFT"
+                },
+                "draftId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "draftVersion": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                },
+                "confirmationId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                }
+              },
+              "required": [
+                "kind",
+                "draftId",
+                "draftVersion",
+                "confirmationId"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "ASSET"
+                },
+                "assetId": {
+                  "type": "string",
+                  "pattern": "^[1-9][0-9]{0,18}$"
+                },
+                "assetVersion": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 2147483647
+                }
+              },
+              "required": [
+                "kind",
+                "assetId",
+                "assetVersion"
+              ]
+            }
+          ]
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "period": {
+              "$ref": "#/$defs/TimeChoice"
+            },
+            "scope": {
+              "$ref": "#/$defs/ScopeIntent"
+            }
+          },
+          "required": []
+        },
+        "purposeCode": {
+          "const": "OPERATIONS_REVIEW"
+        }
+      },
+      "required": [
+        "source",
+        "parameters",
+        "purposeCode"
+      ]
+    },
+    "ReviewDecisionRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "assetVersion": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "baseAssetRevision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2147483647
+        },
+        "reviewId": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]{0,18}$"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT"
+          ]
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        }
+      },
+      "required": [
+        "assetVersion",
+        "baseAssetRevision",
+        "reviewId",
+        "decision",
+        "reason"
+      ]
+    },
+    "ApiError": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "correlationId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "violations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "maxLength": 200
+              },
+              "message": {
+                "type": "string",
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "field",
+              "message"
+            ]
+          },
+          "minItems": 0,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "correlationId",
+        "timestamp",
+        "violations"
+      ]
+    }
+  }
+}

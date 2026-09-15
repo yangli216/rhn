@@ -1,0 +1,314 @@
+{
+  "version": "a03-synthetic-v1",
+  "status": "SPECIFICATION_ONLY_NOT_EXECUTED_AGAINST_APPLICATION",
+  "cases": [
+    {
+      "id": "C01",
+      "actor": "U_D1",
+      "request": "本工作科室运行 M07",
+      "expected": "ALLOW",
+      "reason": "仅 T_A/H_A/D_A1；仍须预算、隐私与审计通过"
+    },
+    {
+      "id": "C02",
+      "actor": "U_MULTI",
+      "request": "工作科室 D_A1，显式查询 D_A1+D_A2 的 M07",
+      "expected": "ALLOW",
+      "reason": "统计授权覆盖两个科室，不由当前工作科室缩成一个"
+    },
+    {
+      "id": "C03",
+      "actor": "U_D1",
+      "request": "显式查询 D_A2",
+      "expected": "DENY",
+      "reason": "显式范围超授权，不静默返回 D_A1"
+    },
+    {
+      "id": "C04",
+      "actor": "U_MULTI",
+      "request": "显式查询 D_A1+D_A3",
+      "expected": "DENY",
+      "reason": "混合请求包含未授权科室，整体拒绝"
+    },
+    {
+      "id": "C05",
+      "actor": "U_HOSP",
+      "request": "请求指定医院 H_A 全院 M07",
+      "expected": "ALLOW",
+      "reason": "仅 D_A1+D_A2+D_A3，不包含 H_B"
+    },
+    {
+      "id": "C06",
+      "actor": "U_HOSP",
+      "request": "声称全院即整个 T_A，查询 H_B",
+      "expected": "DENY",
+      "reason": "同租户不等于同机构"
+    },
+    {
+      "id": "C07",
+      "actor": "U_HB",
+      "request": "在本人 H_B 工作上下文查 D_B1",
+      "expected": "ALLOW",
+      "reason": "仅 T_A/H_B/D_B1"
+    },
+    {
+      "id": "C08",
+      "actor": "U_HOSP",
+      "request": "传 T_B/H_C/D_C1",
+      "expected": "DENY",
+      "reason": "租户从服务端身份取得，不能覆盖"
+    },
+    {
+      "id": "C09",
+      "actor": "U_TB",
+      "request": "查询自己 H_C/D_C1",
+      "expected": "ALLOW",
+      "reason": "仅 T_B/H_C/D_C1"
+    },
+    {
+      "id": "C10",
+      "actor": "U_CLIN",
+      "request": "有临床工作上下文但无统计动作，运行 M07",
+      "expected": "DENY",
+      "reason": "临床权限不推出统计权限"
+    },
+    {
+      "id": "C11",
+      "actor": "U_CATALOG",
+      "request": "编辑 H_A 候选指标定义",
+      "expected": "ALLOW_METADATA_ONLY",
+      "reason": "目录管理授权只含候选定义，不含业务结果"
+    },
+    {
+      "id": "C12",
+      "actor": "U_CATALOG",
+      "request": "运行全院 M07",
+      "expected": "DENY",
+      "reason": "管理目录不授予 RUN 或数据范围"
+    },
+    {
+      "id": "C13",
+      "actor": "U_REVIEW",
+      "request": "审核其他作者的 D_A1 科室模板",
+      "expected": "ALLOW_METADATA_ONLY",
+      "reason": "范围匹配；不附带作者查询结果"
+    },
+    {
+      "id": "C14",
+      "actor": "U_REVIEW",
+      "request": "审核 D_A2 或 H_A 全院模板",
+      "expected": "DENY",
+      "reason": "审批动作还必须匹配审核对象范围"
+    },
+    {
+      "id": "C15",
+      "actor": "U_REVIEW",
+      "request": "审核自己提交的 D_A1 模板",
+      "expected": "DENY",
+      "reason": "合成职责分离策略不允许自审"
+    },
+    {
+      "id": "C16",
+      "actor": "U_D1",
+      "request": "读取 AS_SHARED 后按当前授权运行 M07",
+      "expected": "ALLOW",
+      "reason": "读取模板不借 U_HOSP 权限；结果标明 D_A1/部分科室"
+    },
+    {
+      "id": "C17",
+      "actor": "U_MULTI",
+      "request": "读取他人的 AS_PRIVATE",
+      "expected": "DENY",
+      "reason": "同科室仍不拥有个人草稿访问权；不泄露对象是否存在"
+    },
+    {
+      "id": "C18",
+      "actor": "U_TB",
+      "request": "按 ID 读取 AS_SHARED",
+      "expected": "DENY",
+      "reason": "资产 ACL 不跨租户"
+    },
+    {
+      "id": "C19",
+      "actor": "U_EXPORT",
+      "request": "有 DETAIL 动作，要求患者明细",
+      "expected": "DENY",
+      "reason": "默认 detail_enabled=false，且无目的/字段专项批准"
+    },
+    {
+      "id": "C20",
+      "actor": "U_EXPORT",
+      "request": "有 EXPORT 动作，要求聚合下载",
+      "expected": "DENY",
+      "reason": "默认 export_enabled=false，动作不足以开放能力"
+    },
+    {
+      "id": "C21",
+      "actor": "U_LIMIT",
+      "request": "运行已获授权的 M07",
+      "expected": "ALLOW",
+      "reason": "仅 M07；输出受隐私等下游校验"
+    },
+    {
+      "id": "C22",
+      "actor": "U_LIMIT",
+      "request": "运行未获授权的 M01",
+      "expected": "DENY",
+      "reason": "指标不在授权集合"
+    },
+    {
+      "id": "C23",
+      "actor": "U_LIMIT",
+      "request": "要求 M12，称只是 M07 的简单环比",
+      "expected": "DENY",
+      "reason": "派生指标本身未获授权，不能由底层指标授权自动扩展"
+    },
+    {
+      "id": "C24",
+      "actor": "U_HOSP",
+      "request": "真实目录运行仍为 CANDIDATE 的 M01",
+      "expected": "DENY",
+      "reason": "目录未审核；合成假设不改变真实状态"
+    },
+    {
+      "id": "C25",
+      "actor": "U_HOSP",
+      "request": "运行 M13 或未治理复诊率",
+      "expected": "DENY",
+      "reason": "MPI/复诊规则未治理，管理者也不能绕过"
+    },
+    {
+      "id": "C26",
+      "actor": "U_D1",
+      "request": "目的改为未批准的 MARKETING",
+      "expected": "DENY",
+      "reason": "非 OPERATIONS_REVIEW，不能以字符串声明自行获批"
+    },
+    {
+      "id": "C27",
+      "actor": "U_REVOKED",
+      "request": "提交新运行",
+      "expected": "DENY",
+      "reason": "授权已撤销，即使动作字符串仍存在"
+    },
+    {
+      "id": "C28",
+      "actor": "U_MULTI",
+      "request": "排队后执行前撤销 D_A2，仍请求两个科室",
+      "expected": "DENY",
+      "reason": "执行前重查；不沿用队列中的旧授权"
+    },
+    {
+      "id": "C29",
+      "actor": "U_MULTI",
+      "request": "执行中撤销 D_A2",
+      "expected": "CANCEL_AND_BLOCK_DELIVERY",
+      "reason": "尝试取消数据库语句，取消未成功也禁止交付结果"
+    },
+    {
+      "id": "C30",
+      "actor": "U_MULTI",
+      "request": "结果读取前撤销 D_A2",
+      "expected": "DENY",
+      "reason": "旧结果不可按缩小后的范围直接复用，应重新查询"
+    },
+    {
+      "id": "C31",
+      "actor": "U_MULTI",
+      "request": "缓存命中前撤销 D_A2",
+      "expected": "DENY",
+      "reason": "缓存不是授权凭证，重新解析范围与策略"
+    },
+    {
+      "id": "C32",
+      "actor": "U_EXPORT",
+      "request": "专项批准导出情境下，下载前撤权",
+      "expected": "DENY",
+      "reason": "即使此前任务和凭证有效，下载时仍拒绝；默认开关未因此开启"
+    },
+    {
+      "id": "C33",
+      "actor": "U_D1",
+      "request": "策略服务或必要审计不可用",
+      "expected": "FAIL_CLOSED",
+      "reason": "不执行、不交付；不回退到无保护查询"
+    },
+    {
+      "id": "C34",
+      "actor": "U_D1",
+      "request": "未批准路径发送原始需求给外部模型",
+      "expected": "DENY",
+      "reason": "external_model_enabled=false；文本可能含患者信息"
+    },
+    {
+      "id": "C35",
+      "actor": "U_D1",
+      "request": "标为院内的语音配置实际请求公网端点",
+      "expected": "DENY",
+      "reason": "speech_enabled=false；后续还须核对实际提交与轮询链路"
+    },
+    {
+      "id": "C36",
+      "actor": "U_D1",
+      "request": "仅合成隐私示例：分组 3 和 9，总计 12，k=5",
+      "expected": "PROTECT",
+      "reason": "隐藏 3 及可相减恢复它的总计 12；不把原值放在图表/下载/摘要"
+    },
+    {
+      "id": "C37",
+      "actor": "U_D1",
+      "request": "连续变更相邻筛选以恢复被抑制小群体",
+      "expected": "DENY_OR_REQUIRE_REVIEW",
+      "reason": "拒绝/限制相关维度并记录风险；不能仅靠单次阈值"
+    },
+    {
+      "id": "C38",
+      "actor": "U_MULTI",
+      "request": "scopeIntent=当前授权范围，不显式要求全院",
+      "expected": "ALLOW",
+      "reason": "仅在 H_A 内展开 D_A1+D_A2，并标注部分科室"
+    },
+    {
+      "id": "C39",
+      "actor": "U_D1",
+      "request": "scopeIntent=全院且要求完整 H_A",
+      "expected": "DENY",
+      "reason": "缺完整授权，提示可改查当前授权范围，但不自动更改需求"
+    },
+    {
+      "id": "C40",
+      "actor": "U_D1",
+      "request": "请求字段 patient_id 或按患者标识分组",
+      "expected": "DENY",
+      "reason": "普通聚合目录不允许展示标识或患者级维度"
+    },
+    {
+      "id": "C41",
+      "actor": "U_D1",
+      "request": "在比较期/关联支路加入 D_A2",
+      "expected": "DENY",
+      "reason": "所有支路同受数据策略，不在聚合后前端隐藏"
+    },
+    {
+      "id": "C42",
+      "actor": "U_D1",
+      "request": "在 valid_until_exclusive 时刻运行",
+      "expected": "DENY",
+      "reason": "授权区间右端不包含，过期即拒绝"
+    },
+    {
+      "id": "C43",
+      "actor": "U_D1",
+      "request": "伪造工作上下文为 H_B/D_B1",
+      "expected": "DENY",
+      "reason": "先验证工作上下文，不依据请求头扩大统计授权"
+    },
+    {
+      "id": "C44",
+      "actor": "U_D1",
+      "request": "允许范围内确认无事实数据的月份",
+      "expected": "ALLOW_EMPTY",
+      "reason": "预算/质量/隐私通过后返回空结果，不能把拒绝伪装成零"
+    }
+  ]
+}
