@@ -35,29 +35,29 @@
 - 后端：Java 21、Spring Boot 4.1、Spring Data JPA、Spring Security、Flyway、Hutool Core、Springdoc OpenAPI
 - 前端：React 19.2、TypeScript、Vite 8、React Router、TanStack Query、React Hook Form、Zod
 - 数据库：PostgreSQL 17、Oracle 19c；测试使用 H2 PostgreSQL 兼容模式
-- 架构：模块化单体、领域事件、模块拥有数据、API 契约隔离
+- 架构：Maven 多模块单体、领域事件、模块拥有数据、API 契约隔离；11 个子工程由 `rhn-app` 装配为一个部署包
+
+目标模块图、当前归属和后续公卫/照护/质控接入规则见 [RHN 2.0 模块架构](docs/architecture/RHN2.0模块架构.md)。模块登记以 [Module Catalog](backend/src/main/resources/architecture/module-catalog.json) 为准，新增包、依赖方向和跨模块持久化访问均纳入自动门禁。
 
 ## 本地启动
 
-最快体验可直接使用隔离的内存数据库：
+两套长期人工验证环境均使用 `oracle-local`。主工作区使用后端 `8080` / 前端 `5173`，统计工作区使用后端 `18086` / 前端 `15176`。已运行的服务请保留；需要恢复主工作区后端时，在项目根目录执行：
+
+```bash
+RHN_SERVER_PORT=8080 ./scripts/run-oracle-local.sh
+```
+
+统计工作区在自身根目录执行 `RHN_SERVER_PORT=18086 ./scripts/run-oracle-local.sh`（需要统计试验开关时使用 `./scripts/run-analytics-preview.sh`）。脚本读取忽略的 `.env.oracle.local`，构建全部模块并使用内容哈希命名的运行副本。
+
+多模块构建入口仍为 `backend/pom.xml`，可执行制品位于 `backend/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar`。需要直接使用 Spring Boot 开发运行命令时，先安装当前反应堆依赖，再指定应用模块：
 
 ```bash
 cd backend
-mvn spring-boot:run -Dspring-boot.run.profiles=local
+mvn -DskipTests install
+mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring-boot.run.arguments=--server.port=8080
 ```
 
-需要验证 PostgreSQL 时，先启动数据库：
-
-```bash
-docker compose up -d postgres
-```
-
-再启动后端（本地开发账号为 `doctor` / `rhn-dev-2026`）：
-
-```bash
-cd backend
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
-```
+上述方式需提前设置 Oracle 连接环境变量。本地开发账号为 `doctor` / `rhn-dev-2026`。
 
 启动前端：
 
@@ -67,7 +67,7 @@ npm install
 npm run dev
 ```
 
-本分支默认前端地址为 <http://localhost:15176>，后端地址为 <http://localhost:18086>，健康检查为 <http://localhost:18086/actuator/health>。前端通过 Vite 将 `/api` 和 `/actuator` 代理到此后端。`npm run dev` 和 `npm run preview` 均使用 15176，端口被占用时会报错，不会自动换端口。
+统计工作区默认前端地址为 <http://localhost:15176>，后端地址为 <http://localhost:18086>，健康检查为 <http://localhost:18086/actuator/health>。主工作区通过忽略的 `frontend/.env.local` 使用 <http://localhost:5173> 和 <http://localhost:8080>。前端通过 Vite 将 `/api` 和 `/actuator` 代理到此后端。`npm run dev` 和 `npm run preview` 默认使用 15176，按各工作区的 `RHN_FRONTEND_PORT` 覆盖；端口被占用时会报错，不会自动换端口。
 
 后端可通过 `RHN_PORT` 覆盖端口；Oracle 启动脚本优先使用 `RHN_SERVER_PORT`，其次使用 `RHN_PORT`。更换后端端口时，前端需同步设置 `RHN_API_TARGET`。统计体验脚本也使用相同默认端口，支持 `RHN_ANALYTICS_PORT` 优先覆盖。
 
@@ -87,7 +87,8 @@ export RHN_ORACLE_URL='jdbc:oracle:thin:@//数据库地址:1521/服务名'
 export RHN_ORACLE_USER='应用Schema用户'
 read -s RHN_ORACLE_PASSWORD
 export RHN_ORACLE_PASSWORD
-mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
+mvn -DskipTests install
+mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring-boot.run.arguments=--server.port=8080
 ```
 
 需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，避免后续 Maven 构建覆盖正在加载的 Spring Boot fat jar。

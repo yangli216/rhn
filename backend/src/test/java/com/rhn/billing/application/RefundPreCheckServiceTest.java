@@ -8,11 +8,11 @@ import com.rhn.billing.domain.Payment;
 import com.rhn.billing.infrastructure.ChargeItemRepository;
 import com.rhn.billing.infrastructure.PatientAccountRepository;
 import com.rhn.billing.infrastructure.PaymentRepository;
-import com.rhn.diagnostics.api.RefundDiagnosticDirectory;
+import com.rhn.billing.api.RefundDiagnosticDirectory;
 import com.rhn.pharmacy.api.RefundPharmacyDirectory;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
-import com.rhn.treatment.api.RefundTreatmentDirectory;
+import com.rhn.billing.api.RefundTreatmentDirectory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

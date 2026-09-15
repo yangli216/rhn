@@ -82,7 +82,7 @@ jobs:
           mkdir -p artifacts
           cd backend
           mvn --batch-mode -DskipTests package 2>&1 | tee ../artifacts/api-contract-package.log
-          java -jar target/rhn-application-*.jar --spring.profiles.active=local --server.port=18080 > ../artifacts/api-contract-app.log 2>&1 &
+          java -jar rhn-app/target/rhn-application-*.jar --spring.profiles.active=test --spring.config.additional-location=file:src/test/resources/application-test.yml --server.port=18080 --management.health.redis.enabled=false > ../artifacts/api-contract-app.log 2>&1 &
           app_pid=$!
           trap 'kill "$app_pid" 2>/dev/null || true' EXIT
           for attempt in {1..90}; do

@@ -16,7 +16,11 @@ const tableAliases = mappings.flatMap((table) => [
   table.physical,
 ].filter(Boolean).map((name) => [name, table]));
 const byName = new Map(tableAliases);
-const javaRoot = path.join(root, "backend/src/main/java");
+const backendRoot = path.join(root, "backend");
+const javaRoots = fs.readdirSync(backendRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name.startsWith("rhn-"))
+  .map((entry) => path.join(backendRoot, entry.name, "src/main/java"))
+  .filter((sourceRoot) => fs.existsSync(sourceRoot));
 
 function filesBelow(dir, suffix) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -151,7 +155,7 @@ function transformEntity(segment, primary) {
 
 let changedFiles = 0;
 let changedEntities = 0;
-for (const file of filesBelow(javaRoot, ".java")) {
+for (const file of javaRoots.flatMap((sourceRoot) => filesBelow(sourceRoot, ".java"))) {
   const source = fs.readFileSync(file, "utf8");
   const replacements = [];
   for (const entity of source.matchAll(/@Entity\b/g)) {
@@ -177,7 +181,7 @@ for (const file of filesBelow(javaRoot, ".java")) {
   }
 }
 
-const directSqlFiles = filesBelow(javaRoot, ".java").filter((file) => {
+const directSqlFiles = javaRoots.flatMap((sourceRoot) => filesBelow(sourceRoot, ".java")).filter((file) => {
   const source = fs.readFileSync(file, "utf8");
   return /JdbcTemplate|NamedParameterJdbcTemplate|nativeQuery\s*=\s*true/.test(source);
 });

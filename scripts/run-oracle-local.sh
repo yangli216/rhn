@@ -28,7 +28,7 @@ fi
 
 (cd "$rhn_backend_dir" && mvn -DskipTests package)
 
-rhn_build_artifact="$rhn_backend_dir/target/rhn-application-0.1.0-SNAPSHOT.jar"
+rhn_build_artifact="$rhn_backend_dir/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar"
 rhn_artifact_digest="$(shasum -a 256 "$rhn_build_artifact" | awk '{print substr($1, 1, 16)}')"
 rhn_runtime_dir="$rhn_backend_dir/target/runtime"
 rhn_runtime_artifact="$rhn_runtime_dir/rhn-application-$rhn_artifact_digest.jar"

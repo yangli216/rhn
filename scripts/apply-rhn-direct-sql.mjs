@@ -13,7 +13,11 @@ const byLegacy = new Map(mappings.map((table) => [table.legacy, table]));
 const byPhysical = new Map(mappings.flatMap((table) =>
   [table.physical, table.previousPhysical].filter(Boolean).map((name) => [name, table])
 ));
-const javaRoot = path.join(root, "backend/src/main/java");
+const backendRoot = path.join(root, "backend");
+const javaRoots = fs.readdirSync(backendRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && entry.name.startsWith("rhn-"))
+  .map((entry) => path.join(backendRoot, entry.name, "src/main/java"))
+  .filter((sourceRoot) => fs.existsSync(sourceRoot));
 const testRoot = path.join(root, "backend/src/test/java");
 const aliasStopWords = new Set([
   "where", "join", "left", "right", "full", "inner", "outer", "cross", "on", "set",
@@ -71,7 +75,7 @@ function columnSources(table, column) {
 }
 
 function collectEntityColumnAliases() {
-  for (const file of filesBelow(javaRoot, ".java")) {
+  for (const file of javaRoots.flatMap((sourceRoot) => filesBelow(sourceRoot, ".java"))) {
     const source = fs.readFileSync(file, "utf8");
     for (const entity of source.matchAll(/@Entity\b/g)) {
       const classMatch = /\bclass\s+[A-Za-z][A-Za-z0-9_]*[^\{]*\{/.exec(source.slice(entity.index));
@@ -250,7 +254,7 @@ function transformSql(sql, fileAliases) {
   return transformed;
 }
 
-const directSqlFiles = [javaRoot, testRoot].flatMap((sourceRoot) => filesBelow(sourceRoot, ".java")).filter((file) => {
+const directSqlFiles = [...javaRoots, testRoot].flatMap((sourceRoot) => filesBelow(sourceRoot, ".java")).filter((file) => {
   const source = fs.readFileSync(file, "utf8");
   return !manuallyMappedSqlFiles.has(path.basename(file))
     && /JdbcTemplate|NamedParameterJdbcTemplate|nativeQuery\s*=\s*true|\b(?:select|insert\s+into|update|delete\s+from)\b/i.test(source);

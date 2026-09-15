@@ -1,0 +1,248 @@
+{
+  "version": 2,
+  "applicationClass": "com.rhn.RhnApplication",
+  "modules": [
+    {
+      "package": "shared",
+      "artifact": "rhn-kernel",
+      "owner": "kernel",
+      "status": "active",
+      "allowedDependencies": [],
+      "publicTypes": [],
+      "publicPackages": [
+        "com.rhn.shared"
+      ]
+    },
+    {
+      "package": "platform",
+      "artifact": "rhn-platform",
+      "owner": "platform",
+      "status": "active",
+      "allowedDependencies": [
+        "shared"
+      ],
+      "publicTypes": [
+        "com.rhn.platform.idempotency.IdempotencyService",
+        "com.rhn.platform.tenant.TenantContext",
+        "com.rhn.platform.idempotency.IdempotencyReservation"
+      ]
+    },
+    {
+      "package": "healthcore",
+      "artifact": "rhn-health-core",
+      "owner": "health-core",
+      "status": "active",
+      "allowedDependencies": [
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "workmanagement",
+      "artifact": "rhn-work",
+      "owner": "work",
+      "status": "active",
+      "allowedDependencies": [
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "outpatient",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "healthcore",
+        "platform",
+        "queueing",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "inpatient",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "billing",
+        "healthcore",
+        "pharmacy",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "pharmacy",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "healthcore",
+        "outpatient",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "billing",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "healthcore",
+        "outpatient",
+        "pharmacy",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "diagnostics",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "billing",
+        "healthcore",
+        "outpatient",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "treatment",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "billing",
+        "healthcore",
+        "outpatient",
+        "pharmacy",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "queueing",
+      "artifact": "rhn-clinical",
+      "owner": "clinical",
+      "status": "active",
+      "allowedDependencies": [
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "publichealth",
+      "artifact": "rhn-public-health",
+      "owner": "public-health",
+      "status": "reserved",
+      "allowedDependencies": [
+        "shared",
+        "platform",
+        "healthcore",
+        "workmanagement"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "healthplanning",
+      "artifact": "rhn-care",
+      "owner": "care",
+      "status": "active",
+      "allowedDependencies": [
+        "healthcore",
+        "outpatient",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "coordination",
+      "artifact": "rhn-care",
+      "owner": "care",
+      "status": "active",
+      "allowedDependencies": [
+        "billing",
+        "diagnostics",
+        "healthcore",
+        "outpatient",
+        "pharmacy",
+        "shared",
+        "treatment"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "quality",
+      "artifact": "rhn-quality",
+      "owner": "quality",
+      "status": "reserved",
+      "allowedDependencies": [
+        "shared",
+        "platform",
+        "healthcore",
+        "workmanagement",
+        "outpatient",
+        "inpatient",
+        "pharmacy",
+        "billing",
+        "diagnostics",
+        "treatment",
+        "publichealth"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "ai",
+      "artifact": "rhn-intelligence",
+      "owner": "intelligence",
+      "status": "active",
+      "allowedDependencies": [
+        "diagnostics",
+        "healthcore",
+        "outpatient",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "analytics",
+      "artifact": "rhn-analytics",
+      "owner": "analytics",
+      "status": "active",
+      "allowedDependencies": [
+        "ai",
+        "outpatient",
+        "platform",
+        "shared"
+      ],
+      "publicTypes": []
+    },
+    {
+      "package": "portal",
+      "artifact": "rhn-app",
+      "owner": "app",
+      "status": "active",
+      "allowedDependencies": [
+        "platform",
+        "shared",
+        "workmanagement"
+      ],
+      "publicTypes": []
+    }
+  ]
+}

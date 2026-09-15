@@ -14,7 +14,8 @@ export RHN_ORACLE_URL='jdbc:oracle:thin:@//数据库地址:1521/服务名'
 export RHN_ORACLE_USER='应用Schema用户'
 read -s RHN_ORACLE_PASSWORD
 export RHN_ORACLE_PASSWORD
-mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
+mvn -DskipTests install
+mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring-boot.run.arguments=--server.port=8080
 ```
 
 长期运行打包制品时，推荐从项目根目录执行：
@@ -27,7 +28,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=oracle-local
 `.env.oracle.local.example` 查看字段格式。该文件只能包含简单的 `KEY=value` 配置，不得提交真实连接信息。
 也可通过 `RHN_ORACLE_ENV_FILE` 指向其他本机安全路径。
 
-脚本要求三个 Oracle 连接项齐全，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
+脚本要求三个 Oracle 连接项齐全，并在构建前确认目标端口没有运行实例。构建完成后，脚本会按制品内容哈希复制一份不可变运行副本，再从副本启动。不得在 Java 进程直接加载 `backend/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar` 时再次执行 Maven 打包；fat jar 被原位覆盖后，延迟类加载和优雅停机都可能失败。
 
 可选使用 `RHN_DEV_USERNAME`、`RHN_DEV_PASSWORD` 覆盖本地体验账号。该账号和 `development-jca` 只用于开发验证，不得承载真实医疗数据或作为生产安全方案。
 

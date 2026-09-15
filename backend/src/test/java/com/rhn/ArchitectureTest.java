@@ -28,8 +28,7 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 @AnalyzeClasses(packages = "com.rhn", importOptions = ImportOption.DoNotIncludeTests.class)
 @Tag("outpatient-main-flow")
 class ArchitectureTest {
-    private static final Set<String> BUSINESS_MODULES = Set.of(
-            "ai", "analytics", "billing", "coordination", "diagnostics", "healthcore", "healthplanning", "inpatient", "outpatient", "pharmacy", "treatment");
+    private static final ModuleCatalog CATALOG = ModuleCatalog.INSTANCE;
 
     @ArchTest
     static final ArchRule analytics_layers_are_free_of_cycles = slices()
@@ -54,7 +53,7 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule business_modules_are_free_of_cycles = slices()
-            .matching("com.rhn.(ai|analytics|billing|coordination|diagnostics|healthcore|healthplanning|inpatient|outpatient|pharmacy|treatment|platform)..")
+            .matching("com.rhn.(*)..")
             .should().beFreeOfCycles();
 
     @ArchTest
@@ -95,26 +94,51 @@ class ArchitectureTest {
             });
 
     @ArchTest
-    static final ArchRule business_modules_depend_only_on_other_business_modules_public_api = classes()
-            .that().resideInAnyPackage(
-                    "com.rhn.ai..", "com.rhn.analytics..", "com.rhn.billing..", "com.rhn.diagnostics..", "com.rhn.healthcore..",
-                    "com.rhn.healthplanning..", "com.rhn.inpatient..", "com.rhn.outpatient..", "com.rhn.pharmacy..", "com.rhn.treatment..",
-                    "com.rhn.coordination..")
-            .should(new ArchCondition<>("depend on other business modules only through their api packages") {
+    static final ArchRule every_production_class_belongs_to_a_registered_module = classes()
+            .that().resideInAPackage("com.rhn..")
+            .should(new ArchCondition<>("belong to the module catalog or be the application entry point") {
                 @Override
                 public void check(JavaClass source, ConditionEvents events) {
-                    String sourceModule = businessModule(source.getPackageName());
+                    if (CATALOG.moduleOf(source.getPackageName()) == null
+                            && !source.getName().equals(CATALOG.applicationClass)) {
+                        events.add(SimpleConditionEvent.violated(source, "Unregistered module: " + source.getName()));
+                    }
+                }
+            });
+
+    @ArchTest
+    static final ArchRule modules_follow_registered_dependency_directions_and_public_contracts = classes()
+            .that().resideInAPackage("com.rhn..")
+            .should(new ArchCondition<>("use only registered dependencies and public API, never foreign entities or repositories") {
+                @Override
+                public void check(JavaClass source, ConditionEvents events) {
+                    ModuleCatalog.Module origin = CATALOG.moduleOf(source.getPackageName());
+                    if (origin == null) return; // The registration rule rejects unknown packages separately.
                     source.getDirectDependenciesFromSelf().forEach(dependency -> {
-                        String targetPackage = dependency.getTargetClass().getPackageName();
-                        String targetModule = businessModule(targetPackage);
-                        if (targetModule != null && !targetModule.equals(sourceModule)
-                                && !targetPackage.startsWith("com.rhn." + targetModule + ".api")) {
+                        JavaClass targetClass = dependency.getTargetClass();
+                        ModuleCatalog.Module target = CATALOG.moduleOf(targetClass.getPackageName());
+                        if (target == null) {
+                            if (targetClass.getPackageName().startsWith("com.rhn")) {
+                                events.add(SimpleConditionEvent.violated(source,
+                                        source.getName() + " depends on an unregistered/app class " + targetClass.getName()));
+                            }
+                            return;
+                        }
+                        if (target.name().equals(origin.name())) return;
+                        if (!origin.allowedDependencies().contains(target.name())
+                                || !CATALOG.isPublicContract(target, targetClass.getName(), targetClass.getPackageName())
+                                || CATALOG.isPersistent(targetClass)) {
                             events.add(SimpleConditionEvent.violated(source,
-                                    source.getName() + " depends on internal package " + targetPackage));
+                                    source.getName() + " crosses module boundary to " + targetClass.getName()));
                         }
                     });
                 }
             });
+
+    @ArchTest
+    static final ArchRule public_api_does_not_expose_persistent_models = noClasses()
+            .that().resideInAPackage("..api..")
+            .should().dependOnClassesThat().areAnnotatedWith(jakarta.persistence.Entity.class);
 
     @ArchTest
     static final ArchRule health_core_does_not_depend_on_outpatient = noClasses()
@@ -226,12 +250,4 @@ class ArchitectureTest {
                     "com.rhn.platform.integration.domain..",
                     "com.rhn.platform.integration.infrastructure..");
 
-    private static String businessModule(String packageName) {
-        String prefix = "com.rhn.";
-        if (!packageName.startsWith(prefix)) return null;
-        String remainder = packageName.substring(prefix.length());
-        int separator = remainder.indexOf('.');
-        String module = separator < 0 ? remainder : remainder.substring(0, separator);
-        return BUSINESS_MODULES.contains(module) ? module : null;
-    }
 }
