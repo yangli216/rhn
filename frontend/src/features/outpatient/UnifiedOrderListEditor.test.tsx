@@ -1455,7 +1455,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(currentDrafts[0].request.skinTestExemptReason).toBe('周期内已有阴性结果（有效时间内）')
   })
 
-  it('shows + 同组加药 for infusion drafts in edit mode and activates grouping session with pre-filled route/frequency', async () => {
+  it('shows + 同组 for infusion drafts in edit mode and activates grouping session with pre-filled route/frequency', async () => {
     const mockSkinTestDraft: MedicationPlanDraft = {
       ...mockMedicationDraft,
       id: 'draft-skintest-1',
@@ -1484,11 +1484,11 @@ describe('UnifiedOrderListEditor', () => {
     // 点击进入待确认编辑态
     await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' }))
 
-    // 应该显示【+ 同组加药】按钮
-    const addGroupBtn = screen.getByRole('button', { name: '+ 同组加药' })
+    // 应该显示【+ 同组】按钮
+    const addGroupBtn = screen.getByRole('button', { name: '+ 同组' })
     expect(addGroupBtn).toBeInTheDocument()
 
-    // 点击【+ 同组加药】
+    // 点击【+ 同组】
     await userEvent.click(addGroupBtn)
 
     // 应该激活成组录入模式
@@ -1496,7 +1496,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(screen.getByText(/已关联首药：注射用头孢曲松钠 1g/)).toBeInTheDocument()
   })
 
-  it('allows clicking + 同组加药 directly from pending infusion draft row without entering edit mode first', async () => {
+  it('allows clicking + 同组 directly from pending infusion draft row without entering edit mode first', async () => {
     const mockSkinTestDraft: MedicationPlanDraft = {
       ...mockMedicationDraft,
       id: 'draft-skintest-1',
@@ -1522,8 +1522,8 @@ describe('UnifiedOrderListEditor', () => {
     const setMedicationDrafts = vi.fn()
     renderComponent({ medicationDrafts: [mockSkinTestDraft], setMedicationDrafts })
 
-    // 直接在待确认只读行点击【+ 同组加药】
-    const addGroupBtn = screen.getByRole('button', { name: '+ 同组加药' })
+    // 直接在待确认只读行点击【+ 同组】
+    const addGroupBtn = screen.getByRole('button', { name: '+ 同组' })
     expect(addGroupBtn).toBeInTheDocument()
 
     await userEvent.click(addGroupBtn)
@@ -1531,5 +1531,105 @@ describe('UnifiedOrderListEditor', () => {
     // 同样进入成组录入模式
     expect(screen.getByText(/成组录入模式/)).toBeInTheDocument()
     expect(screen.getByText(/已关联首药：注射用头孢曲松钠 1g/)).toBeInTheDocument()
+  })
+
+  it('renders grouping composer immediately below the last item of the infusion group rather than at the very bottom', async () => {
+    const mockInfusionDraft: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      id: 'draft-infusion-head',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      routeExecutionType: 'INFUSION',
+      administrationGroupKey: 'group-iv-ceftriaxone',
+      sequence: 1,
+      request: {
+        ...mockMedicationDraft.request,
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV_DRIP',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        durationUnit: '天',
+        quantity: 3,
+        quantityUnit: '支',
+      },
+    }
+
+    const mockServiceDraft: ServicePlanDraft = {
+      id: 'draft-service-exam',
+      catalogItemId: 'service-peds-exam',
+      itemCode: 'PED001',
+      itemName: '儿科门诊诊查',
+      serviceType: 'OTHER',
+      quantity: 1,
+      unitCode: '次',
+      unitPrice: 20,
+      currencyCode: 'CNY',
+      sequence: 2,
+    }
+
+    renderComponent({
+      medicationDrafts: [mockInfusionDraft],
+      serviceDrafts: [mockServiceDraft],
+    })
+
+    // 点击【+ 同组】
+    const addGroupBtn = screen.getByRole('button', { name: '+ 同组' })
+    await userEvent.click(addGroupBtn)
+
+    // 获取所有行并检查顺序
+    const rows = screen.getAllByRole('row')
+    // row 0: 表头, row 1: 头孢曲松钠, row 2: 成组录入行, row 3: 儿科门诊诊查
+    expect(rows[1]).toHaveTextContent('注射用头孢曲松钠 1g')
+    expect(rows[2]).toHaveClass('doctor-unified-inline-composer')
+    expect(rows[3]).toHaveTextContent('儿科门诊诊查')
+  })
+
+  it('renders compact inline safety bar and does not exit edit mode when clicking table container or scrollbar', async () => {
+    const mockSkinTestDraft: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      id: 'draft-skintest-edit',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      skinTestRequired: true,
+      routeExecutionType: 'INFUSION',
+      administrationGroupKey: 'group-iv-1',
+      request: {
+        ...mockMedicationDraft.request,
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV_DRIP',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        durationUnit: '天',
+        quantity: 3,
+        quantityUnit: '支',
+        skinTestExempt: false,
+      },
+    }
+
+    renderComponent({ medicationDrafts: [mockSkinTestDraft] })
+
+    // 点击进入待确认编辑态
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' }))
+
+    // 检查用药风险栏使用了紧凑单行 is-compact
+    const safetyRow = document.querySelector('.doctor-unified-order-safety')
+    expect(safetyRow).toHaveClass('is-compact')
+    expect(document.querySelector('.doctor-skintest-exempt-inline')).toBeInTheDocument()
+
+    // 检查分组选择器在第 2 列的 .doctor-draft-edit-resource-wrap 内，不遮挡药品名
+    const groupSelector = document.querySelector('.doctor-draft-edit-resource-wrap .doctor-draft-group-selector')
+    expect(groupSelector).toBeInTheDocument()
+
+    // 模拟在表格容器上点击（如点击横向滚动条或空白区）
+    const tableContainer = document.querySelector('.doctor-unified-order-list')
+    expect(tableContainer).toBeInTheDocument()
+    tableContainer?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
+    tableContainer?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+
+    // 应当依然保持编辑态
+    expect(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' })).toBeInTheDocument()
+    expect(document.querySelector('.doctor-unified-draft-editor-wrap')).toBeInTheDocument()
   })
 });

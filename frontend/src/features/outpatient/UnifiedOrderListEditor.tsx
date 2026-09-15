@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react'
 import type { MedicationRequest, Prescription, ServiceRequest } from '../../shared/api/encountersApi'
 import type { ActiveOrderFrequency, ItemGroup, MedicationKnowledge, ServiceCatalogItem } from '../../shared/api/masterDataApi'
 import type { AllergyIntolerance } from '../../shared/api/residentsApi'
@@ -604,13 +604,68 @@ export function UnifiedOrderListEditor({
   ].sort((left, right) => byAuthoredAt(left.value, right.value))
   const draftEntries: Array<
     { kind: 'service'; value: ServicePlanDraft } | { kind: 'medication'; value: MedicationPlanDraft }
-  > = [
-    ...serviceDrafts.map((value) => ({ kind: 'service' as const, value })),
-    ...medicationDrafts.map((value) => ({ kind: 'medication' as const, value })),
-  ].sort((left, right) => bySequence(left.value, right.value))
+  > = useMemo(() => {
+    const rawEntries: Array<
+      { kind: 'service'; value: ServicePlanDraft } | { kind: 'medication'; value: MedicationPlanDraft }
+    > = [
+      ...serviceDrafts.map((value) => ({ kind: 'service' as const, value })),
+      ...medicationDrafts.map((value) => ({ kind: 'medication' as const, value })),
+    ]
+
+    const groupMinSeqMap = new Map<string, number>()
+    for (const item of rawEntries) {
+      if (item.kind === 'medication' && item.value.administrationGroupKey) {
+        const key = item.value.administrationGroupKey
+        const itemSeq = item.value.sequence ?? 0
+        const prevMin = groupMinSeqMap.get(key)
+        if (prevMin === undefined || itemSeq < prevMin) {
+          groupMinSeqMap.set(key, itemSeq)
+        }
+      }
+    }
+
+    return rawEntries.sort((left, right) => {
+      const leftGroup = left.kind === 'medication' ? left.value.administrationGroupKey : undefined
+      const rightGroup = right.kind === 'medication' ? right.value.administrationGroupKey : undefined
+
+      if (leftGroup && rightGroup && leftGroup === rightGroup) {
+        return bySequence(left.value, right.value)
+      }
+
+      const leftBaseSeq = leftGroup ? (groupMinSeqMap.get(leftGroup) ?? 0) : (left.value.sequence ?? 0)
+      const rightBaseSeq = rightGroup ? (groupMinSeqMap.get(rightGroup) ?? 0) : (right.value.sequence ?? 0)
+
+      if (leftBaseSeq !== rightBaseSeq) {
+        return leftBaseSeq - rightBaseSeq
+      }
+      return bySequence(left.value, right.value)
+    })
+  }, [serviceDrafts, medicationDrafts])
 
   const hasOrders = savedEntries.length > 0 || draftEntries.length > 0
   const isComposerActive = !readOnly && (composerOpen || !hasOrders)
+
+  const groupingComposerTarget = useMemo(() => {
+    if (!isComposerActive || !groupingSession) return null
+    for (let i = draftEntries.length - 1; i >= 0; i--) {
+      const d = draftEntries[i]
+      if (d.kind === 'medication' && d.value.administrationGroupKey === groupingSession.groupKey) {
+        return { type: 'draft' as const, index: i }
+      }
+    }
+    for (let i = savedEntries.length - 1; i >= 0; i--) {
+      const s = savedEntries[i]
+      if (s.kind === 'medication' && (
+        s.value.id === groupingSession.groupKey ||
+        s.value.parentRequestId === groupingSession.groupKey ||
+        `request:${s.value.id}` === groupingSession.groupKey ||
+        `request:${s.value.parentRequestId}` === groupingSession.groupKey
+      )) {
+        return { type: 'saved' as const, index: i }
+      }
+    }
+    return null
+  }, [isComposerActive, groupingSession, draftEntries, savedEntries])
 
   function changeType(value: OrderEntryType) {
     if (groupingSession && value !== 'WESTERN' && value !== 'MEDICATION' && value !== 'ALL') {
@@ -1247,243 +1302,70 @@ export function UnifiedOrderListEditor({
     }
   }
 
-  return <div className={`doctor-unified-orders${readOnly ? ' is-readonly' : ''}`} onKeyDown={handleEntryBoxKeyDown}>
-    {successToast && (
-      <div className="doctor-unified-order-toast" role="status">
-        <Icon name="check" />
-        <span>{successToast}</span>
-        <button type="button" className="doctor-toast-close" onClick={() => setSuccessToast('')} aria-label="关闭提示">
-          <Icon name="close" />
-        </button>
-      </div>
-    )}
-
-    <div className="doctor-table-wrap">
-      <div className={`doctor-unified-order-list ${savedEntries.length === 0 && draftEntries.length === 0 ? 'is-empty' : ''}`} role="table" aria-label="本次医嘱连续录入列表">
-      <div className="doctor-unified-order-head" role="row">
-        <span className="doctor-unified-cell-type">类型</span>
-        <span className="doctor-unified-cell-name">药品 / 项目</span>
-        <span className="doctor-unified-cell-directions">用法用量 / 执行要求</span>
-        <span className="doctor-unified-cell-qty">总量</span>
-        <span className="doctor-unified-cell-dept">执行科室</span>
-        <span className="doctor-unified-cell-instruction">嘱托 / 说明</span>
-        <span className="doctor-unified-cell-price">单价</span>
-        <span className="doctor-unified-cell-status">状态</span>
-        {!readOnly && <span className="doctor-unified-cell-actions">操作</span>}
-      </div>
-
-      {!readOnly && <div ref={aiSuggestionSurfaceRef} />}
-
-      {savedEntries.length === 0 && draftEntries.length === 0 && readOnly && (
-        <div className="doctor-unified-order-empty" role="row">
-          <span>暂无已开立医嘱</span>
-        </div>
-      )}
-
-      {savedEntries.map((entry, index) => {
-        if (entry.kind === 'service') return <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
-          busy={busy} readOnly={readOnly} currentDept={currentDept} onCancel={() => onCancelService(entry.value)}
-          onPrint={entry.value.status === 'ACTIVE' ? () => onPrintService(entry.value) : undefined} />
-        const prescription = prescriptions.find((value) => value.id === entry.value.prescriptionId)
-        const firstLine = prescription?.medicationRequests.find((value) => value.status === 'ACTIVE')?.id === entry.value.id
-        const prev = index > 0 ? savedEntries[index - 1] : undefined
-        const next = index < savedEntries.length - 1 ? savedEntries[index + 1] : undefined
-        const entryGroupId = entry.value.parentRequestId || entry.value.id
-        const sameGroupAsPrev = Boolean(
-          entry.value.routeExecutionType === 'INFUSION' &&
-          prev?.kind === 'medication' &&
-          prev.value.routeExecutionType === 'INFUSION' &&
-          entryGroupId === (prev.value.parentRequestId || prev.value.id)
-        )
-        const nextInSaved = Boolean(
-          entry.value.routeExecutionType === 'INFUSION' &&
-          next?.kind === 'medication' &&
-          next.value.routeExecutionType === 'INFUSION' &&
-          entryGroupId === (next.value.parentRequestId || next.value.id)
-        )
-        const isLastSavedInGroup = !savedEntries.slice(index + 1).some(
-          (s) => s.kind === 'medication' &&
-            s.value.routeExecutionType === 'INFUSION' &&
-            (s.value.parentRequestId || s.value.id) === entryGroupId
-        )
-        const hasDraftsInGroup = draftEntries.some(
-          (d) => d.kind === 'medication' &&
-            d.value.routeExecutionType === 'INFUSION' &&
-            (d.value.parentRequestId || d.value.administrationGroupKey) === entryGroupId
-        )
-        const nextIsComposerSession = Boolean(
-          isLastSavedInGroup &&
-          !hasDraftsInGroup &&
-          isComposerActive &&
-          groupingSession &&
-          (groupingSession.groupKey === entry.value.id ||
-            groupingSession.groupKey === entry.value.parentRequestId ||
-            groupingSession.groupKey === `request:${entry.value.id}` ||
-            groupingSession.groupKey === `request:${entry.value.parentRequestId}`)
-        )
-        const sameGroupAsNext = nextInSaved || hasDraftsInGroup || nextIsComposerSession
-        const isHead = !sameGroupAsPrev && sameGroupAsNext
-        const isMid = sameGroupAsPrev && sameGroupAsNext
-        const isTail = sameGroupAsPrev && !sameGroupAsNext
-        return <MedicationReadRow key={`medication-${entry.value.id}`} value={entry.value} busy={busy}
-          isHead={isHead}
-          isMid={isMid}
-          isTail={isTail}
-          readOnly={readOnly}
-          currentDept={currentDept}
-          skinTest={skinTestByRequest.get(entry.value.id)}
-          onCancel={() => onCancelMedication(entry.value)}
-          onPrint={prescription && firstLine && canPrintPrescription(prescription) ? () => onPrint(prescription) : undefined} />
-      })}
-
-      {!readOnly && draftEntries.map((entry, index) => entry.kind === 'service'
-        ? editingDraft?.kind === 'service' && editingDraft.id === entry.value.id
-          ? <ServiceDraftEditRow key={`draft-service-edit-${entry.value.id}`} value={entry.value}
-              currentDept={currentDept}
-              onCancel={() => setEditingDraft(null)}
-              onSave={(next) => {
-                setServiceDrafts((current) => current.map((value) => value.id === next.id ? next : value))
-                setEditingDraft(null)
-              }}
-              onRemove={() => {
-                setEditingDraft((curr) => curr?.id === entry.value.id ? null : curr)
-                setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))
-              }} />
-          : <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
-              currentDept={currentDept}
-              onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'service', id: entry.value.id }) }}
-              onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
-        : editingDraft?.kind === 'medication' && editingDraft.id === entry.value.id
-          ? <MedicationDraftEditRow key={`draft-medication-edit-${entry.value.id}`} value={entry.value}
-              routeOptions={routeOptions} frequencyOptions={frequencyOptions}
-              routeExecutionTypes={new Map((routes.data ?? []).map((value) => [value.code, value.executionType]))}
-              administrationGroupOptions={administrationGroups.options}
-              frequencies={frequencies.data ?? []}
-              currentDept={currentDept}
-              encounter={encounter}
-              api={api}
-              allergies={allergies}
-              skinTests={skinTests}
-              onAppendToGroup={continueGroupingFromDraft}
-              onCancel={() => setEditingDraft(null)}
-              onSave={(next) => {
-                setMedicationDrafts((current) => syncMedicationDraftGroup(
-                  current,
-                  next,
-                  frequencies.data ?? []
-                ))
-                if (groupingSession && next.administrationGroupKey && groupingSession.groupKey === next.administrationGroupKey) {
-                  setGroupingSession((curr) => curr ? {
-                    ...curr,
-                    routeCode: next.request.routeCode || curr.routeCode,
-                    frequencyCode: next.request.frequencyCode || curr.frequencyCode,
-                    durationValue: next.request.durationValue ?? curr.durationValue,
-                  } : null)
-                }
-                setEditingDraft(null)
-              }}
-              onRemove={() => {
-                setEditingDraft((curr) => curr?.id === entry.value.id ? null : curr)
-                setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))
-              }} />
-          : (() => {
-              const prev = index > 0 ? draftEntries[index - 1] : undefined
-              const next = index < draftEntries.length - 1 ? draftEntries[index + 1] : undefined
-              const sameGroupAsPrev = Boolean(
-                entry.value.administrationGroupKey &&
-                prev?.kind === 'medication' &&
-                prev.value.administrationGroupKey === entry.value.administrationGroupKey
-              )
-              const nextInDrafts = Boolean(
-                entry.value.administrationGroupKey &&
-                next?.kind === 'medication' &&
-                next.value.administrationGroupKey === entry.value.administrationGroupKey
-              )
-              const isLastDraftInThisGroup = !draftEntries.slice(index + 1).some(
-                (d) => d.kind === 'medication' && d.value.administrationGroupKey === entry.value.administrationGroupKey
-              )
-              const nextIsComposerSession = Boolean(
-                isLastDraftInThisGroup &&
-                isComposerActive &&
-                groupingSession &&
-                entry.value.administrationGroupKey === groupingSession.groupKey
-              )
-              const sameGroupAsNext = nextInDrafts || nextIsComposerSession
-              const isHead = !sameGroupAsPrev && sameGroupAsNext
-              const isMid = sameGroupAsPrev && sameGroupAsNext
-              const isTail = sameGroupAsPrev && !sameGroupAsNext
-              return <MedicationDraftRow key={`draft-medication-${entry.value.id}`} value={entry.value}
-                isHead={isHead}
-                isMid={isMid}
-                isTail={isTail}
-                currentDept={currentDept}
-                onAppendToGroup={continueGroupingFromDraft}
-                onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'medication', id: entry.value.id }) }}
-                onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
-            })())}
-
-      {!readOnly && isComposerActive && (
-        <>
-          <div ref={composerRef} className={`doctor-unified-inline-composer is-${entryType.toLowerCase()}${!hasEnteredOrder ? ' is-unselected' : ''}`} role="row"
-            onClick={(e) => {
-              if (!hasEnteredOrder) {
-                const target = e.target as HTMLElement
-                if (!target.closest('button, input, select, .ui-select, .ui-remote-search')) {
-                  focusResource(entryType)
-                }
+  function renderComposer() {
+    return (
+      <Fragment key="unified-inline-composer-fragment">
+        <div ref={composerRef} className={`doctor-unified-inline-composer is-${entryType.toLowerCase()}${!hasEnteredOrder ? ' is-unselected' : ''}`} role="row"
+          onClick={(e) => {
+            if (!hasEnteredOrder) {
+              const target = e.target as HTMLElement
+              if (!target.closest('button, input, select, .ui-select, .ui-remote-search')) {
+                focusResource(entryType)
               }
-            }}
-            onBlur={(event) => {
-              const next = event.relatedTarget as Node | null
-              if (!next) return
-              const isInsideRow = composerRef.current?.contains(next)
-              const isInsidePopover = Boolean(
-                (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
-              )
-              if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
-                if (hasOrders) {
-                  closeComposer()
-                } else {
-                  setValidationError('')
-                }
+            }
+          }}
+          onBlur={(event) => {
+            const next = event.relatedTarget as Node | null
+            if (!next) return
+            const isInsideRow = composerRef.current?.contains(next)
+            const isInsidePopover = Boolean(
+              (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
+            )
+            if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
+              if (hasOrders) {
+                closeComposer()
+              } else {
+                setValidationError('')
               }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape' && !hasEnteredOrder) {
-                e.preventDefault()
-                if (hasOrders) {
-                  closeComposer()
-                } else {
-                  changeType('ALL')
-                  setValidationError('')
-                }
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !hasEnteredOrder) {
+              e.preventDefault()
+              if (hasOrders) {
+                closeComposer()
+              } else {
+                changeType('ALL')
+                setValidationError('')
               }
-            }}>
-            <div className="doctor-inline-order-field doctor-inline-order-type">
-              <div className="doctor-composer-type-wrap">
-                <Select id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
-                  options={[
-                    { value: 'ALL', label: '全部类型' },
-                    { value: 'WESTERN', label: '西药' },
-                    { value: 'CHINESE_PATENT', label: '中成药' },
-                    { value: 'HERBAL', label: '草药' },
-                    { value: 'LABORATORY', label: '检验' },
-                    { value: 'EXAMINATION', label: '检查' },
-                    { value: 'TREATMENT', label: '治疗' },
-                  ]}
-                  onChange={(value) => {
-                    const nextType = value as OrderEntryType
-                    changeType(nextType)
-                    globalThis.setTimeout(() => focusResource(nextType), 0)
-                  }} />
-              </div>
+            }
+          }}>
+          <div className="doctor-inline-order-field doctor-inline-order-type">
+            <div className="doctor-composer-type-wrap">
+              <Select id="doctor-unified-entry-type" aria-label="医嘱类型" value={entryType} clearable={false} searchable={false}
+                options={[
+                  { value: 'ALL', label: '全部类型' },
+                  { value: 'WESTERN', label: '西药' },
+                  { value: 'CHINESE_PATENT', label: '中成药' },
+                  { value: 'HERBAL', label: '草药' },
+                  { value: 'LABORATORY', label: '检验' },
+                  { value: 'EXAMINATION', label: '检查' },
+                  { value: 'TREATMENT', label: '治疗' },
+                ]}
+                onChange={(value) => {
+                  const nextType = value as OrderEntryType
+                  changeType(nextType)
+                  globalThis.setTimeout(() => focusResource(nextType), 0)
+                }} />
+            </div>
+          </div>
+
+          <div className={`doctor-inline-order-field doctor-inline-order-resource${hasEnteredOrder ? ' has-selected' : ''}`}
+            title={isMedication && selectedProduct ? `${selectedProduct.label}${selectedProduct.itemPackage?.packageSpec ? ` (${selectedProduct.itemPackage.packageSpec})` : ''}${selectedProduct.product.manufacturerName ? ` · ${selectedProduct.product.manufacturerName}` : ''}` : undefined}>
+            <div className="doctor-inline-resource-input-wrap">
               {groupingSession && (
                 <AdministrationGroupBracket isTail />
               )}
-            </div>
-
-            <div className={`doctor-inline-order-field doctor-inline-order-resource${hasEnteredOrder ? ' has-selected' : ''}`}
-              title={isMedication && selectedProduct ? `${selectedProduct.label}${selectedProduct.itemPackage?.packageSpec ? ` (${selectedProduct.itemPackage.packageSpec})` : ''}${selectedProduct.product.manufacturerName ? ` · ${selectedProduct.product.manufacturerName}` : ''}` : undefined}>
               <ClinicalResourceSearch
                 id={`doctor-unified-${entryType}-resource`}
                 api={api}
@@ -1518,306 +1400,297 @@ export function UnifiedOrderListEditor({
                   : `搜索${orderTypeLabel(entryType)}项目名称/拼音`
                 }
                 onChange={handleOrderResourceSelect} />
-              {isMedication && selectedProduct && (
-                <div className="doctor-inline-spec-hint"
-                  title={`${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}`}>
-                  <span>{selectedProduct.itemPackage?.packageSpec || selectedProduct.label}</span>
-                  {selectedProduct.product.manufacturerName && (
-                    <>
-                      <span className="doctor-subtext-divider">/</span>
-                      <span>{selectedProduct.product.manufacturerName}</span>
-                    </>
-                  )}
-                </div>
-              )}
             </div>
-
-            {isMedication ? (
-              entryType === 'HERBAL' ? (
-                <div className="doctor-inline-order-directions-group">
-                  <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="每付剂量">
-                    <div className="doctor-entry-input-unit">
-                      <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.01"
-                        disabled={!hasEnteredOrder}
-                        value={medicationEntry.doseValue} placeholder="0"
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-method')} />
-                      <small>{medicationEntry.doseUnit || 'g'}</small>
-                    </div>
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="煎服法">
-                    <input id="doctor-unified-herbal-method" aria-label="服法" value={medicationEntry.herbalMethod} placeholder="水煎服"
-                      disabled={!hasEnteredOrder}
-                      onFocus={(event) => event.currentTarget.select()}
-                      onChange={(event) => updateMedication('herbalMethod', event.target.value)}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-frequency')} />
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="频次">
-                    <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
-                      disabled={!hasEnteredOrder}
-                      onChange={(value) => updateMedication('frequencyCode', value)}
-                      openOnFocus
-                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-herbal-count')}
-                      showValue loading={frequencies.isPending} popoverMinWidth={260}
-                      placeholder="频次" options={frequencyOptions} />
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
-                    <div className="doctor-entry-input-unit">
-                      <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
-                        disabled={!hasEnteredOrder}
-                        value={medicationEntry.herbalDoseCount}
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
-                      <small>剂</small>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="doctor-inline-order-directions-group">
-                  <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="单次剂量">
-                    <div className="doctor-entry-input-unit">
-                      <input id="doctor-unified-dose" aria-label="单次剂量" type="number" min="0" step="0.01"
-                        disabled={!hasEnteredOrder}
-                        value={medicationEntry.doseValue} placeholder="0"
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-route')} />
-                      {availableDoseUnits.length > 1 ? (
-                        <select
-                          id="doctor-unified-dose-unit"
-                          aria-label="单次剂量单位"
-                          className="doctor-inline-dose-unit-select"
-                          value={medicationEntry.doseUnit}
-                          disabled={!hasEnteredOrder}
-                          onChange={(event) => updateMedication('doseUnit', event.target.value)}
-                        >
-                          {availableDoseUnits.map((u) => <option key={u} value={u}>{u}</option>)}
-                        </select>
-                      ) : (
-                        <small>{medicationEntry.doseUnit || ''}</small>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="给药途径">
-                    <Select id="doctor-unified-route" aria-label="给药途径" value={medicationEntry.routeCode}
-                      disabled={!hasEnteredOrder}
-                      onChange={updateRoute}
-                      openOnFocus
-                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-frequency')}
-                      showValue loading={routes.isPending} popoverMinWidth={220}
-                      placeholder="途径" options={routeOptions} />
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="执行频次">
-                    <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
-                      disabled={!hasEnteredOrder}
-                      onChange={(value) => updateMedication('frequencyCode', value)}
-                      openOnFocus
-                      onSelectionCommit={() => focusControlAfterSelection('doctor-unified-duration')}
-                      showValue loading={frequencies.isPending} popoverMinWidth={260}
-                      placeholder="频次" options={frequencyOptions} />
-                  </div>
-
-                  <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="疗程">
-                    <div className="doctor-entry-input-unit">
-                      <input id="doctor-unified-duration" aria-label="疗程" type="number" min="1"
-                        disabled={!hasEnteredOrder}
-                        value={medicationEntry.durationValue} placeholder="天数"
-                        onFocus={(event) => event.currentTarget.select()}
-                        onChange={(event) => updateMedication('durationValue', numberValue(event.target.value))}
-                        onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
-                      <small>天</small>
-                    </div>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div className="doctor-inline-order-static doctor-inline-service-execution">
-                <span className="doctor-direction-service">{formatServiceExecution(service?.raw?.sdServiceType || (entryType === 'ALL' ? undefined : entryType))}</span>
+            {isMedication && selectedProduct && (
+              <div className="doctor-inline-spec-hint"
+                title={`${selectedProduct.itemPackage?.packageSpec || selectedProduct.label}${selectedProduct.product.manufacturerName ? ` / ${selectedProduct.product.manufacturerName}` : ''}`}>
+                <span>{selectedProduct.itemPackage?.packageSpec || selectedProduct.label}</span>
+                {selectedProduct.product.manufacturerName && (
+                  <>
+                    <span className="doctor-subtext-divider">/</span>
+                    <span>{selectedProduct.product.manufacturerName}</span>
+                  </>
+                )}
               </div>
             )}
-
-            {isMedication ? (
-              entryType === 'HERBAL' ? (
-                <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                  <div className="doctor-entry-input-unit">
-                    <input id="doctor-unified-quantity" aria-label="总量" type="number"
-                      disabled={!hasEnteredOrder}
-                      value={medicationEntry.doseValue === '' || medicationEntry.herbalDoseCount === '' ? ''
-                        : Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount)}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} readOnly />
-                    <small>g</small>
-                  </div>
-                </div>
-              ) : (
-                <div className={`doctor-inline-order-field doctor-inline-order-quantity ${isStockInsufficient ? 'is-danger' : ''}${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                  <div className="doctor-entry-input-unit">
-                    <input id="doctor-unified-quantity" aria-label="总量" type="number" min="0.01" step="0.01"
-                      disabled={!hasEnteredOrder}
-                      title={isStockInsufficient ? `开立数量超过当前可用库存` : (calcResult?.calculationText ? `根据剂量频次自动计算: ${calcResult.calculationText}` : undefined)}
-                      value={medicationEntry.quantity} placeholder="数量"
-                      onFocus={(event) => event.currentTarget.select()}
-                      onChange={(event) => updateMedication('quantity', numberValue(event.target.value))}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
-                    <small>{formatPackageUnit(selectedProduct?.unitName, selectedProduct?.unitCode)}</small>
-                  </div>
-                </div>
-              )
-            ) : (
-              <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                <div className="doctor-entry-input-unit">
-                  <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
-                    disabled={!hasEnteredOrder}
-                    value={serviceQuantity} placeholder="数量"
-                    onFocus={(event) => event.currentTarget.select()}
-                    onChange={(event) => setServiceQuantity(Number(event.target.value))}
-                    onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? 'doctor-unified-service-note' : undefined)} />
-                  <small>{service?.raw?.unitCode ?? '项'}</small>
-                </div>
-              </div>
-            )}
-
-            <div className="doctor-inline-order-static doctor-inline-order-dept">
-              {hasEnteredOrder ? (
-                <span className="doctor-direction-chip is-dept">
-                  {isMedication ? (
-                    resolveExecutingDepartment({
-                      kind: 'medication',
-                      type: entryType,
-                      stockSiteName: medicationEntry.stockSiteName,
-                    }, currentDept)
-                  ) : (
-                    resolveExecutingDepartment({
-                      kind: 'service',
-                      type: service?.raw?.sdServiceType || (entryType === 'ALL' ? undefined : entryType),
-                      itemName: service?.raw?.name,
-                    }, currentDept)
-                  )}
-                </span>
-              ) : (
-                <span className="doctor-inline-order-placeholder">—</span>
-              )}
-            </div>
-
-            {isMedication ? (
-              entryType === 'HERBAL' ? (
-                <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
-                  <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
-                    disabled={!hasEnteredOrder}
-                    list="doctor-herbal-instruction-options"
-                    onFocus={(event) => event.currentTarget.select()}
-                    placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
-                    onKeyDown={(event) => continueOnEnter(event)} />
-                  <datalist id="doctor-herbal-instruction-options">
-                    {['先煎', '后下', '包煎', '烊化', '冲服', '另煎', '生用'].map((value) => <option key={value} value={value} />)}
-                  </datalist>
-                </div>
-              ) : (
-                <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="用药嘱托">
-                  <input id="doctor-unified-instruction" aria-label="用药嘱托" value={medicationEntry.instruction}
-                    disabled={!hasEnteredOrder}
-                    onFocus={(event) => event.currentTarget.select()}
-                    placeholder="嘱托 (如: 饭后)" onChange={(event) => updateMedication('instruction', event.target.value)}
-                    onKeyDown={(event) => continueOnEnter(event)} />
-                </div>
-              )
-            ) : (
-              <div className={`doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                <input id="doctor-unified-service-note" className="doctor-unified-service-note" aria-label="临床说明"
-                  disabled={!hasEnteredOrder}
-                  value={serviceDescription} placeholder={entryType === 'LABORATORY' ? '标本种类或检验目的 (回车跳至数量)' : entryType === 'EXAMINATION' ? '检查部位及检查目的 (回车跳至数量)' : '治疗部位或临床说明 (回车确认添加)'}
-                  onFocus={(event) => event.currentTarget.select()}
-                  onChange={(event) => setServiceDescription(event.target.value)}
-                  onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? undefined : 'doctor-unified-quantity')} />
-              </div>
-            )}
-
-            {isMedication ? (
-              <div className="doctor-inline-order-static doctor-inline-order-price">
-                {selectedProduct ? formatUnitPrice(selectedProduct.price, selectedProduct.currencyCode) : '—'}
-              </div>
-            ) : (
-              <div className="doctor-inline-order-static doctor-inline-order-price">
-                {(() => {
-                  const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
-                  return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
-                })()}
-              </div>
-            )}
-
-            <div className="doctor-inline-order-status">
-              <StatusBadge tone={groupingSession ? 'success' : 'info'}>
-                {groupingSession ? '成组中' : '录入中'}
-              </StatusBadge>
-            </div>
-            <div className="doctor-inline-order-actions">
-              <Button size="sm" variant="primary" className="doctor-unified-entry-add-btn" onClick={addCurrentEntry}
-                disabled={!hasEnteredOrder}
-                title="加入待确认列表 (Enter / Ctrl+Enter)" aria-label="加入医嘱"><Icon name="add" /></Button>
-              <Button size="sm" variant="text" className="doctor-unified-entry-close-btn" onClick={closeComposer}
-                title="退出录入" aria-label="退出医嘱录入"><Icon name="close" /></Button>
-            </div>
           </div>
 
-          {groupingSession && (
-            <div className="doctor-unified-order-subrow doctor-grouping-banner" role="status">
-              <span className="doctor-grouping-tip">
-                <strong>成组录入模式</strong>（已关联首药：{groupingSession.headMedicationName}，途径与频次已对齐）
-              </span>
-              <Button size="sm" variant="secondary" onClick={finishGroupingSession}>组方完成</Button>
-            </div>
-          )}
+          {isMedication ? (
+            entryType === 'HERBAL' ? (
+              <div className="doctor-inline-order-directions-group">
+                <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="每付剂量">
+                  <div className="doctor-entry-input-unit">
+                    <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.01"
+                      disabled={!hasEnteredOrder}
+                      value={medicationEntry.doseValue} placeholder="0"
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
+                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-herbal-method')} />
+                    <small>{medicationEntry.doseUnit || 'g'}</small>
+                  </div>
+                </div>
 
-          {entryType === 'HERBAL' && (
-            <div className="doctor-unified-order-subrow doctor-herbal-formula-summary" role="row">
-              <strong>方剂设置</strong>
-              <span>{medicationEntry.herbalDoseCount || '未填'}剂 · {medicationEntry.herbalMethod || '未填写服法'} · {medicationEntry.frequencyCode || '未填写频次'}</span>
-              <small>连续录入下一味时自动保留</small>
-            </div>
-          )}
+                <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="煎服法">
+                  <input id="doctor-unified-herbal-method" aria-label="服法" value={medicationEntry.herbalMethod} placeholder="水煎服"
+                    disabled={!hasEnteredOrder}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => updateMedication('herbalMethod', event.target.value)}
+                    onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-frequency')} />
+                </div>
 
-          {hasSafetyAlert && (
-            <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning" role="row">
-              <div className="doctor-safety-content">
-                <span className="doctor-safety-badge-title">用药风险提醒：</span>
-                {isAllergyHit && (
-                  <span className="doctor-safety-tag is-danger">
-                    <Icon name="warning" /> 命中患者药物过敏：{matchedAllergies.map((item) => item.substanceDisplay).join('、')}
-                  </span>
-                )}
-                {!isAllergyHit && hasKnownAllergies && (
-                  <span className="doctor-safety-tag is-warning">
-                    患者既往药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}
-                  </span>
-                )}
-                {isSkinTest && (
-                  <span className={`doctor-safety-tag ${hasPositiveSkinTest ? 'is-danger' : medicationEntry.skinTestExempt ? 'is-exempt' : 'is-skintest'}`}>
-                    <Icon name={hasPositiveSkinTest ? 'warning' : 'info'} />
-                    {hasPositiveSkinTest
-                      ? '严正警示：患者当前药品皮试结果为【阳性】，禁止开立！'
-                      : medicationEntry.skinTestExempt
-                      ? `已免做皮试：${medicationEntry.skinTestExemptReason || '符合免试规则'}`
-                      : '需皮试药品（默认派发皮试任务）'}
-                  </span>
-                )}
-                {isAntimicrobial && (
-                  <span className="doctor-safety-tag is-antimicrobial">
-                    抗菌药物{currentMedication?.sdAntimicrobialLevelText ? ` · ${currentMedication.sdAntimicrobialLevelText}` : ''}
-                  </span>
-                )}
-                {isAllergyHit && (
-                  <input aria-label="继续开立理由" value={medicationEntry.allergyOverrideReason}
-                    placeholder="命中已知过敏，请输入继续开立理由" onChange={(event) => updateMedication('allergyOverrideReason', event.target.value)} />
-                )}
+                <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="频次">
+                  <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
+                    disabled={!hasEnteredOrder}
+                    onChange={(value) => updateMedication('frequencyCode', value)}
+                    openOnFocus
+                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-herbal-count')}
+                    showValue loading={frequencies.isPending} popoverMinWidth={260}
+                    placeholder="频次" options={frequencyOptions} />
+                </div>
+
+                <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
+                  <div className="doctor-entry-input-unit">
+                    <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
+                      disabled={!hasEnteredOrder}
+                      value={medicationEntry.herbalDoseCount}
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
+                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
+                    <small>剂</small>
+                  </div>
+                </div>
               </div>
+            ) : (
+              <div className="doctor-inline-order-directions-group">
+                <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="单次剂量">
+                  <div className="doctor-entry-input-unit">
+                    <input id="doctor-unified-dose" aria-label="单次剂量" type="number" min="0" step="0.01"
+                      disabled={!hasEnteredOrder}
+                      value={medicationEntry.doseValue} placeholder="0"
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
+                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-route')} />
+                    {availableDoseUnits.length > 1 ? (
+                      <select
+                        id="doctor-unified-dose-unit"
+                        aria-label="单次剂量单位"
+                        className="doctor-inline-dose-unit-select"
+                        value={medicationEntry.doseUnit}
+                        disabled={!hasEnteredOrder}
+                        onChange={(event) => updateMedication('doseUnit', event.target.value)}
+                      >
+                        {availableDoseUnits.map((u) => <option key={u} value={u}>{u}</option>)}
+                      </select>
+                    ) : (
+                      <small>{medicationEntry.doseUnit || ''}</small>
+                    )}
+                  </div>
+                </div>
+
+                <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="给药途径">
+                  <Select id="doctor-unified-route" aria-label="给药途径" value={medicationEntry.routeCode}
+                    disabled={!hasEnteredOrder}
+                    onChange={updateRoute}
+                    openOnFocus
+                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-frequency')}
+                    showValue loading={routes.isPending} popoverMinWidth={220}
+                    placeholder="途径" options={routeOptions} />
+                </div>
+
+                <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="执行频次">
+                  <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
+                    disabled={!hasEnteredOrder}
+                    onChange={(value) => updateMedication('frequencyCode', value)}
+                    openOnFocus
+                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-duration')}
+                    showValue loading={frequencies.isPending} popoverMinWidth={260}
+                    placeholder="频次" options={frequencyOptions} />
+                </div>
+
+                <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="疗程">
+                  <div className="doctor-entry-input-unit">
+                    <input id="doctor-unified-duration" aria-label="疗程" type="number" min="1"
+                      disabled={!hasEnteredOrder}
+                      value={medicationEntry.durationValue} placeholder="天数"
+                      onFocus={(event) => event.currentTarget.select()}
+                      onChange={(event) => updateMedication('durationValue', numberValue(event.target.value))}
+                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-quantity')} />
+                    <small>天</small>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="doctor-inline-order-static doctor-inline-service-execution">
+              <span className="doctor-direction-service">{formatServiceExecution(service?.raw?.sdServiceType || (entryType === 'ALL' ? undefined : entryType))}</span>
+            </div>
+          )}
+
+          {isMedication ? (
+            entryType === 'HERBAL' ? (
+              <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                <div className="doctor-entry-input-unit">
+                  <input id="doctor-unified-quantity" aria-label="总量" type="number"
+                    disabled={!hasEnteredOrder}
+                    value={medicationEntry.doseValue === '' || medicationEntry.herbalDoseCount === '' ? ''
+                      : Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount)}
+                    onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} readOnly />
+                  <small>g</small>
+                </div>
+              </div>
+            ) : (
+              <div className={`doctor-inline-order-field doctor-inline-order-quantity ${isStockInsufficient ? 'is-danger' : ''}${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+                <div className="doctor-entry-input-unit">
+                  <input id="doctor-unified-quantity" aria-label="总量" type="number" min="0.01" step="0.01"
+                    disabled={!hasEnteredOrder}
+                    title={isStockInsufficient ? `开立数量超过当前可用库存` : (calcResult?.calculationText ? `根据剂量频次自动计算: ${calcResult.calculationText}` : undefined)}
+                    value={medicationEntry.quantity} placeholder="数量"
+                    onFocus={(event) => event.currentTarget.select()}
+                    onChange={(event) => updateMedication('quantity', numberValue(event.target.value))}
+                    onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
+                  <small>{formatPackageUnit(selectedProduct?.unitName, selectedProduct?.unitCode)}</small>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+              <div className="doctor-entry-input-unit">
+                <input id="doctor-unified-quantity" aria-label="项目数量" type="number" min="0.01" step="0.01"
+                  disabled={!hasEnteredOrder}
+                  value={serviceQuantity} placeholder="数量"
+                  onFocus={(event) => event.currentTarget.select()}
+                  onChange={(event) => setServiceQuantity(Number(event.target.value))}
+                  onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? 'doctor-unified-service-note' : undefined)} />
+                <small>{service?.raw?.unitCode ?? '项'}</small>
+              </div>
+            </div>
+          )}
+
+          <div className="doctor-inline-order-static doctor-inline-order-dept">
+            {hasEnteredOrder ? (
+              <span className="doctor-direction-chip is-dept">
+                {isMedication ? (
+                  resolveExecutingDepartment({
+                    kind: 'medication',
+                    type: entryType,
+                    stockSiteName: medicationEntry.stockSiteName,
+                  }, currentDept)
+                ) : (
+                  resolveExecutingDepartment({
+                    kind: 'service',
+                    type: service?.raw?.sdServiceType || (entryType === 'ALL' ? undefined : entryType),
+                    itemName: service?.raw?.name,
+                  }, currentDept)
+                )}
+              </span>
+            ) : (
+              <span className="doctor-inline-order-placeholder">—</span>
+            )}
+          </div>
+
+          {isMedication ? (
+            entryType === 'HERBAL' ? (
+              <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
+                <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
+                  disabled={!hasEnteredOrder}
+                  list="doctor-herbal-instruction-options"
+                  onFocus={(event) => event.currentTarget.select()}
+                  placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
+                  onKeyDown={(event) => continueOnEnter(event)} />
+                <datalist id="doctor-herbal-instruction-options">
+                  {['先煎', '后下', '包煎', '烊化', '冲服', '另煎', '生用'].map((value) => <option key={value} value={value} />)}
+                </datalist>
+              </div>
+            ) : (
+              <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="用药嘱托">
+                <input id="doctor-unified-instruction" aria-label="用药嘱托" value={medicationEntry.instruction}
+                  disabled={!hasEnteredOrder}
+                  onFocus={(event) => event.currentTarget.select()}
+                  placeholder="嘱托 (如: 饭后)" onChange={(event) => updateMedication('instruction', event.target.value)}
+                  onKeyDown={(event) => continueOnEnter(event)} />
+              </div>
+            )
+          ) : (
+            <div className={`doctor-inline-order-field doctor-inline-order-instruction doctor-inline-order-service-note${!hasEnteredOrder ? ' is-disabled' : ''}`}>
+              <input id="doctor-unified-service-note" className="doctor-unified-service-note" aria-label="临床说明"
+                disabled={!hasEnteredOrder}
+                value={serviceDescription} placeholder={entryType === 'LABORATORY' ? '标本种类或检验目的 (回车跳至数量)' : entryType === 'EXAMINATION' ? '检查部位及检查目的 (回车跳至数量)' : '治疗部位或临床说明 (回车确认添加)'}
+                onFocus={(event) => event.currentTarget.select()}
+                onChange={(event) => setServiceDescription(event.target.value)}
+                onKeyDown={(event) => continueOnEnter(event, entryType === 'TREATMENT' ? undefined : 'doctor-unified-quantity')} />
+            </div>
+          )}
+
+          {isMedication ? (
+            <div className="doctor-inline-order-static doctor-inline-order-price">
+              {selectedProduct ? formatUnitPrice(selectedProduct.price, selectedProduct.currencyCode) : '—'}
+            </div>
+          ) : (
+            <div className="doctor-inline-order-static doctor-inline-order-price">
+              {(() => {
+                const activePrice = service?.raw?.prices?.find((p) => p.sdStatus === 'ACTIVE') ?? service?.raw?.prices?.[0]
+                return activePrice ? formatUnitPrice(activePrice.price, activePrice.currencyCode) : '—'
+              })()}
+            </div>
+          )}
+
+          <div className="doctor-inline-order-status">
+            <StatusBadge tone={groupingSession ? 'success' : 'info'}>
+              {groupingSession ? '成组中' : '录入中'}
+            </StatusBadge>
+          </div>
+          <div className="doctor-inline-order-actions">
+            <Button size="sm" variant="primary" className="doctor-unified-entry-add-btn" onClick={addCurrentEntry}
+              disabled={!hasEnteredOrder}
+              title="加入待确认列表 (Enter / Ctrl+Enter)" aria-label="加入医嘱"><Icon name="add" /></Button>
+            <Button size="sm" variant="text" className="doctor-unified-entry-close-btn" onClick={closeComposer}
+              title="退出录入" aria-label="退出医嘱录入"><Icon name="close" /></Button>
+          </div>
+        </div>
+
+        {groupingSession && (
+          <div className="doctor-unified-order-subrow doctor-grouping-banner" role="status">
+            <span className="doctor-grouping-tip">
+              <strong>成组录入模式</strong>（已关联首药：{groupingSession.headMedicationName}，途径与频次已对齐）
+            </span>
+            <Button size="sm" variant="secondary" onClick={finishGroupingSession}>组方完成</Button>
+          </div>
+        )}
+
+        {entryType === 'HERBAL' && (
+          <div className="doctor-unified-order-subrow doctor-herbal-formula-summary" role="row">
+            <strong>方剂设置</strong>
+            <span>{medicationEntry.herbalDoseCount || '未填'}剂 · {medicationEntry.herbalMethod || '未填写服法'} · {medicationEntry.frequencyCode || '未填写频次'}</span>
+            <small>连续录入下一味时自动保留</small>
+          </div>
+        )}
+
+        {hasSafetyAlert && (
+          <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning is-compact" role="row">
+            <div className="doctor-safety-content is-compact">
+              <span className="doctor-safety-badge-title">用药风险提醒：</span>
+              {isAllergyHit && (
+                <span className="doctor-safety-tag is-danger">
+                  <Icon name="warning" /> 命中患者药物过敏：{matchedAllergies.map((item) => item.substanceDisplay).join('、')}
+                </span>
+              )}
+              {!isAllergyHit && hasKnownAllergies && (
+                <span className="doctor-safety-tag is-warning">
+                  患者既往药物过敏：{drugAllergies.map((item) => item.substanceDisplay).join('、')}
+                </span>
+              )}
+              {isSkinTest && (
+                <span className={`doctor-safety-tag ${hasPositiveSkinTest ? 'is-danger' : medicationEntry.skinTestExempt ? 'is-exempt' : 'is-skintest'}`}>
+                  <Icon name={hasPositiveSkinTest ? 'warning' : 'info'} />
+                  {hasPositiveSkinTest
+                    ? '严正警示：患者当前药品皮试结果为【阳性】，禁止开立！'
+                    : medicationEntry.skinTestExempt
+                    ? `已免做皮试：${medicationEntry.skinTestExemptReason || '符合免试规则'}`
+                    : '需皮试药品（默认派发皮试任务）'}
+                </span>
+              )}
               {isSkinTest && !hasPositiveSkinTest && (
-                <div className="doctor-skintest-interactive-bar">
+                <div className="doctor-skintest-exempt-inline">
                   {recentNegativeItem && (
                     <div className="doctor-skintest-evidence-alert">
                       <span className="doctor-evidence-badge">探测到历史有效皮试</span>
@@ -1842,57 +1715,267 @@ export function UnifiedOrderListEditor({
                       )}
                     </div>
                   )}
-                  <div className="doctor-skintest-exempt-options">
-                    <label className="doctor-exempt-toggle">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(medicationEntry.skinTestExempt)}
-                        onChange={(e) => {
-                          const checked = e.target.checked
-                          setMedicationEntry((curr) => ({
-                            ...curr,
-                            skinTestExempt: checked,
-                            skinTestExemptReason: checked
-                              ? (curr.skinTestExemptReason || '周期内已有阴性结果（有效时间内）')
-                              : '',
-                            exemptEvidenceEventId: checked ? curr.exemptEvidenceEventId : undefined,
-                          }))
-                        }}
+                  <label className="doctor-exempt-toggle">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(medicationEntry.skinTestExempt)}
+                      onChange={(e) => {
+                        const checked = e.target.checked
+                        setMedicationEntry((curr) => ({
+                          ...curr,
+                          skinTestExempt: checked,
+                          skinTestExemptReason: checked
+                            ? (curr.skinTestExemptReason || '周期内已有阴性结果（有效时间内）')
+                            : '',
+                          exemptEvidenceEventId: checked ? curr.exemptEvidenceEventId : undefined,
+                        }))
+                      }}
+                    />
+                    <span>免做皮试</span>
+                  </label>
+                  {medicationEntry.skinTestExempt && (
+                    <div className="doctor-exempt-reason-select">
+                      <Select
+                        value={medicationEntry.skinTestExemptReason || '周期内已有阴性结果（有效时间内）'}
+                        options={[
+                          { value: '周期内已有阴性结果（有效时间内）', label: '周期内已有阴性结果（有效时间内）' },
+                          { value: '同批号连续用药', label: '同批号连续用药' },
+                          { value: '外院有效皮试结果证明', label: '外院有效皮试结果证明' },
+                          { value: '患者既往近期规则耐受使用', label: '患者既往近期规则耐受使用' },
+                          { value: '其他临床裁量免试', label: '其他临床裁量免试' },
+                        ]}
+                        searchable={false}
+                        clearable={false}
+                        onChange={(val) => setMedicationEntry((curr) => ({ ...curr, skinTestExemptReason: val }))}
                       />
-                      <span>免做皮试</span>
-                    </label>
-                    {medicationEntry.skinTestExempt && (
-                      <div className="doctor-exempt-reason-select">
-                        <Select
-                          value={medicationEntry.skinTestExemptReason || '周期内已有阴性结果（有效时间内）'}
-                          options={[
-                            { value: '周期内已有阴性结果（有效时间内）', label: '周期内已有阴性结果（有效时间内）' },
-                            { value: '同批号连续用药', label: '同批号连续用药' },
-                            { value: '外院有效皮试结果证明', label: '外院有效皮试结果证明' },
-                            { value: '患者既往近期规则耐受使用', label: '患者既往近期规则耐受使用' },
-                            { value: '其他临床裁量免试', label: '其他临床裁量免试' },
-                          ]}
-                          searchable={false}
-                          clearable={false}
-                          onChange={(val) => setMedicationEntry((curr) => ({ ...curr, skinTestExemptReason: val }))}
-                        />
-                      </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
               )}
+              {isAntimicrobial && (
+                <span className="doctor-safety-tag is-antimicrobial">
+                  抗菌药物{currentMedication?.sdAntimicrobialLevelText ? ` · ${currentMedication.sdAntimicrobialLevelText}` : ''}
+                </span>
+              )}
+              {isAllergyHit && (
+                <input aria-label="继续开立理由" value={medicationEntry.allergyOverrideReason}
+                  placeholder="命中已知过敏，请输入继续开立理由" onChange={(event) => updateMedication('allergyOverrideReason', event.target.value)} />
+              )}
             </div>
-          )}
+          </div>
+        )}
 
-          {(validationError || frequencies.error || routes.error) && (
-            <div className="doctor-unified-order-subrow doctor-unified-order-error" role="row">
-              <Alert className="doctor-unified-order-alert">
-                {validationError || (routes.error ? '给药途径数据加载失败' : '频次数据加载失败')}
-              </Alert>
-            </div>
-          )}
-        </>
+        {(validationError || frequencies.error || routes.error) && (
+          <div className="doctor-unified-order-subrow doctor-unified-order-error" role="row">
+            <Alert className="doctor-unified-order-alert">
+              {validationError || (routes.error ? '给药途径数据加载失败' : '频次数据加载失败')}
+            </Alert>
+          </div>
+        )}
+      </Fragment>
+    )
+  }
+
+  return <div className={`doctor-unified-orders${readOnly ? ' is-readonly' : ''}`} onKeyDown={handleEntryBoxKeyDown}>
+    {successToast && (
+      <div className="doctor-unified-order-toast" role="status">
+        <Icon name="check" />
+        <span>{successToast}</span>
+        <button type="button" className="doctor-toast-close" onClick={() => setSuccessToast('')} aria-label="关闭提示">
+          <Icon name="close" />
+        </button>
+      </div>
+    )}
+
+    <div className="doctor-table-wrap">
+      <div className={`doctor-unified-order-list ${savedEntries.length === 0 && draftEntries.length === 0 ? 'is-empty' : ''}`} role="table" aria-label="本次医嘱连续录入列表">
+      <div className="doctor-unified-order-head" role="row">
+        <span className="doctor-unified-cell-type">类型</span>
+        <span className="doctor-unified-cell-name">药品 / 项目</span>
+        <span className="doctor-unified-cell-directions">用法用量 / 执行要求</span>
+        <span className="doctor-unified-cell-qty">总量</span>
+        <span className="doctor-unified-cell-dept">执行科室</span>
+        <span className="doctor-unified-cell-instruction">嘱托 / 说明</span>
+        <span className="doctor-unified-cell-price">单价</span>
+        <span className="doctor-unified-cell-status">状态</span>
+        {!readOnly && <span className="doctor-unified-cell-actions">操作</span>}
+      </div>
+
+      {!readOnly && <div ref={aiSuggestionSurfaceRef} />}
+
+      {savedEntries.length === 0 && draftEntries.length === 0 && readOnly && (
+        <div className="doctor-unified-order-empty" role="row">
+          <span>暂无已开立医嘱</span>
+        </div>
       )}
+
+      {savedEntries.map((entry, index) => {
+        let rowNode: React.ReactNode
+        if (entry.kind === 'service') {
+          rowNode = <ServiceReadRow key={`service-${entry.value.id}`} value={entry.value}
+            busy={busy} readOnly={readOnly} currentDept={currentDept} onCancel={() => onCancelService(entry.value)}
+            onPrint={entry.value.status === 'ACTIVE' ? () => onPrintService(entry.value) : undefined} />
+        } else {
+          const prescription = prescriptions.find((value) => value.id === entry.value.prescriptionId)
+          const firstLine = prescription?.medicationRequests.find((value) => value.status === 'ACTIVE')?.id === entry.value.id
+          const prev = index > 0 ? savedEntries[index - 1] : undefined
+          const next = index < savedEntries.length - 1 ? savedEntries[index + 1] : undefined
+          const entryGroupId = entry.value.parentRequestId || entry.value.id
+          const sameGroupAsPrev = Boolean(
+            entry.value.routeExecutionType === 'INFUSION' &&
+            prev?.kind === 'medication' &&
+            prev.value.routeExecutionType === 'INFUSION' &&
+            entryGroupId === (prev.value.parentRequestId || prev.value.id)
+          )
+          const nextInSaved = Boolean(
+            entry.value.routeExecutionType === 'INFUSION' &&
+            next?.kind === 'medication' &&
+            next.value.routeExecutionType === 'INFUSION' &&
+            entryGroupId === (next.value.parentRequestId || next.value.id)
+          )
+          const isLastSavedInGroup = !savedEntries.slice(index + 1).some(
+            (s) => s.kind === 'medication' &&
+              s.value.routeExecutionType === 'INFUSION' &&
+              (s.value.parentRequestId || s.value.id) === entryGroupId
+          )
+          const hasDraftsInGroup = draftEntries.some(
+            (d) => d.kind === 'medication' &&
+              d.value.routeExecutionType === 'INFUSION' &&
+              (d.value.parentRequestId || d.value.administrationGroupKey) === entryGroupId
+          )
+          const nextIsComposerSession = Boolean(
+            isLastSavedInGroup &&
+            !hasDraftsInGroup &&
+            isComposerActive &&
+            groupingSession &&
+            (groupingSession.groupKey === entry.value.id ||
+              groupingSession.groupKey === entry.value.parentRequestId ||
+              groupingSession.groupKey === `request:${entry.value.id}` ||
+              groupingSession.groupKey === `request:${entry.value.parentRequestId}`)
+          )
+          const sameGroupAsNext = nextInSaved || hasDraftsInGroup || nextIsComposerSession
+          const isHead = !sameGroupAsPrev && sameGroupAsNext
+          const isMid = sameGroupAsPrev && sameGroupAsNext
+          const isTail = sameGroupAsPrev && !sameGroupAsNext
+          rowNode = <MedicationReadRow key={`medication-${entry.value.id}`} value={entry.value} busy={busy}
+            isHead={isHead}
+            isMid={isMid}
+            isTail={isTail}
+            readOnly={readOnly}
+            currentDept={currentDept}
+            skinTest={skinTestByRequest.get(entry.value.id)}
+            onCancel={() => onCancelMedication(entry.value)}
+            onPrint={prescription && firstLine && canPrintPrescription(prescription) ? () => onPrint(prescription) : undefined} />
+        }
+        if (groupingComposerTarget?.type === 'saved' && groupingComposerTarget.index === index) {
+          return (
+            <Fragment key={`saved-wrap-${entry.value.id}`}>
+              {rowNode}
+              {renderComposer()}
+            </Fragment>
+          )
+        }
+        return rowNode
+      })}
+
+      {!readOnly && draftEntries.map((entry, index) => {
+        const rowNode = entry.kind === 'service'
+          ? editingDraft?.kind === 'service' && editingDraft.id === entry.value.id
+            ? <ServiceDraftEditRow key={`draft-service-edit-${entry.value.id}`} value={entry.value}
+                currentDept={currentDept}
+                onCancel={() => setEditingDraft(null)}
+                onSave={(next) => {
+                  setServiceDrafts((current) => current.map((value) => value.id === next.id ? next : value))
+                  setEditingDraft(null)
+                }}
+                onRemove={() => {
+                  setEditingDraft((curr) => curr?.id === entry.value.id ? null : curr)
+                  setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))
+                }} />
+            : <ServiceDraftRow key={`draft-service-${entry.value.id}`} value={entry.value}
+                currentDept={currentDept}
+                onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'service', id: entry.value.id }) }}
+                onRemove={() => setServiceDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
+          : editingDraft?.kind === 'medication' && editingDraft.id === entry.value.id
+            ? <MedicationDraftEditRow key={`draft-medication-edit-${entry.value.id}`} value={entry.value}
+                routeOptions={routeOptions} frequencyOptions={frequencyOptions}
+                routeExecutionTypes={new Map((routes.data ?? []).map((value) => [value.code, value.executionType]))}
+                administrationGroupOptions={administrationGroups.options}
+                frequencies={frequencies.data ?? []}
+                currentDept={currentDept}
+                encounter={encounter}
+                api={api}
+                allergies={allergies}
+                skinTests={skinTests}
+                onAppendToGroup={continueGroupingFromDraft}
+                onCancel={() => setEditingDraft(null)}
+                onSave={(next) => {
+                  setMedicationDrafts((current) => syncMedicationDraftGroup(
+                    current,
+                    next,
+                    frequencies.data ?? []
+                  ))
+                  if (groupingSession && next.administrationGroupKey && groupingSession.groupKey === next.administrationGroupKey) {
+                    setGroupingSession((curr) => curr ? {
+                      ...curr,
+                      routeCode: next.request.routeCode || curr.routeCode,
+                      frequencyCode: next.request.frequencyCode || curr.frequencyCode,
+                      durationValue: next.request.durationValue ?? curr.durationValue,
+                    } : null)
+                  }
+                  setEditingDraft(null)
+                }}
+                onRemove={() => {
+                  setEditingDraft((curr) => curr?.id === entry.value.id ? null : curr)
+                  setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))
+                }} />
+            : (() => {
+                const prev = index > 0 ? draftEntries[index - 1] : undefined
+                const next = index < draftEntries.length - 1 ? draftEntries[index + 1] : undefined
+                const sameGroupAsPrev = Boolean(
+                  entry.value.administrationGroupKey &&
+                  prev?.kind === 'medication' &&
+                  prev.value.administrationGroupKey === entry.value.administrationGroupKey
+                )
+                const nextInDrafts = Boolean(
+                  entry.value.administrationGroupKey &&
+                  next?.kind === 'medication' &&
+                  next.value.administrationGroupKey === entry.value.administrationGroupKey
+                )
+                const isLastDraftInThisGroup = !draftEntries.slice(index + 1).some(
+                  (d) => d.kind === 'medication' && d.value.administrationGroupKey === entry.value.administrationGroupKey
+                )
+                const nextIsComposerSession = Boolean(
+                  isLastDraftInThisGroup &&
+                  isComposerActive &&
+                  groupingSession &&
+                  entry.value.administrationGroupKey === groupingSession.groupKey
+                )
+                const sameGroupAsNext = nextInDrafts || nextIsComposerSession
+                const isHead = !sameGroupAsPrev && sameGroupAsNext
+                const isMid = sameGroupAsPrev && sameGroupAsNext
+                const isTail = sameGroupAsPrev && !sameGroupAsNext
+                return <MedicationDraftRow key={`draft-medication-${entry.value.id}`} value={entry.value}
+                  isHead={isHead}
+                  isMid={isMid}
+                  isTail={isTail}
+                  currentDept={currentDept}
+                  onAppendToGroup={continueGroupingFromDraft}
+                  onEdit={() => { setComposerOpen(false); setEditingDraft({ kind: 'medication', id: entry.value.id }) }}
+                  onRemove={() => setMedicationDrafts((current) => current.filter((value) => value.id !== entry.value.id))} />
+              })()
+        if (groupingComposerTarget?.type === 'draft' && groupingComposerTarget.index === index) {
+          return (
+            <Fragment key={`draft-wrap-${entry.value.id}`}>
+              {rowNode}
+              {renderComposer()}
+            </Fragment>
+          )
+        }
+        return rowNode
+      })}
+
+      {!readOnly && isComposerActive && !groupingComposerTarget && renderComposer()}
       </div>
 
       {!readOnly && !isComposerActive && !editingDraft && (
@@ -1921,18 +2004,24 @@ function MedicationReadRow({ value, skinTest, busy, readOnly, isHead, isTail, is
   const spec = value.packageSpec || value.preparationSpec
   const mfr = value.manufacturerName
   return <div className="doctor-unified-order-row" role="row">
-    <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.medicationType === 'HERBAL' ? 'HERBAL'
-      : value.medicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT' : 'MEDICATION'} />
-      <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} /></span>
+    <span className="doctor-unified-cell-type">
+      <OrderTypeBadge type={value.medicationType === 'HERBAL' ? 'HERBAL'
+        : value.medicationType === 'CHINESE_PATENT' ? 'CHINESE_PATENT' : 'MEDICATION'} />
+    </span>
     <span className="doctor-unified-order-name">
-      <strong>{value.itemName || value.medicationName}</strong>
-      {(spec || mfr) && (
-        <div className="doctor-unified-order-subtext">
-          {spec && <span>{spec}</span>}
-          {spec && mfr && <span className="doctor-subtext-divider">/</span>}
-          {mfr && <span>{mfr}</span>}
+      <div className="doctor-unified-order-name-row">
+        <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} />
+        <div className="doctor-unified-order-name-text">
+          <strong>{value.itemName || value.medicationName}</strong>
+          {(spec || mfr) && (
+            <div className="doctor-unified-order-subtext">
+              {spec && <span>{spec}</span>}
+              {spec && mfr && <span className="doctor-subtext-divider">/</span>}
+              {mfr && <span>{mfr}</span>}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </span>
     <span className="doctor-unified-directions">
       {value.doseValue ? <span className="doctor-direction-chip is-dose">{value.doseValue}{value.doseUnit || ''}</span> : null}
@@ -2150,6 +2239,18 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
   const hasSavedRef = useRef(false)
   const isRemovingRef = useRef(false)
   const isAppendingRef = useRef(false)
+  const isInteractingWithContainerRef = useRef(false)
+  const containerInteractionTimeoutRef = useRef<number | null>(null)
+
+  const markContainerInteraction = () => {
+    isInteractingWithContainerRef.current = true
+    if (containerInteractionTimeoutRef.current) {
+      window.clearTimeout(containerInteractionTimeoutRef.current)
+    }
+    containerInteractionTimeoutRef.current = window.setTimeout(() => {
+      isInteractingWithContainerRef.current = false
+    }, 400)
+  }
 
   const getUpdatedDraft = (): MedicationPlanDraft => ({
     ...value,
@@ -2206,6 +2307,14 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
   saveRef.current = save
 
   useEffect(() => {
+    const listEl = rowRef.current?.closest('.doctor-unified-order-list')
+    const handleScroll = () => {
+      markContainerInteraction()
+    }
+    if (listEl) {
+      listEl.addEventListener('scroll', handleScroll, { passive: true })
+    }
+
     const handleOutsideInteraction = (event: Event) => {
       if (isRemovingRef.current || isAppendingRef.current) return
       const target = event.target as Node | null
@@ -2214,6 +2323,11 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
       const isInsidePopover = Boolean(
         (target as Element)?.closest?.('.ui-select__popover, .ui-remote-search__popover, .ui-popconfirm')
       )
+      const isTableContainer = target === listEl || Boolean((target as Element)?.classList?.contains('doctor-unified-order-list'))
+      if (isTableContainer) {
+        markContainerInteraction()
+        return
+      }
       if (!isInsideRow && !isInsidePopover) {
         saveRef.current()
       }
@@ -2223,6 +2337,12 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
     document.addEventListener('mousedown', handleOutsideInteraction)
     document.addEventListener('click', handleOutsideInteraction, true)
     return () => {
+      if (listEl) {
+        listEl.removeEventListener('scroll', handleScroll)
+      }
+      if (containerInteractionTimeoutRef.current) {
+        window.clearTimeout(containerInteractionTimeoutRef.current)
+      }
       document.removeEventListener('pointerdown', handleOutsideInteraction)
       document.removeEventListener('mousedown', handleOutsideInteraction)
       document.removeEventListener('click', handleOutsideInteraction, true)
@@ -2231,10 +2351,12 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
 
   const handleBlur = (event: React.FocusEvent) => {
     if (isRemovingRef.current || isAppendingRef.current) return
+    if (isInteractingWithContainerRef.current) return
     const next = event.relatedTarget as Node | null
     if (!next) {
       setTimeout(() => {
         if (isRemovingRef.current || isAppendingRef.current) return
+        if (isInteractingWithContainerRef.current) return
         const active = document.activeElement
         const isInsideRow = rowRef.current?.contains(active)
         const isInsidePopover = Boolean(
@@ -2243,7 +2365,7 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
         if (!isInsideRow && !isInsidePopover) {
           save()
         }
-      }, 50)
+      }, 100)
       return
     }
     const isInsideRow = rowRef.current?.contains(next)
@@ -2280,31 +2402,37 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
       >
         <div className="doctor-inline-order-static-type">
           <OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} />
-          {(executionType === 'INFUSION' || Boolean(administrationGroupKey)) && (
-            <Select
-              id={`draft-group-${value.id}`}
-              aria-label="编辑输液分组"
-              value={administrationGroupKey || ''}
-              clearable={false}
-              searchable={false}
-              options={[{ value: '__NEW__', label: '新组' }, ...administrationGroupOptions]}
-              onChange={(next) => setAdministrationGroupKey(next === '__NEW__' ? newAdministrationGroupKey() : next)}
-              onSelectionCommit={() => focusControlAfterSelection(`draft-frequency-${value.id}`)}
-            />
-          )}
         </div>
         <div
           className="doctor-inline-order-static-resource"
           title={`${value.productName || value.medicationName}${spec ? ` (${spec})` : ''}${mfr ? ` · ${mfr}` : ''}`}
         >
-          <strong>{value.productName || value.medicationName}</strong>
-          {(spec || mfr) && (
-            <div className="doctor-unified-order-subtext">
-              {spec && <span>{spec}</span>}
-              {spec && mfr && <span className="doctor-subtext-divider">/</span>}
-              {mfr && <span>{mfr}</span>}
+          <div className="doctor-draft-edit-resource-wrap">
+            {(executionType === 'INFUSION' || Boolean(administrationGroupKey)) && (
+              <div className="doctor-draft-group-selector">
+                <Select
+                  id={`draft-group-${value.id}`}
+                  aria-label="编辑输液分组"
+                  value={administrationGroupKey || ''}
+                  clearable={false}
+                  searchable={false}
+                  options={[{ value: '__NEW__', label: '新组' }, ...administrationGroupOptions]}
+                  onChange={(next) => setAdministrationGroupKey(next === '__NEW__' ? newAdministrationGroupKey() : next)}
+                  onSelectionCommit={() => focusControlAfterSelection(`draft-frequency-${value.id}`)}
+                />
+              </div>
+            )}
+            <div className="doctor-draft-resource-text">
+              <strong>{value.productName || value.medicationName}</strong>
+              {(spec || mfr) && (
+                <div className="doctor-unified-order-subtext">
+                  {spec && <span>{spec}</span>}
+                  {spec && mfr && <span className="doctor-subtext-divider">/</span>}
+                  {mfr && <span>{mfr}</span>}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
         <div className="doctor-inline-order-directions-group">
           <div className="doctor-inline-order-field doctor-inline-order-dose">
@@ -2446,7 +2574,7 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
               onClick={handleAppendToGroup}
               title="向该输液组追加药品"
             >
-              + 同组加药
+              + 同组
             </Button>
           )}
           <Popconfirm
@@ -2469,8 +2597,8 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
       </div>
 
       {hasSafetyAlert && (
-        <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning" role="row">
-          <div className="doctor-safety-content">
+        <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning is-compact" role="row">
+          <div className="doctor-safety-content is-compact">
             <span className="doctor-safety-badge-title">用药风险提醒：</span>
             {isAllergyHit && (
               <span className="doctor-safety-tag is-danger">
@@ -2494,31 +2622,11 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
                   : '需皮试药品（默认派发皮试任务）'}
               </span>
             )}
-            {isAntimicrobial && (
-              <span className="doctor-safety-tag is-antimicrobial">
-                抗菌药物{antimicrobialLevelText ? ` · ${antimicrobialLevelText}` : ''}
-              </span>
-            )}
-            {isAllergyHit && (
-              <input
-                aria-label="继续开立理由"
-                value={allergyOverrideReason}
-                placeholder="命中已知过敏，请输入继续开立理由"
-                onChange={(event) => setAllergyOverrideReason(event.target.value)}
-              />
-            )}
-          </div>
-          {isSkinTest && !hasPositiveSkinTest && (
-            <div className="doctor-skintest-interactive-bar">
-              {recentNegativeItem && (
-                <div className="doctor-skintest-evidence-alert">
-                  <span className="doctor-evidence-badge">探测到历史有效皮试</span>
-                  <span className="doctor-evidence-info">
-                    记录 #{recentNegativeItem.eventId}（阴性，完成于 {recentNegativeItem.completedAt ? formatTime(recentNegativeItem.completedAt) : '近期'}
-                    {recentNegativeItem.verifiedByName ? `，复核护士：${recentNegativeItem.verifiedByName}` : ''}
-                    {recentNegativeItem.resultValidityHours ? `，有效期 ${recentNegativeItem.resultValidityHours} 小时` : ''}）
-                  </span>
-                  {!skinTestExempt ? (
+            {isSkinTest && !hasPositiveSkinTest && (
+              <div className="doctor-skintest-exempt-inline">
+                {recentNegativeItem && !skinTestExempt && (
+                  <span className="doctor-skintest-evidence-inline">
+                    <span className="doctor-evidence-badge">历史阴性</span>
                     <Button
                       size="sm"
                       variant="secondary"
@@ -2530,12 +2638,8 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
                     >
                       一键引用免试
                     </Button>
-                  ) : (
-                    <span className="doctor-evidence-applied-tag">已引用免试</span>
-                  )}
-                </div>
-              )}
-              <div className="doctor-skintest-exempt-options">
+                  </span>
+                )}
                 <label className="doctor-exempt-toggle">
                   <input
                     type="checkbox"
@@ -2571,8 +2675,21 @@ function MedicationDraftEditRow({ value, routeOptions, frequencyOptions, routeEx
                   </div>
                 )}
               </div>
-            </div>
-          )}
+            )}
+            {isAntimicrobial && (
+              <span className="doctor-safety-tag is-antimicrobial">
+                抗菌药物{antimicrobialLevelText ? ` · ${antimicrobialLevelText}` : ''}
+              </span>
+            )}
+            {isAllergyHit && (
+              <input
+                aria-label="继续开立理由"
+                value={allergyOverrideReason}
+                placeholder="命中已知过敏，请输入继续开立理由"
+                onChange={(event) => setAllergyOverrideReason(event.target.value)}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -2589,6 +2706,18 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
   const rowRef = useRef<HTMLDivElement>(null)
   const hasSavedRef = useRef(false)
   const isRemovingRef = useRef(false)
+  const isInteractingWithContainerRef = useRef(false)
+  const containerInteractionTimeoutRef = useRef<number | null>(null)
+
+  const markContainerInteraction = () => {
+    isInteractingWithContainerRef.current = true
+    if (containerInteractionTimeoutRef.current) {
+      window.clearTimeout(containerInteractionTimeoutRef.current)
+    }
+    containerInteractionTimeoutRef.current = window.setTimeout(() => {
+      isInteractingWithContainerRef.current = false
+    }, 400)
+  }
 
   const save = () => {
     if (hasSavedRef.current || isRemovingRef.current) return
@@ -2604,6 +2733,14 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
   saveRef.current = save
 
   useEffect(() => {
+    const listEl = rowRef.current?.closest('.doctor-unified-order-list')
+    const handleScroll = () => {
+      markContainerInteraction()
+    }
+    if (listEl) {
+      listEl.addEventListener('scroll', handleScroll, { passive: true })
+    }
+
     const handleOutsideInteraction = (event: Event) => {
       if (isRemovingRef.current) return
       const target = event.target as Node | null
@@ -2612,6 +2749,11 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
       const isInsidePopover = Boolean(
         (target as Element)?.closest?.('.ui-select__popover, .ui-remote-search__popover, .ui-popconfirm')
       )
+      const isTableContainer = target === listEl || Boolean((target as Element)?.classList?.contains('doctor-unified-order-list'))
+      if (isTableContainer) {
+        markContainerInteraction()
+        return
+      }
       if (!isInsideRow && !isInsidePopover) {
         saveRef.current()
       }
@@ -2621,6 +2763,12 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
     document.addEventListener('mousedown', handleOutsideInteraction)
     document.addEventListener('click', handleOutsideInteraction, true)
     return () => {
+      if (listEl) {
+        listEl.removeEventListener('scroll', handleScroll)
+      }
+      if (containerInteractionTimeoutRef.current) {
+        window.clearTimeout(containerInteractionTimeoutRef.current)
+      }
       document.removeEventListener('pointerdown', handleOutsideInteraction)
       document.removeEventListener('mousedown', handleOutsideInteraction)
       document.removeEventListener('click', handleOutsideInteraction, true)
@@ -2629,10 +2777,12 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
 
   const handleBlur = (event: React.FocusEvent) => {
     if (isRemovingRef.current) return
+    if (isInteractingWithContainerRef.current) return
     const next = event.relatedTarget as Node | null
     if (!next) {
       setTimeout(() => {
         if (isRemovingRef.current) return
+        if (isInteractingWithContainerRef.current) return
         const active = document.activeElement
         const isInsideRow = rowRef.current?.contains(active)
         const isInsidePopover = Boolean(
@@ -2641,7 +2791,7 @@ function ServiceDraftEditRow({ value, onSave, onCancel, onRemove, currentDept }:
         if (!isInsideRow && !isInsidePopover) {
           save()
         }
-      }, 50)
+      }, 100)
       return
     }
     const isInsideRow = rowRef.current?.contains(next)
@@ -2717,17 +2867,23 @@ function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, on
   return <div className="doctor-unified-order-row is-draft is-editable" role="row" tabIndex={0}
     aria-label={`编辑待确认医嘱 ${value.medicationName}`} title="单击编辑医嘱" onClick={onEdit}
     onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onEdit() } }}>
-    <span className="doctor-unified-cell-type"><OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} />
-      <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} /></span>
+    <span className="doctor-unified-cell-type">
+      <OrderTypeBadge type={value.editorMode === 'herbal' ? 'HERBAL' : value.categoryCode} />
+    </span>
     <span className="doctor-unified-order-name">
-      <strong>{value.productName || value.medicationName}</strong>
-      {(spec || mfr) && (
-        <div className="doctor-unified-order-subtext">
-          {spec && <span>{spec}</span>}
-          {spec && mfr && <span className="doctor-subtext-divider">/</span>}
-          {mfr && <span>{mfr}</span>}
+      <div className="doctor-unified-order-name-row">
+        <AdministrationGroupBracket isHead={isHead} isTail={isTail} isMid={isMid} />
+        <div className="doctor-unified-order-name-text">
+          <strong>{value.productName || value.medicationName}</strong>
+          {(spec || mfr) && (
+            <div className="doctor-unified-order-subtext">
+              {spec && <span>{spec}</span>}
+              {spec && mfr && <span className="doctor-subtext-divider">/</span>}
+              {mfr && <span>{mfr}</span>}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </span>
     <span className="doctor-unified-directions">
       {value.request.doseValue ? <span className="doctor-direction-chip is-dose">{value.request.doseValue}{value.request.doseUnit || ''}</span> : null}
@@ -2769,7 +2925,7 @@ function MedicationDraftRow({ value, isHead, isTail, isMid, onEdit, onRemove, on
             onAppendToGroup(value)
           }}
         >
-          + 同组加药
+          + 同组
         </Button>
       )}
       <Popconfirm
