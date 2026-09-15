@@ -47,9 +47,11 @@ describe('UnitNumberInput', () => {
     )
 
     const select = screen.getByRole('combobox', { name: '单位' })
-    expect(select).toHaveValue('mg/ml')
+    expect(select).toHaveTextContent('mg/ml')
 
-    await user.selectOptions(select, 'U/ml')
+    await user.click(select)
+    const option = await screen.findByRole('option', { name: 'U/ml' })
+    await user.click(option)
     expect(onUnitChange).toHaveBeenCalledWith('U/ml')
   })
 

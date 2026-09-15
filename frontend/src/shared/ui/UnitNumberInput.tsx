@@ -1,4 +1,5 @@
 import { type ChangeEvent } from 'react'
+import { Select, type SelectOption } from './Select'
 
 export interface UnitOption {
   value: string
@@ -46,7 +47,7 @@ export function UnitNumberInput({
   'aria-invalid': ariaInvalid,
   'aria-required': ariaRequired,
 }: UnitNumberInputProps) {
-  const normalizedUnits: UnitOption[] = (units ?? []).map((u) => {
+  const normalizedUnits: SelectOption[] = (units ?? []).map((u) => {
     if (typeof u === 'string') return { value: u, label: u }
     return u
   })
@@ -57,7 +58,7 @@ export function UnitNumberInput({
     onValueChange?.(e.target.value)
   }
 
-  const handleUnitChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleUnitTextChange = (e: ChangeEvent<HTMLInputElement>) => {
     onUnitChange?.(e.target.value)
   }
 
@@ -88,19 +89,18 @@ export function UnitNumberInput({
 
       <div className="ui-unit-number-input__unit-wrap">
         {hasUnitOptions && !unitReadOnly ? (
-          <select
+          <Select
             className="ui-unit-number-input__unit-select"
             value={unit}
+            options={normalizedUnits}
+            placeholder="单位"
             disabled={disabled || readOnly}
+            clearable={false}
+            searchable={false}
+            popoverMinWidth={110}
             aria-label="单位"
-            onChange={handleUnitChange}
-          >
-            {normalizedUnits.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+            onChange={(selectedVal) => onUnitChange?.(selectedVal)}
+          />
         ) : unitReadOnly ? (
           <span className="ui-unit-number-input__unit-label" aria-label="单位">
             {unit}
@@ -115,7 +115,7 @@ export function UnitNumberInput({
             placeholder="单位"
             aria-label="单位"
             maxLength={32}
-            onChange={handleUnitChange}
+            onChange={handleUnitTextChange}
           />
         )}
       </div>

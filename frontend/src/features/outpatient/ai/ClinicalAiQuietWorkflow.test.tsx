@@ -47,7 +47,13 @@ function setup(generateStream = vi.fn().mockImplementation(async (_id, input) =>
   }
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } })
   render(<QueryClientProvider client={client}><Harness /></QueryClientProvider>)
-  return { generateStream, recordEvent, apply, surfaces, onFieldStream }
+  const openHub = () => {
+    const pill = screen.queryByRole('button', { name: 'AI 辅诊' })
+    if (pill && pill.getAttribute('aria-expanded') !== 'true') {
+      fireEvent.click(pill)
+    }
+  }
+  return { generateStream, recordEvent, apply, surfaces, onFieldStream, openHub }
 }
 async function advance(ms: number) { await act(async () => { await vi.advanceTimersByTimeAsync(ms) }) }
 
@@ -56,9 +62,13 @@ afterEach(() => { cleanup(); vi.useRealTimers() })
 
 describe('quiet clinical AI workflow', () => {
   it('keeps the default co-writing toolbar compact without removing accessible actions', async () => {
-    setup()
+    const { openHub } = setup()
     await advance(20)
 
+    expect(screen.getByRole('button', { name: 'AI 辅诊' })).toBeInTheDocument()
+    openHub()
+
+    expect(screen.getByText('AI 临床辅诊中枢')).toBeInTheDocument()
     expect(screen.getByText('AI 共写')).toBeInTheDocument()
     expect(screen.getByText('待分析')).toBeInTheDocument()
     expect(screen.queryByText('输入问诊要点后准备建议')).not.toBeInTheDocument()
@@ -67,10 +77,9 @@ describe('quiet clinical AI workflow', () => {
     expect(screen.queryByText('初诊全科接诊')).not.toBeInTheDocument()
     expect(screen.queryByText('自动识别')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '分析当前病历' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: '口述 / 输入要点' })).toHaveTextContent('录入要点')
+    expect(screen.queryByRole('button', { name: '口述 / 输入要点' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: '更多辅助' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
     const composer = screen.getByLabelText('问诊要点或辅助要求')
     const headingLabel = document.querySelector('.doctor-ai-composer-card__head label')
     expect(screen.queryByText('问诊要点与口述录入')).not.toBeInTheDocument()
@@ -79,12 +88,12 @@ describe('quiet clinical AI workflow', () => {
   })
 
   it('generates and directly adopts only the completed record, through audit, without auto-adding diagnoses', async () => {
-    const { apply, recordEvent, generateStream } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
+    const { apply, recordEvent, generateStream, openHub } = setup(vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
       recordDraft: { chiefComplaint: '发热3天', presentIllness: '患者发热3天，最高体温39℃。', medicalHistory: '既往史待询问',
         physicalExam: '专科查体待完成', treatmentPlan: '建议进一步评估病因并随访。' },
       diagnosisCandidates: [{ code: 'R50.9', display: '发热', type: 'PRIMARY', confidence: .8, rationale: '待确认' }] })))
     await advance(20)
-    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    openHub()
     fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '感冒发热3天，最高体温39度' } })
     fireEvent.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await advance(100)
@@ -99,14 +108,14 @@ describe('quiet clinical AI workflow', () => {
     const generateStream = vi.fn().mockImplementationOnce(async (_id, input) => result(input))
       .mockRejectedValueOnce(new Error('生成失败'))
       .mockImplementation(async (_id, input) => ({ ...result(input), id: 'later' }))
-    const { apply } = setup(generateStream)
+    const { apply, openHub } = setup(generateStream)
     await advance(20)
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(50)
     fireEvent.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await advance(50)
     expect(apply).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
     fireEvent.click(screen.getByRole('button', { name: '整理并对照建议' }))
     await advance(50)
     expect(apply).not.toHaveBeenCalled()
@@ -115,11 +124,11 @@ describe('quiet clinical AI workflow', () => {
   it('cancels direct adoption when clinical input changes during generation', async () => {
     let finish!: (value: ClinicalAiSuggestion) => void
     let input!: GenerateClinicalAiSuggestionInput
-    const { apply } = setup(vi.fn().mockImplementation((_id, value) => {
+    const { apply, openHub } = setup(vi.fn().mockImplementation((_id, value) => {
       input = value; return new Promise<ClinicalAiSuggestion>((resolve) => { finish = resolve })
     }))
     await advance(20)
-    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await advance(20)
     fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '患者新补充了重要病史' } })
@@ -130,7 +139,7 @@ describe('quiet clinical AI workflow', () => {
 
   it('never generates on typing or idle time, even with a previously enabled automatic preference', async () => {
     localStorage.setItem('rhn:ai-auto-prepare', 'on')
-    const { generateStream, surfaces, apply } = setup()
+    const { generateStream, surfaces, apply, openHub } = setup()
     await advance(20)
     expect(screen.queryByLabelText('AI 诊断待确认')).not.toBeInTheDocument()
     expect(surfaces.plans).toBeEmptyDOMElement()
@@ -139,7 +148,7 @@ describe('quiet clinical AI workflow', () => {
     fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成问诊输入内容，仅手动触发分析' } })
     await advance(60_000)
     expect(generateStream).not.toHaveBeenCalled()
-    fireEvent.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
+    openHub()
     fireEvent.change(screen.getByLabelText('问诊要点或辅助要求'), { target: { value: '补充模拟问诊描述，停顿不自动分析' } })
     await advance(60_000)
     expect(generateStream).not.toHaveBeenCalled()
@@ -159,8 +168,9 @@ describe('quiet clinical AI workflow', () => {
     const generateStream = vi.fn().mockImplementation(async (_id, input) => ({ ...result(input),
       treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001',
         name: '血常规', rationale: '评估感染' }] }))
-    const { recordEvent } = setup(generateStream, true)
+    const { recordEvent, openHub } = setup(generateStream, true)
     await advance(20)
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(100)
     expect(screen.getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
@@ -180,8 +190,9 @@ describe('quiet clinical AI workflow', () => {
         { type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '评估感染' },
         { type: 'EXAMINATION', catalogItemId: 'exam-1', code: 'EXAM001', name: '胸部X线', rationale: '评估肺部' },
       ] }))
-    setup(generateStream, true)
+    const { openHub } = setup(generateStream, true)
     await advance(20)
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(100)
     expect(screen.getByRole('button', { name: '确认所选（2）' })).toBeEnabled()
@@ -200,8 +211,9 @@ describe('quiet clinical AI workflow', () => {
       delta('{"summary":"正在整理合成内容","recordDraft":{"chiefComplaint":"未完成主诉')
       return new Promise<ClinicalAiSuggestion>((resolve) => { finish = resolve })
     })
-    const { apply, onFieldStream } = setup(generateStream)
+    const { apply, onFieldStream, openHub } = setup(generateStream)
     await advance(20)
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(20)
     expect(screen.queryByText('未完成主诉')).not.toBeInTheDocument()
@@ -220,11 +232,12 @@ describe('quiet clinical AI workflow', () => {
   })
 
   it('shows a manual generation error and retries only when the button is clicked', async () => {
-    const { generateStream } = setup(vi.fn().mockRejectedValue(new Error('模拟服务失败')))
+    const { generateStream, openHub } = setup(vi.fn().mockRejectedValue(new Error('模拟服务失败')))
     await advance(20)
     fireEvent.change(screen.getByLabelText('主病历输入'), { target: { value: '合成输入，等待后不应自动调用模型' } })
     await advance(60_000)
     expect(generateStream).not.toHaveBeenCalled()
+    openHub()
     fireEvent.click(screen.getByRole('button', { name: '分析当前病历' }))
     await advance(100)
     expect(screen.getByRole('alert')).toHaveTextContent('模拟服务失败')

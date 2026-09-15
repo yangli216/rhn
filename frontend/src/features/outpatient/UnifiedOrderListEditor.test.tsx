@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { UnifiedOrderListEditor, calculatePackageQuantity, type ServicePlanDraft } from './UnifiedOrderListEditor'
+import { UnifiedOrderListEditor, calculatePackageQuantity, syncMedicationDraftGroup, type ServicePlanDraft } from './UnifiedOrderListEditor'
 import type { MedicationPlanDraft } from './PrescriptionListEditor'
 import type { Encounter } from '../../shared/model'
 import type { RhnApi } from '../../shared/rhnApi'
@@ -346,6 +346,10 @@ describe('UnifiedOrderListEditor', () => {
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '阿莫')
     await user.click(await screen.findByRole('option', { name: /阿莫西林胶囊/ }))
 
+    // 选定西药后，医嘱类型自动变为具体的类型（西药），而非停留在“请选择”或“全部类型”
+    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('西药')
+    expect(screen.getByRole('combobox', { name: '搜索西药名称/拼音' }).closest('.doctor-inline-order-resource')).toHaveClass('has-selected')
+
     // 产品规格为静态只读展示，不可修改
     expect(screen.queryByRole('combobox', { name: '产品规格' })).not.toBeInTheDocument()
     expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
@@ -643,7 +647,7 @@ describe('UnifiedOrderListEditor', () => {
     expect(res3?.totalBaseUnits).toBe(15)
   })
 
-  it('does not expose stock quantity in either summary or edit mode', async () => {
+  it('does not expose stock quantity in either summary or edit mode, while displaying executing pharmacy', async () => {
     const draftWithStock: MedicationPlanDraft = {
       ...mockMedicationDraft,
       stockSiteName: '门诊西药房',
@@ -652,11 +656,67 @@ describe('UnifiedOrderListEditor', () => {
     }
     renderComponent({ medicationDrafts: [draftWithStock] })
 
-    expect(screen.queryByText(/门诊西药房/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('门诊西药房').length).toBeGreaterThan(0)
     expect(screen.queryByText(/75盒/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/库存/)).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' }))
-    expect(screen.queryByText(/门诊西药房/)).not.toBeInTheDocument()
+    expect(screen.getAllByText('门诊西药房').length).toBeGreaterThan(0)
     expect(screen.queryByText(/75盒/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/库存/)).not.toBeInTheDocument()
+  })
+
+  it('displays executing departments correctly for medication, lab, exam, and treatment orders with full route/frequency width support', async () => {
+    const examDraft: ServicePlanDraft = {
+      id: 'draft-srv-exam',
+      serviceType: 'EXAMINATION',
+      catalogItemId: 'srv-exam-1',
+      itemCode: 'EXAM001',
+      itemName: '胸部正侧位片(DR)',
+      quantity: 1,
+      unitCode: '次',
+      clinicalDescription: '咳嗽待查',
+    }
+    const treatmentDraft: ServicePlanDraft = {
+      id: 'draft-srv-treat',
+      serviceType: 'TREATMENT',
+      catalogItemId: 'srv-treat-1',
+      itemCode: 'TREAT001',
+      itemName: '静脉输液处置费',
+      quantity: 1,
+      unitCode: '次',
+      clinicalDescription: '门诊处置',
+    }
+    renderComponent({
+      currentDepartmentName: '全科医疗科',
+      medicationDrafts: [mockMedicationDraft],
+      serviceDrafts: [mockServiceDraft, examDraft, treatmentDraft],
+    })
+
+    // 表头包含执行科室
+    expect(screen.getByText('执行科室')).toBeInTheDocument()
+
+    // 药品显示对应的药房（西药默认或由 stockSiteName 决定）
+    expect(screen.getAllByText('门诊西药房').length).toBeGreaterThan(0)
+
+    // 检验类默认显示检验科
+    expect(screen.getAllByText('检验科').length).toBeGreaterThan(0)
+
+    // 检查类根据项目智能归属放射影像科
+    expect(screen.getAllByText('放射影像科').length).toBeGreaterThan(0)
+
+    // 普通处置/费用类默认当前科室（全科医疗科）
+    expect(screen.getAllByText('全科医疗科').length).toBeGreaterThan(0)
+  })
+
+  it('automatically selects input text on focus for quick value replacement without backspacing', async () => {
+    renderComponent({ medicationDrafts: [mockMedicationDraft] })
+
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 阿莫西林胶囊' }))
+    const doseInput = screen.getByLabelText('编辑单次剂量') as HTMLInputElement
+    const selectSpy = vi.spyOn(doseInput, 'select')
+
+    fireEvent.focus(doseInput)
+    expect(selectSpy).toHaveBeenCalled()
   })
 
   it('collapses unentered order composer back to launcher on outside blur when orders exist', async () => {
@@ -775,6 +835,92 @@ describe('UnifiedOrderListEditor', () => {
 
     // 验证界面显示一键调入成功的 Toast 提示
     expect(screen.getByRole('status')).toHaveTextContent(/已成功调入组套【高血压常规检查组套】共 2 项项目/)
+  })
+
+  it('keeps composer open with a new empty row and focused after importing an order set', async () => {
+    const user = userEvent.setup()
+    const orderSet = {
+      id: 'set-trt', code: 'SET_TRT', name: '门诊清创包组套', groupType: 'ORDER_SET', status: 'ACTIVE',
+      members: [
+        { id: 'm-trt-1', catalogItemId: 'srv-trt-1', itemCode: 'TRT001', itemName: '清创缝合', serviceType: 'TREATMENT', quantity: 1, unitCode: '次' },
+      ],
+    }
+    vi.mocked(mockApi.masterData.itemGroups).mockResolvedValue([orderSet] as never)
+
+    function StatefulWrapper() {
+      const [serviceDrafts, setServiceDrafts] = useState<ServicePlanDraft[]>([])
+      return (
+        <UnifiedOrderListEditor
+          encounter={mockEncounter}
+          api={mockApi}
+          medicationDrafts={[]}
+          setMedicationDrafts={vi.fn()}
+          serviceDrafts={serviceDrafts}
+          setServiceDrafts={setServiceDrafts}
+          allergies={[]}
+        />
+      )
+    }
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <StatefulWrapper />
+      </QueryClientProvider>
+    )
+
+    // 初始没有医嘱，录入行默认激活展开
+    expect(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' })).toBeInTheDocument()
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.click(screen.getByRole('tab', { name: /前缀模式/ }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '/清创')
+    await user.click(await screen.findByRole('option', { name: /门诊清创包组套/ }))
+
+    // 调入成功后，草稿列表中出现清创缝合
+    expect(await screen.findByText('清创缝合')).toBeInTheDocument()
+
+    // 关键断言：无需手动点击“新增医嘱”，录入框依然默认展开为新的一行，处于激活状态
+    expect(screen.queryByRole('button', { name: '新增医嘱' })).not.toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' })).toBeInTheDocument()
+  })
+
+  it('focuses quantity first and then service note on Enter for treatment orders', async () => {
+    const user = userEvent.setup()
+    const setServiceDrafts = vi.fn()
+    const treatmentItem = {
+      id: 'srv-treatment-1', code: 'TRT001', name: '创口清创缝合术', sdServiceType: 'TREATMENT',
+      sdServiceTypeText: '处置', unitCode: '次', orderable: true,
+      prices: [{ id: 'p-trt-1', price: 68, currencyCode: 'CNY', sdStatus: 'ACTIVE' }],
+    }
+    vi.mocked(mockApi.masterData.services).mockResolvedValue([treatmentItem] as never)
+    renderComponent({ setServiceDrafts })
+
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '搜索药品/项目名称或拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '清创')
+    await user.click(await screen.findByRole('option', { name: /创口清创缝合术/ }))
+
+    // 1. 自动识别为处置/治疗类型，焦点优先落入数量字段（而不是嘱托/说明）
+    await waitFor(() => expect(screen.getByLabelText('项目数量')).toHaveFocus())
+    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('治疗')
+
+    // 2. 在数量框按下回车，焦点跳至临床说明/嘱托框
+    await user.keyboard('{Enter}')
+    await waitFor(() => expect(screen.getByLabelText('临床说明')).toHaveFocus())
+    expect(screen.getByPlaceholderText('治疗部位或临床说明 (回车确认添加)')).toBeInTheDocument()
+
+    // 3. 在说明框输入部位并回车确认添加
+    await user.type(screen.getByLabelText('临床说明'), '右小腿部')
+    await user.keyboard('{Enter}')
+
+    expect(setServiceDrafts).toHaveBeenCalledTimes(1)
+    const updater = setServiceDrafts.mock.calls[0][0]
+    expect(updater([])[0]).toMatchObject({
+      itemName: '创口清创缝合术',
+      serviceType: 'TREATMENT',
+      clinicalDescription: '右小腿部',
+      quantity: 1,
+    })
   })
 
   it('closes medication search popover when pressing Enter to select a medication and moves focus to dose', async () => {
@@ -1171,5 +1317,219 @@ describe('UnifiedOrderListEditor', () => {
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
     expect(await screen.findByText(/当前药品患者皮试结果为【阳性】（严重禁忌），系统禁止开立！/)).toBeInTheDocument()
     expect(setMedicationDrafts).not.toHaveBeenCalled()
+  })
+
+  it('synchronizes frequency, duration, route, and recalculates quantity across drafts in the same infusion group', () => {
+    const medA = {
+      id: 'med-a',
+      code: 'MED-A',
+      name: '注射用头孢曲松钠',
+      sdMedicationType: 'WESTERN',
+      strengthValue: 1,
+      strengthUnit: 'g',
+      preparationUnit: '支',
+      products: [{
+        id: 'prod-a', code: 'P-A', name: '头孢曲松钠', unitCode: '支', sdStatus: 'ACTIVE',
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'pkg-a', unitCode: 'VIAL', unitName: '支', packageSpec: '1g/支', quantityFactor: 1, sdStatus: 'ACTIVE', defaultDispense: true, defaultSale: true, validFrom: '2020-01-01' }],
+        prices: [{ id: 'price-a', packageId: 'pkg-a', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 6.8, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }]
+    }
+    const medB = {
+      id: 'med-b',
+      code: 'MED-B',
+      name: '维生素B1注射液',
+      sdMedicationType: 'WESTERN',
+      strengthValue: 100,
+      strengthUnit: 'mg',
+      preparationUnit: '支',
+      products: [{
+        id: 'prod-b', code: 'P-B', name: '维生素B1注射液', unitCode: '支', sdStatus: 'ACTIVE',
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'pkg-b', unitCode: 'AMP', unitName: '安瓿', packageSpec: '100mg/2ml/支', quantityFactor: 1, sdStatus: 'ACTIVE', defaultDispense: true, defaultSale: true, validFrom: '2020-01-01' }],
+        prices: [{ id: 'price-b', packageId: 'pkg-b', sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 1.2, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }]
+    }
+
+    const freqQD = { code: 'QD', name: '每日一次', executionTimes: ['08:00'], shortName: '每日一次' }
+    const freqBID = { code: 'BID', name: '每日两次', executionTimes: ['08:00', '16:00'], shortName: '每日两次' }
+
+    const draftA: MedicationPlanDraft = {
+      id: 'draft-a', editorMode: 'regular', categoryCode: 'WESTERN', medicationName: '注射用头孢曲松钠', medicationCode: 'MED-A',
+      productName: '头孢曲松钠', routeName: '静脉滴注', routeExecutionType: 'INFUSION', administrationGroupKey: 'grp-test-1',
+      request: {
+        medicationId: 'med-a', catalogItemId: 'prod-a', packageId: 'pkg-a',
+        doseValue: 1, doseUnit: 'g', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, quantity: 7, quantityUnit: '支',
+        substitutionAllowed: true, selfProvided: false,
+      }
+    }
+
+    const draftB: MedicationPlanDraft = {
+      id: 'draft-b', editorMode: 'regular', categoryCode: 'WESTERN', medicationName: '维生素B1注射液', medicationCode: 'MED-B',
+      productName: '维生素B1注射液', routeName: '静脉滴注', routeExecutionType: 'INFUSION', administrationGroupKey: 'grp-test-1',
+      request: {
+        medicationId: 'med-b', catalogItemId: 'prod-b', packageId: 'pkg-b',
+        doseValue: 100, doseUnit: 'mg', routeCode: 'IV', frequencyCode: 'QD', durationValue: 7, quantity: 7, quantityUnit: '支',
+        substitutionAllowed: true, selfProvided: false,
+      }
+    }
+
+    // 用户在草稿中修改了 draftA：频次从 QD 改为 BID，疗程从 7天 改为 5天
+    const updatedDraftA: MedicationPlanDraft = {
+      ...draftA,
+      request: {
+        ...draftA.request,
+        frequencyCode: 'BID',
+        durationValue: 5,
+        quantity: 10,
+      }
+    }
+
+    const result = syncMedicationDraftGroup(
+      [draftA, draftB],
+      updatedDraftA,
+      [medA as never, medB as never],
+      [freqQD as never, freqBID as never],
+      'org-1'
+    )
+
+    expect(result).toHaveLength(2)
+    // 验证 draftA 自身更新
+    expect(result[0].request.frequencyCode).toBe('BID')
+    expect(result[0].request.durationValue).toBe(5)
+    expect(result[0].request.quantity).toBe(10)
+
+    // 验证同组的 draftB 自动同步更新频次为 BID，天数为 5天，且数量重新计算为 10（BID * 5天 = 10支）
+    expect(result[1].request.frequencyCode).toBe('BID')
+    expect(result[1].request.durationValue).toBe(5)
+    expect(result[1].request.quantity).toBe(10)
+  })
+
+  it('displays skin test safety alert and exemption options in draft edit mode, and saves exemption back to draft', async () => {
+    const mockSkinTestDraft: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      id: 'draft-skintest-1',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      skinTestRequired: true,
+      routeExecutionType: 'INFUSION',
+      administrationGroupKey: 'group-iv-1',
+      request: {
+        ...mockMedicationDraft.request,
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV_DRIP',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        durationUnit: '天',
+        quantity: 3,
+        quantityUnit: '支',
+        skinTestExempt: false,
+      },
+    }
+
+    let currentDrafts = [mockSkinTestDraft]
+    const setMedicationDrafts = vi.fn((updater) => {
+      currentDrafts = typeof updater === 'function' ? updater(currentDrafts) : updater
+    })
+    renderComponent({ medicationDrafts: currentDrafts, setMedicationDrafts })
+
+    // 点击进入待确认编辑态
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' }))
+
+    // 应该显示用药风险提醒和需皮试药品
+    expect(screen.getByText(/用药风险提醒/)).toBeInTheDocument()
+    expect(screen.getByText(/需皮试药品/)).toBeInTheDocument()
+    expect(screen.getByLabelText('免做皮试')).toBeInTheDocument()
+
+    // 勾选免做皮试
+    await userEvent.click(screen.getByLabelText('免做皮试'))
+    expect(screen.getByText(/已免做皮试/)).toBeInTheDocument()
+
+    // 确认回车保存
+    const instructionInput = screen.getByLabelText('编辑用药嘱托')
+    await userEvent.type(instructionInput, '{enter}')
+
+    expect(setMedicationDrafts).toHaveBeenCalled()
+    expect(currentDrafts[0].request.skinTestExempt).toBe(true)
+    expect(currentDrafts[0].request.skinTestExemptReason).toBe('周期内已有阴性结果（有效时间内）')
+  })
+
+  it('shows + 同组加药 for infusion drafts in edit mode and activates grouping session with pre-filled route/frequency', async () => {
+    const mockSkinTestDraft: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      id: 'draft-skintest-1',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      skinTestRequired: true,
+      routeExecutionType: 'INFUSION',
+      administrationGroupKey: 'group-iv-1',
+      request: {
+        ...mockMedicationDraft.request,
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV_DRIP',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        durationUnit: '天',
+        quantity: 3,
+        quantityUnit: '支',
+        skinTestExempt: false,
+      },
+    }
+
+    const setMedicationDrafts = vi.fn()
+    renderComponent({ medicationDrafts: [mockSkinTestDraft], setMedicationDrafts })
+
+    // 点击进入待确认编辑态
+    await userEvent.click(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' }))
+
+    // 应该显示【+ 同组加药】按钮
+    const addGroupBtn = screen.getByRole('button', { name: '+ 同组加药' })
+    expect(addGroupBtn).toBeInTheDocument()
+
+    // 点击【+ 同组加药】
+    await userEvent.click(addGroupBtn)
+
+    // 应该激活成组录入模式
+    expect(screen.getByText(/成组录入模式/)).toBeInTheDocument()
+    expect(screen.getByText(/已关联首药：注射用头孢曲松钠 1g/)).toBeInTheDocument()
+  })
+
+  it('allows clicking + 同组加药 directly from pending infusion draft row without entering edit mode first', async () => {
+    const mockSkinTestDraft: MedicationPlanDraft = {
+      ...mockMedicationDraft,
+      id: 'draft-skintest-1',
+      medicationName: '注射用头孢曲松钠',
+      productName: '注射用头孢曲松钠 1g',
+      skinTestRequired: true,
+      routeExecutionType: 'INFUSION',
+      administrationGroupKey: 'group-iv-1',
+      request: {
+        ...mockMedicationDraft.request,
+        doseValue: 1,
+        doseUnit: 'g',
+        routeCode: 'IV_DRIP',
+        frequencyCode: 'QD',
+        durationValue: 3,
+        durationUnit: '天',
+        quantity: 3,
+        quantityUnit: '支',
+        skinTestExempt: false,
+      },
+    }
+
+    const setMedicationDrafts = vi.fn()
+    renderComponent({ medicationDrafts: [mockSkinTestDraft], setMedicationDrafts })
+
+    // 直接在待确认只读行点击【+ 同组加药】
+    const addGroupBtn = screen.getByRole('button', { name: '+ 同组加药' })
+    expect(addGroupBtn).toBeInTheDocument()
+
+    await userEvent.click(addGroupBtn)
+
+    // 同样进入成组录入模式
+    expect(screen.getByText(/成组录入模式/)).toBeInTheDocument()
+    expect(screen.getByText(/已关联首药：注射用头孢曲松钠 1g/)).toBeInTheDocument()
   })
 });

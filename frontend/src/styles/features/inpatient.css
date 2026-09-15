@@ -932,6 +932,24 @@
   color: var(--color-text-secondary);
 }
 
+/* 全科室模式 - 科室分组行 */
+.schedule-matrix__row.is-dept-group-row {
+  background: var(--color-surface-subtle);
+  border-top: 2px solid var(--color-brand-primary);
+}
+.schedule-matrix__row.is-dept-group-row .schedule-matrix__resource-cell {
+  background: var(--color-surface-subtle);
+}
+.schedule-matrix__row.is-dept-group-row .schedule-matrix__resource-cell strong {
+  color: var(--color-brand-primary);
+  font-size: var(--font-size-body);
+}
+
+/* 全科室模式 - 科室下属医生子行 */
+.schedule-matrix__row.is-sub-row .schedule-matrix__resource-cell {
+  padding-left: var(--space-6);
+}
+
 /* 矩阵单元格 (Cell) */
 .schedule-matrix__cell {
   padding: 6px 4px;
@@ -1014,6 +1032,18 @@
   color: var(--color-text-secondary);
   font-weight: 400;
   white-space: nowrap;
+}
+.chip-doc-tag {
+  display: inline-block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  padding: 0 4px;
+  border-radius: 3px;
+  margin-right: 3px;
+  white-space: nowrap;
+  line-height: 1.4;
 }
 .chip-quota-text {
   font-size: 0.6875rem;

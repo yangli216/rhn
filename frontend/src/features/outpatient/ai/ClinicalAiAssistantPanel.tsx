@@ -83,18 +83,25 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
   const [suggestionInputKey, setSuggestionInputKey] = useState('')
   const [suggestionVoiceTranscript, setSuggestionVoiceTranscript] = useState('')
   const [storedSuggestion, setCurrentSuggestion] = useState<ClinicalAiSuggestion | null>(null)
-  const adoptedContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
+  const generationCoreFingerprint = useRef<string | null>(null)
+  const adoptedContinuation = useRef<{ id: string; coreFingerprint: string; fullFingerprint: string; controls: string } | null>(null)
   const treatmentContinuation = useRef<{ id: string; fingerprint: string; controls: string } | null>(null)
   const [acceptedTreatmentKeys, setAcceptedTreatmentKeys] = useState<string[]>([])
   const controlsKey = stableClinicalAiFingerprint('ai-controls', { question: question.trim(), voiceTranscript: voiceTranscript.trim(),
     diagnosticReports })
   const currentClinicalFingerprint = clinicalContextWithoutOrdersFingerprint(currentContext)
+  const currentCoreFingerprint = clinicalContextCoreFingerprint(currentContext)
   const continuation = Boolean(storedSuggestion && ((adoptedContinuation.current?.id === storedSuggestion.id
     && adoptedContinuation.current.controls === controlsKey
-    && adoptedContinuation.current.fingerprint === clinicalAiContextFingerprint({ ...currentContext, busy: false }))
+    && (adoptedContinuation.current.coreFingerprint === currentCoreFingerprint
+      || adoptedContinuation.current.fullFingerprint === clinicalAiContextFingerprint({ ...currentContext, busy: false })))
     || (treatmentContinuation.current?.id === storedSuggestion.id
       && treatmentContinuation.current.controls === controlsKey
-      && treatmentContinuation.current.fingerprint === currentClinicalFingerprint)))
+      && treatmentContinuation.current.fingerprint === currentClinicalFingerprint)
+    || (inputKey === suggestionInputKey
+      && generationCoreFingerprint.current
+      && generationCoreFingerprint.current === currentCoreFingerprint
+      && voiceTranscript.trim() === suggestionVoiceTranscript)))
   const currentSuggestion = storedSuggestion && continuation
     ? { ...storedSuggestion, clientContextFingerprint: clinicalAiContextFingerprint({ ...currentContext, busy: false }) } : storedSuggestion
   const streamContext = useRef<string>('')
@@ -254,6 +261,7 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       }
     },
     onSuccess: ({ value, transcript, key }) => {
+      generationCoreFingerprint.current = clinicalContextCoreFingerprint(latestContext.current)
       setSuggestionInputKey(key); setCurrentSuggestion(value); setViewMode('current'); setSuggestionVoiceTranscript(transcript)
       setPreview({ recordDraft: {} }); setLocalError('')
       queryClient.setQueryData<ClinicalAiSuggestion[]>(historyQueryKey, (current) => [
@@ -333,7 +341,19 @@ export function ClinicalAiAssistantPanel({ encounter, currentContext, allergies,
       if (!value.request.planTemplate) {
         const next = mergeAiRecordDraft({ ...latestContext.current, busy: false }, value.request.recordDraft ?? {}, value.request.overwriteRecord)
         next.diagnoses = mergeAiDiagnoses(next.diagnoses, value.request.diagnoses ?? [])
-        adoptedContinuation.current = { id: value.suggestion.id, fingerprint: clinicalAiContextFingerprint(next), controls: controlsKey }
+        adoptedContinuation.current = {
+          id: value.suggestion.id,
+          coreFingerprint: clinicalContextCoreFingerprint(next),
+          fullFingerprint: clinicalAiContextFingerprint(next),
+          controls: controlsKey,
+        }
+      } else {
+        adoptedContinuation.current = {
+          id: value.suggestion.id,
+          coreFingerprint: clinicalContextCoreFingerprint(latestContext.current),
+          fullFingerprint: clinicalAiContextFingerprint(latestContext.current),
+          controls: controlsKey,
+        }
       }
       onApply(value.request)
     },
@@ -1023,5 +1043,23 @@ function recordEvent(api: RhnApi, suggestion: ClinicalAiSuggestion,
 function clinicalContextWithoutOrdersFingerprint(value: ClinicalAiDraftContext) {
   return stableClinicalAiFingerprint('clinical-context', {
     ...value, busy: false, medicationDraftFingerprint: undefined, serviceDraftFingerprint: undefined,
+    systolic: undefined, diastolic: undefined, temperature: undefined, pulseRate: undefined,
+    respiratoryRate: undefined, oxygenSaturation: undefined, heightCm: undefined, weightKg: undefined,
+  })
+}
+
+function clinicalContextCoreFingerprint(value: ClinicalAiDraftContext) {
+  return stableClinicalAiFingerprint('clinical-core', {
+    encounterId: value.encounterId,
+    residentId: value.residentId,
+    chiefComplaint: value.chiefComplaint?.trim() ?? '',
+    presentIllness: value.presentIllness?.trim() ?? '',
+    medicalHistory: value.medicalHistory?.trim() ?? '',
+    physicalExam: value.physicalExam?.trim() ?? '',
+    treatmentPlan: value.treatmentPlan?.trim() ?? '',
+    structuredContextFingerprint: value.structuredContextFingerprint,
+    diagnoses: [...value.diagnoses]
+      .map(({ code, display, type }) => ({ code: code.trim().toUpperCase(), display: display.trim(), type }))
+      .sort((left, right) => left.code.localeCompare(right.code)),
   })
 }

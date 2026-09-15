@@ -1652,22 +1652,16 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 /* ==========================================================================
    UnitNumberInput: Integrated number and unit input control
    ========================================================================== */
-.ui-unit-number-input {
-  display: inline-flex;
-  align-items: center;
-  position: relative;
-  width: 100%;
-  min-width: 0;
-  height: var(--control-height-md);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent);
-  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
-  box-sizing: border-box;
-}
-
-.ui-unit-number-input.ui-field__control {
+.ui-unit-number-input,
+.ui-unit-number-input.ui-field__control,
+.ui-field > .ui-unit-number-input.ui-field__control {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  position: relative !important;
+  width: 100% !important;
+  min-width: 0 !important;
   height: var(--control-height-md) !important;
   min-height: var(--control-height-md) !important;
   max-height: var(--control-height-md) !important;
@@ -1677,10 +1671,12 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   border-radius: var(--radius-md) !important;
   background: var(--color-surface) !important;
   box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent) !important;
+  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+  box-sizing: border-box !important;
 }
 
 .ui-unit-number-input:hover:not(:has(:disabled)):not(.is-disabled) {
-  border-color: var(--color-text-disabled);
+  border-color: var(--color-text-disabled) !important;
 }
 
 .ui-unit-number-input:focus-within {
@@ -1690,87 +1686,139 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 }
 
 .ui-unit-number-input__number {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 100%;
-  padding: 0 var(--space-3);
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  font-size: var(--font-size-body);
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 var(--space-3) !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--color-text-primary) !important;
+  font: inherit !important;
+  font-size: var(--font-size-body) !important;
+  -moz-appearance: textfield;
+}
+
+.ui-unit-number-input__number::-webkit-outer-spin-button,
+.ui-unit-number-input__number::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 .ui-unit-number-input__number:disabled {
-  color: var(--color-text-disabled);
+  color: var(--color-text-disabled) !important;
   cursor: not-allowed;
 }
 
 .ui-unit-number-input__divider {
-  width: 1px;
-  height: 60%;
-  background: var(--color-border);
-  flex: 0 0 1px;
+  width: 1px !important;
+  height: 55% !important;
+  background: var(--color-border) !important;
+  flex: 0 0 1px !important;
 }
 
 .ui-unit-number-input__unit-wrap {
-  flex: 0 0 auto;
-  min-width: 4.5rem;
-  max-width: 8rem;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex: 0 0 auto !important;
+  width: auto !important;
+  min-width: 5.4rem !important;
+  max-width: 8.5rem !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  position: relative !important;
 }
 
-.ui-unit-number-input__unit-select {
-  width: 100%;
-  height: 100%;
-  padding: 0 var(--space-2);
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
+.ui-unit-number-input__unit-wrap .ui-select.ui-unit-number-input__unit-select {
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select__trigger {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px) 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  padding: 0 0.45rem 0 0.6rem !important;
+  gap: 0.35rem !important;
+  font-size: var(--font-size-small) !important;
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--color-text-primary) !important;
+  cursor: pointer !important;
+  justify-content: space-between !important;
+  transition: background var(--motion-fast) var(--ease-standard) !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select__trigger:hover:not(:disabled) {
+  background: var(--color-surface-subtle) !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select__trigger:focus,
+.ui-unit-number-input__unit-wrap .ui-select.is-open .ui-select__trigger {
+  background: var(--color-surface-subtle) !important;
+  box-shadow: none !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select__value {
+  font-size: var(--font-size-small) !important;
+  font-weight: var(--font-weight-medium) !important;
+  color: var(--color-text-primary) !important;
+  text-align: left !important;
+  white-space: nowrap !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select__trigger .ui-icon,
+.ui-unit-number-input__unit-wrap .ui-select__trigger svg {
+  width: 0.85rem !important;
+  height: 0.85rem !important;
+  flex: 0 0 0.85rem !important;
+  color: var(--color-text-secondary) !important;
+  transition: transform var(--motion-fast) var(--ease-standard) !important;
+}
+
+.ui-unit-number-input__unit-wrap .ui-select.is-open .ui-select__trigger .ui-icon,
+.ui-unit-number-input__unit-wrap .ui-select.is-open .ui-select__trigger svg {
+  transform: rotate(180deg) !important;
 }
 
 .ui-unit-number-input__unit-input {
-  width: 100%;
-  height: 100%;
-  padding: 0 var(--space-2);
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 var(--space-2) !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--color-text-primary) !important;
+  font: inherit !important;
+  font-size: var(--font-size-small) !important;
+  font-weight: var(--font-weight-medium) !important;
   text-align: center;
 }
 
 .ui-unit-number-input__unit-label {
-  padding: 0 var(--space-3);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-small);
-  font-weight: var(--font-weight-medium);
-  user-select: none;
+  padding: 0 var(--space-3) !important;
+  color: var(--color-text-secondary) !important;
+  font-size: var(--font-size-small) !important;
+  font-weight: var(--font-weight-medium) !important;
+  user-select: none !important;
 }
 
 /* ==========================================================================
    BodySiteSelect: Clinical Body / Injection Site Input with Presets
    ========================================================================== */
-.ui-body-site-select {
-  display: grid;
-  gap: var(--space-2);
-  width: 100%;
-  min-width: 0;
-}
-
-.ui-body-site-select.ui-field__control {
+.ui-body-site-select,
+.ui-body-site-select.ui-field__control,
+.ui-field > .ui-body-site-select.ui-field__control {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 0.375rem !important;
+  width: 100% !important;
   height: auto !important;
   min-height: 0 !important;
   max-height: none !important;
@@ -1782,21 +1830,21 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 }
 
 .ui-body-site-select__input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  height: var(--control-height-md);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent);
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  height: var(--control-height-md) !important;
+  border: 1px solid var(--color-border-strong) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--color-surface) !important;
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent) !important;
   transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
-  box-sizing: border-box;
+  box-sizing: border-box !important;
 }
 
 .ui-body-site-select__input-wrap:hover:not(:has(:disabled)) {
-  border-color: var(--color-text-disabled);
+  border-color: var(--color-text-disabled) !important;
 }
 
 .ui-body-site-select__input-wrap:focus-within {
@@ -1806,68 +1854,87 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
 }
 
 .ui-body-site-select__input {
-  flex: 1 1 0;
-  min-width: 0;
-  height: 100%;
-  padding: 0 var(--space-3);
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--color-text-primary);
-  font: inherit;
-  font-size: var(--font-size-body);
+  flex: 1 1 0 !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 var(--space-3) !important;
+  border: 0 !important;
+  outline: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--color-text-primary) !important;
+  font: inherit !important;
+  font-size: var(--font-size-body) !important;
 }
 
 .ui-body-site-select__clear {
-  flex: 0 0 auto;
-  width: 1.75rem;
-  height: 1.75rem;
-  margin-right: var(--space-2);
-  display: grid;
-  place-items: center;
-  border: 0;
-  border-radius: var(--radius-full);
-  background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 1.1rem;
-  line-height: 1;
-  cursor: pointer;
+  flex: 0 0 auto !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  margin-right: var(--space-2) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 0 !important;
+  border-radius: var(--radius-full) !important;
+  background: var(--color-surface-subtle) !important;
+  color: var(--color-text-secondary) !important;
+  font-size: 1rem !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
+  padding: 0 !important;
   transition: all var(--motion-fast) var(--ease-standard);
 }
 
 .ui-body-site-select__clear:hover {
-  background: var(--color-surface-muted);
-  color: var(--color-text-primary);
+  background: var(--color-surface-muted) !important;
+  color: var(--color-text-primary) !important;
 }
 
 .ui-body-site-select__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 0.35rem !important;
+  padding-top: 0.15rem !important;
+}
+
+.ui-body-site-select__prompt {
+  font-size: 0.725rem !important;
+  color: var(--color-text-muted, #94a3b8) !important;
+  font-weight: var(--font-weight-medium) !important;
+  margin-right: 0.15rem !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
 }
 
 .ui-body-site-select__chip {
-  padding: 0.15rem 0.6rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-full);
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-  font-size: 0.725rem;
-  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 1.5rem !important;
+  padding: 0 0.6rem !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: var(--radius-full, 9999px) !important;
+  background: var(--color-surface) !important;
+  color: var(--color-text-secondary) !important;
+  font-size: 0.725rem !important;
+  line-height: 1 !important;
+  cursor: pointer !important;
   transition: all var(--motion-fast) var(--ease-standard);
 }
 
 .ui-body-site-select__chip:hover:not(:disabled) {
-  border-color: var(--color-brand-primary);
-  color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
+  border-color: var(--color-brand-primary) !important;
+  color: var(--color-brand-primary) !important;
+  background: var(--color-brand-soft) !important;
 }
 
 .ui-body-site-select__chip.is-selected {
-  border-color: var(--color-brand-primary);
-  background: var(--color-brand-soft);
-  color: var(--color-brand-primary);
-  font-weight: var(--font-weight-semibold);
-  box-shadow: inset 0 0 0 1px var(--color-brand-primary);
+  border-color: var(--color-brand-primary) !important;
+  background: var(--color-brand-soft) !important;
+  color: var(--color-brand-primary) !important;
+  font-weight: var(--font-weight-semibold) !important;
+  box-shadow: inset 0 0 0 1px var(--color-brand-primary) !important;
 }
 

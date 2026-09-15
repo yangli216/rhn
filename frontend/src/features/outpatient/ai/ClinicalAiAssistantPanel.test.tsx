@@ -82,6 +82,9 @@ describe('ClinicalAiAssistantPanel plan preflight', () => {
       currentContext={context} allergies={[]} allergyState="READY" api={api} disabled={false}
       onAdoptionBusyChange={vi.fn()} onApply={vi.fn()} /></QueryClientProvider>)
 
+    if (layout === 'inline') {
+      await userEvent.click(await screen.findByRole('button', { name: 'AI 辅诊' }))
+    }
     await userEvent.click(await screen.findByRole('button', { name: layout === 'inline' ? '分析当前病历' : /分析当前就诊/ }))
     await userEvent.click(await screen.findByRole('button', { name: layout === 'inline' ? '核对方案' : '核对后带入' }))
 

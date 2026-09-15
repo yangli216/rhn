@@ -186,6 +186,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   const currentDepartmentKey = `${clinicalContext.organization.id}:${clinicalContext.department.id}`
   const [batchDepartmentKey, setBatchDepartmentKey] = useState('')
+  const [showAllDepartments, setShowAllDepartments] = useState(false)
 
   const selectableDepartments = useMemo(() => {
     const configured = departmentOptions?.length ? departmentOptions : [{
@@ -361,6 +362,36 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
 
   // 周矩阵的纵轴资源列表（科室号 + 各出诊医生）
   const resources: MatrixResource[] = useMemo(() => {
+    if (showAllDepartments && schedules.data?.length) {
+      // 全部科室模式：每个科室一行，聚合该科室下所有排班（科室号 + 医生号）
+      const deptMap = new Map<string, string>()
+      for (const item of schedules.data) {
+        const deptId = item.departmentId || 'unknown'
+        const deptName = item.departmentName || '未知科室'
+        if (!deptMap.has(deptId)) {
+          deptMap.set(deptId, deptName)
+        }
+      }
+      const list: MatrixResource[] = []
+      for (const [deptId, deptName] of deptMap) {
+        // 统计该科室下的医生人数
+        const practitioners = new Set<string>()
+        for (const item of schedules.data) {
+          if ((item.departmentId || 'unknown') === deptId && item.practitionerId) {
+            practitioners.add(item.practitionerId)
+          }
+        }
+        list.push({
+          key: `dept-${deptId}`,
+          name: deptName,
+          subtext: practitioners.size > 0
+            ? `科室号 + ${practitioners.size} 位医生出诊`
+            : '科室号 · 到科分诊',
+          scope: 'DEPARTMENT',
+        })
+      }
+      return list
+    }
     const list: MatrixResource[] = [
       {
         key: 'dept',
@@ -379,21 +410,28 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       })
     })
     return list
-  }, [clinicalContext.department, bootstrap.data?.practitioners])
+  }, [clinicalContext.department, bootstrap.data?.practitioners, showAllDepartments, schedules.data])
 
   // 矩阵单元格索引：key = `${resourceKey}__${serviceDate}`
   const matrixCellMap = useMemo(() => {
     const map = new Map<string, ServiceSchedule[]>()
     ;(schedules.data ?? []).forEach((item) => {
-      const resourceKey = item.sdRegistrationScope === 'DEPARTMENT'
-        ? 'dept'
-        : item.practitionerId ? `doc-${item.practitionerId}` : 'dept'
+      let resourceKey: string
+      if (showAllDepartments) {
+        // 全科室模式：所有排班聚合到科室行
+        const deptId = item.departmentId || 'unknown'
+        resourceKey = `dept-${deptId}`
+      } else {
+        resourceKey = item.sdRegistrationScope === 'DEPARTMENT'
+          ? 'dept'
+          : item.practitionerId ? `doc-${item.practitionerId}` : 'dept'
+      }
       const cellKey = `${resourceKey}__${item.serviceDate}`
       if (!map.has(cellKey)) map.set(cellKey, [])
       map.get(cellKey)!.push(item)
     })
     return map
-  }, [schedules.data])
+  }, [schedules.data, showAllDepartments])
 
   const error = bootstrap.error || services.error || schedules.error || createSchedules.error
     || updateSchedule.error || changeScheduleStatus.error
@@ -501,24 +539,32 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
       <Panel className="schedule-matrix-panel">
         <PanelHead
           title="周排班矩阵"
-          meta={`${clinicalContext.department.name} · ${formatWeekRange(currentWeekMonday)}`}
+          meta={`${showAllDepartments ? '全部科室' : clinicalContext.department.name} · ${formatWeekRange(currentWeekMonday)}`}
           actions={<div className="schedule-panelhead-actions">
             <div className="schedule-dept-select-wrap">
               <Select
-                value={currentDepartmentKey}
+                value={showAllDepartments ? '__ALL__' : currentDepartmentKey}
                 clearable={false}
                 aria-label="当前科室"
                 onChange={(value) => {
-                  const selected = selectableDepartments.find((item) => `${item.organizationId}:${item.departmentId}` === value)
-                  if (selected && value !== currentDepartmentKey) {
-                    onDepartmentChange?.(selected.organizationId, selected.departmentId)
+                  if (value === '__ALL__') {
+                    setShowAllDepartments(true)
+                  } else {
+                    setShowAllDepartments(false)
+                    const selected = selectableDepartments.find((item) => `${item.organizationId}:${item.departmentId}` === value)
+                    if (selected && value !== currentDepartmentKey) {
+                      onDepartmentChange?.(selected.organizationId, selected.departmentId)
+                    }
                   }
                 }}
-                options={selectableDepartments.map((item) => ({
-                  value: `${item.organizationId}:${item.departmentId}`,
-                  label: item.organizationId === clinicalContext.organization.id
-                    ? item.departmentName : `${item.organizationName} · ${item.departmentName}`,
-                }))}
+                options={[
+                  { value: '__ALL__', label: '全部科室', icon: 'organization' as const },
+                  ...selectableDepartments.map((item) => ({
+                    value: `${item.organizationId}:${item.departmentId}`,
+                    label: item.organizationId === clinicalContext.organization.id
+                      ? item.departmentName : `${item.organizationName} · ${item.departmentName}`,
+                  })),
+                ]}
               />
             </div>
 
@@ -556,8 +602,11 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
               </div>
 
               {/* 矩阵数据行 */}
-              {resources.map((res) => (
-                <div key={res.key} className="schedule-matrix__row">
+              {resources.map((res) => {
+                const isDeptGroupRow = showAllDepartments && res.scope === 'DEPARTMENT'
+                const isSubRow = showAllDepartments && res.scope === 'PRACTITIONER'
+                return (
+                <div key={res.key} className={`schedule-matrix__row${isDeptGroupRow ? ' is-dept-group-row' : ''}${isSubRow ? ' is-sub-row' : ''}`}>
                   {/* 资源列头 */}
                   <div className="schedule-matrix__resource-cell">
                     <strong>{res.name}</strong>
@@ -591,6 +640,9 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                                 {item.sdDayPart === 'MORNING' ? '上' : '下'}
                               </span>
                               <span className="chip-service-text">
+                                {showAllDepartments && item.practitionerName && (
+                                  <span className="chip-doc-tag">{item.practitionerName}</span>
+                                )}
                                 {item.serviceName}
                                 {showLocation && <span className="chip-loc-sub">({item.locationName})</span>}
                               </span>
@@ -622,7 +674,7 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
                     )
                   })}
                 </div>
-              ))}
+              )})}
             </div>
           </div>
         )}

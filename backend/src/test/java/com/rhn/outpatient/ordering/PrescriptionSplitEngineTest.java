@@ -213,4 +213,33 @@ class PrescriptionSplitEngineTest {
         assertThat(plans.get(0).ruleReasons()).anyMatch(r -> r.contains("5种容量限制"));
         assertThat(plans.get(1).ruleReasons()).anyMatch(r -> r.contains("5种容量限制"));
     }
+
+    @Test
+    @DisplayName("测试规则：同组输液即便含有 singleOrder 药品，也必须保持同组原子性，统一归入门诊输液处方")
+    void shouldKeepInfusionGroupAtomicEvenWithSingleOrderMedication() {
+        // 两个输液药品，均被标记为 singleOrder = true（如头孢曲松钠 + 维生素B1注射液），同属于一个输液组
+        when(catalogDirectory.requireMedication(1L, 101L)).thenReturn(mockMedication(101L, "注射用头孢曲松钠", "WESTERN", true));
+        when(catalogDirectory.requireMedication(1L, 102L)).thenReturn(mockMedication(102L, "维生素B1注射液", "WESTERN", true));
+        when(routeDirectory.resolveActive(eq(1L), eq("IVGTT"), eq("OUTPATIENT"), any(LocalDate.class)))
+                .thenReturn(Optional.of(new RouteSnapshot(99L, "IVGTT", "静脉滴注", "STD", "1", "INFUSION")));
+
+        List<BatchOrderMedicationItem> items = List.of(
+                createItem(101L, "注射用头孢曲松钠", "WESTERN", "IVGTT", "INFUSION", "grp-ceftriaxone", 10L, "门诊药房"),
+                createItem(102L, "维生素B1注射液", "WESTERN", "IVGTT", "INFUSION", "grp-ceftriaxone", 10L, "门诊药房")
+        );
+
+        List<SplitPrescriptionPlan> plans = engine.plan(encounter, items);
+
+        // 必须合在同一张“门诊输液处方”中，而不是拆成两个单列专方！
+        assertThat(plans).hasSize(1);
+        SplitPrescriptionPlan plan = plans.getFirst();
+        assertThat(plan.title()).isEqualTo("门诊输液处方");
+        assertThat(plan.routeGroupType()).isEqualTo("INFUSION");
+        assertThat(plan.items()).hasSize(2);
+        assertThat(plan.items().get(0).groupLeader()).isTrue();
+        assertThat(plan.items().get(0).groupKey()).isEqualTo("grp-ceftriaxone");
+        assertThat(plan.items().get(1).groupLeader()).isFalse();
+        assertThat(plan.items().get(1).groupKey()).isEqualTo("grp-ceftriaxone");
+        assertThat(plan.ruleReasons()).contains("同组输液原子性保护");
+    }
 }

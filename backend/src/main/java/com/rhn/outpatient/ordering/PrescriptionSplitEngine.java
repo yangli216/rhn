@@ -80,15 +80,19 @@ public class PrescriptionSplitEngine {
         List<ItemMeta> singleOrderItems = new ArrayList<>();
 
         for (ItemMeta meta : metas) {
-            if (meta.singleOrder()) {
+            // 同组输液（isInfusion 且 adminKey 存在）受同组原子性保护，整体在输液桶中装箱，不拆分成独立单列专方
+            if (meta.singleOrder() && !(meta.isInfusion() && meta.adminKey() != null)) {
                 singleOrderItems.add(meta);
                 continue;
             }
             String bucketKey;
             if ("HERBAL".equalsIgnoreCase(meta.category())) {
                 bucketKey = "HERBAL|" + meta.stockSiteId();
+            } else if (meta.isInfusion()) {
+                // 输液桶：按发药药房与输液途径归集，确保同组输液不被大类拆散
+                bucketKey = meta.stockSiteId() + "|INFUSION";
             } else {
-                bucketKey = meta.stockSiteId() + "|" + meta.category() + "|" + (meta.isInfusion() ? "INFUSION" : "ORAL");
+                bucketKey = meta.stockSiteId() + "|" + meta.category() + "|ORAL";
             }
             normalBuckets.computeIfAbsent(bucketKey, k -> new ArrayList<>()).add(meta);
         }

@@ -1203,6 +1203,8 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     </MemoryRouter></QueryClientProvider>)
     const user = userEvent.setup()
     await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    const aiPill = await screen.findByRole('button', { name: /AI 辅诊/ })
+    await user.click(aiPill)
     await screen.findByRole('button', { name: '分析当前病历' })
     return user
   }
@@ -1218,13 +1220,18 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({ ...await generate(id, input),
       treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '评估病因' }] }))
     const user = await enter(api)
-    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
     await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await waitFor(() => expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('高血压复诊'))
     const diagnosisTable = screen.getByRole('table', { name: '本次诊断连续录入列表' })
     const orderTable = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
     expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
     expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('原发性高血压')
+    await user.clear(screen.getByLabelText('收缩压'))
+    await user.clear(screen.getByLabelText('舒张压'))
+    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
+    await user.click(saveDraftBtn)
+    console.log('DIAGNOSES DOM:', diagnosisTable.innerHTML)
+    console.log('ORDERS DOM:', orderTable.innerHTML)
     await user.click(within(diagnosisTable).getByRole('button', { name: '确认录入' }))
     await waitFor(() => expect(document.querySelector('.doctor-diagnosis-row')).toHaveTextContent('原发性高血压'))
     expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
@@ -1243,6 +1250,74 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
   })
 
+  it('preserves AI diagnosis and treatment recommendations when clicking save all drafts without blood pressure filled', async () => {
+    const api = aiApi()
+    api.masterData.searchServices = vi.fn().mockResolvedValue({ content: [{
+      id: 'lab-1', code: 'LAB001', name: '血常规', sdServiceType: 'LABORATORY', sdUsageType: 'COMMON',
+      sdStatus: 'ACTIVE', orderable: true, unitCode: '次', validFrom: '2020-01-01', prices: [],
+      organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, executable: true },
+    }] } as never)
+    const generate = api.clinicalAi.generate
+    api.clinicalAi.generate = vi.fn().mockImplementation(async (id, input) => ({
+      ...await generate(id, input),
+      recordDraft: {
+        chiefComplaint: '发热3天',
+        presentIllness: '患者发热3天，最高体温39℃。',
+        medicalHistory: '既往体健。',
+        physicalExam: '咽部充血。',
+        treatmentPlan: '门诊对症治疗。',
+      },
+      diagnosisCandidates: [{ code: 'J06.900', display: '急性上呼吸道感染', type: 'PRIMARY', confidence: 0.9, rationale: '临床表现相符' }],
+      treatmentRecommendations: [{ type: 'LABORATORY', catalogItemId: 'lab-1', code: 'LAB001', name: '血常规', rationale: '明确感染指标' }],
+    }))
+    const user = await enter(api)
+    await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
+    await waitFor(() => expect(screen.getByPlaceholderText('症状、持续时间及本次就诊原因')).toHaveValue('发热3天'))
+
+    const diagnosisTable = screen.getByRole('table', { name: '本次诊断连续录入列表' })
+    const orderTable = screen.getByRole('table', { name: '本次医嘱连续录入列表' })
+
+    // AI 生成的诊断与医嘱建议此时都在表格中
+    expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('急性上呼吸道感染')
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+
+    // 清空收缩压与舒张压
+    const systolicInput = screen.getByLabelText('收缩压')
+    const diastolicInput = screen.getByLabelText('舒张压')
+    await user.clear(systolicInput)
+    await user.clear(diastolicInput)
+
+    // 点击保存全部草稿
+    const saveDraftBtn = screen.getByRole('button', { name: '保存全部草稿' })
+    await user.click(saveDraftBtn)
+
+    // 应该提示血压错误
+    await waitFor(() => expect(document.getElementById('doctor-vital-errors')).toHaveTextContent('请填写收缩压；请填写舒张压'))
+    expect(api.encounters.recordClinicalData).not.toHaveBeenCalled()
+
+    // 关键断言：提示血压错误后，AI 生成的诊断和医嘱绝不能丢失！
+    expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('急性上呼吸道感染')
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+
+    // 医生补录血压
+    await user.type(systolicInput, '120')
+    await user.type(diastolicInput, '80')
+
+    // 补录血压后，AI 诊断和医嘱依然稳定保留
+    expect(within(diagnosisTable).getByLabelText('AI 诊断待确认')).toHaveTextContent('急性上呼吸道感染')
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+
+    // 医生可继续确认录入 AI 诊断
+    await user.click(within(diagnosisTable).getByRole('button', { name: '确认录入' }))
+    await waitFor(() => expect(document.querySelector('.doctor-diagnosis-row')).toHaveTextContent('急性上呼吸道感染'))
+
+    // AI 医嘱依然存在且可确认
+    expect(within(orderTable).getByLabelText('AI 医嘱待确认')).toHaveTextContent('血常规')
+    await user.click(within(orderTable).getByRole('button', { name: '确认所选（1）' }))
+    await waitFor(() => expect(within(orderTable).queryByLabelText('AI 医嘱待确认')).not.toBeInTheDocument())
+    expect(orderTable.querySelector('.doctor-unified-order-row.is-draft')).toHaveTextContent('血常规')
+  })
+
   it('streams into the original fields and restores their values if final audit fails', async () => {
     const api = aiApi()
     api.clinicalAi.capabilities = vi.fn().mockResolvedValue({ available: true, mode: 'MODEL', provider: 'test',
@@ -1259,7 +1334,6 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     const user = await enter(api)
     const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
     await user.type(chief, '原始主诉')
-    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
     await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await waitFor(() => expect(chief).toHaveValue('发热3天'))
     expect(chief).toHaveAttribute('readonly')
@@ -1281,7 +1355,6 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     const user = await enter(api)
     const chief = screen.getByPlaceholderText('症状、持续时间及本次就诊原因')
     await user.type(chief, '原始主诉')
-    await user.click(screen.getByRole('button', { name: '口述 / 输入要点' }))
     await user.type(screen.getByLabelText('问诊要点或辅助要求'), '感冒发热3天，最高体温39度')
     await user.click(screen.getByRole('button', { name: '直接生成并带入病历' }))
     await waitFor(() => expect(chief).toHaveValue('发热3天'))
