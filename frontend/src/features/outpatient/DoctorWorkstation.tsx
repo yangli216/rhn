@@ -2,7 +2,7 @@ import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
 import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
 import { isAbnormalObservation } from './ai/receptionSceneAssessment'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
@@ -115,6 +115,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
   const queue = useQuery({
     queryKey: ['outpatient-reception-queue', businessDate(), clinicalContext.department.id, queueScope],
     queryFn: () => api.scheduling.receptionQueue(businessDate(), undefined, queueScope),
+    placeholderData: keepPreviousData,
   })
   const referralInbox = useQuery({
     queryKey: ['outpatient-referral-inbox', clinicalContext.organization.id, clinicalContext.department.id],
@@ -180,7 +181,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
     <ReferralInboxPanel requests={referralInbox.data ?? []} loading={referralInbox.isPending}
       api={api} onRefresh={async () => { await Promise.all([refreshInbox(), refreshQueue()]) }} />
 
-    {queue.isPending || (Boolean(linkedResidentId) && linkedResident.isPending) ? (
+    {(!queue.data && queue.isPending) || (Boolean(linkedResidentId) && linkedResident.isPending) ? (
       <LoadingState label="正在加载候诊队列…" />
     ) : (
       <DedicatedWaitingWorkspace
@@ -189,7 +190,7 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
         onQueueScopeChange={setQueueScope}
         clinicalContext={clinicalContext}
         canEdit={canEdit}
-        busy={openPatient.isPending || queueAction.isPending}
+        busy={openPatient.isPending || queueAction.isPending || queue.isFetching}
         onEnter={(item) => openPatient.mutate({ item, entryIntent: 'EDIT' })}
         onView={(item) => openPatient.mutate({ item, entryIntent: 'READ' })}
         onRefresh={() => void queue.refetch()}
@@ -764,6 +765,7 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
             <ClinicalRecordPanel aiSurfaceRefs={aiSurfaceRefs} key={encounter.id} encounter={encounter} editing={editing} canEdit={canEdit}
                 completionMode={completionMode}
                 enteringEdit={start.isPending || resume.isPending}
+                currentDepartmentName={clinicalContext.department.name}
                 allergies={allergies.data ?? []} allergyState={allergyState} api={api} historyCopy={historyCopy}
                 onHistoryCopyConsumed={() => setHistoryCopy(null)} onDraftStateChange={setDraftState}
                 onRegisterSaveDraft={handleRegisterSaveDraft}
@@ -1981,7 +1983,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   aiDraft, onAiDraftConsumed, onAiContextChange, onDraftStateChange, onRegisterSaveDraft, onSaveDraftNotice,
   editing, canEdit, completionMode, enteringEdit, onRequestEditing,
   onRequestReading, onRefresh, aiPreConsultation, triageVitals, historyEncounters, aiSurfaceRefs, aiFieldStream,
-  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange }: {
+  aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange, currentDepartmentName }: {
   encounter: Encounter; allergies: AllergyIntolerance[]; allergyState: ClinicalAiDraftContext['allergyState']
   completionMode: OutpatientCompletionMode
   api: RhnApi; historyCopy: HistoryCopyDraft | null
@@ -2000,6 +2002,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
   onTreatmentKeysChange?: (keys: string[]) => void
   triageVitals?: VitalsSummary
   historyEncounters?: Encounter[]
+  currentDepartmentName?: string
 }) {
   const queryClient = useQueryClient()
   const vitalRulesQuery = useQuery({
@@ -2279,9 +2282,16 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
       onSaveDraftNotice?.({ message: errorMessage(error), tone: 'error' })
     },
   })
+  const recordContentChanged = Boolean(aiRecordUndo)
+    || formState.isDirty
+    || (getValues().chiefComplaint?.trim() ?? '') !== (encounter.chiefComplaint?.trim() ?? '')
+    || (getValues().presentIllness?.trim() ?? '') !== (document?.content.presentIllness?.trim() ?? '')
+    || (getValues().medicalHistory?.trim() ?? '') !== (document?.content.medicalHistory?.trim() ?? '')
+    || (getValues().physicalExam?.trim() ?? '') !== (document?.content.physicalExam?.trim() ?? '')
+    || (getValues().treatmentPlan?.trim() ?? '') !== (document?.content.treatmentPlan?.trim() ?? '')
   useEffect(() => {
     if (save.isPending) return
-    const hasLocalWork = formState.isDirty || structuredChanged || diagnosesChanged
+    const hasLocalWork = recordContentChanged || structuredChanged || diagnosesChanged
       || medicationDrafts.length > 0 || serviceDrafts.length > 0
     if (serverStateInitialized.current && hasLocalWork) return
     if (!serverStateInitialized.current && documents.isPending) return
@@ -2302,7 +2312,7 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     setStructuredErrors({})
     setStructuredBaseline(structuredFormSignature(savedFormId, savedValues))
     serverStateInitialized.current = true
-  }, [diagnosesChanged, document, documents.isPending, encounter, formState.isDirty, medicationDrafts.length, reset,
+  }, [diagnosesChanged, document, documents.isPending, encounter, formState.isDirty, getValues, medicationDrafts.length, recordContentChanged, reset,
     save.isPending, serviceDrafts.length, structuredChanged])
   useEffect(() => {
     setMedicationDrafts([])
@@ -2427,11 +2437,11 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
     getValues, medicationDrafts, onAiDraftConsumed, reset, selectedNoteForm?.version, selectedNoteFormId,
     serviceDrafts, structuredValues])
   useEffect(() => {
-    onDraftStateChange({ recordChanged: formState.isDirty || structuredChanged, diagnosesChanged,
+    onDraftStateChange({ recordChanged: recordContentChanged || structuredChanged, diagnosesChanged,
       medicationDraftCount: medicationDrafts.length, serviceDraftCount: serviceDrafts.length,
       busy: businessBusy })
-  }, [diagnosesChanged, formState.isDirty, medicationDrafts.length, onDraftStateChange, orderBusy,
-    save.isPending, serviceDrafts.length, sign.isPending, structuredChanged, businessBusy])
+  }, [businessBusy, diagnosesChanged, medicationDrafts.length, onDraftStateChange, recordContentChanged,
+    serviceDrafts.length, structuredChanged])
   const submitRecordDraft = async (value: RecordForm) => {
       if (aiFieldStream?.encounterId === encounter.id) {
         onSaveDraftNotice?.({ message: 'AI 正在生成，请待完整病历带入并核对后保存。', tone: 'warning' })
@@ -3055,7 +3065,8 @@ function ClinicalRecordPanel({ encounter, allergies, allergyState, api, historyC
         onTreatmentKeysChange={onTreatmentKeysChange} encounter={encounter} allergies={allergies} api={api} editing={editing}
         aiSuggestionSurfaceRef={editing && !signed ? aiSurfaceRefs.plans : undefined}
         medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
-        serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy} />
+        serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} onBusyChange={setOrderBusy}
+        currentDepartmentName={currentDepartmentName} />
     </aside>
     {notePrintOpen && document && <ControlledPrintDialog api={api} title="打印门诊病历"
       description={`已签署版本 V${document.currentVersion} · 每次生成和重打都会留痕。`}
@@ -3295,7 +3306,7 @@ function medicationDraftKey(item: MedicationPlanDraft) {
 
 function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicationDrafts,
   serviceDrafts, setServiceDrafts, editing, onBusyChange, aiOrderReview, onAiOrderReviewConsumed, onTreatmentKeysChange,
-  aiSuggestionSurfaceRef }: {
+  aiSuggestionSurfaceRef, currentDepartmentName }: {
   aiOrderReview?: AiOrderReviewCommand | null
   onAiOrderReviewConsumed?: () => void
   onTreatmentKeysChange?: (keys: string[]) => void
@@ -3307,6 +3318,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   setServiceDrafts: Dispatch<SetStateAction<ServicePlanDraft[]>>
   editing: boolean
   onBusyChange: (busy: boolean) => void
+  currentDepartmentName?: string
 }) {
   const queryClient = useQueryClient()
   const [reviewOpen, setReviewOpen] = useState(false)
@@ -3408,6 +3420,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
           serviceDrafts={serviceDrafts} setServiceDrafts={setServiceDrafts} api={api}
           readOnly={!editing}
+          currentDepartmentName={currentDepartmentName}
           busy={cancelService.isPending || cancelMedication.isPending || confirmPlan.isPending}
           onCancelMedication={(item) => cancelMedication.mutate(item)}
           onCancelService={(item) => cancelService.mutate(item)}

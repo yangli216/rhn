@@ -51,6 +51,11 @@ export interface MedicationPlanDraft {
   stockSiteName?: string
   availablePackageQuantity?: number
   packageUnitName?: string
+  skinTestRequired?: boolean
+  skinTestResultValidityHours?: number
+  antimicrobial?: boolean
+  sdAntimicrobialLevelText?: string
+  allergenConceptIds?: string[]
   request: Omit<CreateMedicationRequestInput, 'prescriptionId' | 'parentRequestId'>
 }
 

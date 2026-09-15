@@ -43,7 +43,6 @@ export function ClinicalAiCopilotHub({
   onOpenResults, sceneAssessment, sceneLoading, surfaces,
 }: ClinicalAiCopilotHubProps) {
   const [hubOpen, setHubOpen] = useState(false)
-  const [composerOpen, setComposerOpen] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [fields, setFields] = useState<string[]>([])
@@ -60,7 +59,6 @@ export function ClinicalAiCopilotHub({
   useEffect(() => {
     if (interimTranscript) {
       setHubOpen(true)
-      setComposerOpen(true)
     }
   }, [interimTranscript])
 
@@ -87,7 +85,6 @@ export function ClinicalAiCopilotHub({
 
   const generate = (focus?: string) => {
     appliedSuggestionId.current = null
-    setComposerOpen(true)
     setReviewOpen(true)
     void onGenerate(focus).catch(() => undefined)
   }
@@ -98,7 +95,6 @@ export function ClinicalAiCopilotHub({
       onQuestionChange(presetPrompt)
     }
     appliedSuggestionId.current = null
-    setComposerOpen(false)
     try {
       const id = await onGenerate('RECORD')
       appliedSuggestionId.current = id || null
@@ -372,16 +368,6 @@ export function ClinicalAiCopilotHub({
                         清空
                       </Button>
                     )}
-                    <Button
-                      size="sm"
-                      variant="text"
-                      className="doctor-ai-entrance-btn"
-                      aria-label="口述 / 输入要点"
-                      aria-expanded={composerOpen}
-                      onClick={() => setComposerOpen(!composerOpen)}
-                    >
-                      <span aria-hidden="true">录入要点</span>
-                    </Button>
                   </div>
                 </div>
 
@@ -393,65 +379,63 @@ export function ClinicalAiCopilotHub({
                   </div>
                 )}
 
-                {composerOpen && (
-                  <>
-                    <textarea
-                      id={composerInputId}
-                      className="ui-field__control doctor-ai-composer-field"
-                      value={question}
-                      maxLength={500}
-                      rows={2}
-                      disabled={disabled || inputBusy}
-                      onChange={(event) => onQuestionChange(event.target.value)}
-                      placeholder={
-                        isChronic
-                          ? '输入或口述慢病复诊要点（如：血压控制良好，无不适，来配降压药），AI 将直接生成规范复诊病历。'
-                          : isReport
-                            ? '输入或口述报告回诊要点（如：看血常规化验单），AI 将结合报告异常直接生成规范回诊病历。'
-                            : '输入患者描述或医生口述要点（如：感冒发热3天，最高体温39度）；AI 将直接规范生成完整病历段落。'
-                      }
-                    />
+                <textarea
+                  id={composerInputId}
+                  className="ui-field__control doctor-ai-composer-field"
+                  value={question}
+                  maxLength={500}
+                  rows={2}
+                  disabled={disabled || inputBusy}
+                  onChange={(event) => onQuestionChange(event.target.value)}
+                  placeholder={
+                    isChronic
+                      ? '输入或口述慢病复诊要点（如：血压控制良好，无不适，来配降压药），AI 将直接生成规范复诊病历。'
+                      : isReport
+                        ? '输入或口述报告回诊要点（如：看血常规化验单），AI 将结合报告异常直接生成规范回诊病历。'
+                        : '输入患者描述或医生口述要点（如：感冒发热3天，最高体温39度）；AI 将直接规范生成完整病历段落。'
+                  }
+                />
 
-                    <div className="doctor-ai-composer-card__footer">
-                      <div className="doctor-ai-composer-card__btns">
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          disabled={disabled || busy || !canAdopt || !recordFeature || sceneLoading}
-                          title="直接按问诊要点生成病历草稿并自动填充至各字段"
-                          onClick={() => generateAndApply()}
-                        >
-                          <Icon name="sparkles" />
-                          {generating ? 'AI 正在共写…' : '直接生成并带入病历'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={disabled || busy}
-                          title="生成建议并在下方展示段落对照，由您逐条勾选采纳"
-                          onClick={() => {
-                            setReviewOpen(true)
-                            generate()
-                          }}
-                        >
-                          整理并对照建议
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="doctor-ai-composer-card__footer">
+                  <div className="doctor-ai-composer-card__btns">
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      disabled={disabled || busy || !canAdopt || !recordFeature || sceneLoading}
+                      title="直接按问诊要点生成病历草稿并自动填充至各字段"
+                      onClick={() => generateAndApply()}
+                    >
+                      <Icon name="sparkles" />
+                      {generating ? 'AI 正在共写…' : '直接生成并带入病历'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={disabled || busy}
+                      title="生成建议并在下方展示段落对照，由您逐条勾选采纳"
+                      onClick={() => {
+                        setReviewOpen(true)
+                        generate()
+                      }}
+                    >
+                      整理并对照建议
+                    </Button>
+                  </div>
+                </div>
               </div>
             </section>
 
             {/* 4. Stepper & Diagnostics Details */}
             {generating && (
               <div className="doctor-ai-generation-box" role="status" aria-live="polite">
-                <span className="doctor-ai-generation__orb" aria-hidden="true">
-                  <Icon name="sparkles" />
-                </span>
-                <span className="doctor-ai-generation__label">
-                  {preview.recordDraft.treatmentPlan ? '正在匹配诊断与院内方案' : '正在共写病历'}
-                </span>
+                <div className="doctor-ai-generation-box__header">
+                  <span className="doctor-ai-generation__orb" aria-hidden="true">
+                    <Icon name="sparkles" />
+                  </span>
+                  <span className="doctor-ai-generation__label">
+                    {preview.recordDraft.treatmentPlan ? '正在匹配诊断与院内方案' : '正在共写病历'}
+                  </span>
+                </div>
                 <ClinicalAiPipelineStepper
                   generating={generating}
                   hasTreatmentPlan={Boolean(preview.recordDraft.treatmentPlan)}
@@ -531,6 +515,7 @@ export function ClinicalAiCopilotHub({
                         </div>
                         <FormField label={`${recordDraftFieldLabels[field]}建议（可编辑）`}>
                           <textarea
+                            className="ui-field__control doctor-ai-comparison-textarea"
                             rows={3}
                             value={edited[field] ?? suggestion!.recordDraft[field] ?? ''}
                             disabled={!current || busy || disabled}
