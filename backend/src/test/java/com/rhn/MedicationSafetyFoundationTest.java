@@ -203,6 +203,6 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
                             row.getString("column_name").toUpperCase(java.util.Locale.ROOT), row.getString("remarks")), name);
             assertEquals(expected, actual, name);
         }
-        assertEquals(5, checked);
+        assertEquals(7, checked);
     }
 }

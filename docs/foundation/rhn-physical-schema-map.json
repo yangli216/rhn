@@ -7784,5 +7784,73 @@
         "comment": "覆盖时间"
       }
     ]
+  },
+  {
+    "logical": "aud.medication_rule_candidate",
+    "legacy": "medication_rule_candidates",
+    "physical": "RHN_AUD_MED_CAND",
+    "domain": "AUD",
+    "comment": "合理用药候选规则，一行代表一次不可变的 AI 生成版本",
+    "columns": [
+      {
+        "logical": "candidate_id",
+        "physical": "ID_CAND",
+        "comment": "候选规则标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "actor_user_id",
+        "physical": "ID_USER_ACTOR",
+        "comment": "创建用户标识"
+      },
+      {
+        "logical": "content_json",
+        "physical": "JSON_CONTENT",
+        "comment": "规则定义、来源、模型和药品主数据快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_rule_trial",
+    "legacy": "medication_rule_trials",
+    "physical": "RHN_AUD_MED_TRIAL",
+    "domain": "AUD",
+    "comment": "合理用药试跑，一行代表一次模拟或旁路执行",
+    "columns": [
+      {
+        "logical": "trial_id",
+        "physical": "ID_TRIAL",
+        "comment": "试跑标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "candidate_id",
+        "physical": "ID_CAND",
+        "comment": "候选规则标识"
+      },
+      {
+        "logical": "actor_user_id",
+        "physical": "ID_USER_ACTOR",
+        "comment": "操作用户标识"
+      },
+      {
+        "logical": "input_json",
+        "physical": "JSON_INPUT",
+        "comment": "完整试跑输入快照"
+      },
+      {
+        "logical": "result_json",
+        "physical": "JSON_RESULT",
+        "comment": "试跑结果快照"
+      }
+    ]
   }
 ]

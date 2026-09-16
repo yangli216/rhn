@@ -215,7 +215,8 @@
         "healthcore",
         "outpatient",
         "platform",
-        "shared"
+        "shared",
+        "quality"
       ],
       "publicTypes": []
     },

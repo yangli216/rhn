@@ -41,6 +41,24 @@
 
 ## 本地启动
 
+### PostgreSQL 独立验证环境
+
+已有 PostgreSQL 时，可为本项目创建独立普通用户和同名数据库，将连接信息保存在 Git 忽略的 `.env.postgres.local`（文件权限建议 `600`）：
+
+```dotenv
+RHN_DB_URL=jdbc:postgresql://localhost:5432/rhn_pg_test
+RHN_DB_USER=rhn_pg_test
+RHN_DB_PASSWORD=替换为本地密码
+```
+
+使用 JDK 21+ 执行 `./scripts/run-postgres-local.sh`，默认后端端口为 `18087`，可用 `RHN_SERVER_PORT` 覆盖。`postgres-local` 会通过 Flyway 初始化表结构和演示数据，保留 Hibernate 表结构校验，并使用内存会话及在线状态，无需 Redis。默认演示账号为 `doctor` / `rhn-dev-2026`，可通过 `RHN_DEV_USERNAME` / `RHN_DEV_PASSWORD` 覆盖。
+
+前端在 `frontend` 目录执行 `RHN_FRONTEND_PORT=15177 RHN_API_TARGET=http://127.0.0.1:18087 npm run dev`。验证地址为 `http://localhost:15177`，后端健康检查为 `http://localhost:18087/actuator/health`。这套环境独立于下述 Oracle 人工验证端口；自动化后端测试仍使用 `test` profile 的随机 H2 数据库。
+
+PostgreSQL 专属迁移通过临时 `text` domain 兼容历史 `clob` 声明，随后将所有相关列转为原生 `text` 并删除临时 domain；专属 Hibernate 方言以字符串读写文本，避免默认 `@Lob` 映射为 PostgreSQL OID。共享迁移 `V1_41_0` 的布尔值已由 `0` 修正为 `false`。若旧持久化环境已经执行原版该迁移，升级前需核对 Flyway checksum 差异并按迁移管理流程处理；启动脚本不会自动 repair。Oracle 独立迁移未改动。
+
+### Oracle 人工验证环境
+
 两套长期人工验证环境均使用 `oracle-local`。主工作区使用后端 `8080` / 前端 `5173`，统计工作区使用后端 `18086` / 前端 `15176`。已运行的服务请保留；需要恢复主工作区后端时，在项目根目录执行：
 
 ```bash

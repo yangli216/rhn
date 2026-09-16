@@ -23,6 +23,10 @@ public class StructuredAiService implements StructuredAiDirectory {
         return new Status(available, available?settings.model():null, available?"已配置真实 AI 模型，点击解析时调用":"AI 尚未就绪，请在 AI助理配置中启用模型服务；也可手动配置分析条件。");
     }
     public String complete(String systemPrompt, String input) {
+        return complete(systemPrompt, input, "RHN-ANALYTICS-V1");
+    }
+    @Override
+    public String complete(String systemPrompt, String input, String promptVersion) {
         var context=contexts.requireCurrent(); var settings=policy.current(context);
         if(settings.mode()!=ClinicalAssistantSettings.Mode.MODEL || !settings.availableFor(context))
             throw badRequest("ANALYTICS_AI_UNAVAILABLE", "AI 尚未就绪，请在 AI助理配置中启用模型服务，或手动配置分析条件。");
@@ -32,7 +36,7 @@ public class StructuredAiService implements StructuredAiDirectory {
         body.put("messages",List.of(Map.of("role","system","content",systemPrompt),Map.of("role","user","content",input)));
         ClinicalAiRequestOptions.applyNonThinkingDefault(body,settings.endpoint(),settings.model());
         var request=HttpRequest.newBuilder(settings.endpoint()).timeout(settings.requestTimeout())
-                .header("Content-Type","application/json").header("X-RHN-Prompt-Version","RHN-ANALYTICS-V1")
+                .header("Content-Type","application/json").header("X-RHN-Prompt-Version",promptVersion)
                 .POST(HttpRequest.BodyPublishers.ofString(json.write(body)));
         if(settings.apiKey()!=null) request.header("Authorization","Bearer "+settings.apiKey());
         try {
