@@ -963,7 +963,7 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         ) : (
           <>
             <div className="billing-action-form">
-              <SettlementPaymentPanel settlements={settlementOptions}
+              <SettlementPaymentPanel key={`${encounterId}-${selected.accountId}`} settlements={settlementOptions}
                 methods={(paymentMethods.data ?? []).map((item) => ({
                   code: item.code,
                   name: item.name,

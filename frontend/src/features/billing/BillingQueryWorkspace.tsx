@@ -4,10 +4,13 @@ import type { ClinicalContext } from '../../app/AppShell'
 import type { SettlementRecord } from '../../shared/api/billingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, SearchField,
-  Select, StatusBadge, tableCellClass } from '../../shared/ui'
+import {
+  Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Pagination, Panel,
+  Select, StatusBadge, tableCellClass,
+} from '../../shared/ui'
+import { DateRangePicker } from '../../shared/ui/DateRangePicker'
+import type { DateRange } from '../../shared/utils/dateRange'
 import { Icon } from '../../shared/ui/Icon'
-import { formatTime } from '../../shared/format'
 import { money } from './BillingShared'
 import './billing-query-workspace.css'
 
@@ -45,28 +48,33 @@ const receiptStatusText: Record<string, string> = {
   REQUESTED: '开具中', ISSUED: '已开具', FAILED: '开具失败', VOIDED: '已作废', RED_FLUSHED: '已冲红',
 }
 
-export function BillingQueryWorkspace({ api, clinicalContext }: {
+export function BillingQueryWorkspace({ api, clinicalContext: _clinicalContext }: {
   api: RhnApi
   clinicalContext: ClinicalContext
 }) {
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [submittedKeyword, setSubmittedKeyword] = useState('')
+  const [dateRange, setDateRange] = useState<DateRange>({ from: '', to: '' })
   const [scene, setScene] = useState('ALL')
   const [settlementType, setSettlementType] = useState('ALL')
   const [selectedId, setSelectedId] = useState('')
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
 
   const records = useQuery({
     queryKey: ['billing-settlement-records'],
-    queryFn: () => api.billing.settlementRecords(200),
+    queryFn: () => api.billing.settlementRecords(500),
   })
+
   const filteredRecords = useMemo(() => {
-    const normalized = keyword.trim().toLowerCase()
+    const normalized = submittedKeyword.trim().toLowerCase()
     return (records.data ?? []).filter((record) => {
       const occurredDate = (record.finalizedAt ?? record.createdAt).slice(0, 10)
-      if (dateFrom && occurredDate < dateFrom) return false
-      if (dateTo && occurredDate > dateTo) return false
+      if (dateRange.from && occurredDate < dateRange.from) return false
+      if (dateRange.to && occurredDate > dateRange.to) return false
       if (scene !== 'ALL' && record.settlementScene !== scene) return false
       if (settlementType !== 'ALL' && record.settlementType !== settlementType) return false
       if (!normalized) return true
@@ -74,37 +82,93 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
         record.encounterNo, record.residentId, record.encounterId]
         .some((value) => String(value ?? '').toLowerCase().includes(normalized))
     })
-  }, [dateFrom, dateTo, keyword, records.data, scene, settlementType])
+  }, [dateRange.from, dateRange.to, records.data, scene, settlementType, submittedKeyword])
 
+  // 财务指标统计
+  const summary = useMemo(() => {
+    let totalAmount = 0
+    let patientAmount = 0
+    let insuranceAmount = 0
+    let reversalCount = 0
+    let reversalAmount = 0
+
+    for (const r of filteredRecords) {
+      totalAmount += r.netAmount
+      patientAmount += r.patientAmount
+      insuranceAmount += r.insuranceAmount
+      if (r.settlementType === 'REVERSAL') {
+        reversalCount += 1
+        reversalAmount += Math.abs(r.netAmount)
+      }
+    }
+    return {
+      count: filteredRecords.length,
+      totalAmount,
+      patientAmount,
+      insuranceAmount,
+      reversalCount,
+      reversalAmount,
+    }
+  }, [filteredRecords])
+
+  // 分页数据
+  const totalPages = Math.ceil(filteredRecords.length / pageSize)
+  const pagedRecords = useMemo(() => {
+    const start = pageIndex * pageSize
+    return filteredRecords.slice(start, start + pageSize)
+  }, [filteredRecords, pageIndex, pageSize])
+
+  // 过滤条件变动重置分页
+  useEffect(() => {
+    setPageIndex(0)
+  }, [dateRange.from, dateRange.to, scene, settlementType, submittedKeyword])
+
+  // 抽屉与当前选中记录
   useEffect(() => {
     if (!filteredRecords.length) {
       if (selectedId) setSelectedId('')
+      if (isDrawerOpen) setIsDrawerOpen(false)
       return
     }
-    if (!filteredRecords.some((record) => record.id === selectedId)) setSelectedId(filteredRecords[0].id)
-  }, [filteredRecords, selectedId])
+    if (selectedId && !filteredRecords.some((record) => record.id === selectedId)) {
+      setSelectedId('')
+      setIsDrawerOpen(false)
+    }
+  }, [filteredRecords, isDrawerOpen, selectedId])
+
+  // 监听 Escape 键快捷关闭抽屉
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isDrawerOpen) {
+        setIsDrawerOpen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isDrawerOpen])
 
   const selected = filteredRecords.find((record) => record.id === selectedId)
+
   const settlement = useQuery({
     queryKey: ['billing-settlement', selected?.id],
     queryFn: () => api.billing.settlement(selected!.id),
-    enabled: Boolean(selected?.id),
+    enabled: Boolean(selected?.id && isDrawerOpen),
   })
   const statement = useQuery({
     queryKey: ['billing-statement', selected?.encounterId],
     queryFn: () => api.billing.statement(selected!.encounterId!),
-    enabled: Boolean(selected?.encounterId),
+    enabled: Boolean(selected?.encounterId && isDrawerOpen),
   })
   const receipts = useQuery({
     queryKey: ['billing-settlement-receipts', selected?.id],
     queryFn: () => api.billing.settlementReceipts(selected!.id),
-    enabled: Boolean(selected?.id),
+    enabled: Boolean(selected?.id && isDrawerOpen),
   })
   const chargeById = useMemo(() => new Map((statement.data?.charges ?? [])
     .map((charge) => [charge.id, charge])), [statement.data?.charges])
-  const totalAmount = filteredRecords.reduce((sum, record) => sum + record.netAmount, 0)
+
   const error = records.error || settlement.error || statement.error || receipts.error
-  const hasFilters = Boolean(keyword || dateFrom || dateTo || scene !== 'ALL' || settlementType !== 'ALL')
+  const hasFilters = Boolean(submittedKeyword || keyword || dateRange.from || dateRange.to || scene !== 'ALL' || settlementType !== 'ALL')
 
   const refresh = () => Promise.all([
     queryClient.invalidateQueries({ queryKey: ['billing-settlement-records'] }),
@@ -113,58 +177,295 @@ export function BillingQueryWorkspace({ api, clinicalContext }: {
     queryClient.invalidateQueries({ queryKey: ['billing-settlement-receipts'] }),
   ])
 
+  const handleSearch = (event: React.FormEvent) => {
+    event.preventDefault()
+    setSubmittedKeyword(keyword.trim())
+    setPageIndex(0)
+  }
+
   const resetFilters = () => {
-    setKeyword(''); setDateFrom(''); setDateTo(''); setScene('ALL'); setSettlementType('ALL')
+    setKeyword('')
+    setSubmittedKeyword('')
+    setDateRange({ from: '', to: '' })
+    setScene('ALL')
+    setSettlementType('ALL')
+    setPageIndex(0)
+  }
+
+  const handleOpenDetail = (recordId: string) => {
+    setSelectedId(recordId)
+    setIsDrawerOpen(true)
+  }
+
+  const handleCopyNo = async (e: React.MouseEvent, settlementNo: string) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard?.writeText(settlementNo)
+      setCopiedId(settlementNo)
+      setTimeout(() => setCopiedId(null), 1500)
+    } catch {
+      // 兼容不支持环境
+    }
   }
 
   return <div className="billing-query-page">
-    <PageHeader eyebrow="收费管理" title="收费查询" description="查询已完成结算的收费记录，核对费用、支付分摊与电子票据。"
-      actions={<Button variant="secondary" onClick={() => void refresh()}><Icon name="refresh" />刷新</Button>} />
+    <PageHeader
+      eyebrow="收费管理"
+      title="收费查询"
+      description="支持门诊、挂号、药房等业务场景全口径收费对账，核对结算流水、支付分摊与电子票据凭证。"
+      actions={
+        <Button variant="secondary" onClick={() => void refresh()}>
+          <Icon name="refresh" />刷新
+        </Button>
+      }
+    />
     {error && <Alert>{errorMessage(error)}</Alert>}
-    <div className="billing-query-filters" aria-label="收费查询条件">
-      <SearchField value={keyword} onChange={setKeyword} label="收费记录"
-        placeholder="姓名 / 门诊号 / 档案号 / 结算单号" />
-      <FormField label="结算日期起"><input type="date" value={dateFrom}
-        onChange={(event) => setDateFrom(event.target.value)} /></FormField>
-      <FormField label="结算日期止"><input type="date" value={dateTo}
-        onChange={(event) => setDateTo(event.target.value)} /></FormField>
-      <FormField label="业务场景"><Select value={scene} options={sceneOptions} onChange={setScene} /></FormField>
-      <FormField label="结算类型"><Select value={settlementType} options={typeOptions}
-        onChange={setSettlementType} /></FormField>
-      <div className="billing-query-filters__summary">
-        <span>{clinicalContext.organization.name}</span><strong>{filteredRecords.length} 笔 · {money(totalAmount)}</strong>
+
+    {/* 检索区：统一采用固定宽度组件与标准高度按钮 */}
+    <form className="billing-query-filters" onSubmit={handleSearch} aria-label="收费查询条件">
+      <FormField label="姓名/门诊号" className="billing-filter-field--keyword">
+        <input
+          value={keyword}
+          onChange={(e) => setKeyword(e.target.value)}
+          placeholder="姓名 / 门诊号 / 档案号 / 结算单号"
+        />
+      </FormField>
+
+      <FormField label="结算日期范围" className="billing-filter-field--date">
+        <DateRangePicker value={dateRange} onChange={setDateRange} />
+      </FormField>
+
+      <FormField label="业务场景" className="billing-filter-field--scene">
+        <Select value={scene} options={sceneOptions} onChange={setScene} />
+      </FormField>
+      <FormField label="结算类型" className="billing-filter-field--type">
+        <Select value={settlementType} options={typeOptions} onChange={setSettlementType} />
+      </FormField>
+
+      <div className="billing-filter-actions">
+        <Button type="submit" variant="secondary" busy={records.isFetching}>
+          <Icon name="search" />查询
+        </Button>
+        {hasFilters && (
+          <Button variant="secondary" onClick={resetFilters}>
+            重置
+          </Button>
+        )}
       </div>
-      {hasFilters && <Button size="sm" variant="secondary" onClick={resetFilters}>重置</Button>}
-    </div>
+    </form>
 
-    <div className="billing-query-scroll">
-      {records.isPending ? <LoadingState label="正在加载已结算收费记录…" />
-        : <div className="billing-query-workspace">
-          <Panel className="billing-query-list" aria-label="已结算收费记录">
-            <header className="billing-section-head"><div className="billing-section-head__title">
-              <h2>已结算记录</h2><span>最近 {records.data?.length ?? 0} 笔</span></div></header>
-            {!filteredRecords.length ? <EmptyState icon="billing" title="暂无匹配记录"
-              copy={hasFilters ? '请调整查询条件后重试。' : '当前机构暂无已完成的收费结算。'} />
-              : <div className="billing-query-list__items">{filteredRecords.map((record) => {
-                return <button key={record.id} type="button" className={record.id === selectedId ? 'is-active' : ''}
-                  onClick={() => setSelectedId(record.id)} aria-label={`结算记录 ${record.settlementNo}`}>
-                  <div><strong>{record.residentName}</strong>
-                    <b>{money(record.netAmount, record.currencyCode)}</b></div>
-                  <span>{record.settlementNo}</span>
-                  <small>{sceneText[record.settlementScene] ?? record.settlementScene} · {formatTime(record.finalizedAt ?? record.createdAt)}</small>
-                </button>
-              })}</div>}
-          </Panel>
+    {/* 主体卡片：全宽财务流水台账表格 */}
+    <Panel className="billing-query-main-panel" aria-label="已结算收费记录">
+      {records.isPending ? (
+        <LoadingState label="正在加载已结算收费记录…" />
+      ) : !filteredRecords.length ? (
+        <EmptyState
+          icon="billing"
+          title="暂无匹配记录"
+          copy={hasFilters ? '请调整查询条件后重试。' : '当前机构暂无已完成的收费结算。'}
+        />
+      ) : (
+        <>
+          <div className="billing-query-table-scroll">
+            <table className="billing-query-grid-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '18%' }}>结算单号 / 场景</th>
+                  <th style={{ width: '14%' }}>结算时间 / 终端</th>
+                  <th style={{ width: '13%' }}>患者姓名 / 档案号</th>
+                  <th style={{ width: '12%' }}>门诊号 / 科室</th>
+                  <th style={{ width: '10%' }}>结算类型</th>
+                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>结算金额</th>
+                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>医保支付</th>
+                  <th style={{ width: '11%' }} className={tableCellClass('numeric')}>个人支付</th>
+                  <th style={{ width: '10%', textAlign: 'center' }}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pagedRecords.map((record) => {
+                  const isSelected = record.id === selectedId && isDrawerOpen
+                  return (
+                    <tr
+                      key={record.id}
+                      className={isSelected ? 'is-row-selected' : ''}
+                      onClick={() => handleOpenDetail(record.id)}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleOpenDetail(record.id)
+                        }
+                      }}
+                      role="button"
+                      aria-label={`结算记录 ${record.settlementNo}`}
+                    >
+                      <td>
+                        <div className="billing-grid-settlement-no">
+                          <strong>{record.settlementNo}</strong>
+                          <div className="billing-grid-tags">
+                            <span className="billing-scene-tag">
+                              {sceneText[record.settlementScene] ?? record.settlementScene}
+                            </span>
+                            <button
+                              type="button"
+                              className="billing-copy-btn"
+                              title={copiedId === record.settlementNo ? '已复制' : '复制结算单号'}
+                              onClick={(e) => void handleCopyNo(e, record.settlementNo)}
+                              aria-label={`复制单号 ${record.settlementNo}`}
+                            >
+                              <Icon name={copiedId === record.settlementNo ? 'check' : 'copy'} />
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="billing-grid-time">
+                          {formatDateTime(record.finalizedAt ?? record.createdAt)}
+                        </span>
+                        <small className="billing-grid-terminal">
+                          {record.terminalCode ?? '窗口终端'}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="billing-grid-patient">
+                          <strong>{record.residentName}</strong>
+                          <span>{record.healthRecordNo}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="billing-grid-encounter">
+                          <span>{record.encounterNo ?? '--'}</span>
+                          <small>
+                            {record.departmentName ?? (record.departmentId ? `科室 ${record.departmentId}` : '--')}
+                          </small>
+                        </div>
+                      </td>
+                      <td>
+                        <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
+                          {typeText[record.settlementType] ?? record.settlementType}
+                        </StatusBadge>
+                      </td>
+                      <td className={tableCellClass('numeric')}>
+                        <span className="billing-money billing-money-total">
+                          {money(record.netAmount, record.currencyCode)}
+                        </span>
+                      </td>
+                      <td className={tableCellClass('numeric')}>
+                        <span className="billing-money billing-money-insurance">
+                          {money(record.insuranceAmount, record.currencyCode)}
+                        </span>
+                      </td>
+                      <td className={tableCellClass('numeric')}>
+                        <strong className="billing-money billing-money-patient">
+                          {money(record.patientAmount, record.currencyCode)}
+                        </strong>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleOpenDetail(record.id)
+                          }}
+                        >
+                          查看明细
+                        </Button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
 
-          <Panel className="billing-query-detail" aria-label="收费记录详情">
-            {!selected ? <EmptyState icon="billing" title="请选择收费记录" copy="左侧选择后查看结算、支付与票据信息。" />
-              : settlement.isPending || (Boolean(selected.encounterId) && statement.isPending) || receipts.isPending
-                ? <LoadingState label="正在加载收费记录详情…" />
-                : <SettlementRecordDetail record={selected} settlement={settlement.data}
-                  chargeById={chargeById} receipts={receipts.data ?? []} />}
-          </Panel>
-        </div>}
-    </div>
+          {/* 表格底部栏：左侧财务核算统计指标，右侧分页控制器 */}
+          <footer className="billing-table-footer">
+            <div className="billing-table-footer__summary" role="region" aria-label="财务核算指标">
+              <span className="billing-footer-item">结算总笔数 <strong>{summary.count}</strong> 笔</span>
+              <span className="billing-footer-item is-primary">实收总额 <strong>{money(summary.totalAmount)}</strong></span>
+              <span className="billing-footer-item">自付 <strong>{money(summary.patientAmount)}</strong></span>
+              <span className="billing-footer-item">医保 <strong>{money(summary.insuranceAmount)}</strong></span>
+              {summary.reversalCount > 0 && (
+                <span className="billing-footer-item is-reversal">
+                  冲正 <strong>{summary.reversalCount}</strong> 笔 ({money(summary.reversalAmount)})
+                </span>
+              )}
+            </div>
+            <div className="billing-table-footer__pagination">
+              <Pagination
+                page={pageIndex}
+                totalPages={totalPages}
+                total={filteredRecords.length}
+                pageSize={pageSize}
+                onChange={setPageIndex}
+                onPageSizeChange={(size) => {
+                  setPageSize(size)
+                  setPageIndex(0)
+                }}
+                pageSizeOptions={[10, 20, 50]}
+                label="收费查询列表分页"
+              />
+            </div>
+          </footer>
+        </>
+      )}
+    </Panel>
+
+    {/* 侧滑详情抽屉 Slide-over Detail Drawer */}
+    {isDrawerOpen && selected && (
+      <>
+        <div
+          className="billing-drawer-backdrop"
+          onClick={() => setIsDrawerOpen(false)}
+          aria-hidden="true"
+        />
+        <aside
+          className="billing-detail-drawer"
+          role="region"
+          aria-label="收费记录详情"
+          aria-modal="true"
+        >
+          <header className="billing-drawer-header">
+            <div className="billing-drawer-title-group">
+              <div className="billing-drawer-eyebrows">
+                <span className="billing-scene-badge">
+                  {sceneText[selected.settlementScene] ?? selected.settlementScene}
+                </span>
+                <StatusBadge tone={selected.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
+                  {typeText[selected.settlementType] ?? selected.settlementType}
+                </StatusBadge>
+              </div>
+              <h2>{selected.settlementNo}</h2>
+              <p>
+                {formatDateTime(selected.finalizedAt ?? selected.createdAt)} · {selected.terminalCode ?? '未记录终端'}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="billing-drawer-close-btn"
+              onClick={() => setIsDrawerOpen(false)}
+              aria-label="关闭收费记录详情"
+            >
+              <Icon name="close" />
+            </button>
+          </header>
+
+          <div className="billing-drawer-body">
+            {settlement.isPending || (Boolean(selected.encounterId) && statement.isPending) || receipts.isPending ? (
+              <LoadingState label="正在加载收费记录详情…" />
+            ) : (
+              <SettlementRecordDetail
+                record={selected}
+                settlement={settlement.data}
+                chargeById={chargeById}
+                receipts={receipts.data ?? []}
+              />
+            )}
+          </div>
+        </aside>
+      </>
+    )}
   </div>
 }
 
@@ -175,19 +476,11 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
   receipts: Awaited<ReturnType<RhnApi['billing']['settlementReceipts']>>
 }) {
   return <>
-    <header className="billing-query-detail__head">
-      <div><span className="ui-eyebrow">{sceneText[record.settlementScene] ?? record.settlementScene}</span>
-        <h2>{record.settlementNo}</h2>
-        <p>{formatDateTime(record.finalizedAt ?? record.createdAt)} · {record.terminalCode ?? '未记录终端'}</p></div>
-      <StatusBadge tone={record.settlementType === 'REVERSAL' ? 'warning' : 'success'}>
-        {typeText[record.settlementType] ?? record.settlementType}
-      </StatusBadge>
-    </header>
     <div className="billing-query-identity">
       <strong>{record.residentName}</strong>
       <span>档案号 {record.healthRecordNo}</span>
       <span>门诊号 {record.encounterNo ?? record.encounterId ?? '--'}</span>
-      <span>{record.departmentName ?? `科室 ${record.departmentId}`}</span>
+      <span>{record.departmentName ?? (record.departmentId ? `科室 ${record.departmentId}` : '--')}</span>
     </div>
     <dl className="billing-query-metrics">
       <div><dt>结算金额</dt><dd>{money(record.netAmount, record.currencyCode)}</dd></div>
@@ -237,8 +530,14 @@ function SettlementRecordDetail({ record, settlement, chargeById, receipts }: {
   </>
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
-  }).format(new Date(value))
+function formatDateTime(value?: string) {
+  if (!value) return '--'
+  try {
+    return new Intl.DateTimeFormat('zh-CN', {
+      year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+    }).format(new Date(value))
+  } catch {
+    return value
+  }
 }
+

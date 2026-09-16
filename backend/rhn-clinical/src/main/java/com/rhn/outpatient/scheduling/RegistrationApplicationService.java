@@ -497,17 +497,8 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
                 return false;
             }
             return true;
-        }).sorted((a, b) -> {
-            TicketSnapshot ta = tickets.get(a.id());
-            TicketSnapshot tb = tickets.get(b.id());
-            int pa = ta == null ? 0 : ta.priority();
-            int pb = tb == null ? 0 : tb.priority();
-            if (pa != pb) return Integer.compare(pb, pa);
-            int sa = ta == null ? 0 : ta.sequenceNo();
-            int sb = tb == null ? 0 : tb.sequenceNo();
-            if (sa != sb) return Integer.compare(sa, sb);
-            return b.registeredAt().compareTo(a.registeredAt());
-        }).toList();
+        }).sorted(Comparator.comparing(PatientRegistration::registeredAt, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(PatientRegistration::id, Comparator.nullsLast(Comparator.reverseOrder()))).toList();
 
         long totalElements = filtered.size();
         int totalPages = (int) Math.ceil((double) totalElements / safeSize);

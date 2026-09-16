@@ -639,11 +639,6 @@ export function MedicationKnowledgeTable({
           <div className="medication-name-wrap">
             <strong className="medication-item-name" title={`药品编码: ${value.code}`}>{value.name}</strong>
             <code className="medication-code-tag">{value.code}</code>
-            {value.classifications?.length > 0 && <small className="medication-classification-summary"
-              title={value.classifications.map((item) => `${item.systemName} ${item.systemVersion} · ${item.path || item.display}`).join('\n')}>
-              {value.classifications.map((item) => item.systemCode === 'ATC'
-                ? `ATC ${item.code}` : `${item.systemCode} ${item.systemVersion}`).join(' · ')}
-            </small>}
           </div>
         </td>
 
@@ -2199,7 +2194,7 @@ function DiseaseDialog({ dictionaries, codeSystems, value, onClose, onSave }: { 
   const [effectiveFrom, setEffectiveFrom] = useState(value?.effectiveFrom ?? today())
   return <DataFormDialog title={value ? '编辑疾病概念' : '新增疾病概念'} eyebrow="疾病与临床术语" onClose={onClose}
     size="xwide" description="先确认标准身份，再补充目录与检索信息；标准编码和编码体系创建后不可修改。"
-    onSubmit={(form) => onSave({ codeSystemId: text(form, 'codeSystemId'), code: text(form, 'code'),
+    onSubmit={(form) => onSave({ codeSystemId: value?.codeSystemId || text(form, 'codeSystemId'), code: (value?.code || text(form, 'code')).trim(),
       display: text(form, 'display'), shortDisplay: optionalText(form, 'shortDisplay'),
       sdConceptType: text(form, 'sdConceptType'), chapterCode: optionalText(form, 'chapterCode'),
       chapterName: optionalText(form, 'chapterName'), definition: optionalText(form, 'definition'),
@@ -2213,6 +2208,7 @@ function DiseaseDialog({ dictionaries, codeSystems, value, onClose, onSave }: { 
           defaultValue={value?.codeSystemId ?? codeSystems[0]?.id} />
         <FormField label="标准编码" required><input name="code" defaultValue={value?.code}
           disabled={Boolean(value)} placeholder="如 M54.5" autoFocus={!value} required /></FormField>
+        {value && <input type="hidden" name="code" value={value.code} />}
         <SelectField name="sdConceptType" label="概念类型" values={dictionaries.BD_CONCEPT_TYPE}
           defaultValue={value?.sdConceptType ?? 'DISEASE'} />
         <FormField label="规范名称" required className="span-2"><input name="display" defaultValue={value?.display}
@@ -2255,7 +2251,7 @@ function DiseaseManagementProgramDialog({ dictionaries, value, onClose, onSave }
     size="xwide" onClose={onClose}
     description="管理项目可以关联多个疾病；诊断命中后只生成受控提示或草稿，不会静默完成纳管和上报。"
     onSubmit={(form) => onSave({ productScope: value?.scopeType === 'PRODUCT',
-      code: text(form, 'code'), name: text(form, 'name'),
+      code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'),
       sdManagementType: text(form, 'sdManagementType') as DiseaseManagementProgramInput['sdManagementType'],
       sdTriggerAction: text(form, 'sdTriggerAction') as DiseaseManagementProgramInput['sdTriggerAction'],
       description: optionalText(form, 'description'), reportCardType: optionalText(form, 'reportCardType'),
@@ -2408,9 +2404,9 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
   value?: ServiceCatalogItem; onClose: () => void; onSave: (input: ServiceInput) => void }) {
   return <DataFormDialog title={value ? '编辑诊疗项目' : '新增诊疗项目'} eyebrow="临床服务目录" onClose={onClose}
     size="xwide" description="维护项目主档身份和目录属性；检验检查的执行、部位与收费规则从项目列表的“项目配置”进入。"
-    onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
+    onSubmit={(form) => onSave({ code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'), unitCode: optionalText(form, 'unitCode'),
       orderable: checked(form, 'orderable'), chargeable: checked(form, 'chargeable'), sdStatus: (value?.sdStatus ?? 'ACTIVE'),
-      validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: text(form, 'sdServiceType'),
+      validFrom: text(form, 'validFrom'), validTo: optionalText(form, 'validTo'), sdServiceType: value?.sdServiceType || text(form, 'sdServiceType'),
       serviceSubtype: optionalText(form, 'serviceSubtype'), sdUsageType: text(form, 'sdUsageType'),
       medicalTechnology: checked(form, 'medicalTechnology'), combinationItem: checked(form, 'combinationItem'),
       singleOrder: checked(form, 'singleOrder'), specimenType: value?.specimenType,
@@ -2424,6 +2420,7 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
       <FormGrid columns={3}>
         <FormField label="项目编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 EXAM_BLOOD_ROUTINE" autoFocus={!value} required /></FormField>
+        {value && <input type="hidden" name="code" value={value.code} />}
         <FormField label="项目名称" required className="span-2"><input name="name" defaultValue={value?.name}
           placeholder="录入统一项目名称" required /></FormField>
         <SelectField name="sdServiceType" label={value ? '项目类型（创建后不可修改）' : '项目类型'} values={dictionaries.BD_SERVICE_TYPE}
@@ -2551,7 +2548,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
   return <DataFormDialog title={value ? '编辑通用药品知识' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
     size="xwide" className="medication-knowledge-dialog"
     description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
-    onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
+    onSubmit={(form) => onSave({ code: (value?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
       sdMedicationType: medicationType, sdDoseForm: optionalText(form, 'sdDoseForm'),
       preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
       preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
@@ -2585,6 +2582,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
       <FormGrid columns={4}>
         <FormField label="通用药品编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
           placeholder="如 MED_AMOXICILLIN" autoFocus={!value} required /></FormField>
+        {value && <input type="hidden" name="code" value={value.code} />}
         <FormField label="通用名称" required><input name="name" defaultValue={value?.name}
           placeholder="录入药品通用名称" required /></FormField>
         <FormField label="别名"><input name="aliasName" defaultValue={value?.aliasName}
