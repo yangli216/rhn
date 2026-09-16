@@ -9,6 +9,8 @@ import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory.ItemAttrib
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
+import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.json.JsonCodec;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -47,6 +49,7 @@ class InpatientCareRequestStoreOracleBindingTest {
         InpatientCareRequestStore store = new InpatientCareRequestStore(
                 mock(CatalogLifecycleDirectory.class), mock(ItemAttributeSnapshotDirectory.class),
                 mock(ItemStandardMappingDirectory.class), mock(MedicationRouteDirectory.class),
+                mock(MedicationSemanticDirectory.class), mock(OrderFrequencyDirectory.class),
                 mock(JsonCodec.class), recording.jdbc());
 
         store.create(new InpatientCareRequestStore.CreateFact(
@@ -97,7 +100,8 @@ class InpatientCareRequestStoreOracleBindingTest {
                 .thenReturn(new MedicationRouteDirectory.RouteSnapshot(
                         50L, "ORAL", "口服", "RHN.EX.CS.MEDICATION_ROUTE", "1.0", "NONE"));
         InpatientCareRequestStore store = new InpatientCareRequestStore(
-                catalog, attributes, mappings, routes, json, recording.jdbc());
+                catalog, attributes, mappings, routes, mock(MedicationSemanticDirectory.class),
+                mock(OrderFrequencyDirectory.class), json, recording.jdbc());
 
         store.create(new InpatientCareRequestStore.CreateFact(
                 1L, 2L, 3L, 4L, 5L, 6L, "MEDICATION", item.id(),
@@ -107,8 +111,8 @@ class InpatientCareRequestStoreOracleBindingTest {
         String medicationSql = recording.sql().get(1).toLowerCase();
         assertFalse(medicationSql.matches("(?s).*\\b(?:true|false)\\b.*"));
         PreparedStatement medicationStatement = recording.statements().get(1);
-        verify(medicationStatement).setBoolean(13, false);
-        verify(medicationStatement).setBoolean(14, false);
+        verify(medicationStatement).setBoolean(16, false);
+        verify(medicationStatement).setBoolean(17, false);
     }
 
     private static RecordingJdbc recordingJdbc() throws Exception {

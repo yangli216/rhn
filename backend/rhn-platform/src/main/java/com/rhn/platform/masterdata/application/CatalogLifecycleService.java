@@ -264,16 +264,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private MedicationSnapshot medicationSnapshot(Long tenantId, Long medicationId) {
         var value = medicationRepository.findByIdAndTenantId(medicationId, tenantId)
                 .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到药品知识"));
-        return new MedicationSnapshot(value.id(), value.itemTypeId(), value.code(), value.name(), value.aliasName(),
-                value.medicationType(), value.doseForm(), value.preparationSpec(), value.preparationUnit(),
-                value.strengthValue(), value.strengthUnit(), value.storageType(), value.prescriptionDrug(),
-                value.essentialDrug(), value.antimicrobial(), value.antimicrobialLevel(),
-                value.antimicrobialOutpatientAllowed(), value.antimicrobialConsultationRequired(),
-                value.antimicrobialEmergencyAllowed(), value.antimicrobialMaxDays(), value.skinTestRequired(),
-                value.skinTestMethod(), value.skinTestSolutionMode(), value.skinTestObservationMinutes(),
-                value.skinTestResultValidityHours(), value.skinTestInstructions(),
-                value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(), value.defaultFrequencyId(), value.defaultFrequency(),
-                value.chronicDiseaseDrug(), value.singleOrder(), value.status());
+        return MedicationSemanticsService.snapshot(value);
     }
 
     @Transactional

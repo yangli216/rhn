@@ -27,7 +27,7 @@ public final class MedicationSafetyEngine {
         var findings = new ArrayList<MedicationSafetyFinding>();
         var executions = new ArrayList<MedicationSafetyDecision.RuleExecution>();
         var failures = new ArrayList<String>();
-        if (!PrescriptionSafetySnapshot.SCHEMA_VERSION.equals(input.schemaVersion())
+        if (!List.of(PrescriptionSafetySnapshot.SCHEMA_VERSION, "qmed-prescription-v1").contains(input.schemaVersion())
                 || !List.of("DRAFT", "ACTIVE").contains(input.prescriptionStatus())
                 || input.medications().stream().anyMatch(item -> !List.of("DRAFT", "ACTIVE", "CANCELLED").contains(item.status()))) {
             return new Result(List.of(), List.of(), List.of("INPUT_UNSUPPORTED"));

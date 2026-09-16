@@ -102,6 +102,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final OrderFrequencyDirectory orderFrequencyDirectory;
     private final MedicationRouteDirectory medicationRouteDirectory;
     private final MedicationTerminologyDirectory medicationTerminologyDirectory;
+    private final MedicationSemanticsService medicationSemantics;
 
     public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
@@ -123,7 +124,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         ExecutionContextProvider contextProvider,
                                         OrderFrequencyDirectory orderFrequencyDirectory,
                                         MedicationRouteDirectory medicationRouteDirectory,
-                                        MedicationTerminologyDirectory medicationTerminologyDirectory) {
+                                        MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics) {
+        this.medicationSemantics = medicationSemantics;
         this.serviceRepository = serviceRepository;
         this.supplyRepository = supplyRepository;
         this.medicationRepository = medicationRepository;
@@ -380,6 +382,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
         item = medicationRepository.save(item);
+        medicationSemantics.captureMedication(item);
         attributeSubjectRepository.save(ItemAttributeSubject.medication(
                 context.tenantId(), item.id(), context.subjectId()));
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
@@ -408,6 +411,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         validateMedication(command);
         var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
         var route = resolveMedicationRoute(context, command.defaultRoute());
+        medicationSemantics.captureMedication(item);
         item.update(expectedRevision, context.subjectId(), MasterDataItemTypes.forMedication(command.medicationType()),
                 command.name(), command.aliasName(),
                 command.medicationType(), command.doseForm(), command.preparationSpec(), command.preparationUnit(),
@@ -422,6 +426,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 frequency == null ? null : frequency.code(), command.chronicDiseaseDrug(),
                 command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
+        medicationSemantics.captureMedication(item);
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -431,7 +436,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         requireCode(MasterDataDictionaryCodes.STATUS, status);
         Medication item = requireMedication(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
+        medicationSemantics.captureMedication(item);
         item.changeStatus(expectedRevision, context.subjectId(), status);
+        medicationSemantics.captureMedication(item);
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 

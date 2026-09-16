@@ -27,7 +27,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void medication_product_setup_creates_common_his_profile_atomically() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhn())
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MED-SETUP-%s","name":"建档测试药品","sdMedicationType":"WESTERN",
@@ -38,7 +38,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                 }
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
-        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhn())
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "code":"MFR-SETUP-%s","name":"建档测试制药企业",
@@ -47,7 +47,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                 """.formatted(suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
 
-        mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhn())
+        mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {
                                   "product":{

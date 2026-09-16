@@ -308,3 +308,11 @@
 | AUD | `aud.quality_evaluation` | 合理用药评价；一行代表一次完整处方的旁路安全评价 | `quality_evaluation` | `RHN_AUD_MED_EVAL` | 18 |
 | AUD | `aud.quality_finding` | 合理用药风险发现；一行代表某次评价中一条规则的风险发现 | `quality_finding` | `RHN_AUD_MED_FINDING` | 11 |
 | AUD | `aud.quality_override` | 合理用药风险覆盖记录；一行代表用户对一个风险发现的覆盖理由 | `quality_override` | `RHN_AUD_MED_OVERRIDE` | 7 |
+
+### QMED-0 临床语义版本
+
+| 逻辑表 | 物理表 | 说明 |
+| --- | --- | --- |
+| bd.clinical_semantic_version | RHN_BD_CLIN_SEM_VER | 不可变临床语义版本与变更记录，包含成分、成分映射、药品、频次定义/配置及运行时途径/频次快照 |
+
+迁移：V1_45_0。语义版本使用内容哈希，记录主键仅用于维护并发检查和审计排序，不作为临床语义版本。

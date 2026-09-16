@@ -26210,5 +26210,69 @@
         "comment": "覆盖时间"
       }
     ]
+  },
+  {
+    "logical": "bd.clinical_semantic_version",
+    "legacy": "clinical_semantic_versions",
+    "physical": "RHN_BD_CLIN_SEM_VER",
+    "domain": "BD",
+    "comment": "临床语义版本；一行代表一次不可变概念版本或显示信息变更记录",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_CLIN_SEM_VER",
+        "comment": "临床语义版本记录主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "concept_kind",
+        "physical": "SD_CONCEPT_KIND",
+        "comment": "概念类型"
+      },
+      {
+        "logical": "concept_id",
+        "physical": "CD_CONCEPT",
+        "comment": "稳定概念标识"
+      },
+      {
+        "logical": "semantic_version",
+        "physical": "HASH_SEM_VER",
+        "comment": "语义内容版本哈希"
+      },
+      {
+        "logical": "change_type",
+        "physical": "SD_CHANGE_TYPE",
+        "comment": "变更类型"
+      },
+      {
+        "logical": "source",
+        "physical": "DES_SOURCE",
+        "comment": "资料来源"
+      },
+      {
+        "logical": "snapshot",
+        "physical": "JSON_SNAPSHOT",
+        "comment": "不可变资料快照"
+      },
+      {
+        "logical": "recorded_at",
+        "physical": "DT_RECORDED",
+        "comment": "版本记录时间"
+      },
+      {
+        "logical": "recorded_by",
+        "physical": "ID_USER_RECORDED",
+        "comment": "记录人标识"
+      },
+      {
+        "logical": "identity_key",
+        "physical": "CD_IDENTITY_KEY",
+        "comment": "成分去重身份键；其他版本记录为空"
+      }
+    ]
   }
 ]

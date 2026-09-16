@@ -5,12 +5,12 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
-/** V1 carries saved clinical values. LEGACY explicitly means canonical semantic versions are not yet available. */
+/** V2 includes saved QMED-0 semantics inside medicationSnapshot; historical items remain LEGACY. */
 public record PrescriptionSafetySnapshot(
         String schemaVersion, Long tenantId, Long prescriptionId, long prescriptionRevision,
         Long encounterId, Long residentId, Long organizationId, Long departmentId,
         String prescriptionStatus, List<MedicationItem> medications) {
-    public static final String SCHEMA_VERSION = "qmed-prescription-v1";
+    public static final String SCHEMA_VERSION = "qmed-prescription-v2";
 
     public PrescriptionSafetySnapshot {
         Objects.requireNonNull(schemaVersion, "schemaVersion");

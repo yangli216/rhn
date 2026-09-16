@@ -16,7 +16,15 @@ class PrescriptionSafetySnapshotServiceTest {
     private final EncounterDirectory encounters = mock(EncounterDirectory.class);
     private final PrescriptionRepository prescriptions = mock(PrescriptionRepository.class);
     private final MedicationRequestRepository medications = mock(MedicationRequestRepository.class);
-    private final PrescriptionSafetySnapshotService snapshots = new PrescriptionSafetySnapshotService(encounters, prescriptions, medications);
+    private final PrescriptionSafetySnapshotService snapshots = new PrescriptionSafetySnapshotService(encounters, prescriptions, medications,
+            jsonCodec());
+
+    private static com.rhn.shared.json.JsonCodec jsonCodec() {
+        var json = mock(com.rhn.shared.json.JsonCodec.class);
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        when(json.readTree(anyString())).thenAnswer(call -> mapper.readTree((String) call.getArgument(0)));
+        return json;
+    }
 
     @Test
     void assembles_whole_prescription_from_saved_values_without_reading_latest_master_data() {
@@ -26,6 +34,8 @@ class PrescriptionSafetySnapshotServiceTest {
         when(prescriptions.findByIdAndTenantId(prescription.id(), 1L)).thenReturn(Optional.of(prescription));
         var active = request(12L, "ACTIVE");
         var cancelled = request(11L, "CANCELLED");
+        when(active.medicationSnapshot()).thenReturn("{\"clinicalSemantics\":{\"schemaVersion\":\"qmed-medication-semantics-v1\","
+                + "\"status\":\"VERSIONED_PARTIAL\",\"medicationSemanticVersion\":\"" + "a".repeat(64) + "\"}}");
         when(medications.findByTenantIdAndRequestGroupIdOrderByAuthoredAt(1L, prescription.id()))
                 .thenReturn(List.of(active, cancelled));
         var snapshot = snapshots.requireSnapshot(3L, prescription.id());
@@ -33,9 +43,10 @@ class PrescriptionSafetySnapshotServiceTest {
                 .map(PrescriptionSafetySnapshot.MedicationItem::medicationRequestId).toList());
         assertEquals("CANCELLED", snapshot.medications().getFirst().status());
         var item = snapshot.medications().getLast();
-        assertEquals("LEGACY", item.semanticStatus());
+        assertEquals("LEGACY", snapshot.medications().getFirst().semanticStatus());
+        assertEquals("VERSIONED_PARTIAL", item.semanticStatus());
         assertEquals("{\"revision\":7}", item.frequencyRuleSnapshot());
-        assertEquals("{\"strengthValue\":5}", item.medicationSnapshot());
+        assertEquals(active.medicationSnapshot(), item.medicationSnapshot());
         assertEquals("RESOLVED", item.routeResolutionStatus());
         assertEquals(1L, snapshot.tenantId());
         assertEquals(0, snapshot.prescriptionRevision());

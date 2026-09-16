@@ -11,6 +11,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MedicationRepository extends JpaRepository<Medication, Long> {
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("select m from Medication m where m.id = :id and m.tenantId = :tenantId")
+    Optional<Medication> lockByIdAndTenantId(@Param("id") Long id, @Param("tenantId") Long tenantId);
+
     List<Medication> findByTenantIdOrderByName(Long tenantId);
     List<Medication> findByTenantIdAndIdIn(Long tenantId, java.util.Collection<Long> ids);
     Optional<Medication> findByIdAndTenantId(Long id, Long tenantId);

@@ -18,11 +18,62 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @TestPropertySource(properties = "rhn.pharmacy.require-settlement-authorization=true")
+@org.springframework.test.annotation.DirtiesContext(classMode = org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 @Tag("outpatient-main-flow")
 class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
     private static final String OUTPATIENT_SERVICE_ID = "362387869795104";
-    private static final String PRODUCT_ID = "362387869795113";
-    private static final String PACKAGE_ID = "362387869795403";
+    private String productId = "362387869795113";
+    private String packageId = "362387869795403";
+
+    @Test
+    void standard_catalog_specification_can_be_configured_and_complete_the_outpatient_chain() throws Exception {
+        String suffix = UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        JsonNode found = json(mockMvc.perform(get("/api/platform/master-data/medication-standard-catalog")
+                        .with(rhnWorkContext()).param("query", "MED-2026-W185"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode detail = json(mockMvc.perform(get("/api/platform/master-data/medication-standard-catalog/{id}",
+                        found.at("/content/0/id").asString()).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode spec = detail.at("/specifications/0");
+        assertEquals("TABLET", spec.path("doseForm").asString());
+        assertEquals("5mg", spec.path("specification").asString());
+        // Local operational configuration is independent of source-verification status.
+        JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
+                        .param("organizationId", ORGANIZATION).contentType(MediaType.APPLICATION_JSON).content("""
+                          {"code":"%s","name":"氨氯地平（联调）","sdMedicationType":"WESTERN",
+                           "sdDoseForm":"TABLET","preparationSpec":"5mg","preparationUnit":"片",
+                           "strengthValue":5,"strengthUnit":"mg","defaultDose":5,"defaultDoseUnit":"mg",
+                           "defaultRoute":"ORAL","defaultFrequency":"QD","prescriptionDrug":true,
+                           "essentialDrug":false,"antimicrobial":false,"skinTestRequired":false,
+                           "chronicDiseaseDrug":true,"singleOrder":true,"sdStatus":"ACTIVE"}
+                        """.formatted(spec.path("id").asString())))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        mockMvc.perform(get("/api/platform/master-data/medications/search").with(rhnWorkContext())
+                        .param("query", spec.path("id").asString()).param("organizationId", ORGANIZATION))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1));
+        JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                         {"code":"STD-MFR-%s","name":"示范制药有限公司","sdManufacturerType":"DRUG","sdStatus":"ACTIVE"}
+                        """.formatted(suffix)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        JsonNode product = json(mockMvc.perform(post("/api/platform/master-data/medication-products/setup").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                         {"product":{"medicationId":"%s","manufacturerId":"%s","code":"STD-PROD-%s",
+                           "otc":false,"centralPurchase":false,"importAllowed":false,"traceSplitRequired":false,
+                           "orderable":true,"chargeable":true,"stocked":true,"sdStatus":"ACTIVE","validFrom":"2026-01-01"},
+                          "packaging":{"unitCode":"BOX","unitName":"盒","packageSpec":"5mg*14片/盒",
+                           "quantityFactor":14,"sdUsageType":"SALE","defaultPurchase":true,"defaultSale":true,
+                           "defaultDispense":true,"sdStatus":"ACTIVE","validFrom":"2026-01-01"},
+                          "organization":{"organizationId":"%s","orderable":true,"executable":false,"chargeable":true,
+                           "purchasable":true,"stocked":true,"dispensable":true,"returnable":true,
+                           "sdStatus":"ACTIVE","validFrom":"2026-01-01"},"purchasePrice":8.4,"salePrice":18.6}
+                        """.formatted(medication.path("id").asString(), manufacturer.path("id").asString(), suffix, ORGANIZATION)))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.organizationAdoption.orderable").value(true))
+                .andReturn().getResponse().getContentAsString());
+        productId = product.path("id").asString();
+        packageId = product.at("/packages/0/id").asString();
+        outpatient_visit_charges_orders_before_execution_and_releases_pharmacy_only_after_settlement();
+    }
 
     @Test
     void diagnosis_order_is_persisted_and_the_first_item_is_the_unique_primary_diagnosis() throws Exception {
@@ -106,9 +157,13 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "performerOrganizationId":"%s","performerDepartmentId":"%s",
                                   "reason":"高血压门诊治疗"
                                 }
-                                """.formatted(PRODUCT_ID, PACKAGE_ID, ORGANIZATION, DEPARTMENT)))
+                                """.formatted(productId, packageId, ORGANIZATION, DEPARTMENT)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.medicationSnapshot.clinicalSemantics.schemaVersion").value("qmed-medication-semantics-v1"))
+                .andExpect(jsonPath("$.medicationSnapshot.clinicalSemantics.medicationSemanticVersion").isNotEmpty())
+                .andExpect(jsonPath("$.medicationSnapshot.clinicalSemantics.route.semanticVersion").isNotEmpty())
+                .andExpect(jsonPath("$.medicationSnapshot.clinicalSemantics.frequency.semanticVersion").isNotEmpty())
                 .andExpect(jsonPath("$.packageSpec").value("5mg*14片/盒"))
                 .andExpect(jsonPath("$.manufacturerName").value("示范制药有限公司"))
                 .andExpect(jsonPath("$.totalAmount").value(18.6))
@@ -354,7 +409,7 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
                                   "negativeAllowed":false,"lotRequired":true,"traceRequired":false,
                                   "splitAllowed":false,"coldChain":false,"controlled":false,"highAlert":false
                                 }
-                                """.formatted(PRODUCT_ID, PACKAGE_ID)))
+                                """.formatted(productId, packageId)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode bin = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{siteId}/stock-bins", site.get("id").asString())
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""

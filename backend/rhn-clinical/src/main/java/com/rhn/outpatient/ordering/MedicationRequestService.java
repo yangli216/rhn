@@ -5,6 +5,7 @@ import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.healthcore.api.AllergyDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
+import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
@@ -50,6 +51,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final MedicationSemanticDirectory semantics;
 
     MedicationRequestService(MedicationRequestRepository repository,
                              PrescriptionRepository prescriptionRepository,
@@ -63,7 +65,8 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              AllergyDirectory allergyDirectory,
                              MedicationTerminologyDirectory terminologyDirectory,
                              DomainEventPublisher eventPublisher,
-                             ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
+                             ExecutionContextProvider contextProvider, JsonCodec jsonCodec, MedicationSemanticDirectory semantics) {
+        this.semantics = semantics;
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
         this.encounterDirectory = encounterDirectory; this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory; this.mappingDirectory = mappingDirectory;
@@ -249,7 +252,9 @@ class MedicationRequestService implements MedicationRequestDirectory {
                 medication.code(), medication.name(), medication.medicationType(), medication.doseForm(),
                 medication.preparationSpec(), medication.preparationUnit(), medication.skinTestRequired(),
                 Boolean.TRUE.equals(input.skinTestExempt()), clean(input.skinTestExemptReason()), input.exemptEvidenceEventId(),
-                medication.antimicrobial(), medication.antimicrobialLevel(), jsonCodec.write(medication)));
+                medication.antimicrobial(), medication.antimicrobialLevel(), jsonCodec.write(semantics.freeze(tenantId,
+                        medication, item == null ? null : item.id(), routeSnapshot, frequencySnapshot,
+                        doseValue, doseUnit, input.durationValue(), clean(input.durationUnit()), businessDate))));
         Map<String, Object> eventDetails = new LinkedHashMap<>();
         eventDetails.put("medicationId", value.medicationId());
         if (value.catalogItemId() != null) eventDetails.put("catalogItemId", value.catalogItemId());

@@ -6,6 +6,8 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory.MedicationSnaps
 import com.rhn.platform.masterdata.api.ItemAttributeSnapshotDirectory;
 import com.rhn.platform.masterdata.api.ItemStandardMappingDirectory;
 import com.rhn.platform.masterdata.api.MedicationRouteDirectory;
+import com.rhn.platform.masterdata.api.MedicationSemanticDirectory;
+import com.rhn.platform.masterdata.api.OrderFrequencyDirectory;
 import com.rhn.shared.id.GlobalIds;
 import com.rhn.shared.json.JsonCodec;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -36,14 +38,18 @@ public class InpatientCareRequestStore {
     private final ItemStandardMappingDirectory mappingDirectory;
     private final MedicationRouteDirectory routeDirectory;
     private final JsonCodec jsonCodec;
+    private final MedicationSemanticDirectory semantics;
+    private final OrderFrequencyDirectory frequencies;
     private final NamedParameterJdbcTemplate jdbc;
 
     public InpatientCareRequestStore(CatalogLifecycleDirectory catalogDirectory,
                                      ItemAttributeSnapshotDirectory attributeDirectory,
                                      ItemStandardMappingDirectory mappingDirectory,
                                      MedicationRouteDirectory routeDirectory,
+                                     MedicationSemanticDirectory semantics, OrderFrequencyDirectory frequencies,
                                      JsonCodec jsonCodec,
                                      JdbcTemplate jdbcTemplate) {
+        this.semantics = semantics; this.frequencies = frequencies;
         this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory;
         this.mappingDirectory = mappingDirectory;
@@ -200,7 +206,13 @@ public class InpatientCareRequestStore {
         var routeSnapshot = routeDirectory.requireActive(input.tenantId(), route, "INPATIENT", businessDate);
         route = routeSnapshot.code();
         String frequency = normalize(input.frequencyCode() == null ? medication.defaultFrequency() : input.frequencyCode());
+        var frequencySnapshot = frequency == null ? null : frequencies.requireActive(input.tenantId(), frequency,
+                input.organizationId(), input.departmentId(), "INPATIENT", "MEDICATION", businessDate);
+        if (frequencySnapshot != null) frequency = frequencySnapshot.code();
         MapSqlParameterSource values = new MapSqlParameterSource()
+                .addValue("frequencyId", frequencySnapshot == null ? null : frequencySnapshot.id())
+                .addValue("frequencyName", frequencySnapshot == null ? null : frequencySnapshot.name())
+                .addValue("frequencySnapshot", frequencySnapshot == null ? null : jsonCodec.write(frequencySnapshot))
                 .addValue("requestId", requestId).addValue("tenantId", input.tenantId())
                 .addValue("medicationId", medication.id()).addValue("dose", dose).addValue("doseUnit", doseUnit)
                 .addValue("routeId", routeSnapshot.id()).addValue("route", route)
@@ -214,12 +226,13 @@ public class InpatientCareRequestStore {
                 .addValue("preparationUnit", medication.preparationUnit())
                 .addValue("skinTest", medication.skinTestRequired()).addValue("antimicrobial", medication.antimicrobial())
                 .addValue("antimicrobialLevel", medication.antimicrobialLevel())
-                .addValue("snapshot", jsonCodec.write(medication));
+                .addValue("snapshot", jsonCodec.write(semantics.freeze(input.tenantId(), medication,
+                        resolved.catalogItemId(), routeSnapshot, frequencySnapshot, dose, doseUnit, null, null, businessDate)));
         jdbc.update("""
                 insert into RHN_EX_MED_REQ (
                     ID_CARE_REQ, ID_TNT, ID_MED, QTY_DOSE_VAL, DOSE_UNIT,
                     ID_CONCEPT_ROUTE, CD_ROUTE, NA_ROUTE_SNAP, SD_ROUTE_EXEC_TYPE_SNAP, SD_ROUTE_RESOLUTION_STATUS,
-                    CD_FREQ,
+                    CD_FREQ, ID_ORDER_FREQ, NA_FREQ_SNAP, FREQUENCY_RULE_SNAPSHOT,
                     QTY_ORDERED, QTY_UNIT, QTY_BASE, BASE_UNIT, PACKAGE_FACTOR_SNAPSHOT,
                     FG_SUBSTITUTION, FG_SELF_PROVIDED, DES_MED_INSTRUCTION,
                     CD_MED_SNAP, NA_MED_SNAP, SD_MED_TYPE_SNAP,
@@ -228,7 +241,7 @@ public class InpatientCareRequestStore {
                     MEDICATION_SNAPSHOT
                 ) values (
                     :requestId, :tenantId, :medicationId, :dose, :doseUnit,
-                    :routeId, :route, :routeName, :routeExecutionType, 'RESOLVED', :frequency,
+                    :routeId, :route, :routeName, :routeExecutionType, 'RESOLVED', :frequency, :frequencyId, :frequencyName, :frequencySnapshot,
                     1, :unit, 1, :unit, 1, :substitutionAllowed, :selfProvided, :instruction,
                     :medicationCode, :medicationName, :medicationType,
                     :doseForm, :spec, :preparationUnit, :skinTest, :antimicrobial,

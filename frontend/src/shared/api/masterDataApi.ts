@@ -1,5 +1,17 @@
 import type { ApiClient } from './httpClient'
 
+export interface MedicationIngredient {
+  id: string; code: string; display: string; system: string; systemVersion: string; source: string
+}
+export interface MedicationComponent {
+  ingredientId: string; numeratorValue?: number | null; numeratorUnit?: string | null
+  denominatorValue?: number | null; denominatorUnit?: string | null
+}
+export interface MedicationComposition { revision: string | null; source: string | null; components: MedicationComponent[] }
+export interface MedicationSemanticVersion {
+  revision: string; semanticVersion: string; changeType: string; source: string; recordedAt: string
+}
+
 export type MasterDataStatus = 'DRAFT' | 'PENDING_REVIEW' | 'PUBLISHED' | 'ACTIVE' | 'SUSPENDED' | 'RETIRED' | 'REPLACED'
 
 export interface ItemType {
@@ -1357,10 +1369,24 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MedicationKnowledge[]>(`/api/platform/master-data/medications${queryString({
         query, medicationType, status, organizationId,
       })}`),
+    standardMedicationSummary: () => client.request<StandardMedicationSummary>('/api/platform/master-data/medication-standard-catalog/summary'),
+    standardMedications: (query = '', medicationType = '', state = '', page = 0, size = 20) =>
+      client.request<MasterDataPage<StandardMedicationEntry>>(`/api/platform/master-data/medication-standard-catalog${queryString({
+        query, medicationType, state, page: String(page), size: String(size),
+      })}`),
+    standardMedicationDetail: (id: string) => client.request<StandardMedicationDetail>(
+      `/api/platform/master-data/medication-standard-catalog/${encodeURIComponent(id)}`),
     searchMedications: (query = '', medicationType = '', status = '', organizationId = '', page = 0, size = 20) =>
       client.request<MasterDataPage<MedicationKnowledge>>(`/api/platform/master-data/medications/search${queryString({
         query, medicationType, status, organizationId, page: String(page), size: String(size),
       })}`),
+    medicationIngredients: () => client.request<MedicationIngredient[]>('/api/platform/master-data/medication-ingredients'),
+    createMedicationIngredient: (input: Omit<MedicationIngredient, 'id'>) => client.request<MedicationIngredient>(
+      '/api/platform/master-data/medication-ingredients', {method: 'POST', body: JSON.stringify(input)}),
+    medicationComposition: (id: string) => client.request<MedicationComposition>(`/api/platform/master-data/medications/${id}/composition`),
+    saveMedicationComposition: (id: string, input: MedicationComposition) => client.request<MedicationComposition>(
+      `/api/platform/master-data/medications/${id}/composition`, {method: 'PUT', body: JSON.stringify(input)}),
+    medicationSemanticHistory: (id: string) => client.request<MedicationSemanticVersion[]>(`/api/platform/master-data/medications/${id}/semantic-history`),
     createMedication: (input: MedicationInput, organizationId = '') => client.request<MedicationKnowledge>(
       `/api/platform/master-data/medications${queryString({ organizationId })}`, {
         method: 'POST', body: JSON.stringify(input),
@@ -1611,4 +1637,30 @@ export function createMasterDataApi(client: ApiClient) {
       { method: 'POST', body: JSON.stringify({ code, organizationId, departmentId, start, occurrences }) },
     ),
   }
+}
+
+export interface StandardMedicationSource {
+  title: string; claimedEdition: string; sha256: string; verificationStatus: string; note: string
+}
+export interface StandardMedicationSummary {
+  catalogVersion: string; source: StandardMedicationSource; scopeNote: string
+  statistics: { entries: number; specifications: number; scopeEntries: number; issues: number;
+    structuredStrengths: number; entriesWithSpecifications: number; crossCategoryRows: number }
+}
+export interface StandardMedicationEntry {
+  id: string; legacyCode: string; name: string; innName: string; pinyinCode: string;
+  medicationType: string; entryType: string; sourceSpecification: string; sourceNote: string;
+  specialistGuidance: boolean; sourceLocations: string[]; specificationCount: number; issueCount: number;
+  categories: { major: string; sub: string; function: string }[]
+}
+export interface StandardMedicationSpecification {
+  id: string; doseForm: string; doseFormName: string; substanceQualifier: string; specification: string;
+  sourceBlock: string; orderable: boolean; presentationUnit?: string | null;
+  strength: { kind: string; numerator: {value: string; unit: string} | null;
+    denominator: {value: string; unit: string} | null; components: {ordinal: number; value: string; unit: string}[];
+    computable: boolean }
+}
+export interface StandardMedicationDetail extends StandardMedicationEntry {
+  source: StandardMedicationSource; specifications: StandardMedicationSpecification[];
+  issues: {reason: string; sourceText: string}[]
 }

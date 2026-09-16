@@ -1,0 +1,13 @@
+.med-composition-layout { display:grid; grid-template-columns:minmax(650px, 1fr) 280px; gap:24px; align-items:start; }
+.med-composition-main, .med-composition-side { min-width:0; }
+.med-composition-row { display:grid; grid-template-columns:minmax(160px,2fr) repeat(4,minmax(76px,1fr)) auto; gap:8px; align-items:end; }
+.med-composition-fields { display:grid; gap:16px; border:0; padding:0; margin:0; min-width:0; }
+.med-composition-fields input, .med-composition-fields select { width:100%; min-width:0; }
+.med-composition-side { border-left:1px solid var(--color-border); padding-left:20px; display:grid; gap:24px; }
+.med-composition-history { list-style:none; margin:0; padding:0; max-height:240px; overflow:auto; }
+.med-composition-history li { display:grid; gap:4px; padding:10px 0; border-bottom:1px solid var(--color-border); }
+.med-composition-history time, .med-composition-history small { color:var(--color-text-secondary); font-size:12px; }
+.med-composition-fields .ui-field { min-width:0; margin:0; }
+.med-composition-main > p, .med-composition-side p { color:var(--color-text-secondary); font-size:13px; line-height:1.6; }
+.med-composition-layout h3 { margin:0 0 12px; font-size:15px; }
+.med-composition-fields > .ui-button { justify-self:start; }

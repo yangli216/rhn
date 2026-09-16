@@ -28,10 +28,12 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
     private final MedicationRepository medications;
     private final OrganizationDirectory organizations;
     private final ExecutionContextProvider contextProvider;
+    private final MedicationSemanticsService semantics;
 
     public OrderFrequencyService(OrderFrequencyRepository frequencies,
             OrderFrequencyConfigurationRepository configurations, MedicationRepository medications,
-            OrganizationDirectory organizations, ExecutionContextProvider contextProvider) {
+            OrganizationDirectory organizations, ExecutionContextProvider contextProvider, MedicationSemanticsService semantics) {
+        this.semantics = semantics;
         this.frequencies = frequencies; this.configurations = configurations; this.medications = medications;
         this.organizations = organizations; this.contextProvider = contextProvider;
     }
@@ -59,7 +61,9 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
                 command.medicationApplicable(), command.treatmentApplicable(), command.nursingApplicable(),
                 command.automaticTaskGeneration(), command.sortOrder(), upper(command.status()),
                 command.validFrom(), command.validTo());
-        return view(frequencies.save(value), List.of());
+        frequencies.save(value);
+        capture(value);
+        return view(value, List.of());
     }
 
     @Transactional
@@ -72,12 +76,14 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
                 && medications.findByTenantIdOrderByName(context.tenantId()).stream().anyMatch(m -> value.id().equals(m.defaultFrequencyId()) && "ACTIVE".equals(m.status()))) {
             throw conflict("ORDER_FREQUENCY_IN_USE", "该频次仍被有效药品默认频次引用，不能停用");
         }
+        capture(value);
         value.update(expectedRevision, context.subjectId(), command.name(), command.shortName(),
                 command.description(), upper(command.ruleType()), command.frequencyCount(), command.periodValue(),
                 upper(command.periodUnit()), upper(command.anchorType()), normalizeTimes(command.defaultExecutionTimes()),
                 command.outpatientApplicable(), command.inpatientApplicable(), command.emergencyApplicable(),
                 command.medicationApplicable(), command.treatmentApplicable(), command.nursingApplicable(),
                 command.automaticTaskGeneration(), command.sortOrder(), upper(command.status()), command.validFrom(), command.validTo());
+        capture(value);
         return view(frequencies.save(value), configurations.findByTenantIdAndFrequencyIdOrderByDepartmentIdDescValidFromDesc(context.tenantId(), id));
     }
 
@@ -89,6 +95,7 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
                 context.tenantId(), context.subjectId(), command.organizationId(), command.departmentId(),
                 frequencyId, command.localCode(), command.localName(), normalizeTimes(command.executionTimes()),
                 upper(command.firstDayPolicy()), command.enabled(), upper(command.status()), command.validFrom(), command.validTo()));
+        captureConfiguration(value);
         return view(frequency, configurations.findByTenantIdAndFrequencyIdOrderByDepartmentIdDescValidFromDesc(context.tenantId(), frequencyId));
     }
 
@@ -104,10 +111,12 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
             throw badRequest("ORDER_FREQUENCY_CONFIG_SCOPE_IMMUTABLE", "配置范围创建后不允许修改");
         }
         validateConfiguration(context.tenantId(), frequency, configurationId, command);
+        captureConfiguration(value);
         value.update(expectedRevision, context.subjectId(), command.localCode(), command.localName(),
                 normalizeTimes(command.executionTimes()), upper(command.firstDayPolicy()), command.enabled(),
                 upper(command.status()), command.validFrom(), command.validTo());
         configurations.save(value);
+        captureConfiguration(value);
         return view(frequency, configurations.findByTenantIdAndFrequencyIdOrderByDepartmentIdDescValidFromDesc(context.tenantId(), frequencyId));
     }
 
@@ -154,6 +163,16 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
                 .filter(v -> v.effective(date) && v.applicable(scene, orderType))
                 .map(v -> enabledSnapshot(v, resolveConfig(tenantId, v.id(), organizationId, departmentId, date)))
                 .filter(Objects::nonNull).toList();
+    }
+
+    private void capture(OrderFrequency value) {
+        semantics.captureDefinition("FREQUENCY_DEFINITION", value.id().toString(), view(value, List.of()),
+                "revision", "code", "name", "shortName", "description", "sortOrder", "configurations");
+    }
+
+    private void captureConfiguration(OrderFrequencyConfiguration value) {
+        semantics.captureDefinition("FREQUENCY_CONFIGURATION", value.id().toString(), configurationView(value),
+                "revision", "localCode", "localName");
     }
 
     private void validateCommand(FrequencyCommand command) {

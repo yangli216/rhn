@@ -17,12 +17,14 @@ import {
   type CatalogLifecycle, type LifecycleAdoptionInput, type LifecyclePriceInput,
   type CatalogAdoptionCandidate, type OrganizationAdoption,
   type ActiveOrderFrequency,
-  type MedicationRoute,
+  type MedicationRoute, type StandardMedicationDetail, type StandardMedicationSpecification,
 } from '../../shared/rhnApi'
 import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
   Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
+import { MedicationCompositionDialog } from './MedicationCompositionDialog'
+import { StandardMedicationCatalogPanel } from './StandardMedicationCatalogPanel'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
 
@@ -49,7 +51,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const [tab, setTab] = useState<Tab>('disease')
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
-  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product'>('knowledge')
+  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product' | 'standard'>('knowledge')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -132,7 +134,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const pagination = <Pagination page={safePage} totalPages={totalPages} total={count} pageSize={pageSize}
     onPageSizeChange={setPageSize} onChange={setPage} label={`${tabLabel(tab)}列表分页`} />
   useEffect(() => { if (pageDataReady && page !== safePage) setPage(safePage) }, [page, pageDataReady, safePage])
-  const pageActions = tab === 'attribute' || tab === 'operations' ? undefined : <>
+  const pageActions = tab === 'attribute' || tab === 'operations' || (tab === 'medication' && medicationMode === 'standard') ? undefined : <>
     {tab !== 'disease' && <>
       <Button variant="secondary" onClick={() => setDialog(
         <MasterDataImportDialog api={api} importType={tab === 'service' ? 'SERVICE' : 'MEDICATION'}
@@ -182,10 +184,11 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         ]} />}
       {tab === 'medication' && <Tabs value={medicationMode} onChange={setMedicationMode} label="药品目录视图"
         variant="line" className="medication-management-mode" items={[
+          { value: 'standard', label: '标准参考目录', meta: '来源追溯 · 独立规格 · 核验清单' },
           { value: 'knowledge', label: '基本信息视角', meta: '通用知识 · 剂型规格 · 默认用法' },
           { value: 'product', label: '产品信息视角', meta: '厂家产品 · 包装规格 · 批准文号' },
         ]} />}
-      {tab !== 'attribute' && tab !== 'operations' && <div className="master-data-toolbar">
+      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && medicationMode === 'standard') && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
           placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
             : tab === 'disease' ? '名称、别名、编码或检索码'
@@ -252,7 +255,17 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
           targetId={value.id} itemName={value.name} systemType="SERVICE"
           onClose={() => setDialog(undefined)} />)} />}
-      {tab === 'medication' && <MedicationTable values={medications.data?.content}
+      {tab === 'medication' && medicationMode === 'standard' && <StandardMedicationCatalogPanel api={api}
+        setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
+        onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
+          entry={entry} spec={spec} organization={organization} dictionaries={dictionaries.data!}
+          manufacturers={manufacturers.data ?? []} frequencies={frequencies.data ?? []} routes={routes.data ?? []}
+          onClose={() => { setDialog(undefined); void queryClient.invalidateQueries({queryKey:['master-data-medications']}) }}
+          onComplete={async (medication) => {
+            setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
+            await invalidate('药品、厂家产品、包装和本院价格已就绪，可入库并开方')
+          }} />)} />}
+      {tab === 'medication' && medicationMode !== 'standard' && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
         mode={medicationMode} onModeChange={setMedicationMode}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
@@ -263,6 +276,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onAttributes={(value) => setDialog(<AttributeManagementDialog api={api} organization={organization}
           subjectType="MEDICATION" targetId={value.id} itemName={value.name}
           onClose={() => setDialog(undefined)} />)}
+        onComposition={(value) => setDialog(<MedicationCompositionDialog api={api} medication={value} onClose={() => setDialog(undefined)} />)}
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="MEDICATION"
           targetId={value.id} itemName={value.name} systemType="MEDICATION"
           onClose={() => setDialog(undefined)} />)}
@@ -524,7 +538,7 @@ export function ServiceTable({ values, loading, pagination, density = 'two-line'
 
 export function MedicationTable({
   values, loading, pagination, mode = 'knowledge', routes, frequencies,
-  onModeChange, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onViewProducts,
+  onModeChange, onEdit, onAttributes, onMappings, onProduct, onEditProduct, onPackage, onEditPackage, onViewProducts, onComposition,
 }: {
   values?: MedicationKnowledge[]; loading: boolean; pagination: ReactNode;
   mode?: 'knowledge' | 'product';
@@ -538,6 +552,7 @@ export function MedicationTable({
   onPackage: (product: MedicationProduct, medication: MedicationKnowledge) => void;
   onEditPackage: (value: ItemPackage, product: MedicationProduct, medication: MedicationKnowledge) => void;
   onViewProducts?: (value: MedicationKnowledge) => void;
+  onComposition?: (value: MedicationKnowledge) => void;
 }) {
   const [popoverAnchor, setPopoverAnchor] = useState<{
     medication: MedicationKnowledge
@@ -578,6 +593,7 @@ export function MedicationTable({
       onEdit={onEdit}
       onAttributes={onAttributes}
       onMappings={onMappings}
+      onComposition={onComposition}
       onProduct={onProduct}
       activePopoverMedicationId={popoverAnchor?.medication.id}
       onTogglePopover={handleTogglePopover}
@@ -600,7 +616,7 @@ export function MedicationTable({
 
 export function MedicationKnowledgeTable({
   values, pagination, routes, frequencies, onModeChange: _onModeChange,
-  onEdit, onAttributes, onMappings, onProduct, activePopoverMedicationId, onTogglePopover, onViewProducts
+  onEdit, onAttributes, onMappings, onProduct, activePopoverMedicationId, onTogglePopover, onViewProducts, onComposition
 }: {
   values: MedicationKnowledge[]; pagination: ReactNode; routes: MedicationRoute[]; frequencies: ActiveOrderFrequency[];
   onModeChange?: (mode: 'knowledge' | 'product') => void;
@@ -611,6 +627,7 @@ export function MedicationKnowledgeTable({
   activePopoverMedicationId?: string;
   onTogglePopover?: (value: MedicationKnowledge, el: HTMLElement) => void;
   onViewProducts?: (value: MedicationKnowledge) => void;
+  onComposition?: (value: MedicationKnowledge) => void;
 }) {
   return <Table
     headers={['药品通用名 / 编码', '分类与剂型', '规格与含量', '默认用法', '安全监管', '厂家产品', '状态', '操作']}
@@ -716,6 +733,7 @@ export function MedicationKnowledgeTable({
           <RowActions>
             <Button size="sm" variant="text" onClick={() => onEdit(value)}>编辑知识</Button>
             <Button size="sm" variant="text" onClick={() => onMappings(value)}>标准映射</Button>
+            {onComposition && <Button size="sm" variant="text" onClick={() => onComposition(value)}>成分与含量</Button>}
             <Button size="sm" variant="text" onClick={() => onAttributes(value)}>扩展属性</Button>
           </RowActions>
         </td>
@@ -2464,27 +2482,70 @@ function ServiceDialog({ dictionaries, value, onClose, onSave }: { dictionaries:
   </DataFormDialog>
 }
 
-export function MedicationDialog({ dictionaries, frequencies, routes, value, onClose, onSave }: { dictionaries: DictionaryMap;
-  frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge;
-  onClose: () => void; onSave: (input: MedicationInput) => void }) {
-  const [medicationType, setMedicationType] = useState(value?.sdMedicationType ?? 'WESTERN')
-  const [antimicrobial, setAntimicrobial] = useState(value?.antimicrobial ?? false)
-  const [antimicrobialLevel, setAntimicrobialLevel] = useState(value?.sdAntimicrobialLevel ?? 'NON_RESTRICTED')
+export function standardMedicationDraft(entry: StandardMedicationDetail, spec: StandardMedicationSpecification): Partial<MedicationInput> {
+  const amount = spec.strength.kind === 'AMOUNT_PER_PRESENTATION' && spec.strength.computable
+    && spec.presentationUnit ? spec.strength.numerator : null
+  return {
+    code: spec.id, name: entry.name + (spec.substanceQualifier ? `（${spec.substanceQualifier}）` : ''),
+    aliasName: entry.innName || undefined, sdMedicationType: entry.medicationType,
+    sdDoseForm: spec.doseForm, preparationSpec: spec.specification,
+    preparationUnit: spec.presentationUnit || undefined,
+    strengthValue: amount ? Number(amount.value) : undefined, strengthUnit: amount?.unit,
+  }
+}
+
+export function StandardMedicationSetupDialog({ api, entry, spec, organization, dictionaries, manufacturers,
+  frequencies, routes, onClose, onComplete }: {
+  api: RhnApi; entry: StandardMedicationDetail; spec: StandardMedicationSpecification; organization: Organization;
+  dictionaries: DictionaryMap; manufacturers: Manufacturer[]; frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[];
+  onClose: () => void; onComplete: (medication: MedicationKnowledge) => void | Promise<unknown>
+}) {
+  const [medication, setMedication] = useState<MedicationKnowledge>()
+  const existing = useQuery({queryKey:['master-data-standard-setup', organization.id, spec.id],
+    queryFn: () => api.masterData.searchMedications(spec.id, '', '', organization.id, 0, 20),
+    staleTime: 0, gcTime: 0, refetchOnWindowFocus: false})
+  if (existing.isPending || existing.isFetching || existing.error) return <Dialog title="建立本院药品" onClose={onClose}>
+    {existing.isPending || existing.isFetching ? <LoadingState /> : <><Alert>{errorMessage(existing.error)}</Alert>
+      <Button onClick={() => void existing.refetch()}>重试</Button></>}
+  </Dialog>
+  const prior = existing.data?.content.find(item => item.code === spec.id)
+  if (!medication) return <MedicationDialog key={prior?.id ?? spec.id} dictionaries={dictionaries}
+    frequencies={frequencies} routes={routes} value={prior} initialValue={standardMedicationDraft(entry, spec)}
+    onClose={onClose} onSave={async (input) => {
+      const saved = prior
+        ? await api.masterData.updateMedication(prior.id, prior.revision, input, organization.id)
+        : await api.masterData.createMedication(input, organization.id)
+      setMedication(saved)
+    }} />
+  return <ProductDialog medication={medication} manufacturers={manufacturers} organization={organization}
+    dictionaries={dictionaries} onClose={onClose} onSave={async input => {
+      await api.masterData.createProductSetup(input)
+      await onComplete(medication)
+    }} />
+}
+
+export function MedicationDialog({ dictionaries, frequencies, routes, value, initialValue, onClose, onSave }: { dictionaries: DictionaryMap;
+  frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge; initialValue?: Partial<MedicationInput>;
+  onClose: () => void; onSave: (input: MedicationInput) => void | Promise<unknown> }) {
+  const initial = value ?? initialValue
+  const [medicationType, setMedicationType] = useState(initial?.sdMedicationType ?? 'WESTERN')
+  const [antimicrobial, setAntimicrobial] = useState(initial?.antimicrobial ?? false)
+  const [antimicrobialLevel, setAntimicrobialLevel] = useState(initial?.sdAntimicrobialLevel ?? 'NON_RESTRICTED')
   const [antimicrobialOutpatientAllowed, setAntimicrobialOutpatientAllowed] = useState(
-    value?.antimicrobialOutpatientAllowed ?? true)
+    initial?.antimicrobialOutpatientAllowed ?? true)
   const [antimicrobialConsultationRequired, setAntimicrobialConsultationRequired] = useState(
-    value?.antimicrobialConsultationRequired ?? false)
+    initial?.antimicrobialConsultationRequired ?? false)
   const [antimicrobialEmergencyAllowed, setAntimicrobialEmergencyAllowed] = useState(
-    value?.antimicrobialEmergencyAllowed ?? false)
-  const [skinTestRequired, setSkinTestRequired] = useState(value?.skinTestRequired ?? false)
-  const [defaultFrequency, setDefaultFrequency] = useState(value?.defaultFrequency ?? '')
-  const [defaultRoute, setDefaultRoute] = useState(value?.defaultRoute ?? '')
-  const [preparationSpec, setPreparationSpec] = useState(value?.preparationSpec ?? '')
-  const [preparationUnit, setPreparationUnit] = useState(value?.preparationUnit ?? '')
-  const [strengthValue, setStrengthValue] = useState(value?.strengthValue ? String(value.strengthValue) : '')
-  const [strengthUnit, setStrengthUnit] = useState(value?.strengthUnit ?? '')
-  const [defaultDoseUnit, setDefaultDoseUnit] = useState(value?.defaultDoseUnit ?? '')
-  const [specTouched, setSpecTouched] = useState(Boolean(value?.preparationSpec))
+    initial?.antimicrobialEmergencyAllowed ?? false)
+  const [skinTestRequired, setSkinTestRequired] = useState(initial?.skinTestRequired ?? false)
+  const [defaultFrequency, setDefaultFrequency] = useState(initial?.defaultFrequency ?? '')
+  const [defaultRoute, setDefaultRoute] = useState(initial?.defaultRoute ?? '')
+  const [preparationSpec, setPreparationSpec] = useState(initial?.preparationSpec ?? '')
+  const [preparationUnit, setPreparationUnit] = useState(initial?.preparationUnit ?? '')
+  const [strengthValue, setStrengthValue] = useState(initial?.strengthValue ? String(initial.strengthValue) : '')
+  const [strengthUnit, setStrengthUnit] = useState(initial?.strengthUnit ?? '')
+  const [defaultDoseUnit, setDefaultDoseUnit] = useState(initial?.defaultDoseUnit ?? '')
+  const [specTouched, setSpecTouched] = useState(Boolean(initial?.preparationSpec))
 
   const western = medicationType === 'WESTERN'
   const chinesePatent = medicationType === 'CHINESE_PATENT'
@@ -2548,10 +2609,10 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
     ? defaultDoseUnit
     : (doseUnitCandidates[0] ?? defaultDoseUnit)
 
-  return <DataFormDialog title={value ? '编辑通用药品知识' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
+  return <DataFormDialog title={value ? '编辑通用药品知识' : initialValue ? '建立本院药品 · 1/2 药品属性' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
     size="xwide" className="medication-knowledge-dialog"
     description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
-    onSubmit={(form) => onSave({ code: text(form, 'code'), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
+    onSubmit={(form) => onSave({ code: initial?.code ?? text(form, 'code'), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
       sdMedicationType: medicationType, sdDoseForm: optionalText(form, 'sdDoseForm'),
       preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
       preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
@@ -2575,19 +2636,19 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
       skinTestResultValidityHours: western && skinTestRequired ? optionalNumber(form, 'skinTestResultValidityHours') : undefined,
       skinTestInstructions: western && skinTestRequired ? optionalText(form, 'skinTestInstructions') : undefined,
       defaultDose: optionalNumber(form, 'defaultDose'),
-      defaultDoseUnit: effectiveDoseUnit || optionalText(form, 'defaultDoseUnit'),
+      defaultDoseUnit: optionalNumber(form, 'defaultDose') === undefined ? undefined : effectiveDoseUnit || optionalText(form, 'defaultDoseUnit'),
       defaultRoute: defaultRoute || undefined,
       defaultFrequency: vaccine ? undefined : defaultFrequency || undefined,
       chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
-      sdStatus: value?.sdStatus ?? 'ACTIVE' })}>
+      sdStatus: initial?.sdStatus ?? 'ACTIVE' })}>
     <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
       <FormGrid columns={4}>
-        <FormField label="通用药品编码" required><input name="code" defaultValue={value?.code} disabled={Boolean(value)}
+        <FormField label="通用药品编码" required><input name="code" defaultValue={initial?.code} disabled={Boolean(value)} readOnly={Boolean(initialValue)}
           placeholder="如 MED_AMOXICILLIN" autoFocus={!value} required /></FormField>
-        <FormField label="通用名称" required><input name="name" defaultValue={value?.name}
+        <FormField label="通用名称" required><input name="name" defaultValue={initial?.name}
           placeholder="录入药品通用名称" required /></FormField>
-        <FormField label="别名"><input name="aliasName" defaultValue={value?.aliasName}
+        <FormField label="别名"><input name="aliasName" defaultValue={initial?.aliasName}
           placeholder="如历史名称或常用简称" /></FormField>
         <FormField label={value ? '药品类型（创建后不可修改）' : '药品类型'} required>
           <StaticSelectControl name="sdMedicationType" value={medicationType}
@@ -2596,7 +2657,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
             placeholder="请选择药品类型" disabled={Boolean(value)} required />
         </FormField>
         <SelectField name="sdDoseForm" label={doseFormLabel} values={dictionaries.BD_DOSE_FORM}
-          defaultValue={value?.sdDoseForm ?? 'TABLET'} />
+          defaultValue={initial?.sdDoseForm ?? (initialValue ? '' : 'TABLET')} />
         <FormField className="medication-knowledge-dialog__spec" label={specificationLabel} hint="单方制剂推荐按「含量+单位/制剂单位」自动生成；复合制剂可手动录入（如 400mg:57mg/片、5mg/2.5ml 或 复方）。">
           <div className="master-data-spec-field">
             <input name="preparationSpec" value={preparationSpec}
@@ -2621,7 +2682,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
     </FormSection>
     <FormSection title={`${typeName}属性`} description={typeDescription}>
       <FormGrid columns={4}>
-        <FormField label={unitLabel}><input name="preparationUnit" value={preparationUnit}
+        <FormField label={unitLabel} required={Boolean(initialValue)}><input name="preparationUnit" value={preparationUnit} required={Boolean(initialValue)}
           onChange={(e) => handlePreparationUnitChange(e.target.value)}
           placeholder={herbal ? 'g、袋' : vaccine ? '支、剂' : '片、粒、支'} /></FormField>
         {!herbal && <><FormField label={vaccine ? '每剂含量' : '结构化含量'}><input name="strengthValue" type="number" min="0" step="any"
@@ -2640,9 +2701,9 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
             secondaryText: `${frequency.code}${frequency.executionTimes.length ? ` · ${frequency.executionTimes.join('/')}` : ''}` }))} /></FormField>}
         <SelectField name="sdStorageType" label={vaccine ? '冷链 / 储藏方式' : '储藏方式'}
           values={ensureStorageTypeValues(dictionaries.BD_STORAGE_TYPE)}
-          defaultValue={value?.sdStorageType === 'NORMAL' ? 'ROOM_TEMPERATURE' : value?.sdStorageType} required={false} />
+          defaultValue={initial?.sdStorageType === 'NORMAL' ? 'ROOM_TEMPERATURE' : initial?.sdStorageType} required={false} />
         <FormField label="默认剂量"><input name="defaultDose" type="number" min="0" step="any"
-          defaultValue={value?.defaultDose} placeholder="如 0.5" /></FormField>
+          defaultValue={initial?.defaultDose} placeholder="如 0.5" /></FormField>
         <FormField label="默认剂量单位" hint="严格限制只能从「含量单位」或「制剂单位」中二选一，杜绝脏数据。">
           {doseUnitCandidates.length > 0 ? <Select name="defaultDoseUnit" value={effectiveDoseUnit}
             onChange={setDefaultDoseUnit} searchable={false} clearable={false}
@@ -2658,14 +2719,14 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
           )}
         </FormField>
         <Checkboxes title="安全与管理属性" className="span-full">
-          <Checkbox name="prescriptionDrug" label="处方药" defaultChecked={value?.prescriptionDrug ?? true} />
-          <Checkbox name="essentialDrug" label="基本药物" defaultChecked={value?.essentialDrug} />
+          <Checkbox name="prescriptionDrug" label="处方药" defaultChecked={initial?.prescriptionDrug ?? true} />
+          <Checkbox name="essentialDrug" label="基本药物" defaultChecked={initial?.essentialDrug} />
           {western && <Checkbox name="antimicrobial" label="抗菌药物" checked={antimicrobial}
             onChange={(checkedValue) => setAntimicrobial(checkedValue)} />}
           {western && <Checkbox name="skinTestRequired" label="需要皮试" checked={skinTestRequired}
             onChange={setSkinTestRequired} />}
-          {(western || chinesePatent) && <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={value?.chronicDiseaseDrug} />}
-          <Checkbox name="singleOrder" label="允许单开" defaultChecked={value?.singleOrder ?? true} />
+          {(western || chinesePatent) && <Checkbox name="chronicDiseaseDrug" label="慢病用药" defaultChecked={initial?.chronicDiseaseDrug} />}
+          <Checkbox name="singleOrder" label="允许单开" defaultChecked={initial?.singleOrder ?? true} />
         </Checkboxes>
       </FormGrid>
     </FormSection>
@@ -2680,7 +2741,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
           }} options={dictionaries.BD_ANTIMICROBIAL_LEVEL.map((item) => ({ value: item.code, label: item.name }))} /></FormField>
         <FormField label="门诊单次处方疗程上限 (天)" hint={antimicrobialOutpatientAllowed ? '常规处方最长天数（如 7 天）' : '特殊使用级或非门诊用药不适用'}>
           <input name="antimicrobialMaxDays" type="number" min={1} max={90}
-            defaultValue={value?.antimicrobialMaxDays ?? 7}
+            defaultValue={initial?.antimicrobialMaxDays ?? 7}
             disabled={!antimicrobialOutpatientAllowed}
             placeholder={antimicrobialOutpatientAllowed ? '如 7' : '门诊禁用'} />
         </FormField>
@@ -2714,23 +2775,23 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, onC
     {western && skinTestRequired && <FormSection title="皮试临床执行规则 (敏感试验)"
       description="默认方案会随医嘱生成快照并自动带入护士皮试工作台；执行人员仍可按医嘱现场微调。">
       <FormGrid columns={4}>
-        <StaticSelectField name="skinTestMethod" label="皮试给药方式" defaultValue={value?.skinTestMethod ?? 'INTRADERMAL'}
+        <StaticSelectField name="skinTestMethod" label="皮试给药方式" defaultValue={initial?.skinTestMethod ?? 'INTRADERMAL'}
           searchable={false} options={[{ value: 'INTRADERMAL', label: '皮内试验 (推荐)' },
             { value: 'PRICK', label: '点刺试验' }, { value: 'OTHER', label: '其他方式' }]} />
         <StaticSelectField name="skinTestSolutionMode" label="皮试液制备方式"
-          defaultValue={value?.skinTestSolutionMode ?? 'DILUTED_SOLUTION'} searchable={false}
+          defaultValue={initial?.skinTestSolutionMode ?? 'DILUTED_SOLUTION'} searchable={false}
           options={[{ value: 'DILUTED_SOLUTION', label: '稀释配制皮试液' },
             { value: 'ORIGINAL_SOLUTION', label: '原液直接试验' }]} />
         <FormField label="皮试观察等待时长 (分钟)" required>
           <input name="skinTestObservationMinutes" type="number" min={1} max={120}
-            defaultValue={value?.skinTestObservationMinutes ?? 20} placeholder="如 20" required />
+            defaultValue={initial?.skinTestObservationMinutes ?? 20} placeholder="如 20" required />
         </FormField>
         <FormField label="阴性结果有效期 (小时)" required>
           <input name="skinTestResultValidityHours" type="number" min={1} max={8760}
-            defaultValue={value?.skinTestResultValidityHours ?? 24} placeholder="如 24" required />
+            defaultValue={initial?.skinTestResultValidityHours ?? 24} placeholder="如 24" required />
         </FormField>
         <FormField label="皮试液配制浓度与操作要点" className="span-full"><textarea name="skinTestInstructions" rows={2}
-          defaultValue={value?.skinTestInstructions} placeholder="如：稀释配制浓度（如青霉素 500U/ml）、试验推注剂量（0.1ml）、注射部位及阴阳性判定或复试要求" /></FormField>
+          defaultValue={initial?.skinTestInstructions} placeholder="如：稀释配制浓度（如青霉素 500U/ml）、试验推注剂量（0.1ml）、注射部位及阴阳性判定或复试要求" /></FormField>
       </FormGrid>
     </FormSection>}
     {!knownType && <Alert>当前药品类型尚未建立专属模板，本次仅按通用字段维护；请在扩展属性配置中补充类型规则。</Alert>}
@@ -2749,7 +2810,7 @@ function medicationPackageSpec(preparationSpec: string | undefined, factor: stri
 
 function ProductDialog({ medication, manufacturers, organization, dictionaries, onClose, onSave }: {
   medication: MedicationKnowledge; manufacturers: Manufacturer[]; organization: Organization;
-  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: MedicationProductSetupInput) => void
+  dictionaries: DictionaryMap; onClose: () => void; onSave: (input: MedicationProductSetupInput) => void | Promise<unknown>
 }) {
   const [markupMode, setMarkupMode] = useState<'NONE' | 'RATE'>('NONE')
   const [purchasePrice, setPurchasePrice] = useState('')
@@ -2771,7 +2832,7 @@ function ProductDialog({ medication, manufacturers, organization, dictionaries, 
     const productOrderable = checked(form, 'orderable')
     const productChargeable = checked(form, 'chargeable')
     const productStocked = checked(form, 'stocked')
-    onSave({
+    return onSave({
       product: { medicationId: medication.id, manufacturerId: text(form, 'manufacturerId'),
         code: text(form, 'code'), tradeName: optionalText(form, 'tradeName'),
         approvalCode: optionalText(form, 'approvalCode'), traceCode: optionalText(form, 'traceCode'),
@@ -3016,13 +3077,22 @@ function PackageDialog({ product, medication, dictionaries, editing, onClose, on
 function DataFormDialog({ title, eyebrow, description, size = 'wide', className, onClose, onSubmit, children }: {
   title: string; eyebrow: string; description?: string; size?: 'wide' | 'xwide'
   className?: string
-  onClose: () => void; onSubmit: (form: FormData) => void; children: ReactNode
+  onClose: () => void; onSubmit: (form: FormData) => void | Promise<unknown>; children: ReactNode
 }) {
+  const pending = useRef(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   return <Dialog title={title} eyebrow={eyebrow} description={description} size={size} className={className} onClose={onClose}>
-    <form className="master-data-dialog-form" onSubmit={(event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault(); onSubmit(new FormData(event.currentTarget))
-  }}>{children}<div className="ui-form-actions"><Button variant="secondary" onClick={onClose}>取消</Button>
-    <Button type="submit">保存</Button></div></form></Dialog>
+    <form className="master-data-dialog-form" onSubmit={async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      if (pending.current) return
+      const form = new FormData(event.currentTarget)
+      pending.current = true; setSaving(true); setSaveError('')
+      try { await onSubmit(form) } catch (error) { setSaveError(errorMessage(error)) }
+      finally { pending.current = false; setSaving(false) }
+    }}>{children}{saveError && <p role="alert">{saveError}</p>}
+    <div className="ui-form-actions"><Button variant="secondary" disabled={saving} onClick={onClose}>取消</Button>
+    <Button type="submit" disabled={saving}>{saving ? '正在保存…' : '保存'}</Button></div></form></Dialog>
 }
 
 function FormSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {

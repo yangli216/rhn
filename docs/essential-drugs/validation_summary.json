@@ -1,0 +1,21 @@
+{
+  "contentHash": "0300bc0b768749d7dcc5cf3b3ef7884e9c6e0475388166a8a90aab7add42d45f",
+  "sourceRows": 816,
+  "entries": 794,
+  "westernEntries": 476,
+  "traditionalEntries": 318,
+  "crossCategoryRows": 22,
+  "scopeEntries": 7,
+  "specifications": 2078,
+  "issues": 143,
+  "structuredStrengths": 1127,
+  "entriesWithSpecifications": 765,
+  "orderableSpecifications": 0,
+  "issueCounts": {
+    "TEXT_REQUIRES_REVIEW": 45,
+    "MULTI_COMPONENT": 13,
+    "SCOPE_NOT_ORDERABLE": 7,
+    "FORM_OR_SPEC_REQUIRES_REVIEW": 46,
+    "PERCENT_UNSPECIFIED_BASIS": 32
+  }
+}
