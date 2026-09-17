@@ -1,5 +1,971 @@
-.qmed-workbench{min-width:0;padding:12px;color:var(--color-text,#24334b)}
-.qmed-status{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:12px 16px;margin:12px 0;background:#eef6f7;border:1px solid #c9dfe3;border-radius:10px;font-size:12px}.qmed-status a{margin-left:auto;color:#146b74}
-.qmed-columns{display:grid;grid-template-columns:minmax(200px,.8fr) minmax(270px,1.15fr) minmax(270px,1.15fr);gap:14px;align-items:start}
-.qmed-pane{background:var(--color-surface,#fff);border:1px solid #dde4ec;border-radius:12px;padding:16px;min-width:0;max-height:calc(100vh - 240px);overflow:auto}
-.qmed-pane h2{font-size:16px;margin:0 0 12px}.qmed-pane h3{font-size:14px;margin:20px 0 10px}.qmed-pane p,.qmed-pane small{font-size:12px;line-height:1.7;color:#64748b}.qmed-pane label{display:block;font-size:12px;margin:10px 0}.qmed-pane textarea,.qmed-pane input:not([type=checkbox]),.qmed-pane select{box-sizing:border-box;border:1px solid #cbd5e1;border-radius:6px;padding:8px;width:100%;font:inherit;background:#fff;color:#25334b}.qmed-pane textarea{margin-top:6px;resize:vertical}.qmed-search{display:flex;gap:6px}.qmed-medications{max-height:310px;overflow:auto}.qmed-pane .qmed-medication{display:flex;gap:8px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #edf1f5;margin:0}.qmed-medication input{margin-top:4px}.qmed-medication strong,.qmed-medication small{display:block}.qmed-medication strong{font-size:12px}.qmed-saved button{display:block;text-align:left;width:100%;border:1px solid #e3e9ef;background:#fafbfd;border-radius:7px;padding:10px;margin-top:8px;cursor:pointer}.qmed-saved button.is-active{background:#eef8f7;border-color:#4b9991}.qmed-saved strong,.qmed-saved small{display:block}.qmed-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}.qmed-actions small{flex:1;min-width:160px}.qmed-facts details{border-bottom:1px solid #e6edf2;padding:10px 0}.qmed-pane summary{cursor:pointer;font-size:12px;line-height:1.7}.qmed-pane dl{display:grid;grid-template-columns:100px 1fr;gap:8px;font-size:12px;line-height:1.6}.qmed-pane dt{color:#708094}.qmed-pane dd{margin:0;overflow-wrap:anywhere}.qmed-definition{background:#f5f9fc;border:1px solid #dce7f0;border-radius:8px;padding:0 12px 10px;margin-top:16px}.qmed-trial-row{display:grid;grid-template-columns:16px minmax(100px,1fr) 70px 60px 24px;gap:4px;margin:8px 0;align-items:center;font-size:12px}.qmed-trial-row button{background:none;border:0;color:#9a4456;cursor:pointer}.qmed-shadow{border-top:1px solid #dde5ed;padding-top:14px;margin-top:18px}.qmed-case{border:1px solid #dae3ed;border-left:3px solid #6886a5;border-radius:7px;padding:12px;margin-top:10px;font-size:12px}.qmed-case strong,.qmed-case small{display:block}.qmed-case>span{display:inline-block;margin-top:6px;font-weight:600}.qmed-case.result-warn{border-left-color:#c88823;background:#fffcf4}.qmed-case.result-unavailable{border-left-color:#a7616d;background:#fff9fa}.qmed-case.result-pass{border-left-color:#4e948a}.qmed-pane pre{font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}.qmed-history{display:block;width:100%;padding:8px;border:0;border-bottom:1px solid #e3e9ef;text-align:left;background:#f7f9fc;font-size:12px;cursor:pointer}
+/* 合理用药规则工作台 · 现代 PC 宽屏样式规范 (1280px ~ 1920px+) */
+
+/* 1. 视口锁定与防溢出约束：绝对杜绝整页滚动条 */
+.workspace-content:has(.qmed-workbench) {
+  overflow: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
+}
+
+.workspace-panel:has(.qmed-workbench),
+.workspace-panel:has(.qmed-workbench) > .page,
+.page:has(.qmed-workbench),
+.page:has(> .qmed-workbench) {
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  padding: 0 !important;
+}
+
+.qmed-workbench {
+  height: 100% !important;
+  max-height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 12px 20px 12px !important;
+  gap: 10px !important;
+  box-sizing: border-box !important;
+  color: var(--color-text, #1e293b);
+}
+
+.qmed-workbench > .ui-page-header {
+  flex-shrink: 0;
+  margin-bottom: 0;
+}
+
+/* 顶部运行看板 Banner (吸顶固定) */
+.qmed-kpi-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #f0f7f9 0%, #e6f2f5 100%);
+  border: 1px solid #cce3e8;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.qmed-kpi-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qmed-kpi-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.qmed-kpi-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.qmed-kpi-value.text-accent {
+  color: #0f766e;
+}
+
+.qmed-kpi-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qmed-link-btn {
+  font-size: 13px;
+  font-weight: 500;
+  color: #0f766e;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.qmed-link-btn:hover {
+  background-color: #d8edf1;
+  text-decoration: underline;
+}
+
+/* 主 Tab 导航 (吸顶固定) */
+.qmed-tabs {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  border-bottom: 2px solid #e2e8f0;
+  padding-bottom: 2px;
+}
+
+.qmed-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -4px;
+  font-size: 13px;
+  color: #64748b;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  transition: all 0.15s ease;
+}
+
+.qmed-tab-btn:hover {
+  color: #0f766e;
+  background-color: #f8fafc;
+}
+
+.qmed-tab-btn.is-active {
+  color: #0f766e;
+  border-bottom-color: #0f766e;
+  font-weight: 600;
+}
+
+.qmed-tab-badge {
+  display: inline-block;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9999px;
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.qmed-tab-btn.is-active .qmed-tab-badge {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+/* Tab 主体内容承载容器 (高度撑满，自身禁止外部滚动) */
+.qmed-tab-content {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 通用标签徽章 */
+.qmed-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.tag-critical { background: #fee2e2; color: #991b1b; }
+.tag-high { background: #ffedd5; color: #9a3412; }
+.tag-medium { background: #fef3c7; color: #92400e; }
+.tag-low { background: #f1f5f9; color: #475569; }
+.tag-pass { background: #dcfce7; color: #166534; }
+.tag-code { background: #e0f2fe; color: #0369a1; font-family: monospace; }
+.tag-shadow { background: #e0e7ff; color: #3730a3; }
+
+.qmed-dec-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.dec-critical { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.dec-high { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.dec-medium { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+.dec-pass { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+.dec-muted { background: #f8fafc; color: #64748b; border: 1px solid #e2e8f0; }
+
+/* ====================================================================
+   Tab 1: 在行生效规则库视图 (左右两栏协同，左侧与右侧各自独立内部滚动)
+   ==================================================================== */
+.qmed-catalog-view {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.qmed-catalog-list {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #fff);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.qmed-catalog-list-header {
+  flex-shrink: 0;
+}
+
+.qmed-catalog-list-header h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: #1e293b;
+}
+
+.qmed-catalog-list-header p {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.qmed-rule-cards {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto; /* 仅规则列表卡片流局部独立滚动 */
+  padding-right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qmed-rule-card {
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #94a3b8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qmed-rule-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  background: #fafcff;
+}
+
+.qmed-rule-card.is-selected {
+  border-left-color: #0f766e;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.08);
+}
+
+.qmed-rule-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.qmed-rule-ver {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.qmed-rule-card-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.qmed-rule-card-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.qmed-meta-text {
+  font-size: 11px;
+  color: #64748b;
+}
+
+/* 规则详情面板 (自身局部独立滚动) */
+.qmed-catalog-detail {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto; /* 详情长内容在内部独立滚动 */
+  background: var(--color-surface, #fff);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+}
+
+.qmed-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.qmed-detail-title-group h2 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #0f172a;
+}
+
+.qmed-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.qmed-detail-badges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qmed-param-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.qmed-param-card {
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.qmed-param-card label {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.qmed-param-card .val {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.qmed-param-card .desc {
+  display: block;
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.qmed-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qmed-evidence-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.qmed-evidence-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fafcff;
+}
+
+.qmed-evidence-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.qmed-evidence-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0369a1;
+}
+
+.qmed-evidence-quote {
+  margin: 8px 0 10px;
+  padding: 8px 12px;
+  background: #f1f5f9;
+  border-left: 3px solid #0284c7;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.qmed-evidence-footer {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: #64748b;
+}
+
+.qmed-rule-tech-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 12px;
+}
+
+.qmed-tech-row {
+  display: flex;
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.qmed-tech-row:last-child {
+  margin-bottom: 0;
+}
+
+.qmed-tech-label {
+  width: 100px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.qmed-tech-val {
+  color: #1e293b;
+  word-break: break-all;
+}
+
+/* ====================================================================
+   Tab 2: 处方审查日志视图 (表头吸顶固定，表格容器局部滚动)
+   ==================================================================== */
+.qmed-evaluations-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface, #fff);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.qmed-eval-header {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.qmed-eval-header h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  color: #1e293b;
+}
+
+.qmed-eval-header p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.qmed-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto; /* 仅表格区域内部滚动 */
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+}
+
+.qmed-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.qmed-table th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.qmed-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.qmed-table tr:hover {
+  background: #f8fafc;
+}
+
+.qmed-table code {
+  font-family: monospace;
+  font-size: 11px;
+  color: #475569;
+}
+
+.text-danger { color: #dc2626; }
+.text-muted { color: #94a3b8; }
+.qmed-empty-cell {
+  text-align: center;
+  color: #94a3b8;
+  padding: 40px !important;
+}
+
+/* ====================================================================
+   Tab 3: AI 规则工坊与候选孵化 (向导吸顶，两栏各自局部独立滚动)
+   ==================================================================== */
+.qmed-factory-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* 全景业务向导卡片 (吸顶固定) */
+.qmed-wizard-card {
+  flex-shrink: 0;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qmed-wizard-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.qmed-wizard-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qmed-wizard-title h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.qmed-wizard-title p {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.qmed-preset-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qmed-preset-group span {
+  font-size: 12px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.qmed-preset-btn {
+  background: #f0fdfa;
+  border: 1px solid #99f6e4;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.qmed-preset-btn:hover {
+  background: #ccfbf1;
+  border-color: #5eead4;
+}
+
+/* 5 步进度向导条 */
+.qmed-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border: 1px solid #edf2f7;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 12px;
+}
+
+.qmed-step-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #64748b;
+}
+
+.qmed-step-item.is-done {
+  color: #0f766e;
+  font-weight: 600;
+}
+
+.qmed-step-item.is-active {
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.qmed-step-num {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 11px;
+}
+
+.qmed-step-item.is-done .qmed-step-num {
+  background: #0f766e;
+  color: #fff;
+}
+
+.qmed-step-item.is-active .qmed-step-num {
+  background: #0284c7;
+  color: #fff;
+}
+
+.qmed-step-divider {
+  color: #cbd5e1;
+  font-size: 11px;
+}
+
+/* 工坊分栏协作 (左右两列各自局部独立滚动) */
+.qmed-factory-panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 480px 1fr;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.qmed-factory-pane-left,
+.qmed-factory-pane-right {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto; /* 局部独立滚动 */
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 药品选择区 */
+.qmed-med-select-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qmed-med-select-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.qmed-med-search-box input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+
+.qmed-med-scroll-list {
+  max-height: 160px;
+  overflow-y: auto;
+  border: 1px solid #edf2f7;
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #fafcff;
+}
+
+.qmed-med-scroll-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.qmed-med-scroll-list label:hover {
+  background: #f1f5f9;
+}
+
+/* 需求输入区 */
+.qmed-req-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.qmed-req-box label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.qmed-req-box textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* AI 状态与生成操作栏 */
+.qmed-generation-action-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qmed-ai-status-alert {
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  line-height: 1.5;
+}
+
+.qmed-ai-status-alert.is-unavailable {
+  background: #fff7ed;
+  border: 1px solid #ffedd5;
+  color: #9a3412;
+}
+
+.qmed-ai-status-alert.is-available {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.qmed-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  color: #64748b;
+  margin: 4px 0;
+}
+
+.qmed-check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qmed-check-item.is-ready {
+  color: #0f766e;
+  font-weight: 500;
+}
+
+.qmed-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 右栏：候选规则卡片与沙箱试验 */
+.qmed-candidate-card {
+  border: 1px solid #ccfbf1;
+  background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 100%);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qmed-cand-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.qmed-cand-top-bar h4 {
+  margin: 0;
+  font-size: 14px;
+  color: #0f766e;
+}
+
+.qmed-cand-explanation {
+  font-size: 12px;
+  color: #334155;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.qmed-cand-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  font-size: 11px;
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.qmed-sandbox-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qmed-sandbox-panel h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qmed-cases-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.qmed-case-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 12px;
+  background: #fafcff;
+}
+
+.qmed-case-card.is-pass {
+  border-left: 4px solid #16a34a;
+}
+
+.qmed-case-card.is-fail {
+  border-left: 4px solid #dc2626;
+}
+
+.qmed-case-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.qmed-case-desc {
+  font-size: 11px;
+  color: #64748b;
+  margin: 0 0 6px;
+}
+
+.qmed-case-details {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  background: #f1f5f9;
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.qmed-shadow-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.qmed-shadow-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.qmed-shadow-row input {
+  padding: 5px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 140px;
+}

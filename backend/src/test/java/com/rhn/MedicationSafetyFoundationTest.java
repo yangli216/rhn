@@ -78,7 +78,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
     void pass_still_records_executed_rule_and_missing_data_is_durably_unavailable() {
         var pass = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.PASS, pass.decision());
-        assertEquals(1, pass.ruleExecutions().size());
+        assertEquals(7, pass.ruleExecutions().size());
         var missing = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, null, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.UNAVAILABLE, missing.decision());
         assertNotNull(missing.evaluationId());

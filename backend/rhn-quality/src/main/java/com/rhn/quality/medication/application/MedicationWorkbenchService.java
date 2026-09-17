@@ -12,6 +12,9 @@ import com.rhn.shared.json.JsonCodec;
 import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
+import com.rhn.quality.medication.infrastructure.MedicationRuleRegistry;
+import com.rhn.quality.medication.infrastructure.MedicationEvaluationStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,12 +27,24 @@ public class MedicationWorkbenchService {
     private final PrescriptionSafetySnapshotDirectory prescriptions;
     private final ExecutionContextProvider contexts;
     private final MedicationWorkbenchStore store;
+    private final MedicationRuleRegistry registry;
+    private final MedicationEvaluationStore evaluationStore;
     private final JsonCodec json;
     private final MedicationCandidateEvaluator evaluator=new MedicationCandidateEvaluator();
+
     public MedicationWorkbenchService(MedicationRuleAuthoringAi ai, MedicationKnowledgeDirectory knowledge,
             PrescriptionSafetySnapshotDirectory prescriptions, ExecutionContextProvider contexts,
             MedicationWorkbenchStore store, JsonCodec json) {
-        this.ai=ai; this.knowledge=knowledge; this.prescriptions=prescriptions; this.contexts=contexts; this.store=store; this.json=json;
+        this(ai, knowledge, prescriptions, contexts, store, null, null, json);
+    }
+
+    @Autowired
+    public MedicationWorkbenchService(MedicationRuleAuthoringAi ai, MedicationKnowledgeDirectory knowledge,
+            PrescriptionSafetySnapshotDirectory prescriptions, ExecutionContextProvider contexts,
+            MedicationWorkbenchStore store, MedicationRuleRegistry registry,
+            MedicationEvaluationStore evaluationStore, JsonCodec json) {
+        this.ai=ai; this.knowledge=knowledge; this.prescriptions=prescriptions; this.contexts=contexts;
+        this.store=store; this.registry=registry; this.evaluationStore=evaluationStore; this.json=json;
     }
     private void access() {
         if (!contexts.requireCurrent().hasAuthority("MASTER_DATA.MANAGE"))
@@ -39,6 +54,50 @@ public class MedicationWorkbenchService {
     public List<MedicationKnowledgeDirectory.Knowledge> medications(String query) {
         access(); if(query!=null && query.length()>100) throw badRequest("QMED_QUERY_INVALID","搜索文本过长");
         return knowledge.search(query);
+    }
+    public List<ActiveRuleView> activeRules() {
+        access();
+        if (registry == null) return List.of();
+        return registry.load(MedicationSafetyEngine.RULE_SET).stream()
+                .map(v -> new ActiveRuleView(
+                        v.definition().id(),
+                        v.id(),
+                        v.definition().code(),
+                        v.definition().category(),
+                        v.definition().title(),
+                        v.version(),
+                        v.ruleSetVersion(),
+                        v.implementationKey(),
+                        v.status(),
+                        v.severity().name(),
+                        v.decision().name(),
+                        v.overridePolicy().name(),
+                        v.effectiveFrom(),
+                        v.effectiveTo(),
+                        v.evidence()))
+                .toList();
+    }
+    public List<EvaluationSummary> recentEvaluations() {
+        access();
+        if (evaluationStore == null) return List.of();
+        return evaluationStore.findRecent(contexts.requireCurrent().tenantId(), 50);
+    }
+    public Candidate approveCandidate(Long id) {
+        access();
+        var candidate = require(id);
+        var approved = new Candidate(
+                candidate.id(),
+                candidate.parentId(),
+                candidate.version(),
+                candidate.requirement(),
+                candidate.source(),
+                candidate.model(),
+                candidate.createdAt(),
+                candidate.rule(),
+                candidate.medications(),
+                "APPROVED_FOR_SHADOW");
+        store.update(contexts.requireCurrent().tenantId(), approved);
+        return approved;
     }
     public List<Candidate> candidates() { access(); return store.list(contexts.requireCurrent().tenantId()); }
     private Candidate require(Long id) { access(); return store.require(contexts.requireCurrent().tenantId(),id); }

@@ -15,6 +15,10 @@ public class MedicationWorkbenchStore {
         jdbc.update("insert into RHN_AUD_MED_CAND (ID_CAND, ID_TNT, ID_USER_ACTOR, JSON_CONTENT) values (?, ?, ?, ?)",
                 candidate.id(), tenant, actor, json.write(candidate));
     }
+    public void update(Long tenant, Candidate candidate) {
+        jdbc.update("update RHN_AUD_MED_CAND set JSON_CONTENT = ? where ID_TNT = ? and ID_CAND = ?",
+                json.write(candidate), tenant, candidate.id());
+    }
     public Candidate require(Long tenant, Long id) {
         return jdbc.query("select JSON_CONTENT from RHN_AUD_MED_CAND where ID_TNT=? and ID_CAND=?",
                 (rs,n)->json.read(rs.getString(1),Candidate.class),tenant,id).stream().findFirst()

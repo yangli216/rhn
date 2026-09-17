@@ -28,11 +28,19 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
     private final MedicationRuleRegistry registry;
     private final MedicationEvaluationStore store;
     private final JsonCodec json;
-    private final MedicationSafetyEngine engine = new MedicationSafetyEngine(List.of(new DuplicateMedicationRule()));
+    private final MedicationSafetyEngine engine;
 
     public MedicationSafetyAdapter(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
                                    MedicationEvaluationStore store, JsonCodec json) {
         this.contexts = contexts; this.registry = registry; this.store = store; this.json = json;
+        this.engine = new MedicationSafetyEngine(List.of(
+                new DuplicateMedicationRule(),
+                new com.rhn.quality.medication.domain.rule.AntimicrobialOutpatientRule(json),
+                new com.rhn.quality.medication.domain.rule.DrugAllergyRule(json),
+                new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
+                new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json),
+                new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json),
+                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json)));
     }
 
     @Override
@@ -45,16 +53,17 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
         requireScope(context, snapshot.organizationId(), snapshot.departmentId());
         var started = Instant.now();
         var hash = PrescriptionSafetyHasher.hash(snapshot, json);
+        String targetRuleSet = request.ruleSetVersion() != null ? request.ruleSetVersion() : MedicationSafetyEngine.RULE_SET;
         MedicationSafetyEngine.Result result;
         try {
-            result = engine.evaluate(snapshot, registry.load(MedicationSafetyEngine.RULE_SET), started);
+            result = engine.evaluate(snapshot, registry.load(targetRuleSet), started);
         } catch (RuntimeException exception) {
             LOG.warn("Medication safety rule catalog unavailable: {}", exception.getClass().getSimpleName());
             result = new MedicationSafetyEngine.Result(List.of(), List.of(), List.of("RULE_CATALOG_UNAVAILABLE"));
         }
         Long id = GlobalIds.next();
         var decision = new MedicationSafetyDecision(id, snapshot.prescriptionId(), snapshot.prescriptionRevision(), hash,
-                MedicationSafetyEngine.RULE_SET, MedicationSafetyEngine.VERSION, "SHADOW", result.decision(),
+                targetRuleSet, MedicationSafetyEngine.VERSION, "SHADOW", result.decision(),
                 result.findings().stream().map(finding -> finding.snapshot()).toList(), result.executions(), result.failureCodes());
         try {
             store.append(new MedicationSafetyEvaluation(id, context.subjectId(), snapshot, hash,

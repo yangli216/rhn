@@ -22,4 +22,12 @@ public final class MedicationWorkbenchContracts {
     public record TrialRun(Long id, Long candidateId, String mode, Instant createdAt,
                            Long prescriptionId, String inputHash, List<CaseResult> cases) {}
     public record ShadowRequest(Long encounterId, Long prescriptionId) {}
+    public record ActiveRuleView(Long ruleId, Long ruleVersionId, String ruleCode, String category,
+                                 String ruleName, int version, String ruleSetVersion, String implementation,
+                                 String status, String severity, String decision, String overridePolicy,
+                                 Instant effectiveFrom, Instant effectiveTo,
+                                 List<com.rhn.outpatient.api.MedicationSafetyDecision.Evidence> evidence) {}
+    public record EvaluationSummary(Long evaluationId, Long prescriptionId, Long encounterId, Long residentId,
+                                    Long organizationId, Long departmentId, String ruleSetVersion, String mode,
+                                    String decision, Instant completedAt, int findingCount) {}
 }

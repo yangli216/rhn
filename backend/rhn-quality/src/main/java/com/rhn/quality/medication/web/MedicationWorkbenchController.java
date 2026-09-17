@@ -19,5 +19,8 @@ public class MedicationWorkbenchController {
     @PostMapping("/candidates/{id}/suite") public TrialRun suite(@PathVariable Long id) { return service.suite(id); }
     @PostMapping("/candidates/{id}/trial") public TrialRun trial(@PathVariable Long id,@RequestBody TrialRequest request) { return service.trial(id,request); }
     @PostMapping("/candidates/{id}/shadow") public TrialRun shadow(@PathVariable Long id,@RequestBody ShadowRequest request) { return service.shadow(id,request); }
+    @GetMapping("/active-rules") public List<ActiveRuleView> activeRules() { return service.activeRules(); }
+    @GetMapping("/evaluations") public List<EvaluationSummary> evaluations() { return service.recentEvaluations(); }
+    @PostMapping("/candidates/{id}/approve") public Candidate approve(@PathVariable Long id) { return service.approveCandidate(id); }
     @GetMapping("/candidates/{id}/runs") public List<TrialRun> runs(@PathVariable Long id) { return service.runs(id); }
 }

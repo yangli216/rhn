@@ -86,4 +86,24 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get(ROOT+"/candidates").with(rhn())).andExpect(status().isForbidden());
     }
+    @Test void active_rules_and_evaluations_and_candidate_approval() throws Exception {
+        mockMvc.perform(get(ROOT+"/active-rules").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(7))
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.EXACT_GENERIC_DUPLICATE')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.ANTIMICROBIAL_OUTPATIENT')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.SKIN_TEST')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.DRUG_ALLERGY')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.NSAID_DUPLICATE')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.AGE_CONTRAINDICATION')]").exists())
+                .andExpect(jsonPath("$[?(@.ruleCode=='QMED.DISULFIRAM_INTERACTION')]").exists());
+
+        mockMvc.perform(get(ROOT+"/evaluations").with(rhnWorkContext()))
+                .andExpect(status().isOk());
+
+        var id = generate(medication());
+        mockMvc.perform(post(ROOT+"/candidates/"+id+"/approve").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APPROVED_FOR_SHADOW"));
+    }
 }

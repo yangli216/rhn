@@ -13,4 +13,4 @@ begin
             legacy_column.table_schema, legacy_column.table_name, legacy_column.column_name);
     end loop;
 end $$;
-drop domain clob;
+drop domain if exists clob;
