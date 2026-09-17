@@ -137,14 +137,27 @@ export function SettlementPaymentPanel({
     }
   }, [methodCode])
 
+  const lastCashTargetRef = useRef<{ settlementId: string; amount: number } | null>(null)
+
   useEffect(() => {
-    if (methodCode === 'CASH' && numericAmount > 0) {
-      setCashTendered((prev) => {
-        const num = Number(prev)
-        return (!prev || isNaN(num) || num < numericAmount) ? String(numericAmount) : prev
-      })
+    if (methodCode === 'CASH') {
+      const targetChanged = !lastCashTargetRef.current
+        || lastCashTargetRef.current.settlementId !== settlementId
+        || lastCashTargetRef.current.amount !== numericAmount
+
+      if (targetChanged) {
+        lastCashTargetRef.current = { settlementId, amount: numericAmount }
+        setCashTendered(numericAmount > 0 ? String(numericAmount) : '')
+      } else if (numericAmount > 0) {
+        setCashTendered((prev) => {
+          const num = Number(prev)
+          return (!prev || isNaN(num) || num < numericAmount) ? String(numericAmount) : prev
+        })
+      }
+    } else {
+      lastCashTargetRef.current = null
     }
-  }, [methodCode, numericAmount])
+  }, [methodCode, numericAmount, settlementId])
 
   const numericTendered = Number(cashTendered)
   const isCashShort = methodCode === 'CASH' && paymentRequired && (!cashTendered || isNaN(numericTendered) || numericTendered < numericAmount)

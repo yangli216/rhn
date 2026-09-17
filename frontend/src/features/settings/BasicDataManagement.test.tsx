@@ -503,6 +503,35 @@ describe('BasicDataManagement - ServiceTable & helpers', () => {
     expect(screen.getByRole('button', { name: '根据当前含量重新生成制剂规格' })).toHaveClass('ui-button')
   })
 
+  it('preserves immutable code and attributes when saving in edit mode for MedicationDialog', () => {
+    const handleSave = vi.fn()
+    render(<MedicationDialog
+      dictionaries={{
+        BD_MEDICATION_TYPE: [{ code: 'WESTERN', name: '西药' }],
+        BD_DOSE_FORM: [{ code: 'TABLET', name: '片剂' }],
+        BD_STORAGE_TYPE: [{ code: 'ROOM_TEMPERATURE', name: '常温' }],
+      } as any}
+      frequencies={[]}
+      routes={[]}
+      value={{
+        id: 'med-1',
+        code: 'DRUG-AML',
+        name: '氨氯地平',
+        sdMedicationType: 'WESTERN',
+        sdDoseForm: 'TABLET',
+        sdStatus: 'ACTIVE',
+      } as any}
+      onClose={vi.fn()}
+      onSave={handleSave}
+    />)
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    expect(handleSave).toHaveBeenCalledWith(expect.objectContaining({
+      code: 'DRUG-AML',
+      name: '氨氯地平',
+    }))
+  })
+
   it('renders MedicationProductQuickViewDialog and handles actions correctly', () => {
     const handleClose = vi.fn()
     const handleProduct = vi.fn()

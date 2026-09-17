@@ -2458,20 +2458,68 @@ button.medication-package:hover { border-color: var(--color-brand-primary); back
   text-overflow: ellipsis;
 }
 
+.ui-field > .master-data-spec-field.ui-field__control,
+.master-data-spec-field.ui-field__control {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: auto !important;
+  height: auto !important;
+  box-shadow: none !important;
+}
+
 .master-data-spec-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
 }
 
 .master-data-spec-field > input {
+  flex: 1;
+  min-width: 0;
   width: 100%;
+  height: var(--control-height-md);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent);
+  font-size: var(--font-size-body);
+  transition: border-color var(--motion-fast) var(--ease-standard),
+              box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.master-data-spec-field > input:hover:not(:disabled):not([readonly]) {
+  border-color: var(--color-text-disabled);
+}
+
+.master-data-spec-field > input:focus-visible,
+.master-data-spec-field > input:focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.master-data-spec-field > input:disabled {
+  color: var(--color-text-disabled);
+  background: var(--color-surface-muted);
+  box-shadow: none;
 }
 
 .master-data-spec-gen-btn {
+  flex: none;
+  height: var(--control-height-md);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 .master-data-spec-gen-btn .ui-icon {

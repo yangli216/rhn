@@ -3,7 +3,7 @@ set -euo pipefail
 
 rhn_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rhn_backend_dir="$rhn_project_root/backend"
-rhn_server_port="${RHN_SERVER_PORT:-${RHN_PORT:-18086}}"
+rhn_requested_server_port="${RHN_SERVER_PORT:-${RHN_PORT:-}}"
 rhn_oracle_env_file="${RHN_ORACLE_ENV_FILE:-$rhn_project_root/.env.oracle.local}"
 
 if [[ -f "$rhn_oracle_env_file" ]]; then
@@ -12,6 +12,9 @@ if [[ -f "$rhn_oracle_env_file" ]]; then
   source "$rhn_oracle_env_file"
   set +a
 fi
+
+# Explicit launch settings take priority over checkout-local defaults.
+rhn_server_port="${rhn_requested_server_port:-${RHN_SERVER_PORT:-${RHN_PORT:-18086}}}"
 
 for rhn_required_variable in RHN_ORACLE_URL RHN_ORACLE_USER RHN_ORACLE_PASSWORD; do
   if [[ -z "${!rhn_required_variable:-}" ]]; then
@@ -30,7 +33,7 @@ fi
 
 rhn_build_artifact="$rhn_backend_dir/rhn-app/target/rhn-application-0.1.0-SNAPSHOT.jar"
 rhn_artifact_digest="$(shasum -a 256 "$rhn_build_artifact" | awk '{print substr($1, 1, 16)}')"
-rhn_runtime_dir="$rhn_backend_dir/target/runtime"
+rhn_runtime_dir="$rhn_project_root/.runtime/backend"
 rhn_runtime_artifact="$rhn_runtime_dir/rhn-application-$rhn_artifact_digest.jar"
 mkdir -p "$rhn_runtime_dir"
 if [[ ! -f "$rhn_runtime_artifact" ]]; then

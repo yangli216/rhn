@@ -31,6 +31,10 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asString();
         String path = "/api/encounters/"+encounter+"/prescriptions/"+prescription+"/safety-evaluations";
         String firstId = createItem(encounter, prescription);
+        JsonNode unknownAllergy = evaluate(path);
+        assertThat(unknownAllergy.path("decision").asString()).isEqualTo("BLOCK");
+        assertThat(jdbc.queryForObject("select SD_STATUS from RHN_EX_CARE_REQ where ID_CARE_REQ=?", String.class, firstId)).isEqualTo("DRAFT");
+        recordInpatientNoKnownDrugAllergy(resident, encounter);
         JsonNode pass = evaluate(path);
         assertThat(pass.path("decision").asString()).isEqualTo("PASS");
         createItem(encounter, prescription);

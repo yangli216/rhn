@@ -7,10 +7,14 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parents[4]
 resources = root / 'backend/src/main/resources/db'
-postgres = (resources / 'migration/V1_42_0__analytics_foundation.sql').read_text()
-oracle = (resources / 'oracle/V1_42_0__analytics_foundation.sql').read_text()
+def analytics_schema(folder):
+    sql = (resources / folder / 'B1_42_1__rhn_schema_and_metadata.sql').read_text()
+    # Compare the four table definitions and their three composite foreign keys independently of seed data.
+    return '\n'.join(re.findall(r'(?:create table RHN_AN_\w+ \(.*?\);|alter table RHN_AN_\w+ add .*?;)', sql, re.S | re.I))
+postgres = analytics_schema('migration')
+oracle = analytics_schema('oracle')
 normalized = oracle.replace('number(19)', 'bigint').replace('number(10)', 'integer').replace('varchar2(', 'varchar(').replace(' clob ', ' text ')
-assert postgres == normalized, 'Oracle/PostgreSQL columns or constraints drifted'
+assert postgres == normalized, 'Oracle/PostgreSQL analytics columns or constraints drifted'
 assert len(re.findall(r'create table ', postgres)) == 4
 assert len(re.findall(r'foreign key \(ID_TNT,', postgres)) == 3
 for identifier in re.findall(r'(?:table|constraint|index) (\w+)', oracle):

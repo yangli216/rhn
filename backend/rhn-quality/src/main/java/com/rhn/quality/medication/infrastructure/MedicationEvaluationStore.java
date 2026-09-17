@@ -7,8 +7,11 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
+import com.rhn.quality.medication.api.MedicationWorkbenchContracts.EvaluationSummary;
 
 /** Append-only evaluation storage. All business reads include tenant and prescription identity. */
 @Repository
@@ -56,6 +59,26 @@ public class MedicationEvaluationStore {
                 """, (rs, row) -> new StoredDecision(rs.getLong("ID_ORG"), rs.getLong("ID_DEPT"),
                 json.read(rs.getString("JSON_RESULT"), MedicationSafetyDecision.class)),
                 tenantId, prescriptionId, evaluationId).stream().findFirst();
+    }
+
+    public List<EvaluationSummary> findRecent(Long tenantId, int limit) {
+        return jdbc.query("""
+                select e.ID_EVAL, e.ID_PRESCRIPTION, e.ID_ENC, e.ID_PAT, e.ID_ORG, e.ID_DEPT,
+                       e.CD_RULE_SET_VER, e.SD_MODE, e.SD_DECISION, e.DT_COMPLETED,
+                       (select count(1) from RHN_AUD_MED_FINDING f where f.ID_EVAL = e.ID_EVAL) as CNT_FINDINGS
+                  from RHN_AUD_MED_EVAL e
+                 where e.ID_TNT = ?
+                 order by e.DT_COMPLETED desc
+                 fetch first ? rows only
+                """, (rs, row) -> {
+            var completedAt = rs.getObject("DT_COMPLETED", OffsetDateTime.class);
+            return new EvaluationSummary(
+                    rs.getLong("ID_EVAL"), rs.getLong("ID_PRESCRIPTION"), rs.getLong("ID_ENC"),
+                    rs.getLong("ID_PAT"), rs.getLong("ID_ORG"), rs.getLong("ID_DEPT"),
+                    rs.getString("CD_RULE_SET_VER"), rs.getString("SD_MODE"), rs.getString("SD_DECISION"),
+                    completedAt == null ? null : completedAt.toInstant(),
+                    rs.getInt("CNT_FINDINGS"));
+        }, tenantId, limit);
     }
 
     public record StoredDecision(Long organizationId, Long departmentId, MedicationSafetyDecision decision) {}

@@ -125,6 +125,35 @@ describe('SettlementPaymentPanel payment recovery', () => {
     expect(screen.getByRole('button', { name: '确认收款并记账' })).toBeDisabled()
   })
 
+  it('resets cash tendered amount when switching settlement or when payable amount changes', async () => {
+    const user = userEvent.setup()
+    const { rerender } = render(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 100, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      onSubmit={vi.fn()}
+    />)
+
+    const tenderInput = screen.getByPlaceholderText('100') as HTMLInputElement
+    await user.clear(tenderInput)
+    await user.type(tenderInput, '200')
+    expect(tenderInput.value).toBe('200')
+    expect(screen.getByText('¥100.00')).toBeInTheDocument()
+    expect(screen.getByText(/应找零给患者/)).toBeInTheDocument()
+
+    rerender(<SettlementPaymentPanel
+      settlements={[{ id: 'settlement-2', code: 'INV-2', outstandingAmount: 25, currencyCode: 'CNY' }]}
+      methods={[{ code: 'CASH', name: '现金' }]}
+      orders={[]}
+      onSubmit={vi.fn()}
+    />)
+
+    const newTenderInput = screen.getByPlaceholderText('25') as HTMLInputElement
+    expect(newTenderInput.value).toBe('25')
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
+    expect(screen.queryByText(/应找零给患者/)).not.toBeInTheDocument()
+  })
+
   it('shows clear error notice when medical insurance interface is unintegrated and pending', async () => {
     render(<SettlementPaymentPanel
       settlements={[{ id: 'settlement-1', code: 'INV-1', outstandingAmount: 15, currencyCode: 'CNY',

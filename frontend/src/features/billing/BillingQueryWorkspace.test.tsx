@@ -56,22 +56,33 @@ function renderWorkspace(sourceRecords: SettlementRecord[] = [record]) {
 }
 
 describe('BillingQueryWorkspace', () => {
-  it('shows completed settlement, charge, tender and receipt details', async () => {
+  it('shows completed settlement, charge, tender and receipt details in slide-over drawer', async () => {
     const api = renderWorkspace()
 
     const recordButton = await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
     expect(recordButton).toHaveTextContent('王建国')
+
+    // 点击记录滑出详情抽屉
+    await userEvent.click(recordButton)
+
     const detail = await screen.findByRole('region', { name: '收费记录详情' })
     expect(await within(detail).findByText('阿莫西林胶囊')).toBeInTheDocument()
     expect(within(detail).getByText('微信支付')).toBeInTheDocument()
     expect(within(detail).getByText('360100000001')).toBeInTheDocument()
-    expect(api.billing.settlementRecords).toHaveBeenCalledWith(200)
+    expect(api.billing.settlementRecords).toHaveBeenCalledWith(500)
+
+    // 点击关闭按钮关闭抽屉
+    const closeBtn = within(detail).getByRole('button', { name: '关闭收费记录详情' })
+    await userEvent.click(closeBtn)
+    expect(screen.queryByRole('region', { name: '收费记录详情' })).not.toBeInTheDocument()
   })
 
   it('filters records by patient identity', async () => {
     renderWorkspace()
     await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
-    await userEvent.type(screen.getByRole('searchbox', { name: '收费记录' }), '不存在的患者')
+    const input = screen.getByRole('textbox', { name: '姓名/门诊号' })
+    await userEvent.type(input, '不存在的患者')
+    await userEvent.click(screen.getByRole('button', { name: '查询' }))
     expect(await screen.findByText('暂无匹配记录')).toBeInTheDocument()
   })
 
@@ -86,9 +97,55 @@ describe('BillingQueryWorkspace', () => {
     }
     const api = renderWorkspace([historicalRecord])
 
+    const recordButton = await screen.findByRole('button', { name: '结算记录 RGI-HISTORICAL-001' })
+    await userEvent.click(recordButton)
+
     const detail = await screen.findByRole('region', { name: '收费记录详情' })
     expect(await within(detail).findByText('RGI-HISTORICAL-001')).toBeInTheDocument()
     expect(within(detail).getByText('门诊号 --')).toBeInTheDocument()
     expect(api.billing.statement).not.toHaveBeenCalled()
+  })
+
+  it('displays financial summary metrics in table footer and supports DateRangePicker filtering', async () => {
+    renderWorkspace()
+    await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })
+
+    // 验证放置在底部的财务核算对账指标条
+    const summaryStrip = screen.getByRole('region', { name: '财务核算指标' })
+    expect(within(summaryStrip).getByText(/结算总笔数/)).toBeInTheDocument()
+    expect(within(summaryStrip).getByText('1')).toBeInTheDocument()
+    expect(within(summaryStrip).getByText('¥86.00')).toBeInTheDocument()
+
+    // 通过统一的 DateRangePicker 组件输入筛选日期
+    const startInput = screen.getByLabelText('开始日期')
+    await userEvent.clear(startInput)
+    await userEvent.type(startInput, '2026-09-09')
+    expect(screen.getByText('暂无匹配记录')).toBeInTheDocument()
+
+    // 重新输入匹配日期
+    await userEvent.clear(startInput)
+    await userEvent.type(startInput, '2026-09-08')
+    expect(await screen.findByRole('button', { name: '结算记录 STL-20260908-001' })).toBeInTheDocument()
+  })
+
+  it('supports copying settlement number and closing drawer via Escape key', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined)
+    Object.assign(navigator, {
+      clipboard: { writeText: writeTextMock },
+    })
+
+    renderWorkspace()
+    const copyBtn = await screen.findByRole('button', { name: '复制单号 STL-20260908-001' })
+    await userEvent.click(copyBtn)
+    expect(writeTextMock).toHaveBeenCalledWith('STL-20260908-001')
+
+    // 查看明细按钮打开抽屉
+    const detailBtn = screen.getByRole('button', { name: '查看明细' })
+    await userEvent.click(detailBtn)
+    expect(await screen.findByRole('region', { name: '收费记录详情' })).toBeInTheDocument()
+
+    // 按 Escape 键关闭抽屉
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('region', { name: '收费记录详情' })).not.toBeInTheDocument()
   })
 })

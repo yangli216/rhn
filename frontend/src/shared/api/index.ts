@@ -1,3 +1,4 @@
+import { createMedicationWorkbenchApi } from './medicationWorkbenchApi'
 import { createAnalyticsApi } from './analyticsApi'
 import { createEncountersApi } from './encountersApi'
 import { createDictionaryApi } from './dictionaryApi'
@@ -69,6 +70,7 @@ export * from './outpatientTriageApi'
 
 function createApiModules(client: ApiClient) {
   return {
+    medicationWorkbench: createMedicationWorkbenchApi(client),
     analytics: createAnalyticsApi(client),
     session: createSessionApi(client),
     organization: createOrganizationApi(client),

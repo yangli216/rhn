@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 class RhnPhysicalSchemaGovernanceTest extends RhnIntegrationTestSupport {
     private static final Set<String> DOMAINS = Set.of(
             "SYS", "BD", "PI", "SC", "VIS", "EX", "HPL", "BIL", "INS",
-            "SUP", "META", "AI", "INT", "ANL", "AST", "AUD", "ARC");
+            "SUP", "META", "AI", "INT", "ANL", "AN", "OP", "AST", "AUD", "ARC");
 
     @Autowired
     JdbcTemplate jdbc;

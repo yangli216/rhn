@@ -41,6 +41,24 @@
 
 ## 本地启动
 
+### PostgreSQL 独立验证环境
+
+已有 PostgreSQL 时，可为本项目创建独立普通用户和同名数据库，将连接信息保存在 Git 忽略的 `.env.postgres.local`（文件权限建议 `600`）：
+
+```dotenv
+RHN_DB_URL=jdbc:postgresql://localhost:5432/rhn_pg_test
+RHN_DB_USER=rhn_pg_test
+RHN_DB_PASSWORD=替换为本地密码
+```
+
+使用 JDK 21+ 执行 `./scripts/run-postgres-local.sh`，默认后端端口为 `18087`，可用 `RHN_SERVER_PORT` 覆盖。`postgres-local` 会通过 Flyway 初始化表结构和演示数据，保留 Hibernate 表结构校验，并使用内存会话及在线状态，无需 Redis。默认演示账号为 `doctor` / `rhn-dev-2026`，可通过 `RHN_DEV_USERNAME` / `RHN_DEV_PASSWORD` 覆盖。
+
+前端在 `frontend` 目录执行 `RHN_FRONTEND_PORT=15177 RHN_API_TARGET=http://127.0.0.1:18087 npm run dev`。验证地址为 `http://localhost:15177`，后端健康检查为 `http://localhost:18087/actuator/health`。这套环境独立于下述 Oracle 人工验证端口；自动化后端测试仍使用 `test` profile 的随机 H2 数据库。
+
+PostgreSQL 专属迁移通过临时 `text` domain 兼容历史 `clob` 声明，随后将所有相关列转为原生 `text` 并删除临时 domain；专属 Hibernate 方言以字符串读写文本，避免默认 `@Lob` 映射为 PostgreSQL OID。共享迁移 `V1_41_0` 的布尔值已由 `0` 修正为 `false`。若旧持久化环境已经执行原版该迁移，升级前需核对 Flyway checksum 差异并按迁移管理流程处理；启动脚本不会自动 repair。Oracle 独立迁移未改动。
+
+### Oracle 人工验证环境
+
 两套长期人工验证环境均使用 `oracle-local`。主工作区使用后端 `8080` / 前端 `5173`，统计工作区使用后端 `18086` / 前端 `15176`。已运行的服务请保留；需要恢复主工作区后端时，在项目根目录执行：
 
 ```bash
@@ -91,7 +109,7 @@ mvn -DskipTests install
 mvn -pl rhn-app spring-boot:run -Dspring-boot.run.profiles=oracle-local -Dspring-boot.run.arguments=--server.port=8080
 ```
 
-需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，避免后续 Maven 构建覆盖正在加载的 Spring Boot fat jar。
+需要以打包制品长期运行时，在项目根目录执行 `./scripts/run-oracle-local.sh`。脚本会先确认端口未被占用，再把构建产物复制为内容哈希命名的运行副本，运行副本保存在 `.runtime/backend/`，避免后续 Maven 构建或清理影响正在运行的服务。
 
 首次启动会初始化表结构和开发基础数据；以后启动只执行尚未应用的迁移，已维护的业务数据会保留。详细规则见 [Oracle 持久化开发环境](docs/foundation/Oracle持久化开发环境.md)。
 
@@ -110,6 +128,10 @@ cd frontend && npm run check
 
 覆盖范围和完成判定见 [门诊主流程验收基线](docs/foundation/门诊主流程验收基线.md)。
 
+前端测试就近放置在组件或工具源码旁，使用 `*.test.ts(x)`；共享测试设置放在 `src/test/`。测试依赖属于开发依赖，测试文件参与类型检查，Vite 生产构建只沿应用入口的导入关系打包。
+
+后端测试复用通过 `@ResetDatabaseBeforeEachTestMethod` 显式启用：在随机 H2 中逐用例恢复数据并清空字典/参数缓存，禁用后台调度，禁止并行执行；类结束仍销毁上下文。修改登录会话、实时连接、模拟外部服务状态或测试调度的用例继续保留原有上下文隔离。
+
 前端 `check` 会同时执行 [UI 规范门禁](frontend/scripts/check-ui-standards.mjs) 与生产构建；共享组件的使用方式见 [共享 UI 使用说明](frontend/src/shared/ui/README.md)。
 
 当前开发账号只用于本地验证。监控、备份、发布和正式安全工程按本阶段边界暂不实际推进。
@@ -117,3 +139,7 @@ cd frontend && npm run check
 本地/测试配置会启用 `development-jca` 以验证完整链路；它不是合规密码产品。默认生产配置不启用任何密码提供者，并对关键数据写入失败关闭。接入真实数据前必须通过 `RHN_CRYPTO_ACTIVE_PROVIDER` 配置经项目核验的 SM2/SM3 密码服务适配器，并完成个人证书、可信时间戳、密钥生命周期和密码应用方案评估。
 
 前端端口可通过各工作区忽略的 `frontend/.env.local` 设置 `RHN_FRONTEND_PORT` 和 `RHN_API_TARGET`。统计分析工作区默认 `15176` / `http://localhost:18086`；原主工作区使用 `5173` / `http://localhost:8080`，并保持后端 `oracle-local` 服务运行。
+
+## 仓库维护
+
+保留当前设计、接口契约、标准来源和可执行测试；历史截图、阶段验收记录与一次性输出放入忽略的 `artifacts/`，过程历史通过 Git 查询。任务状态表只维护当前状态和未解决事项。数据库脚本的用途与新库初始化见 [数据库基线](backend/src/main/resources/db/README.md)。

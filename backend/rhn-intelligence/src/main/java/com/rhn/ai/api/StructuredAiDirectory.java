@@ -5,4 +5,7 @@ public interface StructuredAiDirectory {
     record Status(boolean available, String model, String message) {}
     Status status();
     String complete(String systemPrompt, String input);
+    default String complete(String systemPrompt, String input, String promptVersion) {
+        return complete(systemPrompt, input);
+    }
 }

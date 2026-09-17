@@ -16,8 +16,10 @@ class PrescriptionSafetySnapshotServiceTest {
     private final EncounterDirectory encounters = mock(EncounterDirectory.class);
     private final PrescriptionRepository prescriptions = mock(PrescriptionRepository.class);
     private final MedicationRequestRepository medications = mock(MedicationRequestRepository.class);
+    private final com.rhn.healthcore.api.AllergyDirectory allergies = mock(com.rhn.healthcore.api.AllergyDirectory.class);
+    private final com.rhn.healthcore.api.ResidentDirectory residents = mock(com.rhn.healthcore.api.ResidentDirectory.class);
     private final PrescriptionSafetySnapshotService snapshots = new PrescriptionSafetySnapshotService(encounters, prescriptions, medications,
-            jsonCodec());
+            allergies, residents, jsonCodec());
 
     private static com.rhn.shared.json.JsonCodec jsonCodec() {
         var json = mock(com.rhn.shared.json.JsonCodec.class);
@@ -32,7 +34,16 @@ class PrescriptionSafetySnapshotServiceTest {
                 3L, 1L, 4L, 5L, 6L, "ENC", "7", "IN_PROGRESS", 1, "科室", null));
         var prescription = new Prescription(1L, 4L, 3L, "RX", "WESTERN", 5L, 6L, 7L, null);
         when(prescriptions.findByIdAndTenantId(prescription.id(), 1L)).thenReturn(Optional.of(prescription));
+        when(allergies.activeForResident(4L)).thenReturn(List.of(
+                new com.rhn.healthcore.api.AllergyDirectory.AllergySnapshot(
+                        70L, 71L, "ALLERGY", "DRUG", "HIGH", null, "local", "PENICILLIN", "青霉素", null)));
+        when(residents.requireSnapshot(1L, 4L)).thenReturn(
+                new com.rhn.healthcore.api.ResidentDirectory.ResidentSnapshot(
+                        4L, "R", "患者", "MALE", java.time.LocalDate.now().minusYears(30), null, false));
         var active = request(12L, "ACTIVE");
+        when(active.skinTestExempt()).thenReturn(true);
+        when(active.skinTestExemptReason()).thenReturn("既有阴性记录");
+        when(active.exemptEvidenceEventId()).thenReturn(88L);
         var cancelled = request(11L, "CANCELLED");
         when(active.medicationSnapshot()).thenReturn("{\"clinicalSemantics\":{\"schemaVersion\":\"qmed-medication-semantics-v1\","
                 + "\"status\":\"VERSIONED_PARTIAL\",\"medicationSemanticVersion\":\"" + "a".repeat(64) + "\"}}");
@@ -48,6 +59,14 @@ class PrescriptionSafetySnapshotServiceTest {
         assertEquals("{\"revision\":7}", item.frequencyRuleSnapshot());
         assertEquals(active.medicationSnapshot(), item.medicationSnapshot());
         assertEquals("RESOLVED", item.routeResolutionStatus());
+        assertEquals("qmed-prescription-v2", snapshot.schemaVersion());
+        assertTrue(item.skinTestExempt());
+        assertEquals("既有阴性记录", item.skinTestExemptReason());
+        assertEquals(88L, item.exemptEvidenceEventId());
+        assertEquals(30, snapshot.patientContext().patientAgeYears());
+        assertEquals("MALE", snapshot.patientContext().gender());
+        assertTrue(snapshot.patientContext().allergyStatusRecorded());
+        assertEquals("PENICILLIN", snapshot.patientContext().activeAllergies().getFirst().substanceCode());
         assertEquals(1L, snapshot.tenantId());
         assertEquals(0, snapshot.prescriptionRevision());
 

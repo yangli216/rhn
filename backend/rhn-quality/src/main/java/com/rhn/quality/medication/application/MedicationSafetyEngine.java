@@ -33,7 +33,7 @@ public final class MedicationSafetyEngine {
             return new Result(List.of(), List.of(), List.of("INPUT_UNSUPPORTED"));
         }
         var codes = versions.stream().map(version -> version.definition().code()).toList();
-        if (codes.size() != codes.stream().distinct().count() || !rules.keySet().equals(java.util.Set.copyOf(codes))) {
+        if (codes.isEmpty() || codes.size() != codes.stream().distinct().count() || !rules.keySet().equals(java.util.Set.copyOf(codes))) {
             return new Result(List.of(), List.of(), List.of("RULE_SET_INCOMPLETE"));
         }
         for (var version : versions.stream().sorted(java.util.Comparator.comparing(v -> v.definition().code())).toList()) {

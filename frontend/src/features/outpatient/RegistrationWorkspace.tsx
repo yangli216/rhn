@@ -669,6 +669,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
     setCoverageSelection('SELF_PAY')
     setCoverageTouched(false)
     setValidationError(null)
+    setCashTendered('')
   }, [selected?.id])
 
   useEffect(() => {

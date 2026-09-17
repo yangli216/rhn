@@ -3060,6 +3060,7 @@ function bySequence(left: { sequence?: number }, right: { sequence?: number }) {
 }
 
 function focusResource(type: OrderEntryType) {
+  if (typeof document === 'undefined') return
   const tryFocus = () => {
     const el = document.getElementById(`doctor-unified-${type}-resource`)
       || document.querySelector<HTMLElement>('.doctor-unified-inline-composer .ui-remote-search__trigger')

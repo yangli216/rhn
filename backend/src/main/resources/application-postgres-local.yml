@@ -1,0 +1,32 @@
+spring:
+  datasource:
+    url: ${RHN_DB_URL:jdbc:postgresql://localhost:5432/rhn_pg_test}
+    username: ${RHN_DB_USER:rhn_pg_test}
+    password: ${RHN_DB_PASSWORD}
+  flyway:
+    locations: classpath:db/postgresql,classpath:db/migration,classpath:db/local
+  jpa:
+    database-platform: com.rhn.platform.persistence.PostgreSqlTextDialect
+
+management:
+  health:
+    redis:
+      enabled: false
+
+rhn:
+  id:
+    allow-default-node: true
+  security:
+    dev-user-enabled: true
+    dev-username: ${RHN_DEV_USERNAME:doctor}
+    dev-password: ${RHN_DEV_PASSWORD:rhn-dev-2026}
+    session-registry: memory
+    refresh-login:
+      cookie-secure: false
+  crypto:
+    active-provider: development-jca
+    enforce-compliance: false
+    secret-encryption-key: ${RHN_SECRET_ENCRYPTION_KEY:cmhuLWxvY2FsLWRldmVsb3BtZW50LWtleS0yMDI2ISE=}
+    secret-encryption-key-id: postgres-local-development
+  presence:
+    store: memory

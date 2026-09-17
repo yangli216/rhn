@@ -130,3 +130,8 @@ nbdist/
 .*.sw?
 *.sublime-project
 *.sublime-workspace
+
+# Persistent verification artifacts must survive Maven clean.
+.runtime/
+# Historical browser outputs stay local.
+docs/design-qa/

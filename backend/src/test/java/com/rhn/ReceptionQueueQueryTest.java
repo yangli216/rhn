@@ -202,6 +202,74 @@ class ReceptionQueueQueryTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void page_orders_by_registered_at_descending() throws Exception {
+        String suffix1 = Long.toString(GlobalIds.next()).substring(13);
+        JsonNode resident1 = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"时间排序患者A%s","identifiers":[{"system":"9","value":"SORT-A-%s","useType":"SECONDARY"}],
+                                  "gender":"MALE","birthDate":"1992-05-01","phone":"13800138111"
+                                }
+                                """.formatted(suffix1, suffix1)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode enc1 = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"SORT-ENC-A-%s"
+                                }
+                                """.formatted(resident1.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix1)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String regId1 = enc1.get("registrationId").asString();
+
+        String suffix2 = Long.toString(GlobalIds.next()).substring(13);
+        JsonNode resident2 = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "fullName":"时间排序患者B%s","identifiers":[{"system":"9","value":"SORT-B-%s","useType":"SECONDARY"}],
+                                  "gender":"FEMALE","birthDate":"1994-06-01","phone":"13800138222"
+                                }
+                                """.formatted(suffix2, suffix2)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        JsonNode enc2 = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {
+                                  "residentId":"%s","organizationId":"%s","departmentId":"%s",
+                                  "idempotencyCode":"SORT-ENC-B-%s"
+                                }
+                                """.formatted(resident2.get("id").asString(), ORGANIZATION, DEPARTMENT, suffix2)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString());
+        String regId2 = enc2.get("registrationId").asString();
+
+        Instant tenMinutesAgo = Instant.now().minusSeconds(600);
+        jdbcTemplate.update("update RHN_SC_PAT_REG set DT_REGISTERED = ? where ID_PAT_REG = ?",
+                tenMinutesAgo, Long.valueOf(regId1));
+
+        JsonNode pageResp = json(mockMvc.perform(get("/api/outpatient/reception/page").with(rhnWorkContext())
+                        .queryParam("query", "时间排序患者")
+                        .queryParam("page", "0")
+                        .queryParam("size", "10"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString());
+
+        JsonNode content = pageResp.get("content");
+        assertTrue(content.size() >= 2);
+        int idx1 = -1;
+        int idx2 = -1;
+        for (int i = 0; i < content.size(); i++) {
+            String rid = content.get(i).get("registrationId").asString();
+            if (regId1.equals(rid)) idx1 = i;
+            if (regId2.equals(rid)) idx2 = i;
+        }
+        assertTrue(idx1 >= 0 && idx2 >= 0);
+        assertTrue(idx2 < idx1);
+    }
+
+    @Test
     void queue_includes_department_general_patients_in_personal_scope_when_doctor_has_no_personal_schedule() throws Exception {
         String suffix = Long.toString(GlobalIds.next()).substring(13);
         JsonNode resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())

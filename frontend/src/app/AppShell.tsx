@@ -1,3 +1,4 @@
+import { MedicationWorkbench } from '../features/quality/MedicationWorkbench'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -201,6 +202,7 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
 const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management']
 
 const NAVIGATION_NODES: NavigationNode[] = [
+  { id: 'medication-workbench', label: '合理用药规则', icon: 'clinical', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
   ...(analyticsEntryEnabled ? [{ id: 'analytics', label: '智能统计分析', icon: 'roadmap' as const, to: '/analytics', requiredAuthority: 'PORTAL.ACCESS' }] : []),
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
@@ -334,6 +336,7 @@ function navigationAncestorsForPath(nodes: NavigationNode[], pathname: string, a
 
 export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/') return HOME_TAB
+  if (pathname === '/quality/medication-rules') return { id: pathname, path: pathname, title: '合理用药规则', icon: 'clinical', closeable: true }
   if (pathname === '/analytics' && analyticsEntryEnabled) return { id: pathname, path: pathname, title: '智能统计分析', icon: 'roadmap', closeable: true }
   if (pathname === '/residents') return { id: pathname, path: pathname, title: '居民中心', icon: 'residents', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
@@ -976,6 +979,7 @@ export function AppShell() {
                     canTerminate={tabAuthorities.has('PRESENCE.SESSION.TERMINATE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/access-control" element={<AccessControlManagement api={tabSlot.api}
                     context={tabSlot.clinicalContext} />} />
+                  <Route path="/quality/medication-rules" element={<MedicationWorkbench api={tabSlot.api} />} />
                   {analyticsEntryEnabled && <Route path="/analytics" element={<AnalyticsEntry api={tabSlot.api} />} />}
                   <Route path="/roadmap/:module" element={<PlannedPage title="后续业务模块" copy="该模块将在门诊主链后按业务优先级接入共享底座。" />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
