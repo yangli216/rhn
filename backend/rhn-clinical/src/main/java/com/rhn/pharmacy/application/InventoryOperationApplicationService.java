@@ -41,8 +41,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -375,14 +377,28 @@ public class InventoryOperationApplicationService {
     @Transactional
     public GoodsReceiptView postGoodsReceipt(Long receiptId) {
         ExecutionContext context = requireWorkContext(); GoodsReceipt receipt = lockReceipt(context, receiptId);
+        return doPostGoodsReceipt(receipt, null, null, null, context);
+    }
+
+    private GoodsReceiptView doPostGoodsReceipt(GoodsReceipt receipt,
+                                                PurchaseOrder orderOrNull,
+                                                List<GoodsReceiptLine> receiptLinesOrNull,
+                                                Map<Long, PurchaseOrderLine> orderLinesOrNull,
+                                                ExecutionContext context) {
         if ("POSTED".equals(receipt.status())) return receiptView(context, receipt);
         if (!Set.of("ACCEPTED", "PARTIALLY_ACCEPTED").contains(receipt.status())) {
             throw conflict("GOODS_RECEIPT_NOT_POSTABLE", "只有验收合格或部分合格的到货单可以批量入库");
         }
-        PurchaseOrder order = lockOrder(context, receipt.purchaseOrderId());
-        Map<Long, PurchaseOrderLine> orderLines = new HashMap<>();
-        orderLineRepository.lockByPurchaseOrder(context.tenantId(), order.id()).forEach(line -> orderLines.put(line.id(), line));
-        List<GoodsReceiptLine> lines = receiptLineRepository.lockByReceipt(context.tenantId(), receipt.id());
+        PurchaseOrder order = orderOrNull != null ? orderOrNull : lockOrder(context, receipt.purchaseOrderId());
+        Map<Long, PurchaseOrderLine> orderLines;
+        if (orderLinesOrNull != null) {
+            orderLines = orderLinesOrNull;
+        } else {
+            orderLines = new HashMap<>();
+            orderLineRepository.lockByPurchaseOrder(context.tenantId(), order.id()).forEach(line -> orderLines.put(line.id(), line));
+        }
+        List<GoodsReceiptLine> lines = receiptLinesOrNull != null ? receiptLinesOrNull
+                : receiptLineRepository.lockByReceipt(context.tenantId(), receipt.id());
         traceService.validateReceiptPosting(context, receipt, lines);
         Map<Long, Long> lotIds = new HashMap<>();
         List<ReceiveDocumentLineCommand> postingLines = new java.util.ArrayList<>();
@@ -421,6 +437,137 @@ public class InventoryOperationApplicationService {
                 order.status(), null, receipt.requestCode());
         receiptLineRepository.flush(); orderLineRepository.flush(); receiptRepository.flush(); orderRepository.flush();
         return receiptView(context, receipt);
+    }
+
+    @Transactional
+    public GoodsReceiptView directGoodsReceipt(DirectGoodsReceiptCommand input) {
+        ExecutionContext context = requireWorkContext();
+        String requestCode = required(input.requestCode(), "GOODS_RECEIPT_REQUEST_REQUIRED", "到货请求编码不能为空");
+        GoodsReceipt existing = receiptRepository.findByTenantIdAndRequestCode(context.tenantId(), requestCode).orElse(null);
+        if (existing != null) {
+            return receiptView(context, existing);
+        }
+        StockSite site = requireSite(context, input.stockSiteId());
+        Supplier supplier = requireSupplier(context, input.supplierId());
+        if (!site.organizationId().equals(supplier.organizationId())) {
+            throw badRequest("PURCHASE_SUPPLIER_ORG_MISMATCH", "供应商与采购库房不属于同一机构");
+        }
+        LocalDate today = LocalDate.now();
+        if (!supplier.effective(today)) {
+            throw conflict("SUPPLIER_NOT_EFFECTIVE", "供应商资质无效、已过期或已停用");
+        }
+        if (input.lines() == null || input.lines().isEmpty()) {
+            throw badRequest("GOODS_RECEIPT_LINES_REQUIRED", "到货单至少需要一条明细");
+        }
+        if (input.lines().size() > 500) {
+            throw badRequest("GOODS_RECEIPT_LINES_TOO_MANY", "单张到货单不能超过500条明细");
+        }
+
+        // 1. 确保每一项药品均有有效供货协议
+        for (DirectReceiptLineCommand line : input.lines()) {
+            StockItem item = requireStockItem(context, line.stockItemId(), site.id());
+            var supplyOpt = supplyItemRepository.findByTenantIdAndSupplierIdAndCatalogItemIdAndPackageId(
+                    context.tenantId(), supplier.id(), item.catalogItemId(), line.packageId());
+            if (supplyOpt.isEmpty()) {
+                createSupplyItem(supplier.id(), new CreateSupplyItemCommand(
+                        item.catalogItemId(), line.packageId(), line.unitPrice(), line.taxRate(), today, null));
+            }
+        }
+
+        // 2. 自动生成采购单 PurchaseOrder 并一步批准
+        String poRequestCode = requestCode + ":PO";
+        String orderNo = clean(input.orderNo());
+        if (orderNo == null) orderNo = nextNo("PO");
+        PurchaseOrder po = orderRepository.save(new PurchaseOrder(context.tenantId(), site.organizationId(), site.id(), supplier.id(),
+                orderNo, poRequestCode, today, today,
+                clean(input.description()) == null ? "直接采购验收入库生成" : clean(input.description()), context.subjectId()));
+
+        // 按 stockItemId 汇总采购单明细，支持单药同批或多批次到货
+        Map<Long, BigDecimal> itemTotalQuantities = new LinkedHashMap<>();
+        Map<Long, DirectReceiptLineCommand> itemFirstLines = new LinkedHashMap<>();
+        for (DirectReceiptLineCommand line : input.lines()) {
+            positive(line.quantity(), "PURCHASE_QUANTITY_INVALID", "采购数量必须大于零");
+            validateMoney(line.unitPrice(), "PURCHASE_PRICE_INVALID", "采购单价不能小于零");
+            validateTax(line.taxRate());
+            itemTotalQuantities.merge(line.stockItemId(), line.quantity(), BigDecimal::add);
+            itemFirstLines.putIfAbsent(line.stockItemId(), line);
+        }
+
+        Map<Long, PurchaseOrderLine> poLinesByStockItem = new HashMap<>();
+        int poSort = 0;
+        for (Map.Entry<Long, BigDecimal> entry : itemTotalQuantities.entrySet()) {
+            Long stockItemId = entry.getKey();
+            BigDecimal totalQty = entry.getValue();
+            DirectReceiptLineCommand firstLine = itemFirstLines.get(stockItemId);
+            StockItem item = requireStockItem(context, stockItemId, site.id());
+            PurchaseOrderLine poLine = orderLineRepository.save(new PurchaseOrderLine(context.tenantId(), po.id(), ++poSort,
+                    item.id(), firstLine.packageId(), totalQty, firstLine.unitPrice(), firstLine.taxRate(),
+                    clean(firstLine.description())));
+            poLinesByStockItem.put(stockItemId, poLine);
+        }
+        po.submit(context.subjectId());
+        po.approve(context.subjectId(), "直接采购入库自动批准");
+        appendEvent(context, "PURCHASE_ORDER", po.id(), po.orderNo(), "CREATED", null, "DRAFT", null, po.requestCode());
+        appendEvent(context, "PURCHASE_ORDER", po.id(), po.orderNo(), "SUBMITTED", "DRAFT", "SUBMITTED", null, po.requestCode());
+        appendEvent(context, "PURCHASE_ORDER", po.id(), po.orderNo(), "APPROVED", "SUBMITTED", "APPROVED", "直接入库免审通过", po.requestCode());
+        orderLineRepository.flush();
+        orderRepository.flush();
+
+        // 3. 自动生成到货验收单 GoodsReceipt
+        String receiptNo = clean(input.receiptNo());
+        if (receiptNo == null) receiptNo = nextNo("GR");
+        Instant receivedAt = input.receivedAt() == null ? Instant.now() : input.receivedAt();
+        GoodsReceipt receipt = receiptRepository.save(new GoodsReceipt(context.tenantId(), site.organizationId(), site.id(),
+                po.id(), supplier.id(), receiptNo, requestCode, clean(input.deliveryNoteNo()), receivedAt,
+                clean(input.description()), context.subjectId()));
+
+        List<GoodsReceiptLine> receiptLines = new ArrayList<>();
+        int grSort = 0;
+        for (DirectReceiptLineCommand line : input.lines()) {
+            PurchaseOrderLine poLine = poLinesByStockItem.get(line.stockItemId());
+            StockBin bin = requireBin(context, line.destinationBinId(), site.id());
+            if (!bin.active() || !bin.receiveAllowed()) {
+                throw conflict("STOCK_BIN_NOT_RECEIVABLE", "目标货位未开放收货");
+            }
+            String lotNo = required(line.lotNo(), "GOODS_RECEIPT_LOT_REQUIRED", "到货批号不能为空");
+            if (line.expiryDate() != null && line.productionDate() != null
+                    && line.expiryDate().isBefore(line.productionDate())) {
+                throw badRequest("GOODS_RECEIPT_DATE_INVALID", "有效期不能早于生产日期");
+            }
+            GoodsReceiptLine grLine = receiptLineRepository.save(new GoodsReceiptLine(context.tenantId(), receipt.id(), poLine.id(),
+                    ++grSort, line.stockItemId(), line.packageId(), bin.id(), lotNo,
+                    line.productionDate(), line.expiryDate(), line.quantity(), line.unitPrice()));
+            receiptLines.add(grLine);
+        }
+        appendEvent(context, "GOODS_RECEIPT", receipt.id(), receipt.receiptNo(), "RECEIVED", null,
+                receipt.status(), null, receipt.requestCode());
+        receiptLineRepository.flush();
+        receiptRepository.flush();
+
+        // 4. 自动执行质量验收（全合格）
+        receipt.beginInspection(context.subjectId());
+        for (GoodsReceiptLine grLine : receiptLines) {
+            grLine.inspect(grLine.deliveredQuantity(), BigDecimal.ZERO, null);
+        }
+        receipt.completeInspection(true, false, context.subjectId());
+        appendEvent(context, "GOODS_RECEIPT", receipt.id(), receipt.receiptNo(), "INSPECTED", "RECEIVED",
+                receipt.status(), "直接入库质量验收合格", receipt.requestCode());
+        receiptLineRepository.flush();
+        receiptRepository.flush();
+
+        // 5. 自动执行批量记账入库（更新库存、批次、采购单完成状态与流水）
+        Map<Long, PurchaseOrderLine> poLinesById = new HashMap<>();
+        for (PurchaseOrderLine poLine : poLinesByStockItem.values()) {
+            poLinesById.put(poLine.id(), poLine);
+        }
+        try {
+            return doPostGoodsReceipt(receipt, po, receiptLines, poLinesById, context);
+        } catch (com.rhn.shared.api.BusinessException ex) {
+            if ("TRACE_REGISTRATION_INCOMPLETE".equals(ex.code())) {
+                return receiptView(context, receipt);
+            }
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -619,4 +766,11 @@ public class InventoryOperationApplicationService {
     public record InspectLineCommand(Long goodsReceiptLineId, BigDecimal acceptedQuantity,
                                      BigDecimal rejectedQuantity, String rejectionReason) {}
     public record InspectGoodsReceiptCommand(String description, List<InspectLineCommand> lines) {}
+    public record DirectReceiptLineCommand(Long stockItemId, Long packageId, Long destinationBinId, String lotNo,
+                                           LocalDate productionDate, LocalDate expiryDate,
+                                           BigDecimal quantity, BigDecimal unitPrice, BigDecimal taxRate,
+                                           String description) {}
+    public record DirectGoodsReceiptCommand(Long stockSiteId, Long supplierId, String orderNo, String receiptNo,
+                                            String requestCode, String deliveryNoteNo, Instant receivedAt,
+                                            String description, List<DirectReceiptLineCommand> lines) {}
 }

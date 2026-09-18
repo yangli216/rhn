@@ -121,9 +121,20 @@
 .warehouse-entry-input { height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--font-size-small); width: 100%; }
 .warehouse-entry-conv { display: block; margin-top: 2px; font-size: .75rem; color: var(--color-brand-primary); }
 .warehouse-entry-amount { font-size: var(--font-size-small); font-weight: var(--font-weight-semibold); color: var(--color-text-primary); white-space: nowrap; }
-.warehouse-entry-kbd-hint { padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-3); font-size: var(--font-size-small); color: var(--color-text-secondary); flex-wrap: wrap; }
+.warehouse-entry-kbd-hint { padding: var(--space-1) var(--space-3); background: var(--color-surface-subtle); border-bottom: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-3); font-size: .75rem; color: var(--color-text-secondary); flex-wrap: wrap; }
 .warehouse-entry-kbd-badge { font-weight: var(--font-weight-semibold); color: var(--color-brand-primary); }
-.warehouse-entry-kbd-hint code { padding: .1rem .35rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xs, 3px); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .75rem; color: var(--color-text-primary); }
+.warehouse-entry-kbd-hint code { padding: .05rem .3rem; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-xs, 3px); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .7rem; color: var(--color-text-primary); }
+.warehouse-purchase-mode-tabs { display: inline-flex; background: var(--color-surface-subtle); padding: 3px; border-radius: var(--radius-md); border: 1px solid var(--color-border); gap: 2px; margin-bottom: var(--space-2); }
+.warehouse-purchase-mode-tab { padding: var(--space-1) var(--space-3); font-size: var(--font-size-small); border-radius: var(--radius-sm); border: none; background: transparent; color: var(--color-text-secondary); cursor: pointer; font-weight: var(--font-weight-medium); transition: all .15s ease; }
+.warehouse-purchase-mode-tab.is-active { background: var(--color-surface); color: var(--color-brand-primary); font-weight: var(--font-weight-semibold); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.warehouse-header-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: var(--space-3); align-items: flex-end; background: var(--color-surface-subtle); padding: var(--space-3); border-radius: var(--radius-md); border: 1px solid var(--color-border); margin-bottom: var(--space-2); }
+.warehouse-header-grid .ui-field { margin-bottom: 0; }
+.warehouse-entry-spec-inline { display: flex; flex-direction: column; gap: 1px; }
+.warehouse-entry-spec-inline strong { font-size: var(--font-size-small); color: var(--color-text-primary); white-space: nowrap; }
+.warehouse-entry-spec-inline small { font-size: .75rem; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 15rem; }
+.warehouse-entry-input-with-unit { position: relative; display: flex; align-items: center; width: 100%; }
+.warehouse-entry-input-with-unit .warehouse-entry-input { padding-right: 2.5rem; }
+.warehouse-entry-input-unit { position: absolute; right: var(--space-2); font-size: .75rem; color: var(--color-text-secondary); pointer-events: none; white-space: nowrap; }
 .warehouse-entry-table tbody tr.is-active-entry-row { background: color-mix(in srgb, var(--color-brand-soft) 45%, var(--color-surface)); }
 .warehouse-entry-add-bar { padding: var(--space-2) var(--space-3); background: var(--color-surface-subtle); border-top: 1px solid var(--color-border); display: flex; align-items: center; gap: var(--space-3); }
 .warehouse-entry-tip { font-size: var(--font-size-small); color: var(--color-text-secondary); }
@@ -331,3 +342,20 @@
   .warehouse-trace-filters, .warehouse-trace-summary { grid-template-columns: 1fr; }
   .warehouse-count-mode, .warehouse-reconciliation-facts { grid-template-columns: 1fr; }
 }
+
+/* Procurement uses workstation width; narrow desktops scroll the detail grid instead of squeezing drug names. */
+.ui-dialog.warehouse-purchase-dialog { width: min(90rem, 100%); }
+.warehouse-purchase-toolbar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-4); }
+.warehouse-purchase-toolbar > input { width: 18rem; }
+.warehouse-receipt-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.warehouse-receipt-grid .warehouse-operation-table { table-layout: fixed; min-width: 72rem; }
+.warehouse-receipt-grid th:first-child { width: 26%; }
+.warehouse-receipt-grid th:nth-child(2) { width: 14%; }
+.warehouse-receipt-grid th:nth-child(3) { width: 14%; }
+.warehouse-receipt-grid th:nth-child(4), .warehouse-receipt-grid th:nth-child(5) { width: 15%; }
+.warehouse-receipt-grid td { vertical-align: top; }
+.warehouse-receipt-grid td small { display: block; color: var(--color-text-secondary); margin: var(--space-1) 0; }
+.warehouse-receipt-grid td:first-child { overflow-wrap: anywhere; }
+.warehouse-receipt-grid .ui-field__control { min-width: 0; }
+.warehouse-receipt-error { display: block; margin-top: var(--space-2); color: var(--color-danger); font-size: var(--font-size-small); }
+.warehouse-purchase-submit-option { display: flex; align-items: center; gap: var(--space-2); font-size: var(--font-size-small); }

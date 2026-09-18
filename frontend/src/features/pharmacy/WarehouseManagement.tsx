@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { InventoryBalance, InventoryTransaction, StockBin, StockItem } from '../../shared/api'
-import type { RhnApi } from '../../shared/rhnApi'
+import type { RhnApi, MedicationProduct } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
   Alert, Button, Dialog, EmptyState, FormField, LoadingState, PageHeader, Panel,
-  SearchField, Select, StatusBadge, TreePanel,
+  SearchField, Select, StatusBadge, TreePanel, Pagination,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
 import { TraceCodeManagement } from './TraceCodeManagement'
@@ -483,29 +483,28 @@ function BinDialog({ parent, busy, error, onClose, onSubmit }: {
   </Dialog>
 }
 
-function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, error, onClose, onSubmit }: {
+export function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, error, onClose, onSubmit }: {
   api: RhnApi; organizationId: string; stockSiteType: string; existingItems: StockItem[]; busy: boolean; error: unknown
   onClose: () => void; onSubmit: (input: ItemInput[]) => void
 }) {
-  const productsQuery = useQuery({ queryKey: ['warehouse-catalog-products', organizationId],
-    queryFn: () => api.masterData.medications('', '', 'ACTIVE', organizationId) })
-  const products = useMemo(() => (productsQuery.data ?? []).flatMap((medication) => medication.products)
-    .filter((product) => product.sdStatus === 'ACTIVE' && product.stocked
-      && product.organizationAdoption?.sdStatus === 'ACTIVE' && product.organizationAdoption.stocked
-      && (stockSiteType !== 'PHARMACY' || product.organizationAdoption.dispensable)
-      && product.packages.some((itemPackage) => itemPackage.sdStatus === 'ACTIVE')
-      && !existingItems.some((item) => item.catalogItemId === product.id)),
-  [existingItems, productsQuery.data, stockSiteType])
-  const [query, setQuery] = useState(''); const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
+  const [selected, setSelected] = useState<Record<string, MedicationProduct>>({})
+  const selectedIds = Object.keys(selected)
   const [packageIds, setPackageIds] = useState<Record<string, string>>({})
+  const productsQuery = useQuery({ queryKey: ['warehouse-catalog-products', organizationId, stockSiteType, query, page],
+    queryFn: () => api.masterData.searchMedicationProducts(query, '', 'ACTIVE', organizationId, page, 20, true, stockSiteType === 'PHARMACY') })
+  const today = new Date().toLocaleDateString('sv-SE')
+  const products = (productsQuery.data?.content ?? []).map(({ product }) => ({ ...product,
+    packages: product.packages.filter(pkg => pkg.sdStatus === 'ACTIVE' && pkg.validFrom <= today && (!pkg.validTo || pkg.validTo >= today)),
+  })).filter(product => !existingItems.some(item => item.catalogItemId === product.id))
+  useEffect(() => { setPage(0) }, [query])
   const [issuePolicy, setIssuePolicy] = useState<ItemInput['issuePolicy']>('FEFO')
   const [lotRequired, setLotRequired] = useState(true); const [traceRequired, setTraceRequired] = useState(true)
   const [splitAllowed, setSplitAllowed] = useState(false); const [coldChain, setColdChain] = useState(false)
   const [controlled, setControlled] = useState(false); const [highAlert, setHighAlert] = useState(false)
-  const normalizedQuery = query.trim().toLocaleLowerCase()
-  const visibleProducts = products.filter((product) => !normalizedQuery
-    || `${product.name} ${product.code} ${product.manufacturerName}`.toLocaleLowerCase().includes(normalizedQuery))
-  const selectedProducts = products.filter((product) => selectedIds.includes(product.id))
+  const visibleProducts = products
+  const selectedProducts = Object.values(selected)
   const allVisibleSelected = Boolean(visibleProducts.length)
     && visibleProducts.every((product) => selectedIds.includes(product.id))
   const defaultPackageId = (product: (typeof products)[number]) => {
@@ -513,22 +512,27 @@ function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, e
     return packages.find((value) => value.defaultDispense)?.id ?? packages[0]?.id ?? ''
   }
   const setProductSelected = (product: (typeof products)[number], selected: boolean) => {
-    setSelectedIds((current) => selected
-      ? current.includes(product.id) ? current : [...current, product.id]
-      : current.filter((id) => id !== product.id))
+    setSelected(current => {
+      const next = { ...current }
+      if (selected) next[product.id] = product
+      else delete next[product.id]
+      return next
+    })
     if (selected && !packageIds[product.id]) {
       setPackageIds((current) => ({ ...current, [product.id]: defaultPackageId(product) }))
     }
   }
   const toggleVisible = (selected: boolean) => {
-    setSelectedIds((current) => selected
-      ? [...new Set([...current, ...visibleProducts.map((product) => product.id)])]
-      : current.filter((id) => !visibleProducts.some((product) => product.id === id)))
+    setSelected(current => {
+      const next = { ...current }
+      visibleProducts.forEach(product => { if (selected) next[product.id] = product; else delete next[product.id] })
+      return next
+    })
     if (selected) setPackageIds((current) => Object.fromEntries([
       ...Object.entries(current), ...visibleProducts.map((product) => [product.id, current[product.id] || defaultPackageId(product)]),
     ]))
   }
-  const ready = selectedProducts.length > 0 && selectedProducts.every((product) => packageIds[product.id])
+  const ready = selectedProducts.length > 0 && selectedProducts.length <= 200 && selectedProducts.every((product) => packageIds[product.id])
   const submit = () => onSubmit(selectedProducts.map((product) => ({ catalogItemId: product.id,
     packageId: packageIds[product.id], issuePolicy, negativeAllowed: false, lotRequired, traceRequired,
     splitAllowed, coldChain, controlled, controlLevel: controlled ? 'CONTROLLED' : undefined, highAlert })))
@@ -539,7 +543,7 @@ function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, e
       批量调入{selectedProducts.length ? `（${selectedProducts.length}）` : ''}</Button></>}>
     {(error || productsQuery.error) && <Alert>{errorMessage(error || productsQuery.error)}</Alert>}
     <div className="warehouse-batch-toolbar"><label><span>检索药品</span><input autoFocus className="ui-field__control"
-      value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称、编码或生产厂家" /></label>
+      value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索名称、编码、生产厂家或批准文号" /></label>
       <label className="warehouse-batch-select-all"><input type="checkbox" checked={allVisibleSelected}
         onChange={(event) => toggleVisible(event.target.checked)} disabled={!visibleProducts.length} />
         <span>选择当前结果</span></label><span>可调入 {visibleProducts.length} 项</span></div>
@@ -557,6 +561,10 @@ function ItemDialog({ api, organizationId, stockSiteType, existingItems, busy, e
             secondaryText: value.unitCode }))} /></td></tr>
     })}{!productsQuery.isPending && !visibleProducts.length && <tr><td colSpan={4} className="warehouse-batch-empty">
       {products.length ? '没有匹配的药品' : '没有可调入的药品产品'}</td></tr>}</tbody></table></div>
+    {productsQuery.isFetching && <LoadingState label="正在加载候选产品…" />}
+    <Pagination page={page} totalPages={Math.max(1, productsQuery.data?.totalPages ?? 1)}
+      total={productsQuery.data?.totalElements ?? 0} pageSize={20} onChange={setPage} label="调入候选产品分页" />
+    {selectedProducts.length > 200 && <Alert>单次最多调入 200 个产品，请减少选择。</Alert>}
     <section className="warehouse-batch-settings"><header><div><strong>本批次统一设置</strong>
       <span>应用于本次选中的全部药品，调入后仍可在经营目录中查看。</span></div>
       <FormField label="出库策略" required><Select value={issuePolicy} clearable={false} showValue

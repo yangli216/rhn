@@ -873,6 +873,103 @@
 }
 .registration-intake-strip .registration-params-section { min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(10rem, 1fr)); align-items: center; gap: var(--space-2); }
 .registration-intake-strip .registration-params-section .ui-select__trigger { height: var(--control-height-md); }
+
+.registration-patient-channel-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.registration-channel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+}
+
+.registration-channel-tag:hover {
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+}
+
+.registration-channel-tag.is-insurance {
+  color: var(--color-brand-strong);
+  background: color-mix(in srgb, var(--color-brand-soft) 80%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-brand-primary) 35%, transparent);
+}
+
+.registration-channel-toggle-hint {
+  font-size: 0.6875rem;
+  color: var(--color-text-tertiary);
+  border-left: 1px solid var(--color-border);
+  padding-left: 0.25rem;
+  margin-left: 0.125rem;
+}
+
+.registration-coverage-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.registration-smart-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-medium);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.registration-smart-badge.is-insurance {
+  background: color-mix(in srgb, var(--color-brand-soft) 90%, var(--color-surface));
+  color: var(--color-brand-strong);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+}
+
+.registration-smart-badge.is-self-pay {
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.registration-insurance-recommend-alert {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-info-soft) 70%, var(--color-surface));
+}
+
+.registration-insurance-recommend-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.registration-insurance-recommend-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+}
+
 .registration-linked-appointment { margin: 0; }
 .registration-workbench { min-width: 0; min-height: 31rem; display: grid; grid-template-columns: minmax(42rem, 1fr) 22rem; align-items: stretch; gap: var(--space-3); }
 .registration-col-schedules { min-width: 0; grid-column: 1; grid-row: 1; display: block; }

@@ -33,11 +33,16 @@ public final class MedicationCandidateEvaluator {
                 case "CATEGORY_DUPLICATE" -> categoryRows.add(i+1);
                 case "ANTIMICROBIAL_MAX_DAYS" -> {
                     if (!med.antimicrobial()) continue;
-                    Integer maxDays = med.antimicrobialMaxDays() != null && med.antimicrobialMaxDays() > 0 ? med.antimicrobialMaxDays() : 7;
-                    if (item.durationDays()==null || item.durationDays().signum()<=0) {
-                        missing.add("第 "+(i+1)+" 行缺少有效疗程或 HIS 抗菌药最大天数");
-                    } else if (item.durationDays().compareTo(java.math.BigDecimal.valueOf(maxDays))>0) {
-                        matched.add(i+1); reasons.add(med.name()+"：疗程 "+item.durationDays()+" 天超过主数据上限 "+maxDays+" 天");
+                    if (med.antimicrobialMaxDays() == null || med.antimicrobialMaxDays() <= 0) {
+                        missing.add("药品【" + med.name() + "】主数据未配置抗菌药门诊疗程天数上限");
+                        continue;
+                    }
+                    int maxDays = med.antimicrobialMaxDays();
+                    if (item.durationDays() == null || item.durationDays().signum() <= 0) {
+                        missing.add("第 " + (i + 1) + " 行缺少有效处方疗程天数");
+                    } else if (item.durationDays().compareTo(java.math.BigDecimal.valueOf(maxDays)) > 0) {
+                        matched.add(i + 1);
+                        reasons.add(med.name() + "：疗程 " + item.durationDays() + " 天超过主数据上限 " + maxDays + " 天");
                     }
                 }
                 case "AGE_CONTRAINDICATION" -> {

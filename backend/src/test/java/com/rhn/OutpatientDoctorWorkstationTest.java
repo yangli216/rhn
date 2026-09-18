@@ -93,7 +93,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
     }
 
     @Test
-    void allergy_fact_is_visible_and_matching_medication_requires_review_and_override_reason() throws Exception {
+    void allergy_review_is_advisory_but_matching_medication_still_requires_override_reason() throws Exception {
         String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
         String medicationCode = "MED-ALLERGY-" + suffix;
         String residentId = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
@@ -147,7 +147,7 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 """;
         mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(prescriptionId, medicationId, "")))
-                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_ALLERGY_REVIEW_REQUIRED"));
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_ALLERGY_MATCH"));
         mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId).with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content(baseLine.formatted(
                                 prescriptionId, medicationId, ",\"allergyReviewConfirmed\":true")))

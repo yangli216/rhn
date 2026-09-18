@@ -16,9 +16,9 @@ const saved = {id:'med-1',revision:1,code:spec.id,name:entry.name,sdMedicationTy
   itemTypeId:'type-1',sdMedicationTypeText:'西药',prescriptionDrug:true,essentialDrug:false,antimicrobial:false,
   antimicrobialOutpatientAllowed:false,antimicrobialConsultationRequired:false,antimicrobialEmergencyAllowed:false,
   skinTestRequired:false,chronicDiseaseDrug:false,singleOrder:true,sdStatusText:'有效',classifications:[],allergenConceptIds:[]} as MedicationKnowledge
-function setup(prior = false) {
-  const masterData = {searchMedications:vi.fn().mockResolvedValue({content:prior ? [saved] : []}),
-    createMedication:vi.fn().mockResolvedValue(saved),updateMedication:vi.fn().mockResolvedValue(saved),
+function setup(prior: boolean | MedicationKnowledge[] = false) {
+  const masterData = {standardMedicationCandidates:vi.fn().mockResolvedValue(Array.isArray(prior) ? prior : prior ? [saved] : []),
+    saveStandardMedication:vi.fn().mockResolvedValue(saved),
     createProductSetup:vi.fn().mockRejectedValueOnce(new Error('产品编码已存在')).mockResolvedValue({id:'product-1'})}
   const onComplete=vi.fn()
   const client=new QueryClient({defaultOptions:{queries:{retry:false,gcTime:0}}})
@@ -45,8 +45,8 @@ describe('standard medication operational setup', () => {
     expect(await screen.findByDisplayValue(spec.id)).toHaveAttribute('readonly')
     submit()
     await screen.findByText('新增药品产品')
-    expect(masterData.createMedication.mock.calls[0][0]).toMatchObject({code:spec.id,preparationUnit:'片',strengthValue:5})
-    expect(masterData.createMedication.mock.calls[0][0].defaultDoseUnit).toBeUndefined()
+    expect(masterData.saveStandardMedication.mock.calls[0][1]).toMatchObject({code:spec.id,preparationUnit:'片',strengthValue:5})
+    expect(masterData.saveStandardMedication.mock.calls[0][1].defaultDoseUnit).toBeUndefined()
     fill('code','PROD-TEST');fill('quantityFactor','14');fill('purchasePrice','8.4');fill('salePrice','18.6')
     submit()
     await screen.findByRole('alert')
@@ -54,7 +54,7 @@ describe('standard medication operational setup', () => {
     expect(onComplete).not.toHaveBeenCalled()
     fill('code','PROD-RETRY');submit()
     await waitFor(()=>expect(onComplete).toHaveBeenCalledWith(saved))
-    expect(masterData.createMedication).toHaveBeenCalledTimes(1)
+    expect(masterData.saveStandardMedication).toHaveBeenCalledTimes(1)
     expect(masterData.createProductSetup).toHaveBeenCalledTimes(2)
     expect(masterData.createProductSetup.mock.calls[1][0]).toMatchObject({
       product:{medicationId:saved.id,code:'PROD-RETRY'},packaging:{quantityFactor:14},organization:{organizationId:'org-1'},salePrice:18.6})
@@ -64,7 +64,19 @@ describe('standard medication operational setup', () => {
     await screen.findByDisplayValue(spec.id)
     submit()
     await screen.findByText('新增药品产品')
-    expect(masterData.createMedication).not.toHaveBeenCalled()
-    expect(masterData.updateMedication).toHaveBeenCalledWith(saved.id,1,expect.objectContaining({code:spec.id}),'org-1')
+    expect(masterData.saveStandardMedication).toHaveBeenCalledWith(spec.id,expect.objectContaining({code:spec.id}),'org-1',saved)
   })
+  it('requires choosing between equivalent legacy records and locks a referenced minimum unit', async () => {
+    const used = {...saved, code:'DRUG-LEGACY', products:[{id:'product-used'}]} as MedicationKnowledge
+    const {masterData} = setup([used, {...saved,id:'other',code:'MED-2026-LEGACY'}])
+    await screen.findByRole('dialog', {name:'关联已有药品档案'})
+    expect(masterData.saveStandardMedication).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', {name:/DRUG-LEGACY/}))
+    expect(await screen.findByDisplayValue('DRUG-LEGACY')).toHaveAttribute('readonly')
+    expect(document.querySelector('input[name="preparationUnit"]')).toHaveAttribute('readonly')
+    submit()
+    await screen.findByText('新增药品产品')
+    expect(masterData.saveStandardMedication).toHaveBeenCalledWith(spec.id,expect.anything(),'org-1',used)
+  })
+
 })

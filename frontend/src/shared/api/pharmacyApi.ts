@@ -847,6 +847,28 @@ export function createPharmacyApi(client: ApiClient) {
     createGoodsReceipt: (input: { purchaseOrderId: string; receiptNo?: string; requestCode: string; deliveryNoteNo?: string; receivedAt?: string; description?: string; lines: Array<{ purchaseOrderLineId: string; destinationBinId: string; lotNo: string; productionDate?: string; expiryDate?: string; deliveredQuantity: number; unitCost?: number }> }) => client.request<GoodsReceipt>('/api/pharmacy/goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
     inspectGoodsReceipt: (id: string, lines: Array<{ goodsReceiptLineId: string; acceptedQuantity: number; rejectedQuantity: number; rejectionReason?: string }>) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/inspect`, { method: 'POST', body: JSON.stringify({ lines }) }),
     postGoodsReceipt: (id: string) => client.request<GoodsReceipt>(`/api/pharmacy/goods-receipts/${id}/post`, { method: 'POST' }),
+    directGoodsReceipt: (input: {
+      stockSiteId: string
+      supplierId: string
+      orderNo?: string
+      receiptNo?: string
+      requestCode: string
+      deliveryNoteNo?: string
+      receivedAt?: string
+      description?: string
+      lines: Array<{
+        stockItemId: string
+        packageId: string
+        destinationBinId: string
+        lotNo: string
+        productionDate?: string
+        expiryDate?: string
+        quantity: number
+        unitPrice: number
+        taxRate?: number
+        description?: string
+      }>
+    }) => client.request<GoodsReceipt>('/api/pharmacy/direct-goods-receipts', { method: 'POST', body: JSON.stringify(input) }),
     registerReceiptTraceCodes: (id: string, lines: Array<{ goodsReceiptLineId: string; traceCodes: string[] }>) =>
       client.request<ReceiptTraceSummary>(`/api/pharmacy/goods-receipts/${id}/trace-codes`, {
         method: 'POST', body: JSON.stringify({ lines }),

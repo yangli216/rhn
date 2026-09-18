@@ -655,4 +655,147 @@ describe('OutpatientRegistrationWorkspace', () => {
       appointmentId: todayAppointment.id,
     })))
   })
+
+  it('smartly defaults to self-pay when insured patient is looked up manually, offers one-click switch, and auto-fills cash tendered default', async () => {
+    const insuredResident: Resident = { ...resident, id: 'insured-res-1', fullName: '王医保' }
+    const insuredProfile = {
+      resident: insuredResident,
+      demographicProfile: {},
+      addresses: [],
+      relatedPersons: [],
+      coverages: [{
+        id: 'cov-1',
+        sdCoverageType: '01',
+        sdCoverageTypeText: '城镇职工基本医疗保险',
+        payerName: '市社保医保中心',
+        primary: true,
+        validFrom: '2020-01-01',
+      }],
+      employments: [],
+    }
+
+    const createRegistrationIntent = vi.fn().mockResolvedValue({
+      id: 'intent-smart-1', revision: 1, residentId: insuredResident.id, organizationId: 'org-1', departmentId: 'dept-1',
+      scheduleId: schedule.id, idempotencyCode: 'REG-INTENT-test', registrationSource: 'WINDOW', visitType: 'GENERAL',
+      settlementMode: 'SELF_PAY', status: 'COMPLETED', feeAmount: 10, currencyCode: 'CNY',
+      completionAttempts: 1, createdAt: '2026-09-10T08:00:00Z', updatedAt: '2026-09-10T08:00:00Z', duplicate: false,
+    })
+
+    const api = {
+      residents: {
+        get: vi.fn().mockResolvedValue(insuredResident),
+        search: vi.fn().mockResolvedValue([insuredResident]),
+        profile: vi.fn().mockResolvedValue(insuredProfile),
+      },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent, registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // 1. Manual search by name
+    const searchInput = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(searchInput, '王医保{enter}')
+    expect(await screen.findByText('1 条候选记录')).toBeInTheDocument()
+    await userEvent.type(searchInput, '{enter}')
+
+    // 2. Verified patient card loaded with channel
+    expect(await screen.findByText('王医保')).toBeInTheDocument()
+    expect(screen.getByText('就诊介质：')).toBeInTheDocument()
+    expect(screen.getByText('普通/就诊卡')).toBeInTheDocument()
+
+    // 3. Smart fee category: defaults to self-pay without blocking error, displays hint bar
+    expect(await screen.findByText(/本次调入未出示医保介质，智能识别为自费/)).toBeInTheDocument()
+    expect(screen.getByText('一键切换为医保')).toBeInTheDocument()
+    // No blocking warning for self pay
+    expect(screen.queryByText(/【医保接口未对接】/)).not.toBeInTheDocument()
+
+    // 4. Cash tendered default value is automatically filled with schedule fee (10.00)
+    const cashInput = screen.getByPlaceholderText('10') as HTMLInputElement
+    expect(cashInput.value).toBe('10')
+    expect(screen.getByText('¥0.00')).toBeInTheDocument()
+
+    // 5. Test one-click switch to insurance
+    const switchBtn = screen.getByRole('button', { name: /一键切换为医保/ })
+    await userEvent.click(switchBtn)
+
+    // Now it recognizes insurance
+    expect(await screen.findByText(/已智能识别医保/)).toBeInTheDocument()
+    expect(screen.getByText(/【医保接口未对接】/)).toBeInTheDocument()
+  })
+
+  it('automatically recognizes insurance coverage when scanning electronic insurance code', async () => {
+    const insuredResident: Resident = { ...resident, id: 'insured-res-2', fullName: '李医保' }
+    const insuredProfile = {
+      resident: insuredResident,
+      demographicProfile: {},
+      addresses: [],
+      relatedPersons: [],
+      coverages: [{
+        id: 'cov-2',
+        sdCoverageType: '01',
+        sdCoverageTypeText: '城镇职工基本医疗保险',
+        payerName: '市社保医保中心',
+        primary: true,
+        validFrom: '2020-01-01',
+      }],
+      employments: [],
+    }
+
+    const api = {
+      residents: {
+        get: vi.fn().mockResolvedValue(insuredResident),
+        search: vi.fn().mockResolvedValue([insuredResident]),
+        profile: vi.fn().mockResolvedValue(insuredProfile),
+      },
+      scheduling: { schedules: vi.fn().mockResolvedValue([schedule]), receptionQueue: vi.fn().mockResolvedValue([]) },
+      dictionaries: { systemEnum: vi.fn().mockResolvedValue(visitTypes), applicable: vi.fn().mockResolvedValue([]) },
+      billing: { createRegistrationIntent: vi.fn(), registrationIntent: vi.fn() },
+      encounters: { byResident: vi.fn().mockResolvedValue([]), cancel: vi.fn() },
+      organization: { departments: vi.fn().mockResolvedValue([]) },
+    } as unknown as RhnApi
+
+    const clinicalContext = {
+      organization: { id: 'org-1', name: '基层医疗机构' },
+      department: { id: 'dept-1', name: '全科医疗科' },
+    } as ClinicalContext
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    render(<QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/outpatient/registration']}>
+        <OutpatientRegistrationWorkspace api={api} clinicalContext={clinicalContext} onNavigate={vi.fn()} />
+      </MemoryRouter>
+    </QueryClientProvider>)
+
+    // Scan a 24-digit electronic insurance credential code
+    const searchInput = screen.getByLabelText('患者姓名、证件或卡号')
+    await userEvent.type(searchInput, '110000000000000000000001{enter}')
+
+    // Auto fills patient and recognizes electronic insurance code channel
+    expect(await screen.findByText('李医保')).toBeInTheDocument()
+    expect(screen.getByText('电子医保码')).toBeInTheDocument()
+
+    // Smart recognition sets coverage to insurance directly
+    expect(await screen.findByText(/已智能识别医保/)).toBeInTheDocument()
+    expect(screen.getByText(/【医保接口未对接】/)).toBeInTheDocument()
+  })
 })

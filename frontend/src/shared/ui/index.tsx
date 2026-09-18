@@ -34,9 +34,12 @@ export { RemoteSearchSelect, type RemoteSearchOption, type RemoteSearchSelectPro
 export {
   PatientIdentitySearch,
   unavailablePatientIdentityMethods,
+  inferIntakeChannel,
   type PatientIdentityMethod,
   type PatientIdentityMethodId,
   type PatientIdentitySearchProps,
+  type PatientIntakeChannel,
+  type PatientIntakeMeta,
 } from './PatientIdentitySearch'
 export {
   ClinicalResourceSearch,

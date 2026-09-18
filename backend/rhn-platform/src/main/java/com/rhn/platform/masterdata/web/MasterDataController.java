@@ -10,6 +10,7 @@ import com.rhn.platform.masterdata.api.MasterDataCommands.ServiceCommand;
 import com.rhn.platform.masterdata.api.MasterDataViews.ManufacturerView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ItemTypeView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductView;
+import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductEntryView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
@@ -117,6 +118,17 @@ public class MasterDataController {
                                                   @RequestParam(defaultValue = "0") @Min(0) int page,
                                                   @RequestParam(defaultValue = "20") @Min(10) int size) {
         return service.searchMedications(query, medicationType, status, organizationId, page, size);
+    }
+
+    @GetMapping("/medication-products/search")
+    PageResult<MedicationProductEntryView> searchProducts(
+            @RequestParam(required = false) String query, @RequestParam(required = false) String medicationType,
+            @RequestParam(required = false) String status, @RequestParam(required = false) Long organizationId,
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(10) @Max(100) int size,
+            @RequestParam(defaultValue = "false") boolean stockable,
+            @RequestParam(defaultValue = "false") boolean dispensable) {
+        return service.searchProducts(query, medicationType, status, organizationId, page, size, stockable, dispensable);
     }
 
     @PostMapping("/medications")

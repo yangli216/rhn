@@ -982,12 +982,15 @@ describe('UnifiedOrderListEditor', () => {
 
     // 验证：用药风险提示展示，但手动勾选框已彻底移除
     expect(screen.getByText(/需皮试药品/)).toBeInTheDocument()
+    expect(screen.getByText(/患者药物过敏信息尚未核验/)).toBeInTheDocument()
     expect(screen.queryByText(/已完成用药禁忌与配伍安全核对/)).not.toBeInTheDocument()
     expect(screen.queryByRole('checkbox', { name: /已完成用药禁忌与配伍安全核对/ })).not.toBeInTheDocument()
 
     // 医生无需手动打勾，点击加入医嘱按钮即可顺利入单
     await user.click(screen.getByRole('button', { name: '加入医嘱' }))
     expect(setMedicationDrafts).toHaveBeenCalledTimes(1)
+    const updater = setMedicationDrafts.mock.calls[0][0]
+    expect(updater([])[0].request.allergyReviewConfirmed).toBe(false)
   })
 
   it('automatically groups subsequent infusion medication, shows bracket without IV-01 or 同组, and allows finishing group', async () => {

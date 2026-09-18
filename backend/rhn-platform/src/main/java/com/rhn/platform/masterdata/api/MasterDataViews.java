@@ -68,6 +68,8 @@ public final class MasterDataViews {
             List<Long> allergenConceptIds,
             List<MedicationProductView> products) {}
 
+    public record MedicationProductEntryView(MedicationProductView product, MedicationView medication) {}
+
     public record MedicationProductView(
             Long id, long revision, Long itemTypeId, Long itemMasterId,
             Long medicationId, Long manufacturerId, String manufacturerName,

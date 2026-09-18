@@ -84,6 +84,12 @@ public class StandardMedicationCatalogService {
         return result;
     }
 
+    public JsonNode specification(String id) {
+        return specifications.values().stream().flatMap(List::stream)
+                .filter(spec -> id.equals(spec.path("id").asString())).findFirst()
+                .map(JsonNode::deepCopy).orElseThrow(() -> notFound("STANDARD_SPEC_NOT_FOUND", "未找到标准药品规格"));
+    }
+
     private String searchable(JsonNode entry) {
         return (entry.path("name").asString() + " " + entry.path("innName").asString() + " "
                 + entry.path("pinyinCode").asString() + " " + entry.path("legacyCode").asString() + " "

@@ -27807,5 +27807,64 @@
         "comment": "成分去重身份键；其他版本记录为空"
       }
     ]
+  },
+  {
+    "logical": "bd.medication_standard_source",
+    "legacy": "medication_standard_source",
+    "physical": "RHN_BD_MED_STD_SOURCE",
+    "domain": "BD",
+    "comment": "药品标准来源关联，一行代表一个租户内特定目录版本的标准规格与药品基本信息的关联。",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_MED_STD_SOURCE",
+        "comment": "标准来源关联主键"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "medication_id",
+        "physical": "ID_MED",
+        "comment": "药品基本信息标识"
+      },
+      {
+        "logical": "catalog_code",
+        "physical": "CD_CATALOG",
+        "comment": "标准目录编码"
+      },
+      {
+        "logical": "catalog_version",
+        "physical": "CATALOG_VERSION",
+        "comment": "标准目录版本"
+      },
+      {
+        "logical": "entry_code",
+        "physical": "CD_STD_ENTRY",
+        "comment": "标准条目编码"
+      },
+      {
+        "logical": "specification_code",
+        "physical": "CD_STD_SPEC",
+        "comment": "标准规格编码"
+      },
+      {
+        "logical": "source_hash",
+        "physical": "SOURCE_HASH",
+        "comment": "目录内容校验值"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "关联建立时间"
+      },
+      {
+        "logical": "created_by",
+        "physical": "ID_USER_CREATED",
+        "comment": "关联建立人员标识"
+      }
+    ]
   }
 ]

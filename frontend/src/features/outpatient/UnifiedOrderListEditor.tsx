@@ -569,6 +569,7 @@ export function UnifiedOrderListEditor({
   const drugAllergies = allergies.filter((item) => item.assertionType === 'ALLERGY' && item.categoryCode === 'DRUG')
   const allergyReviewRecorded = allergies.some((item) => item.assertionType === 'NO_KNOWN_ALLERGY'
     || item.assertionType === 'NO_KNOWN_DRUG_ALLERGY') || drugAllergies.length > 0
+  const allergyVerificationMissing = !allergyReviewRecorded
   const matchedAllergies = currentMedication ? drugAllergies.filter((item) => item.allergenId
     ? currentMedication.allergenConceptIds?.includes(item.allergenId)
     : item.substanceCode && item.substanceCode.toLowerCase() === currentMedication.code.toLowerCase()) : []
@@ -589,7 +590,8 @@ export function UnifiedOrderListEditor({
     currentMedication?.id &&
     (skinTests.data ?? []).some((item) => item.medicationId === currentMedication.id && item.status === 'POSITIVE')
   )
-  const hasSafetyAlert = Boolean(currentMedication && (isAllergyHit || hasKnownAllergies || isSkinTest || isAntimicrobial || hasPositiveSkinTest))
+  const hasSafetyAlert = Boolean(currentMedication && (allergyVerificationMissing || isAllergyHit
+    || hasKnownAllergies || isSkinTest || isAntimicrobial || hasPositiveSkinTest))
   const isStockInsufficient = Boolean(
     isMedication
     && medicationEntry.availablePackageQuantity != null
@@ -1669,6 +1671,11 @@ export function UnifiedOrderListEditor({
           <div className="doctor-unified-order-subrow doctor-unified-order-safety is-warning is-compact" role="row">
             <div className="doctor-safety-content is-compact">
               <span className="doctor-safety-badge-title">用药风险提醒：</span>
+              {allergyVerificationMissing && (
+                <span className="doctor-safety-tag is-warning">
+                  <Icon name="warning" /> 患者药物过敏信息尚未核验，请尽快补充
+                </span>
+              )}
               {isAllergyHit && (
                 <span className="doctor-safety-tag is-danger">
                   <Icon name="warning" /> 命中患者药物过敏：{matchedAllergies.map((item) => item.substanceDisplay).join('、')}

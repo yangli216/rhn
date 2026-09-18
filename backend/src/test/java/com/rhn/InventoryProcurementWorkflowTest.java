@@ -232,7 +232,57 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                 .andReturn().getResponse().getContentAsString());
     }
 
+    @Test
+    void direct_purchase_receipt_flow_creates_order_and_posts_directly() throws Exception {
+        Fixture fixture = createFixture("DIRECT", false);
+        JsonNode supplier = createSupplier(fixture.suffix());
+        String body = """
+                {"stockSiteId":"%s","supplierId":"%s","requestCode":"DIR-GR-%s","deliveryNoteNo":"SH-DIR-%s",
+                 "receivedAt":"2026-08-28T10:00:00Z","description":"紧急直采入库测试","lines":[
+                   {"stockItemId":"%s","packageId":"%s","destinationBinId":"%s","lotNo":"DIR-LOT-A",
+                    "productionDate":"2026-06-01","expiryDate":"2028-06-01","quantity":2,"unitPrice":12.80,"taxRate":0.13},
+                   {"stockItemId":"%s","packageId":"%s","destinationBinId":"%s","lotNo":"DIR-LOT-B",
+                    "productionDate":"2026-06-01","expiryDate":"2028-06-01","quantity":3,"unitPrice":6.50,"taxRate":0.13}
+                 ]}
+                """.formatted(fixture.siteId(), supplier.get("id").asString(), fixture.suffix(), fixture.suffix(),
+                fixture.item1Id(), PACKAGE_1, fixture.bin1Id(), fixture.item2Id(), PACKAGE_2, fixture.bin2Id());
+
+        JsonNode receipt = json(mockMvc.perform(post("/api/pharmacy/direct-goods-receipts").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("POSTED"))
+                .andExpect(jsonPath("$.purchaseOrderId").isNotEmpty())
+                .andExpect(jsonPath("$.lines.length()").value(2))
+                .andExpect(jsonPath("$.lines[0].inventoryTransactionId").isNotEmpty())
+                .andExpect(jsonPath("$.lines[1].inventoryTransactionId").isNotEmpty())
+                .andReturn().getResponse().getContentAsString());
+
+        String receiptId = receipt.get("id").asString();
+        String purchaseOrderId = receipt.get("purchaseOrderId").asString();
+
+        // 验证生成的采购单状态为 COMPLETED
+        mockMvc.perform(get("/api/pharmacy/purchase-orders").param("stockSiteId", fixture.siteId()).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + purchaseOrderId + "')].status").value("COMPLETED"));
+
+        // 验证库存余额已真实增加
+        assertEquals(48, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
+                "where ID_STOCK_ITEM = ?", Integer.class, Long.valueOf(fixture.item1Id())));
+        assertEquals(60, jdbcTemplate.queryForObject("select sum(QTY_ON_HAND) from RHN_SUP_INV_BAL " +
+                "where ID_STOCK_ITEM = ?", Integer.class, Long.valueOf(fixture.item2Id())));
+
+        // 验证到货验收单审计事件完整（RECEIVED -> INSPECTED -> POSTED）
+        mockMvc.perform(get("/api/pharmacy/inventory-documents/GOODS_RECEIPT/{id}/events", receiptId).with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].eventType").value("RECEIVED"))
+                .andExpect(jsonPath("$[1].eventType").value("INSPECTED"))
+                .andExpect(jsonPath("$[2].eventType").value("POSTED"));
+    }
+
     private Fixture createFixture(String prefix) throws Exception {
+        return createFixture(prefix, true);
+    }
+
+    private Fixture createFixture(String prefix, boolean traceRequired) throws Exception {
         String suffix = prefix + UUID.randomUUID().toString().replace("-", "").substring(0, 6).toUpperCase();
         JsonNode site = json(mockMvc.perform(post("/api/pharmacy/stock-sites").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -241,20 +291,24 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                                 """.formatted(ORGANIZATION, DEPARTMENT, suffix, suffix)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String siteId = site.get("id").asString();
-        String item1 = createStockItem(siteId, PRODUCT_1, PACKAGE_1);
-        String item2 = createStockItem(siteId, PRODUCT_2, PACKAGE_2);
+        String item1 = createStockItem(siteId, PRODUCT_1, PACKAGE_1, traceRequired);
+        String item2 = createStockItem(siteId, PRODUCT_2, PACKAGE_2, traceRequired);
         String bin1 = createBin(siteId, "RCV-A", "收货合格区A");
         String bin2 = createBin(siteId, "RCV-B", "收货合格区B");
         return new Fixture(suffix, siteId, item1, item2, bin1, bin2);
     }
 
     private String createStockItem(String siteId, String productId, String packageId) throws Exception {
+        return createStockItem(siteId, productId, packageId, true);
+    }
+
+    private String createStockItem(String siteId, String productId, String packageId, boolean traceRequired) throws Exception {
         JsonNode item = json(mockMvc.perform(post("/api/pharmacy/stock-sites/{id}/stock-items", siteId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"catalogItemId":"%s","packageId":"%s","issuePolicy":"FEFO",
-                                 "negativeAllowed":false,"lotRequired":true,"traceRequired":true,
+                                 "negativeAllowed":false,"lotRequired":true,"traceRequired":%s,
                                  "splitAllowed":true,"coldChain":false,"controlled":false,"highAlert":false}
-                                """.formatted(productId, packageId)))
+                                """.formatted(productId, packageId, traceRequired)))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         return item.get("id").asString();
     }

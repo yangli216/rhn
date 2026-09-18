@@ -6,12 +6,27 @@ import { Icon, type IconName } from './Icon'
 
 export type PatientIdentityMethodId = 'CARD' | 'FACE' | 'ELECTRONIC_CREDENTIAL' | string
 
+export type PatientIntakeChannel =
+  | 'INSURANCE_CODE'      // 电子医保码 / 医保电子凭证扫码
+  | 'INSURANCE_CARD'      // 医保卡 / 社保卡读卡
+  | 'ID_CARD'             // 二代身份证
+  | 'HEALTH_CARD'         // 电子健康卡 / 居民健康卡
+  | 'MANUAL'              // 手工检索 (姓名/拼音/电话/病历号)
+  | 'APPOINTMENT'         // 预约带入
+  | 'TRIAGE'              // 分诊带入
+
+export interface PatientIntakeMeta {
+  channel: PatientIntakeChannel
+  identifier?: string
+}
+
 export interface PatientIdentityMethod {
   id: PatientIdentityMethodId
   label: string
   icon?: IconName
   description?: string
   unavailableReason?: string
+  channel?: PatientIntakeChannel
   identify?: () => Promise<Resident | null>
 }
 
@@ -20,6 +35,7 @@ export interface PatientIdentitySearchProps {
   queryKey: string
   selected?: Resident | null
   onSelect: (resident: Resident) => void
+  onSelectWithMeta?: (resident: Resident, meta: PatientIntakeMeta) => void
   onClear?: () => void
   methods?: PatientIdentityMethod[]
   placeholder?: string
@@ -38,10 +54,28 @@ export interface PatientIdentitySearchProps {
 }
 
 export const unavailablePatientIdentityMethods: PatientIdentityMethod[] = [
-  { id: 'CARD', label: '读卡', icon: 'card', unavailableReason: '读卡设备接口尚未配置' },
-  { id: 'FACE', label: '人脸', icon: 'face', unavailableReason: '人脸识别接口尚未配置' },
-  { id: 'ELECTRONIC_CREDENTIAL', label: '电子凭证', icon: 'credential', unavailableReason: '电子凭证接口尚未配置' },
+  { id: 'CARD', label: '读卡', icon: 'card', unavailableReason: '读卡设备接口尚未配置', channel: 'INSURANCE_CARD' },
+  { id: 'FACE', label: '人脸', icon: 'face', unavailableReason: '人脸识别接口尚未配置', channel: 'MANUAL' },
+  { id: 'ELECTRONIC_CREDENTIAL', label: '电子凭证', icon: 'credential', unavailableReason: '电子凭证接口尚未配置', channel: 'INSURANCE_CODE' },
 ]
+
+export function inferIntakeChannel(query?: string): PatientIntakeChannel {
+  if (!query) return 'MANUAL'
+  const trimmed = query.trim()
+  // 18位或15位居民身份证
+  if (/^\d{17}[\dXx]$/.test(trimmed) || /^\d{15}$/.test(trimmed)) {
+    return 'ID_CARD'
+  }
+  // 医保电子凭证特征：常见为20~28位纯数字，或者以特定医保前缀开头
+  if (/^\d{20,28}$/.test(trimmed) || /^INS_|^YBM_|^EC\d{10,}/i.test(trimmed)) {
+    return 'INSURANCE_CODE'
+  }
+  // 社保卡特征：包含 SSC 或特定卡标识
+  if (/^SSC[\d\w]+/i.test(trimmed)) {
+    return 'INSURANCE_CARD'
+  }
+  return 'MANUAL'
+}
 
 function errorText(error: unknown) {
   if (error instanceof Error && error.message) return error.message
@@ -59,6 +93,7 @@ export function PatientIdentitySearch({
   queryKey,
   selected,
   onSelect,
+  onSelectWithMeta,
   onClear,
   methods = unavailablePatientIdentityMethods,
   placeholder = '输入姓名、身份证、卡号或健康档案号',
@@ -94,6 +129,11 @@ export function PatientIdentitySearch({
   const selectableCandidates = useMemo(() => candidates.filter((resident) =>
     !getOptionDisabledReason?.(resident)), [candidates, getOptionDisabledReason])
 
+  const dispatchSelect = (resident: Resident, meta: PatientIntakeMeta) => {
+    onSelect(resident)
+    onSelectWithMeta?.(resident, meta)
+  }
+
   useEffect(() => {
     setActiveIndex(0)
   }, [submitted, candidates.length])
@@ -101,9 +141,12 @@ export function PatientIdentitySearch({
   useEffect(() => {
     if (!lookupKind || !submitted || residents.isFetching || selectableCandidates.length !== 1) return
     const match = selectableCandidates[0]
-    if (selected?.id !== match.id) onSelect(match)
+    if (selected?.id !== match.id) {
+      const channel = inferIntakeChannel(submitted)
+      dispatchSelect(match, { channel, identifier: submitted })
+    }
     setAutoResolvedQuery(submitted)
-  }, [lookupKind, onSelect, residents.isFetching, selectableCandidates, selected?.id, submitted])
+  }, [lookupKind, onSelect, onSelectWithMeta, residents.isFetching, selectableCandidates, selected?.id, submitted])
 
   function submit() {
     if (normalized.length < minimumQueryLength) {
@@ -137,7 +180,8 @@ export function PatientIdentitySearch({
       setSubmitted('')
       setLookupKind(method.label)
       setAutoResolvedQuery(method.id)
-      onSelect(resident)
+      const channel = method.channel ?? (method.id === 'CARD' ? 'INSURANCE_CARD' : method.id === 'ELECTRONIC_CREDENTIAL' ? 'INSURANCE_CODE' : 'MANUAL')
+      dispatchSelect(resident, { channel, identifier: method.id })
     } catch (error) {
       setMethodError(errorText(error))
     } finally {
@@ -173,7 +217,8 @@ export function PatientIdentitySearch({
       if (showCandidates && selectableCandidates.length > 0 && query.trim() === submitted) {
         const target = selectableCandidates[activeIndex >= 0 && activeIndex < selectableCandidates.length ? activeIndex : 0]
         if (target) {
-          onSelect(target)
+          const channel = inferIntakeChannel(submitted || query)
+          dispatchSelect(target, { channel, identifier: submitted || query })
           return
         }
       }
@@ -241,7 +286,10 @@ export function PatientIdentitySearch({
                 className={`${selected?.id === resident.id ? 'is-selected' : ''} ${isFocused ? 'is-keyboard-focused' : ''}`}
                 aria-selected={isFocused}
                 onMouseEnter={() => { if (selectableIdx >= 0) setActiveIndex(selectableIdx) }}
-                onClick={() => onSelect(resident)}>
+                onClick={() => {
+                  const channel = inferIntakeChannel(submitted || query)
+                  dispatchSelect(resident, { channel, identifier: submitted || query })
+                }}>
                 <span className={`resident-avatar ${resident.gender.toLowerCase()}`}>{resident.fullName.slice(-1)}</span>
                 <span>
                   <span className="ui-patient-search__candidate-title">

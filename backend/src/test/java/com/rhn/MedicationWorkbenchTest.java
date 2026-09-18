@@ -138,15 +138,24 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         when(ai.generate(anyString(),anyString())).thenReturn("""
             {"status":"READY","message":"已生成规则串","rule":{"template":"AGE_CONTRAINDICATION","name":"未成年禁用喹诺酮类","explanation":"18岁以下禁用","duplicateCount":1,"message":"未成年人禁用","decision":"WARN","ruleExpression":"IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK","categoryName":"喹诺酮类","minAge":18}}
             """);
+        var med = medication();
         var genRes = mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"requirement\":\"18岁以下未成年人门诊禁用喹诺酮类药物\",\"source\":\"临床药理规范\"}"))
+                .content("{\"requirement\":\"18岁以下未成年人门诊禁用喹诺酮类药物\",\"source\":\"临床药理规范\",\"medicationIds\":[\""+med+"\"]}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.candidate.rule.ruleExpression").value("IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK"))
                 .andExpect(jsonPath("$.candidate.rule.minAge").value(18))
                 .andReturn().getResponse().getContentAsString();
         var id = json(genRes).path("candidate").path("id").asString();
 
-        var med = medication();
+        // 验证 AGE_CONTRAINDICATION 模板一键回归测试套件（5个用例全部通过，杜绝NPE）
+        var suiteRes = mockMvc.perform(post(ROOT+"/candidates/"+id+"/suite").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases.length()").value(5))
+                .andReturn().getResponse().getContentAsString();
+        for (var c : json(suiteRes).path("cases")) {
+            assertTrue(c.path("passed").asBoolean(), c.toString());
+        }
+
         // 模拟门诊就诊：14岁未成年患者开药，命中阻断/预警
         mockMvc.perform(post(ROOT+"/candidates/"+id+"/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"items\":[{\"medicationId\":\""+med+"\",\"status\":\"DRAFT\",\"durationDays\":3}],\"patientContext\":{\"patientAgeYears\":14,\"gender\":\"男\"}}"))
@@ -160,5 +169,32 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
                 .content("{\"items\":[{\"medicationId\":\""+med+"\",\"status\":\"DRAFT\",\"durationDays\":3}],\"patientContext\":{\"patientAgeYears\":25,\"gender\":\"男\"}}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cases[0].actual").value("PASS"));
+    }
+
+    @Test void category_duplicate_suite_and_missing_search_medication_rejection() throws Exception {
+        // 1. 测试未选药品且需求无法匹配药品时，拒绝并提示明确勾选，杜绝无脑拉全量兜底
+        mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requirement\":\"无匹配药品的长文本测试需求描述\",\"source\":\"临床规范\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("QMED_MEDICATION_REQUIRED"));
+
+        // 2. 验证 CATEGORY_DUPLICATE 模板的 suite 回归套件
+        when(ai.generate(anyString(),anyString())).thenReturn("""
+            {"status":"READY","message":"已生成规则","rule":{"template":"CATEGORY_DUPLICATE","name":"同类NSAID重复","explanation":"NSAID重复核对","duplicateCount":2,"message":"同类重复","decision":"WARN","categoryName":"解热镇痛抗炎药"}}
+            """);
+        var med = medication();
+        var genRes = mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requirement\":\"同一张处方中NSAIDs重复开立\",\"source\":\"指南\",\"medicationIds\":[\""+med+"\"]}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        var id = json(genRes).path("candidate").path("id").asString();
+
+        var suiteRes = mockMvc.perform(post(ROOT+"/candidates/"+id+"/suite").with(rhnWorkContext()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases.length()").value(5))
+                .andReturn().getResponse().getContentAsString();
+        for (var c : json(suiteRes).path("cases")) {
+            assertTrue(c.path("passed").asBoolean(), c.toString());
+        }
     }
 }

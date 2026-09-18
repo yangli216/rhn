@@ -8692,6 +8692,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/master-data/medication-products/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchProducts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/medication-standard-catalog/specifications/{id}/medications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["standardMedicationCandidates"];
+        put?: never;
+        post: operations["saveStandardMedication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -20150,6 +20182,28 @@ export interface components {
             model?: string;
             message?: string;
             features?: string[];
+        };
+        PageResultMedicationProductEntryView: {
+            content?: components["schemas"]["MedicationProductEntryView"][];
+            /** Format: int64 */
+            totalElements?: number;
+            /** Format: int32 */
+            totalPages?: number;
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+        };
+        MedicationProductEntryView: {
+            product?: components["schemas"]["MedicationProductView"];
+            medication?: components["schemas"]["MedicationView"];
+        };
+        StandardMedicationSetupRequest: {
+            /** @example 824633720832983041 */
+            medicationId?: string;
+            /** @example 824633720832983041 */
+            expectedRevision?: string;
+            medication: components["schemas"]["MedicationRequest"];
         };
     };
     responses: never;
@@ -41012,6 +41066,114 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    searchProducts: {
+        parameters: {
+            query?: {
+                query?: string;
+                medicationType?: string;
+                status?: string;
+                organizationId?: string;
+                page?: number;
+                size?: number;
+                stockable?: boolean;
+                dispensable?: boolean;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResultMedicationProductEntryView"];
+                };
+            };
+        };
+    };
+    standardMedicationCandidates: {
+        parameters: {
+            query?: {
+                organizationId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationView"][];
+                };
+            };
+        };
+    };
+    saveStandardMedication: {
+        parameters: {
+            query?: {
+                organizationId?: string;
+            };
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StandardMedicationSetupRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationView"];
+                };
             };
         };
     };

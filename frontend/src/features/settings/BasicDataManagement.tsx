@@ -88,9 +88,13 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
     enabled: tab === 'service',
   })
   const medications = useQuery({
-    queryKey: ['master-data-medications', query, typeFilter, statusFilter, organization.id, page, pageSize],
-    queryFn: () => api.masterData.searchMedications(
-      query, typeFilter, statusFilter, organization.id, page, pageSize),
+    queryKey: ['master-data-medications', medicationMode, query, typeFilter, statusFilter, organization.id, page, pageSize],
+    queryFn: async () => {
+      if (medicationMode !== 'product') return api.masterData.searchMedications(
+        query, typeFilter, statusFilter, organization.id, page, pageSize)
+      const result = await api.masterData.searchMedicationProducts(query, typeFilter, statusFilter, organization.id, page, pageSize)
+      return { ...result, content: result.content.map(({ product, medication }) => ({ ...medication, products: [product] })) }
+    },
     enabled: tab === 'medication',
   })
   const frequencies = useQuery({
@@ -109,7 +113,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   })
 
   useEffect(() => { setTypeFilter(''); setStatusFilter(''); setQuery(''); setPage(0) }, [diseaseMode, tab])
-  useEffect(() => { setPage(0) }, [pageSize, query, statusFilter, typeFilter])
+  useEffect(() => { setPage(0) }, [pageSize, query, statusFilter, typeFilter, medicationMode])
 
   const invalidate = async (message: string) => {
     setDialog(undefined); setFeedback(message); setOperationError('')
@@ -265,7 +269,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           onClose={() => { setDialog(undefined); void queryClient.invalidateQueries({queryKey:['master-data-medications']}) }}
           onComplete={async (medication) => {
             setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
-            await invalidate('药品、厂家产品、包装和本院价格已就绪，可入库并开方')
+            await invalidate('药品来源、厂家产品、包装和本院价格已建档，请到药库调入经营目录')
           }} />)} />}
       {tab === 'medication' && medicationMode !== 'standard' && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
@@ -562,7 +566,9 @@ export function MedicationTable({
   } | null>(null)
 
   if (loading) return <LoadingState label="正在加载药品目录…" />
-  if (!values?.length) return <EmptyState icon="pharmacy" title="未找到药品" copy="请调整筛选条件或新增通用药品知识。" />
+  if (!values?.length) return <TableShell footer={pagination}><EmptyState icon="pharmacy"
+    title={mode === 'product' ? '未找到药品产品' : '未找到药品'}
+    copy={mode === 'product' ? '请调整筛选条件，或到基本信息视角为药品建立厂家产品。' : '请调整筛选条件或新增通用药品知识。'} /></TableShell>
 
   if (mode === 'product') {
     return <MedicationProductTable
@@ -1216,15 +1222,14 @@ export function MedicationProductTable({ values, pagination, onModeChange, onPro
   const productEntries = values.flatMap((medication) =>
     medication.products.map((product) => ({ product, medication }))
   )
-  const unmappedMedications = values.filter((m) => m.products.length === 0)
 
   if (productEntries.length === 0) {
     return (
       <TableShell scrollClassName="master-data-table-wrap" footer={pagination}>
         <EmptyState
           icon="pharmacy"
-          title="当前页通用药品暂无厂家产品"
-          copy={`当前页共 ${values.length} 种通用药品知识，均尚未建档具体生产企业与批准文号产品。`}
+          title="未找到药品产品"
+          copy="请调整筛选条件，或到基本信息视角建立厂家产品。"
           action={
             <div className="medication-empty-actions">
               <Button onClick={() => onModeChange?.('knowledge')}>返回基本信息视角</Button>
@@ -1304,17 +1309,7 @@ export function MedicationProductTable({ values, pagination, onModeChange, onPro
         ))}
       </Table>
 
-      {unmappedMedications.length > 0 && (
-        <div className="medication-unmapped-banner">
-          <div className="medication-unmapped-text">
-            <span>当前页还有 <strong>{unmappedMedications.length}</strong> 个通用药品尚未建档厂家产品：</span>
-            <small>{unmappedMedications.slice(0, 4).map((m) => m.name).join('、')}{unmappedMedications.length > 4 ? ' 等' : ''}</small>
-          </div>
-          <Button size="sm" variant="secondary" onClick={() => onModeChange?.('knowledge')}>
-            前往基本信息视角查看与建档
-          </Button>
-        </div>
-      )}
+
     </>
   )
 }
@@ -2500,20 +2495,26 @@ export function StandardMedicationSetupDialog({ api, entry, spec, organization, 
   onClose: () => void; onComplete: (medication: MedicationKnowledge) => void | Promise<unknown>
 }) {
   const [medication, setMedication] = useState<MedicationKnowledge>()
+  const [priorId, setPriorId] = useState('')
   const existing = useQuery({queryKey:['master-data-standard-setup', organization.id, spec.id],
-    queryFn: () => api.masterData.searchMedications(spec.id, '', '', organization.id, 0, 20),
+    queryFn: () => api.masterData.standardMedicationCandidates(spec.id, organization.id),
     staleTime: 0, gcTime: 0, refetchOnWindowFocus: false})
   if (existing.isPending || existing.isFetching || existing.error) return <Dialog title="建立本院药品" onClose={onClose}>
     {existing.isPending || existing.isFetching ? <LoadingState /> : <><Alert>{errorMessage(existing.error)}</Alert>
       <Button onClick={() => void existing.refetch()}>重试</Button></>}
   </Dialog>
-  const prior = existing.data?.content.find(item => item.code === spec.id)
+  const candidates = existing.data ?? []
+  const prior = candidates.length === 1 ? candidates[0] : candidates.find(item => item.id === priorId)
+  if (!medication && candidates.length > 1 && !prior) return <Dialog title="关联已有药品档案" onClose={onClose}>
+    <p>发现多个同规格药品，请选择要关联的档案，避免重复建档。已有产品的档案优先复用。</p>
+    {candidates.map(item => <Button key={item.id} variant="secondary" onClick={() => setPriorId(item.id)}>
+      {item.name} · {item.preparationSpec} · {item.code} · {item.products.length} 个产品
+    </Button>)}
+  </Dialog>
   if (!medication) return <MedicationDialog key={prior?.id ?? spec.id} dictionaries={dictionaries}
     frequencies={frequencies} routes={routes} value={prior} initialValue={standardMedicationDraft(entry, spec)}
     onClose={onClose} onSave={async (input) => {
-      const saved = prior
-        ? await api.masterData.updateMedication(prior.id, prior.revision, input, organization.id)
-        : await api.masterData.createMedication(input, organization.id)
+      const saved = await api.masterData.saveStandardMedication(spec.id, input, organization.id, prior)
       setMedication(saved)
     }} />
   return <ProductDialog medication={medication} manufacturers={manufacturers} organization={organization}
@@ -2681,7 +2682,8 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
     </FormSection>
     <FormSection title={`${typeName}属性`} description={typeDescription}>
       <FormGrid columns={4}>
-        <FormField label={unitLabel} required={Boolean(initialValue)}><input name="preparationUnit" value={preparationUnit} required={Boolean(initialValue)}
+        <FormField label={unitLabel} required={Boolean(initialValue)} hint={value?.products?.length ? '已被厂家产品使用，最小单位禁止修改。' : undefined}><input name="preparationUnit" value={preparationUnit} required={Boolean(initialValue)}
+          readOnly={Boolean(value?.products?.length)} aria-readonly={Boolean(value?.products?.length)}
           onChange={(e) => handlePreparationUnitChange(e.target.value)}
           placeholder={herbal ? 'g、袋' : vaccine ? '支、剂' : '片、粒、支'} /></FormField>
         {!herbal && <><FormField label={vaccine ? '每剂含量' : '结构化含量'}><input name="strengthValue" type="number" min="0" step="any"

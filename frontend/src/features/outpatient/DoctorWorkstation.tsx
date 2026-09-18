@@ -3397,8 +3397,9 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount
   const orderCount = (services.data?.length ?? 0) + (medications.data?.length ?? 0)
   const splitSummary = prescriptionSplitSummary(medicationDrafts, prescriptions.data ?? [])
+  const hasUnverifiedAllergyDraft = medicationDrafts.some((value) => value.request.allergyReviewConfirmed !== true)
   const error = prescriptions.error || services.error || medications.error
-    || cancelService.error || cancelMedication.error || confirmPlan.error || saveDraftOrders.error
+    || cancelService.error || cancelMedication.error || saveDraftOrders.error
   const hasAnyOrders = orderCount + planCount > 0
 
   return <Panel className={`doctor-orders-panel ${!hasAnyOrders ? 'is-empty' : ''} ${ordersHovered ? 'is-hovered' : ''}`}
@@ -3431,6 +3432,9 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       footer={<><Button variant="secondary" disabled={confirmPlan.isPending} onClick={() => setReviewOpen(false)}>返回修改</Button>
         <Button busy={confirmPlan.isPending} disabled={planCount === 0} onClick={() => confirmPlan.mutate()}>确认保存并开立</Button></>}>
       <div className="doctor-split-review-container">
+        {hasUnverifiedAllergyDraft && <Alert tone="warning">
+          患者药物过敏信息尚未核验；本次提交是否允许继续由机构的过敏核验参数控制，请尽快补充核验记录。
+        </Alert>}
         {confirmPlan.error && <Alert>{errorMessage(confirmPlan.error)}</Alert>}
 
         <div className="doctor-split-overview-bar">

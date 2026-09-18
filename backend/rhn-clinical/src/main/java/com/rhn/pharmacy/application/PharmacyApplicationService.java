@@ -555,10 +555,15 @@ public class PharmacyApplicationService {
         if (!"MED_PRODUCT".equals(item.itemType()) || catalog.medication() == null) {
             throw badRequest("STOCK_ITEM_CATALOG_TYPE_INVALID", "药房经营项目只能选择药品产品");
         }
-        if (!"ACTIVE".equals(item.status()) || !item.stocked()) {
+        LocalDate at = catalog.businessDate();
+        if (!"ACTIVE".equals(catalog.medication().status()))
+            throw conflict("STOCK_ITEM_MEDICATION_NOT_ACTIVE", "药品基本信息已停用，不能调入或发药");
+        if (!"ACTIVE".equals(item.status()) || !item.stocked()
+                || item.validFrom().isAfter(at) || item.validTo() != null && item.validTo().isBefore(at)) {
             throw conflict("STOCK_ITEM_CATALOG_NOT_STOCKABLE", "药品产品当前不可库存");
         }
-        if (itemPackage == null || !"ACTIVE".equals(itemPackage.status())) {
+        if (itemPackage == null || !"ACTIVE".equals(itemPackage.status())
+                || itemPackage.validFrom().isAfter(at) || itemPackage.validTo() != null && itemPackage.validTo().isBefore(at)) {
             throw conflict("STOCK_ITEM_PACKAGE_NOT_ACTIVE", "药房经营项目必须选择有效包装");
         }
         if (adoption == null || !"ACTIVE".equals(adoption.sdStatus()) || !adoption.stocked()) {

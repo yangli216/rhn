@@ -1374,8 +1374,17 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MasterDataPage<StandardMedicationEntry>>(`/api/platform/master-data/medication-standard-catalog${queryString({
         query, medicationType, state, page: String(page), size: String(size),
       })}`),
+    standardMedicationCandidates: (id: string, organizationId: string) => client.request<MedicationKnowledge[]>(
+      `/api/platform/master-data/medication-standard-catalog/specifications/${encodeURIComponent(id)}/medications${queryString({organizationId})}`),
+    saveStandardMedication: (id: string, input: MedicationInput, organizationId: string, prior?: MedicationKnowledge) =>
+      client.request<MedicationKnowledge>(`/api/platform/master-data/medication-standard-catalog/specifications/${encodeURIComponent(id)}/medications${queryString({organizationId})}`,
+        {method: 'POST', body: JSON.stringify({medication: input, medicationId: prior?.id, expectedRevision: prior?.revision})}),
     standardMedicationDetail: (id: string) => client.request<StandardMedicationDetail>(
       `/api/platform/master-data/medication-standard-catalog/${encodeURIComponent(id)}`),
+    searchMedicationProducts: (query = '', medicationType = '', status = '', organizationId = '', page = 0, size = 20,
+      stockable = false, dispensable = false) => client.request<MasterDataPage<{ product: MedicationProduct; medication: MedicationKnowledge }>>(
+        `/api/platform/master-data/medication-products/search${queryString({query, medicationType, status, organizationId,
+          page: String(page), size: String(size), stockable: String(stockable), dispensable: String(dispensable)})}`),
     searchMedications: (query = '', medicationType = '', status = '', organizationId = '', page = 0, size = 20) =>
       client.request<MasterDataPage<MedicationKnowledge>>(`/api/platform/master-data/medications/search${queryString({
         query, medicationType, status, organizationId, page: String(page), size: String(size),

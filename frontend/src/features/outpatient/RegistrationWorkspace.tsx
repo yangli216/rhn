@@ -15,11 +15,12 @@ import { CashierPanel } from '../../shared/billing/CashierPanel'
 import { CashPaymentCalculator, getCashPresets } from '../../shared/billing/CashPaymentCalculator'
 import { PaymentMethodSelector, DEFAULT_FALLBACK_PAYMENT_METHODS } from '../../shared/billing/PaymentMethodSelector'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead,
-  PatientIdentitySearch, Select, StatusBadge } from '../../shared/ui'
+  PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
 
 export { getCashPresets }
+export type { PatientIntakeChannel, PatientIntakeMeta }
 
 const businessDate = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
@@ -399,6 +400,9 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const [manualAppointmentId, setManualAppointmentId] = useState<string | null>(null)
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('CASH')
   const [cashTendered, setCashTendered] = useState('')
+  const [cashTenderedTouched, setCashTenderedTouched] = useState(false)
+  const [intakeChannel, setIntakeChannel] = useState<PatientIntakeChannel>('MANUAL')
+  const [smartDecisionReason, setSmartDecisionReason] = useState<string | null>(null)
   const [autoPrintTicket, setAutoPrintTicket] = useState(true)
   const [validationError, setValidationError] = useState<string | null>(null)
 
@@ -407,10 +411,13 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const confirmButtonRef = useRef<HTMLButtonElement>(null)
   const scheduleCardRefs = useRef<Array<HTMLButtonElement | null>>([])
 
-  const selectPatient = useCallback((resident: Resident) => {
+  const selectPatient = useCallback((resident: Resident, meta?: PatientIntakeMeta) => {
     setSelected(resident)
+    setIntakeChannel(meta?.channel ?? 'MANUAL')
     setSuccess(null)
     setManualAppointmentId(null)
+    setCoverageTouched(false)
+    setCashTenderedTouched(false)
     setTimeout(() => {
       deptSearchInputRef.current?.focus()
       deptSearchInputRef.current?.select()
@@ -423,6 +430,24 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   const linkedTriageId = searchParams.get('triageId')
   const linkedDeptId = searchParams.get('deptId')
   const linkedTriageLevel = searchParams.get('level')
+  const linkedResident = useQuery({
+    queryKey: ['registration-resident-deep-link', linkedResidentId],
+    queryFn: () => api.residents.get(linkedResidentId!),
+    enabled: Boolean(linkedResidentId),
+  })
+  const linkedAppointment = useQuery({
+    queryKey: ['registration-appointment-deep-link', effectiveAppointmentId],
+    queryFn: () => (api.appointments?.get ? api.appointments.get(effectiveAppointmentId!) : Promise.resolve(null as unknown as Appointment)),
+    enabled: Boolean(effectiveAppointmentId),
+  })
+
+  useEffect(() => {
+    if (linkedAppointment.data) {
+      setIntakeChannel('APPOINTMENT')
+    } else if (linkedTriageId) {
+      setIntakeChannel('TRIAGE')
+    }
+  }, [linkedAppointment.data, linkedTriageId])
 
   useEffect(() => {
     if (linkedTriageLevel === '1' || linkedTriageLevel === '2') {
@@ -435,17 +460,6 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
       patientSearchInputRef.current?.focus()
     }
   }, [linkedResidentId])
-
-  const linkedResident = useQuery({
-    queryKey: ['registration-resident-deep-link', linkedResidentId],
-    queryFn: () => api.residents.get(linkedResidentId!),
-    enabled: Boolean(linkedResidentId),
-  })
-  const linkedAppointment = useQuery({
-    queryKey: ['registration-appointment-deep-link', effectiveAppointmentId],
-    queryFn: () => (api.appointments?.get ? api.appointments.get(effectiveAppointmentId!) : Promise.resolve(null as unknown as Appointment)),
-    enabled: Boolean(effectiveAppointmentId),
-  })
   const residentTodayAppointments = useQuery({
     queryKey: ['registration-resident-today-appointments', selected?.id, today],
     queryFn: () => (api.appointments?.list
@@ -629,14 +643,26 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const showPaymentShortcuts = Boolean(selected) && Boolean(scheduleId) && feeBreakdown.feeConfigured && feeBreakdown.payableAmount > 0
 
+  // 现金缴款金额智能默认值与联动：
+  // 1. 调入患者、或切换号源价格变动、或切换为现金支付时：
+  //    若未被挂号员手动输入修改大额（!cashTenderedTouched），默认自动填入当前应收金额 String(payableAmount)
+  // 2. 若挂号员输入过但金额小于应收金额，自动修复为应收金额
   useEffect(() => {
     if (selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0) {
-      setCashTendered((prev) => {
-        const num = Number(prev)
-        return (!prev || isNaN(num) || num < feeBreakdown.payableAmount) ? String(feeBreakdown.payableAmount) : prev
-      })
+      if (!cashTenderedTouched) {
+        setCashTendered(String(feeBreakdown.payableAmount))
+      } else {
+        const num = Number(cashTendered)
+        if (!cashTendered || isNaN(num) || num < feeBreakdown.payableAmount) {
+          setCashTendered(String(feeBreakdown.payableAmount))
+          setCashTenderedTouched(false)
+        }
+      }
+    } else if (selectedPaymentMethod !== 'CASH') {
+      setCashTendered('')
+      setCashTenderedTouched(false)
     }
-  }, [feeBreakdown.payableAmount, selectedPaymentMethod])
+  }, [cashTenderedTouched, feeBreakdown.payableAmount, selected?.id, selectedPaymentMethod])
 
   const numericTendered = Number(cashTendered)
   const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
@@ -666,21 +692,39 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
   }, [dayPartManuallyChanged, schedules.data, selectedDayPart])
 
   useEffect(() => {
-    setCoverageSelection('SELF_PAY')
     setCoverageTouched(false)
+    setCashTenderedTouched(false)
     setValidationError(null)
-    setCashTendered('')
   }, [selected?.id])
 
   useEffect(() => {
     setValidationError(null)
   }, [coverageSelection, selectedPaymentMethod])
 
+  // 智能决策 Hook：结合患者档案与就诊凭证途径判定费用类别
   useEffect(() => {
     if (!selected || residentProfile.isPending || coverageTouched) return
     const preferred = activeMedicalCoverages.find((value) => value.primary) ?? activeMedicalCoverages[0]
-    setCoverageSelection(preferred?.id ? `COVERAGE:${preferred.id}` : 'SELF_PAY')
-  }, [activeMedicalCoverages, coverageTouched, residentProfile.isPending, selected])
+
+    if (intakeChannel === 'INSURANCE_CODE' || intakeChannel === 'INSURANCE_CARD') {
+      if (preferred?.id) {
+        setCoverageSelection(`COVERAGE:${preferred.id}`)
+        setSmartDecisionReason(intakeChannel === 'INSURANCE_CODE' ? '已通过【电子医保码】智能识别为医保' : '已通过【医保卡】智能识别为医保')
+      } else {
+        setCoverageSelection('SELF_PAY')
+        setSmartDecisionReason('出示医保介质，但档案未登记有效医保，已设为自费')
+      }
+    } else {
+      // 普通途径：姓名、拼音、手机号、二代身份证、就诊卡、预约/分诊带入
+      // 遵循门诊标准：未核验证照介质，智能识别为「自费」，避免因接口未通报警阻断，直接可回车出单
+      setCoverageSelection('SELF_PAY')
+      if (preferred?.id) {
+        setSmartDecisionReason(`患者档案有【${preferred.sdCoverageTypeText ?? medicalCoverageLabel(preferred.sdCoverageType)}】，本次未出示医保介质默认自费`)
+      } else {
+        setSmartDecisionReason(null)
+      }
+    }
+  }, [activeMedicalCoverages, coverageTouched, intakeChannel, residentProfile.isPending, selected])
 
   useEffect(() => {
     if (linkedAppointment.data) return
@@ -963,6 +1007,25 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                   <span><small>身份证：</small><code>{selected.maskedNationalId || '未登记'}</code></span>
                   <span><small>健康档案号：</small><code>{selected.healthRecordNo}</code></span>
                   <span><small>电话：</small><code>{selected.phone || '未登记'}</code></span>
+                  <span className="registration-patient-channel-meta">
+                    <small>就诊介质：</small>
+                    <button
+                      type="button"
+                      className={`registration-channel-tag ${['INSURANCE_CODE', 'INSURANCE_CARD'].includes(intakeChannel) ? 'is-insurance' : ''}`}
+                      title="点击轮换/切换当前就诊介质"
+                      onClick={() => {
+                        const channelCycle: PatientIntakeChannel[] = ['INSURANCE_CODE', 'INSURANCE_CARD', 'ID_CARD', 'MANUAL']
+                        const curIdx = channelCycle.indexOf(intakeChannel)
+                        const next = channelCycle[(curIdx + 1) % channelCycle.length]
+                        setIntakeChannel(next)
+                        setCoverageTouched(false)
+                      }}
+                    >
+                      <Icon name={intakeChannel === 'INSURANCE_CODE' ? 'credential' : intakeChannel === 'INSURANCE_CARD' ? 'card' : intakeChannel === 'ID_CARD' ? 'residents' : 'search'} />
+                      <span>{channelLabel(intakeChannel)}</span>
+                      <small className="registration-channel-toggle-hint">切换</small>
+                    </button>
+                  </span>
                 </div>
               </div>
               <Button
@@ -991,6 +1054,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
                 search={api.residents.search} selected={selected} disabled={Boolean(intentId)} compact
                 showInitialEmpty={false} showSelectedSummary={false} hideResultsWhenSelected
                 onSelect={selectPatient}
+                onSelectWithMeta={(resident, meta) => selectPatient(resident, meta)}
                 onClear={() => {
                   setSelected(null)
                   setTimeout(() => patientSearchInputRef.current?.focus(), 50)
@@ -1004,11 +1068,41 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
         <div className="registration-params-section">
           <Select aria-label="就诊类型" aria-required value={visitType} options={visitTypeOptions} disabled={Boolean(intentId)}
             onChange={(value) => setVisitType(value as typeof visitType)} />
-          <Select aria-label="费用类别" aria-required value={coverageSelection} options={coverageOptions}
-            disabled={Boolean(intentId) || residentProfile.isPending}
-            onChange={(value) => { setCoverageSelection(value); setCoverageTouched(true) }} />
+          <div className="registration-coverage-select-wrap">
+            <Select aria-label="费用类别" aria-required value={coverageSelection} options={coverageOptions}
+              disabled={Boolean(intentId) || residentProfile.isPending}
+              onChange={(value) => { setCoverageSelection(value); setCoverageTouched(true) }} />
+            {smartDecisionReason && (
+              <span className={`registration-smart-badge ${coverageSelection !== 'SELF_PAY' ? 'is-insurance' : 'is-self-pay'}`} title={smartDecisionReason}>
+                <Icon name={coverageSelection !== 'SELF_PAY' ? 'credential' : 'info'} />
+                <span>{coverageSelection !== 'SELF_PAY' ? '已智能识别医保' : '智能识别自费'}</span>
+              </span>
+            )}
+          </div>
         </div>
       </div>
+
+      {activeMedicalCoverages.length > 0 && coverageSelection === 'SELF_PAY' && (
+        <Alert tone="info" className="registration-insurance-recommend-alert">
+          <div className="registration-insurance-recommend-content">
+            <div className="registration-insurance-recommend-text">
+              <Icon name="sparkles" />
+              <span>
+                <strong>医保档案提示：</strong>该患者登记有在保医保
+                <strong>【{activeMedicalCoverages[0]?.sdCoverageTypeText ?? medicalCoverageLabel(activeMedicalCoverages[0]?.sdCoverageType)}】</strong>
+                （本次调入未出示医保介质，智能识别为自费）。若患者持实体医保卡或出示电子医保码就医：
+              </span>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => {
+              setIntakeChannel('INSURANCE_CODE')
+              setCoverageSelection(`COVERAGE:${activeMedicalCoverages[0].id}`)
+              setCoverageTouched(true)
+            }}>
+              一键切换为医保
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       {pendingTodayAppointment && !effectiveAppointmentId && (
         <Alert tone="warning" className="registration-pending-appointment-banner">
@@ -1095,7 +1189,10 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
               <CashPaymentCalculator
                 payableAmount={feeBreakdown.payableAmount}
                 tendered={cashTendered}
-                onTenderedChange={setCashTendered}
+                onTenderedChange={(val) => {
+                  setCashTendered(val)
+                  setCashTenderedTouched(true)
+                }}
               />
             )}
 
@@ -1478,6 +1575,20 @@ function medicalCoverageLabel(code: string) {
     RESIDENT_BASIC: '城乡居民基本医疗保险',
     BASIC: '基本医疗保险',
   } as Record<string, string>)[code] ?? '医疗保险'
+}
+
+function channelLabel(channel: PatientIntakeChannel): string {
+  switch (channel) {
+    case 'INSURANCE_CODE': return '电子医保码'
+    case 'INSURANCE_CARD': return '实体医保卡'
+    case 'ID_CARD': return '二代身份证'
+    case 'HEALTH_CARD': return '电子健康卡'
+    case 'APPOINTMENT': return '预约带入'
+    case 'TRIAGE': return '分诊带入'
+    case 'MANUAL':
+    default:
+      return '普通/就诊卡'
+  }
 }
 
 function insuranceSettlementReady(settlement: Settlement) {

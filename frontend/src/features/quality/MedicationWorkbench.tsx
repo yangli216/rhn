@@ -369,92 +369,100 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
     setNotice(`已从 HIS 读取就诊 ${preview.encounterId} 的处方 ${preview.prescriptionId}，载入 ${preview.items.length} 条原始处方明细。表单调整仅用于模拟；“原始处方旁路核对”始终重新读取后端不可变快照。`)
   }
 
-  // 预置场景 1：未成年人禁用喹诺酮类（年龄禁忌 + 模拟门诊就诊）
+  // 场景 1：未成年人禁用喹诺酮类（年龄禁忌 + 模拟门诊就诊）
   function loadAgeContraindicationPreset() {
     const matched = meds.filter(m =>
       m.medication.name.includes('诺氟沙星') ||
       m.medication.name.includes('左氧氟沙星') ||
       m.medication.name.includes('环丙沙星')
     )
-    const targets = matched.length > 0 ? matched.slice(0, 2) : (meds.length > 0 ? [meds[0]] : [])
+    const targets = matched.length > 0 ? matched.slice(0, 2) : []
+    if (targets.length === 0) {
+      setNotice('当前药品目录中未检索到喹诺酮类药品，请先在标的药品中选择药品。')
+      return
+    }
     setSelectedMeds(targets)
     setRequirement('18岁以下未成年人门诊禁用左氧氟沙星、诺氟沙星等喹诺酮类抗菌药物。')
     setSource('《处方管理办法》、《抗菌药物临床应用指导原则》：喹诺酮类可能导致软骨发育障碍，18岁以下患者禁用。')
-    setSimPatientName('李小明')
+    setSimPatientName('模拟患者（未成年）')
     setSimPatientAge(14)
     setSimPatientGender('男')
-    setSimDepartment('普通内科')
+    setSimDepartment('普通儿科/内科')
     setSimAllergy('无已知药物过敏')
-    if (targets.length > 0) {
-      setItems([
-        {
-          medicationId: targets[0].medication.id,
-          status: 'DRAFT',
-          durationDays: 3,
-          routeCode: targets[0].medication.defaultRoute || 'ORAL',
-          frequencyCode: targets[0].medication.defaultFrequency || 'qd'
-        }
-      ])
-    }
-    const cand1 = candidates.find(c => c.rule.name.includes('未成年') || c.rule.name.includes('喹诺酮') || c.rule.template === 'AGE_CONTRAINDICATION') || candidates[0]
+    setItems([
+      {
+        medicationId: targets[0].medication.id,
+        status: 'DRAFT',
+        durationDays: 3,
+        routeCode: targets[0].medication.defaultRoute || 'ORAL',
+        frequencyCode: targets[0].medication.defaultFrequency || 'qd'
+      }
+    ])
+    const cand1 = candidates.find(c => c.rule.name.includes('未成年') || c.rule.name.includes('喹诺酮') || c.rule.template === 'AGE_CONTRAINDICATION')
     if (cand1) setCandidate(cand1)
-    setNotice('已装配【未成年人禁用喹诺酮类】场景，已设定 14 岁患儿画像与开方，可进行门诊就诊审查。')
+    setNotice('已装配【未成年人禁用喹诺酮类】场景，已设定 14 岁患者画像与处方明细，可执行就诊审查。')
   }
 
-  // 预置场景 2：解热镇痛药（NSAID）同类重复用药核对
+  // 场景 2：解热镇痛药（NSAID）同类重复用药核对
   function loadNsaidPreset() {
     const matched = meds.filter(m =>
       m.medication.name.includes('布洛芬') ||
       m.medication.name.includes('双氯芬酸') ||
       m.medication.name.includes('阿司匹林')
     )
-    const targets = matched.length > 0 ? matched.slice(0, 3) : (meds.length > 0 ? [meds[0]] : [])
+    const targets = matched.length > 0 ? matched.slice(0, 3) : []
+    if (targets.length < 2) {
+      setNotice('当前药品目录中未检索到足够的解热镇痛抗炎类（NSAIDs）药品，请在标的药品中选择至少2种药品。')
+      return
+    }
     setSelectedMeds(targets)
     setRequirement('同一张处方中，解热镇痛抗炎类通用药（NSAIDs，如布洛芬、双氯芬酸）出现两次及以上时拦截并提示医生重复用药风险，已撤销项目不参与。')
     setSource('《处方管理办法》第十六条、第二十一条：医师开具处方应当遵循安全、有效、经济的原则，严禁同一类药物无指征重复联合使用。')
-    setSimPatientName('张伟')
+    setSimPatientName('模拟患者（门诊成人）')
     setSimPatientAge(28)
     setSimPatientGender('男')
     setSimDepartment('普通内科')
     setSimAllergy('无已知药物过敏')
-    if (targets.length >= 2) {
-      setItems([
-        { medicationId: targets[0].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'BID' },
-        { medicationId: targets[1].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'TID' }
-      ])
-    }
-    const cand2 = candidates.find(c => c.rule.name.includes('解热镇痛') || c.rule.name.includes('重复') || c.rule.template === 'EXACT_GENERIC_DUPLICATE') || candidates[0]
+    setItems([
+      { medicationId: targets[0].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'BID' },
+      { medicationId: targets[1].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL', frequencyCode: 'TID' }
+    ])
+    const cand2 = candidates.find(c => c.rule.name.includes('解热镇痛') || c.rule.name.includes('重复') || c.rule.template === 'EXACT_GENERIC_DUPLICATE')
     if (cand2) setCandidate(cand2)
-    setNotice(`已一键装配基药经典场景【解热镇痛药重复核对】，已勾选 ${targets.length} 种标的药品并填入规范需求。`)
+    setNotice(`已装配【解热镇痛药重复核对】场景，已勾选 ${targets.length} 种标的药品并载入处方明细。`)
   }
 
-  // 预置场景 3：门诊抗菌药物疗程上限核对
+  // 场景 3：门诊抗菌药物疗程上限核对
   function loadAntimicrobialPreset() {
     const matched = meds.filter(m =>
       m.medication.name.includes('头孢') ||
       m.medication.name.includes('阿莫西林') ||
       m.medication.antimicrobial
     )
-    const targets = matched.length > 0 ? matched.slice(0, 2) : (meds.length > 0 ? [meds[0]] : [])
+    const targets = matched.length > 0 ? matched.slice(0, 2) : []
+    if (targets.length === 0) {
+      setNotice('当前药品目录中未检索到抗菌药物，请在标的药品中选择抗菌药。')
+      return
+    }
     setSelectedMeds(targets)
     setRequirement('门诊抗菌药物处方单张疗程天数不得超过药品主数据设定的最大天数上限（如 7 天），超期开具需阻断并强制医生录入用药理由。')
     setSource('《抗菌药物临床应用管理办法》第二十四条：门诊患者抗菌药物处方用药量一般不得超过7日用量。')
-    setSimPatientName('陈芳')
+    setSimPatientName('模拟患者（门诊成人）')
     setSimPatientAge(35)
     setSimPatientGender('女')
     setSimDepartment('急诊科')
     setSimAllergy('无已知药物过敏')
-    if (targets.length > 0) {
-      setItems([
-        {
-          medicationId: targets[0].medication.id,
-          status: 'DRAFT',
-          durationDays: 10,
-          routeCode: targets[0].medication.defaultRoute || 'ORAL'
-        }
-      ])
-    }
-    setNotice(`已一键装配基药经典场景【门诊抗菌药疗程上限】，已勾选 ${targets.length} 种标的药品并填入规范需求。`)
+    setItems([
+      {
+        medicationId: targets[0].medication.id,
+        status: 'DRAFT',
+        durationDays: 10,
+        routeCode: targets[0].medication.defaultRoute || 'ORAL'
+      }
+    ])
+    const cand3 = candidates.find(c => c.rule.name.includes('疗程') || c.rule.name.includes('抗菌') || c.rule.template === 'ANTIMICROBIAL_MAX_DAYS')
+    if (cand3) setCandidate(cand3)
+    setNotice(`已装配【门诊抗菌药疗程上限】场景，已勾选 ${targets.length} 种标的药品并填入超限 10 天处方明细。`)
   }
 
   return (
@@ -1455,16 +1463,18 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       <div className="qmed-rx-table-header">
                         <h5><Icon name="pill" /> 门诊处方开具明细 ({items.length} 项)</h5>
                         <div className="qmed-rx-presets">
-                          <span className="chip-label">测试样本:</span>
+                          <span className="chip-label">模拟用例:</span>
                           <button
                             type="button"
                             className="qmed-sample-btn"
                             onClick={() => {
-                              const quinolone = meds.find(m => m.medication.name.includes('左氧氟沙星') || m.medication.name.includes('诺氟沙星')) || meds[0]
+                              const quinolone = meds.find(m => m.medication.name.includes('左氧氟沙星') || m.medication.name.includes('诺氟沙星'))
                               if (quinolone) {
-                                setItems([{ medicationId: quinolone.medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL' }])
+                                setItems([{ medicationId: quinolone.medication.id, status: 'DRAFT', durationDays: 3, routeCode: quinolone.medication.defaultRoute || 'ORAL' }])
                                 setSimPatientAge(14)
                                 setRun(null)
+                              } else {
+                                setNotice('药品目录中未找到喹诺酮类药品，请手动选择药品。')
                               }
                             }}
                           >
@@ -1474,10 +1484,12 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                             type="button"
                             className="qmed-sample-btn"
                             onClick={() => {
-                              const cef = meds.find(m => m.medication.name.includes('头孢') || m.medication.antimicrobial) || meds[0]
+                              const cef = meds.find(m => m.medication.name.includes('头孢') || m.medication.antimicrobial)
                               if (cef) {
-                                setItems([{ medicationId: cef.medication.id, status: 'DRAFT', durationDays: 10, routeCode: 'ORAL' }])
+                                setItems([{ medicationId: cef.medication.id, status: 'DRAFT', durationDays: 10, routeCode: cef.medication.defaultRoute || 'ORAL' }])
                                 setRun(null)
+                              } else {
+                                setNotice('药品目录中未找到抗菌药，请手动选择药品。')
                               }
                             }}
                           >
@@ -1490,10 +1502,12 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                               const nsaids = meds.filter(m => m.medication.name.includes('布洛芬') || m.medication.name.includes('双氯芬酸') || m.medication.name.includes('阿司匹林'))
                               if (nsaids.length >= 2) {
                                 setItems([
-                                  { medicationId: nsaids[0].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL' },
-                                  { medicationId: nsaids[1].medication.id, status: 'DRAFT', durationDays: 3, routeCode: 'ORAL' }
+                                  { medicationId: nsaids[0].medication.id, status: 'DRAFT', durationDays: 3, routeCode: nsaids[0].medication.defaultRoute || 'ORAL' },
+                                  { medicationId: nsaids[1].medication.id, status: 'DRAFT', durationDays: 3, routeCode: nsaids[1].medication.defaultRoute || 'ORAL' }
                                 ])
                                 setRun(null)
+                              } else {
+                                setNotice('药品目录中未找到至少2种非甾体抗炎药，请手动添加明细并选择药品。')
                               }
                             }}
                           >

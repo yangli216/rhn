@@ -105,7 +105,7 @@ describe('WarehouseManagement', () => {
     await waitFor(() => expect(api.pharmacy.stockBins).toHaveBeenCalledWith('site-warehouse'))
     expect(screen.queryByTestId('warehouse-header-switcher')).not.toBeInTheDocument()
     expect(screen.queryByText('作业库房：')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /新建采购单/ })).not.toBeDisabled()
+    expect(screen.getByRole('button', { name: /新建采购/ })).not.toBeDisabled()
   })
 
   it('derives the active site from the selected pharmacy department context', async () => {

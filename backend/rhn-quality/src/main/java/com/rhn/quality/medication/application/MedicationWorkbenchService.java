@@ -181,7 +181,9 @@ public class MedicationWorkbenchService {
             meds = request.medicationIds().stream().distinct().map(knowledge::require).toList();
         } else {
             var searchResults = knowledge.search(request.requirement());
-            if (searchResults.isEmpty()) searchResults = knowledge.search("");
+            if (searchResults.isEmpty()) {
+                throw badRequest("QMED_MEDICATION_REQUIRED", "未能根据规则需求自动识别关联药品，请在标的药品列表中明确勾选至少一种药品");
+            }
             meds = searchResults.stream().limit(3).toList();
         }
         var status=ai.status();
@@ -266,31 +268,60 @@ public class MedicationWorkbenchService {
                 false,result.matchedRows(),result.reasons(),request.items())));
     }
     public TrialRun suite(Long id) {
-        var candidate=require(id);validate(candidate.rule());var facts=facts(candidate);
-        var med=candidate.medications().stream().map(m->m.medication()).filter(m ->
-                !"ANTIMICROBIAL_MAX_DAYS".equals(candidate.rule().template()) || m.antimicrobial() && m.antimicrobialMaxDays()!=null && m.antimicrobialMaxDays()>0)
-                .findFirst().orElseThrow(()->badRequest("QMED_KNOWLEDGE_MISSING","缺少可试跑的药品事实"));
-        var cases=new ArrayList<CaseResult>();
-        var base=new TrialItem(med.id(),"DRAFT",BigDecimal.ONE,med.defaultRoute());
-        if("EXACT_GENERIC_DUPLICATE".equals(candidate.rule().template())) {
-            cases.add(runCase(candidate,"达到重复阈值","WARN",Collections.nCopies(candidate.rule().duplicateCount(),base),facts));
-            cases.add(runCase(candidate,"低于阈值（边界）","PASS",Collections.nCopies(candidate.rule().duplicateCount()-1,base),facts));
-            var cancelled=new ArrayList<>(Collections.nCopies(candidate.rule().duplicateCount()-1,base));
-            cancelled.add(new TrialItem(med.id(),"CANCELLED",BigDecimal.ONE,med.defaultRoute()));
-            cases.add(runCase(candidate,"撤销条目不计入","PASS",cancelled,facts));
-        } else {
-            var limit=BigDecimal.valueOf(med.antimicrobialMaxDays());
-            cases.add(runCase(candidate,"超过 HIS 疗程上限","WARN",List.of(new TrialItem(med.id(),"DRAFT",limit.add(BigDecimal.ONE),med.defaultRoute())),facts));
-            cases.add(runCase(candidate,"等于上限（边界）","PASS",List.of(new TrialItem(med.id(),"DRAFT",limit,med.defaultRoute())),facts));
-            cases.add(runCase(candidate,"缺少疗程","UNAVAILABLE",List.of(new TrialItem(med.id(),"DRAFT",null,med.defaultRoute())),facts));
+        var candidate = require(id);
+        validate(candidate.rule());
+        var facts = facts(candidate);
+        var med = candidate.medications().stream().map(m -> m.medication()).filter(m ->
+                !"ANTIMICROBIAL_MAX_DAYS".equals(candidate.rule().template()) || m.antimicrobial() && m.antimicrobialMaxDays() != null && m.antimicrobialMaxDays() > 0)
+                .findFirst().orElseThrow(() -> badRequest("QMED_KNOWLEDGE_MISSING", "缺少可试跑的药品事实"));
+        var cases = new ArrayList<CaseResult>();
+        var base = new TrialItem(med.id(), "DRAFT", BigDecimal.ONE, med.defaultRoute());
+
+        switch (candidate.rule().template() != null ? candidate.rule().template() : "") {
+            case "EXACT_GENERIC_DUPLICATE" -> {
+                cases.add(runCase(candidate, "达到重复阈值", "WARN", Collections.nCopies(candidate.rule().duplicateCount(), base), facts));
+                cases.add(runCase(candidate, "低于阈值（边界）", "PASS", Collections.nCopies(candidate.rule().duplicateCount() - 1, base), facts));
+                var cancelled = new ArrayList<>(Collections.nCopies(candidate.rule().duplicateCount() - 1, base));
+                cancelled.add(new TrialItem(med.id(), "CANCELLED", BigDecimal.ONE, med.defaultRoute()));
+                cases.add(runCase(candidate, "撤销条目不计入", "PASS", cancelled, facts));
+            }
+            case "ANTIMICROBIAL_MAX_DAYS" -> {
+                if (med.antimicrobialMaxDays() == null || med.antimicrobialMaxDays() <= 0) {
+                    throw badRequest("QMED_KNOWLEDGE_MISSING", "所选药品主数据缺少抗菌药门诊疗程上限");
+                }
+                var limit = BigDecimal.valueOf(med.antimicrobialMaxDays());
+                cases.add(runCase(candidate, "超过 HIS 疗程上限", "WARN", List.of(new TrialItem(med.id(), "DRAFT", limit.add(BigDecimal.ONE), med.defaultRoute())), facts));
+                cases.add(runCase(candidate, "等于上限（边界）", "PASS", List.of(new TrialItem(med.id(), "DRAFT", limit, med.defaultRoute())), facts));
+                cases.add(runCase(candidate, "缺少疗程", "UNAVAILABLE", List.of(new TrialItem(med.id(), "DRAFT", null, med.defaultRoute())), facts));
+            }
+            case "AGE_CONTRAINDICATION" -> {
+                int limitAge = candidate.rule().minAge() != null ? candidate.rule().minAge() : 18;
+                var childContext = new PatientSimulationContext(Math.max(0, limitAge - 2), "男", List.of());
+                var adultContext = new PatientSimulationContext(limitAge + 2, "男", List.of());
+                cases.add(runCase(candidate, "低于限制年龄（触发禁忌）", "WARN", List.of(base), facts, childContext));
+                cases.add(runCase(candidate, "达到合规年龄（正常开立）", "PASS", List.of(base), facts, adultContext));
+                cases.add(runCase(candidate, "缺少就诊年龄上下文", "UNAVAILABLE", List.of(base), facts, null));
+            }
+            case "CATEGORY_DUPLICATE" -> {
+                int count = candidate.rule().duplicateCount() > 0 ? candidate.rule().duplicateCount() : 2;
+                cases.add(runCase(candidate, "达到同类用药数量上限", "WARN", Collections.nCopies(count, base), facts));
+                cases.add(runCase(candidate, "低于同类用药上限（边界）", "PASS", Collections.nCopies(Math.max(1, count - 1), base), facts));
+                var cancelled = new ArrayList<>(Collections.nCopies(Math.max(1, count - 1), base));
+                cancelled.add(new TrialItem(med.id(), "CANCELLED", BigDecimal.ONE, med.defaultRoute()));
+                cases.add(runCase(candidate, "撤销条目不计入同类重复", "PASS", cancelled, facts));
+            }
+            default -> throw badRequest("QMED_TEMPLATE_UNSUPPORTED", "不支持的规则模板: " + candidate.rule().template());
         }
-        cases.add(runCase(candidate,"缺少通用药标识","UNAVAILABLE",List.of(new TrialItem(null,"DRAFT",BigDecimal.ONE,null)),facts));
-        cases.add(runCase(candidate,"空处方","UNAVAILABLE",List.of(),facts));
-        return save(candidate,"SYNTHETIC",null,json.write(cases.stream().map(CaseResult::input).toList()),cases);
+        cases.add(runCase(candidate, "缺少通用药标识", "UNAVAILABLE", List.of(new TrialItem(null, "DRAFT", BigDecimal.ONE, null)), facts));
+        cases.add(runCase(candidate, "空处方", "UNAVAILABLE", List.of(), facts));
+        return save(candidate, "SYNTHETIC", null, json.write(cases.stream().map(CaseResult::input).toList()), cases);
     }
-    private CaseResult runCase(Candidate c,String name,String expected,List<TrialItem> input,Map<Long,MedicationSnapshot> facts) {
-        var result=evaluator.evaluate(c.rule(),scope(c),input,facts);
-        return new CaseResult(name,expected,result.decision(),expected.equals(result.decision()),result.matchedRows(),result.reasons(),input);
+    private CaseResult runCase(Candidate c, String name, String expected, List<TrialItem> input, Map<Long, MedicationSnapshot> facts) {
+        return runCase(c, name, expected, input, facts, null);
+    }
+    private CaseResult runCase(Candidate c, String name, String expected, List<TrialItem> input, Map<Long, MedicationSnapshot> facts, PatientSimulationContext patientContext) {
+        var result = evaluator.evaluate(c.rule(), scope(c), input, facts, patientContext);
+        return new CaseResult(name, expected, result.decision(), expected.equals(result.decision()), result.matchedRows(), result.reasons(), input);
     }
     public PrescriptionPreview prescriptionPreview(ShadowRequest request) {
         access();

@@ -2,6 +2,7 @@
 
 ## Browser automation
 
+- Do not perform real-system browser verification by default. The user will verify browser workflows manually unless they explicitly request browser-based verification or QA.
 - For all browser-related work in this project, use the `ego-browser` skill and ego-lite by default.
 - This includes opening or navigating pages, interacting with forms and controls, taking screenshots, extracting page data, and browser-based testing or QA.
 - Use another browser tool only when the user explicitly requests it or ego-lite cannot perform the required task; state the reason before switching.

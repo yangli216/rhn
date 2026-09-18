@@ -19,6 +19,7 @@ import com.rhn.platform.masterdata.api.MasterDataViews.LaboratorySpecimenView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ExaminationServiceView;
 import com.rhn.platform.masterdata.api.MasterDataViews.ServiceVariantView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductView;
+import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductEntryView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
 import com.rhn.platform.masterdata.api.MasterDataViews.OrganizationAdoptionView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
@@ -81,6 +82,8 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 public class MasterDataApplicationService implements ServiceCatalogDirectory {
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager entityManager;
     private final ServiceCatalogItemRepository serviceRepository;
     private final SupplyItemRepository supplyRepository;
     private final MedicationRepository medicationRepository;
@@ -358,6 +361,39 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 result.getTotalElements(), result.getTotalPages(), result.getNumber(), result.getSize());
     }
 
+    @Transactional(readOnly = true)
+    public MedicationView medication(Long id, Long organizationId) {
+        return medicationViews(current().tenantId(), List.of(requireMedication(current().tenantId(), id)), organizationId).getFirst();
+    }
+
+    @Transactional(readOnly = true)
+    public PageResult<MedicationProductEntryView> searchProducts(
+            String query, String medicationType, String status, Long organizationId, int page, int size,
+            boolean stockable, boolean dispensable) {
+        Long tenantId = current().tenantId();
+        if (stockable && organizationId == null) throw badRequest("ORGANIZATION_REQUIRED", "请选择机构");
+        if (organizationId != null) {
+            organizationDirectory.requireOrganization(tenantId, organizationId);
+            if (!current().hasAuthority("MASTER_DATA.MANAGE") && !java.util.Objects.equals(current().organizationId(), organizationId))
+                throw com.rhn.shared.api.BusinessErrors.forbidden("ORG_CATALOG_SCOPE_FORBIDDEN", "不能查询当前工作机构以外的经营目录");
+        }
+        int limit = Math.max(10, Math.min(size, 100));
+        var sort = Sort.by("name").ascending().and(Sort.by("id").ascending());
+        Long sourceOrganizationId = organizationId == null ? null
+                : organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        var found = productRepository.searchProducts(tenantId, query == null ? null : query.trim(), medicationType,
+                stockable ? "ACTIVE" : status, stockable, dispensable, organizationId, sourceOrganizationId, LocalDate.now(),
+                PageRequest.of(Math.max(0, page), limit, sort));
+        var medications = medicationViews(tenantId, medicationRepository.findByTenantIdAndIdIn(tenantId,
+                found.getContent().stream().map(MedicationProduct::medicationId).distinct().toList()), organizationId)
+                .stream().collect(Collectors.toMap(MedicationView::id, Function.identity()));
+        var products = productViews(tenantId, found.getContent(), manufacturerRepository.findByTenantIdOrderByName(tenantId)
+                .stream().collect(Collectors.toMap(Manufacturer::id, Function.identity())), organizationId);
+        var entries = products.stream().map(product -> new MedicationProductEntryView(
+                product, medications.get(product.medicationId()))).toList();
+        return new PageResult<>(entries, found.getTotalElements(), found.getTotalPages(), Math.max(0, page), limit);
+    }
+
     @Transactional
     public MedicationView createMedication(MedicationCommand command, Long organizationId) {
         ExecutionContext context = current();
@@ -403,7 +439,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public MedicationView updateMedication(Long id, long expectedRevision, MedicationCommand command,
                                            Long organizationId) {
         ExecutionContext context = current();
-        Medication item = requireMedication(context.tenantId(), id);
+        Medication item = medicationRepository.lockByIdAndTenantId(id, context.tenantId())
+                .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到通用药品"));
+        if (!java.util.Objects.equals(item.preparationUnit(), command.preparationUnit())
+                && productRepository.existsByTenantIdAndMedicationId(context.tenantId(), id)) {
+            throw conflict("MEDICATION_UNIT_IN_USE", "最小单位已被厂家产品使用，禁止修改；请新建正确单位的药品档案");
+        }
         requireRevision(item.revision(), expectedRevision, "MEDICATION_REVISION_STALE", "药品知识已被其他用户修改，请刷新后重试");
         if (!item.medicationType().equals(command.medicationType())) {
             throw badRequest("MEDICATION_TYPE_IMMUTABLE", "药品类型创建后不允许直接修改，请新建正确类型的药品主档");
@@ -497,7 +538,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional
     public MedicationProductView createProduct(ProductCommand command, Long organizationId) {
         ExecutionContext context = current();
-        Medication medication = requireMedication(context.tenantId(), command.medicationId());
+        Medication medication = medicationRepository.lockByIdAndTenantId(command.medicationId(), context.tenantId())
+                .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到通用药品"));
         Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());
@@ -588,12 +630,29 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 Map.of(manufacturer.id(), manufacturer), organizationId).getFirst();
     }
 
+    private void validatePackageBase(Long catalogItemId, Long packageId, Long baseId) {
+        Long tenantId = current().tenantId();
+        entityManager.createNativeQuery("select ID_CATALOG_ITEM from RHN_BD_CATALOG_ITEM where ID_TNT = :tenant and ID_CATALOG_ITEM = :id for update")
+                .setParameter("tenant", tenantId).setParameter("id", catalogItemId).getSingleResult();
+        Set<Long> seen = new java.util.HashSet<>();
+        if (packageId != null) seen.add(packageId);
+        while (baseId != null) {
+            if (!seen.add(baseId)) throw badRequest("PACKAGE_BASE_CYCLE", "基础包装不能引用自身或形成循环");
+            ItemPackage base = packageRepository.findByIdAndTenantId(baseId, tenantId)
+                    .orElseThrow(() -> badRequest("PACKAGE_BASE_NOT_FOUND", "基础包装不存在或不属于当前租户"));
+            if (!base.catalogItemId().equals(catalogItemId))
+                throw badRequest("PACKAGE_BASE_PRODUCT_MISMATCH", "基础包装必须属于同一产品");
+            baseId = base.basePackageId();
+        }
+    }
+
     @Transactional
     public PackageView createPackage(Long catalogItemId, PackageCommand command) {
         ExecutionContext context = current();
         requireProduct(context.tenantId(), catalogItemId);
         requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validatePackageBase(catalogItemId, null, command.basePackageId());
         ItemPackage value = packageRepository.save(new ItemPackage(context.tenantId(), catalogItemId,
                 command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
                 command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
@@ -608,6 +667,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 .orElseThrow(() -> notFound("PACKAGE_NOT_FOUND", "未找到产品包装"));
         requireCode(MasterDataDictionaryCodes.PACKAGE_USE, command.usageType());
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());
+        validatePackageBase(value.catalogItemId(), id, command.basePackageId());
         value.update(command.basePackageId(), command.unitCode(), command.unitName(), command.packageSpec(),
                 command.quantityFactor(), command.usageType(), command.barcode(), command.defaultPurchase(),
                 command.defaultSale(), command.defaultDispense(), command.status(), command.validFrom(),
@@ -641,6 +701,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         requireCatalogItem(context.tenantId(), catalogItemId);
         if (command.organizationId() != null) {
             organizationDirectory.requireOrganization(context.tenantId(), command.organizationId());
+        }
+        if (command.packageId() != null) {
+            var packaging = packageRepository.findByIdAndTenantId(command.packageId(), context.tenantId())
+                    .orElseThrow(() -> badRequest("PACKAGE_NOT_FOUND", "未找到产品包装"));
+            if (!packaging.catalogItemId().equals(catalogItemId))
+                throw badRequest("ITEM_PACKAGE_CATALOG_MISMATCH", "价格包装必须属于当前产品");
         }
         requireCode(MasterDataDictionaryCodes.PRICE_TYPE, command.priceType());
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());

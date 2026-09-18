@@ -52,6 +52,7 @@ class MedicationRequestService implements MedicationRequestDirectory {
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
     private final MedicationSemanticDirectory semantics;
+    private final OutpatientAllergyVerificationPolicy allergyVerificationPolicy;
 
     MedicationRequestService(MedicationRequestRepository repository,
                              PrescriptionRepository prescriptionRepository,
@@ -65,8 +66,11 @@ class MedicationRequestService implements MedicationRequestDirectory {
                              AllergyDirectory allergyDirectory,
                              MedicationTerminologyDirectory terminologyDirectory,
                              DomainEventPublisher eventPublisher,
-                             ExecutionContextProvider contextProvider, JsonCodec jsonCodec, MedicationSemanticDirectory semantics) {
+                             ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
+                             MedicationSemanticDirectory semantics,
+                             OutpatientAllergyVerificationPolicy allergyVerificationPolicy) {
         this.semantics = semantics;
+        this.allergyVerificationPolicy = allergyVerificationPolicy;
         this.repository = repository; this.prescriptionRepository = prescriptionRepository;
         this.encounterDirectory = encounterDirectory; this.catalogDirectory = catalogDirectory;
         this.attributeDirectory = attributeDirectory; this.mappingDirectory = mappingDirectory;
@@ -198,10 +202,15 @@ class MedicationRequestService implements MedicationRequestDirectory {
         boolean drugAllergyStatusRecorded = !drugAllergies.isEmpty() || activeAllergies.stream().anyMatch(allergy ->
                 "NO_KNOWN_ALLERGY".equals(allergy.assertionType())
                         || "NO_KNOWN_DRUG_ALLERGY".equals(allergy.assertionType()));
-        if (!drugAllergyStatusRecorded && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
+        boolean allergyReviewConfirmed = Boolean.TRUE.equals(input.allergyReviewConfirmed());
+        var allergyVerificationMode = allergyVerificationPolicy.resolve(
+                context, performerOrganizationId, performerDepartmentId);
+        if (!drugAllergyStatusRecorded && !allergyReviewConfirmed
+                && allergyVerificationMode.blocksUnverifiedAllergies()) {
             throw conflict("MEDICATION_ALLERGY_STATUS_UNKNOWN", "患者药物过敏状态尚未确认，请核对后再加入处方");
         }
-        if (!drugAllergies.isEmpty() && !Boolean.TRUE.equals(input.allergyReviewConfirmed())) {
+        if (!drugAllergies.isEmpty() && !allergyReviewConfirmed
+                && allergyVerificationMode.blocksUnverifiedAllergies()) {
             throw conflict("MEDICATION_ALLERGY_REVIEW_REQUIRED", "患者存在有效药物过敏记录，请核对后再加入处方");
         }
         var matchedAllergies = drugAllergies.stream().filter(allergy ->
@@ -264,7 +273,10 @@ class MedicationRequestService implements MedicationRequestDirectory {
         eventDetails.put("medicationName", value.medicationNameSnapshot());
         eventDetails.put("quantity", value.quantity()); eventDetails.put("quantityUnit", value.quantityUnit());
         eventDetails.put("baseQuantity", value.baseQuantity()); eventDetails.put("baseUnit", value.baseUnit());
-        eventDetails.put("allergyReviewConfirmed", Boolean.TRUE.equals(input.allergyReviewConfirmed()));
+        eventDetails.put("allergyReviewConfirmed", allergyReviewConfirmed);
+        eventDetails.put("allergyVerificationMode", allergyVerificationMode.name());
+        eventDetails.put("allergyVerificationWarning", !allergyReviewConfirmed
+                && (!drugAllergyStatusRecorded || !drugAllergies.isEmpty()));
         eventDetails.put("activeDrugAllergyCount", drugAllergies.size());
         eventDetails.put("matchedAllergyCount", matchedAllergies.size());
         if (clean(input.allergyOverrideReason()) != null) {

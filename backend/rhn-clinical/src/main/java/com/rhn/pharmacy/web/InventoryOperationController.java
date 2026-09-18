@@ -11,6 +11,8 @@ import com.rhn.pharmacy.application.InventoryOperationApplicationService.CreateP
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.CreateSupplierCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.CreateSupplyItemCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.DecisionCommand;
+import com.rhn.pharmacy.application.InventoryOperationApplicationService.DirectGoodsReceiptCommand;
+import com.rhn.pharmacy.application.InventoryOperationApplicationService.DirectReceiptLineCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.GoodsReceiptLineCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.InspectGoodsReceiptCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.InspectLineCommand;
@@ -138,6 +140,12 @@ public class InventoryOperationController {
         return service.postGoodsReceipt(receiptId);
     }
 
+    @PostMapping("/direct-goods-receipts")
+    @ResponseStatus(HttpStatus.CREATED)
+    GoodsReceiptView directGoodsReceipt(@Valid @RequestBody DirectGoodsReceiptRequest input) {
+        return service.directGoodsReceipt(input.command());
+    }
+
     @GetMapping("/inventory-documents/{documentType}/{documentId}/events")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<DocumentEventView> documentEvents(@PathVariable String documentType, @PathVariable Long documentId) {
@@ -240,5 +248,42 @@ public class InventoryOperationController {
             @NotNull @Size(min = 1, max = 500) List<@Valid InspectLineRequest> lines) {
         InspectGoodsReceiptCommand command() { return new InspectGoodsReceiptCommand(description,
                 lines.stream().map(InspectLineRequest::command).toList()); }
+    }
+
+    record DirectGoodsReceiptLineRequest(
+            @NotNull Long stockItemId,
+            @NotNull Long packageId,
+            @NotNull Long destinationBinId,
+            @NotBlank @Size(max = 128) String lotNo,
+            LocalDate productionDate,
+            LocalDate expiryDate,
+            @NotNull @DecimalMin(value = "0", inclusive = false) @Digits(integer = 20, fraction = 8)
+            BigDecimal quantity,
+            @NotNull @DecimalMin("0") @Digits(integer = 18, fraction = 6)
+            BigDecimal unitPrice,
+            @DecimalMin("0") @DecimalMax("1") @Digits(integer = 1, fraction = 6)
+            BigDecimal taxRate,
+            @Size(max = 1000) String description) {
+        DirectReceiptLineCommand command() {
+            return new DirectReceiptLineCommand(stockItemId, packageId, destinationBinId, lotNo,
+                    productionDate, expiryDate, quantity, unitPrice, taxRate, description);
+        }
+    }
+
+    record DirectGoodsReceiptRequest(
+            @NotNull Long stockSiteId,
+            @NotNull Long supplierId,
+            @Size(max = 64) String orderNo,
+            @Size(max = 64) String receiptNo,
+            @NotBlank @Size(max = 128) String requestCode,
+            @Size(max = 128) String deliveryNoteNo,
+            Instant receivedAt,
+            @Size(max = 1000) String description,
+            @NotNull @Size(min = 1, max = 500) List<@Valid DirectGoodsReceiptLineRequest> lines) {
+        DirectGoodsReceiptCommand command() {
+            return new DirectGoodsReceiptCommand(stockSiteId, supplierId, orderNo, receiptNo,
+                    requestCode, deliveryNoteNo, receivedAt, description,
+                    lines.stream().map(DirectGoodsReceiptLineRequest::command).toList());
+        }
     }
 }
