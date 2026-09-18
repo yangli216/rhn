@@ -31,7 +31,7 @@ class ClinicalSemanticUsageService implements ClinicalSemanticImpactContributor 
                 "当前尚无临床单位的跨医嘱使用索引");
         Long count = jdbc.queryForObject("""
                 select count(*) from RHN_EX_MED_REQ m join RHN_EX_CARE_REQ r on r.ID_CARE_REQ = m.ID_CARE_REQ
-                where r.ID_TNT = ? and m.ID_TNT = ? and r.ID_ORG_PERFORMER = ? and r.ID_DEPT_PERFORMER = ?
+                where r.ID_TNT = ? and m.ID_TNT = ? and r.ID_ORG_EXEC = ? and r.ID_DEPT_EXEC = ?
                   and r.SD_STATUS in ('DRAFT', 'ACTIVE') and
                 """ + column + " = ?", Long.class, context.tenantId(), context.tenantId(), context.organizationId(),
                 context.departmentId(), Long.valueOf(conceptId));

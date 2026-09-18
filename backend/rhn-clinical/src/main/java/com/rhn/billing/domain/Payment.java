@@ -14,6 +14,8 @@ import java.time.Instant;
 public class Payment {
     @Id @Column(name = "ID_PAY") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "ID_INVOICE") private Long invoiceId;
     @Column(name = "ID_PAY_ORDER") private Long paymentOrderId;
@@ -35,7 +37,7 @@ public class Payment {
     public Payment(Long tenantId, Long patientAccountId, Long invoiceId, String paymentNo, String paymentType,
                    String paymentMethodCode, BigDecimal amount, String currencyCode, Instant paidAt,
                    String externalTransactionNo, Long reversesPaymentId, Long enteredBy, String description) {
-        this(tenantId, patientAccountId, invoiceId, null, paymentNo, paymentType, paymentMethodCode, null,
+        this(tenantId, 1L, 1L, patientAccountId, invoiceId, null, paymentNo, paymentType, paymentMethodCode, null,
                 amount, currencyCode, paidAt, externalTransactionNo, reversesPaymentId, enteredBy, description);
     }
 
@@ -43,7 +45,19 @@ public class Payment {
                    String paymentNo, String paymentType, String paymentMethodCode, String paymentSceneCode,
                    BigDecimal amount, String currencyCode, Instant paidAt, String externalTransactionNo,
                    Long reversesPaymentId, Long enteredBy, String description) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.patientAccountId = patientAccountId;
+        this(tenantId, 1L, 1L, patientAccountId, invoiceId, paymentOrderId,
+                paymentNo, paymentType, paymentMethodCode, paymentSceneCode,
+                amount, currencyCode, paidAt, externalTransactionNo, reversesPaymentId, enteredBy, description);
+    }
+
+    public Payment(Long tenantId, Long organizationId, Long departmentId,
+                   Long patientAccountId, Long invoiceId, Long paymentOrderId,
+                   String paymentNo, String paymentType, String paymentMethodCode, String paymentSceneCode,
+                   BigDecimal amount, String currencyCode, Instant paidAt, String externalTransactionNo,
+                   Long reversesPaymentId, Long enteredBy, String description) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.patientAccountId = patientAccountId;
         this.invoiceId = invoiceId; this.paymentOrderId = paymentOrderId; this.paymentNo = paymentNo;
         this.paymentType = paymentType; this.paymentMethodCode = paymentMethodCode;
         this.paymentSceneCode = paymentSceneCode; this.status = "COMPLETED"; this.amount = amount;
@@ -53,6 +67,8 @@ public class Payment {
 
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
     public Long invoiceId() { return invoiceId; }
     public Long paymentOrderId() { return paymentOrderId; }

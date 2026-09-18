@@ -1,0 +1,71 @@
+- id: "A033"
+  category: "UNSUPPORTED"
+  question: "本月医保基金到账金额"
+  description: "医保基金到账属于财务医保清算与银行资金流，当前仅接入门诊账单记账明细"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "INSURANCE_SETTLEMENT_NOT_SUPPORTED"
+    missingCapability: "医保基金清算对账数据源尚未接入"
+
+- id: "A034"
+  category: "UNSUPPORTED"
+  question: "本月门诊实收挂号费现金金额"
+  description: "实收现金流水属于收银结算与支付渠道流向，门诊就诊及记账明细未采集支付通道实际到账货币流"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "CASH_SETTLEMENT_NOT_SUPPORTED"
+    missingCapability: "门诊出纳实际收退款流水源尚未接入"
+
+- id: "A035"
+  category: "UNSUPPORTED"
+  question: "本月各科室门诊药占比"
+  description: "药占比为复合比率指标（药品费用净发生额 / 门诊总费用净发生额），当前模型尚不支持比率衍生指标"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "COMPUTED_RATIO_NOT_SUPPORTED"
+    missingCapability: "复合除法衍生比率指标计算尚未接入"
+
+- id: "A036"
+  category: "UNSUPPORTED"
+  question: "本月门诊次均药品费用"
+  description: "次均费用属于跨实体除法衍生指标（药品总费用 / 就诊人次），平均金额仅支持单行平均，不能作为次均费用"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "AVERAGE_PER_VISIT_NOT_SUPPORTED"
+    missingCapability: "跨实体次均指标聚合计算尚未接入"
+
+- id: "A037"
+  category: "UNSUPPORTED"
+  question: "统计高血压患者开立了哪些药品"
+  description: "跨实体关联（Diagnosis -> Patient -> Encounter -> Order）存在 1:N 扇出放大风险，未在安全语义图注册"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "CROSS_ENTITY_JOIN_FANOUT_RISK"
+    missingCapability: "诊断与医嘱明细级多对多关联路径尚未完成安全建模"
+
+- id: "A038"
+  category: "UNSUPPORTED"
+  question: "门诊各医生处方量排行"
+  description: "处方实体（PRESCRIPTION）及按接诊/开立医生聚合维度尚未开放"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "PHYSICIAN_DIMENSION_NOT_SUPPORTED"
+    missingCapability: "医生员工维度及处方统计实体尚未开放"
+
+- id: "A039"
+  category: "UNSUPPORTED"
+  question: "住院患者次均住院天数"
+  description: "当前仅覆盖门诊业务域（OUTPATIENT），住院数据源及住院日统计不在第一阶段范围内"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "INPATIENT_DOMAIN_NOT_SUPPORTED"
+    missingCapability: "住院业务域及住院床日数据源尚未开放"
+
+- id: "A040"
+  category: "UNSUPPORTED"
+  question: "本月门诊患者年龄与性别分布"
+  description: "患者人口统计学维度（年龄段、性别）尚未接入统计维度目录"
+  expected:
+    status: "UNSUPPORTED"
+    unsupportedReason: "DEMOGRAPHIC_DIMENSION_NOT_SUPPORTED"
+    missingCapability: "患者人口学属性（性别、年龄组）统计维度尚未接入"

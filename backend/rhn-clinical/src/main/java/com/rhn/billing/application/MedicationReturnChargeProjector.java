@@ -70,7 +70,9 @@ public class MedicationReturnChargeProjector {
         if (unitCode == null) unitCode = original.unitCode();
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
 
-        ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(), original.patientAccountId(),
+        ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(),
+                original.organizationId(), original.departmentId(),
+                original.patientAccountId(),
                 original.residentId(), original.encounterId(), requestId, original.catalogItemId(),
                 "MEDICATION_RETURN", returnDispenseId, returnNo == null ? "RET-" + returnDispenseId : returnNo,
                 quantity.negate(), unitCode, original.unitPrice(), amount, original.currencyCode(),

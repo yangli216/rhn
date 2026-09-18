@@ -1,40 +1,380 @@
-.standard-medication { padding: 16px 20px; display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; }
-.standard-medication__intro { display: flex; align-items: center; justify-content: space-between; }
-.standard-medication__intro h2 { margin: 0 0 6px; font-size: 19px; }
-.standard-medication__intro p, .standard-medication__intro > span { margin: 0; color: var(--color-text-secondary); }
-.standard-medication__stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.standard-medication__stats > div { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border: 1px solid var(--color-border); border-radius: 8px; }
-.standard-medication__stats strong { font-size: 24px; }
-.standard-medication__toolbar { display: grid; grid-template-columns: minmax(300px, 1fr) 220px 180px; gap: 12px; }
-.standard-medication__workspace { display: grid; grid-template-columns: minmax(580px, 1.6fr) minmax(340px, 1fr); align-items: stretch; flex: 1; min-height: 0; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
-.standard-medication__list { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
-.standard-medication__table-scroll { overflow: auto; flex: 1; min-height: 0; }
-.standard-medication__list .master-data-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 13px; }
-.standard-medication__list th { padding: 12px; text-align: left; background: var(--color-surface-subtle); }
-.standard-medication__list small { display: block; margin-top: 5px; color: var(--color-text-secondary); }
-.standard-medication__list .is-selected { background: var(--color-brand-soft); }
-.standard-medication__detail { border-left: 1px solid var(--color-border); padding: 18px; min-height: 0; overflow: auto; min-width: 0; }
-.standard-medication__detail h3 { margin: 0 0 6px; font-size: 19px; }
-.standard-medication__detail h4 { margin: 20px 0 10px; }
-.standard-medication__detail dl { display: grid; grid-template-columns: 85px minmax(0, 1fr); font-size: 12px; gap: 8px; }
-.standard-medication__detail dt, .standard-medication__muted { color: var(--color-text-secondary); }
-.standard-medication__detail dd { margin: 0; overflow-wrap: anywhere; }
-.standard-medication__spec { padding: 10px 0; border-bottom: 1px solid var(--color-border); }
-.standard-medication__spec p { margin: 6px 0; }
-.standard-medication__spec small { color: var(--color-text-secondary); }
-.standard-medication__spec-action { margin-top: 10px; }
-.standard-medication__issue { border-left: 3px solid var(--color-warning); padding: 4px 10px; margin: 12px 0; font-size: 13px; }
-.standard-medication__issue p { margin: 6px 0; overflow-wrap: anywhere; }
-.standard-medication__detail details { margin-top: 18px; font-size: 12px; overflow-wrap: anywhere; }
-.standard-medication__detail summary { cursor: pointer; }
-.standard-medication__source { white-space: pre-wrap; }
+.standard-medication {
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 8px;
+  background: var(--color-background);
+}
 
-.standard-medication__notice { margin: 0; padding: 10px 12px; background: var(--color-surface-subtle); color: var(--color-text-secondary); border-radius: 6px; font-size: 12px; line-height: 1.6; }
-.standard-medication__list th:nth-child(1) { width: 29%; }
-.standard-medication__list th:nth-child(2) { width: 31%; }
-.standard-medication__list th:nth-child(3) { width: 9%; }
-.standard-medication__list th:nth-child(4) { width: 18%; }
-.standard-medication__list th:nth-child(5) { width: 13%; }
-.standard-medication__list td { padding: 10px 12px; overflow-wrap: anywhere; }
-.standard-medication__list td:last-child { padding: 4px; }
-.standard-medication__list .ui-pagination { flex: none; flex-wrap: wrap; }
+/* 顶部紧凑标题与指标胶囊 */
+.standard-medication__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.standard-medication__title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.standard-medication__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.standard-medication__title-row h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text);
+  line-height: 1.3;
+}
+.standard-medication__version-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+.standard-medication__subtitle {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.3;
+}
+.standard-medication__stats-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.standard-medication__stat-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+.standard-medication__stat-pill .stat-label {
+  color: var(--color-text-secondary);
+  font-size: 11.5px;
+}
+.standard-medication__stat-pill .stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-brand);
+  font-feature-settings: "tnum";
+}
+
+/* 工具栏与来源说明 */
+.standard-medication__toolbar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.standard-medication__toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) 180px 150px auto;
+  gap: 10px;
+  align-items: center;
+}
+.standard-medication__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.standard-medication__notice {
+  margin: 0;
+  padding: 5px 10px;
+  background: rgba(0, 102, 204, 0.04);
+  border-left: 3px solid var(--color-brand);
+  color: var(--color-text-secondary);
+  border-radius: 0 4px 4px 0;
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* 工作区左右分栏 */
+.standard-medication__workspace {
+  display: grid;
+  grid-template-columns: minmax(560px, 1.35fr) minmax(460px, 1.15fr);
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.standard-medication__list {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.standard-medication__table-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+.standard-medication__list .master-data-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: var(--font-size-table, 0.8125rem);
+}
+.standard-medication__list th {
+  height: 2.5rem;
+  padding: 0 var(--space-3, 12px);
+  text-align: left;
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-table, 0.8125rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-shadow: inset 0 -1px 0 var(--color-border);
+}
+.standard-medication__list th:nth-child(1) { width: 37%; }
+.standard-medication__list th:nth-child(2) { width: 37%; }
+.standard-medication__list th:nth-child(3) { width: 11%; }
+.standard-medication__list th:nth-child(4) { width: 15%; }
+
+/* 单击行交互与高亮 */
+.standard-medication__row {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+  user-select: none;
+}
+.standard-medication__row:hover {
+  background-color: var(--color-surface-subtle);
+}
+.standard-medication__row:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: -2px;
+}
+.standard-medication__row.is-selected {
+  background-color: var(--color-brand-soft, #edf5ff) !important;
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+.standard-medication__list td {
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  overflow-wrap: anywhere;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border-subtle, #f0f0f0);
+  font-size: var(--font-size-table, 0.8125rem);
+}
+.standard-medication__list td strong {
+  display: block;
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, var(--color-text));
+  line-height: var(--line-height-small, 1.5);
+  font-size: var(--font-size-table, 0.8125rem);
+}
+.standard-medication__list td small {
+  display: block;
+  margin-top: var(--space-1, 2px);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small, 0.75rem);
+  line-height: var(--line-height-small, 1.5);
+}
+.standard-medication__list .ui-pagination {
+  flex: none;
+  flex-wrap: wrap;
+  padding: 6px 12px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+/* 右侧详情工作台 */
+.standard-medication__detail {
+  border-left: 1px solid var(--color-border);
+  padding: 14px 16px;
+  min-height: 0;
+  overflow-y: auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--color-surface);
+}
+.standard-medication__detail-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.standard-medication__detail-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.standard-medication__detail-header h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.standard-medication__muted {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+.standard-medication__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 12px;
+  padding: 8px 12px;
+  background: var(--color-surface-subtle);
+  border-radius: 6px;
+  font-size: 12px;
+}
+.standard-medication__meta-grid .meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+}
+.standard-medication__meta-grid .meta-item--wide {
+  grid-column: span 2;
+}
+.standard-medication__meta-grid .meta-label {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+.standard-medication__meta-grid .meta-value {
+  color: var(--color-text);
+  font-weight: 500;
+  word-break: break-all;
+}
+
+/* 规格部分：横向列表（表格化） */
+.standard-medication__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.standard-medication__section-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+.standard-medication__spec-table-wrap {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.standard-medication__spec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-table, 0.8125rem);
+  table-layout: fixed;
+}
+.standard-medication__spec-table th {
+  padding: 6px var(--space-2, 8px);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-semibold, 600);
+  font-size: var(--font-size-table, 0.8125rem);
+  text-align: left;
+}
+.standard-medication__spec-tr {
+  border-bottom: 1px solid var(--color-border-subtle, #f0f0f0);
+  transition: background-color 0.1s ease;
+}
+.standard-medication__spec-tr:last-child {
+  border-bottom: none;
+}
+.standard-medication__spec-tr:hover {
+  background-color: var(--color-surface-subtle);
+}
+.standard-medication__spec-tr td {
+  padding: 6px var(--space-2, 8px);
+  vertical-align: middle;
+  font-size: var(--font-size-table, 0.8125rem);
+}
+.standard-medication__dose-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(0, 102, 204, 0.08);
+  color: var(--color-brand);
+  font-weight: var(--font-weight-medium, 500);
+  font-size: var(--font-size-small, 0.75rem);
+  line-height: var(--line-height-small, 1.5);
+}
+.standard-medication__dose-tag .substance {
+  color: var(--color-text-secondary);
+  font-weight: normal;
+}
+.standard-medication__spec-val strong {
+  font-size: var(--font-size-table, 0.8125rem);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, var(--color-text));
+}
+.standard-medication__spec-strength {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small, 0.75rem);
+  line-height: var(--line-height-small, 1.5);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 待核验事项与原文追溯 */
+.standard-medication__issues-wrap {
+  margin-top: 2px;
+}
+.standard-medication__issues-wrap h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b45309;
+}
+.standard-medication__issue {
+  border-left: 3px solid var(--color-warning, #f59e0b);
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  background: rgba(245, 158, 11, 0.06);
+  border-radius: 0 4px 4px 0;
+}
+.standard-medication__issue strong {
+  color: #b45309;
+}
+.standard-medication__issue p {
+  margin: 2px 0 0;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.standard-medication__provenance {
+  font-size: 11.5px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+.standard-medication__provenance summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.standard-medication__source {
+  white-space: pre-wrap;
+  margin: 6px 0;
+}

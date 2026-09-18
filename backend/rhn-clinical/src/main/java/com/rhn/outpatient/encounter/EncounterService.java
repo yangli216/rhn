@@ -319,7 +319,9 @@ public class EncounterService implements EncounterDirectory {
             EncounterDiagnosis diagnosis = byCode.get(key);
             String changeType;
             if (diagnosis == null) {
-                diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId, encounterId, "ENCOUNTER",
+                diagnosis = diagnosisRepository.save(new EncounterDiagnosis(tenantId,
+                        encounter.residentId(), encounter.organizationId(), encounter.departmentId(),
+                        encounterId, "ENCOUNTER",
                         resolved.conceptId(), resolved.systemCode(), resolved.systemVersion(), resolved.diagnosisDomain(),
                         clean(input.diagnosisGroupId()), resolved.code(), resolved.display(), input.type(), "CONFIRMED",
                         resolved.managementJson(), sortOrder, context.subjectId()));

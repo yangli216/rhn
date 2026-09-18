@@ -4,7 +4,6 @@ import com.rhn.outpatient.api.MedicationSafetyDecision;
 import com.rhn.outpatient.api.MedicationSafetyPort;
 import com.rhn.outpatient.api.PrescriptionSafetyRequest;
 import com.rhn.quality.medication.domain.MedicationSafetyEvaluation;
-import com.rhn.quality.medication.domain.rule.DuplicateMedicationRule;
 import com.rhn.quality.medication.infrastructure.MedicationEvaluationStore;
 import com.rhn.quality.medication.infrastructure.MedicationRuleRegistry;
 import com.rhn.shared.context.ExecutionContext;
@@ -33,14 +32,7 @@ public class MedicationSafetyAdapter implements MedicationSafetyPort {
     public MedicationSafetyAdapter(ExecutionContextProvider contexts, MedicationRuleRegistry registry,
                                    MedicationEvaluationStore store, JsonCodec json) {
         this.contexts = contexts; this.registry = registry; this.store = store; this.json = json;
-        this.engine = new MedicationSafetyEngine(List.of(
-                new DuplicateMedicationRule(),
-                new com.rhn.quality.medication.domain.rule.AntimicrobialOutpatientRule(json),
-                new com.rhn.quality.medication.domain.rule.DrugAllergyRule(json),
-                new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
-                new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json),
-                new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json),
-                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json)));
+        this.engine = MedicationSafetyEngine.standard(json);
     }
 
     @Override

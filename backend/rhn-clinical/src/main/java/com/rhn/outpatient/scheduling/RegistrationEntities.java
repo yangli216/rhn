@@ -19,6 +19,8 @@ class Appointment {
     @Id @Column(name = "ID_APPT") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_SVC_SCHED", nullable = false) private Long scheduleId;
     @Column(name = "ID_SCHED_SLOT_POOL", nullable = false) private Long slotPoolId;
     @Column(name = "ID_SCHED_SLOT_HOLD") private Long slotHoldId;
@@ -62,7 +64,9 @@ class Appointment {
     private Appointment(Long tenantId, ServiceSchedule schedule, ScheduleSlotPool pool, Long slotHoldId,
                         Long residentId, String idempotencyCode, String status, String bookingSource,
                         Long rescheduledFromId, Long actorId) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.scheduleId = schedule.id();
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = schedule.organizationId(); this.departmentId = schedule.departmentId();
+        this.scheduleId = schedule.id();
         this.slotPoolId = pool.id(); this.slotHoldId = slotHoldId; this.residentId = residentId; this.appointmentNo = "AP" + id;
         this.idempotencyCode = idempotencyCode; this.status = status; this.bookingSource = bookingSource;
         this.rescheduledFromId = rescheduledFromId;
@@ -121,6 +125,8 @@ class Appointment {
     Long id() { return id; }
     long revision() { return revision; }
     Long tenantId() { return tenantId; }
+    Long organizationId() { return organizationId; }
+    Long departmentId() { return departmentId; }
     Long scheduleId() { return scheduleId; }
     Long slotPoolId() { return slotPoolId; }
     Long residentId() { return residentId; }

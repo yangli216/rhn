@@ -33,7 +33,11 @@ class AnalysisPageTest extends RhnIntegrationTestSupport {
         return id;
     }
     private void diagnosis(long encounter,String code,String recorded,String status,String verification) {
-        jdbc.update("insert into RHN_VIS_ENC_DIAG (ID_ENC_DIAG,ID_TNT,ID_ENC,CD_ENC_DIAG,NA_DISPLAY,SD_DIAG_TYPE,DT_RECORDED,SD_DIAG_STATUS,SD_VERIFICATION_STATUS,SN_SORT) values (?,?,?,?,?,?,?,?,?,?)",GlobalIds.next(),Long.valueOf(TENANT),encounter,code,"测试诊断"+code,"PRIMARY",Timestamp.from(OffsetDateTime.parse(recorded).toInstant()),status,verification,1);
+        Long patId = jdbc.queryForObject("select ID_PAT from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
+        Long orgId = jdbc.queryForObject("select ID_ORG from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
+        Long deptId = jdbc.queryForObject("select ID_DEPT from RHN_VIS_ENC where ID_ENC=?", Long.class, encounter);
+        jdbc.update("insert into RHN_VIS_ENC_DIAG (ID_ENC_DIAG,ID_TNT,ID_PAT,ID_ORG,ID_DEPT,ID_ENC,CD_ENC_DIAG,NA_DISPLAY,SD_DIAG_TYPE,DT_RECORDED,SD_DIAG_STATUS,SD_VERIFICATION_STATUS,SN_SORT) values (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                GlobalIds.next(),Long.valueOf(TENANT),patId,orgId,deptId,encounter,code,"测试诊断"+code,"PRIMARY",Timestamp.from(OffsetDateTime.parse(recorded).toInstant()),status,verification,1);
     }
     @Test void diagnosis_ranking_counts_only_authorized_active_confirmed_outpatient_records_and_sorts() throws Exception {
         long dept=Long.parseLong(DEPARTMENT),enc=encounter(dept,"OUTPATIENT");

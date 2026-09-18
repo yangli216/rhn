@@ -109,7 +109,8 @@ public class CashierCloseApplicationService {
         }
         expectedTotal = money(expectedTotal); actualTotal = money(actualTotal);
         String closeNo = "CC" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
-        CashierClose close = closes.save(new CashierClose(context.tenantId(), context.organizationId(),
+        Long deptId = context.departmentId() != null ? context.departmentId() : 1L;
+        CashierClose close = closes.save(new CashierClose(context.tenantId(), context.organizationId(), deptId,
                 context.subjectId(), null, closeNo, commandCode, terminalCode, "CALCULATED", rangeFrom, rangeTo,
                 eligible.size(), expectedTotal, actualTotal, money(actualTotal.subtract(expectedTotal)), currency,
                 context.subjectId()));
@@ -155,7 +156,7 @@ public class CashierCloseApplicationService {
         String reason = required(input.reason(), "CASHIER_CLOSE_REVERSE_REASON_REQUIRED", "撤销日结必须填写原因");
         String closeNo = "CR" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
         CashierClose reversal = closes.save(new CashierClose(context.tenantId(), context.organizationId(),
-                original.cashierUserId(), original.id(), closeNo, commandCode, original.terminalCode(), "CONFIRMED",
+                original.departmentId(), original.cashierUserId(), original.id(), closeNo, commandCode, original.terminalCode(), "CONFIRMED",
                 original.rangeFrom(), original.rangeTo(), original.transactionCount(), original.expectedAmount().negate(),
                 original.actualAmount().negate(), original.differenceAmount().negate(), original.currencyCode(),
                 context.subjectId()));

@@ -21,6 +21,12 @@ class EncounterDiagnosis {
     @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false)
     private Long tenantId;
+    @Column(name = "ID_PAT", nullable = false)
+    private Long residentId;
+    @Column(name = "ID_ORG", nullable = false)
+    private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false)
+    private Long departmentId;
     @Column(name = "ID_ENC", nullable = false)
     private Long encounterId;
     @Column(name = "ID_CONCEPT")
@@ -93,8 +99,21 @@ class EncounterDiagnosis {
                        String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
                        String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
                        String verificationStatus, String managementSnapshotJson, int sortOrder, Long updatedBy) {
+        this(tenantId, 1L, 1L, 1L, encounterId, diagnosisStage, conceptId, codeSystemCode, codeSystemVersion,
+                diagnosisDomain, diagnosisGroupId, code, display, diagnosisType, verificationStatus,
+                managementSnapshotJson, sortOrder, updatedBy);
+    }
+
+    EncounterDiagnosis(Long tenantId, Long residentId, Long organizationId, Long departmentId,
+                       Long encounterId, String diagnosisStage, Long conceptId,
+                       String codeSystemCode, String codeSystemVersion, String diagnosisDomain,
+                       String diagnosisGroupId, String code, String display, DiagnosisType diagnosisType,
+                       String verificationStatus, String managementSnapshotJson, int sortOrder, Long updatedBy) {
         this.id = com.rhn.shared.id.GlobalIds.next();
         this.tenantId = tenantId;
+        this.residentId = residentId;
+        this.organizationId = organizationId;
+        this.departmentId = departmentId;
         this.encounterId = encounterId;
         this.diagnosisStage = diagnosisStage;
         this.conceptId = conceptId;
@@ -159,6 +178,9 @@ class EncounterDiagnosis {
 
     Long id() { return id; }
     Long tenantId() { return tenantId; }
+    Long residentId() { return residentId; }
+    Long organizationId() { return organizationId; }
+    Long departmentId() { return departmentId; }
     Long encounterId() { return encounterId; }
     Long conceptId() { return conceptId; }
     String diagnosisStage() { return diagnosisStage; }

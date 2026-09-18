@@ -14,6 +14,8 @@ import java.time.Instant;
 public class Invoice {
     @Id @Column(name = "ID_INVOICE") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "CD_INVOICE_NO", nullable = false) private String invoiceNo;
     @Column(name = "SD_INVOICE_TYPE", nullable = false) private String invoiceType;
@@ -31,7 +33,15 @@ public class Invoice {
 
     public Invoice(Long tenantId, Long patientAccountId, String invoiceNo, String currencyCode,
                    BigDecimal amount, Instant issuedAt, Long issuedBy) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.patientAccountId = patientAccountId;
+        this(tenantId, 1L, 1L, patientAccountId, invoiceNo, currencyCode, amount, issuedAt, issuedBy);
+    }
+
+    public Invoice(Long tenantId, Long organizationId, Long departmentId,
+                   Long patientAccountId, String invoiceNo, String currencyCode,
+                   BigDecimal amount, Instant issuedAt, Long issuedBy) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.patientAccountId = patientAccountId;
         this.invoiceNo = invoiceNo; this.invoiceType = amount.signum() >= 0 ? "STANDARD" : "CREDIT";
         this.status = "ISSUED"; this.currencyCode = currencyCode; this.grossAmount = amount;
         this.discountAmount = BigDecimal.ZERO; this.netAmount = amount; this.issuedAt = issuedAt;
@@ -45,6 +55,8 @@ public class Invoice {
 
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
     public String invoiceNo() { return invoiceNo; }
     public String invoiceType() { return invoiceType; }

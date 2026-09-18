@@ -202,7 +202,6 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
 const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management']
 
 const NAVIGATION_NODES: NavigationNode[] = [
-  { id: 'medication-workbench', label: '合理用药规则', icon: 'clinical', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
   ...(analyticsEntryEnabled ? [{ id: 'analytics', label: '智能统计分析', icon: 'roadmap' as const, to: '/analytics', requiredAuthority: 'PORTAL.ACCESS' }] : []),
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
@@ -256,25 +255,35 @@ const NAVIGATION_NODES: NavigationNode[] = [
     ],
   },
   {
-    id: 'operations-config', label: '运营配置', icon: 'roadmap', children: [
+    id: 'center-master-data', label: '中心主数据', icon: 'clinical', children: [
       { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.MANAGE' },
-      { id: 'organization-catalog', label: '机构项目管理', icon: 'clinical', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
-      { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
-      { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
-      { id: 'dispense-routes', label: '发药药房设置', icon: 'pharmacy', to: '/settings/dispense-routes', requiredAuthority: 'PHARMACY_ROUTE.READ' },
+      { id: 'medication-workbench', label: '合理用药规则', icon: 'clinical', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
     ],
   },
   {
-    id: 'system-config', label: '系统配置', icon: 'settings', children: [
-      { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
-      { id: 'parameters', label: '参数管理', icon: 'settings', to: '/settings/parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
+    id: 'organization-operations', label: '机构运营维护', icon: 'roadmap', children: [
+      { id: 'organization-catalog', label: '机构项目管理', icon: 'clinical', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
+      { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
+      { id: 'dispense-routes', label: '发药药房设置', icon: 'pharmacy', to: '/settings/dispense-routes', requiredAuthority: 'PHARMACY_ROUTE.READ' },
+      { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
+    ],
+  },
+  {
+    id: 'business-config', label: '业务规则管理', icon: 'settings', children: [
+      { id: 'business-parameters', label: '业务参数配置', icon: 'settings', to: '/settings/business-parameters', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'print-templates', label: '打印模板', icon: 'print', to: '/settings/print-templates', requiredAuthority: 'CONFIGURATION.ACCESS' },
       { id: 'dictionaries', label: '字典管理', icon: 'settings', to: '/settings/dictionaries', requiredAuthority: 'DICTIONARY.ACCESS' },
-      { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
-      { id: 'announcements', label: '系统公告', icon: 'roadmap', to: '/settings/announcements', requiredAuthority: 'ANNOUNCEMENT.MANAGE' },
-      { id: 'presence', label: '在线用户', icon: 'user', to: '/settings/presence', requiredAuthority: 'PRESENCE.USER.READ' },
       { id: 'access-control', label: '角色与权限', icon: 'settings', to: '/settings/access-control', requiredAuthority: 'IAM.MANAGE' },
+      { id: 'announcements', label: '系统公告', icon: 'roadmap', to: '/settings/announcements', requiredAuthority: 'ANNOUNCEMENT.MANAGE' },
+    ],
+  },
+  {
+    id: 'platform-ops', label: '系统运行与运维', icon: 'sparkles', children: [
+      { id: 'ai-assistant', label: 'AI助理配置', icon: 'sparkles', to: '/settings/ai-assistant', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
+      { id: 'system-parameters', label: '系统运行参数', icon: 'settings', to: '/settings/system-parameters', requiredAuthority: 'AI_CONFIGURATION.MANAGE' },
+      { id: 'dictionary-attributes', label: '字典扩展配置', icon: 'settings', to: '/settings/dictionary-attributes', requiredAuthority: 'DICTIONARY_ATTRIBUTE.ACCESS' },
+      { id: 'presence', label: '在线用户', icon: 'user', to: '/settings/presence', requiredAuthority: 'PRESENCE.USER.READ' },
     ],
   },
 ]
@@ -376,6 +385,8 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }
   if (pathname === '/settings/dispense-routes') return { id: pathname, path: pathname, title: '发药药房设置', icon: 'pharmacy', closeable: true }
+  if (pathname === '/settings/business-parameters') return { id: pathname, path: pathname, title: '业务参数配置', icon: 'settings', closeable: true }
+  if (pathname === '/settings/system-parameters') return { id: pathname, path: pathname, title: '系统运行参数', icon: 'settings', closeable: true }
   if (pathname === '/settings/parameters') return { id: pathname, path: pathname, title: '参数管理', icon: 'settings', closeable: true }
   if (pathname === '/settings/print-templates') return { id: pathname, path: pathname, title: '打印模板', icon: 'print', closeable: true }
   if (pathname === '/settings/ai-assistant') return { id: pathname, path: pathname, title: 'AI助理配置', icon: 'sparkles', closeable: true }
@@ -553,7 +564,7 @@ export function AppShell() {
   useEffect(() => {
     if (!authenticated) return
     if (location.pathname === '/settings') {
-      navigate('/settings/parameters', { replace: true })
+      navigate('/settings/business-parameters', { replace: true })
       return
     }
     const nextTab = tabForPath(location.pathname)
@@ -958,6 +969,16 @@ export function AppShell() {
                     canManage={tabAuthorities.has('ORG_CATALOG.MANAGE') || tabAuthorities.has('ROLE_ADMIN')} />} />
                   <Route path="/settings/partners" element={<BusinessPartnerManagement api={tabSlot.api}
                     organization={tabSlot.clinicalContext.organization} />} />
+                  <Route path="/settings/business-parameters" element={<ParameterManagement api={tabSlot.api} fixedConfigType="BUSINESS" context={{
+                    tenantId: session.tenantId,
+                    organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,
+                    userId: session.userId,
+                  }} />} />
+                  <Route path="/settings/system-parameters" element={<ParameterManagement api={tabSlot.api} fixedConfigType="SYSTEM" context={{
+                    tenantId: session.tenantId,
+                    organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,
+                    userId: session.userId,
+                  }} />} />
                   <Route path="/settings/parameters" element={<ParameterManagement api={tabSlot.api} context={{
                     tenantId: session.tenantId,
                     organization: tabSlot.clinicalContext.organization, department: tabSlot.clinicalContext.department,

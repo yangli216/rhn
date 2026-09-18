@@ -32,8 +32,10 @@ class ServiceRequest {
     @Column(name = "CD_PRIORITY", nullable = false) private String priorityCode;
     @Column(name = "ID_CATALOG_ITEM", nullable = false) private Long catalogItemId;
     @Column(name = "ID_ITEM_PKG") private Long packageId;
-    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
-    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
+    @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
     @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
     @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
     @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
@@ -96,6 +98,8 @@ class ServiceRequest {
         this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId;
         this.performerDepartmentId = performerDepartmentId;
+        this.requestingOrganizationId = performerOrganizationId;
+        this.requestingDepartmentId = performerDepartmentId;
         this.businessDate = businessDate;
         this.authoredAt = Instant.now();
         this.authoredBy = authoredBy;
@@ -139,7 +143,10 @@ class ServiceRequest {
     String requestNo() { return requestNo; } String status() { return status; }
     Long catalogItemId() { return catalogItemId; } Long packageId() { return packageId; }
     Long performerOrganizationId() { return performerOrganizationId; }
-    Long performerDepartmentId() { return performerDepartmentId; } LocalDate businessDate() { return businessDate; }
+    Long performerDepartmentId() { return performerDepartmentId; }
+    Long requestingOrganizationId() { return requestingOrganizationId; }
+    Long requestingDepartmentId() { return requestingDepartmentId; }
+    LocalDate businessDate() { return businessDate; }
     Instant authoredAt() { return authoredAt; } Long authoredBy() { return authoredBy; } String reasonText() { return reasonText; }
     Instant cancelledAt() { return cancelledAt; } Long cancelledBy() { return cancelledBy; } String cancelReason() { return cancelReason; }
     String itemCodeSnapshot() { return itemCodeSnapshot; } String itemNameSnapshot() { return itemNameSnapshot; }

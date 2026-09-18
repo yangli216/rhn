@@ -640,7 +640,7 @@ export function OutpatientRegistrationWorkspace({ api, clinicalContext, onNaviga
 
   const numericTendered = Number(cashTendered)
   const cashChange = numericTendered >= feeBreakdown.payableAmount ? numericTendered - feeBreakdown.payableAmount : 0
-  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && (!cashTendered || isNaN(numericTendered) || numericTendered < feeBreakdown.payableAmount)
+  const isCashShort = selectedPaymentMethod === 'CASH' && feeBreakdown.payableAmount > 0 && Boolean(cashTendered) && (isNaN(numericTendered) || numericTendered < feeBreakdown.payableAmount)
 
   useEffect(() => {
     if (linkedResident.data) setSelected(linkedResident.data)

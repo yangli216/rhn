@@ -26,16 +26,40 @@ function setup(error = false) {
 describe('Standard medication catalog', () => {
   it('shows provenance and concentration without offering direct prescribing', async () => {
     setup()
-    await userEvent.click(await screen.findByRole('button',{name:'查看阿米卡星标准规格'}))
+    // 点击药品行触发查看，无需操作列按钮
+    await userEvent.click(await screen.findByText('阿米卡星'))
     expect(await screen.findByText('0.1 g / 1 mL')).toBeInTheDocument()
     expect(screen.getByText(/官方发布信息待核实/)).toBeInTheDocument()
     expect(screen.getByText('table:1/row:16')).toBeInTheDocument()
-    expect(screen.queryByRole('button',{name:'开药'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '开药' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: '操作' })).not.toBeInTheDocument()
   })
-  it('searches the reference catalog with the entered term', async () => {
+  it('does not query while typing and searches on enter or query button click', async () => {
     const api = setup()
-    await userEvent.type(screen.getByRole('searchbox'), '维生素B12')
-    expect(api.masterData.standardMedications).toHaveBeenLastCalledWith('维生素B12','','',0,20)
+    const input = screen.getByRole('searchbox')
+    // 输入文本但未回车或点击查询时，不应以新文本发起查询
+    await userEvent.type(input, '维生素B12')
+    expect(api.masterData.standardMedications).not.toHaveBeenLastCalledWith('维生素B12', '', '', 0, 20)
+
+    // 回车触发
+    await userEvent.type(input, '{enter}')
+    expect(api.masterData.standardMedications).toHaveBeenLastCalledWith('维生素B12', '', '', 0, 20)
+
+    // 清空并点击查询按钮触发
+    await userEvent.clear(input)
+    await userEvent.type(input, '青霉素')
+    await userEvent.click(screen.getByRole('button', { name: '查询标准药品' }))
+    expect(api.masterData.standardMedications).toHaveBeenLastCalledWith('青霉素', '', '', 0, 20)
+  })
+  it('triggers detail view upon clicking the table row directly', async () => {
+    setup()
+    // 点击行内药品名称文本，而非特意点击查看按钮
+    await userEvent.click(await screen.findByText('阿米卡星'))
+    expect(await screen.findByText('0.1 g / 1 mL')).toBeInTheDocument()
+    expect(screen.getByText('GEN-AMIKACIN')).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '剂型形态' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '规格说明' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: '强度语义' })).toBeInTheDocument()
   })
   it('shows a failed request instead of presenting it as an empty verified catalog', async () => {
     setup(true)

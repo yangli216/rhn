@@ -1,0 +1,74 @@
+- id: "A001"
+  category: "OUTPATIENT_VOLUME"
+  question: "本月各科室门诊挂号人次"
+  description: "统计本月所有授权科室的门诊挂号总人次"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_REGISTER_COUNT"
+    dimensions:
+      - "ENCOUNTER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A002"
+  category: "OUTPATIENT_VOLUME"
+  question: "今日门诊就诊人次"
+  description: "统计当天当前科室门诊登记就诊人次"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_ENCOUNTER_COUNT"
+    dimensions:
+      - "DAY"
+    period:
+      type: "FIXED"
+    scope: "CURRENT"
+
+- id: "A003"
+  category: "OUTPATIENT_VOLUME"
+  question: "上个月门诊诊毕人次按日趋势"
+  description: "统计上月已完成诊疗（诊毕）人次的日度时间序列"
+  expected:
+    status: "READY"
+    intent: "TREND"
+    metrics:
+      - "OP_COMPLETED_COUNT"
+    dimensions:
+      - "DAY"
+    period:
+      type: "LAST_MONTH"
+    scope: "CURRENT"
+
+- id: "A004"
+  category: "OUTPATIENT_VOLUME"
+  question: "本月门诊退号人次"
+  description: "统计本月门诊挂号队列中退号人次"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_CANCEL_REGISTER_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"
+
+- id: "A005"
+  category: "OUTPATIENT_VOLUME"
+  question: "近30天门诊就诊人次按月分布"
+  description: "统计最近30天门诊就诊人次在月度层面的汇总"
+  expected:
+    status: "READY"
+    intent: "DISTRIBUTION"
+    metrics:
+      - "OP_ENCOUNTER_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "LAST_30_DAYS"
+    scope: "CURRENT"

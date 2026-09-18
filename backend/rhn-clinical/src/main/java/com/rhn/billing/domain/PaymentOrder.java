@@ -16,6 +16,8 @@ public class PaymentOrder {
     @Id @Column(name = "ID_PAY_ORDER") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "ID_INVOICE", nullable = false) private Long invoiceId;
     @Column(name = "ID_PAY_ORIGINAL") private Long originalPaymentId;
@@ -48,7 +50,7 @@ public class PaymentOrder {
                         String paymentMethodCode, String paymentMethodNameSnapshot, BigDecimal requestedAmount,
                         String currencyCode, String correlationId, String terminalCode, Instant expiresAt,
                         Long createdBy) {
-        this(tenantId, patientAccountId, invoiceId, null, orderNo, idempotencyKey, businessScene,
+        this(tenantId, 1L, 1L, patientAccountId, invoiceId, null, orderNo, idempotencyKey, businessScene,
                 paymentSceneCode, paymentMethodCode, paymentMethodNameSnapshot, "SETTLEMENT_PAY",
                 requestedAmount, currencyCode, correlationId, terminalCode, expiresAt, createdBy);
     }
@@ -58,7 +60,20 @@ public class PaymentOrder {
                         String paymentMethodCode, String paymentMethodNameSnapshot, String orderType,
                         BigDecimal requestedAmount, String currencyCode, String correlationId,
                         String terminalCode, Instant expiresAt, Long createdBy) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.patientAccountId = patientAccountId;
+        this(tenantId, 1L, 1L, patientAccountId, invoiceId, originalPaymentId, orderNo, idempotencyKey,
+                businessScene, paymentSceneCode, paymentMethodCode, paymentMethodNameSnapshot, orderType,
+                requestedAmount, currencyCode, correlationId, terminalCode, expiresAt, createdBy);
+    }
+
+    public PaymentOrder(Long tenantId, Long organizationId, Long departmentId,
+                        Long patientAccountId, Long invoiceId, Long originalPaymentId,
+                        String orderNo, String idempotencyKey, String businessScene, String paymentSceneCode,
+                        String paymentMethodCode, String paymentMethodNameSnapshot, String orderType,
+                        BigDecimal requestedAmount, String currencyCode, String correlationId,
+                        String terminalCode, Instant expiresAt, Long createdBy) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.patientAccountId = patientAccountId;
         this.invoiceId = invoiceId; this.originalPaymentId = originalPaymentId;
         this.orderNo = orderNo; this.idempotencyKey = idempotencyKey;
         this.businessScene = businessScene; this.paymentSceneCode = paymentSceneCode;
@@ -88,6 +103,8 @@ public class PaymentOrder {
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
     public Long invoiceId() { return invoiceId; }
     public Long originalPaymentId() { return originalPaymentId; }

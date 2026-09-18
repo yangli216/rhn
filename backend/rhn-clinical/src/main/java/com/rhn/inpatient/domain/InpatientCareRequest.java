@@ -25,8 +25,10 @@ public class InpatientCareRequest {
     @Column(name = "SD_REQ_KIND", nullable = false) private String requestKind;
     @Column(name = "SD_STATUS", nullable = false) private String status;
     @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
-    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
-    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
+    @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
     @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
     @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
     @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
@@ -80,6 +82,8 @@ public class InpatientCareRequest {
     public Long catalogItemId() { return catalogItemId; }
     public Long performerOrganizationId() { return performerOrganizationId; }
     public Long performerDepartmentId() { return performerDepartmentId; }
+    public Long requestingOrganizationId() { return requestingOrganizationId; }
+    public Long requestingDepartmentId() { return requestingDepartmentId; }
     public Instant authoredAt() { return authoredAt; }
     public Long authoredBy() { return authoredBy; }
     public String reasonText() { return reasonText; }

@@ -94,7 +94,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         requireInpatient(account);
         Instant paidAt = command.paidAt() == null ? Instant.now() : command.paidAt();
         Payment payment = payments.save(new Payment(
-                command.tenantId(), account.id(), null, null, command.paymentNo(), "PAYMENT",
+                command.tenantId(), account.organizationId(), account.departmentId(),
+                account.id(), null, null, command.paymentNo(), "PAYMENT",
                 command.paymentMethodCode(), DEPOSIT_SCENE, money(command.amount()), command.currencyCode(), paidAt,
                 command.externalTransactionNo(), null, command.actorId(), command.description()));
         ledger.save(new LedgerEntry(command.tenantId(), account.id(), "PAYMENT", "CREDIT", money(command.amount()),
@@ -117,7 +118,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         BigDecimal unitPrice = money(command.unitPrice());
         BigDecimal amount = money(command.totalAmount());
         ChargeItem charge = charges.save(new ChargeItem(
-                command.tenantId(), account.id(), command.residentId(), command.encounterId(), command.requestId(),
+                command.tenantId(), command.organizationId(), command.departmentId(),
+                account.id(), command.residentId(), command.encounterId(), command.requestId(),
                 command.catalogItemId(), EXECUTION_SOURCE, command.taskId(),
                 command.requestNo() + "-" + command.occurrenceNo(), quantity, command.unitCode(), unitPrice, amount,
                 command.currencyCode(), command.priceId(), command.priceRevision(), command.priceType(),
@@ -144,7 +146,8 @@ public class JpaInpatientBillingDirectory implements InpatientBillingDirectory {
         BigDecimal quantity = BigDecimal.ONE;
         BigDecimal unitPrice = money(command.unitPrice());
         ChargeItem charge = charges.save(new ChargeItem(
-                command.tenantId(), account.id(), command.residentId(), command.encounterId(), null,
+                command.tenantId(), command.organizationId(), command.departmentId(),
+                account.id(), command.residentId(), command.encounterId(), null,
                 command.catalogItemId(), BED_DAY_SOURCE, command.bedDayFactId(),
                 "BED-DAY-" + command.bedDayFactId(), quantity, "床日", unitPrice, unitPrice,
                 command.currencyCode(), command.priceId(), command.priceRevision(), command.priceType(),

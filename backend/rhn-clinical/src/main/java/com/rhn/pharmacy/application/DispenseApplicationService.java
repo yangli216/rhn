@@ -182,7 +182,9 @@ public class DispenseApplicationService {
         if (reserved.compareTo(baseRequired) < 0) {
             throw conflict("MEDICATION_DISPENSE_RESERVATION_INSUFFICIENT", "有效预留余量不足，不能完成本次发药");
         }
-        MedicationDispense event = dispenseRepository.save(new MedicationDispense(context.tenantId(), task.id(),
+        Long deptId = site.departmentId() != null ? site.departmentId() : 1L;
+        MedicationDispense event = dispenseRepository.save(new MedicationDispense(context.tenantId(),
+                site.organizationId(), deptId, task.id(),
                 task.residentId(), task.encounterId(), site.id(), null, requestCode, "DISPENSE", occurredAt,
                 input.dispenserPractitionerId(), context.subjectId(), input.dispenserAssignmentId(),
                 input.checkerPractitionerId(), input.checkerPractitionerId() == null ? null : context.subjectId(),
@@ -303,7 +305,9 @@ public class DispenseApplicationService {
             }
             total = total.add(quantity);
         }
-        MedicationDispense returnEvent = dispenseRepository.save(new MedicationDispense(context.tenantId(), task.id(),
+        Long returnDeptId = site.departmentId() != null ? site.departmentId() : original.departmentId();
+        MedicationDispense returnEvent = dispenseRepository.save(new MedicationDispense(context.tenantId(),
+                site.organizationId(), returnDeptId, task.id(),
                 task.residentId(), task.encounterId(), site.id(), original.id(), returnNo, "RETURN", occurredAt,
                 input.processorPractitionerId(), context.subjectId(), input.processorAssignmentId(), null, null,
                 null, total, original.operationUnitCode(), clean(input.description())));

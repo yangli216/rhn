@@ -16,9 +16,12 @@ class ClinicalObservationService implements ClinicalObservationDirectory {
     static final String UNIT = "mm[Hg]";
 
     private final ObservationRepository repository;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
-    ClinicalObservationService(ObservationRepository repository) {
+    ClinicalObservationService(ObservationRepository repository,
+                               org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.repository = repository;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -36,8 +39,21 @@ class ClinicalObservationService implements ClinicalObservationDirectory {
 
     private Observation numeric(BloodPressureCommand command, String code, String name, BigDecimal value,
                                 String performerCode) {
-        return new Observation(command.tenantId(), command.residentId(), command.encounterId(), LOINC_URI,
-                null, code, name, "FINAL", "NUMBER", command.effectiveAt(), null, value,
+        Long orgId = 1L;
+        Long deptId = 1L;
+        if (command.encounterId() != null) {
+            java.util.List<java.util.Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "select ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
+                    command.tenantId(), command.encounterId());
+            if (!rows.isEmpty()) {
+                java.util.Map<String, Object> r = rows.get(0);
+                if (r.get("ID_ORG") != null) orgId = ((Number) r.get("ID_ORG")).longValue();
+                if (r.get("ID_DEPT") != null) deptId = ((Number) r.get("ID_DEPT")).longValue();
+            }
+        }
+        return new Observation(command.tenantId(), command.residentId(), command.encounterId(),
+                orgId, deptId,
+                LOINC_URI, null, code, name, "FINAL", "NUMBER", command.effectiveAt(), null, value,
                 null, null, null, UNIT, null, null, null, performerCode, command.performerName());
     }
 }

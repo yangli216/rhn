@@ -6,6 +6,7 @@ import com.rhn.quality.medication.domain.MedicationSafetyFinding;
 import com.rhn.quality.medication.domain.RuleVersion;
 import com.rhn.quality.medication.domain.rule.MedicationSafetyRule;
 import com.rhn.quality.medication.domain.rule.MissingSafetyDataException;
+import com.rhn.shared.json.JsonCodec;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -23,7 +24,29 @@ public final class MedicationSafetyEngine {
         if (rules.isEmpty()) throw new IllegalArgumentException("A safety engine needs at least one rule");
     }
 
+    /** One centrally defined runtime catalog is shared by production review and workbench validation. */
+    public static MedicationSafetyEngine standard(JsonCodec json) {
+        return new MedicationSafetyEngine(List.of(
+                new com.rhn.quality.medication.domain.rule.DuplicateMedicationRule(),
+                new com.rhn.quality.medication.domain.rule.AntimicrobialOutpatientRule(json),
+                new com.rhn.quality.medication.domain.rule.DrugAllergyRule(json),
+                new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
+                new com.rhn.quality.medication.domain.rule.NsaidDuplicateRule(json),
+                new com.rhn.quality.medication.domain.rule.AgeContraindicationRule(json),
+                new com.rhn.quality.medication.domain.rule.DisulfiramInteractionRule(json)));
+    }
+
     public Result evaluate(PrescriptionSafetySnapshot input, List<RuleVersion> versions, Instant time) {
+        return evaluate(input, versions, time, true);
+    }
+
+    /** Workbench-only entry point: validates a non-empty subset without weakening production completeness checks. */
+    public Result evaluateSelected(PrescriptionSafetySnapshot input, List<RuleVersion> versions, Instant time) {
+        return evaluate(input, versions, time, false);
+    }
+
+    private Result evaluate(PrescriptionSafetySnapshot input, List<RuleVersion> versions, Instant time,
+                            boolean requireCompleteRuleSet) {
         var findings = new ArrayList<MedicationSafetyFinding>();
         var executions = new ArrayList<MedicationSafetyDecision.RuleExecution>();
         var failures = new ArrayList<String>();
@@ -33,7 +56,10 @@ public final class MedicationSafetyEngine {
             return new Result(List.of(), List.of(), List.of("INPUT_UNSUPPORTED"));
         }
         var codes = versions.stream().map(version -> version.definition().code()).toList();
-        if (codes.isEmpty() || codes.size() != codes.stream().distinct().count() || !rules.keySet().equals(java.util.Set.copyOf(codes))) {
+        var selectedCodes = java.util.Set.copyOf(codes);
+        if (codes.isEmpty() || codes.size() != codes.stream().distinct().count()
+                || !rules.keySet().containsAll(selectedCodes)
+                || requireCompleteRuleSet && !rules.keySet().equals(selectedCodes)) {
             return new Result(List.of(), List.of(), List.of("RULE_SET_INCOMPLETE"));
         }
         for (var version : versions.stream().sorted(java.util.Comparator.comparing(v -> v.definition().code())).toList()) {

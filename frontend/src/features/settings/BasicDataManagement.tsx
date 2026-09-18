@@ -160,8 +160,10 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   </>
 
   return <div className="master-data-page">
-    <PageHeader compact eyebrow="平台管理 · 临床主数据" title="基础数据中心"
-      description="统一维护疾病术语、诊疗项目与药品四层目录。" />
+    <PageHeader compact eyebrow="中心治理 · 标准主数据" title="基础数据中心"
+      description="统一维护集团/区域共享的疾病诊断术语、诊疗服务目录主档、通用药品知识库与医用耗材标准；机构开展项目与本院定价请至「机构项目管理」维护。"
+      actions={<Button variant="secondary" onClick={() => onNavigate('/settings/organization-catalog')}>
+        <Icon name="clinical" />前往机构项目管理</Button>} />
 
     {feedback && <Alert tone="success" className="master-data-feedback">{feedback}</Alert>}
     {(operationError || currentError) && <Alert className="master-data-feedback">

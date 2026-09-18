@@ -73,7 +73,10 @@ public class InpatientCareRequestStore {
                 .addValue("residentId", input.residentId()).addValue("encounterId", input.encounterId())
                 .addValue("requestNo", nextRequestNo()).addValue("requestKind", requestKind)
                 .addValue("catalogItemId", resolved.catalogItemId()).addValue("organizationId", input.organizationId())
-                .addValue("departmentId", performerDepartmentId).addValue("businessDate", businessDate)
+                .addValue("departmentId", performerDepartmentId)
+                .addValue("requestingOrganizationId", input.organizationId())
+                .addValue("requestingDepartmentId", input.departmentId())
+                .addValue("businessDate", businessDate)
                 .addValue("authoredAt", now.atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("actorId", input.actorId())
                 .addValue("reason", trim(input.instructions())).addValue("itemCode", resolved.itemCode())
@@ -91,7 +94,7 @@ public class InpatientCareRequestStore {
                 insert into RHN_EX_CARE_REQ (
                     ID_CARE_REQ, REVISION, ID_TNT, ID_PAT, ID_ENC, CD_REQ_NO, SD_REQ_KIND,
                     SD_STATUS, CD_INTENT, CD_PRIORITY, ID_CATALOG_ITEM, ID_ITEM_PKG,
-                    ID_ORG_PERFORMER, ID_DEPT_PERFORMER, DA_BUSINESS, DT_AUTHORED,
+                    ID_ORG_EXEC, ID_DEPT_EXEC, ID_ORG_REQ, ID_DEPT_REQ, DA_BUSINESS, DT_AUTHORED,
                     ID_USER_AUTHORED, DES_REASON, DT_CANCELLED, ID_USER_CANCELLED, DES_CANCEL_REASON,
                     CD_ITEM_SNAP, NA_ITEM_SNAP, CD_UNIT_SNAP,
                     CD_LOCAL_SNAP, NA_LOCAL_SNAP, ID_ORG_CATALOG_ITEM_ADOPTION, SN_ADOPTION_VER,
@@ -101,7 +104,7 @@ public class InpatientCareRequestStore {
                 ) values (
                     :id, 0, :tenantId, :residentId, :encounterId, :requestNo, :requestKind,
                     'DRAFT', 'ORDER', 'ROUTINE', :catalogItemId, null,
-                    :organizationId, :departmentId, :businessDate, :authoredAt,
+                    :organizationId, :departmentId, :requestingOrganizationId, :requestingDepartmentId, :businessDate, :authoredAt,
                     :actorId, :reason, null, null, null,
                     :itemCode, :itemName, :unitCode,
                     :localCode, :localName, :adoptionId, :adoptionRevision,

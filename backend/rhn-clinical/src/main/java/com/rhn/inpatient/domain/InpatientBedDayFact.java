@@ -14,6 +14,8 @@ import java.time.LocalDate;
 public class InpatientBedDayFact {
     @Id @Column(name = "ID_INP_BED_DAY_FACT") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_CARE_EPISODE", nullable = false) private Long episodeId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_ENC_LOC_HIST", nullable = false) private Long locationHistoryId;
@@ -29,8 +31,18 @@ public class InpatientBedDayFact {
     public InpatientBedDayFact(Long tenantId, Long episodeId, Long encounterId,
                                Long locationHistoryId, Long bedLocationId, LocalDate businessDate,
                                String commandCode, Long actorId) {
+        this(tenantId, 1L, 1L, episodeId, encounterId, locationHistoryId, bedLocationId,
+                businessDate, commandCode, actorId);
+    }
+
+    public InpatientBedDayFact(Long tenantId, Long organizationId, Long departmentId,
+                               Long episodeId, Long encounterId,
+                               Long locationHistoryId, Long bedLocationId, LocalDate businessDate,
+                               String commandCode, Long actorId) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
+        this.organizationId = organizationId;
+        this.departmentId = departmentId;
         this.episodeId = episodeId;
         this.encounterId = encounterId;
         this.locationHistoryId = locationHistoryId;
@@ -43,6 +55,8 @@ public class InpatientBedDayFact {
 
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long episodeId() { return episodeId; }
     public Long encounterId() { return encounterId; }
     public Long locationHistoryId() { return locationHistoryId; }

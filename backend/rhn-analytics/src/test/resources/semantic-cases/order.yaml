@@ -1,0 +1,74 @@
+- id: "A014"
+  category: "ORDER"
+  question: "本月各科室门诊有效医嘱数"
+  description: "统计本月门诊各开立科室处于有效状态(ACTIVE)的医嘱总条数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_ACTIVE_ORDER_COUNT"
+    dimensions:
+      - "ORDER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A015"
+  category: "ORDER"
+  question: "本月各科室有效药品医嘱条数"
+  description: "统计本月门诊各科室处于有效状态(ACTIVE)且类别为药品(MEDICATION)的医嘱条数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_ACTIVE_DRUG_ORDER_COUNT"
+    dimensions:
+      - "ORDER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A016"
+  category: "ORDER"
+  question: "本月门诊检查检验服务医嘱数"
+  description: "统计本月门诊服务类（检查、检验及其他非药品）有效医嘱条数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_ACTIVE_SERVICE_ORDER_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"
+
+- id: "A017"
+  category: "ORDER"
+  question: "上个月门诊取消医嘱条数"
+  description: "统计上月被作废/撤销状态(CANCELLED)的门诊医嘱条数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_CANCELLED_ORDER_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "LAST_MONTH"
+    scope: "CURRENT"
+
+- id: "A018"
+  category: "ORDER"
+  question: "本月门诊医嘱按医嘱类别分布"
+  description: "统计本月门诊医嘱在药品医嘱与服务医嘱两个类别的条数构成"
+  expected:
+    status: "READY"
+    intent: "DISTRIBUTION"
+    metrics:
+      - "OP_ACTIVE_ORDER_COUNT"
+    dimensions:
+      - "ORDER_TYPE"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"

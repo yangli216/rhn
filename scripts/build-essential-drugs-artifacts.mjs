@@ -9,8 +9,10 @@ const jsonPath = path.join(root, "docs/essential-drugs/legacy/essential_drugs_20
 const csvPath = path.join(root, "output/essential-drugs-legacy/国家基本药物目录（2026年版）_药品基本信息导入表.csv");
 const pgSqlPath = path.join(root, "output/essential-drugs-legacy/postgresql/V1_47_0__national_essential_medications_2026.sql");
 const oraSqlPath = path.join(root, "output/essential-drugs-legacy/oracle/V1_47_0__national_essential_medications_2026.sql");
+const backendPgSqlPath = path.join(root, "backend/src/main/resources/db/migration/V1_47_0__national_essential_medications_2026.sql");
+const backendOraSqlPath = path.join(root, "backend/src/main/resources/db/oracle/V1_47_0__national_essential_medications_2026.sql");
 
-for (const output of [csvPath, pgSqlPath, oraSqlPath]) fs.mkdirSync(path.dirname(output), { recursive: true });
+for (const output of [csvPath, pgSqlPath, oraSqlPath, backendPgSqlPath, backendOraSqlPath]) fs.mkdirSync(path.dirname(output), { recursive: true });
 
 const catalogData = JSON.parse(fs.readFileSync(jsonPath, "utf8"));
 const flatItems = catalogData.flatItems;
@@ -557,12 +559,16 @@ for (let i = 0; i < items.length; i++) {
   }
 
   oraLines.push(`merge into RHN_BD_ITEM_ATTR_SUBJECT t using (select ${subjectId} as ID_ITEM_ATTR_SUBJECT from dual) s on (t.ID_ITEM_ATTR_SUBJECT = s.ID_ITEM_ATTR_SUBJECT)`);
-  oraLines.push(`when not matched then insert (ID_ITEM_ATTR_SUBJECT, ID_TNT, CD_SUBJECT_TYPE, CD_SUBJECT_KEY, ID_SUBJECT_ROOT, ID_MED_REF, ID_ITEM_PRODUCT_REF, ID_ITEM_PACKAGE_REF, DT_CREATED, ID_USER_CREATED) values (${subjectId}, ${tenantId}, 'MEDICATION', 'TENANT:${tenantId}/MEDICATION:${medId}', null, ${medId}, null, null, timestamp '2026-01-01 00:00:00', ${userId});`);
+  oraLines.push(`when not matched then insert (ID_ITEM_ATTR_SUBJECT, ID_TNT, SD_SUBJECT_TYPE, CD_SUBJECT_KEY, ID_ITEM_MASTER, ID_MED, ID_CATALOG_ITEM, ID_SVC_VAR, DT_CREATED, ID_USER_CREATED) values (${subjectId}, ${tenantId}, 'MEDICATION', 'TENANT:${tenantId}/MEDICATION:${medId}', null, ${medId}, null, null, timestamp '2026-01-01 00:00:00', ${userId});`);
 }
 
-fs.writeFileSync(pgSqlPath, pgLines.join("\n"), "utf8");
-console.log(`Generated PostgreSQL migration at: ${pgSqlPath}`);
+const pgSqlContent = pgLines.join("\n");
+fs.writeFileSync(pgSqlPath, pgSqlContent, "utf8");
+fs.writeFileSync(backendPgSqlPath, pgSqlContent, "utf8");
+console.log(`Generated PostgreSQL migration at: ${pgSqlPath} and ${backendPgSqlPath}`);
 
-fs.writeFileSync(oraSqlPath, oraLines.join("\n"), "utf8");
-console.log(`Generated Oracle migration at: ${oraSqlPath}`);
+const oraSqlContent = oraLines.join("\n");
+fs.writeFileSync(oraSqlPath, oraSqlContent, "utf8");
+fs.writeFileSync(backendOraSqlPath, oraSqlContent, "utf8");
+console.log(`Generated Oracle migration at: ${oraSqlPath} and ${backendOraSqlPath}`);
 console.log("All essential drug artifacts generated successfully.");

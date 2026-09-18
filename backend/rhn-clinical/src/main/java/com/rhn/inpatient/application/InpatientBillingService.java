@@ -389,7 +389,8 @@ public class InpatientBillingService {
                 continue;
             }
             InpatientBedDayFact fact = bedDays.saveAndFlush(new InpatientBedDayFact(
-                    context.tenantId(), inpatient.episode().id(), inpatient.encounter().id(), history.id(),
+                    context.tenantId(), inpatient.episode().organizationId(), inpatient.encounter().departmentId(),
+                    inpatient.episode().id(), inpatient.encounter().id(), history.id(),
                     history.locationId(), date, dayCommand, context.subjectId()));
             BigDecimal price = money(pricing.price().price());
             billing.postBedDay(new InpatientBillingDirectory.BedDayChargeCommand(

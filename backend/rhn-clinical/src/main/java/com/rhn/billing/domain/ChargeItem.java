@@ -14,6 +14,8 @@ import java.time.Instant;
 public class ChargeItem {
     @Id @Column(name = "ID_CHARGE_ITEM") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
@@ -46,7 +48,22 @@ public class ChargeItem {
                       String currencyCode, Long priceId, Long priceRevision, String priceType,
                       String itemCodeSnapshot, String itemNameSnapshot, Instant occurredAt,
                       Long enteredBy, Long reversesChargeItemId) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.patientAccountId = patientAccountId;
+        this(tenantId, null, null, patientAccountId, residentId, encounterId, requestId,
+                catalogItemId, sourceType, sourceId, requestCode, quantity, unitCode, unitPrice, totalAmount,
+                currencyCode, priceId, priceRevision, priceType, itemCodeSnapshot, itemNameSnapshot, occurredAt,
+                enteredBy, reversesChargeItemId);
+    }
+
+    public ChargeItem(Long tenantId, Long organizationId, Long departmentId,
+                      Long patientAccountId, Long residentId, Long encounterId, Long requestId,
+                      Long catalogItemId, String sourceType, Long sourceId, String requestCode,
+                      BigDecimal quantity, String unitCode, BigDecimal unitPrice, BigDecimal totalAmount,
+                      String currencyCode, Long priceId, Long priceRevision, String priceType,
+                      String itemCodeSnapshot, String itemNameSnapshot, Instant occurredAt,
+                      Long enteredBy, Long reversesChargeItemId) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.patientAccountId = patientAccountId;
         this.residentId = residentId; this.encounterId = encounterId; this.requestId = requestId;
         this.catalogItemId = catalogItemId; this.sourceType = sourceType; this.sourceId = sourceId;
         this.requestCode = requestCode; this.status = "POSTED"; this.quantity = quantity;
@@ -64,8 +81,15 @@ public class ChargeItem {
         this.encounterId = encounterId;
     }
 
+    public void bindOrganizationAndDepartment(Long organizationId, Long departmentId) {
+        if (this.organizationId == null) this.organizationId = organizationId;
+        if (this.departmentId == null) this.departmentId = departmentId;
+    }
+
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
     public Long residentId() { return residentId; }
     public Long encounterId() { return encounterId; }

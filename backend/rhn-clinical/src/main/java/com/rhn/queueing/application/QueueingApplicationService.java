@@ -101,7 +101,9 @@ public class QueueingApplicationService implements QueueingDirectory {
         int sequence = counter.take();
         Instant now = Instant.now();
         String ticketCode = queue.ticketPrefix() + "%03d".formatted(sequence);
-        QueueTicket ticket = tickets.save(new QueueTicket(context.tenantId(), queue.id(), input.residentId(),
+        QueueTicket ticket = tickets.save(new QueueTicket(context.tenantId(),
+                queue.organizationId(), queue.departmentId(),
+                queue.id(), input.residentId(),
                 input.encounterId(), sourceType, input.sourceId(), commandCode, businessDate, ticketCode,
                 sequence, Math.max(0, input.priority()), input.ready(), now));
         events.save(new QueueTicketEvent(context.tenantId(), ticket.id(), "CHECKED_IN", null, "WAITING",

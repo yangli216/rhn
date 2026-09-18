@@ -36,6 +36,11 @@ class MedicationWorkbenchShadowTest {
         when(json.read("historical",MedicationSnapshot.class)).thenReturn(saved);
         when(json.write(any())).thenReturn("serialized historical prescription");
         var service=new MedicationWorkbenchService(ai,knowledge,directory,contexts,store,json);
+        var preview=service.prescriptionPreview(new ShadowRequest(30L,20L));
+        assertEquals(20L,preview.prescriptionId());
+        assertEquals(1,preview.items().size());
+        assertEquals("历史药品",preview.items().getFirst().medicationName());
+        assertEquals(new BigDecimal("5"),preview.items().getFirst().durationDays());
         var run=service.shadow(10L,new ShadowRequest(30L,20L));
         assertEquals("HIS_SHADOW",run.mode());assertEquals("WARN",run.cases().getFirst().actual());
         assertTrue(run.cases().getFirst().reasons().getFirst().contains("3 天"));

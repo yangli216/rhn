@@ -1,0 +1,500 @@
+version: "1.0.0"
+domain: "OUTPATIENT"
+name: "门诊业务领域语义与数据关系网"
+description: "包含门诊挂号、就诊、处方医嘱、记账费用、确诊记录及科室主数据的业务实体、维度属性与指标口径定义。"
+
+entities:
+  - code: "PATIENT"
+    name: "患者"
+    description: "医院注册患者主数据档案"
+    primaryKey: "ID_PAT"
+    grain: "PATIENT_RECORD"
+
+  - code: "ENCOUNTER"
+    name: "门诊就诊"
+    description: "患者单次挂号就诊会话"
+    primaryKey: "ID_ENC"
+    grain: "ENCOUNTER_VISIT"
+
+  - code: "DIAGNOSIS"
+    name: "门诊诊断"
+    description: "门诊就诊过程中录入的确诊记录明细"
+    primaryKey: "ID_ENC_DIAG"
+    grain: "DIAGNOSIS_ENTRY"
+
+  - code: "ORDER"
+    name: "门诊医嘱"
+    description: "门诊医生开立的药品或诊疗服务医嘱明细"
+    primaryKey: "ID_CARE_REQ"
+    grain: "CARE_REQUEST"
+
+  - code: "CHARGE"
+    name: "门诊记账费用"
+    description: "门诊就诊及医嘱产生的已记账费用明细（含冲销）"
+    primaryKey: "ID_CHARGE_ITEM"
+    grain: "CHARGE_ITEM"
+
+  - code: "PRESCRIPTION"
+    name: "门诊处方"
+    description: "门诊处方单单据"
+    primaryKey: "ID_PRESC"
+    grain: "PRESCRIPTION_RECORD"
+
+  - code: "DEPARTMENT"
+    name: "科室主数据"
+    description: "医院科室主数据（含临床诊疗、医技、行政后勤、药库等性质）"
+    primaryKey: "ID_DEPT"
+    grain: "DEPARTMENT_RECORD"
+
+relationships:
+  - from: "PATIENT"
+    to: "ENCOUNTER"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_PAT"
+        to: "ID_PAT"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "ENCOUNTER"
+    to: "DIAGNOSIS"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_ENC"
+        to: "ID_ENC"
+    aggregationSafe: true
+    fanoutRisk: true
+
+  - from: "ENCOUNTER"
+    to: "ORDER"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_ENC"
+        to: "ID_ENC"
+    aggregationSafe: true
+    fanoutRisk: true
+
+  - from: "ORDER"
+    to: "CHARGE"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_CARE_REQ"
+        to: "ID_CARE_REQ"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "ENCOUNTER"
+    to: "CHARGE"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_ENC"
+        to: "ID_ENC"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "ENCOUNTER"
+    to: "PRESCRIPTION"
+    cardinality: "ONE_TO_MANY"
+    conditions:
+      - from: "ID_ENC"
+        to: "ID_ENC"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "ENCOUNTER"
+    to: "DEPARTMENT"
+    cardinality: "MANY_TO_ONE"
+    conditions:
+      - from: "ID_DEPT"
+        to: "ID_DEPT"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "ORDER"
+    to: "DEPARTMENT"
+    cardinality: "MANY_TO_ONE"
+    conditions:
+      - from: "ID_DEPT"
+        to: "ID_DEPT"
+    aggregationSafe: true
+    fanoutRisk: false
+
+  - from: "CHARGE"
+    to: "DEPARTMENT"
+    cardinality: "MANY_TO_ONE"
+    conditions:
+      - from: "ID_DEPT"
+        to: "ID_DEPT"
+    aggregationSafe: true
+    fanoutRisk: false
+
+dimensions:
+  - code: "DAY"
+    name: "按日"
+    aliases: ["按天", "日期", "每天", "日趋势", "日"]
+    entity: "DATE"
+    field: "DATE"
+    grain: "DAY"
+    compatibleMetrics: []
+
+  - code: "MONTH"
+    name: "按月"
+    aliases: ["月份", "按月份", "每月", "月趋势", "月"]
+    entity: "DATE"
+    field: "MONTH"
+    grain: "MONTH"
+    compatibleMetrics: []
+
+  - code: "ENCOUNTER_DEPARTMENT"
+    name: "就诊科室"
+    aliases: ["科室", "挂号科室", "接诊科室", "就诊部门", "各科室", "诊疗科室", "临床科室"]
+    entity: "ENCOUNTER"
+    field: "ID_DEPT"
+    grain: "DEPARTMENT"
+    compatibleMetrics: []
+    attributes:
+      - code: "dept_type"
+        name: "科室类型"
+        aliases: ["类型", "性质", "类别", "科室性质", "部门类型"]
+        physicalColumn: "SD_DEPT_TYPE"
+        valueAliases:
+          CLINICAL: ["诊疗科室", "临床科室", "诊疗", "临床", "门诊科室"]
+          MEDICAL_TECH: ["医技科室", "医技"]
+          ADMINISTRATIVE: ["行政科室", "行政", "职能科室"]
+          PHARMACY: ["药房", "药库", "药剂科"]
+
+  - code: "ORDER_DEPARTMENT"
+    name: "开立科室"
+    aliases: ["医嘱科室", "开立部门", "开单科室", "开立科室"]
+    entity: "ORDER"
+    field: "ID_DEPT"
+    grain: "DEPARTMENT"
+    compatibleMetrics: []
+    attributes:
+      - code: "dept_type"
+        name: "科室类型"
+        aliases: ["类型", "性质", "类别", "科室性质", "部门类型"]
+        physicalColumn: "SD_DEPT_TYPE"
+        valueAliases:
+          CLINICAL: ["诊疗科室", "临床科室", "诊疗", "临床", "门诊科室"]
+          MEDICAL_TECH: ["医技科室", "医技"]
+          ADMINISTRATIVE: ["行政科室", "行政", "职能科室"]
+          PHARMACY: ["药房", "药库", "药剂科"]
+
+  - code: "CHARGE_DEPARTMENT"
+    name: "收费科室"
+    aliases: ["记账科室", "费用科室", "核算科室"]
+    entity: "CHARGE"
+    field: "ID_DEPT"
+    grain: "DEPARTMENT"
+    compatibleMetrics: []
+    attributes:
+      - code: "dept_type"
+        name: "科室类型"
+        aliases: ["类型", "性质", "类别", "科室性质", "部门类型"]
+        physicalColumn: "SD_DEPT_TYPE"
+        valueAliases:
+          CLINICAL: ["诊疗科室", "临床科室", "诊疗", "临床", "门诊科室"]
+          MEDICAL_TECH: ["医技科室", "医技"]
+          ADMINISTRATIVE: ["行政科室", "行政", "职能科室"]
+          PHARMACY: ["药房", "药库", "药剂科"]
+
+  - code: "ORDER_TYPE"
+    name: "医嘱类别"
+    aliases: ["医嘱类型", "医嘱分类"]
+    entity: "ORDER"
+    field: "SD_REQ_KIND"
+    grain: "ORDER_KIND"
+    compatibleMetrics: []
+
+  - code: "ITEM"
+    name: "项目"
+    aliases: ["收费项目", "医嘱项目", "药品服务项目"]
+    entity: "ITEM"
+    field: "ID_CATALOG_ITEM"
+    grain: "CATALOG_ITEM"
+    compatibleMetrics: []
+
+  - code: "DIAGNOSIS"
+    name: "诊断"
+    aliases: ["疾病", "诊断名称", "疾病诊断"]
+    entity: "DIAGNOSIS"
+    field: "CD_ENC_DIAG"
+    grain: "DIAGNOSIS_TERM"
+    compatibleMetrics: []
+
+  - code: "STATUS"
+    name: "状态"
+    aliases: ["业务状态", "执行状态"]
+    entity: "STATUS"
+    field: "SD_STATUS"
+    grain: "STATUS_CODE"
+    compatibleMetrics: []
+
+metrics:
+  - code: "OP_REGISTER_COUNT"
+    name: "门诊挂号人次"
+    aliases: ["挂号人次", "挂号数", "门诊挂号量", "挂号总量"]
+    description: "统计门诊就诊登记记录总数，每次就诊一行，包含所有就诊状态。不按患者去重。"
+    domain: "OUTPATIENT"
+    source: "ENCOUNTER"
+    field: "encounterId"
+    aggregate: "COUNT"
+    grain: "ENCOUNTER_VISIT"
+    defaultFilters: []
+    timeDimension: "DT_REGISTERED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "STATUS"]
+    forbiddenMeanings: ["去重人数", "实际就诊人数"]
+
+  - code: "OP_ENCOUNTER_COUNT"
+    name: "门诊就诊人次"
+    aliases: ["就诊人次", "就诊量", "门诊量", "看病人次"]
+    description: "统计门诊有效就诊会话总人次，排除已退号记录。"
+    domain: "OUTPATIENT"
+    source: "ENCOUNTER"
+    field: "encounterId"
+    aggregate: "COUNT"
+    grain: "ENCOUNTER_VISIT"
+    defaultFilters:
+      - field: "status"
+        op: "NE"
+        values: ["CANCELLED"]
+    timeDimension: "DT_REGISTERED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
+    forbiddenMeanings: ["去重人数", "患者数"]
+
+  - code: "OP_COMPLETED_COUNT"
+    name: "门诊诊毕人次"
+    aliases: ["诊毕人次", "完成就诊人次", "看完人次", "诊毕就诊量"]
+    description: "统计门诊就诊状态为已完成（COMPLETED）的人次数。"
+    domain: "OUTPATIENT"
+    source: "ENCOUNTER"
+    field: "encounterId"
+    aggregate: "COUNT"
+    grain: "ENCOUNTER_VISIT"
+    defaultFilters:
+      - field: "status"
+        op: "EQ"
+        values: ["COMPLETED"]
+    timeDimension: "DT_REGISTERED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "STATUS"]
+    forbiddenMeanings: ["挂号人次", "挂号总数"]
+
+  - code: "OP_CANCEL_REGISTER_COUNT"
+    name: "门诊退号人次"
+    aliases: ["退号人次", "退号数", "退号量"]
+    description: "统计门诊就诊状态为已取消/已退号（CANCELLED）的人次数。"
+    domain: "OUTPATIENT"
+    source: "ENCOUNTER"
+    field: "encounterId"
+    aggregate: "COUNT"
+    grain: "ENCOUNTER_VISIT"
+    defaultFilters:
+      - field: "status"
+        op: "EQ"
+        values: ["CANCELLED"]
+    timeDimension: "DT_REGISTERED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
+    forbiddenMeanings: ["退号率"]
+
+  - code: "OP_UNIQUE_PATIENT_COUNT"
+    name: "门诊就诊患者去重人数"
+    aliases: ["就诊患者数", "就诊独立患者数", "看病患者数", "门诊患者去重人数"]
+    description: "按患者ID去重统计门诊实际就诊患者唯一人数，一人多次就诊计为一人。"
+    domain: "OUTPATIENT"
+    source: "ENCOUNTER"
+    field: "patientId"
+    aggregate: "COUNT_DISTINCT"
+    grain: "PATIENT_RECORD"
+    defaultFilters:
+      - field: "status"
+        op: "NE"
+        values: ["CANCELLED"]
+    timeDimension: "DT_REGISTERED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
+    forbiddenMeanings: ["就诊人次", "挂号人次"]
+
+  - code: "OP_ACTIVE_ORDER_COUNT"
+    name: "门诊有效医嘱条数"
+    aliases: ["有效医嘱数", "有效医嘱条数", "执行中医嘱量"]
+    description: "统计门诊状态为有效（ACTIVE）的药品及服务医嘱条数，每条医嘱一行。"
+    domain: "OUTPATIENT"
+    source: "ORDER"
+    field: "orderId"
+    aggregate: "COUNT"
+    grain: "CARE_REQUEST"
+    defaultFilters:
+      - field: "status"
+        op: "EQ"
+        values: ["ACTIVE"]
+    timeDimension: "DT_AUTHORED"
+    supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ORDER_TYPE", "ITEM", "STATUS"]
+    forbiddenMeanings: ["处方张数", "药品盒数"]
+
+  - code: "OP_CANCELLED_ORDER_COUNT"
+    name: "门诊取消医嘱条数"
+    aliases: ["取消医嘱条数", "撤销医嘱数", "作废医嘱条数", "门诊取消医嘱条数", "取消医嘱数"]
+    description: "统计门诊状态为已作废/已撤销（CANCELLED）的医嘱条数。"
+    domain: "OUTPATIENT"
+    source: "ORDER"
+    field: "orderId"
+    aggregate: "COUNT"
+    grain: "CARE_REQUEST"
+    defaultFilters:
+      - field: "status"
+        op: "EQ"
+        values: ["CANCELLED"]
+    timeDimension: "DT_AUTHORED"
+    supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ITEM"]
+    forbiddenMeanings: ["有效医嘱"]
+
+  - code: "OP_ACTIVE_DRUG_ORDER_COUNT"
+    name: "门诊有效药品医嘱条数"
+    aliases: ["有效药品医嘱条数", "药品医嘱数", "药品医嘱条数", "用药医嘱量", "有效药品医嘱数"]
+    description: "统计门诊医嘱类别为药品（kind=MEDICATION）且状态为有效（ACTIVE）的医嘱条数。"
+    domain: "OUTPATIENT"
+    source: "ORDER"
+    field: "orderId"
+    aggregate: "COUNT"
+    grain: "CARE_REQUEST"
+    defaultFilters:
+      - field: "kind"
+        op: "EQ"
+        values: ["MEDICATION"]
+      - field: "status"
+        op: "EQ"
+        values: ["ACTIVE"]
+      - field: "deptType"
+        op: "EQ"
+        values: ["CLINICAL"]
+    timeDimension: "DT_AUTHORED"
+    supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ITEM"]
+    forbiddenMeanings: ["处方张数", "药品消耗总金额"]
+
+  - code: "OP_ACTIVE_SERVICE_ORDER_COUNT"
+    name: "门诊有效服务医嘱条数"
+    aliases: ["服务医嘱数", "检查检验医嘱数", "诊疗服务医嘱条数", "有效服务医嘱数", "门诊检查检验服务医嘱数"]
+    description: "统计门诊医嘱类别为非药品服务（kind=SERVICE）且状态为有效（ACTIVE）的医嘱条数。"
+    domain: "OUTPATIENT"
+    source: "ORDER"
+    field: "orderId"
+    aggregate: "COUNT"
+    grain: "CARE_REQUEST"
+    defaultFilters:
+      - field: "kind"
+        op: "EQ"
+        values: ["SERVICE"]
+      - field: "status"
+        op: "EQ"
+        values: ["ACTIVE"]
+    timeDimension: "DT_AUTHORED"
+    supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT", "ORDER_TYPE"]
+    forbiddenMeanings: ["检查检验项目明细次数"]
+
+  - code: "OP_MEDICATION_PATIENT_COUNT"
+    name: "门诊用药患者去重人数"
+    aliases: ["用药患者去重人数", "有药品医嘱患者数", "门诊用药人数"]
+    description: "统计门诊开立过有效药品医嘱（ACTIVE + MEDICATION）的唯一患者数（按患者ID去重）。"
+    domain: "OUTPATIENT"
+    source: "ORDER"
+    field: "patientId"
+    aggregate: "COUNT_DISTINCT"
+    grain: "CARE_REQUEST"
+    defaultFilters:
+      - field: "status"
+        op: "EQ"
+        values: ["ACTIVE"]
+      - field: "kind"
+        op: "EQ"
+        values: ["MEDICATION"]
+      - field: "deptType"
+        op: "EQ"
+        values: ["CLINICAL"]
+    timeDimension: "DT_AUTHORED"
+    supportedDimensions: ["DAY", "MONTH", "ORDER_DEPARTMENT"]
+    forbiddenMeanings: ["用药人次", "药品销售盒数"]
+
+  - code: "OP_TOTAL_CHARGE_AMOUNT"
+    name: "门诊费用净发生额"
+    aliases: ["门诊总费用", "门诊费用净发生额", "门诊总发生额", "门诊记账费用总额"]
+    description: "按费用发生时间统计门诊已记账人民币费用净发生额，包含未结算费用，负数冲销以负值计入；不表示实际收款、已结算收入或医保结算到账。"
+    domain: "OUTPATIENT"
+    source: "CHARGE"
+    field: "amount"
+    aggregate: "SUM"
+    grain: "CHARGE_ITEM"
+    defaultFilters: []
+    timeDimension: "DT_OCCURRED"
+    supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM", "ORDER_TYPE"]
+    forbiddenMeanings: ["实际收款", "已结算收入", "医保到账", "实收金额"]
+
+  - code: "OP_DRUG_CHARGE_AMOUNT"
+    name: "门诊药品费用净发生额"
+    aliases: ["药品费用", "药费", "门诊药费", "门诊药品发生额"]
+    description: "统计门诊已记账费用中，与有效药品医嘱（orderKind=MEDICATION 且 orderStatus=ACTIVE）相关的费用净发生额，默认限定临床诊疗科室，包含冲销负数。不表示实际收款或医保到账。"
+    domain: "OUTPATIENT"
+    source: "CHARGE"
+    field: "amount"
+    aggregate: "SUM"
+    grain: "CHARGE_ITEM"
+    defaultFilters:
+      - field: "orderKind"
+        op: "EQ"
+        values: ["MEDICATION"]
+      - field: "orderStatus"
+        op: "EQ"
+        values: ["ACTIVE"]
+      - field: "deptType"
+        op: "EQ"
+        values: ["CLINICAL"]
+    timeDimension: "DT_OCCURRED"
+    supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM"]
+    forbiddenMeanings: ["实际收款", "医保到账", "药品实收"]
+
+  - code: "OP_SERVICE_CHARGE_AMOUNT"
+    name: "门诊服务费用净发生额"
+    aliases: ["服务费用", "诊疗费用", "门诊服务费用净发生额", "检查检验费用"]
+    description: "统计门诊已记账费用中，与有效服务类医嘱（orderKind=SERVICE 且 orderStatus=ACTIVE）相关的费用净发生额。"
+    domain: "OUTPATIENT"
+    source: "CHARGE"
+    field: "amount"
+    aggregate: "SUM"
+    grain: "CHARGE_ITEM"
+    defaultFilters:
+      - field: "orderKind"
+        op: "EQ"
+        values: ["SERVICE"]
+      - field: "orderStatus"
+        op: "EQ"
+        values: ["ACTIVE"]
+    timeDimension: "DT_OCCURRED"
+    supportedDimensions: ["DAY", "MONTH", "CHARGE_DEPARTMENT", "ITEM"]
+    forbiddenMeanings: ["实际收款", "医保到账"]
+
+  - code: "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+    name: "门诊有效确诊记录数"
+    aliases: ["有效确诊记录数", "确诊记录条数", "诊断记录数", "确诊记录数"]
+    description: "按诊断首次记录时间统计门诊当前有效且已确诊的记录条数，包含主次诊断，不按患者去重。已撤销和疑似诊断不计入。"
+    domain: "OUTPATIENT"
+    source: "DIAGNOSIS"
+    field: "recordId"
+    aggregate: "COUNT"
+    grain: "DIAGNOSIS_ENTRY"
+    defaultFilters: []
+    timeDimension: "DT_RECORDED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT", "DIAGNOSIS"]
+    forbiddenMeanings: ["确诊患者去重人数", "患病人数"]
+
+  - code: "OP_DIAGNOSED_PATIENT_COUNT"
+    name: "门诊确诊就诊患者去重人数"
+    aliases: ["确诊就诊患者去重人数", "确诊患者数", "有诊断患者人数"]
+    description: "按患者ID去重统计门诊有有效确诊记录的唯一患者人数。"
+    domain: "OUTPATIENT"
+    source: "DIAGNOSIS"
+    field: "patientId"
+    aggregate: "COUNT_DISTINCT"
+    grain: "DIAGNOSIS_ENTRY"
+    defaultFilters: []
+    timeDimension: "DT_RECORDED"
+    supportedDimensions: ["DAY", "MONTH", "ENCOUNTER_DEPARTMENT"]
+    forbiddenMeanings: ["确诊记录条数", "诊断发生人次"]

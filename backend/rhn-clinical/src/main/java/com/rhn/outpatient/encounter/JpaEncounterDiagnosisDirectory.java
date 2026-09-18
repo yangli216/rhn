@@ -16,11 +16,14 @@ import java.util.stream.Collectors;
 public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirectory {
     private final EncounterDiagnosisRepository diagnoses;
     private final EncounterDiagnosisRevisionRepository revisions;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     public JpaEncounterDiagnosisDirectory(EncounterDiagnosisRepository diagnoses,
-                                          EncounterDiagnosisRevisionRepository revisions) {
+                                          EncounterDiagnosisRevisionRepository revisions,
+                                          org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.diagnoses = diagnoses;
         this.revisions = revisions;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Override
@@ -37,6 +40,16 @@ public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirecto
     @Override
     @Transactional
     public List<DiagnosisSnapshot> replaceActiveDiagnoses(ReplaceDiagnosesCommand command) {
+        Long patId = 1L; Long orgId = 1L; Long deptId = 1L;
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                "select ID_PAT, ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
+                command.tenantId(), command.encounterId());
+        if (!rows.isEmpty()) {
+            Map<String, Object> r = rows.get(0);
+            if (r.get("ID_PAT") != null) patId = ((Number) r.get("ID_PAT")).longValue();
+            if (r.get("ID_ORG") != null) orgId = ((Number) r.get("ID_ORG")).longValue();
+            if (r.get("ID_DEPT") != null) deptId = ((Number) r.get("ID_DEPT")).longValue();
+        }
         List<EncounterDiagnosis> existing = diagnoses
                 .findByTenantIdAndEncounterIdAndDiagnosisStageOrderBySortOrderAscRecordedAtAsc(
                         command.tenantId(), command.encounterId(), command.diagnosisStage());
@@ -52,7 +65,8 @@ public class JpaEncounterDiagnosisDirectory implements EncounterDiagnosisDirecto
             EncounterDiagnosis.DiagnosisType type = EncounterDiagnosis.DiagnosisType.valueOf(input.diagnosisType());
             String changeType;
             if (diagnosis == null) {
-                diagnosis = diagnoses.save(new EncounterDiagnosis(command.tenantId(), command.encounterId(),
+                diagnosis = diagnoses.save(new EncounterDiagnosis(command.tenantId(), patId, orgId, deptId,
+                        command.encounterId(),
                         command.diagnosisStage(), null, null, null, "WESTERN_MEDICINE", null,
                         input.code(), input.display(), type, input.verificationStatus(), null,
                         sortOrder, command.userId()));

@@ -31,13 +31,16 @@ class AllergyService implements AllergyDirectory {
     private final ExecutionContextProvider contextProvider;
     private final DomainEventPublisher eventPublisher;
     private final MedicationTerminologyDirectory terminologyDirectory;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     AllergyService(AllergyIntoleranceRepository repository, ResidentDirectory residentDirectory,
                    ExecutionContextProvider contextProvider, DomainEventPublisher eventPublisher,
-                   MedicationTerminologyDirectory terminologyDirectory) {
+                   MedicationTerminologyDirectory terminologyDirectory,
+                   org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
         this.repository = repository; this.residentDirectory = residentDirectory;
         this.contextProvider = contextProvider; this.eventPublisher = eventPublisher;
         this.terminologyDirectory = terminologyDirectory;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Transactional(readOnly = true)
@@ -94,7 +97,8 @@ class AllergyService implements AllergyDirectory {
                 matchedTerm == null ? clean(substanceCode) : matchedTerm.code(),
                 matchedTerm == null ? clean(substanceDisplay) : matchedTerm.display(), clean(reactionText), onsetAt);
         validate(input);
-        AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), canonicalId,
+        long[] orgDept = resolveOrgAndDept(context.tenantId(), encounterId, context);
+        AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), orgDept[0], orgDept[1], canonicalId,
                 input, context.subjectId(), context.practitionerId()));
         publish(value, "ALLERGY_RECORDED", "皮试阳性自动登记药物过敏", Map.of(
                 "assertionType", "ALLERGY", "categoryCode", "DRUG",
@@ -127,7 +131,8 @@ class AllergyService implements AllergyDirectory {
                 throw conflict("ALLERGY_ASSERTION_DUPLICATE", "相同的过敏声明已经存在");
             }
         }
-        AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), canonicalId,
+        long[] orgDept = resolveOrgAndDept(context.tenantId(), input.encounterId(), context);
+        AllergyIntolerance value = repository.saveAndFlush(new AllergyIntolerance(context.tenantId(), orgDept[0], orgDept[1], canonicalId,
                 input, context.subjectId(), context.practitionerId()));
         publish(value, "ALLERGY_RECORDED", "记录患者过敏信息", Map.of("assertionType", input.assertionType(),
                 "categoryCode", input.categoryCode() == null ? "" : input.categoryCode(),
@@ -183,6 +188,26 @@ class AllergyService implements AllergyDirectory {
         return new RecordAllergyRequest(value.encounterId(), term.id(), value.assertionType(), term.categoryCode(),
                 value.criticalityCode(), value.reactionSeverity(), value.informationSource(), term.codeSystemUri(),
                 term.code(), term.display(), value.reactionText(), value.onsetAt());
+    }
+
+    private long[] resolveOrgAndDept(Long tenantId, Long encounterId, ExecutionContext context) {
+        Long orgId = null;
+        Long deptId = null;
+        if (encounterId != null) {
+            List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+                    "select ID_ORG, ID_DEPT from RHN_VIS_ENC where ID_TNT = ? and ID_ENC = ?",
+                    tenantId, encounterId);
+            if (!rows.isEmpty()) {
+                Map<String, Object> r = rows.get(0);
+                if (r.get("ID_ORG") != null) orgId = ((Number) r.get("ID_ORG")).longValue();
+                if (r.get("ID_DEPT") != null) deptId = ((Number) r.get("ID_DEPT")).longValue();
+            }
+        }
+        if (orgId == null) orgId = context.organizationId();
+        if (deptId == null) deptId = context.departmentId();
+        if (orgId == null) orgId = 1L;
+        if (deptId == null) deptId = 1L;
+        return new long[]{orgId, deptId};
     }
 
     private void publish(AllergyIntolerance value, String type, String summary, Map<String, Object> details) {

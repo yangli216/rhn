@@ -1,0 +1,78 @@
+- id: "A009"
+  category: "DRUG_AND_CHARGE"
+  question: "本月各科室门诊药品费用净发生额"
+  description: "统计本月门诊各科室对应有效药品医嘱的记账费用净发生额（含负数冲销，不等于实收）"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_DRUG_CHARGE_AMOUNT"
+    dimensions:
+      - "CHARGE_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A010"
+  category: "DRUG_AND_CHARGE"
+  question: "本月各科室门诊服务费用净发生额"
+  description: "统计本月门诊各科室对应诊疗、检查检验等服务类医嘱的记账费用净发生额"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_SERVICE_CHARGE_AMOUNT"
+    dimensions:
+      - "CHARGE_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A011"
+  category: "DRUG_AND_CHARGE"
+  question: "近30天门诊费用净发生额按日趋势"
+  description: "统计最近30天全部门诊记账费用净发生额的日度变化趋势"
+  expected:
+    status: "READY"
+    intent: "TREND"
+    metrics:
+      - "OP_TOTAL_CHARGE_AMOUNT"
+    dimensions:
+      - "DAY"
+    period:
+      type: "LAST_30_DAYS"
+    scope: "CURRENT"
+
+- id: "A012"
+  category: "DRUG_AND_CHARGE"
+  question: "上个月各科室门诊费用总额排行"
+  description: "统计上月各科室门诊费用净发生额并按金额从高到低排序"
+  expected:
+    status: "READY"
+    intent: "RANKING"
+    metrics:
+      - "OP_TOTAL_CHARGE_AMOUNT"
+    dimensions:
+      - "CHARGE_DEPARTMENT"
+    period:
+      type: "LAST_MONTH"
+    scope: "AUTHORIZED"
+    sort:
+      metric: "OP_TOTAL_CHARGE_AMOUNT"
+      direction: "DESC"
+    limit: 10
+
+- id: "A013"
+  category: "DRUG_AND_CHARGE"
+  question: "本月门诊药品费用发生额"
+  description: "统计本月门诊当前科室药品记账费用净发生额"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_DRUG_CHARGE_AMOUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"

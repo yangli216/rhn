@@ -165,7 +165,8 @@ public class DirectRefundApplicationService {
 
                 BigDecimal reversalAmount = original.totalAmount().negate();
                 ChargeItem reversal = charges.save(new ChargeItem(
-                        context.tenantId(), original.patientAccountId(), original.residentId(),
+                        context.tenantId(), original.organizationId(), original.departmentId(),
+                        original.patientAccountId(), original.residentId(),
                         original.encounterId(), original.requestId(), original.catalogItemId(),
                         "DIRECT_REFUND", original.sourceId(), "REF-" + original.requestCode(),
                         original.quantity().negate(), original.unitCode(), original.unitPrice(),

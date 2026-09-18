@@ -1,4 +1,5 @@
 import { createAnalysisPagesApi } from './analysisPagesApi'
+import { createSemanticOntologyApi } from './semanticOntologyApi'
 import type { components } from './generated'
 import type { ApiClient } from './httpClient'
 
@@ -7,6 +8,7 @@ export type AnalyticsCapabilities = components['schemas']['AnalyticsCapabilities
 export function createAnalyticsApi(client: ApiClient) {
   return {
     ...createAnalysisPagesApi(client),
+    ...createSemanticOntologyApi(client),
     aiStatus: () => client.request<{ available: boolean; model: string | null; message: string }>('/api/analytics/pilot/ai-status'),
     interpret: (text: string, base: components['schemas']['PilotAnalysisQuery'], chart: string) => client.request<{
       status: 'READY' | 'UNSUPPORTED' | 'CLARIFY'; message: string; query: components['schemas']['PilotAnalysisQuery'] | null; chart: 'BAR' | 'LINE' | 'TABLE' | null

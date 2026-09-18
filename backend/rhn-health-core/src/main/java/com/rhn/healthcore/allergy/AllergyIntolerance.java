@@ -18,6 +18,8 @@ class AllergyIntolerance {
     @Id @Column(name = "ID_ALLERGY_INTOL") private Long id;
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
     @Column(name = "ID_ALLERGEN") private Long allergenId;
@@ -44,9 +46,11 @@ class AllergyIntolerance {
 
     protected AllergyIntolerance() {}
 
-    AllergyIntolerance(Long tenantId, Long residentId, RecordAllergyRequest input,
+    AllergyIntolerance(Long tenantId, Long organizationId, Long departmentId, Long residentId, RecordAllergyRequest input,
                        Long recorderUserId, Long recorderPractitionerId) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.residentId = residentId;
         this.encounterId = input.encounterId(); this.allergenId = input.allergenId(); this.assertionType = input.assertionType();
         this.categoryCode = input.categoryCode(); this.clinicalStatus = "ACTIVE";
         this.verificationStatus = "CONFIRMED"; this.criticalityCode = input.criticalityCode();
@@ -80,6 +84,7 @@ class AllergyIntolerance {
     }
 
     Long id() { return id; } long revision() { return revision; } Long tenantId() { return tenantId; }
+    Long organizationId() { return organizationId; } Long departmentId() { return departmentId; }
     Long residentId() { return residentId; } String assertionType() { return assertionType; }
     String categoryCode() { return categoryCode; } String clinicalStatus() { return clinicalStatus; }
 }

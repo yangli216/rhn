@@ -95,9 +95,12 @@ public class InpatientMedicationDispenseChargeProjector {
         }
         Long actorId = payload.longValue("dispensedBy");
         if (actorId == null) actorId = request.authoredBy();
+        Long orgId = request.performerOrganizationId() != null ? request.performerOrganizationId() : account.organizationId();
+        Long deptId = request.performerDepartmentId() != null ? request.performerDepartmentId() : account.departmentId();
         Instant occurredAt = dispense.occurredAt() == null ? Instant.now() : dispense.occurredAt();
         ChargeItem charge = charges.save(new ChargeItem(
-                event.tenantId(), account.id(), request.residentId(), request.encounterId(), request.id(),
+                event.tenantId(), orgId, deptId,
+                account.id(), request.residentId(), request.encounterId(), request.id(),
                 dispense.catalogItemId(), SOURCE_TYPE, dispense.id(), dispense.dispenseNo(),
                 dispense.operationQuantity(), dispense.operationUnitCode(), unitPrice, amount,
                 request.currencyCode(), request.priceId(), request.priceRevision(), request.priceType(),

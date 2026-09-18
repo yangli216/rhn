@@ -139,7 +139,8 @@ public class BillingApplicationService {
             BigDecimal quantity = reversal ? event.operationQuantity().negate() : event.operationQuantity();
             BigDecimal amount = reversal ? pricing.amount().negate() : pricing.amount();
             BigDecimal unitPrice = pricing.unitPrice();
-            ChargeItem charge = chargeRepository.save(new ChargeItem(context.tenantId(), account.id(),
+            ChargeItem charge = chargeRepository.save(new ChargeItem(context.tenantId(),
+                    encounter.organizationId(), encounter.departmentId(), account.id(),
                     encounter.residentId(), encounter.id(), pricing.requestId(), pricing.catalogItemId(),
                     sourceType, event.id(), requestCode, quantity, event.operationUnitCode(), unitPrice, amount,
                     currency, pricing.priceId(), pricing.priceRevision(), pricing.priceType(),
@@ -302,7 +303,8 @@ public class BillingApplicationService {
         BigDecimal total = money(charges.stream().map(ChargeItem::totalAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add));
         Instant issuedAt = input.issuedAt() == null ? Instant.now() : input.issuedAt();
-        Invoice invoice = invoiceRepository.save(new Invoice(context.tenantId(), account.id(), invoiceNo,
+        Invoice invoice = invoiceRepository.save(new Invoice(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), invoiceNo,
                 account.currencyCode(), total, issuedAt, context.subjectId()));
         int lineNo = 1; List<InvoiceLine> invoiceLines = new ArrayList<>();
         for (ChargeItem charge : charges) invoiceLines.add(invoiceLineRepository.save(new InvoiceLine(
@@ -356,7 +358,8 @@ public class BillingApplicationService {
         BigDecimal outstanding = money(invoice.netAmount().subtract(paid));
         if (amount.compareTo(outstanding) > 0) throw conflict("PAYMENT_EXCEEDS_OUTSTANDING", "支付金额超过结算凭证未付金额");
         Instant paidAt = input.paidAt() == null ? Instant.now() : input.paidAt();
-        Payment payment = paymentRepository.save(new Payment(context.tenantId(), account.id(), invoice.id(),
+        Payment payment = paymentRepository.save(new Payment(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), invoice.id(),
                 input.paymentOrderId(), paymentNo, "PAYMENT", method, paymentScene, amount, account.currencyCode(), paidAt,
                 clean(input.externalTransactionNo()), null, context.subjectId(), clean(input.description())));
         ledgerRepository.save(new LedgerEntry(context.tenantId(), account.id(), "PAYMENT", "CREDIT", amount,
@@ -390,7 +393,8 @@ public class BillingApplicationService {
         if (amount.compareTo(refundableCredit) > 0) throw conflict(
                 "REFUND_EXCEEDS_ACCOUNT_CREDIT", "退款金额超过退药等反向收费形成的可退余额");
         Instant paidAt = input.refundedAt() == null ? Instant.now() : input.refundedAt();
-        Payment refund = paymentRepository.save(new Payment(context.tenantId(), account.id(), original.invoiceId(),
+        Payment refund = paymentRepository.save(new Payment(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), original.invoiceId(),
                 input.paymentOrderId(), refundNo, "REFUND", original.paymentMethodCode(),
                 input.paymentSceneCode() == null ? original.paymentSceneCode() : upper(input.paymentSceneCode()),
                 amount, account.currencyCode(), paidAt, clean(input.externalTransactionNo()), original.id(),

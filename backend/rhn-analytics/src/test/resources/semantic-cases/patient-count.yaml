@@ -1,0 +1,44 @@
+- id: "A006"
+  category: "PATIENT_COUNT"
+  question: "本月各科室门诊就诊患者去重人数"
+  description: "统计本月各科室产生过门诊就诊记录的唯一患者数（按患者ID去重）"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_UNIQUE_PATIENT_COUNT"
+    dimensions:
+      - "ENCOUNTER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A007"
+  category: "PATIENT_COUNT"
+  question: "本月门诊用药患者去重人数"
+  description: "统计本月存在有效药品医嘱的门诊就诊患者唯一人数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_MEDICATION_PATIENT_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"
+
+- id: "A008"
+  category: "PATIENT_COUNT"
+  question: "上个月确诊患者去重人数"
+  description: "统计上月存在有效且已确诊诊断记录的唯一就诊患者数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_DIAGNOSED_PATIENT_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "LAST_MONTH"
+    scope: "CURRENT"

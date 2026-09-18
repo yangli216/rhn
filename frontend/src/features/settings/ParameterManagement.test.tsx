@@ -307,4 +307,33 @@ describe('ParameterManagement Dependency & Suppression', () => {
     })
     expect(aiCategoryTab).toHaveAttribute('aria-selected', 'true')
   })
+
+  it('locks configuration category and customizes header when fixedConfigType="BUSINESS"', async () => {
+    const definitionsFn = vi.fn().mockResolvedValue(mockDefinitions)
+    const api = {
+      dictionaries: { systemEnums: vi.fn().mockResolvedValue(mockSystemEnums) },
+      configuration: {
+        categories: vi.fn().mockResolvedValue(mockCategories),
+        definitions: definitionsFn,
+        get: vi.fn().mockResolvedValue(mockDetailMode),
+        changes: vi.fn().mockResolvedValue([]),
+      },
+    } as unknown as RhnApi
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={queryClient}>
+        <ParameterManagement api={api} context={mockContext} fixedConfigType="BUSINESS" />
+      </QueryClientProvider>,
+    )
+
+    expect(await screen.findByRole('heading', { level: 1, name: '业务参数配置' })).toBeInTheDocument()
+    expect(screen.getByText('按医院、科室维护门诊、挂号、处方、收费等业务流程控制策略与预警阈值。')).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: '配置属性' })).not.toBeInTheDocument()
+
+    await waitFor(() => {
+      expect(definitionsFn).toHaveBeenCalledWith('', '', 'BUSINESS', '')
+    })
+  })
 })
+

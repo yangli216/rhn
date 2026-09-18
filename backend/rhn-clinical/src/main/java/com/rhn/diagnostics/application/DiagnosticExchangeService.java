@@ -133,7 +133,8 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         validateVersion(input, previous);
         ExecutionContext context = contextProvider.requireCurrent();
         DiagnosticReport report = reportRepository.save(new DiagnosticReport(request.tenantId(), request.residentId(),
-                request.encounterId(), request.id(), input.endpointCode(), input.externalReportId(),
+                request.encounterId(), request.id(), request.performerOrganizationId(), request.performerDepartmentId(),
+                input.endpointCode(), input.externalReportId(),
                 input.reportVersion(), previous == null ? null : previous.id(), reportType(input.reportType()),
                 input.status(), input.reportCode(), input.reportName(), input.issuedAt(), clean(input.conclusion()),
                 clean(input.authorCode()), clean(input.authorName()), inbound.payloadDigest(), inbound.id(),
@@ -142,7 +143,9 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         for (ObservationCommand item : safe(input.observations())) {
             validateObservation(item, input.status());
             Observation observation = observationRepository.save(new Observation(request.tenantId(),
-                    request.residentId(), request.encounterId(), item.codeSystemUri(), clean(item.codeRelease()),
+                    request.residentId(), request.encounterId(),
+                    request.performerOrganizationId(), request.performerDepartmentId(),
+                    item.codeSystemUri(), clean(item.codeRelease()),
                     item.observationCode(), item.observationName(), observationStatus(input.status()),
                     item.valueType(), item.effectiveAt(), clean(item.valueString()), item.valueNumber(),
                     item.valueBoolean(), clean(item.valueCode()), item.valueDateTime(), clean(item.unitCode()),

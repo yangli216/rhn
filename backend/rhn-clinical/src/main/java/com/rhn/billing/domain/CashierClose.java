@@ -17,6 +17,7 @@ public class CashierClose {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_CASHIER_USER", nullable = false) private Long cashierUserId;
     @Column(name = "ID_CASHIER_CLOSE_REVERSES") private Long reversesCloseId;
     @Column(name = "CD_CLOSE_NO", nullable = false) private String closeNo;
@@ -42,7 +43,17 @@ public class CashierClose {
                         String closeNo, String commandCode, String terminalCode, String status,
                         Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
                         BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode, Long createdBy) {
+        this(tenantId, organizationId, 1L, cashierUserId, reversesCloseId, closeNo, commandCode,
+                terminalCode, status, rangeFrom, rangeTo, transactionCount, expectedAmount,
+                actualAmount, differenceAmount, currencyCode, createdBy);
+    }
+
+    public CashierClose(Long tenantId, Long organizationId, Long departmentId, Long cashierUserId, Long reversesCloseId,
+                        String closeNo, String commandCode, String terminalCode, String status,
+                        Instant rangeFrom, Instant rangeTo, int transactionCount, BigDecimal expectedAmount,
+                        BigDecimal actualAmount, BigDecimal differenceAmount, String currencyCode, Long createdBy) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
+        this.departmentId = departmentId;
         this.cashierUserId = cashierUserId; this.reversesCloseId = reversesCloseId; this.closeNo = closeNo;
         this.commandCode = commandCode; this.terminalCode = terminalCode; this.status = status;
         this.rangeFrom = rangeFrom; this.rangeTo = rangeTo; this.transactionCount = transactionCount;
@@ -62,6 +73,7 @@ public class CashierClose {
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
     public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long cashierUserId() { return cashierUserId; }
     public Long reversesCloseId() { return reversesCloseId; }
     public String closeNo() { return closeNo; }

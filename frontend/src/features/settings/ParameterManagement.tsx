@@ -27,11 +27,16 @@ interface ParameterContext {
   userId?: string | null
 }
 
-export function ParameterManagement({ api, context }: { api: RhnApi; context: ParameterContext }) {
+export function ParameterManagement({ api, context, fixedConfigType }: {
+  api: RhnApi
+  context: ParameterContext
+  fixedConfigType?: 'BUSINESS' | 'SYSTEM'
+}) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
-  const [configTypeFilter, setConfigTypeFilter] = useState('')
+  const [configTypeFilter, setConfigTypeFilter] = useState(fixedConfigType ?? '')
+  const effectiveConfigType = fixedConfigType ?? configTypeFilter
   const [statusFilter, setStatusFilter] = useState('')
   const [catalogPage, setCatalogPage] = useState(0)
   const [selectedId, setSelectedId] = useState<string>()
@@ -54,8 +59,8 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     queryFn: () => api.configuration.definitions(),
   })
   const definitions = useQuery({
-    queryKey: ['parameter-definitions', query, categoryFilter, configTypeFilter, statusFilter],
-    queryFn: () => api.configuration.definitions(query, categoryFilter, configTypeFilter, statusFilter),
+    queryKey: ['parameter-definitions', query, categoryFilter, effectiveConfigType, statusFilter],
+    queryFn: () => api.configuration.definitions(query, categoryFilter, effectiveConfigType, statusFilter),
   })
   const detail = useQuery({
     queryKey: ['parameter-definition', selectedId], queryFn: () => api.configuration.get(selectedId!),
@@ -166,12 +171,12 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
   const categoryCountMap = useMemo(() => {
     const map: Record<string, number> = {}
     for (const item of allDefinitions.data ?? []) {
-      if (item.categoryId) {
+      if (item.categoryId && (!fixedConfigType || item.sdParamConfigType === fixedConfigType)) {
         map[item.categoryId] = (map[item.categoryId] ?? 0) + 1
       }
     }
     return map
-  }, [allDefinitions.data])
+  }, [allDefinitions.data, fixedConfigType])
 
   const filteredCategoryOptions = useMemo(() => {
     const keyword = categorySearch.trim().toLowerCase()
@@ -214,9 +219,21 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     setOperationError('')
   }
 
+  const pageTitle = fixedConfigType === 'BUSINESS' ? '业务参数配置'
+    : fixedConfigType === 'SYSTEM' ? '系统运行参数'
+    : '参数管理'
+  const pageEyebrow = fixedConfigType === 'BUSINESS' ? '业务运营 · 业务规则'
+    : fixedConfigType === 'SYSTEM' ? '平台运维 · 系统底座'
+    : '平台管理 · 基础设置'
+  const pageDescription = fixedConfigType === 'BUSINESS'
+    ? '按医院、科室维护门诊、挂号、处方、收费等业务流程控制策略与预警阈值。'
+    : fixedConfigType === 'SYSTEM'
+    ? '维护中间件、缓存、并发控制、会话与安全网关等系统底层运行参数（不对客户开放）。'
+    : '统一维护系统与业务参数定义，按平台、租户、组织、科室、用户及附加上下文解析当前值。'
+
   return <>
-    <PageHeader compact eyebrow="平台管理 · 基础设置" title="参数管理"
-      description="统一维护系统与业务参数定义，按平台、租户、组织、科室、用户及附加上下文解析当前值。"
+    <PageHeader compact eyebrow={pageEyebrow} title={pageTitle}
+      description={pageDescription}
       actions={<><Button className="parameter-page-action" variant="secondary" onClick={() => setCategoryDialog({ mode: 'create' })}>
         管理分类</Button><Button className="parameter-page-action" disabled={!categories.data?.some((item) => item.sdParamStatus === 'ACTIVE') || !systemEnums.data}
           onClick={() => setDefinitionDialog('create')}><Icon name="add" />新建参数</Button></>} />
@@ -299,8 +316,10 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
         <div className="parameter-filters">
           <SearchField className="parameter-filters__search" label="搜索参数" value={query}
             onChange={setQuery} placeholder="搜索名称或参数键" />
-          <Select aria-label="配置属性" value={configTypeFilter} placeholder="全部属性" showValue
-            onChange={setConfigTypeFilter} options={configTypeOptions.map(selectOption)} />
+          {!fixedConfigType && (
+            <Select aria-label="配置属性" value={configTypeFilter} placeholder="全部属性" showValue
+              onChange={setConfigTypeFilter} options={configTypeOptions.map(selectOption)} />
+          )}
           <Select aria-label="参数状态" value={statusFilter} placeholder="全部状态" showValue
             onChange={setStatusFilter} options={statusOptions.map(selectOption)} />
         </div>
@@ -422,6 +441,7 @@ export function ParameterManagement({ api, context }: { api: RhnApi; context: Pa
     {definitionDialog && <ParameterDefinitionDialog
       key={`${definitionDialog}-${definitionDialog === 'edit' ? selected?.id ?? 'missing' : 'new'}`}
       mode={definitionDialog} definition={definitionDialog === 'edit' ? selected : undefined}
+      fixedConfigType={fixedConfigType}
       initialCategoryId={categoryFilter || undefined}
       categories={categoryOptions.filter((item) => item.category.sdParamStatus === 'ACTIVE')}
       allDefinitions={allDefinitions.data ?? []}
@@ -496,10 +516,11 @@ function ParameterCard({ definition, selected, tabIndex, buttonRef, onKeyDown, o
   </button>
 }
 
-function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, onClose, onSave }: {
+function ParameterDefinitionDialog({ mode, definition, initialCategoryId, categories, allDefinitions, systemEnums, busy, onClose, onSave, fixedConfigType }: {
   mode: 'create' | 'edit'; definition?: ParameterDefinition; initialCategoryId?: string
   categories: CategoryOption[]; allDefinitions?: ParameterDefinitionSummary[]; systemEnums?: SystemEnumDefinition[]; busy: boolean; onClose: () => void
   onSave: (input: ParameterDefinitionInput) => Promise<void>
+  fixedConfigType?: 'BUSINESS' | 'SYSTEM'
 }) {
   const [categoryId, setCategoryId] = useState(
     definition?.categoryId ?? initialCategoryId ?? categories[0]?.category.id ?? '',
@@ -515,7 +536,7 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   const [defaultValue, setDefaultValue] = useState(readRawValue(definition?.defaultValueJson))
   const [dictionaryCode, setDictionaryCode] = useState(definition?.dictionaryCode ?? '')
   const [scopeLevel, setScopeLevel] = useState<ParameterScope>(definition?.allowedScopes[0] ?? 'TENANT')
-  const [configType, setConfigType] = useState<ParameterConfigType>(definition?.sdParamConfigType ?? 'BUSINESS')
+  const [configType, setConfigType] = useState<ParameterConfigType>(definition?.sdParamConfigType ?? fixedConfigType ?? 'BUSINESS')
   const [inheritanceEnabled, setInheritanceEnabled] = useState(definition?.inheritanceEnabled ?? true)
   const [cacheEnabled, setCacheEnabled] = useState(definition?.cacheEnabled ?? true)
   const [nullableValue, setNullableValue] = useState(definition?.nullableValue ?? false)
@@ -614,6 +635,7 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
               .filter((item) => compatibleControls.includes(item.code as ParameterControlType)).map(selectOption)} />
           </FormField>
           <FormField className="parameter-grid__span-3" label="配置属性" required><Select value={configType}
+            disabled={Boolean(fixedConfigType)}
             showValue clearable={false} onChange={(value) => setConfigType(value as ParameterConfigType)}
             options={enumOptions(systemEnums, PARAMETER_SYSTEM_ENUM.configType).map(selectOption)} /></FormField>
           {controlType === 'SECRET_REFERENCE' ? <FormField className="parameter-grid__span-3" label="默认值"

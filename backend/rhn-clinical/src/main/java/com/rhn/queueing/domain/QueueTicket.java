@@ -21,6 +21,8 @@ public class QueueTicket {
     @Id @Column(name = "ID_QUEUE_TICKET") private Long id;
     @Version @Column(name = "REVISION", nullable = false) private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_SVC_QUEUE", nullable = false) private Long serviceQueueId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC") private Long encounterId;
@@ -46,8 +48,18 @@ public class QueueTicket {
     public QueueTicket(Long tenantId, Long serviceQueueId, Long residentId, Long encounterId,
                        String sourceType, Long sourceId, String idempotencyCode, LocalDate businessDate,
                        String ticketCode, int sequenceNo, int priority, boolean ready, Instant now) {
+        this(tenantId, 1L, 1L, serviceQueueId, residentId, encounterId, sourceType, sourceId,
+                idempotencyCode, businessDate, ticketCode, sequenceNo, priority, ready, now);
+    }
+
+    public QueueTicket(Long tenantId, Long organizationId, Long departmentId,
+                       Long serviceQueueId, Long residentId, Long encounterId,
+                       String sourceType, Long sourceId, String idempotencyCode, LocalDate businessDate,
+                       String ticketCode, int sequenceNo, int priority, boolean ready, Instant now) {
         this.id = GlobalIds.next();
         this.tenantId = tenantId;
+        this.organizationId = organizationId;
+        this.departmentId = departmentId;
         this.serviceQueueId = serviceQueueId;
         this.residentId = residentId;
         this.encounterId = encounterId;
@@ -159,6 +171,8 @@ public class QueueTicket {
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long serviceQueueId() { return serviceQueueId; }
     public Long residentId() { return residentId; }
     public Long encounterId() { return encounterId; }

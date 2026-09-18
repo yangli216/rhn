@@ -80,7 +80,9 @@ public class StockTransferApplicationService {
         if(input.lines()==null||input.lines().isEmpty()) throw badRequest("TRANSFER_LINES_REQUIRED","调拨单至少需要一条明细");
         if(input.lines().size()>500) throw badRequest("TRANSFER_LINES_TOO_MANY","单张调拨单不能超过500条明细");
         String no=clean(input.transferNo()); if(no==null) no=nextNo("TR");
-        StockTransfer value=new StockTransfer(context.tenantId(),source.organizationId(),source.id(),destination.id(),no,
+        Long srcDeptId=source.departmentId()!=null?source.departmentId():(context.departmentId()!=null?context.departmentId():1L);
+        Long destDeptId=destination.departmentId()!=null?destination.departmentId():(context.departmentId()!=null?context.departmentId():1L);
+        StockTransfer value=new StockTransfer(context.tenantId(),source.organizationId(),srcDeptId,destDeptId,source.id(),destination.id(),no,
                 requestCode,input.requestedAt()==null?Instant.now():input.requestedAt(),clean(input.reason()),clean(input.description()),context.subjectId());
         Set<Long> sourceItems=new HashSet<>(); int sort=0; repository.save(value);
         for(TransferLineCommand command:input.lines()){

@@ -8,11 +8,11 @@
 
 ## Services for manual verification
 
-- Preserve both checkouts' persistent manual-verification services: the main checkout `/Users/yangl/IdeaProjects/rhn` uses backend `8080` / frontend `5173`; the analytics checkout uses backend `18086` / frontend `15176`.
-- Both persistent backends must use `oracle-local`. Never start them with ephemeral `local` or `test` profiles.
+- Preserve the main checkout's persistent manual-verification services: backend `8080` / frontend `5173` at `/Users/yangl/IdeaProjects/rhn`.
+- The persistent backend must use `oracle-local`. Never start it with ephemeral `local` or `test` profiles.
 - Backend tests must use the isolated `test` profile and random H2 databases, never the manual Oracle schema or persistent service ports.
-- Frontend ports and API targets can be set per checkout through ignored `frontend/.env.local`: `RHN_FRONTEND_PORT` and `RHN_API_TARGET`. Preserve existing overrides when merging branches.
-- Before handing work back, verify both backends' `/actuator/health` and both frontend URLs are reachable. Restore unavailable project services and report status.
+- Frontend ports and API targets can be set through ignored `frontend/.env.local`: `RHN_FRONTEND_PORT` and `RHN_API_TARGET`.
+- Before handing work back, verify backend `8080` `/actuator/health` and frontend `5173` URL are reachable. Restore unavailable project services and report status.
 - Temporary test instances must use dedicated non-project ports. Track and stop only exact temporary processes started by the current task; never use broad termination such as `pkill` or `killall`.
 - Completing browser task spaces must not stop persistent project services.
 

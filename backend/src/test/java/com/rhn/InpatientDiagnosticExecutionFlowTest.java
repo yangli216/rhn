@@ -56,7 +56,7 @@ class InpatientDiagnosticExecutionFlowTest extends RhnIntegrationTestSupport {
         assertEquals(jdbcTemplate.queryForObject("select ID_DEPT_DEFAULT as default_department_id from RHN_BD_ORG_CATALOG_ITEM "
                         + "where ID_TNT = ? and ID_ORG = ? and ID_CATALOG_ITEM = ? and SD_STATUS = 'ACTIVE'",
                 Long.class, Long.valueOf(TENANT), Long.valueOf(ORGANIZATION), Long.valueOf(SERVICE_ITEM)),
-                jdbcTemplate.queryForObject("select ID_DEPT_PERFORMER as performer_department_id from RHN_EX_CARE_REQ where ID_CARE_REQ = ?",
+                jdbcTemplate.queryForObject("select ID_DEPT_EXEC as performer_department_id from RHN_EX_CARE_REQ where ID_CARE_REQ = ?",
                         Long.class, Long.valueOf(requestId)));
 
         JsonNode worklist = json(mockMvc.perform(get("/api/diagnostics/worklist").with(rhnWorkContext()))

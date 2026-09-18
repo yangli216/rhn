@@ -92,7 +92,9 @@ public class ClinicalOrderChargeProjector {
                 : textOr(payload.text("requestNo"), event.aggregateType() + event.aggregateId());
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
         Long clinicalRequestId = event.aggregateId();
-        ChargeItem charge = charges.save(new ChargeItem(event.tenantId(), account.id(), residentId, encounterId,
+        ChargeItem charge = charges.save(new ChargeItem(event.tenantId(),
+                organizationId, departmentId,
+                account.id(), residentId, encounterId,
                 clinicalRequestId, catalogItemId, sourceType, event.aggregateId(), requestNo,
                 quantity, unitCode, money(unitPrice), money(totalAmount), currency, priceId, priceRevision,
                 payload.text("priceType"), itemCode, itemName, occurredAt, authoredBy, null));
@@ -113,7 +115,9 @@ public class ClinicalOrderChargeProjector {
         Long actorId = EventPayload.of(event.payload()).longValue("cancelledBy");
         if (actorId == null) actorId = original.enteredBy();
         Instant occurredAt = event.occurredAt() == null ? Instant.now() : event.occurredAt();
-        ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(), original.patientAccountId(),
+        ChargeItem reversal = charges.save(new ChargeItem(event.tenantId(),
+                original.organizationId(), original.departmentId(),
+                original.patientAccountId(),
                 original.residentId(), original.encounterId(), original.requestId(), original.catalogItemId(),
                 reversalType, event.aggregateId(), "REV-" + original.requestCode(), original.quantity().negate(),
                 original.unitCode(), original.unitPrice(), original.totalAmount().negate(), original.currencyCode(),

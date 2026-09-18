@@ -34,8 +34,10 @@ class MedicationRequest {
     @Column(name = "CD_PRIORITY", nullable = false) private String priorityCode;
     @Column(name = "ID_CATALOG_ITEM") private Long catalogItemId;
     @Column(name = "ID_ITEM_PKG") private Long packageId;
-    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
-    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
+    @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
     @Column(name = "DA_BUSINESS", nullable = false) private LocalDate businessDate;
     @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
     @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
@@ -130,6 +132,7 @@ class MedicationRequest {
         this.intentCode = "ORDER";
         this.priorityCode = "ROUTINE"; this.catalogItemId = catalogItemId; this.packageId = packageId;
         this.performerOrganizationId = performerOrganizationId; this.performerDepartmentId = performerDepartmentId;
+        this.requestingOrganizationId = performerOrganizationId; this.requestingDepartmentId = performerDepartmentId;
         this.businessDate = businessDate; this.authoredAt = Instant.now(); this.authoredBy = authoredBy;
         this.reasonText = reasonText; this.itemCodeSnapshot = itemCode; this.itemNameSnapshot = itemName;
         this.unitCodeSnapshot = quantityUnit; this.localCodeSnapshot = localCode; this.localNameSnapshot = localName;
@@ -192,7 +195,10 @@ class MedicationRequest {
     Long requestGroupId() { return requestGroupId; } Long parentRequestId() { return parentRequestId; }
     String status() { return status; } Long catalogItemId() { return catalogItemId; } Long medicationId() { return medicationId; }
     Long packageId() { return packageId; } Long performerOrganizationId() { return performerOrganizationId; }
-    Long performerDepartmentId() { return performerDepartmentId; } LocalDate businessDate() { return businessDate; }
+    Long performerDepartmentId() { return performerDepartmentId; }
+    Long requestingOrganizationId() { return requestingOrganizationId; }
+    Long requestingDepartmentId() { return requestingDepartmentId; }
+    LocalDate businessDate() { return businessDate; }
     Instant authoredAt() { return authoredAt; } Long authoredBy() { return authoredBy; } String reasonText() { return reasonText; }
     String itemCodeSnapshot() { return itemCodeSnapshot; } String itemNameSnapshot() { return itemNameSnapshot; }
     String localCodeSnapshot() { return localCodeSnapshot; } String localNameSnapshot() { return localNameSnapshot; }

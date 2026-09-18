@@ -1,0 +1,103 @@
+- id: "A026"
+  category: "AMBIGUITY"
+  question: "本月门诊收入"
+  description: "医疗统计中‘收入’存在多重口径，混淆记账费用发生额、窗口实际收费与医保到账结算，严禁自动静默执行"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "REVENUE_CONCEPT_AMBIGUOUS"
+    clarificationMessage: "请选择门诊收入口径：门诊已记账费用发生额、窗口实收挂号诊疗款，或医保结算到账收入？"
+    candidateOptions:
+      - code: "OP_CHARGE_NET_AMOUNT"
+        label: "门诊费用净发生额（含未结算及冲销）"
+      - code: "OP_CASH_SETTLEMENT_AMOUNT"
+        label: "门诊现金及移动支付实收款（尚未接入）"
+      - code: "OP_INSURANCE_SETTLED_AMOUNT"
+        label: "医保基金结算到账款（尚未接入）"
+
+- id: "A027"
+  category: "AMBIGUITY"
+  question: "本月各科室患者数量"
+  description: "‘患者数量’在医院中通常存在挂号人次、就诊人次与去重患者人数三种常见口径，不可猜测"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "PATIENT_COUNT_AMBIGUOUS"
+    clarificationMessage: "请明确患者数量统计口径：挂号人次、门诊就诊人次，还是患者去重人数？"
+    candidateOptions:
+      - code: "OP_REGISTER_COUNT"
+        label: "门诊挂号人次"
+      - code: "OP_ENCOUNTER_COUNT"
+        label: "门诊就诊人次"
+      - code: "OP_UNIQUE_PATIENT_COUNT"
+        label: "门诊就诊患者去重人数"
+
+- id: "A028"
+  category: "AMBIGUITY"
+  question: "查看科室门诊收费情况"
+  description: "‘收费情况’未明确是总费用净发生额、药品与耗材明细拆分还是退费冲销情况"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "CHARGE_SITUATION_AMBIGUOUS"
+    clarificationMessage: "请选择关注的收费统计维度：费用净发生额总览，还是按项目类别区分费用？"
+    candidateOptions:
+      - code: "OP_TOTAL_CHARGE_AMOUNT"
+        label: "门诊费用净发生额总览"
+      - code: "OP_CHARGE_BY_ORDER_TYPE"
+        label: "按药品与服务医嘱拆分费用发生额"
+
+- id: "A029"
+  category: "AMBIGUITY"
+  question: "本月门诊诊断数量"
+  description: "未说明是按确诊记录条数（含主次诊断）还是按被诊断患者去重人数统计"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "DIAGNOSIS_COUNT_AMBIGUOUS"
+    clarificationMessage: "请确认是统计有效确诊记录条数（含一人多病），还是确诊患者去重人数？"
+    candidateOptions:
+      - code: "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+        label: "有效确诊记录条数"
+      - code: "OP_DIAGNOSED_PATIENT_COUNT"
+        label: "确诊就诊患者去重人数"
+
+- id: "A030"
+  category: "AMBIGUITY"
+  question: "本月各科室看病人数"
+  description: "‘看病人数’为口语表达，未说明是挂号、接诊中、诊毕还是就诊去重人数"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "PATIENT_COUNT_AMBIGUOUS"
+    clarificationMessage: "请选择看病人数具体口径：接诊完成（诊毕人次）、门诊就诊人次，或去重患者人数？"
+    candidateOptions:
+      - code: "OP_COMPLETED_COUNT"
+        label: "门诊诊毕人次"
+      - code: "OP_ENCOUNTER_COUNT"
+        label: "门诊就诊人次"
+      - code: "OP_UNIQUE_PATIENT_COUNT"
+        label: "门诊就诊患者去重人数"
+
+- id: "A031"
+  category: "AMBIGUITY"
+  question: "本月退号情况"
+  description: "未指定是退号绝对人次还是退号率（退号人次/挂号人次）"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "CANCEL_REGISTRATION_AMBIGUOUS"
+    clarificationMessage: "请选择退号指标：退号人次还是退号率？"
+    candidateOptions:
+      - code: "OP_CANCEL_REGISTER_COUNT"
+        label: "门诊退号人次"
+      - code: "OP_CANCELLATION_RATE"
+        label: "门诊退号率（%）"
+
+- id: "A032"
+  category: "AMBIGUITY"
+  question: "本月科室医嘱量"
+  description: "未区分有效医嘱(ACTIVE)还是包括撤销/作废的所有历史医嘱记录条数"
+  expected:
+    status: "CLARIFY"
+    clarificationCode: "ORDER_STATUS_AMBIGUOUS"
+    clarificationMessage: "请选择医嘱统计范围：仅有效执行中医嘱，还是包含已作废/已撤销的全部医嘱？"
+    candidateOptions:
+      - code: "OP_ACTIVE_ORDER_COUNT"
+        label: "仅有效医嘱(ACTIVE)"
+      - code: "OP_ALL_STATUS_ORDER_COUNT"
+        label: "包含全部状态医嘱"

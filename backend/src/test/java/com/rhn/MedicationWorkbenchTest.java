@@ -106,4 +106,59 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APPROVED_FOR_SHADOW"));
     }
+    @Test void active_rule_sandbox_runs_one_rule_or_the_complete_rule_set() throws Exception {
+        var med = medication();
+        var request = """
+                {"ruleCodes":["QMED.EXACT_GENERIC_DUPLICATE"],
+                 "items":[
+                   {"medicationId":"%s","status":"DRAFT","durationDays":3},
+                   {"medicationId":"%s","status":"DRAFT","durationDays":3}
+                 ],
+                 "patientContext":{"patientAgeYears":35,"gender":"男","activeAllergies":[]}}
+                """.formatted(med, med);
+        mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mode").value("ACTIVE_RULE_SANDBOX"))
+                .andExpect(jsonPath("$.scope").value("SELECTED"))
+                .andExpect(jsonPath("$.cases.length()").value(1))
+                .andExpect(jsonPath("$.cases[0].ruleCode").value("QMED.EXACT_GENERIC_DUPLICATE"))
+                .andExpect(jsonPath("$.cases[0].decision").value("WARN"))
+                .andExpect(jsonPath("$.cases[0].matchedRows.length()").value(2));
+
+        var allRequest = """
+                {"ruleCodes":[],"items":[{"medicationId":"%s","status":"DRAFT","durationDays":3}],
+                 "patientContext":{"patientAgeYears":35,"gender":"男","activeAllergies":[]}}
+                """.formatted(med);
+        mockMvc.perform(post(ROOT+"/active-rules/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(allRequest))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scope").value("ALL"))
+                .andExpect(jsonPath("$.cases.length()").value(7));
+    }
+    @Test void rule_expression_generation_and_patient_consultation_simulation() throws Exception {
+        when(ai.generate(anyString(),anyString())).thenReturn("""
+            {"status":"READY","message":"已生成规则串","rule":{"template":"AGE_CONTRAINDICATION","name":"未成年禁用喹诺酮类","explanation":"18岁以下禁用","duplicateCount":1,"message":"未成年人禁用","decision":"WARN","ruleExpression":"IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK","categoryName":"喹诺酮类","minAge":18}}
+            """);
+        var genRes = mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requirement\":\"18岁以下未成年人门诊禁用喹诺酮类药物\",\"source\":\"临床药理规范\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidate.rule.ruleExpression").value("IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK"))
+                .andExpect(jsonPath("$.candidate.rule.minAge").value(18))
+                .andReturn().getResponse().getContentAsString();
+        var id = json(genRes).path("candidate").path("id").asString();
+
+        var med = medication();
+        // 模拟门诊就诊：14岁未成年患者开药，命中阻断/预警
+        mockMvc.perform(post(ROOT+"/candidates/"+id+"/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"items\":[{\"medicationId\":\""+med+"\",\"status\":\"DRAFT\",\"durationDays\":3}],\"patientContext\":{\"patientAgeYears\":14,\"gender\":\"男\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].name").value(org.hamcrest.Matchers.containsString("14 岁")))
+                .andExpect(jsonPath("$.cases[0].actual").value("WARN"))
+                .andExpect(jsonPath("$.cases[0].reasons[0]").value(org.hamcrest.Matchers.containsString("低于规则限制年龄 18 岁")));
+
+        // 模拟门诊就诊：25岁成年患者开药，合规放行
+        mockMvc.perform(post(ROOT+"/candidates/"+id+"/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"items\":[{\"medicationId\":\""+med+"\",\"status\":\"DRAFT\",\"durationDays\":3}],\"patientContext\":{\"patientAgeYears\":25,\"gender\":\"男\"}}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].actual").value("PASS"));
+    }
 }

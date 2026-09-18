@@ -14,6 +14,8 @@ import java.time.Instant;
 public class MedicationDispense {
     @Id @Column(name = "ID_MED_DISP") private Long id;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_DISP_TASK", nullable = false) private Long taskId;
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
@@ -40,7 +42,21 @@ public class MedicationDispense {
                               Long dispenserPractitionerId, Long dispenserUserId, Long dispenserAssignmentId,
                               Long checkerPractitionerId, Long checkerUserId, Long checkerAssignmentId,
                               BigDecimal operationQuantity, String operationUnitCode, String description) {
-        this.id = GlobalIds.next(); this.tenantId = tenantId; this.taskId = taskId; this.residentId = residentId;
+        this(tenantId, 1L, 1L, taskId, residentId, encounterId, stockSiteId, originalDispenseId,
+                dispenseNo, dispenseType, occurredAt, dispenserPractitionerId, dispenserUserId,
+                dispenserAssignmentId, checkerPractitionerId, checkerUserId, checkerAssignmentId,
+                operationQuantity, operationUnitCode, description);
+    }
+
+    public MedicationDispense(Long tenantId, Long organizationId, Long departmentId,
+                              Long taskId, Long residentId, Long encounterId, Long stockSiteId,
+                              Long originalDispenseId, String dispenseNo, String dispenseType, Instant occurredAt,
+                              Long dispenserPractitionerId, Long dispenserUserId, Long dispenserAssignmentId,
+                              Long checkerPractitionerId, Long checkerUserId, Long checkerAssignmentId,
+                              BigDecimal operationQuantity, String operationUnitCode, String description) {
+        this.id = GlobalIds.next(); this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.taskId = taskId; this.residentId = residentId;
         this.encounterId = encounterId; this.stockSiteId = stockSiteId; this.originalDispenseId = originalDispenseId;
         this.dispenseNo = dispenseNo; this.dispenseType = dispenseType; this.occurredAt = occurredAt;
         this.dispenserPractitionerId = dispenserPractitionerId; this.dispenserUserId = dispenserUserId;
@@ -53,6 +69,8 @@ public class MedicationDispense {
 
     public Long id() { return id; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long taskId() { return taskId; }
     public Long residentId() { return residentId; }
     public Long encounterId() { return encounterId; }

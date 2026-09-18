@@ -131,8 +131,9 @@ class PaymentOrderTransactionService {
             throw badRequest("PAYMENT_ORDER_EXPIRY_INVALID", "支付指令过期时间必须晚于当前时间");
         }
         String orderNo = "PO" + NUMBER_TIME.format(Instant.now()) + GlobalIds.randomSuffix(6);
-        PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(), account.id(), invoice.id(),
-                orderNo, idempotencyKey, businessScene, paymentScene, paymentMethod, methodName, amount,
+        PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), invoice.id(), null,
+                orderNo, idempotencyKey, businessScene, paymentScene, paymentMethod, methodName, "SETTLEMENT_PAY", amount,
                 account.currencyCode(), clean(input.correlationId()) == null ? context.correlationId() : clean(input.correlationId()),
                 clean(input.terminalCode()), input.expiresAt(), context.subjectId()));
         eventRepository.save(new PaymentEvent(context.tenantId(), value.id(), null, "CREATE", null, "CREATED",
@@ -182,7 +183,8 @@ class PaymentOrderTransactionService {
         String scene = sourceOrder == null || sourceOrder.paymentSceneCode() == null
                 ? "CASHIER" : sourceOrder.paymentSceneCode();
         String methodName = sourceOrder == null ? original.paymentMethodCode() : sourceOrder.paymentMethodNameSnapshot();
-        PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(), account.id(),
+        PaymentOrder value = orderRepository.save(new PaymentOrder(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(),
                 original.invoiceId(), original.id(), orderNo, idempotencyKey, businessScene, scene,
                 original.paymentMethodCode(), methodName, "REFUND", amount, account.currencyCode(),
                 clean(input.correlationId()) == null ? context.correlationId() : clean(input.correlationId()),

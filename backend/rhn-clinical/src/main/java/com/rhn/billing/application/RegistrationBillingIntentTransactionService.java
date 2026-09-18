@@ -174,7 +174,9 @@ class RegistrationBillingIntentTransactionService {
         Instant now = Instant.now();
         var resolved = catalog.resolve(context.tenantId(), intent.catalogItemId(), intent.organizationId(), null,
                 "SALE", LocalDate.now(BUSINESS_ZONE));
-        ChargeItem charge = charges.save(new ChargeItem(context.tenantId(), account.id(), intent.residentId(), null,
+        ChargeItem charge = charges.save(new ChargeItem(context.tenantId(),
+                intent.organizationId(), intent.departmentId(),
+                account.id(), intent.residentId(), null,
                 null, intent.catalogItemId(), "REGISTRATION", intent.id(), "REG-" + intent.id(), BigDecimal.ONE,
                 resolved.item().unitCode(), amount, amount, currency, resolved.price().id(),
                 resolved.price().revision(), resolved.price().sdPriceType(), intent.itemCode(), intent.itemName(),
@@ -184,7 +186,8 @@ class RegistrationBillingIntentTransactionService {
                 amount, amount));
         ledger.save(new LedgerEntry(context.tenantId(), account.id(), "CHARGE", "DEBIT", amount, currency,
                 charge.id(), null, null, null, now, context.subjectId()));
-        Invoice invoice = invoices.save(new Invoice(context.tenantId(), account.id(), "RGI" + intent.id(),
+        Invoice invoice = invoices.save(new Invoice(context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), "RGI" + intent.id(),
                 currency, amount, now, context.subjectId()));
         InvoiceLine line = invoiceLines.save(new InvoiceLine(context.tenantId(), invoice.id(), charge.id(), 1, amount));
         invoiceCategories.save(new InvoiceCategorySummary(context.tenantId(), invoice.id(),
@@ -290,7 +293,9 @@ class RegistrationBillingIntentTransactionService {
                 context.tenantId(), "REGISTRATION_REVERSAL", value.id()).isEmpty()) {
             Instant now = Instant.now();
             BigDecimal amount = original.totalAmount().abs().setScale(6, RoundingMode.HALF_UP);
-            ChargeItem reversal = charges.save(new ChargeItem(context.tenantId(), original.patientAccountId(),
+            ChargeItem reversal = charges.save(new ChargeItem(context.tenantId(),
+                    original.organizationId(), original.departmentId(),
+                    original.patientAccountId(),
                     original.residentId(), encounterId, original.requestId(), original.catalogItemId(),
                     "REGISTRATION_REVERSAL", value.id(), "REG-REV-" + value.id(),
                     original.quantity().abs().negate(), original.unitCode(), original.unitPrice(), amount.negate(),

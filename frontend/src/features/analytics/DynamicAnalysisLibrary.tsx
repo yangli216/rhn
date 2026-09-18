@@ -4,6 +4,7 @@ import { errorMessage } from '../../shared/rhnApi'
 import type { PageMetric, PageResult, PageSeries, PageSpec, PageTemplate, SavedPage, SourceCatalog, AnalysisTurn } from '../../shared/api/analysisPagesApi'
 import { Alert, Button, Dialog, Icon, LoadingState } from '../../shared/ui'
 import { AnalysisPlanEditor, PlanChanges, dimensionNames, periodNames } from './AnalysisPlanEditor'
+import { SemanticWorkbench } from './SemanticWorkbench'
 import './dynamic-analysis.css'
 
 export const pageTemplates: {code:PageTemplate;name:string;description:string;icon:'tasks'|'roadmap'}[] = [
@@ -21,6 +22,7 @@ const templateName=(code:PageTemplate)=>pageTemplates.find(t=>t.code===code)?.na
 const queryKey=(spec:PageSpec)=>JSON.stringify({...spec,title:''})
 
 export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
+  const [viewMode, setViewMode] = useState<'library' | 'ontology'>('library')
   const [saved,setSaved]=useState<SavedPage[]>([])
   const [catalog,setCatalog]=useState<PageMetric[]>([])
   const [sources,setSources]=useState<SourceCatalog[]>([])
@@ -114,8 +116,16 @@ export function DynamicAnalysisLibrary({api}:{api:RhnApi}) {
     </div>
     <div className="da-composer"><label htmlFor="da-followup">{unresolved?'补充说明':'继续调整'}</label><textarea id="da-followup" aria-label="补充或修改要求" value={followup} maxLength={2000} disabled={Boolean(busy)||requirementChanged} onChange={e=>setFollowup(e.target.value)} placeholder="例如：改成上个月，只看药品" onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();if(ai?.available&&!requirementChanged)void generate(true)}}}/><div><small>Ctrl / ⌘ + Enter 发送</small><Button size="sm" busy={busy==='generate'} disabled={!followup.trim()||Boolean(busy)||requirementChanged||!ai?.available} onClick={()=>void generate(true)}>发送补充并更新预览</Button></div></div>
   </aside>
+
+  if (viewMode === 'ontology') {
+    return <SemanticWorkbench api={api} onBack={() => setViewMode('library')} />
+  }
+
   return <section className={`da-root ${creating?'is-editing':''}`} aria-label="动态统计分析功能库">
     <header className="da-header"><div className="da-heading"><h1>{creating?(copying?'调整统计分析':'新建统计分析'):'智能统计分析'}</h1><span>{creating?(spec?'编辑与预览':'选择形式，描述业务需求'):'我的统计功能'}</span></div><div className="da-toolbar">
+      <Button variant="secondary" size="sm" onClick={() => setViewMode('ontology')} aria-label="打开业务实体数据关系网工作台">
+        <Icon name="roadmap" /> 业务实体数据关系网
+      </Button>
       {creating&&<Button variant="text" size="sm" disabled={busy==='save'} onClick={()=>setLeave(true)}>{saved.length?'返回功能库':'重新开始'}</Button>}
       {!creating&&<Button size="sm" onClick={fresh}><Icon name="add"/>新建统计分析</Button>}
       {creating&&spec&&<>{sourceHelp}<Button variant="text" size="sm" aria-pressed={showAssistant} onClick={()=>setShowAssistant(v=>!v)}>{showAssistant?'收起 AI':'AI 助手'}</Button><Button variant="secondary" size="sm" disabled={Boolean(busy)||!baseline} onClick={restore}>撤销所有调整</Button><Button size="sm" onClick={()=>void save()} busy={busy==='save'} disabled={saveDisabled}>{copying?'确认并另存为新功能':'确认并固化'}</Button></>}

@@ -16,6 +16,8 @@ public class Settlement {
     @Id @Column(name = "ID_STL") private Long id;
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "ID_PAT_ACCT", nullable = false) private Long patientAccountId;
     @Column(name = "ID_STL_REVERSES") private Long reversesSettlementId;
     @Column(name = "ID_INVOICE_LEGACY") private Long legacyInvoiceId;
@@ -47,7 +49,19 @@ public class Settlement {
                       String settlementNo, String commandCode, String settlementType,
                       String settlementScene, String terminalScene, BigDecimal amount,
                       String currencyCode, String terminalCode, Long createdBy, Instant createdAt) {
-        this.id = id; this.tenantId = tenantId; this.patientAccountId = patientAccountId;
+        this(id, tenantId, 1L, 1L, patientAccountId, legacyInvoiceId, settlementNo, commandCode,
+                settlementType, settlementScene, terminalScene, amount, currencyCode, terminalCode,
+                createdBy, createdAt);
+    }
+
+    public Settlement(Long id, Long tenantId, Long organizationId, Long departmentId,
+                      Long patientAccountId, Long legacyInvoiceId,
+                      String settlementNo, String commandCode, String settlementType,
+                      String settlementScene, String terminalScene, BigDecimal amount,
+                      String currencyCode, String terminalCode, Long createdBy, Instant createdAt) {
+        this.id = id; this.tenantId = tenantId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.patientAccountId = patientAccountId;
         this.legacyInvoiceId = legacyInvoiceId; this.settlementNo = settlementNo; this.commandCode = commandCode;
         this.settlementType = settlementType; this.settlementScene = settlementScene;
         this.terminalScene = terminalScene; this.status = "PRICED"; this.grossAmount = amount;
@@ -110,6 +124,8 @@ public class Settlement {
     public Long id() { return id; }
     public long revision() { return revision; }
     public Long tenantId() { return tenantId; }
+    public Long organizationId() { return organizationId; }
+    public Long departmentId() { return departmentId; }
     public Long patientAccountId() { return patientAccountId; }
     public Long reversesSettlementId() { return reversesSettlementId; }
     public Long legacyInvoiceId() { return legacyInvoiceId; }

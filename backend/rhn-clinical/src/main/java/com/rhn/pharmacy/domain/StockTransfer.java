@@ -16,6 +16,8 @@ public class StockTransfer {
     @Version @Column(name = "REVISION") private long revision;
     @Column(name = "ID_TNT", nullable = false) private Long tenantId;
     @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT_SRC", nullable = false) private Long sourceDepartmentId;
+    @Column(name = "ID_DEPT_DEST", nullable = false) private Long destinationDepartmentId;
     @Column(name = "ID_STOCK_SITE_SRC", nullable = false) private Long sourceSiteId;
     @Column(name = "ID_STOCK_SITE_DESTINATION", nullable = false) private Long destinationSiteId;
     @Column(name = "CD_XFER_NO", nullable = false) private String transferNo;
@@ -38,10 +40,13 @@ public class StockTransfer {
     @Column(name = "ID_USER_UPDATED", nullable = false) private Long updatedBy;
 
     protected StockTransfer() {}
-    public StockTransfer(Long tenantId, Long organizationId, Long sourceSiteId, Long destinationSiteId,
+    public StockTransfer(Long tenantId, Long organizationId, Long sourceDepartmentId, Long destinationDepartmentId,
+                         Long sourceSiteId, Long destinationSiteId,
                          String transferNo, String requestCode, Instant requestedAt, String reason,
                          String description, Long actorId) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.organizationId = organizationId;
+        this.sourceDepartmentId = sourceDepartmentId;
+        this.destinationDepartmentId = destinationDepartmentId;
         this.sourceSiteId = sourceSiteId; this.destinationSiteId = destinationSiteId; this.transferNo = transferNo;
         this.requestCode = requestCode; this.status = "DRAFT"; this.requestedAt = requestedAt;
         this.requestedBy = actorId; this.reason = reason; this.description = description;
@@ -56,7 +61,9 @@ public class StockTransfer {
     private void require(String expected) { if (!expected.equals(status)) throw new IllegalStateException("调拨单状态不允许当前操作"); }
     private void touch(Long actor) { updatedAt = Instant.now(); updatedBy = actor; }
     public Long id() { return id; } public long revision() { return revision; } public Long tenantId() { return tenantId; }
-    public Long organizationId() { return organizationId; } public Long sourceSiteId() { return sourceSiteId; }
+    public Long organizationId() { return organizationId; }
+    public Long sourceDepartmentId() { return sourceDepartmentId; } public Long destinationDepartmentId() { return destinationDepartmentId; }
+    public Long sourceSiteId() { return sourceSiteId; }
     public Long destinationSiteId() { return destinationSiteId; } public String transferNo() { return transferNo; }
     public String requestCode() { return requestCode; } public String status() { return status; }
     public Instant requestedAt() { return requestedAt; } public Long requestedBy() { return requestedBy; }

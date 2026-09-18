@@ -85,7 +85,8 @@ public class SettlementApplicationService {
         Settlement existing = settlements.findByTenantIdAndLegacyInvoiceId(context.tenantId(), invoice.id()).orElse(null);
         if (existing != null) return existing;
         String type = "CREDIT".equals(invoice.invoiceType()) ? "REVERSAL" : "NORMAL";
-        Settlement value = settlements.save(new Settlement(invoice.id(), context.tenantId(), account.id(), invoice.id(),
+        Settlement value = settlements.save(new Settlement(invoice.id(), context.tenantId(),
+                account.organizationId(), account.departmentId(), account.id(), invoice.id(),
                 invoice.invoiceNo(), "SETTLE-" + invoice.invoiceNo(), type,
                 scene(settlementScene, "OUTPATIENT"), terminal(terminalScene, "CASHIER"),
                 invoice.netAmount(), invoice.currencyCode(), clean(terminalCode), context.subjectId(), invoice.issuedAt()));

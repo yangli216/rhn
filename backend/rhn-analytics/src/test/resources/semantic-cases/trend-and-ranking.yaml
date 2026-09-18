@@ -1,0 +1,48 @@
+- id: "A023"
+  category: "TREND_AND_RANKING"
+  question: "本月门诊药品费用各科室排行榜前10"
+  description: "统计本月门诊药品费用按收费科室降序排列的前十名"
+  expected:
+    status: "READY"
+    intent: "RANKING"
+    metrics:
+      - "OP_DRUG_CHARGE_AMOUNT"
+    dimensions:
+      - "CHARGE_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+    sort:
+      metric: "OP_DRUG_CHARGE_AMOUNT"
+      direction: "DESC"
+    limit: 10
+
+- id: "A024"
+  category: "TREND_AND_RANKING"
+  question: "近30天门诊诊毕人次按日变化"
+  description: "以折线趋势观察近30天门诊完成就诊人次的每日波动情况"
+  expected:
+    status: "READY"
+    intent: "TREND"
+    metrics:
+      - "OP_COMPLETED_COUNT"
+    dimensions:
+      - "DAY"
+    period:
+      type: "LAST_30_DAYS"
+    scope: "CURRENT"
+
+- id: "A025"
+  category: "TREND_AND_RANKING"
+  question: "今年各月门诊挂号人次趋势"
+  description: "统计自年初至今（YEAR_TO_DATE）门诊挂号人次按月度聚合走势"
+  expected:
+    status: "READY"
+    intent: "TREND"
+    metrics:
+      - "OP_REGISTER_COUNT"
+    dimensions:
+      - "MONTH"
+    period:
+      type: "YEAR_TO_DATE"
+    scope: "CURRENT"

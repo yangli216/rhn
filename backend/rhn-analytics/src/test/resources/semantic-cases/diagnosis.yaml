@@ -1,0 +1,67 @@
+- id: "A019"
+  category: "DIAGNOSIS"
+  question: "本月门诊有效确诊记录数按科室统计"
+  description: "统计本月门诊当前有效且已确诊的记录条数按就诊科室分组"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+    dimensions:
+      - "ENCOUNTER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"
+
+- id: "A020"
+  category: "DIAGNOSIS"
+  question: "本月门诊确诊记录数排行前十"
+  description: "统计本月门诊各类确诊疾病名称的记录数并展示前10位"
+  expected:
+    status: "READY"
+    intent: "RANKING"
+    metrics:
+      - "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+    dimensions:
+      - "DIAGNOSIS"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "CURRENT"
+    sort:
+      metric: "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+      direction: "DESC"
+    limit: 10
+
+- id: "A021"
+  category: "DIAGNOSIS"
+  question: "近30天门诊高血压确诊记录按日趋势"
+  description: "按日观察近30天门诊高血压相关有效确诊记录条数的时间序列走势"
+  expected:
+    status: "READY"
+    intent: "TREND"
+    metrics:
+      - "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+    dimensions:
+      - "DAY"
+    period:
+      type: "LAST_30_DAYS"
+    scope: "CURRENT"
+    filters:
+      - dimension: "DIAGNOSIS"
+        operator: "CONTAINS"
+        value: "高血压"
+
+- id: "A022"
+  category: "DIAGNOSIS"
+  question: "本月各科室门诊有效确诊记录数"
+  description: "统计本月各授权科室的门诊有效确诊条数"
+  expected:
+    status: "READY"
+    intent: "METRIC_SUMMARY"
+    metrics:
+      - "OP_VALID_DIAGNOSIS_RECORD_COUNT"
+    dimensions:
+      - "ENCOUNTER_DEPARTMENT"
+    period:
+      type: "MONTH_TO_DATE"
+    scope: "AUTHORIZED"

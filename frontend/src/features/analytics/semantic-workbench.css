@@ -1,0 +1,580 @@
+/* PC 端宽屏桌面适配工作台 (1280px ~ 1920px+) */
+.sw-root {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 120px);
+  min-height: 680px;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* 顶部操作与元数据栏 */
+.sw-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-subtle);
+  flex-shrink: 0;
+  gap: 16px;
+}
+
+.sw-header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sw-header-title h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sw-badge-asset {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+  border: 1px solid var(--color-border-strong);
+  font-family: monospace;
+}
+
+.sw-header-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.sw-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--color-surface);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+}
+
+.sw-stat-pill strong {
+  color: var(--color-brand-primary);
+}
+
+.sw-stat-pill.is-warning {
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+
+.sw-header-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--color-surface);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+}
+
+.sw-tab-btn {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sw-tab-btn.is-active {
+  background: var(--color-brand-primary);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+/* 三栏高密度工作台主体布局 (PC 宽屏 Split Panes) */
+.sw-body {
+  display: grid;
+  grid-template-columns: 280px minmax(500px, 1fr) 420px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 左侧栏：实体拓扑导航与检索 */
+.sw-pane-left {
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.sw-search-box {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sw-search-box input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface-subtle);
+  color: inherit;
+}
+
+.sw-entity-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sw-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  padding: 4px 6px;
+  letter-spacing: 0.5px;
+}
+
+.sw-node-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.sw-node-item:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-surface-subtle);
+}
+
+.sw-node-item.is-selected {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  box-shadow: 0 0 0 1px var(--color-brand-primary);
+}
+
+.sw-node-item-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sw-node-item-name {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sw-node-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--color-surface-subtle);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.sw-node-tag.tag-fact {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
+.sw-node-tag.tag-dim {
+  background: #ecfdf5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+.sw-node-item-meta {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-family: monospace;
+}
+
+.sw-node-item-counts {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
+
+/* 中间主作业区：拓扑画布 */
+.sw-pane-center {
+  display: flex;
+  flex-direction: column;
+  background: #f8fafc;
+  overflow: hidden;
+  position: relative;
+}
+
+.sw-canvas-wrap {
+  flex: 1;
+  position: relative;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.sw-graph-svg-container {
+  width: 100%;
+  min-height: 580px;
+  position: relative;
+}
+
+/* 实体卡片在拓扑中的排版 */
+.sw-topology-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.sw-topology-tier {
+  display: flex;
+  justify-content: space-around;
+  gap: 20px;
+}
+
+.sw-card-node {
+  width: 220px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.sw-card-node:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.1);
+  border-color: var(--color-brand-primary);
+}
+
+.sw-card-node.is-active {
+  border-color: var(--color-brand-primary);
+  box-shadow: 0 0 0 2px var(--color-brand-primary);
+}
+
+.sw-card-node-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.sw-card-node-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.sw-card-table {
+  font-size: 11px;
+  color: #64748b;
+  font-family: monospace;
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+
+.sw-card-details {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  border-top: 1px dashed var(--color-border);
+  padding-top: 6px;
+}
+
+/* 扇出风控警告条 */
+.sw-fanout-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 16px;
+}
+
+/* 右侧栏：规则详情与人机共建 Copilot */
+.sw-pane-right {
+  border-left: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.sw-inspector-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sw-inspector-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.sw-inspector-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sw-meta-card {
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.sw-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sw-meta-row span {
+  color: var(--color-text-secondary);
+}
+
+.sw-meta-row strong {
+  font-family: monospace;
+}
+
+/* 维度属性与字典展示 */
+.sw-section-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sw-attribute-card {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--color-surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sw-attr-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sw-attr-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-brand-primary);
+}
+
+.sw-attr-col {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-family: monospace;
+}
+
+.sw-val-map {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  background: var(--color-surface-subtle);
+  padding: 8px 10px;
+  border-radius: 6px;
+}
+
+.sw-val-item {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.sw-val-key {
+  font-family: monospace;
+  font-weight: 600;
+  color: #0f766e;
+}
+
+.sw-val-aliases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sw-alias-pill {
+  font-size: 11px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* 指标默认过滤展示 */
+.sw-metric-filter-item {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 3px solid var(--color-brand-primary);
+  background: var(--color-surface-subtle);
+  font-size: 12px;
+}
+
+.sw-metric-filter-item strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* 人机共建 Copilot 面板 */
+.sw-copilot-box {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sw-copilot-box textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 80px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.sw-diff-box {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 10px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* 即时语义探针视图 (Live Probe) */
+.sw-probe-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sw-probe-input-bar {
+  display: flex;
+  gap: 10px;
+}
+
+.sw-probe-input-bar input {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.sw-probe-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sw-preset-chip {
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.sw-preset-chip:hover {
+  border-color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+}
+
+.sw-probe-result {
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sw-probe-sql {
+  background: #0f172a;
+  color: #38bdf8;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}

@@ -23,8 +23,10 @@ class Prescription {
     @Column(name = "SD_GRP_TYPE", nullable = false) private String groupType;
     @Column(name = "CD_CAT") private String categoryCode;
     @Column(name = "SD_STATUS", nullable = false) private String status;
-    @Column(name = "ID_ORG_PERFORMER", nullable = false) private Long performerOrganizationId;
-    @Column(name = "ID_DEPT_PERFORMER", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_EXEC", nullable = false) private Long performerOrganizationId;
+    @Column(name = "ID_DEPT_EXEC", nullable = false) private Long performerDepartmentId;
+    @Column(name = "ID_ORG_REQ", nullable = false) private Long requestingOrganizationId;
+    @Column(name = "ID_DEPT_REQ", nullable = false) private Long requestingDepartmentId;
     @Column(name = "DT_AUTHORED", nullable = false) private Instant authoredAt;
     @Column(name = "ID_USER_AUTHORED", nullable = false) private Long authoredBy;
     @Column(name = "DT_SUBMITTED") private Instant submittedAt;
@@ -43,6 +45,8 @@ class Prescription {
         this.categoryCode = categoryCode; this.status = "DRAFT";
         this.performerOrganizationId = performerOrganizationId;
         this.performerDepartmentId = performerDepartmentId;
+        this.requestingOrganizationId = performerOrganizationId;
+        this.requestingDepartmentId = performerDepartmentId;
         this.authoredAt = Instant.now(); this.authoredBy = authoredBy; this.note = note;
     }
 
@@ -71,6 +75,7 @@ class Prescription {
     Long residentId() { return residentId; } Long encounterId() { return encounterId; } String groupNo() { return groupNo; }
     String groupType() { return groupType; } String categoryCode() { return categoryCode; } String status() { return status; }
     Long performerOrganizationId() { return performerOrganizationId; } Long performerDepartmentId() { return performerDepartmentId; }
+    Long requestingOrganizationId() { return requestingOrganizationId; } Long requestingDepartmentId() { return requestingDepartmentId; }
     Instant authoredAt() { return authoredAt; } Long authoredBy() { return authoredBy; }
     Instant submittedAt() { return submittedAt; } Long submittedBy() { return submittedBy; }
     Instant cancelledAt() { return cancelledAt; } Long cancelledBy() { return cancelledBy; }

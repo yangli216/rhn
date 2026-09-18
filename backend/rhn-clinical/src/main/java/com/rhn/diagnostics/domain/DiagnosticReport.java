@@ -17,6 +17,8 @@ public class DiagnosticReport {
     @Column(name = "ID_PAT", nullable = false) private Long residentId;
     @Column(name = "ID_ENC", nullable = false) private Long encounterId;
     @Column(name = "ID_CARE_REQ", nullable = false) private Long requestId;
+    @Column(name = "ID_ORG", nullable = false) private Long organizationId;
+    @Column(name = "ID_DEPT", nullable = false) private Long departmentId;
     @Column(name = "CD_ENDPOINT", nullable = false) private String endpointCode;
     @Column(name = "ID_EXT_REPORT", nullable = false) private String externalReportId;
     @Column(name = "SN_REPORT_VER", nullable = false) private int reportVersion;
@@ -39,13 +41,16 @@ public class DiagnosticReport {
     protected DiagnosticReport() {}
 
     public DiagnosticReport(Long tenantId, Long residentId, Long encounterId, Long requestId,
+                            Long organizationId, Long departmentId,
                             String endpointCode, String externalReportId, int reportVersion,
                             Long replacesReportId, String reportType, String status,
                             String reportCode, String reportName, Instant issuedAt, String conclusion,
                             String authorCode, String authorName, String contentDigest,
                             Long inboundMessageId, Long createdBy) {
         this.id = GlobalIds.next(); this.tenantId = tenantId; this.residentId = residentId;
-        this.encounterId = encounterId; this.requestId = requestId; this.endpointCode = endpointCode;
+        this.encounterId = encounterId; this.requestId = requestId;
+        this.organizationId = organizationId; this.departmentId = departmentId;
+        this.endpointCode = endpointCode;
         this.externalReportId = externalReportId; this.reportVersion = reportVersion;
         this.replacesReportId = replacesReportId; this.reportType = reportType; this.status = status;
         this.reportCode = reportCode; this.reportName = reportName; this.issuedAt = issuedAt;
@@ -57,7 +62,9 @@ public class DiagnosticReport {
 
     public Long id() { return id; } public Long tenantId() { return tenantId; }
     public Long residentId() { return residentId; } public Long encounterId() { return encounterId; }
-    public Long requestId() { return requestId; } public String endpointCode() { return endpointCode; }
+    public Long requestId() { return requestId; }
+    public Long organizationId() { return organizationId; } public Long departmentId() { return departmentId; }
+    public String endpointCode() { return endpointCode; }
     public String externalReportId() { return externalReportId; } public int reportVersion() { return reportVersion; }
     public Long replacesReportId() { return replacesReportId; } public String reportType() { return reportType; }
     public String status() { return status; } public String reportCode() { return reportCode; }
