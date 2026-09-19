@@ -87,4 +87,27 @@ describe('AppShell work context routing', () => {
       icon: 'print',
     })
   })
+
+  it('opens resident center, medication rules and analytics in workspace tabs', () => {
+    expect(tabForPath('/residents')).toMatchObject({
+      path: '/residents',
+      title: '居民中心',
+      icon: 'residents',
+    })
+    expect(tabForPath('/quality/medication-rules')).toMatchObject({
+      path: '/quality/medication-rules',
+      title: '合理用药规则',
+      icon: 'clinical',
+    })
+    expect(tabForPath('/analytics/registration')).toMatchObject({
+      path: '/analytics/registration',
+      title: '门诊挂号统计',
+      icon: 'residents',
+    })
+    expect(tabForPath('/analytics/workload')).toMatchObject({
+      path: '/analytics/workload',
+      title: '门诊就诊工作量',
+      icon: 'clinical',
+    })
+  })
 })

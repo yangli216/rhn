@@ -398,6 +398,7 @@ public class SettlementApplicationService {
         };
     }
     private ChargeCategory chargeCategory(ChargeItem charge) {
+        if ("DIRECT_VISIT_SERVICE".equals(charge.sourceType())) return new ChargeCategory("TREATMENT", "诊疗费");
         if (charge.sourceType().startsWith("REGISTRATION")) return new ChargeCategory("REGISTRATION", "挂号费");
         if (charge.sourceType().startsWith("INPATIENT_BED_DAY")) return new ChargeCategory("BED", "床位费");
         if (charge.sourceType().startsWith("MEDICATION_")) return new ChargeCategory("MEDICATION", "药品费");

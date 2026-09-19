@@ -295,7 +295,10 @@ class InsuranceClaimTransactionService {
         Map<String, String> result = new LinkedHashMap<>(); source.forEach((key, item) -> result.put(key, String.valueOf(item)));
         return result;
     }
-    private String category(ChargeItem value) { return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION"; }
+    private String category(ChargeItem value) {
+        if ("DIRECT_VISIT_SERVICE".equals(value.sourceType())) return "TREATMENT";
+        return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION";
+    }
     private String required(String value, String code, String message) {
         String result = clean(value); if (result == null || result.length() > 128) throw badRequest(code, message); return result;
     }

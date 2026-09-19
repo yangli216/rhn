@@ -6,6 +6,7 @@ import type { ClinicalContext } from '../../app/AppShell'
 import type { ProfessionalScheduleResult } from '../../shared/api/schedulingApi'
 import type { RhnApi } from '../../shared/rhnApi'
 import { SchedulingWorkspace } from './SchedulingWorkspace'
+import { getNextWeekRange } from '../../shared/utils/dateRange'
 
 const clinicalContext = {
   organization: { id: 'org-1', name: '青禾镇中心卫生院' },
@@ -49,6 +50,17 @@ describe('SchedulingWorkspace', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /批量排班/ }))
     expect(await screen.findByText('按科室挂号')).toBeInTheDocument()
+    expect(screen.getByTestId('date-range-picker')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: '清空日期' }))
+    expect(screen.getByRole('button', { name: '生成排班' })).toBeDisabled()
+    await userEvent.click(screen.getByTitle('点击切换快捷日期范围'))
+    for (const label of ['本周剩余', '下周', '未来7天', '未来14天', '未来28天', '本月剩余', '下月']) {
+      expect(screen.getByRole('option', { name: label })).toBeInTheDocument()
+    }
+    await userEvent.click(screen.getByRole('option', { name: '下周' }))
+    const nextWeek = getNextWeekRange()
+    expect(screen.getByLabelText('排班开始日期')).toHaveValue(nextWeek.from)
+    expect(screen.getByLabelText('排班结束日期')).toHaveValue(nextWeek.to)
     expect(screen.queryByText('门诊诊查项目与机构价格')).not.toBeInTheDocument()
     await userEvent.click(screen.getByRole('combobox', { name: '门诊服务' }))
     expect(await screen.findByText('¥12.00')).toBeInTheDocument()
@@ -62,6 +74,7 @@ describe('SchedulingWorkspace', () => {
 
     await waitFor(() => expect(quickCreate).toHaveBeenCalledWith(expect.objectContaining({
       registrationScope: 'DEPARTMENT', practitionerId: undefined, catalogItemId: 'service-1',
+      dateFrom: nextWeek.from, dateTo: nextWeek.to,
     })))
     expect(await screen.findByText(/已为【内科门诊】生成 20 个排班/)).toBeInTheDocument()
     expect(onDepartmentChange).toHaveBeenCalledWith('org-1', 'dept-2')

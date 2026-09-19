@@ -124,6 +124,8 @@ public class AnalysisPageService {
                 sourceCatalog 每项是一个独立事实来源。measures 最多4个，code 依次 M1..M4，source 和 sourceVersion 来自目录，field 和 aggregate 必须被该字段允许。
                 metrics 必须与 measures 的 code 顺序完全一致。filters 必须是数组，无筛选为 []；每个筛选为 {field,operator,values:[字符串]}，字段、操作符及枚举值必须来自该来源目录。
                 COUNT 计记录条数，COUNT_DISTINCT 对患者/关联就诊/费用关联医嘱去重；SUM 对金额求和，AVG 是费用行平均，不能当次均或人均费用。
+                REGISTRATION 是门诊挂号流水事实来源，registrationId 是挂号流水（COUNT 统计挂号人次/挂号总量），patientId 是挂号患者人数（必须 COUNT_DISTINCT）。支持按 status 挂号状态筛选（如 CANCELLED 为退号）。凡用户提及“挂号总量、挂号人次、挂号趋势、科室挂号分析”优先使用 REGISTRATION 来源。
+                ENCOUNTER 是门诊就诊来源，encounterId（COUNT 就诊次数），patientId（COUNT_DISTINCT 就诊患者人数）。
                 ORDER 是医嘱条数（含药品和服务），不是处方张数/发药数量。普通医嘱统计默认 status EQ ACTIVE 并说明；用户明确所有状态、取消或草稿时按需求筛选。
                 CHARGE 是门诊人民币已记账费用净发生额，包含负数冲销、未结算费用；不是实收收入或已结算金额。要求实收、支付、医保到账、已结算收入时 UNSUPPORTED，不得替换为费用发生额。
                 单说收费金额可使用 CHARGE amount SUM，名称必须“费用净发生额”，message 说明含未结算及冲销；平均收费明确为每条费用行均值才用 AVG。
@@ -132,16 +134,15 @@ public class AnalysisPageService {
                 CHARGE 已验证费用到医嘱的多对一关联，可通过 orderKind、orderStatus 筛选对应药品/服务医嘱的费用；对应有效药品医嘱费用使用 orderKind=MEDICATION 且 orderStatus=ACTIVE。
                 用户同时要求有效药品医嘱条数、涉及患者去重人数和费用金额时，条数及患者来自 ORDER（ACTIVE+MEDICATION），费用来自 CHARGE（orderStatus=ACTIVE+orderKind=MEDICATION），清楚说明仅相关费用。
                 明确说“全部门诊费用”则 CHARGE 不加医嘱限制。若独立费用与相关费用的意思仍不明确，用一句 CLARIFY 询问，不要直接 UNSUPPORTED。
-                其他尚未定义的跨来源交叉筛选（如某诊断患者的药品费用）、比率、人均/次均费用等无法表达时，返回 UNSUPPORTED 并具体说明，不得丢弃条件。
+                其他尚未定义的跨来源交叉筛选（如某诊断患者的药品费用）、比率、人均/次均费用等无法表达时，返回 UNSUPPORTED 并以通俗业务语言具体说明缺少哪项数据能力，不得向用户暴露 sourceCatalog、metricCatalog、measures 等技术契约术语。
                 未提供日期默认本月，范围默认 CURRENT。本月/上个月/近30天/今年使用 MONTH_TO_DATE/LAST_MONTH/LAST_30_DAYS/YEAR_TO_DATE；其他日期用 FIXED 与 yyyy-MM-dd startDate/endDate，最多366天。
                 各科室、所有科室或全院必须 scope AUTHORIZED（当前机构有权限科室）；否则 CURRENT。
                 dimension 必须是所有所选来源共有的维度：DAY、MONTH、DEPARTMENT、ITEM、ORDER_TYPE、STATUS、DIAGNOSIS。ITEM 按医嘱/收费项目，ORDER_TYPE 按药品与服务医嘱，STATUS 按状态（只允许单一来源）。
                 TREND 必须 DAY/MONTH；RANKING 只有一个指标，按值降序，limit默认10最大100；LIST、DASHBOARD、COMPARISON、CUSTOM 可多个指标。limit 对所有模板必须提供整数，非排行模板固定10，不能为null。
-                仅挂号人次、诊毕日期口径或退号率等 sourceCatalog 无法表达而 metricCatalog 能表达的需求可使用旧 metrics，measures:null；禁止同一页面混用两种契约。
                 名称必须准确反映聚合对象及口径，不能把费用称作实收，把医嘱条数称为处方数。
                 只返回 JSON。成功示例（template 必须换成用户选择值）：
                 {"status":"READY","message":"中文说明","spec":{"title":"门诊有效药品医嘱","template":"LIST","metrics":["M1"],"measures":[{"code":"M1","name":"有效药品医嘱条数","source":"ORDER","sourceVersion":1,"aggregate":"COUNT","field":"orderId","filters":[{"field":"status","operator":"EQ","values":["ACTIVE"]},{"field":"kind","operator":"EQ","values":["MEDICATION"]}]}],"dimension":"DAY","scope":"CURRENT","period":{"kind":"MONTH_TO_DATE","startDate":null,"endDate":null},"limit":10}}
-                无法生成则 {"status":"CLARIFY或UNSUPPORTED","message":"200字以内的具体澄清问题或缺少的数据能力","spec":null}。
+                无法生成则 {"status":"CLARIFY或UNSUPPORTED","message":"200字以内的具体业务澄清问题或缺少的数据能力（使用通俗医院业务语言说明，严禁出现 sourceCatalog、metricCatalog、measures 等代码术语）","spec":null}。
                 """;
         Map<String,Object> input=new LinkedHashMap<>();
         input.put("requirement",request.requirement());input.put("template",request.template());input.put("today",today);

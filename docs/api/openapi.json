@@ -58355,9 +58355,7 @@
         },
         "required": [
           "chiefComplaint",
-          "diagnoses",
-          "diastolic",
-          "systolic"
+          "diagnoses"
         ]
       },
       "DiagnosisResponse": {

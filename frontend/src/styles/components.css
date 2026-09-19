@@ -1938,3 +1938,385 @@ button.ui-tree-panel__chevron:hover, button.ui-tree-panel__chevron:focus-visible
   box-shadow: inset 0 0 0 1px var(--color-brand-primary) !important;
 }
 
+/* ==========================================================================
+   DatePicker (高保真智能日期选择器)
+   ========================================================================== */
+
+.ui-date-picker {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  height: var(--control-height-md);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: inset 0 1px 2px color-mix(in srgb, var(--color-border-strong) 20%, transparent);
+  transition: border-color var(--motion-fast) var(--ease-standard), box-shadow var(--motion-fast) var(--ease-standard);
+  box-sizing: border-box;
+}
+
+.ui-date-picker.ui-field__control {
+  padding: 0 !important;
+}
+
+.ui-date-picker:hover:not(.is-disabled):not(.is-readonly) {
+  border-color: var(--color-text-disabled);
+}
+
+.ui-date-picker:focus-within,
+.ui-date-picker.is-open {
+  border-color: var(--color-brand-primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px var(--color-focus-ring), 0 1px 2px color-mix(in srgb, var(--color-brand-primary) 12%, transparent);
+}
+
+.ui-date-picker.is-disabled {
+  background: var(--color-surface-muted);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+.ui-date-picker__control {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 0 var(--space-2);
+  gap: var(--space-1);
+}
+
+.ui-date-picker__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+  line-height: normal;
+}
+
+.ui-date-picker__input::placeholder {
+  color: var(--color-text-muted);
+  font-size: .75rem;
+}
+
+.ui-date-picker__input:disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
+.ui-date-picker__clear-btn,
+.ui-date-picker__trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all var(--motion-fast) var(--ease-standard);
+  flex-shrink: 0;
+}
+
+.ui-date-picker__clear-btn {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--color-text-muted);
+}
+
+.ui-date-picker__clear-btn:hover {
+  color: var(--color-danger);
+  background: var(--color-surface-subtle);
+}
+
+.ui-date-picker__clear-btn .ui-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.ui-date-picker__trigger-btn {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.ui-date-picker__trigger-btn:hover:not(:disabled) {
+  color: var(--color-brand-primary);
+  background: var(--color-brand-soft);
+}
+
+.ui-date-picker__trigger-btn .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.ui-date-picker__popover {
+  position: fixed;
+  z-index: var(--z-modal-popover);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-modal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: ui-fade-in var(--motion-fast) var(--ease-standard);
+}
+
+/* 快捷预设标签条 */
+.ui-date-picker__shortcuts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-surface-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: .75rem;
+}
+
+.ui-date-picker__shortcuts-label {
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  flex-shrink: 0;
+}
+
+.ui-date-picker__shortcuts-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: nowrap;
+}
+
+.ui-date-picker__shortcut-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1);
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+  line-height: 1.3;
+  color: var(--color-brand-primary);
+  background: var(--color-surface);
+  border: 1px solid color-mix(in srgb, var(--color-brand-primary) 30%, transparent);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.ui-date-picker__shortcut-btn:hover {
+  background: var(--color-brand-primary);
+  color: var(--color-text-inverse);
+  border-color: var(--color-brand-primary);
+}
+
+/* 头部年月导航 */
+.ui-date-picker__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.ui-date-picker__title {
+  font-size: var(--font-size-small);
+  color: var(--color-text-primary);
+  user-select: none;
+}
+
+.ui-date-picker__title strong {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-bold);
+}
+
+.ui-date-picker__nav-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ui-date-picker__nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: .85rem;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+
+.ui-date-picker__nav-btn:hover {
+  color: var(--color-brand-primary);
+  background: var(--color-surface-subtle);
+  border-color: var(--color-border);
+}
+
+/* 日历网格 */
+.ui-date-picker__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ui-date-picker__weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+}
+
+.ui-date-picker__weekday {
+  font-size: .75rem;
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  padding: 3px 0;
+}
+
+.ui-date-picker__days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.ui-date-picker__day {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.75rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-size: .75rem;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all .12s ease;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-date-picker__day:hover:not(:disabled) {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+}
+
+.ui-date-picker__day.is-muted {
+  color: var(--color-text-disabled);
+  opacity: 0.55;
+}
+
+.ui-date-picker__day.is-today {
+  font-weight: var(--font-weight-bold);
+  border-color: var(--color-brand-primary);
+  color: var(--color-brand-primary);
+}
+
+.ui-date-picker__day.is-selected {
+  background: var(--color-brand-primary) !important;
+  color: var(--color-text-inverse) !important;
+  font-weight: var(--font-weight-bold);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.ui-date-picker__day.is-disabled {
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+  opacity: 0.35;
+  background: transparent !important;
+}
+
+/* 底部操作 */
+.ui-date-picker__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.ui-date-picker__footer-btn {
+  background: transparent;
+  border: none;
+  font-size: .75rem;
+  color: var(--color-brand-primary);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  transition: background var(--motion-fast);
+}
+
+.ui-date-picker__footer-btn:hover {
+  background: var(--color-brand-soft);
+}
+
+.ui-date-picker__footer-btn--clear {
+  color: var(--color-text-secondary);
+}
+
+.ui-date-picker__footer-btn--clear:hover {
+  color: var(--color-danger);
+  background: var(--color-surface-subtle);
+}
+
+/* Continuous row entry: keep editors mounted so mouse, Tab and refs share the same focus path. */
+.ui-editable-table { table-layout: fixed; }
+.ui-editable-table td { padding: var(--space-2) var(--space-3); vertical-align: middle; }
+.ui-editable-table .ui-editable-row.is-editing { background: var(--color-brand-soft); }
+.ui-editable-cell__field { display: grid; align-items: center; min-width: 0; min-height: var(--control-height-sm); }
+.ui-editable-cell__read,
+.ui-editable-cell__editor { grid-area: 1 / 1; min-width: 0; }
+.ui-editable-cell__read {
+  padding: 0 var(--space-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-small);
+}
+.ui-editable-cell__read.is-empty { color: var(--color-text-muted); }
+.ui-editable-cell__editor { opacity: 0; }
+.ui-editable-row.is-editing .ui-editable-cell__editor { opacity: 1; }
+.ui-editable-row.is-editing .ui-editable-cell__read { visibility: hidden; }
+.ui-editable-cell__editor .ui-field__control,
+.ui-editable-cell__editor .ui-select__trigger,
+.ui-editable-cell__editor .ui-date-picker,
+.ui-editable-cell__editor .ui-unit-number-input {
+  height: var(--control-height-sm) !important;
+  min-height: var(--control-height-sm) !important;
+  max-height: var(--control-height-sm) !important;
+  margin: 0 !important;
+  font-size: var(--font-size-small);
+  box-sizing: border-box;
+}
+.ui-editable-cell__editor .ui-field__control,
+.ui-editable-cell__editor .ui-select__trigger { padding-inline: var(--space-2); }
+.ui-editable-cell__editor .ui-unit-number-input__number {
+  padding-inline: var(--space-2) !important;
+  font-size: var(--font-size-small) !important;
+}
+.ui-editable-cell__editor .ui-unit-number-input__unit-wrap { min-width: 0 !important; }
+.ui-editable-cell__editor .ui-unit-number-input__unit-label { padding-inline: var(--space-2) !important; white-space: nowrap; }
+.ui-editable-cell__editor .ui-unit-number-input__unit-wrap .ui-select__trigger {
+  height: 100% !important;
+  min-height: 0 !important;
+}
+.ui-editable-cell.ui-table-cell--numeric input { text-align: right; font-variant-numeric: tabular-nums; }

@@ -9,7 +9,8 @@ import type { CatalogPrice, ServiceCatalogItem } from '../../shared/api/masterDa
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import {
-  Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge,
+  SCHEDULING_DATE_PRESETS,
 } from '../../shared/ui'
 
 const weekdayOptions = [
@@ -439,7 +440,8 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
   const estimatedSchedules = estimatedDays * dayParts.length
   const estimatedTotalSlots = estimatedSchedules * (Number(capacity) || 0)
   const canSubmit = (registrationScope === 'DEPARTMENT' || practitionerId) && catalogItemId && dateFrom && dateTo && weekdays.length > 0
-    && dayParts.length > 0 && Number(capacity) > 0
+    && dateFrom >= today && dateTo >= dateFrom && dateTo <= maxDateTo
+    && estimatedDays > 0 && dayParts.length > 0 && Number(capacity) > 0
 
   function toggleWeekday(value: number) {
     setWeekdays((current) => current.includes(value) ? current.filter((item) => item !== value) : [...current, value].sort())
@@ -763,13 +765,11 @@ export function SchedulingWorkspace({ api, clinicalContext, departmentOptions, o
           <div className="batch-dialog-section">
             <h3 className="batch-section-title">排期周期与放号数量</h3>
             <div className="batch-grid-row batch-grid-row--3cols">
-              <FormField label="开始日期" required>
-                <input type="date" min={today} value={dateFrom}
-                  onChange={(event) => setDateFrom(event.target.value)} />
-              </FormField>
-              <FormField label="结束日期" required>
-                <input type="date" min={dateFrom} max={maxDateTo} value={dateTo}
-                  onChange={(event) => setDateTo(event.target.value)} />
+              <FormField label="排班日期" required className="batch-schedule-date-range">
+                <DateRangePicker value={{ from: dateFrom, to: dateTo }}
+                  onChange={(range) => { setDateFrom(range.from); setDateTo(range.to) }}
+                  presets={SCHEDULING_DATE_PRESETS} min={today} max={maxDateTo}
+                  startAriaLabel="排班开始日期" endAriaLabel="排班结束日期" />
               </FormField>
               <FormField label="每时段放号数" required hint={Number(capacity) > 200 ? '号源数较大，请确认' : undefined}>
                 <input type="number" min="1" max="500" value={capacity}

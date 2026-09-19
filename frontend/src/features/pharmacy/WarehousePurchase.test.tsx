@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { expect, it, vi } from 'vitest'
-import type { GoodsReceipt, PurchaseOrder, StockBin, StockItem } from '../../shared/api'
+import type { GoodsReceipt, PurchaseOrder, StockBin, StockItem, StockSite } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { GoodsReceiptDialog, MultiItemDialog, purchaseReceivable } from './WarehouseOperations'
 
@@ -113,30 +114,52 @@ it('supports direct purchase receipt with immediate inspection and inventory pos
   const { PurchaseDialog } = await import('./WarehouseOperations')
   const directGoodsReceipt = vi.fn().mockResolvedValue({ id: 'gr-direct', status: 'POSTED' })
   const onDone = vi.fn()
+  const historyOrder = {
+    id: 'history-po',
+    orderNo: 'PO-HIST',
+    lines: [{ id: 'hist-line', stockItemId: 'item', unitPrice: 12.8 }],
+  } as unknown as PurchaseOrder
+  const testProduct = {
+    id: 'item',
+    prices: [
+      { sdStatus: 'ACTIVE', sdPriceType: 'PURCHASE', price: 12.8, validFrom: '2020-01-01' },
+      { sdStatus: 'ACTIVE', sdPriceType: 'SALE', price: 18.6, validFrom: '2020-01-01' },
+    ],
+  } as unknown as import('../../shared/api').MedicationProduct
+
   render(<PurchaseDialog
     api={{ pharmacy: { directGoodsReceipt } } as unknown as RhnApi}
     site={{ id: 'site' } as never}
     suppliers={[{ id: 'supplier', name: '优质供应商' }] as never}
     items={[item]}
     bins={[bin]}
+    orders={[historyOrder]}
+    products={[testProduct]}
     initialMode="direct"
     onNavigate={vi.fn()}
     onClose={vi.fn()}
     onDone={onDone}
   />)
 
-  // 验证模式 Tab 与直接入库专属字段呈现
+  // 验证模式 Tab、零售单价列与已移除快捷提示
   expect(screen.getByText('直接采购入库')).toBeInTheDocument()
   expect(screen.getByPlaceholderText('随货凭单号（选填）')).toBeInTheDocument()
+  expect(screen.getByText('零售单价')).toBeInTheDocument()
+  expect(screen.queryByText(/快捷提示/)).not.toBeInTheDocument()
 
   // 选择药品
-  fireEvent.click(screen.getByText('拼音/名称搜索药品'))
+  fireEvent.click(screen.getByRole('combobox', { name: '第1行药品' }))
   fireEvent.click(await screen.findByRole('option', { name: /阿莫西林/ }))
 
-  // 录入采购单价、批号、有效期
-  fireEvent.change(screen.getByLabelText('第1行采购单价'), { target: { value: '15.5' } })
+  // 验证采购单价与零售单价自动带出默认值
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(12.8)
+  expect(screen.getByLabelText('第1行零售单价')).toHaveValue(18.6)
+
+  // 录入批号、有效期（采购单价保留自动带出的默认值 12.8）
+  // 验证连续键盘键入 20260408 能够自动映射到 2026-04-08
   fireEvent.change(screen.getByLabelText('第1行批号'), { target: { value: 'DIR-LOT-2026' } })
-  fireEvent.change(screen.getByLabelText('第1行有效期至'), { target: { value: '2028-12-31' } })
+  fireEvent.change(screen.getByLabelText('第1行有效期至'), { target: { value: '20260408' } })
+  expect(screen.getByLabelText('第1行有效期至')).toHaveValue('2026-04-08')
 
   const submitBtn = screen.getByRole('button', { name: '直接验收入库并记账' })
   expect(submitBtn).toBeEnabled()
@@ -150,10 +173,132 @@ it('supports direct purchase receipt with immediate inspection and inventory pos
       stockItemId: 'item',
       destinationBinId: 'bin',
       lotNo: 'DIR-LOT-2026',
-      expiryDate: '2028-12-31',
+      expiryDate: '2026-04-08',
       quantity: 1,
-      unitPrice: 15.5,
+      unitPrice: 12.8,
     })],
   }))
   await waitFor(() => expect(onDone).toHaveBeenCalledWith(expect.stringContaining('直接采购入库完成')))
+})
+
+it('keeps direct receipt rows readable until focused and advances through every field before adding a row', async () => {
+  const user = userEvent.setup()
+  const { PurchaseDialog } = await import('./WarehouseOperations')
+  render(<PurchaseDialog api={{ pharmacy: {} } as RhnApi}
+    site={{ id: 'site' } as StockSite} suppliers={[{ id: 'supplier', name: '供应商' }] as never}
+    items={[item]} bins={[bin]} initialMode="direct"
+    onNavigate={vi.fn()} onClose={vi.fn()} onDone={vi.fn()} />)
+  const table = screen.getByRole('table', { name: '直接入库药品连续录入' })
+  const row = within(table).getAllByRole('row')[1]
+  expect(row).toHaveAttribute('data-mode', 'read')
+  await user.click(screen.getByRole('combobox', { name: '第1行药品' }))
+  expect(row).toHaveAttribute('data-mode', 'edit')
+  await user.click(await screen.findByRole('option', { name: /阿莫西林/ }))
+  await waitFor(() => expect(screen.getByLabelText('第1行数量')).toHaveFocus())
+  await user.keyboard('{Enter}')
+  expect(screen.getByLabelText('第1行采购单价')).toHaveFocus()
+  await user.type(screen.getByLabelText('第1行采购单价'), '12')
+  await user.keyboard('{Enter}')
+  expect(screen.getByLabelText('第1行零售单价')).toHaveFocus()
+  await user.keyboard('{Enter}')
+  expect(screen.getByLabelText('第1行批号')).toHaveFocus()
+  await user.type(screen.getByLabelText('第1行批号'), 'LOT-1{Enter}')
+  expect(screen.getByLabelText('第1行有效期至')).toHaveFocus()
+  const calendar = screen.getByRole('dialog', { name: '日历选择' })
+  expect(calendar.parentElement).toBe(document.body)
+  await user.type(screen.getByLabelText('第1行有效期至'), '20301231{Enter}')
+  expect(screen.queryByRole('dialog', { name: '日历选择' })).not.toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: '第1行货位' })).toHaveFocus()
+  expect(within(table).getAllByRole('row')).toHaveLength(2)
+  await user.keyboard('{Enter}')
+  await waitFor(() => expect(screen.getByRole('combobox', { name: '第2行药品' })).toHaveAttribute('aria-expanded', 'true'))
+  expect(row).toHaveAttribute('data-mode', 'read')
+  expect(within(row).getByText('LOT-1')).toBeInTheDocument()
+  expect(within(row).getByText('2030-12-31')).toBeInTheDocument()
+  await user.click(screen.getByLabelText('第1行数量'))
+  expect(row).toHaveAttribute('data-mode', 'edit')
+  expect(screen.getByLabelText('第1行采购单价')).toHaveValue(12)
+})
+
+it('renders modern split procurement workbench with KPI cards, document queue and detail pane', async () => {
+  const { PurchaseWorkbench } = await import('./WarehouseOperations')
+  const testOrder = {
+    id: 'po-1',
+    orderNo: 'PO202609180743336Z5R1X',
+    supplierId: 'supplier-1',
+    orderDate: '2026-09-18',
+    status: 'COMPLETED',
+    lines: [{ id: 'pol-1', stockItemId: 'item', orderedQuantity: 100, remainingQuantity: 0, unitPrice: 12 }],
+  } as unknown as PurchaseOrder
+
+  const testReceipt = {
+    id: 'gr-1',
+    receiptNo: 'GR20260918074333VRTTMTT',
+    supplierId: 'supplier-1',
+    purchaseOrderId: 'po-1',
+    status: 'POSTED',
+    receivedAt: '2026-09-18T15:42:00.000Z',
+    lines: [{
+      id: 'grl-1',
+      stockItemId: 'item',
+      destinationBinId: 'bin',
+      lotNo: 'LOT-202609',
+      expiryDate: '2028-12-31',
+      deliveredQuantity: 100,
+      acceptedQuantity: 100,
+      unitCost: 12,
+      qualityStatus: 'ACCEPTED',
+    }],
+  } as unknown as GoodsReceipt
+
+  const mockApi = {
+    pharmacy: {
+      suppliers: vi.fn().mockResolvedValue([{ id: 'supplier-1', name: '创新隆源' }]),
+      purchaseOrders: vi.fn().mockResolvedValue([testOrder]),
+      goodsReceipts: vi.fn().mockResolvedValue([testReceipt]),
+    },
+    masterData: {
+      searchMedicationProducts: vi.fn().mockResolvedValue({ content: [], totalElements: 0 }),
+    },
+  } as unknown as RhnApi
+
+  render(
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <PurchaseWorkbench
+        api={mockApi}
+        site={{ id: 'site', organizationId: 'org-1', siteType: 'PHARMACY' } as StockSite}
+        items={[item]}
+        bins={[bin]}
+        onNavigate={vi.fn()}
+      />
+    </QueryClientProvider>
+  )
+
+  // 验证顶部业务 KPI 看板
+  expect(await screen.findByText('待审核采购计划')).toBeInTheDocument()
+  expect(screen.getByText('在途待到货单')).toBeInTheDocument()
+  expect(screen.getByText('待质量检验验收')).toBeInTheDocument()
+  expect(screen.getByText('累计入库总额')).toBeInTheDocument()
+
+  // 验证药房指引胶囊
+  expect(screen.getByText('药房补货指引')).toBeInTheDocument()
+
+  // 验证左侧工作队列
+  expect(screen.getByText(/全部单据/)).toBeInTheDocument()
+  expect(screen.getAllByText('PO202609180743336Z5R1X').length).toBeGreaterThanOrEqual(1)
+  expect(screen.getByText('GR20260918074333VRTTMTT')).toBeInTheDocument()
+
+  // 验证右侧详情全景与药品明细
+  expect(screen.getByText('采购用途 / 说明')).toBeInTheDocument()
+  expect(screen.getByText('编制计划')).toBeInTheDocument()
+  expect(screen.getByText('全部验收入库')).toBeInTheDocument()
+  expect(screen.getByText('阿莫西林')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /打印采购单/ })).toBeInTheDocument()
+
+  // 点击左侧验收单，右侧联动切换为到货验收详情
+  fireEvent.click(screen.getByText('GR20260918074333VRTTMTT'))
+  expect(await screen.findByText('逐批质量验收')).toBeInTheDocument()
+  expect(screen.getByText('LOT-202609')).toBeInTheDocument()
+  expect(screen.getByText('效期至：2028-12-31')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /打印入库单/ })).toBeInTheDocument()
 })

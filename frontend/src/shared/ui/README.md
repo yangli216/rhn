@@ -14,6 +14,8 @@
 | `SearchField` | 列表和主数据检索 | 统一搜索图标、清空操作、焦点状态与可访问名称 |
 | `SplitWorkspace` | 左侧目录、右侧详情的主从页面 | 统一最小尺寸、间距和溢出边界，业务仅配置列宽 |
 | `TableShell` / `DataTable` | 数据列表与表格 | 统一滚动容器、表头、行密度、悬停、列语义对齐和底部统计区 |
+| `EditableTable` / `EditableRow` / `EditableCell` | 连续行录入列表 | 聚焦行进入编辑、离开行恢复阅读、统一控件尺寸、回车跳格及末格追加行 |
+| `DatePicker` | 日期和药品效期录入 | 聚焦展开、失焦收起、日期格式化、效期快捷选项及不受表格裁剪的日历浮层 |
 | `Pagination` | 长列表分页 | 上一页、下一页、页码播报和边界禁用状态 |
 | `FormField` | 表单字段 | 标签绑定、错误关联、提示和统一控件样式 |
 | `Select` | 通用下拉选择 | 单选、多选、名称/值/拼音首字母检索、清空、键盘操作、表单提交 |
@@ -55,6 +57,30 @@ import { DataTable, StatusBadge, tableCellClass } from '../../shared/ui'
   </tr></tbody>
 </DataTable>
 ```
+
+## 连续行录入
+
+采购计划、直接采购入库等连续输入场景统一使用 `EditableTable`。`EditableRow` 默认阅读态，点击字段或通过 Tab、程序焦点进入行时切换为编辑态；焦点离开该行和关联浮层后恢复阅读态。编辑器始终挂载，切换不会丢失输入值，也不会改变行高。
+
+`EditableCell` 的 `display` 提供阅读值，子元素使用系统基础控件。普通只读内容继续使用 `td`。数值列在表头和单元格均设置 `tableCellClass('numeric')`，统一右对齐。组件将文本框、下拉框、日期和数量控件统一为小尺寸，无需业务页面再次覆盖高度、边框或焦点样式。
+
+```tsx
+<EditableTable onAppendRow={appendAndFocusNewRow} aria-label="采购连续录入">
+  <thead><tr><th>批号</th><th>有效期</th></tr></thead>
+  <tbody>{rows.map(row => <EditableRow key={row.id}>
+    <EditableCell display={row.lotNo} placeholder="填写批号">
+      <input className="ui-field__control" aria-label="批号" value={row.lotNo}
+        onChange={event => updateRow(row.id, 'lotNo', event.target.value)} />
+    </EditableCell>
+    <EditableCell display={row.expiryDate}>
+      <DatePicker aria-label="有效期" value={row.expiryDate}
+        onChange={value => updateRow(row.id, 'expiryDate', value)} />
+    </EditableCell>
+  </EditableRow>)}</tbody>
+</EditableTable>
+```
+
+Enter 按字段顺序前进，末格通过 `onAppendRow` 通知业务新增行；业务负责数据默认值与新行聚焦。已展开的下拉框、输入法选字和业务已处理的按键保留自身行为。`Select`、`DatePicker` 浮层内的焦点仍归属原行；新增带 Portal 的公共编辑器时，用 `useEditableRowScope` 将行标识放在浮层根节点的 `data-editable-row` 上。
 
 ## 示例
 

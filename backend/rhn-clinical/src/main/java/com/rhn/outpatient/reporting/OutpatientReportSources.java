@@ -11,14 +11,22 @@ public class OutpatientReportSources implements ReportSourceProvider {
     public List<Source> sources() {
         var orderStatus=Map.of("DRAFT","草稿","ACTIVE","有效","CANCELLED","已取消","COMPLETED","已完成");
         var kind=Map.of("MEDICATION","药品医嘱","SERVICE","检查检验及其他服务医嘱");
+        var regStatus=Map.of("REGISTERED","已挂号","IN_PROGRESS","接诊中","COMPLETED","诊毕","CANCELLED","退号","SUSPENDED","暂挂","TRANSFERRED","转科","TERMINATED","终止");
         return List.of(
+            new Source("REGISTRATION",1,"门诊挂号","每次挂号一行",
+                "按挂号登记日期统计门诊挂号流水；默认包含所有挂号状态，可筛选挂号状态、号类和渠道。挂号总量用 registrationId COUNT，挂号患者人数用 patientId 去重统计。",
+                "RHN_VIS_ENC 为门诊挂号流水主表，ID_ENC 唯一；机构及科室权限按挂号归属科室控制。",
+                "RHN_VIS_ENC e","e.SD_ENC_CLASS='OUTPATIENT'","e.DT_REGISTERED",
+                List.of(id("registrationId","挂号人次","e.ID_ENC","人次"),id("patientId","挂号患者","e.ID_PAT","人"),
+                    text("status","挂号状态","e.SD_STATUS",regStatus)),
+                Map.of("STATUS",new Group("e.SD_STATUS","e.SD_STATUS",regStatus))),
             new Source("ENCOUNTER",1,"门诊就诊","每次就诊一行",
                 "按就诊登记日期统计门诊就诊；默认包含所有当前就诊状态，可筛选状态。患者去重是当前查询范围内去重，各分组合计不一定等于去重总人数。",
                 "RHN_VIS_ENC 为就诊主表，ID_ENC 唯一；机构及科室权限按就诊归属控制。",
                 "RHN_VIS_ENC e","e.SD_ENC_CLASS='OUTPATIENT'","e.DT_REGISTERED",
                 List.of(id("encounterId","就诊次数","e.ID_ENC","人次"),id("patientId","就诊患者","e.ID_PAT","人"),
-                    text("status","就诊状态","e.SD_STATUS",Map.of("REGISTERED","已挂号","IN_PROGRESS","接诊中","COMPLETED","诊毕","CANCELLED","退号","SUSPENDED","暂挂","TRANSFERRED","转科","TERMINATED","终止"))),
-                Map.of("STATUS",new Group("e.SD_STATUS","e.SD_STATUS",Map.of("REGISTERED","已挂号","IN_PROGRESS","接诊中","COMPLETED","诊毕","CANCELLED","退号","SUSPENDED","暂挂","TRANSFERRED","转科","TERMINATED","终止")))),
+                    text("status","就诊状态","e.SD_STATUS",regStatus)),
+                Map.of("STATUS",new Group("e.SD_STATUS","e.SD_STATUS",regStatus))),
             new Source("DIAGNOSIS",1,"门诊确诊记录","每条本次就诊有效确诊记录一行",
                 "按诊断首次记录日期统计，限本次就诊、当前有效且已确诊的记录，包含主次诊断。患者及就诊可按范围去重。",
                 "RHN_VIS_ENC_DIAG → RHN_VIS_ENC：ID_ENC + ID_TNT，多对一。",

@@ -14,6 +14,9 @@ export type PresetKey =
   | 'LAST_30_DAYS'
   | 'NEXT_7_DAYS'
   | 'NEXT_WEEK'
+  | 'NEXT_14_DAYS'
+  | 'NEXT_28_DAYS'
+  | 'NEXT_MONTH'
 
 export interface PresetOption {
   key: PresetKey
@@ -162,6 +165,30 @@ export const FUTURE_QUERY_PRESETS: PresetOption[] = [
   { key: 'NEXT_WEEK', label: '下周', getRange: getNextWeekRange },
   { key: 'NEXT_7_DAYS', label: '未来7天', getRange: getNext7DaysRange },
   { key: 'THIS_MONTH', label: '本月', getRange: getThisMonthRange },
+]
+
+/** 排班生成只覆盖今天及未来；周、月的剩余区间不包含已过去日期。 */
+export const SCHEDULING_DATE_PRESETS: PresetOption[] = [
+  { key: 'TODAY', label: '今天', getRange: getTodayRange },
+  { key: 'THIS_WEEK', label: '本周剩余', getRange: () => ({ from: getTodayStr(), to: getThisWeekRange().to }) },
+  { key: 'NEXT_WEEK', label: '下周', getRange: getNextWeekRange },
+  { key: 'NEXT_7_DAYS', label: '未来7天', getRange: getNext7DaysRange },
+  { key: 'NEXT_14_DAYS', label: '未来14天', getRange: () => {
+    const now = new Date()
+    return { from: formatDate(now), to: formatDate(offsetDays(now, 13)) }
+  } },
+  { key: 'NEXT_28_DAYS', label: '未来28天', getRange: () => {
+    const now = new Date()
+    return { from: formatDate(now), to: formatDate(offsetDays(now, 27)) }
+  } },
+  { key: 'THIS_MONTH', label: '本月剩余', getRange: () => ({ from: getTodayStr(), to: getThisMonthRange().to }) },
+  { key: 'NEXT_MONTH', label: '下月', getRange: () => {
+    const now = new Date()
+    return {
+      from: formatDate(new Date(now.getFullYear(), now.getMonth() + 1, 1)),
+      to: formatDate(new Date(now.getFullYear(), now.getMonth() + 2, 0)),
+    }
+  } },
 ]
 
 /** 匹配当前输入的日期范围是哪个预设（如有） */

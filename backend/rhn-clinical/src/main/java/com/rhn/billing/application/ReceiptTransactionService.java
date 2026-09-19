@@ -348,7 +348,10 @@ class ReceiptTransactionService {
                 value.errorMessage(), duplicate, eventViews);
     }
 
-    private String category(ChargeItem value) { return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION"; }
+    private String category(ChargeItem value) {
+        if ("DIRECT_VISIT_SERVICE".equals(value.sourceType())) return "TREATMENT";
+        return "REGISTRATION".equals(value.sourceType()) ? "REGISTRATION" : "MEDICATION";
+    }
     private String required(String value, String code, String message) {
         if (value == null || value.isBlank() || value.trim().length() > 128) throw badRequest(code, message);
         return value.trim();

@@ -238,6 +238,50 @@ export interface CreateMedicationRequestInput {
   reason?: string
 }
 
+export type MedicationSafetyStatus = 'PASS' | 'WARN' | 'REQUIRE_OVERRIDE' | 'BLOCK' | 'UNAVAILABLE'
+export type MedicationSafetySeverity = 'INFO' | 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL'
+
+export interface MedicationSafetyFinding {
+  findingId: string
+  ruleCode: string
+  ruleVersion: number
+  category: string
+  severity: MedicationSafetySeverity
+  decision: MedicationSafetyStatus
+  message: string
+  medicationRequestIds: string[]
+  evidence: Array<{
+    sourceType: string
+    sourceTitle: string
+    sourceVersion: string
+    sourceLocator: string
+    section: string
+    excerpt: string
+    usageScope: string
+  }>
+  overridePolicy: 'NOT_ALLOWED' | 'ACKNOWLEDGE' | 'REASON_REQUIRED'
+  suggestedAction?: string
+}
+
+export interface MedicationSafetyDecision {
+  evaluationId?: string | null
+  prescriptionId: string
+  prescriptionRevision: number
+  inputHash: string
+  ruleSetVersion: string
+  engineVersion: string
+  mode: string
+  decision: MedicationSafetyStatus
+  findings: MedicationSafetyFinding[]
+  ruleExecutions: Array<{
+    ruleCode: string
+    ruleVersion: number
+    outcome: string
+    failureCode?: string | null
+  }>
+  failureCodes: string[]
+}
+
 export interface Prescription {
   id: string
   revision: number
@@ -254,10 +298,17 @@ export interface Prescription {
   cancelReason?: string
   note?: string
   medicationRequests: MedicationRequest[]
+  safetyEvaluation?: MedicationSafetyDecision | null
 }
 
 export function createEncountersApi(client: ApiClient) {
   return {
+    directVisitSettings: () => client.request<{ enabled: boolean; catalogItemId?: string | null }>(
+      '/api/encounters/direct-visit/settings'),
+    directVisit: (input: { residentId: string; encounterId?: string; commandCode: string;
+      factorResults: Record<string, boolean>; terminalCode?: string }) => client.request<{
+        outcome: 'CREATED' | 'REUSED' | 'SELECT_REGISTRATION'; encounter: Encounter | null; candidates: Encounter[];
+      }>('/api/encounters/direct-visit', { method: 'POST', body: JSON.stringify(input) }),
     byResident: (residentId: string) => client.request<Encounter[]>(
       `/api/encounters?residentId=${encodeURIComponent(residentId)}`,
     ),
@@ -328,6 +379,11 @@ export function createEncountersApi(client: ApiClient) {
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/submit`, {
         method: 'POST', body: JSON.stringify({ expectedRevision }),
       }),
+    evaluatePrescriptionSafety: (encounterId: string, prescriptionId: string) =>
+      client.request<MedicationSafetyDecision>(
+        `/api/encounters/${encounterId}/prescriptions/${prescriptionId}/safety-evaluations`,
+        { method: 'POST' },
+      ),
     cancelPrescription: (encounterId: string, prescriptionId: string, expectedRevision: number, reason: string) =>
       client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${prescriptionId}/cancel`, {
         method: 'POST', body: JSON.stringify({ expectedRevision, reason }),

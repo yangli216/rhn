@@ -161,6 +161,26 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
 
     @Override
     @Transactional
+    public void requireDirectReceptionAllowed(Long encounterId) {
+        var context = contextProvider.requireCurrent();
+        var registration = requireRegistrationWithLock(context.tenantId(), encounterId);
+        if (!"REGISTERED".equals(registration.status())) {
+            throw conflict("DIRECT_VISIT_REGISTRATION_INVALID", "该挂号已取消或失效，请重新选择有效挂号");
+        }
+        if (registration.scheduleId() != null) {
+            var schedule = scheduleRepository.findByIdAndTenantId(registration.scheduleId(), context.tenantId())
+                    .orElseThrow(() -> notFound("SERVICE_SCHEDULE_NOT_FOUND", "未找到挂号关联排班"));
+            if (schedule.practitionerId() != null && !schedule.practitionerId().equals(context.practitionerId())) {
+                throw conflict("DIRECT_VISIT_OTHER_PRACTITIONER", "该挂号指定了其他医生，请联系原接诊医生或按流程转诊");
+            }
+            if (schedule.startAt().isAfter(Instant.now()) || !"PUBLISHED".equals(schedule.status())) {
+                throw conflict("DIRECT_VISIT_SCHEDULE_UNAVAILABLE", "原挂号对应排班尚未开始或不可接诊，请核对排班状态");
+            }
+        }
+    }
+
+    @Override
+    @Transactional
     public void markInService(Long encounterId, String commandCode) {
         ExecutionContext context = contextProvider.requireCurrent();
         PatientRegistration registration = requireRegistrationWithLock(context.tenantId(), encounterId);

@@ -1,4 +1,4 @@
-import { type ChangeEvent } from 'react'
+import { type ChangeEvent, type KeyboardEventHandler, type Ref } from 'react'
 import { Select, type SelectOption } from './Select'
 
 export interface UnitOption {
@@ -7,6 +7,8 @@ export interface UnitOption {
 }
 
 export interface UnitNumberInputProps {
+  inputRef?: Ref<HTMLInputElement>
+  onKeyDown?: KeyboardEventHandler<HTMLInputElement>
   id?: string
   className?: string
   value?: number | string
@@ -28,6 +30,8 @@ export interface UnitNumberInputProps {
 }
 
 export function UnitNumberInput({
+  inputRef,
+  onKeyDown,
   id,
   className = '',
   value = '',
@@ -68,6 +72,8 @@ export function UnitNumberInput({
       data-testid="unit-number-input"
     >
       <input
+        ref={inputRef}
+        onKeyDown={onKeyDown}
         id={id}
         type="number"
         className="ui-unit-number-input__number"

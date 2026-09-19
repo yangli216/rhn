@@ -11398,9 +11398,9 @@ export interface components {
             physicalExam?: string;
             treatmentPlan?: string;
             /** Format: int32 */
-            systolic: number;
+            systolic?: number;
             /** Format: int32 */
-            diastolic: number;
+            diastolic?: number;
             temperature?: number;
             /** Format: int32 */
             pulseRate?: number;

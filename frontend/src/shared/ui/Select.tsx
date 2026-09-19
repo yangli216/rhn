@@ -10,6 +10,7 @@ import {
 import { createPortal } from 'react-dom'
 import { Icon, type IconName } from './Icon'
 import { pinyinInitials } from './pinyinInitials'
+import { useEditableRowScope } from './EditableTable'
 
 export interface SelectOption {
   value: string
@@ -64,6 +65,7 @@ export interface SelectMultipleProps extends SelectBaseProps {
 export type SelectProps = SelectSingleProps | SelectMultipleProps
 
 export function Select(props: SelectProps) {
+  const editableRowScope = useEditableRowScope()
   const {
     id,
     name,
@@ -250,6 +252,7 @@ export function Select(props: SelectProps) {
       props.onChange?.(nextValues, options.filter((item) => nextSet.has(item.value)))
       return
     }
+    const focusWasInPopover = popoverRef.current?.contains(document.activeElement)
     props.onChange?.(option.value, option)
     justClosedRef.current = true
     setOpen(false)
@@ -261,7 +264,7 @@ export function Select(props: SelectProps) {
       onSelectionCommit(option)
     } else {
       window.requestAnimationFrame(() => {
-        if (document.activeElement === searchRef.current) {
+        if (focusWasInPopover && (document.activeElement === document.body || popoverRef.current?.contains(document.activeElement))) {
           triggerRef.current?.focus()
         }
       })
@@ -383,7 +386,7 @@ export function Select(props: SelectProps) {
       {multiple && selectedOptions.length > 0 && <span className="ui-select__count">{selectedOptions.length}</span>}
       {loading ? <span className="ui-spinner" aria-hidden="true" /> : <Icon name="chevron-down" />}
     </button>
-    {open && popoverPosition && createPortal(<div ref={popoverRef} className="ui-select__popover"
+    {open && popoverPosition && createPortal(<div ref={popoverRef} className="ui-select__popover" data-editable-row={editableRowScope}
       data-placement={popoverPosition.placement} style={{ top: popoverPosition.top, bottom: popoverPosition.bottom,
         left: popoverPosition.left, width: popoverPosition.width, maxHeight: popoverPosition.maxHeight }}>
       {searchable && <label className="ui-select__search">

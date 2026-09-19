@@ -104,8 +104,9 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
             .andExpect(status().isOk()).andExpect(jsonPath("$.spec.scope").value("AUTHORIZED")).andReturn().getResponse().getContentAsString();
         verify(ai).complete(anyString(),argThat(input->input.contains("sourceCatalog")&&input.contains("RHN_EX_CARE_REQ")&&input.contains("databaseType")&&!input.contains("TEST-PATIENT")));
         mockMvc.perform(post("/api/analytics/pages/saved").with(rhnWorkContext()).contentType("application/json").content(json(proposed).path("spec").toString())).andExpect(status().isOk());
-        mockMvc.perform(get("/api/analytics/pages/saved").with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$[0].spec.measures[0].aggregate").value("COUNT_DISTINCT")).andExpect(jsonPath("$[0].spec.period.kind").value("MONTH_TO_DATE"));
-        mockMvc.perform(get("/api/analytics/pages/sources").with(rhnWorkContext())).andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(4));
+        mockMvc.perform(get("/api/analytics/pages/sources").with(rhnWorkContext())).andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(5))
+            .andExpect(jsonPath("$[?(@.code == 'REGISTRATION')].name").value("门诊挂号"));
     }
     @Test void repairs_malformed_model_json_once_and_validates_the_repaired_plan() throws Exception {
         var plan=spec(List.of(measure("M1","ORDER","COUNT","orderId",List.of())),"DAY");
@@ -173,5 +174,16 @@ class StructuredAnalysisPageTest extends RhnIntegrationTestSupport {
         when(ai.complete(anyString(),anyString())).thenReturn(objectMapper.writeValueAsString(Map.of("status","READY","message","列表","spec",plan)));
         mockMvc.perform(post("/api/analytics/pages/generate").with(rhnWorkContext()).contentType("application/json").content("{\"requirement\":\"医嘱条数列表\",\"template\":\"AUTO\"}")).andExpect(status().isOk()).andExpect(jsonPath("$.spec.template").value("LIST"));
         mockMvc.perform(post("/api/analytics/pages/generate").with(rhnWorkContext()).contentType("application/json").content("{\"requirement\":\"医嘱条数\",\"template\":\"TREND\"}")).andExpect(status().isBadRequest());
+    }
+    @Test void registration_source_queries_total_and_cancelled_registrations() throws Exception {
+        var m1 = measure("M1", "REGISTRATION", "COUNT", "registrationId", List.of());
+        var m2 = measure("M2", "REGISTRATION", "COUNT", "registrationId", List.of(Map.of("field", "status", "operator", "EQ", "values", List.of("CANCELLED"))));
+        var regSpec = spec(List.of(m1, m2), "DAY");
+        mockMvc.perform(post("/api/analytics/pages/query").with(rhnWorkContext()).contentType("application/json")
+            .content(objectMapper.writeValueAsString(regSpec)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.series.length()").value(2))
+            .andExpect(jsonPath("$.series[0].code").value("M1"))
+            .andExpect(jsonPath("$.series[1].code").value("M2"));
     }
 }

@@ -262,6 +262,9 @@ export function BillingWorkspace({ api, clinicalContext }: { api: RhnApi; clinic
         docType = 'SERVICE'
         docTypeName = '检查/检验处置单'
         docNo = charge.requestCode || `EX-${charge.sourceId}`
+      } else if (charge.sourceType === 'DIRECT_VISIT_SERVICE') {
+        docType = 'SERVICE'
+        docTypeName = '门诊服务费'
       } else if (charge.sourceType === 'REGISTRATION') {
         docType = 'REGISTRATION'
         docTypeName = '挂号诊查费'

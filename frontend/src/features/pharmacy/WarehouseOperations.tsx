@@ -1,10 +1,63 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { GoodsReceipt, PurchaseOrder, Requisition, StockBin, StockCount, StockItem, StockSite, StockTransfer } from '../../shared/api'
+import type { GoodsReceipt, MedicationProduct, PurchaseOrder, Requisition, StockBin, StockCount, StockItem, StockSite, StockTransfer } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, Dialog, EmptyState, FormField, LoadingState, Select, StatusBadge } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import {
+  IconBolt,
+  IconBuildingStore,
+  IconChecklist,
+  IconClipboardList,
+  IconFileText,
+  IconInfoCircle,
+  IconPlus,
+  IconPrinter,
+  IconTrash,
+  IconTruckDelivery,
+} from '@tabler/icons-react'
+
+export function resolveItemDefaultPrices(
+  item: StockItem | undefined,
+  orders: PurchaseOrder[] = [],
+  products: MedicationProduct[] = [],
+  supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>,
+): { purchasePrice?: string; salePrice?: string } {
+  if (!item) return {}
+
+  // 1. 最近一次采购单价（从历史 orders 中倒序查找）
+  let recentPurchasePrice: number | undefined
+  for (const o of orders) {
+    const line = o.lines?.find(l => String(l.stockItemId) === String(item.id) && Number(l.unitPrice) > 0)
+    if (line) {
+      recentPurchasePrice = Number(line.unitPrice)
+      break
+    }
+  }
+
+  // 2. 供应商协议价
+  const targetCatalogId = item.catalogItemId || item.id
+  const supply = supplierItems?.find(s => String(s.catalogItemId) === String(targetCatalogId) && (!s.packageId || !item.packageId || String(s.packageId) === String(item.packageId)))
+  const agreementPrice = supply && Number(supply.agreementPrice) > 0 ? Number(supply.agreementPrice) : undefined
+
+  // 3. 药品主数据标准价格
+  const product = products.find(p => String(p.id) === String(targetCatalogId))
+  const today = new Date().toISOString().slice(0, 10)
+  const activePrices = product?.prices?.filter(p => p.sdStatus === 'ACTIVE' && p.validFrom <= today && (!p.validTo || p.validTo >= today)) ?? product?.prices ?? []
+  const purchasePriceObj = activePrices.find(p => p.sdPriceType === 'PURCHASE' && (!p.packageId || !item.packageId || String(p.packageId) === String(item.packageId)))
+  const salePriceObj = activePrices.find(p => p.sdPriceType === 'SALE' && (!p.packageId || !item.packageId || String(p.packageId) === String(item.packageId)))
+
+  const standardPurchasePrice = purchasePriceObj ? Number(purchasePriceObj.price) : undefined
+  const standardSalePrice = salePriceObj ? Number(salePriceObj.price) : undefined
+
+  const finalPurchasePrice = recentPurchasePrice ?? agreementPrice ?? standardPurchasePrice
+
+  return {
+    purchasePrice: finalPurchasePrice !== undefined ? String(finalPurchasePrice) : undefined,
+    salePrice: standardSalePrice !== undefined ? String(standardSalePrice) : undefined,
+  }
+}
 
 export type OperationTab = 'purchase' | 'requisition' | 'transfer' | 'count'
 
@@ -46,105 +99,652 @@ function Worklist({ title, action, loading, empty, children }: {
   </section>
 }
 
-function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperator = true }: {
+export function PurchaseWorkbench({ api, site, items, bins, onNavigate, isOperator = true }: {
   api: RhnApi; site: StockSite; items: StockItem[]; bins: StockBin[]; onNavigate: (path: string) => void
   isOperator?: boolean
 }) {
-  const queryClient = useQueryClient(); const [dialog, setDialog] = useState<'order' | 'receipt'>()
+  const queryClient = useQueryClient()
+  const [dialog, setDialog] = useState<'order' | 'receipt'>()
   const [purchaseMode, setPurchaseMode] = useState<'plan' | 'direct'>('plan')
   const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder>()
   const [inspection, setInspection] = useState<GoodsReceipt>()
   const [traceReceipt, setTraceReceipt] = useState<GoodsReceipt>()
-  const [stage, setStage] = useState('pending')
+  const [stage, setStage] = useState('all')
+  const [docType, setDocType] = useState<'all' | 'orders' | 'receipts'>('all')
+  const [selectedDocId, setSelectedDocId] = useState<string>()
+  const [selectedDocKind, setSelectedDocKind] = useState<'order' | 'receipt'>('order')
   const [search, setSearch] = useState('')
   const [notice, setNotice] = useState('')
+
   const suppliers = useQuery({ queryKey: ['warehouse-suppliers', site.organizationId], queryFn: () => api.pharmacy.suppliers(site.organizationId) })
   const orders = useQuery({ queryKey: ['warehouse-purchase-orders', site.id], queryFn: () => api.pharmacy.purchaseOrders(site.id) })
   const receipts = useQuery({ queryKey: ['warehouse-goods-receipts', site.id], queryFn: () => api.pharmacy.goodsReceipts(site.id) })
-  const refresh = () => Promise.all([queryClient.invalidateQueries({ queryKey: ['warehouse-purchase-orders', site.id] }), queryClient.invalidateQueries({ queryKey: ['warehouse-goods-receipts', site.id] }), queryClient.invalidateQueries({ queryKey: ['warehouse-balances', site.id] })])
-  const action = useMutation({ mutationFn: async ({ kind, value }: { kind: string; value: PurchaseOrder | GoodsReceipt }) => {
-    if (kind === 'submit') return api.pharmacy.submitPurchaseOrder(value.id)
-    if (kind === 'approve') return api.pharmacy.approvePurchaseOrder(value.id)
-    return api.pharmacy.postGoodsReceipt(value.id)
-  }, onSuccess: refresh })
+  const refresh = () => Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['warehouse-purchase-orders', site.id] }),
+    queryClient.invalidateQueries({ queryKey: ['warehouse-goods-receipts', site.id] }),
+    queryClient.invalidateQueries({ queryKey: ['warehouse-balances', site.id] }),
+  ])
+
+  const action = useMutation({
+    mutationFn: async ({ kind, value }: { kind: string; value: PurchaseOrder | GoodsReceipt }) => {
+      if (kind === 'submit') return api.pharmacy.submitPurchaseOrder(value.id)
+      if (kind === 'approve') return api.pharmacy.approvePurchaseOrder(value.id)
+      return api.pharmacy.postGoodsReceipt(value.id)
+    },
+    onSuccess: refresh,
+  })
+
   const error = suppliers.error || orders.error || receipts.error || action.error
+
+  const medProducts = useQuery({
+    queryKey: ['warehouse-med-products', site.organizationId],
+    queryFn: () => api.masterData.searchMedicationProducts('', '', 'ACTIVE', site.organizationId, 0, 100),
+    enabled: Boolean(site.organizationId),
+  })
+  const productsList = useMemo(() => (medProducts.data?.content ?? []).map(entry => entry.product), [medProducts.data])
+
+  const ordersList = orders.data ?? []
+  const receiptsList = receipts.data ?? []
+
+  // KPI Metrics calculation
+  const pendingApprovalCount = ordersList.filter(o => ['DRAFT', 'SUBMITTED'].includes(o.status)).length
+  const pendingArrivalCount = ordersList.filter(o => ['APPROVED', 'PARTIALLY_RECEIVED'].includes(o.status)).length
+  const pendingInspectionCount = receiptsList.filter(r => ['RECEIVED', 'INSPECTING'].includes(r.status)).length
+  const pendingPostingCount = receiptsList.filter(r => ['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(r.status)).length
+  const postedReceipts = receiptsList.filter(r => r.status === 'POSTED')
+  const totalPostedAmount = postedReceipts.reduce((sum, r) => sum + r.lines.reduce((sub, l) => sub + (Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0)), 0), 0)
+
   const matches = (...values: (string | undefined)[]) => values.join(' ').toLowerCase().includes(search.trim().toLowerCase())
-  const visibleOrders = (orders.data ?? []).filter(order =>
-    (stage === 'all' || stage === 'pending' && !['COMPLETED', 'CANCELLED', 'REJECTED'].includes(order.status)
-      || stage === 'approval' && ['DRAFT', 'SUBMITTED'].includes(order.status)
-      || stage === 'arrival' && ['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status))
-    && matches(order.orderNo, suppliers.data?.find(v => v.id === order.supplierId)?.name,
-      ...order.lines.map(line => items.find(item => item.id === line.stockItemId)?.productName)))
-  const visibleReceipts = (receipts.data ?? []).filter(receipt =>
-    (stage === 'all' || stage === 'pending' && ['RECEIVED', 'INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status)
-      || stage === 'inspection' && ['RECEIVED', 'INSPECTING'].includes(receipt.status)
-      || stage === 'posting' && ['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status))
-    && matches(receipt.receiptNo, receipt.deliveryNoteNo,
-      suppliers.data?.find(v => v.id === receipt.supplierId)?.name,
-      orders.data?.find(v => v.id === receipt.purchaseOrderId)?.orderNo,
-      ...receipt.lines.map(line => items.find(item => item.id === line.stockItemId)?.productName)))
+
+  // Unified Queue construction
+  interface QueueItem {
+    kind: 'order' | 'receipt'
+    id: string
+    docNo: string
+    supplierName: string
+    date: string
+    status: string
+    amount: number
+    countText: string
+    rawOrder?: PurchaseOrder
+    rawReceipt?: GoodsReceipt
+  }
+
+  const queueItems = useMemo<QueueItem[]>(() => {
+    const list: QueueItem[] = []
+
+    if (docType === 'all' || docType === 'orders') {
+      for (const order of ordersList) {
+        const sup = suppliers.data?.find(v => v.id === order.supplierId)?.name ?? order.supplierId
+        const medNames = order.lines.map(l => items.find(i => i.id === l.stockItemId)?.productName)
+        if (search.trim() && !matches(order.orderNo, sup, ...medNames)) continue
+
+        // Stage filter for order
+        if (stage === 'pending' && ['COMPLETED', 'CANCELLED', 'REJECTED'].includes(order.status)) continue
+        if (stage === 'approval' && !['DRAFT', 'SUBMITTED'].includes(order.status)) continue
+        if (stage === 'arrival' && !['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status)) continue
+        if (stage === 'inspection' || stage === 'posting') continue // Receipts only stages
+
+        const amount = order.lines.reduce((sum, l) => sum + Number(l.orderedQuantity) * Number(l.unitPrice), 0)
+        list.push({
+          kind: 'order',
+          id: order.id,
+          docNo: order.orderNo,
+          supplierName: sup,
+          date: order.orderDate,
+          status: order.status,
+          amount,
+          countText: `${order.lines.length} 种药品`,
+          rawOrder: order,
+        })
+      }
+    }
+
+    if (docType === 'all' || docType === 'receipts') {
+      for (const receipt of receiptsList) {
+        const sup = suppliers.data?.find(v => v.id === receipt.supplierId)?.name ?? receipt.supplierId
+        const poNo = ordersList.find(o => o.id === receipt.purchaseOrderId)?.orderNo
+        const medNames = receipt.lines.map(l => items.find(i => i.id === l.stockItemId)?.productName)
+        if (search.trim() && !matches(receipt.receiptNo, receipt.deliveryNoteNo, sup, poNo, ...medNames)) continue
+
+        // Stage filter for receipt
+        if (stage === 'pending' && !['RECEIVED', 'INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status)) continue
+        if (stage === 'approval' || stage === 'arrival') continue // Orders only stages
+        if (stage === 'inspection' && !['RECEIVED', 'INSPECTING'].includes(receipt.status)) continue
+        if (stage === 'posting' && !['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status)) continue
+
+        const amount = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0), 0)
+        list.push({
+          kind: 'receipt',
+          id: receipt.id,
+          docNo: receipt.receiptNo,
+          supplierName: sup,
+          date: receipt.receivedAt ? formatTime(receipt.receivedAt) : '',
+          status: receipt.status,
+          amount,
+          countText: `${receipt.lines.length} 个批次`,
+          rawReceipt: receipt,
+        })
+      }
+    }
+
+    return list
+  }, [docType, stage, search, ordersList, receiptsList, suppliers.data, items])
+
+  // Keep selection valid
+  const activeItem = useMemo(() => {
+    if (selectedDocId) {
+      const found = queueItems.find(it => it.id === selectedDocId && it.kind === selectedDocKind)
+      if (found) return found
+    }
+    return queueItems[0]
+  }, [queueItems, selectedDocId, selectedDocKind])
+
+  useEffect(() => {
+    if (activeItem && (activeItem.id !== selectedDocId || activeItem.kind !== selectedDocKind)) {
+      setSelectedDocId(activeItem.id)
+      setSelectedDocKind(activeItem.kind)
+    }
+  }, [activeItem, selectedDocId, selectedDocKind])
 
   return <>
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
     {notice && <Alert>{notice}</Alert>}
-    {site.siteType === 'PHARMACY' && <div className="warehouse-scenario-banner">
-      <span className="warehouse-scenario-banner__icon">💡</span>
-      <div>
-        <strong>药房业务指引</strong>
-        <span>门诊/住院等调剂药房日常药品补货主要通过【库间调拨】从中心药库调入；若有中药饮片、急救抢救药或特殊专病药品直采需求，亦可在此向供应商建单采购与到货验收。</span>
-      </div>
-    </div>}
-    <Worklist title="采购与验收入库" copy="采购审批、到货逐批验收和整单原子入库" loading={orders.isPending || receipts.isPending}
-      empty={!orders.data?.length && !receipts.data?.length} action={<div className="warehouse-operation-actions">
+
+    <Worklist
+      title="采购与验收入库"
+      copy="采购计划编制、审批流转、逐批质量验收与库存记账"
+      loading={orders.isPending || receipts.isPending}
+      empty={!ordersList.length && !receiptsList.length}
+      action={<div className="warehouse-operation-actions">
+        {site.siteType === 'PHARMACY' && (
+          <span className="warehouse-guide-toggle-pill" title="门诊/住院等调剂药房日常药品补货主要通过【库间调拨】从中心药库调入；若有中药饮片、急救抢救药或特殊专病药品直采需求，亦可在此向供货商建单采购与到货验收。">
+            <IconInfoCircle size={14} /> 药房补货指引
+          </span>
+        )}
         <Button variant="secondary" size="sm" onClick={() => onNavigate('/settings/partners?tab=suppliers')}>供应商档案</Button>
-        <Button size="sm" variant="secondary" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => { setPurchaseMode('plan'); setDialog('order') }}>新建采购计划</Button>
-        <Button size="sm" variant="primary" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => { setPurchaseMode('direct'); setDialog('order') }}>直接采购入库</Button></div>}>
-      <div className="warehouse-purchase-toolbar">
-        <div className="warehouse-operation-actions" aria-label="采购办理阶段">{[
-          ['pending', '待办'], ['approval', '待提交 / 审核'], ['arrival', '待到货'],
-          ['inspection', '待验收'], ['posting', '待入库'], ['all', '全部记录'],
-        ].map(([value, label]) => <Button key={value} size="sm" variant={stage === value ? 'primary' : 'secondary'}
-          aria-pressed={stage === value} onClick={() => setStage(value)}>{label}</Button>)}</div>
-        <input className="ui-field__control" aria-label="搜索采购入库单据" placeholder="单号、供应商、药品" value={search} onChange={event => setSearch(event.target.value)} />
+        <Button size="sm" variant="secondary" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => { setPurchaseMode('plan'); setDialog('order') }}>
+          <IconPlus size={14} /> 新建采购计划
+        </Button>
+        <Button size="sm" variant="primary" disabled={!isOperator} title={!isOperator ? '当前非管辖库房，仅供查阅' : undefined} onClick={() => { setPurchaseMode('direct'); setDialog('order') }}>
+          <IconBolt size={14} /> 直接采购入库
+        </Button>
+      </div>}
+    >
+      {/* 顶部 KPI 业务指标看板 */}
+      <div className="warehouse-kpi-strip">
+        <div
+          className={`warehouse-kpi-card ${stage === 'approval' && docType === 'orders' ? 'is-active' : ''}`}
+          onClick={() => { setDocType('orders'); setStage(stage === 'approval' && docType === 'orders' ? 'all' : 'approval') }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--blue"><IconFileText size={20} /></div>
+          <div className="warehouse-kpi-content">
+            <div className="warehouse-kpi-label">待审核采购计划</div>
+            <div className="warehouse-kpi-value">{pendingApprovalCount} 单</div>
+            <div className="warehouse-kpi-sub">待提交与领导审批</div>
+          </div>
+        </div>
+
+        <div
+          className={`warehouse-kpi-card ${stage === 'arrival' && docType === 'orders' ? 'is-active' : ''}`}
+          onClick={() => { setDocType('orders'); setStage(stage === 'arrival' && docType === 'orders' ? 'all' : 'arrival') }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--amber"><IconTruckDelivery size={20} /></div>
+          <div className="warehouse-kpi-content">
+            <div className="warehouse-kpi-label">在途待到货单</div>
+            <div className="warehouse-kpi-value">{pendingArrivalCount} 单</div>
+            <div className="warehouse-kpi-sub">已审批等待供货商送达</div>
+          </div>
+        </div>
+
+        <div
+          className={`warehouse-kpi-card ${stage === 'inspection' && docType === 'receipts' ? 'is-active' : ''}`}
+          onClick={() => { setDocType('receipts'); setStage(stage === 'inspection' && docType === 'receipts' ? 'all' : 'inspection') }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--purple"><IconChecklist size={20} /></div>
+          <div className="warehouse-kpi-content">
+            <div className="warehouse-kpi-label">待质量检验验收</div>
+            <div className="warehouse-kpi-value">{pendingInspectionCount} 批</div>
+            <div className="warehouse-kpi-sub">
+              {pendingPostingCount > 0 ? `待质检 ${pendingInspectionCount} 批 · 待记账 ${pendingPostingCount} 批` : '货品已到库，等待药检'}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className={`warehouse-kpi-card ${stage === 'all' && docType === 'receipts' ? 'is-active' : ''}`}
+          onClick={() => { setDocType('receipts'); setStage('all') }}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="warehouse-kpi-icon warehouse-kpi-icon--emerald"><IconBuildingStore size={20} /></div>
+          <div className="warehouse-kpi-content">
+            <div className="warehouse-kpi-label">累计入库总额</div>
+            <div className="warehouse-kpi-value">{postedReceipts.length > 0 ? formatMoney(totalPostedAmount) : '¥0.00'}</div>
+            <div className="warehouse-kpi-sub">已记账入库 {postedReceipts.length} 笔</div>
+          </div>
+        </div>
       </div>
-      {!visibleOrders.length && !visibleReceipts.length && <p className="warehouse-entry-tip">当前条件下没有单据，可切换“全部记录”或调整搜索条件。</p>}
-      <div className="warehouse-document-groups">
-        {visibleOrders.length > 0 && <section><header className="warehouse-subsection-title"><div><strong>采购单</strong><span>审批与到货进度</span></div>
-          <StatusBadge tone="info">{visibleOrders.length} 单</StatusBadge></header>
-          <OperationTable headers={['采购单 / 下单日', '供应商', '预计到货', '金额 / 入库进度', '状态', '操作']}>
-            {visibleOrders.map(order => {
-              const completed = order.lines.filter(line => Number(line.remainingQuantity) === 0).length
-              const amount = order.lines.reduce((sum, line) => sum + Number(line.orderedQuantity) * Number(line.unitPrice), 0)
-              return <tr key={order.id}><td><strong>{order.orderNo}</strong><small>{order.orderDate}</small></td>
-                <td>{suppliers.data?.find(v => v.id === order.supplierId)?.name ?? order.supplierId}</td>
-                <td>{order.expectedDate ?? '未约定'}</td><td><strong>{formatMoney(amount)}</strong>
-                  <small>已入库完成 {completed} / {order.lines.length} 项</small></td>
-                <td><StatusBadge tone={statusTone(order.status)}>{statusText[order.status] ?? order.status}</StatusBadge></td><td>
-                  {order.status === 'DRAFT' && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'submit', value: order })}>提交</Button>}
-                  {order.status === 'SUBMITTED' && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'approve', value: order })}>审核通过</Button>}
-                  {['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status) && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => { setSelectedOrder(order); setDialog('receipt') }}>登记到货</Button>}
-                </td></tr>
+
+      {/* 左右分栏工作台 */}
+      <div className="warehouse-purchase-workbench">
+        {/* 左栏：单据队列与过滤器 */}
+        <div className="warehouse-queue-pane">
+          <div className="warehouse-queue-header">
+            <div className="warehouse-queue-tabs" role="tablist">
+              <button
+                type="button"
+                className={`warehouse-queue-tab ${docType === 'all' ? 'is-active' : ''}`}
+                onClick={() => setDocType('all')}
+              >
+                全部单据 ({ordersList.length + receiptsList.length})
+              </button>
+              <button
+                type="button"
+                className={`warehouse-queue-tab ${docType === 'orders' ? 'is-active' : ''}`}
+                onClick={() => setDocType('orders')}
+              >
+                采购计划 ({ordersList.length})
+              </button>
+              <button
+                type="button"
+                className={`warehouse-queue-tab ${docType === 'receipts' ? 'is-active' : ''}`}
+                onClick={() => setDocType('receipts')}
+              >
+                验收入库单 ({receiptsList.length})
+              </button>
+            </div>
+
+            <div className="warehouse-queue-stages" aria-label="单据阶段过滤">
+              {[
+                ['all', '全部'],
+                ['pending', '待办'],
+                ['approval', '待审核'],
+                ['arrival', '待到货'],
+                ['inspection', '待验收'],
+                ['posting', '待入库'],
+              ].map(([val, lbl]) => (
+                <button
+                  key={val}
+                  type="button"
+                  className={`warehouse-queue-stage-btn ${stage === val ? 'is-active' : ''}`}
+                  onClick={() => setStage(val)}
+                >
+                  {lbl}
+                </button>
+              ))}
+            </div>
+
+            <div className="warehouse-queue-search">
+              <input
+                className="ui-field__control"
+                aria-label="搜索采购入库单据"
+                placeholder="单号、供应商、药品名称搜索..."
+                value={search}
+                onChange={event => setSearch(event.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="warehouse-queue-list">
+            {!queueItems.length && (
+              <p className="warehouse-entry-tip" style={{ textAlign: 'center', padding: '2rem 1rem' }}>
+                当前筛选条件下暂无单据，请切换过滤或搜索条件。
+              </p>
+            )}
+            {queueItems.map(item => {
+              const isSelected = activeItem?.id === item.id && activeItem?.kind === item.kind
+              return (
+                <div
+                  key={`${item.kind}-${item.id}`}
+                  className={`warehouse-doc-card ${isSelected ? 'is-selected' : ''}`}
+                  onClick={() => { setSelectedDocId(item.id); setSelectedDocKind(item.kind); }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className="warehouse-doc-card__top">
+                    <span className={`warehouse-doc-card__type ${item.kind === 'order' ? 'warehouse-doc-card__type--po' : 'warehouse-doc-card__type--gr'}`}>
+                      {item.kind === 'order' ? '采购单' : '验收单'}
+                    </span>
+                    <span className="warehouse-doc-card__no" title={item.docNo}>{item.docNo}</span>
+                    <StatusBadge tone={statusTone(item.status)}>{statusText[item.status] ?? item.status}</StatusBadge>
+                  </div>
+                  <div className="warehouse-doc-card__body">
+                    <span className="warehouse-doc-card__supplier" title={item.supplierName}>{item.supplierName}</span>
+                    <span className="warehouse-doc-card__items">{item.countText}</span>
+                  </div>
+                  <div className="warehouse-doc-card__foot">
+                    <span>{item.date}</span>
+                    <strong className="warehouse-doc-card__amount">{formatMoney(item.amount)}</strong>
+                  </div>
+                </div>
+              )
             })}
-          </OperationTable></section>}
-        {visibleReceipts.length > 0 && <section><header className="warehouse-subsection-title"><div><strong>到货验收单</strong><span>送货凭证、逐批质量验收与入库</span></div>
-          <StatusBadge tone="info">{visibleReceipts.length} 单</StatusBadge></header>
-          <OperationTable headers={['验收单 / 到货时间', '送货单号', '来源采购单', '批次 / 数量', '状态', '操作']}>
-            {visibleReceipts.map(receipt => <tr key={receipt.id}><td><strong>{receipt.receiptNo}</strong><small>{formatTime(receipt.receivedAt)}</small></td>
-              <td>{receipt.deliveryNoteNo || '未填写'}</td>
-              <td>{orders.data?.find(v => v.id === receipt.purchaseOrderId)?.orderNo ?? receipt.purchaseOrderId}</td>
-              <td>{receipt.lines.length} 批<small>按各药品包装单位验收</small></td>
-              <td><StatusBadge tone={statusTone(receipt.status)}>{statusText[receipt.status] ?? receipt.status}</StatusBadge></td><td>
-                {receipt.status === 'RECEIVED' && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => setInspection(receipt)}>逐批验收</Button>}
-                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && receipt.lines.some(line =>
-                  items.find(item => item.id === line.stockItemId)?.traceRequired && Number(line.acceptedQuantity) > 0)
-                  && <Button size="sm" variant="text" disabled={!isOperator} onClick={() => setTraceReceipt(receipt)}>登记追溯码</Button>}
-                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && <Button size="sm" variant="text" busy={action.isPending} disabled={!isOperator}
-                  onClick={() => action.mutate({ kind: 'post', value: receipt })}>批量入库</Button>}
-              </td></tr>)}
-          </OperationTable></section>}
+          </div>
+        </div>
+
+        {/* 右栏：单据全景详情与就地作业台 */}
+        {activeItem?.kind === 'order' && activeItem.rawOrder && (() => {
+          const order = activeItem.rawOrder
+          const completedLines = order.lines.filter(l => Number(l.remainingQuantity) === 0).length
+          const totalAmount = order.lines.reduce((sum, l) => sum + Number(l.orderedQuantity) * Number(l.unitPrice), 0)
+          const relatedReceipts = receiptsList.filter(r => r.purchaseOrderId === order.id)
+
+          const isStep1 = ['DRAFT', 'SUBMITTED', 'APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED'].includes(order.status)
+          const isStep2 = ['APPROVED', 'PARTIALLY_RECEIVED', 'COMPLETED'].includes(order.status)
+          const isStep3 = ['PARTIALLY_RECEIVED', 'COMPLETED'].includes(order.status)
+          const isStep4 = order.status === 'COMPLETED'
+
+          return <div className="warehouse-detail-pane">
+            <div className="warehouse-detail-pane__head">
+              <div className="warehouse-detail-pane__title">
+                <span className="warehouse-doc-card__type warehouse-doc-card__type--po">采购订单</span>
+                <h3>{order.orderNo}</h3>
+                <StatusBadge tone={statusTone(order.status)}>{statusText[order.status] ?? order.status}</StatusBadge>
+              </div>
+              <div className="warehouse-detail-pane__actions">
+                {order.status === 'DRAFT' && (
+                  <Button size="sm" variant="primary" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'submit', value: order })}>
+                    提交审核
+                  </Button>
+                )}
+                {order.status === 'SUBMITTED' && (
+                  <Button size="sm" variant="primary" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'approve', value: order })}>
+                    审核通过
+                  </Button>
+                )}
+                {['APPROVED', 'PARTIALLY_RECEIVED'].includes(order.status) && (
+                  <Button size="sm" variant="primary" disabled={!isOperator} onClick={() => { setSelectedOrder(order); setDialog('receipt') }}>
+                    登记到货
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => window.print()} title="打印该采购单">
+                  <IconPrinter size={14} /> 打印采购单
+                </Button>
+              </div>
+            </div>
+
+            <div className="warehouse-meta-strip">
+              <div className="warehouse-meta-item">
+                <span>供应商</span>
+                <strong>{activeItem.supplierName}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>下单日期</span>
+                <strong>{order.orderDate}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>预计到货日期</span>
+                <strong>{order.expectedDate || '未约定'}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>采购用途 / 说明</span>
+                <strong>{order.description || '常规备药采购'}</strong>
+              </div>
+            </div>
+
+            <div className="warehouse-doc-timeline" aria-label="采购订单业务流程">
+              <div className={`warehouse-doc-timeline-step ${isStep1 ? (order.status === 'DRAFT' ? 'is-current' : 'is-done') : ''}`}>
+                <div className="warehouse-doc-timeline-dot">1</div>
+                <span>编制计划</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep2 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep2 ? (order.status === 'APPROVED' ? 'is-current' : 'is-done') : (order.status === 'SUBMITTED' ? 'is-current' : '')}`}>
+                <div className="warehouse-doc-timeline-dot">2</div>
+                <span>审核批准</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep3 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep3 ? (order.status === 'PARTIALLY_RECEIVED' ? 'is-current' : 'is-done') : ''}`}>
+                <div className="warehouse-doc-timeline-dot">3</div>
+                <span>供货到库</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep4 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep4 ? 'is-done' : ''}`}>
+                <div className="warehouse-doc-timeline-dot">4</div>
+                <span>全部验收入库</span>
+              </div>
+            </div>
+
+            {relatedReceipts.length > 0 && <div className="warehouse-associated-bar">
+              <span>已生成 {relatedReceipts.length} 笔关联到货验收单：</span>
+              <div className="warehouse-operation-actions">
+                {relatedReceipts.map(r => (
+                  <Button key={r.id} size="sm" variant="text" onClick={() => { setDocType('receipts'); setSelectedDocId(r.id); setSelectedDocKind('receipt'); }}>
+                    {r.receiptNo} ({statusText[r.status] ?? r.status})
+                  </Button>
+                ))}
+              </div>
+            </div>}
+
+            <div className="warehouse-detail-table-wrap">
+              <table className="warehouse-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '3rem', textAlign: 'center' }}>#</th>
+                    <th>药品品名与包装规格</th>
+                    <th>生产厂家</th>
+                    <th className={tableCellClass('numeric')}>计划采购量</th>
+                    <th className={tableCellClass('numeric')}>采购单价</th>
+                    <th className={tableCellClass('numeric')}>采购小计</th>
+                    <th>到货状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {order.lines.map((line, idx) => {
+                    const itm = items.find(i => i.id === line.stockItemId)
+                    const lineTotal = Number(line.orderedQuantity) * Number(line.unitPrice)
+                    const isFinished = Number(line.remainingQuantity) === 0
+                    return <tr key={line.id}>
+                      <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                      <td>
+                        <strong>{itm?.productName ?? line.stockItemId}</strong>
+                        <small className="warehouse-entry-spec-inline">
+                          <span>{itm?.packageSpec || '通用规格'}</span>
+                          <span>1{itm?.packageUnitName || '盒'}={itm?.packageFactor || 1}{itm?.baseUnitCode || '粒'}</span>
+                        </small>
+                      </td>
+                      <td>{itm?.manufacturerName || '—'}</td>
+                      <td className={tableCellClass('numeric')}>
+                        <strong>{formatQuantity(line.orderedQuantity)} {itm?.packageUnitName || '盒'}</strong>
+                      </td>
+                      <td className={tableCellClass('numeric')}>{formatMoney(line.unitPrice)}</td>
+                      <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatMoney(lineTotal)}</strong></td>
+                      <td>
+                        <StatusBadge tone={isFinished ? 'success' : 'info'}>
+                          {isFinished ? '全部已到货' : `剩余待收 ${formatQuantity(line.remainingQuantity)} ${itm?.packageUnitName || '盒'}`}
+                        </StatusBadge>
+                      </td>
+                    </tr>
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="warehouse-detail-footer">
+              <div>共 <strong>{order.lines.length}</strong> 个品规</div>
+              <div className="warehouse-detail-footer__metrics">
+                <span>已入库完成：<strong>{completedLines} / {order.lines.length}</strong> 项</span>
+                <span>采购总额：<strong>{formatMoney(totalAmount)}</strong></span>
+              </div>
+            </div>
+          </div>
+        })()}
+
+        {activeItem?.kind === 'receipt' && activeItem.rawReceipt && (() => {
+          const receipt = activeItem.rawReceipt
+          const sourceOrder = ordersList.find(o => o.id === receipt.purchaseOrderId)
+          const totalCost = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? l.deliveredQuantity) * Number(l.unitCost ?? 0), 0)
+          const totalDelivered = receipt.lines.reduce((sum, l) => sum + Number(l.deliveredQuantity), 0)
+          const totalAccepted = receipt.lines.reduce((sum, l) => sum + Number(l.acceptedQuantity ?? 0), 0)
+          const totalRejected = receipt.lines.reduce((sum, l) => sum + Number(l.rejectedQuantity ?? 0), 0)
+          const hasTraceRequired = receipt.lines.some(l => items.find(i => i.id === l.stockItemId)?.traceRequired && Number(l.acceptedQuantity) > 0)
+
+          const isStep1 = true
+          const isStep2 = ['INSPECTING', 'ACCEPTED', 'PARTIALLY_ACCEPTED', 'POSTED'].includes(receipt.status)
+          const isStep3 = ['ACCEPTED', 'PARTIALLY_ACCEPTED', 'POSTED'].includes(receipt.status)
+          const isStep4 = receipt.status === 'POSTED'
+
+          return <div className="warehouse-detail-pane">
+            <div className="warehouse-detail-pane__head">
+              <div className="warehouse-detail-pane__title">
+                <span className="warehouse-doc-card__type warehouse-doc-card__type--gr">到货验收单</span>
+                <h3>{receipt.receiptNo}</h3>
+                <StatusBadge tone={statusTone(receipt.status)}>{statusText[receipt.status] ?? receipt.status}</StatusBadge>
+              </div>
+              <div className="warehouse-detail-pane__actions">
+                {receipt.status === 'RECEIVED' && (
+                  <Button size="sm" variant="primary" disabled={!isOperator} onClick={() => setInspection(receipt)}>
+                    逐批质量验收
+                  </Button>
+                )}
+                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && hasTraceRequired && (
+                  <Button size="sm" variant="secondary" disabled={!isOperator} onClick={() => setTraceReceipt(receipt)}>
+                    登记追溯码
+                  </Button>
+                )}
+                {['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) && (
+                  <Button size="sm" variant="primary" busy={action.isPending} disabled={!isOperator} onClick={() => action.mutate({ kind: 'post', value: receipt })}>
+                    批量入库记账
+                  </Button>
+                )}
+                <Button size="sm" variant="secondary" onClick={() => window.print()} title="打印验收凭证">
+                  <IconPrinter size={14} /> 打印入库单
+                </Button>
+              </div>
+            </div>
+
+            <div className="warehouse-meta-strip">
+              <div className="warehouse-meta-item">
+                <span>供货商</span>
+                <strong>{activeItem.supplierName}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>到货时间</span>
+                <strong>{formatTime(receipt.receivedAt)}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>随货送货单号</span>
+                <strong>{receipt.deliveryNoteNo || '未填写'}</strong>
+              </div>
+              <div className="warehouse-meta-item">
+                <span>来源采购计划</span>
+                {sourceOrder ? (
+                  <button className="warehouse-inline-action" onClick={() => { setDocType('orders'); setSelectedDocId(sourceOrder.id); setSelectedDocKind('order'); }}>
+                    {sourceOrder.orderNo}
+                  </button>
+                ) : (
+                  <strong>{receipt.purchaseOrderId || '直接采购入库'}</strong>
+                )}
+              </div>
+            </div>
+
+            <div className="warehouse-doc-timeline" aria-label="验收入库业务流程">
+              <div className={`warehouse-doc-timeline-step ${isStep1 ? (receipt.status === 'RECEIVED' ? 'is-current' : 'is-done') : ''}`}>
+                <div className="warehouse-doc-timeline-dot">1</div>
+                <span>到货登记</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep2 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep2 ? (receipt.status === 'INSPECTING' ? 'is-current' : 'is-done') : ''}`}>
+                <div className="warehouse-doc-timeline-dot">2</div>
+                <span>逐批质量验收</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep3 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep3 ? (['ACCEPTED', 'PARTIALLY_ACCEPTED'].includes(receipt.status) ? 'is-current' : 'is-done') : ''}`}>
+                <div className="warehouse-doc-timeline-dot">3</div>
+                <span>追溯码采集</span>
+              </div>
+              <div className={`warehouse-doc-timeline-line ${isStep4 ? 'is-done' : ''}`} />
+              <div className={`warehouse-doc-timeline-step ${isStep4 ? 'is-done' : ''}`}>
+                <div className="warehouse-doc-timeline-dot">4</div>
+                <span>已入库记账</span>
+              </div>
+            </div>
+
+            <div className="warehouse-detail-table-wrap">
+              <table className="warehouse-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '3rem', textAlign: 'center' }}>#</th>
+                    <th>药品品名与规格</th>
+                    <th>批号 / 效期</th>
+                    <th className={tableCellClass('numeric')}>到货数</th>
+                    <th className={tableCellClass('numeric')}>合格 / 拒收</th>
+                    <th>存放货位</th>
+                    <th className={tableCellClass('numeric')}>采购进价</th>
+                    <th className={tableCellClass('numeric')}>入库金额</th>
+                    <th>质量状态</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {receipt.lines.map((line, idx) => {
+                    const itm = items.find(i => i.id === line.stockItemId)
+                    const bin = bins.find(b => b.id === line.destinationBinId)
+                    const acceptedQty = line.acceptedQuantity ?? line.deliveredQuantity
+                    const lineCost = acceptedQty * Number(line.unitCost ?? 0)
+                    return <tr key={line.id}>
+                      <td style={{ textAlign: 'center' }}>{idx + 1}</td>
+                      <td>
+                        <strong>{itm?.productName ?? line.stockItemId}</strong>
+                        <small className="warehouse-entry-spec-inline">
+                          <span>{itm?.packageSpec || '通用规格'}</span>
+                          <span>{itm?.manufacturerName || ''}</span>
+                        </small>
+                      </td>
+                      <td>
+                        <code>{line.lotNo}</code>
+                        <small>效期至：{line.expiryDate || '未维护'}</small>
+                      </td>
+                      <td className={tableCellClass('numeric')}>
+                        <strong>{formatQuantity(line.deliveredQuantity)} {itm?.packageUnitName || '盒'}</strong>
+                      </td>
+                      <td className={tableCellClass('numeric')}>
+                        <span style={{ color: '#059669', fontWeight: 600 }}>{formatQuantity(line.acceptedQuantity ?? line.deliveredQuantity)}</span>
+                        {Boolean(line.rejectedQuantity && line.rejectedQuantity > 0) && (
+                          <small style={{ color: 'var(--color-danger)' }}>
+                            拒收 {line.rejectedQuantity} ({line.rejectionReason || '破损'})
+                          </small>
+                        )}
+                      </td>
+                      <td>{bin?.name || '中心合格品库'}</td>
+                      <td className={tableCellClass('numeric')}>{line.unitCost ? formatMoney(line.unitCost) : '—'}</td>
+                      <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}><strong>{formatMoney(lineCost)}</strong></td>
+                      <td>
+                        <StatusBadge tone={statusTone(line.qualityStatus)}>{statusText[line.qualityStatus] ?? line.qualityStatus}</StatusBadge>
+                      </td>
+                    </tr>
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="warehouse-detail-footer">
+              <div>共 <strong>{receipt.lines.length}</strong> 批次</div>
+              <div className="warehouse-detail-footer__metrics">
+                <span>实收总数：<strong>{formatQuantity(totalDelivered)}</strong></span>
+                <span>合格总数：<strong style={{ color: '#059669' }}>{formatQuantity(totalAccepted || totalDelivered)}</strong></span>
+                {totalRejected > 0 && <span>拒收总数：<strong style={{ color: 'var(--color-danger)' }}>{formatQuantity(totalRejected)}</strong></span>}
+                <span>入库采购总额：<strong>{formatMoney(totalCost)}</strong></span>
+              </div>
+            </div>
+          </div>
+        })()}
+
+        {!activeItem && (
+          <div className="warehouse-detail-pane" style={{ alignItems: 'center', justifyContent: 'center', padding: '4rem 2rem' }}>
+            <EmptyState icon="pharmacy" title="未选中任何单据" copy="请从左侧单据队列中选择采购计划单或到货验收单查看明细。" />
+          </div>
+        )}
       </div>
     </Worklist>
+
     {dialog === 'order' && <PurchaseDialog api={api} site={site} suppliers={(suppliers.data ?? []).filter(supplierEffective)} items={items} bins={bins}
+      orders={orders.data ?? []} products={productsList}
       initialMode={purchaseMode}
       onNavigate={onNavigate} onClose={() => setDialog(undefined)} onDone={message => { setNotice(message ?? ''); void refresh(); setDialog(undefined); setStage(purchaseMode === 'direct' ? 'posting' : 'approval') }} />}
     {dialog === 'receipt' && selectedOrder && <GoodsReceiptDialog api={api} order={selectedOrder} receipts={receipts.data ?? []} items={items} bins={bins} onClose={() => setDialog(undefined)} onDone={receipt => { void refresh(); setDialog(undefined); setInspection(receipt) }} />}
@@ -261,9 +861,12 @@ type EntryRow = { key: string; stockItemId: string; quantity: string; price: str
 
 export function MultiItemDialog({
   title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false,
+  orders = [], products = [], supplierItems,
   lead, emptyCopy = '当前没有可选经营项目。', hideReason = false, onClose, onSubmit,
 }: {
   title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean
+  orders?: PurchaseOrder[]; products?: MedicationProduct[]
+  supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>
   showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; hideReason?: boolean; onClose: () => void
   onSubmit: (reason: string, rows: ItemRow[]) => Promise<void>
 }) {
@@ -274,7 +877,6 @@ export function MultiItemDialog({
   const [error, setError] = useState<unknown>()
   const [busy, setBusy] = useState(false)
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
-  const [focusedIndex, setFocusedIndex] = useState(0)
 
   const quantityInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const priceInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
@@ -358,7 +960,20 @@ export function MultiItemDialog({
   }
 
   const handleItemSelect = (index: number, val: string) => {
-    updateRow(index, 'stockItemId', val)
+    const selectedItem = itemMap.get(val)
+    let defaultPrice: string | undefined
+    if (withPrice && selectedItem) {
+      const prices = resolveItemDefaultPrices(selectedItem, orders, products, supplierItems)
+      defaultPrice = prices.purchasePrice
+    }
+    setRows(prev => prev.map((row, i) => {
+      if (i !== index) return row
+      return {
+        ...row,
+        stockItemId: val,
+        price: defaultPrice !== undefined ? defaultPrice : row.price,
+      }
+    }))
     const currentRow = rows[index]
     if (currentRow) {
       focusQuantity(currentRow.key)
@@ -471,96 +1086,82 @@ export function MultiItemDialog({
 
     {!items.length ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy={emptyCopy} />
       : <div className="warehouse-entry-table-container">
-        <div className="warehouse-entry-kbd-hint">
-          <span className="warehouse-entry-kbd-badge">⌨️ 快捷提示</span>
-          <span>按 <code>Enter</code> 跳格/自动增行</span>
-          <span>按 <code>↑</code> / <code>↓</code> 跨行</span>
-          <span>按 <code>Ctrl+Enter</code> 提交</span>
-        </div>
-        <table className="warehouse-table warehouse-entry-table">
-          <thead>
-            <tr>
-              <th style={{ width: '3rem', textAlign: 'center' }}>#</th>
-              <th style={{ minWidth: '16rem' }}>选择药品</th>
-              <th style={{ width: '14rem' }}>包装规格 / 厂家</th>
-              <th style={{ width: '10rem' }}>{quantityLabel}</th>
-              {withPrice && <th style={{ width: '10rem' }}>采购单价</th>}
-              {withPrice && <th style={{ width: '9rem' }}>金额小计</th>}
-              <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => {
-              const item = itemMap.get(row.stockItemId)
-              const lineTotal = item && withPrice && Number(row.quantity) > 0 && Number(row.price) >= 0
-                ? Number(row.quantity) * Number(row.price)
-                : 0
-              const isActiveRow = focusedIndex === index
-              return <tr key={row.key} className={isActiveRow ? 'is-active-entry-row' : ''} onFocus={() => setFocusedIndex(index)}>
-                <td className="warehouse-entry-index">{index + 1}</td>
-                <td>
-                  <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
-                    <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
-                      onChange={(val) => handleItemSelect(index, val)}
-                      placeholder="输入药品名称、拼音或编码搜索"
-                      options={itemOptions} />
-                  </div>
-                </td>
-                <td>
-                  {item ? <div className="warehouse-entry-spec-inline" title={`换算比: 1 ${item.packageUnitName} = ${formatQuantity(item.packageFactor)} ${displayUnitName(item.baseUnitCode)}`}>
-                    <strong>{item.packageSpec || item.packageUnitName}</strong>
-                    <small>{[item.manufacturerName, `1${item.packageUnitName}=${formatQuantity(item.packageFactor)}${displayUnitName(item.baseUnitCode)}`].filter(Boolean).join(' · ')}</small>
-                  </div> : <span className="warehouse-entry-placeholder">自动带入</span>}
-                </td>
-                <td>
-                  <div className="warehouse-entry-input-with-unit">
-                    <input
-                      ref={el => { quantityInputRefs.current[row.key] = el }}
-                      className="ui-field__control warehouse-entry-input"
-                      type="number"
-                      min="0.0001"
-                      step="any"
-                      value={row.quantity}
-                      onChange={(e) => updateRow(index, 'quantity', e.target.value)}
-                      onKeyDown={(e) => handleQuantityKeyDown(e, index)}
-                      aria-label={`第${index + 1}行数量`}
-                      placeholder="数量"
-                    />
-                    {item && <span className="warehouse-entry-input-unit">{item.packageUnitName}</span>}
-                  </div>
-                  {showBaseConversion && item && Number(row.quantity) > 0 && <small className="warehouse-entry-conv">
-                    = {formatQuantity(Number(row.quantity) * Number(item.packageFactor))} {displayUnitName(item.baseUnitCode)}
-                  </small>}
-                </td>
-                {withPrice && <td>
-                  <div className="warehouse-entry-input-with-unit">
-                    <input
-                      ref={el => { priceInputRefs.current[row.key] = el }}
-                      className="ui-field__control warehouse-entry-input"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={row.price}
-                      onChange={(e) => updateRow(index, 'price', e.target.value)}
-                      onKeyDown={(e) => handlePriceKeyDown(e, index)}
-                      aria-label={`第${index + 1}行采购单价`}
-                      placeholder="0.00"
-                    />
-                    {item && <span className="warehouse-entry-input-unit">元</span>}
-                  </div>
-                </td>}
-                {withPrice && <td className="warehouse-entry-amount">
-                  {lineTotal > 0 ? formatMoney(lineTotal) : '—'}
-                </td>}
-                <td style={{ textAlign: 'center' }}>
-                  <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除此行">删除</Button>
-                </td>
+        <div className="warehouse-entry-table-wrap">
+          <EditableTable className="warehouse-entry-table" aria-label="药品连续录入" onAppendRow={() => addRow(true)}>
+            <thead>
+              <tr>
+                <th style={{ width: '3rem', textAlign: 'center' }}>#</th>
+                <th style={{ minWidth: '16rem' }}>选择药品</th>
+                <th style={{ width: '14rem' }}>包装规格 / 厂家</th>
+                <th className={tableCellClass('numeric')} style={{ width: '10rem' }}>{quantityLabel}</th>
+                {withPrice && <th className={tableCellClass('numeric')} style={{ width: '10rem' }}>采购单价</th>}
+                {withPrice && <th className={tableCellClass('numeric')} style={{ width: '9rem' }}>金额小计</th>}
+                <th style={{ width: '4.5rem', textAlign: 'center' }}>操作</th>
               </tr>
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                const item = itemMap.get(row.stockItemId)
+                const lineTotal = item && withPrice && Number(row.quantity) > 0 && Number(row.price) >= 0
+                  ? Number(row.quantity) * Number(row.price)
+                  : 0
+                return <EditableRow key={row.key}>
+                  <td className="warehouse-entry-index">{index + 1}</td>
+                  <EditableCell display={item?.productName} placeholder="输入药品名称、拼音或编码搜索">
+                    <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
+                      <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
+                        aria-label={`第${index + 1}行药品`}
+                        onChange={(val) => handleItemSelect(index, val)}
+                        placeholder="输入药品名称、拼音或编码搜索"
+                        options={itemOptions} />
+                    </div>
+                  </EditableCell>
+                  <td>
+                    {item ? <div className="warehouse-entry-spec-inline" title={`换算比: 1 ${item.packageUnitName} = ${formatQuantity(item.packageFactor)} ${displayUnitName(item.baseUnitCode)}`}>
+                      <strong>{item.packageSpec || item.packageUnitName}</strong>
+                      <small>{[item.manufacturerName, `1${item.packageUnitName}=${formatQuantity(item.packageFactor)}${displayUnitName(item.baseUnitCode)}`].filter(Boolean).join(' · ')}</small>
+                      {showBaseConversion && Number(row.quantity) > 0 && <span className="warehouse-entry-conv">折合 {formatQuantity(Number(row.quantity) * item.packageFactor)} {displayUnitName(item.baseUnitCode)}</span>}
+                    </div> : <span className="warehouse-entry-placeholder">自动带入</span>}
+                  </td>
+                  <EditableCell className={tableCellClass('numeric')} display={`${row.quantity || '—'} ${item?.packageUnitName ?? ''}`}>
+                      <UnitNumberInput
+                        inputRef={el => { quantityInputRefs.current[row.key] = el }}
+                        unit={item?.packageUnitName ?? ''} unitReadOnly
+                        min="0.0001"
+                        step="any"
+                        value={row.quantity}
+                        onValueChange={(value) => updateRow(index, 'quantity', value)}
+                        onKeyDown={(e) => handleQuantityKeyDown(e, index)}
+                        aria-label={`第${index + 1}行数量`}
+                        placeholder="数量"
+                      />
+                  </EditableCell>
+                  {withPrice && <EditableCell className={tableCellClass('numeric')} display={row.price ? `${formatQuantity(Number(row.price))} 元` : undefined}>
+                      <UnitNumberInput
+                        inputRef={el => { priceInputRefs.current[row.key] = el }}
+                        unit="元" unitReadOnly
+                        min="0"
+                        step="0.01"
+                        value={row.price}
+                        onValueChange={(value) => updateRow(index, 'price', value)}
+                        onKeyDown={(e) => handlePriceKeyDown(e, index)}
+                        aria-label={`第${index + 1}行采购单价`}
+                        placeholder="0.00"
+                      />
+                  </EditableCell>}
+                  {withPrice && <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}>
+                    {lineTotal > 0 ? formatMoney(lineTotal) : '—'}
+                  </td>}
+                  <td style={{ textAlign: 'center' }}>
+                    <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除此行"><IconTrash size={14} /> 删除</Button>
+                  </td>
+                </EditableRow>
+              })}
+            </tbody>
+          </EditableTable>
+        </div>
         <div className="warehouse-entry-add-bar">
-          <Button size="sm" variant="secondary" onClick={() => addRow(true)}>+ 添加一行药品 (Enter)</Button>
+          <Button size="sm" variant="secondary" onClick={() => addRow(true)}><IconPlus size={15} /> 添加一行药品 (Enter)</Button>
         </div>
       </div>}
   </Dialog>
@@ -619,9 +1220,13 @@ function RequisitionApprovalDialog({ api, value, items, onClose, onDone }: {
 }
 
 export function DirectPurchaseReceiptDialog({
-  api, site, suppliers, items, bins = [], onNavigate, onClose, onDone, onSwitchMode,
+  api, site, suppliers, items, bins = [],
+  orders = [], products = [], supplierItems,
+  onNavigate, onClose, onDone, onSwitchMode,
 }: {
   api: RhnApi; site: StockSite; suppliers: Awaited<ReturnType<RhnApi['pharmacy']['suppliers']>>; items: StockItem[]
+  orders?: PurchaseOrder[]; products?: MedicationProduct[]
+  supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>
   bins?: StockBin[]; onNavigate: (path: string) => void; onClose: () => void; onDone: (message?: string) => void
   onSwitchMode?: (mode: 'plan' | 'direct') => void
 }) {
@@ -636,14 +1241,13 @@ export function DirectPurchaseReceiptDialog({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<unknown>()
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
-  const [focusedIndex, setFocusedIndex] = useState(0)
 
   type DirectRow = {
-    key: string; stockItemId: string; quantity: string; price: string
+    key: string; stockItemId: string; quantity: string; price: string; salePrice?: string
     lotNo: string; productionDate: string; expiryDate: string; binId: string
   }
   const [rows, setRows] = useState<DirectRow[]>([
-    { key: 'row-0', stockItemId: '', quantity: '1', price: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' },
+    { key: 'row-0', stockItemId: '', quantity: '1', price: '', salePrice: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' },
   ])
 
   const itemMap = useMemo(() => new Map(items.map(item => [item.id, item])), [items])
@@ -655,8 +1259,6 @@ export function DirectPurchaseReceiptDialog({
   })), [items])
 
   const quantityInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const priceInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
-  const lotInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const selectWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   const focusSelect = (key: string) => {
@@ -675,7 +1277,7 @@ export function DirectPurchaseReceiptDialog({
 
   const addRow = (autoFocus = true) => {
     const newKey = `row-${Date.now()}-${Math.random()}`
-    setRows(prev => [...prev, { key: newKey, stockItemId: '', quantity: '1', price: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' }])
+    setRows(prev => [...prev, { key: newKey, stockItemId: '', quantity: '1', price: '', salePrice: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' }])
     if (autoFocus) focusSelect(newKey)
     return newKey
   }
@@ -685,7 +1287,7 @@ export function DirectPurchaseReceiptDialog({
       if (prev.length <= 1) {
         const resetKey = `row-${Date.now()}`
         focusSelect(resetKey)
-        return [{ key: resetKey, stockItemId: '', quantity: '1', price: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' }]
+        return [{ key: resetKey, stockItemId: '', quantity: '1', price: '', salePrice: '', lotNo: '', productionDate: '', expiryDate: '', binId: '' }]
       }
       return prev.filter((_, i) => i !== index)
     })
@@ -696,7 +1298,17 @@ export function DirectPurchaseReceiptDialog({
   }
 
   const handleItemSelect = (index: number, val: string) => {
-    updateRow(index, 'stockItemId', val)
+    const selectedItem = itemMap.get(val)
+    const defaultPrices = resolveItemDefaultPrices(selectedItem, orders, products, supplierItems)
+    setRows(prev => prev.map((row, i) => {
+      if (i !== index) return row
+      return {
+        ...row,
+        stockItemId: val,
+        price: defaultPrices.purchasePrice !== undefined ? defaultPrices.purchasePrice : row.price,
+        salePrice: defaultPrices.salePrice !== undefined ? defaultPrices.salePrice : (row.salePrice ?? ''),
+      }
+    }))
     const currentRow = rows[index]
     if (currentRow) focusField(quantityInputRefs, currentRow.key)
   }
@@ -713,12 +1325,13 @@ export function DirectPurchaseReceiptDialog({
     const dateValid = !row.productionDate || !row.expiryDate || row.productionDate <= row.expiryDate
     const hasBin = Boolean(row.binId || commonBin)
     const isValid = Boolean(hasItem && hasQty && hasPrc && hasLot && hasExpiry && dateValid && hasBin)
-    return { item, quantity: qty, price: prc, lotNo: row.lotNo, productionDate: row.productionDate, expiryDate: row.expiryDate, binId: row.binId, isValid }
-  }).filter((v): v is { item: StockItem; quantity: number; price: number; lotNo: string; productionDate: string; expiryDate: string; binId: string; isValid: true } => v.isValid)
+    return { item, quantity: qty, price: prc, salePrice: row.salePrice, lotNo: row.lotNo, productionDate: row.productionDate, expiryDate: row.expiryDate, binId: row.binId, isValid }
+  }).filter((v): v is { item: StockItem; quantity: number; price: number; salePrice: string | undefined; lotNo: string; productionDate: string; expiryDate: string; binId: string; isValid: true } => Boolean(v.isValid && v.item))
 
   const enteredRows = rows.filter(r => r.stockItemId || r.price.trim() || r.lotNo.trim() || !['', '1'].includes(r.quantity))
   const incomplete = enteredRows.length !== validRows.length
   const totalAmount = validRows.reduce((sum, r) => sum + r.quantity * r.price, 0)
+  const totalSaleAmount = validRows.reduce((sum, r) => sum + r.quantity * (Number(r.salePrice) || 0), 0)
   const canSubmit = validRows.length > 0 && !incomplete && Boolean(supplierId) && Boolean(commonBin || validRows.every(r => r.binId)) && !busy
 
   const triggerSubmit = async () => {
@@ -760,7 +1373,8 @@ export function DirectPurchaseReceiptDialog({
     <div className="warehouse-entry-summary">
       <span>已录入 <strong>{validRows.length}</strong> 个品种</span>
       <span>直接记账入库</span>
-      <span>总金额 <strong className="warehouse-entry-total">{formatMoney(totalAmount)}</strong></span>
+      <span>进价总额 <strong className="warehouse-entry-total">{formatMoney(totalAmount)}</strong></span>
+      {totalSaleAmount > 0 && <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-small)' }}>售价总额 <strong>{formatMoney(totalSaleAmount)}</strong></span>}
     </div>
     <div className="warehouse-entry-actions">
       <Button variant="secondary" disabled={busy} onClick={onClose}>取消</Button>
@@ -770,10 +1384,10 @@ export function DirectPurchaseReceiptDialog({
     {Boolean(error) && <Alert>{errorMessage(error)}</Alert>}
     <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
       <button type="button" role="tab" aria-selected={false} className="warehouse-purchase-mode-tab" onClick={() => onSwitchMode?.('plan')}>
-        📋 采购计划（报审流）
+        <IconClipboardList size={15} /> 采购计划（报审流）
       </button>
       <button type="button" role="tab" aria-selected={true} className="warehouse-purchase-mode-tab is-active" onClick={() => onSwitchMode?.('direct')}>
-        ⚡ 直接入库（现购免审）
+        <IconBolt size={15} /> 直接入库（现购免审）
       </button>
     </div>
     <div className="warehouse-header-grid">
@@ -801,123 +1415,121 @@ export function DirectPurchaseReceiptDialog({
 
     {!items.length ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy="当前没有可选药品" />
       : <div className="warehouse-entry-table-container">
-        <div className="warehouse-entry-kbd-hint">
-          <span className="warehouse-entry-kbd-badge">⌨️ 快捷提示</span>
-          <span>按 <code>Enter</code> 跳格/自动增行</span>
-          <span>按 <code>↑</code> / <code>↓</code> 跨行</span>
-          <span>按 <code>Ctrl+Enter</code> 直接入库</span>
-        </div>
-        <table className="warehouse-table warehouse-entry-table">
-          <thead>
-            <tr>
-              <th style={{ width: '2.5rem', textAlign: 'center' }}>#</th>
-              <th style={{ minWidth: '13rem' }}>药品</th>
-              <th style={{ width: '11rem' }}>包装规格 / 厂家</th>
-              <th style={{ width: '7.5rem' }}>入库数量</th>
-              <th style={{ width: '7.5rem' }}>采购单价</th>
-              <th style={{ width: '8rem' }}>批号</th>
-              <th style={{ width: '8.5rem' }}>有效期至</th>
-              <th style={{ width: '8.5rem' }}>货位</th>
-              <th style={{ width: '6.5rem' }}>小计</th>
-              <th style={{ width: '3.5rem', textAlign: 'center' }}>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => {
-              const item = itemMap.get(row.stockItemId)
-              const lineTotal = item && Number(row.quantity) > 0 && Number(row.price) >= 0
-                ? Number(row.quantity) * Number(row.price)
-                : 0
-              const isActiveRow = focusedIndex === index
-              return <tr key={row.key} className={isActiveRow ? 'is-active-entry-row' : ''} onFocus={() => setFocusedIndex(index)}>
-                <td className="warehouse-entry-index">{index + 1}</td>
-                <td>
-                  <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
-                    <Select searchable showValue popoverMinWidth={480} value={row.stockItemId}
-                      onChange={val => handleItemSelect(index, val)}
-                      placeholder="拼音/名称搜索药品" options={itemOptions} />
-                  </div>
-                </td>
-                <td>
-                  {item ? <div className="warehouse-entry-spec-inline" title={`1 ${item.packageUnitName} = ${formatQuantity(item.packageFactor)} ${displayUnitName(item.baseUnitCode)}`}>
-                    <strong>{item.packageSpec || item.packageUnitName}</strong>
-                    <small>{[item.manufacturerName, `1${item.packageUnitName}=${formatQuantity(item.packageFactor)}${displayUnitName(item.baseUnitCode)}`].filter(Boolean).join(' · ')}</small>
-                  </div> : <span className="warehouse-entry-placeholder">自动带入</span>}
-                </td>
-                <td>
-                  <div className="warehouse-entry-input-with-unit">
-                    <input ref={el => { quantityInputRefs.current[row.key] = el }}
-                      className="ui-field__control warehouse-entry-input" type="number" min="0.0001" step="any"
-                      value={row.quantity} onChange={e => updateRow(index, 'quantity', e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); focusField(priceInputRefs, row.key) }
-                      }}
-                      aria-label={`第${index + 1}行数量`} placeholder="数量" />
-                    {item && <span className="warehouse-entry-input-unit">{item.packageUnitName}</span>}
-                  </div>
-                </td>
-                <td>
-                  <div className="warehouse-entry-input-with-unit">
-                    <input ref={el => { priceInputRefs.current[row.key] = el }}
-                      className="ui-field__control warehouse-entry-input" type="number" min="0" step="0.01"
-                      value={row.price} onChange={e => updateRow(index, 'price', e.target.value)}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { e.preventDefault(); focusField(lotInputRefs, row.key) }
-                      }}
-                      aria-label={`第${index + 1}行采购单价`} placeholder="0.00" />
-                    {item && <span className="warehouse-entry-input-unit">元</span>}
-                  </div>
-                </td>
-                <td>
-                  <input ref={el => { lotInputRefs.current[row.key] = el }}
-                    className="ui-field__control warehouse-entry-input" value={row.lotNo}
-                    onChange={e => updateRow(index, 'lotNo', e.target.value)}
-                    aria-label={`第${index + 1}行批号`} placeholder={item?.lotRequired ? '必填批号' : '批号'} />
-                </td>
-                <td>
-                  <input className="ui-field__control warehouse-entry-input" type="date" value={row.expiryDate}
-                    onChange={e => updateRow(index, 'expiryDate', e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault()
-                        if (index === rows.length - 1) addRow(true)
-                        else focusSelect(rows[index + 1].key)
-                      }
-                    }}
-                    aria-label={`第${index + 1}行有效期至`} />
-                </td>
-                <td>
-                  <select className="ui-field__control warehouse-entry-input" value={row.binId || commonBin}
-                    onChange={e => updateRow(index, 'binId', e.target.value)} aria-label={`第${index + 1}行货位`}>
-                    {receiveBins.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  </select>
-                </td>
-                <td className="warehouse-entry-amount">{lineTotal > 0 ? formatMoney(lineTotal) : '—'}</td>
-                <td style={{ textAlign: 'center' }}>
-                  <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除行">删除</Button>
-                </td>
+        <div className="warehouse-entry-table-wrap">
+          <EditableTable className="warehouse-entry-table warehouse-entry-table--receipt" aria-label="直接入库药品连续录入" onAppendRow={() => addRow(true)}>
+            <thead>
+              <tr>
+                <th style={{ width: '2.5rem', textAlign: 'center' }}>#</th>
+                <th style={{ minWidth: '12rem' }}>药品</th>
+                <th style={{ width: '10.5rem' }}>包装规格 / 厂家</th>
+                <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>入库数量</th>
+                <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>采购单价</th>
+                <th className={tableCellClass('numeric')} style={{ width: '7.5rem' }}>零售单价</th>
+                <th style={{ width: '8rem' }}>批号</th>
+                <th style={{ width: '11rem' }}>有效期至</th>
+                <th style={{ width: '8.5rem' }}>货位</th>
+                <th className={tableCellClass('numeric')} style={{ width: '7rem' }}>小计</th>
+                <th style={{ width: '3.5rem', textAlign: 'center' }}>操作</th>
               </tr>
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => {
+                const item = itemMap.get(row.stockItemId)
+                const lineTotal = item && Number(row.quantity) > 0 && Number(row.price) >= 0
+                  ? Number(row.quantity) * Number(row.price)
+                  : 0
+                return <EditableRow key={row.key}>
+                  <td className="warehouse-entry-index">{index + 1}</td>
+                  <EditableCell display={item?.productName} placeholder="拼音/名称搜索药品">
+                    <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
+                      <Select searchable showValue popoverMinWidth={480} value={row.stockItemId}
+                        aria-label={`第${index + 1}行药品`}
+                        onChange={val => handleItemSelect(index, val)}
+                        placeholder="拼音/名称搜索药品" options={itemOptions} />
+                    </div>
+                  </EditableCell>
+                  <td>
+                    {item ? <div className="warehouse-entry-spec-inline" title={`1 ${item.packageUnitName} = ${formatQuantity(item.packageFactor)} ${displayUnitName(item.baseUnitCode)}`}>
+                      <strong>{item.packageSpec || item.packageUnitName}</strong>
+                      <small>{[item.manufacturerName, `1${item.packageUnitName}=${formatQuantity(item.packageFactor)}${displayUnitName(item.baseUnitCode)}`].filter(Boolean).join(' · ')}</small>
+                    </div> : <span className="warehouse-entry-placeholder">自动带入</span>}
+                  </td>
+                  <EditableCell className={tableCellClass('numeric')} display={`${row.quantity || '—'} ${item?.packageUnitName ?? ''}`}>
+                    <UnitNumberInput inputRef={el => { quantityInputRefs.current[row.key] = el }}
+                      unit={item?.packageUnitName ?? ''} unitReadOnly min="0.0001" step="any"
+                      value={row.quantity} onValueChange={value => updateRow(index, 'quantity', value)}
+                      aria-label={`第${index + 1}行数量`} placeholder="数量" />
+                  </EditableCell>
+                  <EditableCell className={tableCellClass('numeric')} display={row.price ? `${formatQuantity(Number(row.price))} 元` : undefined}>
+                    <UnitNumberInput unit="元" unitReadOnly min="0" step="0.01"
+                      value={row.price} onValueChange={value => updateRow(index, 'price', value)}
+                      aria-label={`第${index + 1}行采购单价`} placeholder="0.00" />
+                  </EditableCell>
+                  <EditableCell className={tableCellClass('numeric')} display={row.salePrice ? `${formatQuantity(Number(row.salePrice))} 元` : undefined}>
+                    <UnitNumberInput unit="元" unitReadOnly min="0" step="0.01"
+                      value={row.salePrice ?? ''} onValueChange={value => updateRow(index, 'salePrice', value)}
+                      aria-label={`第${index + 1}行零售单价`} placeholder="0.00" />
+                  </EditableCell>
+                  <EditableCell display={row.lotNo} placeholder={item?.lotRequired ? '必填批号' : '批号'}>
+                    <input
+                      className="ui-field__control" value={row.lotNo}
+                      onChange={e => updateRow(index, 'lotNo', e.target.value)}
+                      aria-label={`第${index + 1}行批号`} placeholder={item?.lotRequired ? '必填批号' : '批号'} />
+                  </EditableCell>
+                  <EditableCell display={row.expiryDate} placeholder="YYYY-MM-DD">
+                    <DatePicker
+                      value={row.expiryDate}
+                      onChange={val => updateRow(index, 'expiryDate', val)}
+                      aria-label={`第${index + 1}行有效期至`}
+                      placeholder="YYYY-MM-DD"
+                    />
+                  </EditableCell>
+                  <EditableCell display={receiveBins.find(bin => bin.id === (row.binId || commonBin))?.name}>
+                    <Select value={row.binId || commonBin} clearable={false} searchable={false} openOnFocus={false} popoverMinWidth={220}
+                      onChange={value => updateRow(index, 'binId', value)} aria-label={`第${index + 1}行货位`}
+                      options={receiveBins.map(bin => ({ value: bin.id, label: bin.name }))} />
+                  </EditableCell>
+                  <td className={`${tableCellClass('numeric')} warehouse-entry-amount`}>{lineTotal > 0 ? formatMoney(lineTotal) : '—'}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <Button variant="text" size="sm" onClick={() => removeRow(index)} title="删除行"><IconTrash size={14} /> 删除</Button>
+                  </td>
+                </EditableRow>
+              })}
+            </tbody>
+          </EditableTable>
+        </div>
         <div className="warehouse-entry-add-bar">
-          <Button size="sm" variant="secondary" onClick={() => addRow(true)}>+ 添加一行药品 (Enter)</Button>
+          <Button size="sm" variant="secondary" onClick={() => addRow(true)}><IconPlus size={15} /> 添加一行药品 (Enter)</Button>
         </div>
       </div>}
   </Dialog>
 }
 
 export function PurchaseDialog({
-  api, site, suppliers, items, bins = [], initialMode = 'plan', onNavigate, onClose, onDone,
+  api, site, suppliers, items, bins = [], initialMode = 'plan',
+  orders = [], products = [],
+  onNavigate, onClose, onDone,
 }: {
   api: RhnApi; site: StockSite; suppliers: Awaited<ReturnType<RhnApi['pharmacy']['suppliers']>>; items: StockItem[]
-  bins?: StockBin[]; initialMode?: 'plan' | 'direct'; onNavigate: (path: string) => void; onClose: () => void; onDone: (message?: string) => void
+  bins?: StockBin[]; initialMode?: 'plan' | 'direct'
+  orders?: PurchaseOrder[]; products?: MedicationProduct[]
+  onNavigate: (path: string) => void; onClose: () => void; onDone: (message?: string) => void
 }) {
   const [mode, setMode] = useState<'plan' | 'direct'>(initialMode)
   const [supplierId, setSupplierId] = useState(suppliers[0]?.id ?? '')
   const [expectedDate, setExpectedDate] = useState('')
   const [submitNow, setSubmitNow] = useState(true)
   const [reason, setReason] = useState('')
+  const [supplierItems, setSupplierItems] = useState<Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>>([])
+  useEffect(() => {
+    if (!supplierId || !api.pharmacy?.supplyItems) return
+    let cancelled = false
+    api.pharmacy.supplyItems(supplierId).then(list => {
+      if (!cancelled && Array.isArray(list)) setSupplierItems(list)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [api.pharmacy, supplierId])
+
   const [requestCode] = useState(() => `PO-${crypto.randomUUID()}`)
 
   if (!suppliers.length) return <Dialog title="新建采购单" eyebrow="采购作业" onClose={onClose}><EmptyState icon="pharmacy"
@@ -926,18 +1538,19 @@ export function PurchaseDialog({
 
   if (mode === 'direct') {
     return <DirectPurchaseReceiptDialog api={api} site={site} suppliers={suppliers} items={items} bins={bins}
+      orders={orders} products={products} supplierItems={supplierItems}
       onNavigate={onNavigate} onClose={onClose} onDone={onDone} onSwitchMode={setMode} />
   }
 
   return <MultiItemDialog title="新建采购计划" submitText={submitNow ? '保存并提交审核' : '保存草稿'} items={items} quantityLabel="采购数量（包装）" withPrice
-    hideReason={true}
+    hideReason={true} orders={orders} products={products} supplierItems={supplierItems}
     lead={<>
       <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">
         <button type="button" role="tab" aria-selected={true} className="warehouse-purchase-mode-tab is-active" onClick={() => setMode('plan')}>
-          📋 采购计划（报审流）
+          <IconClipboardList size={15} /> 采购计划（报审流）
         </button>
         <button type="button" role="tab" aria-selected={false} className="warehouse-purchase-mode-tab" onClick={() => setMode('direct')}>
-          ⚡ 直接入库（现购免审）
+          <IconBolt size={15} /> 直接入库（现购免审）
         </button>
       </div>
       <div className="warehouse-header-grid">
@@ -945,8 +1558,8 @@ export function PurchaseDialog({
           <Select value={supplierId} onChange={setSupplierId} clearable={false} showValue options={suppliers.map(v => ({ value: v.id, label: v.name, secondaryText: v.code }))} />
         </FormField>
         <FormField label="预计到货日期">
-          <input className="ui-field__control" type="date" value={expectedDate}
-            min={new Date().toISOString().slice(0, 10)} onChange={event => setExpectedDate(event.target.value)} />
+          <DatePicker value={expectedDate}
+            min={new Date().toISOString().slice(0, 10)} onChange={val => setExpectedDate(val)} placeholder="YYYY-MM-DD" />
         </FormField>
         <FormField label="计划用途说明">
           <input className="ui-field__control" value={reason} onChange={event => setReason(event.target.value)} placeholder="如：常规月度补货（选填）" />
@@ -1059,10 +1672,10 @@ export function GoodsReceiptDialog({ api, order, receipts = [], items, bins, onC
               <small>{item?.packageUnitName} · 0 表示本次未到</small></td>
             <td><input aria-label="批号" className="ui-field__control" disabled={!selected} value={lots[line.id] ?? ''}
               onChange={event => setLots(current => ({ ...current, [line.id]: event.target.value }))} placeholder={item?.lotRequired ? '必填' : '选填'} /></td>
-            <td><input aria-label="生产日期" className="ui-field__control" disabled={!selected} type="date" value={productionDates[line.id] ?? ''}
-              onChange={event => setProductionDates(current => ({ ...current, [line.id]: event.target.value }))} /></td>
-            <td><input aria-label="有效期" className="ui-field__control" disabled={!selected} type="date" min={productionDates[line.id]}
-              value={expiryDates[line.id] ?? ''} onChange={event => setExpiryDates(current => ({ ...current, [line.id]: event.target.value }))} /></td>
+            <td><DatePicker aria-label="生产日期" disabled={!selected} value={productionDates[line.id] ?? ''}
+              onChange={val => setProductionDates(current => ({ ...current, [line.id]: val }))} placeholder="YYYY-MM-DD" /></td>
+            <td><DatePicker aria-label="有效期" disabled={!selected} min={productionDates[line.id]}
+              value={expiryDates[line.id] ?? ''} onChange={val => setExpiryDates(current => ({ ...current, [line.id]: val }))} placeholder="YYYY-MM-DD" /></td>
             <td><Select value={binIds[line.id] || commonBin} disabled={!selected || mutation.isPending || Boolean(submitted.current)}
               onChange={id => setBinIds(current => ({ ...current, [line.id]: id }))} clearable showValue placeholder="沿用统一货位"
               options={receiveBins.map(bin => ({ value: bin.id, label: bin.name, secondaryText: bin.code }))} /></td>

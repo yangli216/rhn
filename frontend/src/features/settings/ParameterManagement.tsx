@@ -533,7 +533,9 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   const [validation, setValidation] = useState(() => readValidationRules(
     definition?.jsonSchema, definition?.sdParamValueType ?? 'STRING',
   ))
-  const [defaultValue, setDefaultValue] = useState(readRawValue(definition?.defaultValueJson))
+  const [nullDefault, setNullDefault] = useState(definition?.defaultValueJson?.trim() === 'null')
+  const [defaultValue, setDefaultValue] = useState(definition?.defaultValueJson?.trim() === 'null'
+    ? '' : readRawValue(definition?.defaultValueJson))
   const [dictionaryCode, setDictionaryCode] = useState(definition?.dictionaryCode ?? '')
   const [scopeLevel, setScopeLevel] = useState<ParameterScope>(definition?.allowedScopes[0] ?? 'TENANT')
   const [configType, setConfigType] = useState<ParameterConfigType>(definition?.sdParamConfigType ?? fixedConfigType ?? 'BUSINESS')
@@ -559,9 +561,10 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
   const jsonSchema = writeValidationSchema(valueType, validation)
   const validationError = validationRulesError(valueType, validation)
   const defaultValueAllowed = sensitivity !== 'SECRET' && controlType !== 'SECRET_REFERENCE'
+  const hasNullDefault = defaultValueAllowed && nullableValue && nullDefault
   const hasDefaultValue = defaultValueAllowed
     && (valueType === 'STRING' ? defaultValue.length > 0 : Boolean(defaultValue.trim()))
-  const defaultValueError = hasDefaultValue
+  const defaultValueError = hasDefaultValue && !hasNullDefault
     ? valueType === 'JSON' ? jsonFieldError(defaultValue, '默认值') : parameterValueError(valueType, defaultValue)
     : ''
 
@@ -583,7 +586,7 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
     try {
       await onSave({ categoryId, key: key.trim().toLowerCase(), name: name.trim(),
         description: optional(description), valueType, controlType, jsonSchema: optional(jsonSchema),
-        defaultValueJson: hasDefaultValue ? writeJsonValue(valueType, defaultValue) : undefined,
+        defaultValueJson: hasNullDefault ? 'null' : hasDefaultValue ? writeJsonValue(valueType, defaultValue) : undefined,
         dictionaryCode: controlType === 'SELECT' ? optional(dictionaryCode)?.toUpperCase() : undefined,
         allowedScopes: [scopeLevel], category: configType, inheritanceEnabled, cacheEnabled, nullableValue,
         sensitivity, displayPolicy,
@@ -641,12 +644,13 @@ function ParameterDefinitionDialog({ mode, definition, initialCategoryId, catego
           {controlType === 'SECRET_REFERENCE' ? <FormField className="parameter-grid__span-3" label="默认值"
             hint="密钥参数不保存默认明文，只维护安全引用">
             <input value="不适用于密钥引用" readOnly /></FormField>
-          : sensitivity !== 'SECRET' && <FormField
-            className={valueType === 'JSON' ? 'parameter-grid__span-12' : 'parameter-grid__span-3'} label="默认值"
+          : sensitivity !== 'SECRET' && <div
+            className={valueType === 'JSON' ? 'parameter-grid__span-12' : 'parameter-grid__span-3'}><FormField label="默认值"
             error={submitted ? defaultValueError || undefined : undefined}
-            hint={!hasDefaultValue && definition?.hasDefaultValue ? '留空将保持原值' : defaultValueHint(valueType)}>
-            {defaultValueControl(valueType, defaultValue, setDefaultValue)}
-          </FormField>}
+            hint={hasNullDefault ? '未配置当前值时返回空值，不是文本 null' : defaultValueHint(valueType)}>
+            {hasNullDefault ? <input value="空值" readOnly /> : defaultValueControl(valueType, defaultValue, setDefaultValue)}
+          </FormField>{nullableValue && <Toggle checked={nullDefault} onChange={setNullDefault}
+            title="默认值为空" copy="使用空值作为默认值" />}</div>}
           {controlType === 'SELECT' && <FormField className="parameter-grid__span-6" label="绑定字典编码"
             hint="可绑定系统枚举或当前租户的普通枚举字典">
             <input value={dictionaryCode} maxLength={64} onChange={(event) => setDictionaryCode(event.target.value)} /></FormField>}
@@ -882,19 +886,23 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   const currentValueError = valueMode === 'OVERRIDE'
     ? definition.sdParamSensitivity === 'SECRET'
       ? !secretRef.trim() ? '请输入密钥引用' : ''
-      : parameterValueError(definition.sdParamValueType, rawValue)
+      : definition.key === 'outpatient.direct-visit.catalog-item-id' && !rawValue.trim() ? ''
+        : parameterValueError(definition.sdParamValueType, rawValue)
     : ''
 
   async function submit(event: FormEvent) {
     event.preventDefault(); setSubmitted(true)
     if (missingTarget || referenceError || currentValueError) return
+    const effectiveValueMode = definition.key === 'outpatient.direct-visit.catalog-item-id'
+      && valueMode === 'OVERRIDE' && !rawValue.trim() ? 'EXPLICIT_NULL' : valueMode
     try {
       await onSave({ expectedRevision: value?.revision, scopeType, scopeId: target.scopeId,
         organizationId: scopeType === 'DEPARTMENT' ? organizationId.trim() : undefined,
-        scopeReference: target.requiresReference ? scopeReference.trim() : undefined, valueMode,
-        valueJson: valueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET'
+        scopeReference: target.requiresReference ? scopeReference.trim() : undefined,
+        valueMode: effectiveValueMode,
+        valueJson: effectiveValueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET'
           ? writeJsonValue(definition.sdParamValueType, rawValue) : undefined,
-        secretRef: valueMode === 'OVERRIDE' && definition.sdParamSensitivity === 'SECRET' ? secretRef.trim() : undefined,
+        secretRef: effectiveValueMode === 'OVERRIDE' && definition.sdParamSensitivity === 'SECRET' ? secretRef.trim() : undefined,
         reason: optional(reason) })
     } catch { /* The page-level mutation error keeps this dialog open for correction. */ }
   }
@@ -937,6 +945,7 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
         <input value={secretRef} maxLength={500} onChange={(event) => setSecretRef(event.target.value)} /></FormField>}
       {valueMode === 'OVERRIDE' && definition.sdParamSensitivity !== 'SECRET' && <ValueControl definition={definition}
         rawValue={rawValue} onChange={setRawValue} systemEnums={systemEnums} api={api}
+        organizationId={organizationId}
         required error={submitted ? currentValueError || undefined : undefined} />}
       <FormField className="parameter-form__span-2" label="变更原因"><textarea rows={3} value={reason} maxLength={1000}
         onChange={(event) => setReason(event.target.value)} /></FormField>
@@ -944,10 +953,13 @@ function ParameterValueDialog({ definition, value, context, systemEnums, api, bu
   </Dialog>
 }
 
-function ValueControl({ definition, rawValue, onChange, systemEnums, api, error, required = false }: {
+function ValueControl({ definition, rawValue, onChange, systemEnums, api, error, required = false, organizationId }: {
   definition: ParameterDefinition; rawValue: string; onChange: (value: string) => void
-  systemEnums?: SystemEnumDefinition[]; api: RhnApi; error?: string; required?: boolean
+  systemEnums?: SystemEnumDefinition[]; api: RhnApi; error?: string; required?: boolean; organizationId?: string
 }) {
+  if (definition.key === 'outpatient.direct-visit.catalog-item-id') {
+    return <DirectVisitServiceValue api={api} organizationId={organizationId} value={rawValue} onChange={onChange} error={error} />
+  }
   if (definition.sdParamControlType === 'SELECT' && definition.dictionaryCode) {
     const systemOptions = enumOptions(systemEnums, definition.dictionaryCode)
     return <FormField label="参数值" required={required} error={error}>{systemOptions.length
@@ -967,6 +979,21 @@ function ValueControl({ definition, rawValue, onChange, systemEnums, api, error,
   }
   return <FormField label="参数值" required={required} error={error}><input type={definition.sdParamValueType === 'NUMBER' ? 'number' : 'text'}
     value={rawValue} onChange={(event) => onChange(event.target.value)} /></FormField>
+}
+
+function DirectVisitServiceValue({ api, organizationId, value, onChange, error }: {
+  api: RhnApi; organizationId?: string; value: string; onChange: (value: string) => void; error?: string
+}) {
+  const services = useQuery({ queryKey: ['direct-visit-service-options', organizationId],
+    queryFn: () => api.masterData.services('', '', 'ACTIVE', organizationId), enabled: Boolean(organizationId) })
+  return <FormField label="直接接诊门诊服务（选填）" error={error || (services.error ? errorMessage(services.error) : undefined)}
+    hint="留空不收门诊服务费；配置后按机构有效价格记入本次就诊费用，结算时一起收取。">
+    <Select value={value} onChange={onChange} loading={services.isPending && Boolean(organizationId)}
+      placeholder="不配置门诊服务费" showValue options={(services.data ?? []).filter(item =>
+        item.orderable && item.sdUsageType === 'OUTPATIENT' && item.serviceSubtype === 'OUTPATIENT_VISIT'
+        && item.accountingCategory === 'REGISTRATION' && item.organizationAdoption?.sdStatus === 'ACTIVE')
+        .map(item => ({ value: item.id, label: item.name, secondaryText: item.code }))} />
+  </FormField>
 }
 
 function defaultValueControl(valueType: ParameterValueType, value: string, onChange: (value: string) => void) {

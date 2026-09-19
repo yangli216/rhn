@@ -184,6 +184,11 @@ export interface SupplierInput {
   licenseNo?: string; licenseValidTo?: string; contactName?: string; contactPhone?: string
   validFrom?: string; validTo?: string
 }
+export interface SupplierSupplyItem {
+  id: string; revision: number; supplierId: string; catalogItemId: string
+  packageId: string; agreementPrice: number; taxRate?: number
+  purchaseEnabled?: boolean; validFrom?: string; validTo?: string
+}
 export interface PurchaseOrderLine { id: string; stockItemId: string; packageId: string; orderedQuantity: number; receivedQuantity: number; remainingQuantity: number; unitPrice: number; taxRate?: number; lineStatus: string; description?: string }
 export interface PurchaseOrder { id: string; revision: number; stockSiteId: string; supplierId: string; orderNo: string; requestCode: string; status: string; orderDate: string; expectedDate?: string; description?: string; lines: PurchaseOrderLine[] }
 export interface GoodsReceiptLine {
@@ -839,6 +844,7 @@ export function createPharmacyApi(client: ApiClient) {
         method: 'POST', body: JSON.stringify({ expectedRevision: revision, status }),
       }),
     addSupplierItem: (supplierId: string, input: { catalogItemId: string; packageId: string; agreementPrice: number; taxRate?: number }) => client.request(`/api/pharmacy/suppliers/${supplierId}/supply-items`, { method: 'POST', body: JSON.stringify(input) }),
+    supplyItems: (supplierId: string) => client.request<SupplierSupplyItem[]>(`/api/pharmacy/suppliers/${supplierId}/supply-items`),
     purchaseOrders: (siteId: string) => client.request<PurchaseOrder[]>(`/api/pharmacy/purchase-orders?stockSiteId=${encodeURIComponent(siteId)}`),
     createPurchaseOrder: (input: { stockSiteId: string; supplierId: string; requestCode: string; expectedDate?: string; description?: string; lines: Array<{ stockItemId: string; packageId: string; orderedQuantity: number; unitPrice: number; taxRate?: number }> }) => client.request<PurchaseOrder>('/api/pharmacy/purchase-orders', { method: 'POST', body: JSON.stringify(input) }),
     submitPurchaseOrder: (id: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/submit`, { method: 'POST' }),

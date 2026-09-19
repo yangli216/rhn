@@ -40,6 +40,7 @@ const mockRegisteredEncounter: Encounter = {
   physicalExam: '',
   treatmentPlan: '',
   vitalSigns: { systolic: 120, diastolic: 80 },
+  registeredAt: '2026-09-02T08:00:00Z',
   diagnoses: [],
   createdAt: '2026-09-02T08:00:00Z',
   updatedAt: '2026-09-02T08:00:00Z',
@@ -173,6 +174,12 @@ function createMockApi({
       suspend: vi.fn(),
       resume: resumeMock,
       prescriptions: vi.fn().mockResolvedValue([]),
+      evaluatePrescriptionSafety: vi.fn().mockResolvedValue({
+        evaluationId: 'evaluation-pass', prescriptionId: 'rx-pass', prescriptionRevision: 0,
+        inputHash: 'hash-pass', ruleSetVersion: 'qmed-foundation-shadow-v1', engineVersion: 'test',
+        mode: 'SHADOW', decision: 'PASS', findings: [], ruleExecutions: [], failureCodes: [],
+      }),
+      submitPrescription: vi.fn(),
       serviceRequests: vi.fn().mockResolvedValue([]),
       medicationRequests: vi.fn().mockResolvedValue([]),
       orderableMedications: vi.fn().mockResolvedValue([]),
@@ -277,6 +284,25 @@ function renderStation(api: RhnApi) {
     <DoctorWorkstation api={api} clinicalContext={clinicalContext} canEdit />
   </MemoryRouter></QueryClientProvider>)
 }
+
+it('shows direct reception only when enabled and opens the patient identity workflow', async () => {
+  const api = createMockApi()
+  api.encounters.directVisitSettings = vi.fn().mockResolvedValue({ enabled: true, catalogItemId: null })
+  renderStation(api)
+  await userEvent.click(await screen.findByRole('button', { name: '直接接诊' }))
+  expect(await screen.findByRole('dialog', { name: /直接接诊/ })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '确认身份并接诊' })).toBeDisabled()
+  expect(screen.getByText(/本科室未配置门诊服务费/)).toBeInTheDocument()
+})
+
+it('keeps the standard queue workflow when direct reception is disabled', async () => {
+  const api = createMockApi()
+  api.encounters.directVisitSettings = vi.fn().mockResolvedValue({ enabled: false })
+  renderStation(api)
+  await waitFor(() => expect(api.encounters.directVisitSettings).toHaveBeenCalled())
+  expect(screen.queryByRole('button', { name: '直接接诊' })).not.toBeInTheDocument()
+  expect(await screen.findByRole('button', { name: '接诊 张建国' })).toBeInTheDocument()
+})
 
 describe('DoctorWorkstation reception flow', () => {
   it('loads the personal view by default and reloads when the data scope changes', async () => {
@@ -857,6 +883,56 @@ describe('DoctorWorkstation reception flow', () => {
     }))
   })
 
+  it('shows shadow medication safety findings before submitting a draft prescription', async () => {
+    const user = userEvent.setup()
+    const api = createMockApi({ initialEncounterStatus: 'IN_PROGRESS', queueStatus: 'SERVING' })
+    const medicationRequest = {
+      id: 'med-levofloxacin', revision: 0, prescriptionId: 'rx-child', status: 'DRAFT',
+      medicationId: '362387880000128', medicationSnapshot: { name: '左氧氟沙星片' },
+      quantity: 1, quantityUnit: '片', doseValue: 0.25, doseUnit: 'g', routeCode: 'ORAL',
+      frequencyCode: 'TID', durationValue: 3, durationUnit: 'DAY', substitutionAllowed: false,
+      selfProvided: true, itemAttributeSnapshot: {}, itemAttributeHash: 'item-hash', standardMappings: [],
+      authoredAt: '2026-09-18T08:00:00Z',
+    } as any
+    const prescription = {
+      id: 'rx-child', revision: 0, residentId: 'resident-1', encounterId: 'encounter-101',
+      prescriptionNo: 'RX-CHILD', categoryCode: 'WESTERN', status: 'DRAFT',
+      performerOrganizationId: 'org-1', performerDepartmentId: 'dept-1',
+      authoredAt: '2026-09-18T08:00:00Z', medicationRequests: [medicationRequest],
+    } as any
+    api.encounters.prescriptions = vi.fn().mockResolvedValue([prescription])
+    api.encounters.medicationRequests = vi.fn().mockResolvedValue([medicationRequest])
+    const evaluation = {
+      evaluationId: 'evaluation-age', prescriptionId: 'rx-child', prescriptionRevision: 0,
+      inputHash: 'hash-age', ruleSetVersion: 'qmed-foundation-shadow-v1', engineVersion: 'qmed-test',
+      mode: 'SHADOW', decision: 'BLOCK', failureCodes: [], ruleExecutions: [],
+      findings: [{
+        findingId: 'finding-age', ruleCode: 'QMED.AGE_CONTRAINDICATION', ruleVersion: 1,
+        category: 'SPECIAL_POPULATION_CONTRAINDICATION', severity: 'CRITICAL', decision: 'BLOCK',
+        message: '患者年龄（6岁）未满18周岁，禁用氟喹诺酮类抗菌药物【左氧氟沙星片】。',
+        medicationRequestIds: ['med-levofloxacin'], evidence: [], overridePolicy: 'REASON_REQUIRED',
+        suggestedAction: '请更换为儿童适用的抗菌药。',
+      }],
+    } as const
+    api.encounters.evaluatePrescriptionSafety = vi.fn().mockResolvedValue(evaluation)
+    api.encounters.submitPrescription = vi.fn().mockResolvedValue({
+      ...prescription, status: 'ACTIVE', safetyEvaluation: evaluation,
+    })
+
+    renderStation(api)
+    await user.click(await screen.findByRole('button', { name: '继续接诊 张建国' }))
+    await user.click(await screen.findByRole('button', { name: '审核开立' }))
+    await user.click(screen.getByRole('button', { name: '确认保存并开立' }))
+
+    expect(await screen.findByRole('region', { name: '合理用药审查' })).toHaveTextContent('儿童及特定年龄禁忌用药核对')
+    expect(screen.getByRole('region', { name: '合理用药审查' })).toHaveTextContent('6岁')
+    expect(screen.getByRole('region', { name: '合理用药审查' })).toHaveTextContent('左氧氟沙星片')
+    expect(api.encounters.submitPrescription).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: '已知晓风险，继续开立' }))
+    await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-child', 0))
+  })
+
   it('automatically splits the sixth regular medication into a second prescription', async () => {
     const api = createMockApi()
     let prescriptionSequence = 0
@@ -1208,6 +1284,22 @@ describe('DoctorWorkstation inline AI collaboration', () => {
     await screen.findByRole('button', { name: '分析当前病历' })
     return user
   }
+
+  it('saves a six-year-old patient record without blood pressure', async () => {
+    const api = aiApi()
+    api.residents.get = vi.fn().mockResolvedValue({ ...mockResident, birthDate: '2020-01-01' })
+    api.encounters.byResident = vi.fn().mockResolvedValue([{ ...mockInProgressEncounter,
+      diagnoses: [{ code: 'R05', display: '咳嗽', type: 'PRIMARY' }] }])
+    const user = await enter(api)
+    await user.clear(screen.getByLabelText('收缩压'))
+    await user.clear(screen.getByLabelText('舒张压'))
+    expect(screen.getByLabelText('收缩压')).toHaveAttribute('aria-required', 'false')
+    await user.clear(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'))
+    await user.type(screen.getByPlaceholderText('症状、持续时间及本次就诊原因'), '咳嗽两天')
+    await user.click(screen.getByRole('button', { name: '保存全部草稿' }))
+    await waitFor(() => expect(api.encounters.recordClinicalData).toHaveBeenCalledWith('encounter-101',
+      expect.objectContaining({ chiefComplaint: '咳嗽两天', systolic: undefined, diastolic: undefined })))
+  })
 
   it('keeps mapped treatment suggestions available after record and diagnosis adoption', async () => {
     const api = aiApi()

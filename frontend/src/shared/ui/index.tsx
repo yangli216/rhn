@@ -23,6 +23,7 @@ import { Tooltip, type TooltipProps } from './Tooltip'
 import type { SemanticTone } from '../presentation'
 
 export { Icon, type IconName } from './Icon'
+export { EditableTable, EditableRow, EditableCell, useEditableRowScope } from './EditableTable'
 export { Popconfirm, type PopconfirmProps } from './Popconfirm'
 export { Tooltip, type TooltipProps }
 export { Select, type SelectMultipleProps, type SelectOption, type SelectProps, type SelectSingleProps } from './Select'
@@ -586,3 +587,4 @@ export * from '../utils/dateRange'
 export * from './Switch'
 export * from './UnitNumberInput'
 export * from './BodySiteSelect'
+export * from './DatePicker'

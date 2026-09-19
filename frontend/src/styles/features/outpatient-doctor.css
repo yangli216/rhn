@@ -1724,6 +1724,88 @@
   gap: var(--space-3);
 }
 
+.doctor-medication-safety-review {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 38%, var(--color-border));
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-warning-soft) 72%, var(--color-surface));
+}
+
+.doctor-medication-safety-review > header,
+.doctor-medication-safety-review > header > div,
+.doctor-medication-safety-review__finding-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.doctor-medication-safety-review > header {
+  justify-content: space-between;
+}
+
+.doctor-medication-safety-review > header > div {
+  min-width: 0;
+}
+
+.doctor-medication-safety-review > header strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.doctor-medication-safety-review > header span {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.doctor-medication-safety-review__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.doctor-medication-safety-review__grid article {
+  min-width: 0;
+  padding: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.doctor-medication-safety-review__grid article.is-critical,
+.doctor-medication-safety-review__grid article.is-high {
+  border-color: color-mix(in srgb, var(--color-danger) 42%, var(--color-border));
+}
+
+.doctor-medication-safety-review__finding-head {
+  flex-wrap: wrap;
+}
+
+.doctor-medication-safety-review__finding-head > span {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.doctor-medication-safety-review__finding-head code {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+}
+
+.doctor-medication-safety-review__grid p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-primary);
+  line-height: 1.55;
+}
+
+.doctor-medication-safety-review__grid small {
+  display: block;
+  margin-top: var(--space-2);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
 .doctor-split-overview-bar {
   display: flex;
   align-items: center;
@@ -1888,3 +1970,5 @@
   background: var(--color-brand);
   color: var(--color-text-inverse);
 }
+.doctor-direct-visit-verification { display: flex; flex-direction: column; gap: var(--space-3); margin-block: var(--space-4); }
+.doctor-direct-visit-verification label { display: flex; align-items: center; gap: var(--space-2); }

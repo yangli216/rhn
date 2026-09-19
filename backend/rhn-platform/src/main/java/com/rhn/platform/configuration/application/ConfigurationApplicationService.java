@@ -662,14 +662,18 @@ public class ConfigurationApplicationService implements ConfigurationDirectory, 
                 && command.displayPolicy() == ConfigurationDisplayPolicy.PLAIN) {
             throw badRequest("PARAMETER_SENSITIVE_DISPLAY_FORBIDDEN", "敏感参数必须使用掩码或隐藏展示策略");
         }
-        if (command.defaultValueJson() != null) validateValue(command.valueType(), command.defaultValueJson(), command.jsonSchema());
+        boolean nullDefault = command.defaultValueJson() != null && parseValue(command.defaultValueJson()).isNull();
+        if (nullDefault && !command.nullableValue()) {
+            throw badRequest("PARAMETER_NULL_NOT_ALLOWED", "该参数不允许使用空默认值");
+        }
+        if (command.defaultValueJson() != null && !nullDefault) validateValue(command.valueType(), command.defaultValueJson(), command.jsonSchema());
         if (command.exampleValueJson() != null) validateValue(command.valueType(), command.exampleValueJson(), command.jsonSchema());
         if (command.controlType() == ConfigurationControlType.SELECT) {
             String dictionaryCode = DictionaryCodes.require(command.dictionaryCode());
             if (!systemEnumDirectory.isSystemEnumCode(dictionaryCode)) {
                 dictionaryDirectory.resolveActiveItems(tenantId, dictionaryCode);
             }
-            if (command.defaultValueJson() != null) {
+            if (command.defaultValueJson() != null && !nullDefault) {
                 validateDictionaryValue(dictionaryCode, command.defaultValueJson(), tenantId);
             }
             if (command.exampleValueJson() != null) {

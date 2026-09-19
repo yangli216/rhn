@@ -1,6 +1,8 @@
 package com.rhn.outpatient.ordering;
 
 import com.rhn.outpatient.api.EncounterDirectory;
+import com.rhn.outpatient.api.MedicationSafetyDecision;
+import com.rhn.outpatient.api.PrescriptionSafetyEvaluationDirectory;
 import com.rhn.platform.eventing.api.DomainEventPublisher;
 import com.rhn.platform.organization.api.OrganizationDirectory;
 import com.rhn.platform.tenant.TenantContext;
@@ -40,6 +42,7 @@ class PrescriptionService {
     private final OutpatientPrescriptionInventoryDirectory inventoryDirectory;
     private final PrescriptionInventoryFreezePolicy freezePolicy;
     private final PrescriptionSplitEngine splitEngine;
+    private final PrescriptionSafetyEvaluationDirectory safetyEvaluations;
 
     PrescriptionService(PrescriptionRepository repository, MedicationRequestRepository medicationRepository,
                         MedicationRequestService medicationService, EncounterDirectory encounterDirectory,
@@ -47,7 +50,8 @@ class PrescriptionService {
                         ExecutionContextProvider contextProvider,
                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                         PrescriptionInventoryFreezePolicy freezePolicy,
-                        PrescriptionSplitEngine splitEngine) {
+                        PrescriptionSplitEngine splitEngine,
+                        PrescriptionSafetyEvaluationDirectory safetyEvaluations) {
         this.repository = repository; this.medicationRepository = medicationRepository;
         this.medicationService = medicationService; this.encounterDirectory = encounterDirectory;
         this.organizationDirectory = organizationDirectory; this.eventPublisher = eventPublisher;
@@ -55,6 +59,7 @@ class PrescriptionService {
         this.inventoryDirectory = inventoryDirectory;
         this.freezePolicy = freezePolicy;
         this.splitEngine = splitEngine;
+        this.safetyEvaluations = safetyEvaluations;
     }
 
     @Transactional(readOnly = true)
@@ -172,6 +177,9 @@ class PrescriptionService {
         List<MedicationRequest> drafts = requests.stream().filter(request -> "DRAFT".equals(request.status())).toList();
         if (drafts.isEmpty()) throw conflict("PRESCRIPTION_EMPTY", "处方至少需要一条有效药品请求才能提交");
 
+        MedicationSafetyDecision safetyEvaluation = safetyEvaluations.evaluateShadow(encounterId, prescriptionId);
+        enforceMedicationSafetyGate(safetyEvaluation, action);
+
         // 检查系统参数并执行库存冻结
         if (freezePolicy.isInventoryFreezeEnabled(context, encounter.organizationId(), encounter.departmentId())) {
             List<PrescriptionItemFreezeRequest> freezeItems = drafts.stream()
@@ -196,8 +204,12 @@ class PrescriptionService {
         drafts.forEach(request -> medicationService.activateFromPrescription(request, encounter));
         value.submit(action.expectedRevision(), context.subjectId());
         medicationRepository.flush(); repository.flush();
-        publish(value, "PRESCRIPTION_SUBMITTED", "提交门诊处方", Map.of("medicationCount", drafts.size()));
-        return response(value);
+        publish(value, "PRESCRIPTION_SUBMITTED", "提交门诊处方", Map.of(
+                "medicationCount", drafts.size(),
+                "safetyEvaluationId", safetyEvaluation.evaluationId() == null ? "" : safetyEvaluation.evaluationId(),
+                "safetyDecision", safetyEvaluation.decision().name(),
+                "safetyMode", safetyEvaluation.mode()));
+        return response(value, safetyEvaluation);
     }
 
     @Transactional
@@ -234,12 +246,28 @@ class PrescriptionService {
     }
 
     private PrescriptionResponse response(Prescription value) {
+        return response(value, null);
+    }
+
+    private PrescriptionResponse response(Prescription value, MedicationSafetyDecision safetyEvaluation) {
         List<MedicationRequestResponse> requests = medicationService
                 .prescriptionRequests(value.tenantId(), value.id()).stream().map(medicationService::response).toList();
         return new PrescriptionResponse(value.id(), value.revision(), value.residentId(), value.encounterId(),
                 value.groupNo(), value.categoryCode(), value.status(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.authoredAt(), value.authoredBy(), value.submittedAt(),
-                value.submittedBy(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(), value.note(), requests);
+                value.submittedBy(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(), value.note(), requests,
+                safetyEvaluation);
+    }
+
+    private void enforceMedicationSafetyGate(MedicationSafetyDecision evaluation, PrescriptionAction action) {
+        if ("SHADOW".equalsIgnoreCase(evaluation.mode())) return;
+        if (evaluation.decision() == MedicationSafetyDecision.Status.BLOCK) {
+            throw conflict("MEDICATION_SAFETY_BLOCKED", "合理用药审查未通过，当前处方不能提交");
+        }
+        if (evaluation.decision() == MedicationSafetyDecision.Status.REQUIRE_OVERRIDE
+                && clean(action.reason()) == null) {
+            throw conflict("MEDICATION_SAFETY_OVERRIDE_REASON_REQUIRED", "合理用药审查要求填写继续开立理由");
+        }
     }
 
     private void requireScope(ExecutionContext context, Long tenantId, Long organizationId, Long departmentId) {

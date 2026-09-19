@@ -13,6 +13,52 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     private static final String MEDICATION = "362387869795203";
+    private static final String LEVOFLOXACIN = "362387880000128";
+
+    @Test void submitting_child_levofloxacin_prescription_returns_shadow_age_contraindication_warning() throws Exception {
+        String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                  {"fullName":"儿童合理用药联调","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],
+                   "gender":"MALE","birthDate":"2020-09-10"}
+                """.formatted(UUID.randomUUID()))).andExpect(status().isCreated()).andReturn()
+                .getResponse().getContentAsString()).path("id").asString();
+        String encounter = json(mockMvc.perform(post("/api/encounters").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                  {"residentId":"%s","organizationId":"%s","departmentId":"%s"}
+                """.formatted(resident, ORGANIZATION, DEPARTMENT))).andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString()).path("id").asString();
+        mockMvc.perform(verifiedEncounterStart(encounter)).andExpect(status().isOk());
+        JsonNode prescription = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounter)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categoryCode\":\"WESTERN\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
+        String prescriptionId = prescription.path("id").asString();
+
+        mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounter).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"prescriptionId":"%s","medicationId":"%s","quantity":1,"quantityUnit":"片",
+                 "doseValue":0.25,"doseUnit":"g","routeCode":"ORAL","frequencyCode":"TID",
+                 "durationValue":3,"durationUnit":"DAY","allergyReviewConfirmed":true,
+                 "substitutionAllowed":false,"selfProvided":true,"pricingRequired":false}
+                """.formatted(prescriptionId, LEVOFLOXACIN))).andExpect(status().isCreated());
+
+        mockMvc.perform(post("/api/encounters/{encounterId}/prescriptions/{prescriptionId}/submit",
+                        encounter, prescriptionId).with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedRevision\":" + prescription.path("revision").asLong() + "}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.safetyEvaluation.mode").value("SHADOW"))
+                .andExpect(jsonPath("$.safetyEvaluation.decision").value("BLOCK"))
+                .andExpect(jsonPath("$.safetyEvaluation.findings[?(@.ruleCode == 'QMED.AGE_CONTRAINDICATION')]").exists())
+                .andExpect(jsonPath("$.safetyEvaluation.findings[?(@.ruleCode == 'QMED.AGE_CONTRAINDICATION')].message")
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("未满18周岁"),
+                                org.hamcrest.Matchers.containsString("左氧氟沙星")))));
+
+        assertThat(jdbc.queryForObject("select count(*) from RHN_AUD_MED_EVAL where ID_PRESCRIPTION=?",
+                Integer.class, prescriptionId)).isEqualTo(1);
+    }
 
     @Test void saved_semantics_feed_shadow_evaluation_without_changing_orders_or_reading_current_master_data() throws Exception {
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())

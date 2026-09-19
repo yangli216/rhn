@@ -289,6 +289,13 @@ public class EncounterService implements EncounterDirectory {
     public EncounterResponse recordClinicalData(Long encounterId, RecordClinicalDataRequest request) {
         Encounter encounter = requireEncounterWithLock(encounterId);
         Long tenantId = TenantContext.requireTenantId();
+        var birthDate = residentDirectory.requireSnapshot(encounter.residentId()).birthDate();
+        var visitDate = encounter.registeredAt().atZone(java.time.ZoneId.of("Asia/Shanghai")).toLocalDate();
+        boolean bloodPressureRequired = birthDate == null || birthDate.isAfter(visitDate)
+                || java.time.Period.between(birthDate, visitDate).getYears() >= 18;
+        if (bloodPressureRequired && (request.systolic() == null || request.diastolic() == null)) {
+            throw badRequest("OUTPATIENT_BLOOD_PRESSURE_REQUIRED", "成年患者或年龄未确认的患者，请填写收缩压和舒张压");
+        }
         clinicalValidationDirectory.validateVitalSigns(new ClinicalValidationDirectory.VitalSignsInput(
                 request.temperature(), decimal(request.pulseRate()), decimal(request.respiratoryRate()),
                 decimal(request.systolic()), decimal(request.diastolic()), decimal(request.oxygenSaturation()),
@@ -384,29 +391,31 @@ public class EncounterService implements EncounterDirectory {
                 noteSchema, noteContent,
                 "门诊接诊记录更新");
         encounterRepository.flush();
-        Instant measuredAt = Instant.now();
-        ClinicalObservationDirectory.BloodPressureEvidence bloodPressure = clinicalObservationDirectory
-                .recordBloodPressure(new ClinicalObservationDirectory.BloodPressureCommand(tenantId,
-                        encounter.residentId(), encounter.id(), request.systolic(), request.diastolic(), measuredAt,
-                        context.practitionerId(), context.actor()));
-        HypertensionCareDirectory.ScreeningOutcome screening = hypertensionCareDirectory.evaluateBloodPressure(
-                new HypertensionCareDirectory.ScreeningCommand(tenantId, encounter.residentId(), encounter.id(),
-                        encounter.organizationId(), encounter.departmentId(), bloodPressure.systolicObservationId(),
-                        bloodPressure.diastolicObservationId(), bloodPressure.systolic(), bloodPressure.diastolic(),
-                        bloodPressure.unitCode(), bloodPressure.effectiveAt()));
+        if (request.systolic() != null && request.diastolic() != null) {
+            Instant measuredAt = Instant.now();
+            ClinicalObservationDirectory.BloodPressureEvidence bloodPressure = clinicalObservationDirectory
+                    .recordBloodPressure(new ClinicalObservationDirectory.BloodPressureCommand(tenantId,
+                            encounter.residentId(), encounter.id(), request.systolic(), request.diastolic(), measuredAt,
+                            context.practitionerId(), context.actor()));
+            HypertensionCareDirectory.ScreeningOutcome screening = hypertensionCareDirectory.evaluateBloodPressure(
+                    new HypertensionCareDirectory.ScreeningCommand(tenantId, encounter.residentId(), encounter.id(),
+                            encounter.organizationId(), encounter.departmentId(), bloodPressure.systolicObservationId(),
+                            bloodPressure.diastolicObservationId(), bloodPressure.systolic(), bloodPressure.diastolic(),
+                            bloodPressure.unitCode(), bloodPressure.effectiveAt()));
 
-        Map<String, Object> vitalPayload = new LinkedHashMap<>();
-        vitalPayload.put("systolic", request.systolic());
-        vitalPayload.put("diastolic", request.diastolic());
-        vitalPayload.put("systolicObservationId", bloodPressure.systolicObservationId());
-        vitalPayload.put("diastolicObservationId", bloodPressure.diastolicObservationId());
-        vitalPayload.put("unit", bloodPressure.unitCode());
-        vitalPayload.put("measuredAt", bloodPressure.effectiveAt().toString());
-        vitalPayload.put("hypertensionScreeningDecision", screening.decision());
-        if (screening.conditionId() != null) vitalPayload.put("conditionId", screening.conditionId());
-        if (screening.careTaskId() != null) vitalPayload.put("careTaskId", screening.careTaskId());
-        publish(encounter, "VITAL_SIGNS_RECORDED",
-                "血压 " + request.systolic() + "/" + request.diastolic() + " mmHg", vitalPayload);
+            Map<String, Object> vitalPayload = new LinkedHashMap<>();
+            vitalPayload.put("systolic", request.systolic());
+            vitalPayload.put("diastolic", request.diastolic());
+            vitalPayload.put("systolicObservationId", bloodPressure.systolicObservationId());
+            vitalPayload.put("diastolicObservationId", bloodPressure.diastolicObservationId());
+            vitalPayload.put("unit", bloodPressure.unitCode());
+            vitalPayload.put("measuredAt", bloodPressure.effectiveAt().toString());
+            vitalPayload.put("hypertensionScreeningDecision", screening.decision());
+            if (screening.conditionId() != null) vitalPayload.put("conditionId", screening.conditionId());
+            if (screening.careTaskId() != null) vitalPayload.put("careTaskId", screening.careTaskId());
+            publish(encounter, "VITAL_SIGNS_RECORDED",
+                    "血压 " + request.systolic() + "/" + request.diastolic() + " mmHg", vitalPayload);
+        }
         for (EncounterDiagnosis diagnosis : diagnoses) {
             Map<String, Object> payload = new LinkedHashMap<>();
             if (diagnosis.conceptId() != null) payload.put("conceptId", diagnosis.conceptId());

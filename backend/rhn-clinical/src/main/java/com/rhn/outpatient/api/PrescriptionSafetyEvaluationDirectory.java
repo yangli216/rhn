@@ -1,6 +1,6 @@
 package com.rhn.outpatient.api;
 
-/** Internal, explicitly invoked SHADOW workflow; not wired to prescribing or exposed as an HTTP submit gate. */
+/** Evaluates a prescription against the active medication-safety rule set and records the decision. */
 public interface PrescriptionSafetyEvaluationDirectory {
     MedicationSafetyDecision evaluateShadow(Long encounterId, Long prescriptionId);
 }

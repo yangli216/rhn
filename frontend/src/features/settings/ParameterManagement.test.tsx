@@ -132,6 +132,31 @@ function renderWorkspace(api: RhnApi) {
 }
 
 describe('ParameterManagement Dependency & Suppression', () => {
+  it.each(['null', '"null"'])('preserves default JSON %s when editing a nullable definition', async (defaultValueJson) => {
+    const user = userEvent.setup()
+    const definition = { ...mockDetailMode, nullableValue: true, defaultValueJson }
+    const update = vi.fn().mockResolvedValue(definition)
+    const api = {
+      dictionaries: { systemEnums: vi.fn().mockResolvedValue(mockSystemEnums) },
+      configuration: {
+        categories: vi.fn().mockResolvedValue(mockCategories),
+        definitions: vi.fn().mockResolvedValue([mockDefinitions[0]]),
+        get: vi.fn().mockResolvedValue(definition), changes: vi.fn().mockResolvedValue([]), update,
+      },
+    } as unknown as RhnApi
+    renderWorkspace(api)
+    await user.click(await screen.findByRole('button', { name: '编辑定义' }))
+    const nullCheckbox = screen.getByRole('checkbox', { name: /默认值为空/ })
+    if (defaultValueJson === 'null') expect(nullCheckbox).toBeChecked()
+    else {
+      expect(nullCheckbox).not.toBeChecked()
+      expect(screen.getByPlaceholderText('请输入默认内容')).toHaveValue('null')
+    }
+    await user.click(screen.getByRole('button', { name: '保存定义' }))
+    await waitFor(() => expect(update).toHaveBeenCalledWith(definition.id, definition.revision,
+      expect.objectContaining({ defaultValueJson, nullableValue: true })))
+  })
+
   it('displays dependency badge and suppression banner when condition is not satisfied', async () => {
     const api = {
       dictionaries: { systemEnums: vi.fn().mockResolvedValue(mockSystemEnums) },
@@ -336,4 +361,3 @@ describe('ParameterManagement Dependency & Suppression', () => {
     })
   })
 })
-

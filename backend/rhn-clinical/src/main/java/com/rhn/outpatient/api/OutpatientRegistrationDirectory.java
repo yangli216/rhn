@@ -11,6 +11,8 @@ public interface OutpatientRegistrationDirectory {
 
     RegistrationSnapshot register(RegisterCommand command);
 
+    void requireDirectReceptionAllowed(Long encounterId);
+
     void markInService(Long encounterId, String commandCode);
 
     void markSuspended(Long encounterId, String commandCode, String reason);

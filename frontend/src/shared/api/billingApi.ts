@@ -28,7 +28,7 @@ export interface ChargeItem {
   encounterId: string
   requestId?: string
   catalogItemId: string
-  sourceType: 'REGISTRATION' | 'SERVICE_REQUEST' | 'SERVICE_REQUEST_REVERSAL'
+  sourceType: 'REGISTRATION' | 'DIRECT_VISIT_SERVICE' | 'SERVICE_REQUEST' | 'SERVICE_REQUEST_REVERSAL'
     | 'MEDICATION_REQUEST' | 'MEDICATION_REQUEST_REVERSAL' | 'MEDICATION_DISPENSE' | 'MEDICATION_RETURN'
     | 'INPATIENT_ORDER_TASK' | 'INPATIENT_BED_DAY' | 'INPATIENT_BED_DAY_REVERSAL'
   sourceId: string
@@ -758,4 +758,3 @@ export interface DirectRefundRequest {
   terminalCode?: string
   chargeItemIds?: string[]
 }
-

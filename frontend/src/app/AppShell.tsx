@@ -17,6 +17,10 @@ import { AnnouncementCenter } from '../shared/realtime/AnnouncementCenter'
 const analyticsEntryEnabled = import.meta.env.VITE_ANALYTICS_ENABLED === 'true'
 const AnalyticsEntry = lazy(() => import('../features/analytics/AnalyticsEntry')
   .then((module) => ({ default: module.AnalyticsEntry })))
+const OutpatientRegistrationReport = lazy(() => import('../features/analytics/OutpatientRegistrationReport')
+  .then((module) => ({ default: module.OutpatientRegistrationReport })))
+const OutpatientWorkloadReport = lazy(() => import('../features/analytics/OutpatientWorkloadReport')
+  .then((module) => ({ default: module.OutpatientWorkloadReport })))
 
 const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
   .then((module) => ({ default: module.DoctorWorkstation })))
@@ -175,7 +179,7 @@ export function workContextTypeForPath(path: string): WorkContextType {
   if (pathname.startsWith('/pharmacy')) return 'PHARMACY'
   if (pathname.startsWith('/inpatient')) return 'GENERAL'
   if (pathname.startsWith('/outpatient/') || pathname === '/residents' || pathname === '/care-management'
-    || pathname.startsWith('/billing')) return 'CLINICAL'
+    || pathname.startsWith('/billing') || pathname.startsWith('/analytics')) return 'CLINICAL'
   return 'CLINICAL'
 }
 
@@ -199,10 +203,9 @@ function workContextKey(context: Pick<WorkContextOption, 'organizationId' | 'dep
   return `${context.organizationId}:${context.departmentId ?? ''}`
 }
 
-const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management']
+const DEFAULT_EXPANDED_DIRECTORIES = ['outpatient-services', 'inpatient-services', 'billing-management', 'analytics-management']
 
 const NAVIGATION_NODES: NavigationNode[] = [
-  ...(analyticsEntryEnabled ? [{ id: 'analytics', label: '智能统计分析', icon: 'roadmap' as const, to: '/analytics', requiredAuthority: 'PORTAL.ACCESS' }] : []),
   { id: 'home', label: '工作台', icon: 'home', to: '/', end: true, requiredAuthority: 'PORTAL.ACCESS' },
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
@@ -252,6 +255,13 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'pharmacy-query', label: '发药查询', icon: 'search', to: '/pharmacy/query', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'pharmacy-ward-delivery', label: '病区配送', icon: 'pharmacy', to: '/pharmacy/ward-delivery', requiredAuthority: 'PHARMACY.ACCESS' },
       { id: 'warehouse', label: '库房管理', icon: 'pharmacy', badge: '基础', to: '/pharmacy/warehouse', requiredAuthority: 'PHARMACY_WAREHOUSE.ACCESS' },
+    ],
+  },
+  {
+    id: 'analytics-management', label: '统计分析', icon: 'roadmap', children: [
+      { id: 'analytics-registration', label: '门诊挂号统计', icon: 'residents', to: '/analytics/registration', requiredAuthority: 'PORTAL.ACCESS' },
+      { id: 'analytics-workload', label: '门诊就诊工作量', icon: 'clinical', to: '/analytics/workload', requiredAuthority: 'PORTAL.ACCESS' },
+      { id: 'analytics-explore', label: 'AI 智能探索分析', icon: 'sparkles', badge: '即席分析', to: '/analytics/explore', requiredAuthority: 'PORTAL.ACCESS' },
     ],
   },
   {
@@ -345,9 +355,12 @@ function navigationAncestorsForPath(nodes: NavigationNode[], pathname: string, a
 
 export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/') return HOME_TAB
-  if (pathname === '/quality/medication-rules') return { id: pathname, path: pathname, title: '合理用药规则', icon: 'clinical', closeable: true }
-  if (pathname === '/analytics' && analyticsEntryEnabled) return { id: pathname, path: pathname, title: '智能统计分析', icon: 'roadmap', closeable: true }
   if (pathname === '/residents') return { id: pathname, path: pathname, title: '居民中心', icon: 'residents', closeable: true }
+  if (pathname === '/quality/medication-rules') return { id: pathname, path: pathname, title: '合理用药规则', icon: 'clinical', closeable: true }
+  if (pathname === '/analytics/registration') return { id: pathname, path: pathname, title: '门诊挂号统计', icon: 'residents', closeable: true }
+  if (pathname === '/analytics/workload') return { id: pathname, path: pathname, title: '门诊就诊工作量', icon: 'clinical', closeable: true }
+  if (pathname === '/analytics/explore') return { id: pathname, path: pathname, title: 'AI 智能探索分析', icon: 'sparkles', closeable: true }
+  if (pathname === '/analytics' && analyticsEntryEnabled) return { id: pathname, path: pathname, title: '智能统计分析', icon: 'roadmap', closeable: true }
   if (pathname === '/tasks') return { id: pathname, path: pathname, title: '任务中心', icon: 'tasks', closeable: true }
   if (pathname === '/pharmacy') return { id: pathname, path: pathname, title: '门诊发药', icon: 'pharmacy', closeable: true }
   if (pathname === '/pharmacy/review') return { id: pathname, path: pathname, title: '处方审方', icon: 'pharmacy', closeable: true }
@@ -1001,7 +1014,14 @@ export function AppShell() {
                   <Route path="/settings/access-control" element={<AccessControlManagement api={tabSlot.api}
                     context={tabSlot.clinicalContext} />} />
                   <Route path="/quality/medication-rules" element={<MedicationWorkbench api={tabSlot.api} />} />
-                  {analyticsEntryEnabled && <Route path="/analytics" element={<AnalyticsEntry api={tabSlot.api} />} />}
+                  <Route path="/analytics/registration" element={<OutpatientRegistrationReport api={tabSlot.api} />} />
+                  <Route path="/analytics/workload" element={<OutpatientWorkloadReport api={tabSlot.api} />} />
+                  <Route path="/analytics/explore" element={<AnalyticsEntry api={tabSlot.api} />} />
+                  {analyticsEntryEnabled ? (
+                    <Route path="/analytics" element={<AnalyticsEntry api={tabSlot.api} />} />
+                  ) : (
+                    <Route path="/analytics" element={<Navigate to="/analytics/registration" replace />} />
+                  )}
                   <Route path="/roadmap/:module" element={<PlannedPage title="后续业务模块" copy="该模块将在门诊主链后按业务优先级接入共享底座。" />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes></Suspense>}
