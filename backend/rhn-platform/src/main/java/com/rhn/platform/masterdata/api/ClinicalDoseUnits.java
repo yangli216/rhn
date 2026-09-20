@@ -36,6 +36,10 @@ public final class ClinicalDoseUnits {
         return Optional.ofNullable(UNITS.get(ALIASES.getOrDefault(value, value)));
     }
 
+    public static java.util.List<Unit> vocabulary() {
+        return UNITS.values().stream().sorted(java.util.Comparator.comparing(Unit::code)).toList();
+    }
+
     /** Empty means unknown/incompatible, never zero. No mass-volume or package conversion is inferred. */
     public static Optional<BigDecimal> convert(BigDecimal value, String from, String to) {
         if (value == null || value.signum() < 0) return Optional.empty();

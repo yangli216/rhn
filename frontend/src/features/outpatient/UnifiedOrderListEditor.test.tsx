@@ -517,25 +517,21 @@ describe('UnifiedOrderListEditor', () => {
     await user.click(screen.getByRole('combobox', { name: '搜索中草药名称/拼音' }))
     await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '黄芪')
     await user.click(await screen.findByRole('option', { name: /黄芪/ }))
-    await user.clear(screen.getByLabelText('剂数'))
-    await user.type(screen.getByLabelText('剂数'), '5')
-    await user.clear(screen.getByLabelText('服法'))
-    await user.type(screen.getByLabelText('服法'), '冲服')
-    await user.type(screen.getByLabelText('特殊煎法'), '后下')
+    // 录入行仅保留单味每付剂量与特殊煎法，移除了冗余的剂数/煎法/频次输入框
     expect(screen.getByLabelText('每付剂量')).toHaveValue(10)
-    expect(screen.getByLabelText('剂数')).toHaveValue(5)
-    expect(screen.getByLabelText('服法')).toHaveValue('冲服')
-    expect(screen.getByRole('combobox', { name: '频次' })).toHaveTextContent('每日两次')
+    fireEvent.change(screen.getByLabelText('特殊煎法'), { target: { value: '后下' } })
+    expect(screen.getByRole('status')).toHaveTextContent('草药连续组方中')
+    expect(screen.getByRole('button', { name: '完成组方' })).toBeInTheDocument()
+
     await user.click(screen.getByLabelText('加入医嘱'))
     await waitFor(() => expect(setMedicationDrafts).toHaveBeenCalledTimes(1))
 
     const updater = setMedicationDrafts.mock.calls[0][0]
     expect(updater([])[0]).toMatchObject({
-      request: { durationValue: 5, durationUnit: '剂', quantity: 50, medicationInstruction: '冲服；后下' },
+      request: { durationValue: 7, durationUnit: '剂', quantity: 70, medicationInstruction: '水煎服；后下' },
     })
-    expect(screen.getByLabelText('剂数')).toHaveValue(5)
-    expect(screen.getByLabelText('服法')).toHaveValue('冲服')
-    expect(screen.getByText(/5剂 · 冲服 · BID/)).toBeInTheDocument()
+
+    // 录入成功后焦点自动回到搜索框准备录入下一味中药
     await waitFor(() => {
       const input = screen.queryByPlaceholderText('输入通用名、编码或别名')
       const trigger = screen.queryByRole('combobox', { name: '搜索中草药名称/拼音' })
@@ -1800,9 +1796,21 @@ describe('UnifiedOrderListEditor', () => {
 
     renderComponent({ medicationDrafts: [mockHerb1], setMedicationDrafts })
 
-    // 验证整方属性设置工具栏存在且可操作
+    // 验证初始为整方属性阅读态
+    const readingBar = screen.getByRole('region', { name: '整方属性（点击或获得焦点可调整）' })
+    expect(readingBar).toBeInTheDocument()
+    expect(readingBar).toHaveTextContent('7 剂')
+    expect(readingBar).toHaveTextContent('水煎服')
+    expect(readingBar).toHaveTextContent('BID')
+
+    // 点击整方阅读胶囊，自动进入编辑形态
+    await user.click(readingBar)
+
+    // 验证切换为整方属性设置工具栏且可操作
     const formulaBar = screen.getByRole('region', { name: '整方属性设置' })
     expect(formulaBar).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '完成' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /继续添加草药/ })).not.toBeInTheDocument()
 
     // 检查付数输入框初始为 7
     const countInput = screen.getByRole('spinbutton', { name: '整方剂数' })
@@ -1928,18 +1936,169 @@ describe('UnifiedOrderListEditor', () => {
 
     renderComponent({ medicationDrafts: mockHerbs })
 
-    // 验证底栏已移除“单剂重”，7剂总重为精确的 214.9g，无 0000000000003 异常尾数
-    const summaryBar = document.querySelector('.doctor-herbal-summary-bar')
-    expect(summaryBar).toBeInTheDocument()
-    expect(summaryBar).not.toHaveTextContent('单剂重')
-    expect(summaryBar).toHaveTextContent('7剂总重 214.9g')
-    expect(summaryBar?.textContent).not.toContain('0000000000003')
+    // 验证处方底栏整行已彻底移除，无冗余堆叠
+    expect(document.querySelector('.doctor-herbal-summary-bar')).not.toBeInTheDocument()
 
-    // 验证整方属性已内联至单据栏 (OrderDocumentGroupHeader) 中展示
+    // 验证单据栏小计金额精确计算且格式化为标准2位小数（¥38.60），无 38.598 等多余小数或浮点长尾
+    const subtotal = document.querySelector('.doctor-group-subtotal')
+    expect(subtotal).toBeInTheDocument()
+    expect(subtotal).toHaveTextContent('¥38.60')
+    expect(subtotal?.textContent).not.toContain('0000000000003')
+
+    // 验证单据栏标题精简为“中药处方”，无冗余的“门诊”或“（待开立）”
+    const groupTitle = document.querySelector('.doctor-group-title')
+    expect(groupTitle).toHaveTextContent('中药处方')
+    expect(groupTitle?.textContent).not.toContain('（待开立）')
+
+    // 验证整方属性精简标签内联至单据栏中以高质感胶囊展示
     const groupHeaderMiddle = document.querySelector('.doctor-group-header-middle')
     expect(groupHeaderMiddle).toBeInTheDocument()
-    expect(groupHeaderMiddle).toHaveTextContent('付数/剂数')
-    expect(groupHeaderMiddle).toHaveTextContent('煎服法')
-    expect(groupHeaderMiddle).toHaveTextContent('服药频次')
+    expect(groupHeaderMiddle).toHaveTextContent('7 剂')
+    expect(groupHeaderMiddle).toHaveTextContent('水煎服')
+    expect(groupHeaderMiddle).toHaveTextContent('BID')
+    expect(groupHeaderMiddle).toHaveTextContent('点击调整')
+  })
+
+  it('supports re-entering herbal continuous adding mode from matrix chip and header button, and finishing via banner button', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const mockHerb: MedicationPlanDraft = {
+      id: 'draft-herb-1',
+      editorMode: 'herbal',
+      categoryCode: 'HERBAL',
+      medicationName: '黄芪',
+      medicationCode: 'HERB001',
+      unitPrice: 0.18,
+      productName: '黄芪饮片',
+      request: {
+        medicationId: 'm-herb1',
+        catalogItemId: 'srv-1',
+        doseValue: 10,
+        doseUnit: 'g',
+        routeCode: 'ORAL',
+        frequencyCode: 'BID',
+        durationValue: 7,
+        durationUnit: '剂',
+        quantity: 70,
+        quantityUnit: 'g',
+        medicationInstruction: '水煎服',
+        substitutionAllowed: true,
+        selfProvided: false,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊草药处方',
+      },
+    }
+
+    renderComponent({ medicationDrafts: [mockHerb], setMedicationDrafts })
+
+    // 1. 草药矩阵末尾存在“+ 继续加药”卡片按钮
+    const addChip = screen.getByRole('button', { name: '继续加药' })
+    expect(addChip).toBeInTheDocument()
+
+    // 2. 点击“+ 继续加药”，激活草药组方模式并挂载录入行
+    await user.click(addChip)
+    const herbalBanner = document.querySelector('.doctor-grouping-banner.is-herbal')
+    expect(herbalBanner).toBeInTheDocument()
+    expect(herbalBanner).toHaveTextContent('草药连续组方中')
+    expect(herbalBanner).toHaveTextContent('已加入 1 味')
+    expect(screen.getByRole('combobox', { name: '搜索中草药名称/拼音' })).toBeInTheDocument()
+
+    // 组方过程中，单据栏中的整方属性栏常态保持编辑态（可随时查看和调整剂数、煎法、频次等），且无多余的“完成”按钮
+    expect(screen.getByRole('region', { name: '整方属性设置' })).toBeInTheDocument()
+    expect(screen.getByRole('spinbutton', { name: '整方剂数' })).toHaveValue(7)
+    expect(screen.getByRole('combobox', { name: '整方煎服法' })).toHaveValue('水煎服')
+    expect(screen.queryByRole('button', { name: '完成' })).not.toBeInTheDocument()
+
+    // 3. 点击底栏【完成组方】按钮，退出草药连续录入形态并切回常规全部类型
+    const finishBtn = screen.getByRole('button', { name: '完成组方' })
+    await user.click(finishBtn)
+    expect(document.querySelector('.doctor-grouping-banner.is-herbal')).not.toBeInTheDocument()
+    expect(document.querySelector('.doctor-unified-order-toast')).toHaveTextContent('中药方剂组方已完成')
+    expect(screen.getByRole('combobox', { name: '医嘱类型' })).toHaveTextContent('全部类型')
+
+    // 4. 组方完成后整方属性栏自动恢复为阅读胶囊；点击后进入编辑形态，整方属性区不再冗余显示加药按钮，加药入口统一保留在明细区图标按钮
+    const readingBar = screen.getByRole('region', { name: '整方属性（点击或获得焦点可调整）' })
+    expect(readingBar).toBeInTheDocument()
+    expect(readingBar).toHaveTextContent('7 剂')
+    expect(readingBar).toHaveTextContent('水煎服')
+    await user.click(readingBar)
+    expect(screen.queryByRole('button', { name: '继续添加草药' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '完成' })).toBeInTheDocument()
+
+    // 点击明细区图标加药按钮，重新唤起草药录入行
+    const iconAddBtn = screen.getByRole('button', { name: '继续加药' })
+    await user.click(iconAddBtn)
+    expect(document.querySelector('.doctor-grouping-banner.is-herbal')).toHaveTextContent('草药连续组方中')
+  })
+
+  it('optimizes document header cleanliness by removing duplicate 待确认 badge and hides +煎法 by default', async () => {
+    const mockHerb: MedicationPlanDraft = {
+      id: 'draft-herb-clean',
+      editorMode: 'herbal',
+      categoryCode: 'HERBAL',
+      medicationCode: 'HERB001',
+      medicationName: '黄芪',
+      unitPrice: 0.18,
+      productName: '黄芪饮片',
+      request: {
+        medicationId: 'm-herb1',
+        catalogItemId: 'srv-1',
+        doseValue: 10,
+        doseUnit: 'g',
+        routeCode: 'ORAL',
+        frequencyCode: 'BID',
+        durationValue: 7,
+        durationUnit: '剂',
+        quantity: 70,
+        quantityUnit: 'g',
+        medicationInstruction: '水煎服',
+        substitutionAllowed: true,
+        selfProvided: false,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊草药处方',
+      },
+    }
+
+    const mockService: ServicePlanDraft = {
+      id: 'draft-service-lab',
+      catalogItemId: 'srv-lab-1',
+      serviceType: 'LABORATORY',
+      itemCode: 'LAB001',
+      itemName: 'C反应蛋白测定',
+      quantity: 1,
+      unitCode: '次',
+      unitPrice: 35,
+      currencyCode: 'CNY',
+      clinicalDescription: '炎症评估',
+    }
+
+    renderComponent({
+      medicationDrafts: [mockHerb],
+      serviceDrafts: [mockService],
+    })
+
+    // 1. 单据栏分组 Header 均不显示多余的“待确认”徽标，避免与行内状态列重复
+    const herbalHeader = screen.getByLabelText('中药处方分组')
+    expect(within(herbalHeader).queryByText('待确认')).not.toBeInTheDocument()
+    const labHeader = screen.getByLabelText('检验申请分组')
+    expect(within(labHeader).queryByText('待确认')).not.toBeInTheDocument()
+
+    // 2. 明细行状态列保留规范的“待确认”状态
+    const serviceRow = screen.getByRole('row', { name: '编辑待确认医嘱 C反应蛋白测定' })
+    expect(within(serviceRow).getByText('待确认')).toBeInTheDocument()
+
+    // 3. 未配置特殊煎法的中药卡片，其煎法外层包裹容器标记为 is-empty，常态下隐藏
+    const herbCard = document.querySelector('#order-draft-herb-clean')
+    expect(herbCard).toBeInTheDocument()
+    const methodWrap = herbCard?.querySelector('.doctor-herb-method-wrap')
+    expect(methodWrap).toHaveClass('is-empty')
+
+    // 4. 明细区加药按钮为紧凑 icon-only 按钮，无中文占用
+    const addChip = screen.getByRole('button', { name: '继续加药' })
+    expect(addChip).toHaveClass('is-icon-only')
+    expect(addChip).not.toHaveTextContent('继续加药')
   })
 });
+

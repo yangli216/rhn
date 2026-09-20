@@ -50441,6 +50441,355 @@
           }
         }
       }
+    },
+    "/api/quality/medication-rule-catalog/{key}/runs": {
+      "get": {
+        "tags": [
+          "medication-rule-catalog-controller"
+        ],
+        "operationId": "ruleCatalogRuns",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RuntimeRecord"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/platform/master-data/clinical-semantics/standards": {
+      "get": {
+        "tags": [
+          "medication-standards-controller"
+        ],
+        "operationId": "standards",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/MedicationStandardsView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quality/medication-rule-catalog/drafts": {
+      "post": {
+        "tags": [
+          "medication-rule-catalog-controller"
+        ],
+        "operationId": "ruleCatalogCreateDraft",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Candidate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quality/medication-rule-catalog": {
+      "get": {
+        "tags": [
+          "medication-rule-catalog-controller"
+        ],
+        "operationId": "ruleCatalog",
+        "parameters": [
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/quality/medication-rule-catalog/{key}/commands": {
+      "post": {
+        "tags": [
+          "medication-rule-catalog-controller"
+        ],
+        "operationId": "ruleCatalogCommand",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogCommand"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogEntry"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -54788,6 +55137,11 @@
             "type": "string",
             "maxLength": 32,
             "minLength": 0
+          },
+          "standardSpecificationId": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 0
           }
         },
         "required": [
@@ -55140,10 +55494,8 @@
               "$ref": "#/components/schemas/MedicationProductView"
             }
           },
-          "sdStorageTypeText": {
-            "type": "string",
-            "description": "字典 BD_STORAGE_TYPE 的显示文本",
-            "readOnly": true
+          "standardReference": {
+            "$ref": "#/components/schemas/MedicationStandardReference"
           },
           "sdStatusText": {
             "type": "string",
@@ -55163,6 +55515,11 @@
           "sdDoseFormText": {
             "type": "string",
             "description": "字典 BD_DOSE_FORM 的显示文本",
+            "readOnly": true
+          },
+          "sdStorageTypeText": {
+            "type": "string",
+            "description": "字典 BD_STORAGE_TYPE 的显示文本",
             "readOnly": true
           }
         }
@@ -64079,6 +64436,11 @@
           "sdStatus": {
             "type": "string",
             "maxLength": 32,
+            "minLength": 0
+          },
+          "standardSpecificationId": {
+            "type": "string",
+            "maxLength": 64,
             "minLength": 0
           }
         },
@@ -85671,6 +86033,846 @@
         "properties": {
           "archived": {
             "type": "boolean"
+          }
+        }
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "Review": {
+        "type": "object",
+        "properties": {
+          "versionId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "standardVerified": {
+            "type": "boolean"
+          },
+          "evidenceVerified": {
+            "type": "boolean"
+          },
+          "actorId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "recordedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "Catalog": {
+        "type": "object",
+        "properties": {
+          "organizationId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "departmentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "rules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogEntry"
+            }
+          }
+        }
+      },
+      "RuleVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/RuleDefinition"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "ruleSetVersion": {
+            "type": "string"
+          },
+          "implementationKey": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "LOW",
+              "MODERATE",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "WARN",
+              "REQUIRE_OVERRIDE",
+              "BLOCK",
+              "UNAVAILABLE"
+            ]
+          },
+          "overridePolicy": {
+            "type": "string",
+            "enum": [
+              "NOT_ALLOWED",
+              "ACKNOWLEDGE",
+              "REASON_REQUIRED"
+            ]
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          }
+        }
+      },
+      "Unit": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "display": {
+            "type": "string"
+          },
+          "dimension": {
+            "type": "string"
+          },
+          "canonicalUnit": {
+            "type": "string"
+          },
+          "conversionFactor": {
+            "type": "number"
+          },
+          "semanticVersion": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "StandardFrequency": {
+        "type": "object",
+        "properties": {
+          "system": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "conceptId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "interpretation": {
+            "$ref": "#/components/schemas/Frequency"
+          }
+        }
+      },
+      "CatalogCommand": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "operation": {
+            "type": "string"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "deploymentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "standardVerified": {
+            "type": "boolean"
+          },
+          "evidenceVerified": {
+            "type": "boolean"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "departmentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StandardFrequencyView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "standard": {
+            "$ref": "#/components/schemas/StandardFrequency"
+          }
+        }
+      },
+      "MedicationSnapshot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "itemTypeId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "aliasName": {
+            "type": "string"
+          },
+          "medicationType": {
+            "type": "string"
+          },
+          "doseForm": {
+            "type": "string"
+          },
+          "preparationSpec": {
+            "type": "string"
+          },
+          "preparationUnit": {
+            "type": "string"
+          },
+          "strengthValue": {
+            "type": "number"
+          },
+          "strengthUnit": {
+            "type": "string"
+          },
+          "storageType": {
+            "type": "string"
+          },
+          "prescriptionDrug": {
+            "type": "boolean"
+          },
+          "essentialDrug": {
+            "type": "boolean"
+          },
+          "antimicrobial": {
+            "type": "boolean"
+          },
+          "antimicrobialLevel": {
+            "type": "string"
+          },
+          "antimicrobialOutpatientAllowed": {
+            "type": "boolean"
+          },
+          "antimicrobialConsultationRequired": {
+            "type": "boolean"
+          },
+          "antimicrobialEmergencyAllowed": {
+            "type": "boolean"
+          },
+          "antimicrobialMaxDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skinTestRequired": {
+            "type": "boolean"
+          },
+          "skinTestMethod": {
+            "type": "string"
+          },
+          "skinTestSolutionMode": {
+            "type": "string"
+          },
+          "skinTestObservationMinutes": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skinTestResultValidityHours": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skinTestInstructions": {
+            "type": "string"
+          },
+          "defaultDose": {
+            "type": "number"
+          },
+          "defaultDoseUnit": {
+            "type": "string"
+          },
+          "defaultRoute": {
+            "type": "string"
+          },
+          "defaultFrequencyId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "defaultFrequency": {
+            "type": "string"
+          },
+          "chronicDiseaseDrug": {
+            "type": "boolean"
+          },
+          "singleOrder": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Candidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "parentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleSpec"
+          },
+          "medications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Knowledge"
+            }
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "Frequency": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "dailyRateComputable": {
+            "type": "boolean"
+          },
+          "doses": {
+            "type": "number"
+          },
+          "perDays": {
+            "type": "number"
+          },
+          "scheduledTimes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "unknownReason": {
+            "type": "string"
+          }
+        }
+      },
+      "Knowledge": {
+        "type": "object",
+        "properties": {
+          "medication": {
+            "$ref": "#/components/schemas/MedicationSnapshot"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "semanticStatus": {
+            "type": "string"
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "classifications": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MedicationClassification"
+            }
+          },
+          "allergens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AllergenTerm"
+            }
+          },
+          "standardMappings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemTermMappingView"
+            }
+          },
+          "standardReference": {
+            "$ref": "#/components/schemas/MedicationStandardReference"
+          }
+        }
+      },
+      "DraftCommand": {
+        "type": "object",
+        "properties": {
+          "parentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "requirement": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleSpec"
+          },
+          "medicationIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        }
+      },
+      "CatalogVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "reviewStatus": {
+            "type": "string"
+          },
+          "testsPassed": {
+            "type": "boolean"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "builtin": {
+            "$ref": "#/components/schemas/RuleVersion"
+          },
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          }
+        }
+      },
+      "RuleDefinition": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "code": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "MedicationStandardReference": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "catalogId": {
+            "type": "string"
+          },
+          "catalogVersion": {
+            "type": "string"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "entryId": {
+            "type": "string"
+          },
+          "specificationId": {
+            "type": "string"
+          },
+          "semanticVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "doseForm": {
+            "type": "string"
+          },
+          "preparationSpec": {
+            "type": "string"
+          },
+          "presentationUnit": {
+            "type": "string"
+          },
+          "strength": {
+            "$ref": "#/components/schemas/JsonNode"
+          },
+          "sourceVerificationStatus": {
+            "type": "string"
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CatalogEntry": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "origin": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogVersion"
+            }
+          },
+          "deployments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Deployment"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            }
+          }
+        }
+      },
+      "MedicationStandardsView": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "string"
+          },
+          "doseUnits": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Unit"
+            }
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteSnapshot"
+            }
+          },
+          "frequencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StandardFrequencyView"
+            }
+          }
+        }
+      },
+      "RuntimeRecord": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "ruleKey": {
+            "type": "string"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "deploymentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "prescriptionId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "time": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "details": {
+            "type": "string"
+          }
+        }
+      },
+      "RuleSpec": {
+        "type": "object",
+        "properties": {
+          "template": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "explanation": {
+            "type": "string"
+          },
+          "duplicateCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "message": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string"
+          },
+          "ruleExpression": {
+            "type": "string"
+          },
+          "categoryName": {
+            "type": "string"
+          },
+          "minAge": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxAge": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "Deployment": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "versionId": {
+            "type": "string"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "departmentId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "effectiveTo": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "actorId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/Candidate"
+          },
+          "executable": {
+            "$ref": "#/components/schemas/RuleVersion"
           }
         }
       }

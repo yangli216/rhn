@@ -18,8 +18,10 @@ public class MedicationKnowledgeService implements MedicationKnowledgeDirectory 
     private final MedicationTerminologyDirectory terminology;
     private final ItemStandardMappingDirectory mappings;
     private final ExecutionContextProvider contexts;
+    private final MedicationStandardService standards;
     public MedicationKnowledgeService(MedicationRepository medications, CatalogLifecycleDirectory catalog,
-            MedicationTerminologyDirectory terminology, ItemStandardMappingDirectory mappings, ExecutionContextProvider contexts) {
+            MedicationTerminologyDirectory terminology, ItemStandardMappingDirectory mappings, ExecutionContextProvider contexts, MedicationStandardService standards) {
+        this.standards = standards;
         this.medications=medications; this.catalog=catalog; this.terminology=terminology; this.mappings=mappings; this.contexts=contexts;
     }
     public List<Knowledge> search(String query) {
@@ -33,8 +35,9 @@ public class MedicationKnowledgeService implements MedicationKnowledgeDirectory 
                 .orElseThrow(() -> notFound("QMED_MEDICATION_NOT_FOUND", "药品不存在、已停用或不属于当前租户"));
         var allergens=terminology.allergenConceptIds(tenant, List.of(id)).getOrDefault(id, List.of()).stream()
                 .flatMap(a -> terminology.findAllergen(tenant, a).stream()).toList();
-        return new Knowledge(catalog.requireMedication(tenant, id), entity.revision(), "LEGACY", Instant.now(),
+        var reference = standards.reference(tenant, id);
+        return new Knowledge(catalog.requireMedication(tenant, id), entity.revision(), reference.linked() ? "STANDARD_LINKED" : "UNMAPPED", Instant.now(),
                 terminology.classifications(tenant, List.of(id)).getOrDefault(id, List.of()), allergens,
-                mappings.resolve(tenant, "MEDICATION", id, null, LocalDate.now()));
+                mappings.resolve(tenant, "MEDICATION", id, null, LocalDate.now()), reference);
     }
 }

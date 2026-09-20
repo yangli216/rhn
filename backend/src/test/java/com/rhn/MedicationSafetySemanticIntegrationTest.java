@@ -12,7 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
-    private static final String MEDICATION = "362387869795203";
+    private String MEDICATION;
     private static final String LEVOFLOXACIN = "362387880000128";
 
     @Test void submitting_child_levofloxacin_prescription_returns_shadow_age_contraindication_warning() throws Exception {
@@ -61,6 +61,7 @@ class MedicationSafetySemanticIntegrationTest extends RhnIntegrationTestSupport 
     }
 
     @Test void saved_semantics_feed_shadow_evaluation_without_changing_orders_or_reading_current_master_data() throws Exception {
+        MEDICATION = linkStandardMedication("STD-04D8635B1192769EBA24309B", "MED-2026-W185").path("id").asString();
         String resident = json(mockMvc.perform(post("/api/residents").with(rhnWorkContext())
                 .contentType(MediaType.APPLICATION_JSON).content("""
                   {"fullName":"用药版本联调","identifiers":[{"system":"9","value":"%s","useType":"SECONDARY"}],

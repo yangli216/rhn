@@ -26,7 +26,16 @@ public final class MasterDataCommands {
             String skinTestSolutionMode, Integer skinTestObservationMinutes,
             Integer skinTestResultValidityHours, String skinTestInstructions, BigDecimal defaultDose,
             String defaultDoseUnit, String defaultRoute, String defaultFrequency,
-            boolean chronicDiseaseDrug, boolean singleOrder, String status) {}
+            boolean chronicDiseaseDrug, boolean singleOrder, String status, String standardSpecificationId) {
+        public MedicationCommand withStandardSpecification(String id) {
+            return new MedicationCommand(code, name, aliasName, medicationType, doseForm, preparationSpec, preparationUnit,
+                    strengthValue, strengthUnit, storageType, prescriptionDrug, essentialDrug, antimicrobial, antimicrobialLevel,
+                    antimicrobialOutpatientAllowed, antimicrobialConsultationRequired, antimicrobialEmergencyAllowed,
+                    antimicrobialMaxDays, skinTestRequired, skinTestMethod, skinTestSolutionMode, skinTestObservationMinutes,
+                    skinTestResultValidityHours, skinTestInstructions, defaultDose, defaultDoseUnit, defaultRoute,
+                    defaultFrequency, chronicDiseaseDrug, singleOrder, status, id);
+        }
+    }
 
     public record ManufacturerCommand(
             String code, String name, String shortName, String manufacturerType,

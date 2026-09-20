@@ -318,7 +318,7 @@ public class MasterDataController {
             @Size(max = 64) String defaultRoute,
             @Size(max = 64) String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder,
-            @NotBlank @Size(max = 32) String sdStatus) {
+            @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
         MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
                 sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
                 strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
@@ -327,7 +327,7 @@ public class MasterDataController {
                 skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
                 skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
                 optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
-                chronicDiseaseDrug, singleOrder, sdStatus); }
+                chronicDiseaseDrug, singleOrder, sdStatus, optional(standardSpecificationId)); }
     }
 
     record UpdateMedicationRequest(
@@ -356,7 +356,7 @@ public class MasterDataController {
             @Size(max = 64) String defaultRoute,
             @Size(max = 64) String defaultFrequency,
             boolean chronicDiseaseDrug, boolean singleOrder,
-            @NotBlank @Size(max = 32) String sdStatus) {
+            @NotBlank @Size(max = 32) String sdStatus, @Size(max = 64) String standardSpecificationId) {
         MedicationCommand command() { return new MedicationCommand(clean(code), clean(name), optional(aliasName),
                 sdMedicationType, optional(sdDoseForm), optional(preparationSpec), optional(preparationUnit),
                 strengthValue, optional(strengthUnit), optional(sdStorageType), prescriptionDrug, essentialDrug,
@@ -365,7 +365,7 @@ public class MasterDataController {
                 skinTestRequired, optional(skinTestMethod), optional(skinTestSolutionMode),
                 skinTestObservationMinutes, skinTestResultValidityHours, optional(skinTestInstructions), defaultDose,
                 optional(defaultDoseUnit), optional(defaultRoute), optional(defaultFrequency),
-                chronicDiseaseDrug, singleOrder, sdStatus); }
+                chronicDiseaseDrug, singleOrder, sdStatus, optional(standardSpecificationId)); }
     }
 
     record ManufacturerRequest(

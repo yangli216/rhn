@@ -1,5 +1,7 @@
+import type { MedicationStandardReference } from './masterDataApi'
 import type { ApiClient } from './httpClient'
 export interface MedicationKnowledge {
+  standardReference?: MedicationStandardReference
   medication: { id:string; code:string; name:string; doseForm:string|null; preparationSpec:string|null; strengthValue:number|null; strengthUnit:string|null; defaultDose:number|null; defaultDoseUnit:string|null; defaultRoute:string|null; defaultFrequency:string|null; antimicrobial:boolean; antimicrobialMaxDays:number|null; skinTestRequired:boolean }
   revision:number; semanticStatus:string; capturedAt:string
   classifications: { systemCode:string; systemVersion:string; display:string; code:string }[]
@@ -105,6 +107,10 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
   const root='/api/quality/medication-workbench'
   const post=<T,>(path:string,body:unknown={})=>client.request<T>(root+path,{method:'POST',body:JSON.stringify(body)})
   return {
+    catalog:()=>client.request<RuleCatalog>('/api/quality/medication-rule-catalog'),
+    catalogCommand:(key:string,body:RuleCatalogCommand)=>client.request<RuleCatalogEntry>('/api/quality/medication-rule-catalog/'+encodeURIComponent(key)+'/commands',{method:'POST',body:JSON.stringify(body)}),
+    catalogRuns:(key:string)=>client.request<RuleRuntimeRecord[]>('/api/quality/medication-rule-catalog/'+encodeURIComponent(key)+'/runs'),
+    createDraft:(body:RuleDraftInput)=>client.request<MedicationCandidate>('/api/quality/medication-rule-catalog/drafts',{method:'POST',body:JSON.stringify(body)}),
     status:()=>client.request<{available:boolean;model:string|null;message:string}>(root+'/ai-status'),
     medications:(query='')=>client.request<MedicationKnowledge[]>(root+'/medications?query='+encodeURIComponent(query)),
     candidates:()=>client.request<MedicationCandidate[]>(root+'/candidates'),
@@ -120,3 +126,14 @@ export function createMedicationWorkbenchApi(client:ApiClient) {
     runs:(id:string)=>client.request<MedicationTrialRun[]>(root+'/candidates/'+id+'/runs'),
   }
 }
+
+export interface CatalogEvidence { sourceType:string; sourceTitle:string; sourceVersion:string; sourceLocator:string; section:string; excerpt:string; usageScope:string }
+export interface CatalogReview { versionId:string; status:string; action:string|null; evidence:CatalogEvidence[]; actorId:string; recordedAt:string; reason:string }
+export interface CatalogBuiltin { id:string; version:number; ruleSetVersion:string; implementationKey:string; decision:string; severity:string; definition:{id:string;code:string;category:string;title:string}; evidence:CatalogEvidence[] }
+export interface CatalogVersion { id:string; version:number; name:string; reviewStatus:string; testsPassed:boolean; origin:string; candidate:MedicationCandidate|null; builtin:CatalogBuiltin|null; review:CatalogReview|null }
+export interface RuleDeployment { id:string; versionId:string; version:number; mode:string; status:string; action:string; organizationId:string; departmentId:string|null; effectiveFrom:string; effectiveTo:string|null; actorId:string; createdAt:string; reason:string }
+export interface RuleCatalogEntry { key:string; code:string; name:string; origin:string; revision:number; versions:CatalogVersion[]; deployments:RuleDeployment[]; history:{id:string;operation:string;versionId:string;actorId:string;time:string;reason:string}[] }
+export interface RuleCatalog { organizationId:string|null; departmentId:string|null; rules:RuleCatalogEntry[] }
+export interface RuleCatalogCommand { expectedRevision:number;operation:string;versionId:string;deploymentId?:string;reason:string;action?:string;evidence?:CatalogEvidence[];standardVerified?:boolean;evidenceVerified?:boolean;mode?:string;organizationId?:string;departmentId?:string|null;effectiveFrom?:string|null;effectiveTo?:string|null }
+export interface RuleRuntimeRecord { id:string;ruleKey:string;versionId:string;deploymentId:string;prescriptionId:string;mode:string;decision:string;time:string;details:string }
+export interface RuleDraftInput { parentId?:string;requirement:string;source:string;rule:MedicationCandidate['rule'];medicationIds:string[] }

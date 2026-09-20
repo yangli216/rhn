@@ -14,10 +14,11 @@ import type {
 } from '../../shared/api/medicationWorkbenchApi'
 import { Alert, Button, Dialog, FormField, IconButton, Icon, PageHeader, SearchField, Select, StatusBadge } from '../../shared/ui'
 import './medication-workbench.css'
+import { MedicationRuleCatalog } from './MedicationRuleCatalog'
 
 type TabKey = 'catalog' | 'sandbox' | 'evaluations' | 'factory'
 
-const severityMap: Record<string, { label: string; tone: string }> = {
+export const severityMap: Record<string, { label: string; tone: string }> = {
   CRITICAL: { label: '极高风险', tone: 'critical' },
   HIGH: { label: '高风险', tone: 'high' },
   MEDIUM: { label: '中风险', tone: 'medium' },
@@ -32,7 +33,7 @@ const decisionMap: Record<string, { label: string; tone: string }> = {
   UNAVAILABLE: { label: '数据不足无法评价', tone: 'muted' }
 }
 
-const overridePolicyMap: Record<string, string> = {
+export const overridePolicyMap: Record<string, string> = {
   NOT_APPLICABLE: '不可覆盖 (强制执行)',
   ACKNOWLEDGE: '仅需医生勾选已知晓',
   REASON_REQUIRED: '必须录入合理解释理由'
@@ -48,7 +49,7 @@ const templateMap: Record<string, string> = {
 }
 
 const templateName = (code: string) => templateMap[code] || code
-const usageScopeName = (value: string) => value
+export const usageScopeName = (value: string) => value
   .replaceAll('SHADOW_ONLY', '仅用于旁路监控')
   .replaceAll('NOT_CLINICAL_EVIDENCE', '非临床证据')
   .replaceAll('CLINICAL_EVIDENCE', '临床证据')
@@ -64,8 +65,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
 
   // 1. 生效规则库 (首屏优先秒开)
   const [activeRules, setActiveRules] = useState<ActiveRuleView[]>([])
-  const [selectedRule, setSelectedRule] = useState<ActiveRuleView | null>(null)
-  const [rulesLoading, setRulesLoading] = useState(true)
+  const [_selectedRule, setSelectedRule] = useState<ActiveRuleView | null>(null)
+  const [_rulesLoading, setRulesLoading] = useState(true)
   const [sandboxScope, setSandboxScope] = useState<'ALL' | 'SINGLE'>('ALL')
   const [sandboxRuleCode, setSandboxRuleCode] = useState('')
   const [activeSandboxRun, setActiveSandboxRun] = useState<ActiveRuleTrialRun | null>(null)
@@ -506,7 +507,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
         <div className="qmed-kpi-chip">
           <span className="qmed-kpi-dot" />
           <span className="qmed-kpi-label">规则集:</span>
-          <span className="qmed-kpi-val text-accent">qmed-foundation-shadow-v1</span>
+          <span className="qmed-kpi-val text-accent">{activeRules[0]?.ruleSetVersion ?? '—'}</span>
         </div>
         <div className="qmed-kpi-chip">
           <span className="qmed-kpi-label">运行模式:</span>
@@ -569,137 +570,8 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
       <div className="qmed-tab-content">
         {/* Tab 1: 在行生效规则库 */}
         {tab === 'catalog' && (
-        <div className="qmed-catalog-view">
-          <div className="qmed-catalog-list">
-            <div className="qmed-catalog-list-header">
-              <h3>在行规则目录</h3>
-              <p>全量注册于质量引擎中的不可变安全审查规则，参与临床处方旁路核查。</p>
-            </div>
-            <div className="qmed-rule-cards">
-              {rulesLoading ? (
-                <div className="qmed-loading-placeholder">
-                  <span className="ui-spinner" />
-                  <span>正在快速载入生效规则目录…</span>
-                </div>
-              ) : activeRules.map(rule => {
-                const sev = severityMap[rule.severity] || { label: rule.severity, tone: 'low' }
-                const dec = decisionMap[rule.decision] || { label: rule.decision, tone: 'muted' }
-                const isSelected = selectedRule?.ruleCode === rule.ruleCode
-                return (
-                  <article
-                    key={rule.ruleCode}
-                    className={`qmed-rule-card ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => setSelectedRule(rule)}
-                    tabIndex={0}
-                    role="button"
-                    onKeyDown={e => { if (e.key === 'Enter') setSelectedRule(rule) }}
-                  >
-                    <div className="qmed-rule-card-top">
-                      <span className={`qmed-tag tag-${sev.tone}`}>{sev.label}</span>
-                      <span className="qmed-tag tag-code">{rule.ruleCode}</span>
-                      <span className="qmed-rule-ver">v{rule.version}</span>
-                    </div>
-                    <h4 className="qmed-rule-card-title">{rule.ruleName}</h4>
-                    <div className="qmed-rule-card-bottom">
-                      <span className={`qmed-dec-badge dec-${dec.tone}`}>{dec.label}</span>
-                      <span className="qmed-meta-text">分类: {rule.category}</span>
-                    </div>
-                  </article>
-                )
-              })}
-              {activeRules.length === 0 && (
-                <div className="qmed-empty">
-                  <p>当前活跃规则集中暂未查询到已启用的规则。</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 规则详情与治理看板 */}
-          <aside className="qmed-catalog-detail">
-            {selectedRule ? (
-              <div className="qmed-detail-box">
-                <div className="qmed-detail-header">
-                  <div className="qmed-detail-heading">
-                    <div>
-                      <span className="qmed-meta-pill">规则编码: {selectedRule.ruleCode}</span>
-                      <span className="qmed-meta-pill">版本: v{selectedRule.version}</span>
-                      <span className="qmed-meta-pill">规则集: {selectedRule.ruleSetVersion}</span>
-                    </div>
-                    <h2>{selectedRule.ruleName}</h2>
-                  </div>
-                  <div className="qmed-detail-actions">
-                    <Button variant="primary" size="sm" onClick={() => openActiveSandbox('SINGLE', selectedRule)}>
-                      验证当前规则
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => openActiveSandbox('ALL')}>
-                      验证全部在行规则
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="qmed-detail-section">
-                  <h3>执行参数与门禁策略</h3>
-                  <dl className="qmed-kv-grid">
-                    <dt>阻断级别</dt>
-                    <dd>
-                      <span className={`qmed-tag tag-${severityMap[selectedRule.severity]?.tone || 'low'}`}>
-                        {severityMap[selectedRule.severity]?.label || selectedRule.severity}
-                      </span>
-                    </dd>
-                    <dt>判定动作</dt>
-                    <dd>
-                      <span className={`qmed-dec-badge dec-${decisionMap[selectedRule.decision]?.tone || 'muted'}`}>
-                        {decisionMap[selectedRule.decision]?.label || selectedRule.decision}
-                      </span>
-                    </dd>
-                    <dt>医生覆盖政策</dt>
-                    <dd>{overridePolicyMap[selectedRule.overridePolicy] || selectedRule.overridePolicy}</dd>
-                    <dt>强类型执行器</dt>
-                    <dd><code>{selectedRule.implementation}</code></dd>
-                    <dt>生效起止</dt>
-                    <dd>
-                      {new Date(selectedRule.effectiveFrom).toLocaleDateString()} 至{' '}
-                      {selectedRule.effectiveTo ? new Date(selectedRule.effectiveTo).toLocaleDateString() : '长期有效'}
-                    </dd>
-                    <dt>运行状态</dt>
-                    <dd><span className="qmed-tag tag-shadow">{selectedRule.status === 'SHADOW' ? '旁路监控' : selectedRule.status}</span></dd>
-                  </dl>
-                  <p className="qmed-runtime-note">
-                    当前在行规则由版本化强类型执行器运行，并非直接执行自由文本表达式；规则表达式适合作为可审阅 DSL，需经过白名单解析、类型校验与回归测试后再逐步替换执行器。
-                  </p>
-                </div>
-
-                <div className="qmed-detail-section">
-                  <h3>循证医学依据与管理规范原文</h3>
-                  {selectedRule.evidence.map((ev, i) => (
-                    <div key={i} className="qmed-evidence-card">
-                      <div className="qmed-evidence-header">
-                        <strong>{ev.sourceTitle}</strong>
-                        <small>v{ev.sourceVersion} · {ev.section}</small>
-                      </div>
-                      <blockquote className="qmed-evidence-excerpt">
-                        “{ev.excerpt}”
-                      </blockquote>
-                      <div className="qmed-evidence-footer">
-                        <span>依据定位: <code>{ev.sourceLocator}</code></span>
-                        <span>使用范畴: {usageScopeName(ev.usageScope)}</span>
-                      </div>
-                    </div>
-                  ))}
-                  {selectedRule.evidence.length === 0 && (
-                    <p className="qmed-muted">本规则未绑定外部药学文献或法规依据（属于底层工程基线）。</p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="qmed-empty">
-                <p>请在左侧选择规则查看详情。</p>
-              </div>
-            )}
-          </aside>
-        </div>
-      )}
+          <MedicationRuleCatalog api={api} onOpenCandidate={(value) => { setCandidate(value); setTab('factory') }} onBuiltinTrial={(code) => { const found=activeRules.find(rule => rule.ruleCode===code); if(found) openActiveSandbox('SINGLE', found) }} />
+        )}
 
       {/* Tab: 在行规则验证沙箱 */}
       {tab === 'sandbox' && (
@@ -1087,7 +959,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                   <Button variant="text" size="sm" onClick={() => setSelectedMeds([])}>清空筛选</Button>
                 )}
               </div>
-              <p className="qmed-med-scope-help">用于限定候选规则可评价的药品，并冻结生成与回放所需的药品事实；未手动选择时由系统匹配，生成后仍会固化为明确清单。</p>
+              <p className="qmed-med-scope-help">候选规则绑定标准规格及版本。请先关联标准参考目录；AI 可编写候选，不能自行创造药品身份或剂量上限。</p>
               <form className="qmed-med-search-box" onSubmit={e => {
                 e.preventDefault()
                 void action('搜索药品', async () => setMeds(await api.medicationWorkbench.medications(query)))
@@ -1103,7 +975,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                       className="qmed-checkbox"
                       aria-label={`选择药品 ${m.medication.name}`}
                       checked={selectedMeds.some(v => v.medication.id === m.medication.id)}
-                      disabled={!!busy}
+                      disabled={!!busy || m.standardReference?.status !== 'LINKED'}
                       onChange={e => {
                         setSelectedMeds(s =>
                           e.target.checked
@@ -1121,7 +993,7 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
                         )}
                       </div>
                       <div className="qmed-med-meta-row">
-                        <code className="qmed-med-code">{m.medication.code}</code>
+                        <code className="qmed-med-code">{m.standardReference?.specificationId ?? '待关联标准目录'}</code>
                         <span className="qmed-med-spec">{m.medication.preparationSpec || m.medication.doseForm || '规格待维护'}</span>
                       </div>
                     </div>

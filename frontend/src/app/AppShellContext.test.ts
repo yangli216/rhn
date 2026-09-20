@@ -110,4 +110,35 @@ describe('AppShell work context routing', () => {
       icon: 'clinical',
     })
   })
+
+  it('assigns distinctive healthcare icons to doctor stations, nurse stations, diagnostics, and master data', () => {
+    expect(tabForPath('/outpatient/reception')).toMatchObject({
+      title: '门诊医生站',
+      icon: 'stethoscope',
+    })
+    expect(tabForPath('/inpatient/doctor-station')).toMatchObject({
+      title: '住院医生站',
+      icon: 'stethoscope',
+    })
+    expect(tabForPath('/inpatient/nurse-station')).toMatchObject({
+      title: '病区护士站',
+      icon: 'bed',
+    })
+    expect(tabForPath('/diagnostics')).toMatchObject({
+      title: '检查检验',
+      icon: 'flask',
+    })
+    expect(tabForPath('/skin-tests')).toMatchObject({
+      title: '皮试管理',
+      icon: 'syringe',
+    })
+    expect(tabForPath('/treatments')).toMatchObject({
+      title: '治疗执行',
+      icon: 'syringe',
+    })
+    expect(tabForPath('/settings/master-data')).toMatchObject({
+      title: '基础数据中心',
+      icon: 'database',
+    })
+  })
 })

@@ -1,0 +1,21 @@
+.qmed-governance { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; height: 100%; padding: var(--space-4); }
+.qmed-governance h3, .qmed-governance h4 { margin: 0; }
+.qmed-governance p { margin: var(--space-2) 0; color: var(--color-text-secondary); }
+.qmed-governance small { display: block; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.qmed-governance__toolbar, .qmed-governance__filters, .qmed-governance__heading, .qmed-governance__actions, .qmed-governance__badges { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.qmed-governance__toolbar > div:first-child, .qmed-governance__heading > div:first-child { flex: 1; }
+.qmed-governance__filters > :first-child { flex: 1; min-width: 180px; }
+.qmed-governance__filters > .ui-select { min-width: 150px; }
+.qmed-governance__panes { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 2fr); gap: var(--space-4); min-height: 0; flex: 1; }
+.qmed-governance__list, .qmed-governance__detail { overflow: auto; min-height: 0; }
+.qmed-governance__list { display: flex; flex-direction: column; gap: var(--space-2); }
+.qmed-governance__rule { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); text-align: left; cursor: pointer; }
+.qmed-governance__rule.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
+.qmed-governance__detail { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
+.qmed-governance__columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4); }
+.qmed-governance pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; padding: var(--space-3); background: var(--color-surface-subtle); }
+.qmed-governance__release { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
+.qmed-governance__event { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
+.qmed-governance__form { display: grid; gap: var(--space-3); }
+.qmed-governance__meds { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-2); max-height: 230px; overflow: auto; }
+.qmed-governance__meds label { font-size: 13px; }

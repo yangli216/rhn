@@ -21,7 +21,7 @@ import {
 import {
   OrderDocumentInlineEditor, orderDocuments, documentMissing, type OrderDocument,
 } from './OrderDocuments'
-import { roundNumber, formatDose, safeAdd, safeMultiply } from '../../shared/utils/precision'
+import { roundNumber, formatDose, formatCurrency } from '../../shared/utils/precision'
 
 export type OrderEntryType = 'ALL' | 'WESTERN' | 'CHINESE_PATENT' | 'MEDICATION' | 'HERBAL' | 'LABORATORY' | 'EXAMINATION' | 'TREATMENT'
 
@@ -490,6 +490,41 @@ export function UnifiedOrderListEditor({
     setSuccessToast('输液组方已完成，已恢复常规开立模式')
   }
 
+  function finishHerbalGrouping() {
+    setComposerOpen(true)
+    setEntryType('ALL')
+    setMedicationEntry(emptyMedicationEntry())
+    setValidationError('')
+    setSuccessToast('中药方剂组方已完成')
+    focusResource('ALL')
+  }
+
+  const draftHerbalCount = useMemo(
+    () => medicationDrafts.filter((d) => d.categoryCode === 'HERBAL' || d.editorMode === 'herbal').length,
+    [medicationDrafts]
+  )
+
+  function startHerbalGrouping() {
+    setComposerOpen(true)
+    setEntryType('HERBAL')
+    setGroupingSession(null)
+    const herbalDrafts = medicationDrafts.filter(
+      (d) => d.categoryCode === 'HERBAL' || d.editorMode === 'herbal'
+    )
+    if (herbalDrafts.length > 0) {
+      const first = herbalDrafts[0]
+      const parsed = parseHerbalInstruction(first.request.medicationInstruction)
+      setMedicationEntry((curr) => ({
+        ...curr,
+        herbalDoseCount: first.request.durationValue || curr.herbalDoseCount || 7,
+        herbalMethod: parsed.method || curr.herbalMethod || '水煎服',
+        frequencyCode: first.request.frequencyCode || curr.frequencyCode || 'BID',
+        instruction: '',
+      }))
+    }
+    focusResource('HERBAL')
+  }
+
   function continueGroupingFromDraft(draft: MedicationPlanDraft) {
     const targetGroupKey = draft.administrationGroupKey || newAdministrationGroupKey()
     if (!draft.administrationGroupKey) {
@@ -766,7 +801,10 @@ export function UnifiedOrderListEditor({
       const isInsidePopover = Boolean(
         (target as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
       )
-      if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
+      const isInsideSubrow = Boolean(
+        (target as Element)?.closest?.('.doctor-unified-order-subrow, .doctor-grouping-banner')
+      )
+      if (!isInsideRow && !isInsidePopover && !isInsideSubrow && !hasEnteredOrder) {
         if (hasOrders) {
           closeComposer()
         } else {
@@ -1392,7 +1430,10 @@ export function UnifiedOrderListEditor({
             const isInsidePopover = Boolean(
               (next as Element)?.closest?.('.ui-remote-search__popover, .ui-select__popover')
             )
-            if (!isInsideRow && !isInsidePopover && !hasEnteredOrder) {
+            const isInsideSubrow = Boolean(
+              (next as Element)?.closest?.('.doctor-unified-order-subrow, .doctor-grouping-banner')
+            )
+            if (!isInsideRow && !isInsidePopover && !isInsideSubrow && !hasEnteredOrder) {
               if (hasOrders) {
                 closeComposer()
               } else {
@@ -1488,61 +1529,28 @@ export function UnifiedOrderListEditor({
 
           {isMedication ? (
             entryType === 'HERBAL' ? (
-              <div className="doctor-inline-order-directions-group">
-                <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="每付剂量">
+              <div className="doctor-inline-order-directions-group is-herbal-single">
+                <div className={`doctor-inline-order-field doctor-inline-order-dose${!hasEnteredOrder ? ' is-disabled' : ''}`} title="单味每付剂量 (g)">
                   <div className="doctor-entry-input-unit">
-                    <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.01"
+                    <input id="doctor-unified-dose" aria-label="每付剂量" type="number" min="0" step="0.5"
                       disabled={!hasEnteredOrder}
                       value={medicationEntry.doseValue} placeholder="0"
                       onFocus={(event) => event.currentTarget.select()}
                       onChange={(event) => updateMedication('doseValue', numberValue(event.target.value))}
                       onKeyDown={(event) => {
-                        if (entryType === 'HERBAL') {
-                          if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                            event.preventDefault()
-                            event.stopPropagation()
-                            addCurrentEntry()
-                            return
-                          }
-                          if (event.key === 'Tab' && !event.shiftKey) {
-                            event.preventDefault()
-                            focusControl('doctor-unified-instruction')
-                            return
-                          }
+                        if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          addCurrentEntry()
+                          return
                         }
-                        continueOnEnter(event, 'doctor-unified-herbal-method')
+                        if (event.key === 'Tab' && !event.shiftKey) {
+                          event.preventDefault()
+                          focusControl('doctor-unified-instruction')
+                          return
+                        }
                       }} />
                     <small>{medicationEntry.doseUnit || 'g'}</small>
-                  </div>
-                </div>
-
-                <div className={`doctor-inline-order-field doctor-inline-order-route${!hasEnteredOrder ? ' is-disabled' : ''}`} title="煎服法">
-                  <input id="doctor-unified-herbal-method" aria-label="服法" value={medicationEntry.herbalMethod} placeholder="水煎服"
-                    disabled={!hasEnteredOrder}
-                    onFocus={(event) => event.currentTarget.select()}
-                    onChange={(event) => updateMedication('herbalMethod', event.target.value)}
-                    onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-frequency')} />
-                </div>
-
-                <div className={`doctor-inline-order-field doctor-inline-order-frequency${!hasEnteredOrder ? ' is-disabled' : ''}`} title="频次">
-                  <Select id="doctor-unified-frequency" aria-label="频次" value={medicationEntry.frequencyCode}
-                    disabled={!hasEnteredOrder}
-                    onChange={(value) => updateMedication('frequencyCode', value)}
-                    openOnFocus
-                    onSelectionCommit={() => focusControlAfterSelection('doctor-unified-herbal-count')}
-                    showValue loading={frequencies.isPending} popoverMinWidth={260}
-                    placeholder="频次" options={frequencyOptions} />
-                </div>
-
-                <div className={`doctor-inline-order-field doctor-inline-order-duration${!hasEnteredOrder ? ' is-disabled' : ''}`} title="剂数">
-                  <div className="doctor-entry-input-unit">
-                    <input id="doctor-unified-herbal-count" aria-label="剂数" type="number" min="1"
-                      disabled={!hasEnteredOrder}
-                      value={medicationEntry.herbalDoseCount}
-                      onFocus={(event) => event.currentTarget.select()}
-                      onChange={(event) => updateMedication('herbalDoseCount', numberValue(event.target.value))}
-                      onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} />
-                    <small>剂</small>
                   </div>
                 </div>
               </div>
@@ -1614,15 +1622,14 @@ export function UnifiedOrderListEditor({
 
           {isMedication ? (
             entryType === 'HERBAL' ? (
-              <div className={`doctor-inline-order-field doctor-inline-order-quantity${!hasEnteredOrder ? ' is-disabled' : ''}`}>
-                <div className="doctor-entry-input-unit">
-                  <input id="doctor-unified-quantity" aria-label="总量" type="number"
-                    disabled={!hasEnteredOrder}
-                    value={medicationEntry.doseValue === '' || medicationEntry.herbalDoseCount === '' ? ''
-                      : Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount)}
-                    onKeyDown={(event) => continueOnEnter(event, 'doctor-unified-instruction')} readOnly />
-                  <small>g</small>
-                </div>
+              <div className="doctor-inline-order-static doctor-inline-order-quantity">
+                {hasEnteredOrder && medicationEntry.doseValue !== '' ? (
+                  <span className="doctor-direction-chip is-calc-qty">
+                    {roundNumber(Number(medicationEntry.doseValue) * Number(medicationEntry.herbalDoseCount || 7), 2)}g
+                  </span>
+                ) : (
+                  <span className="doctor-inline-order-placeholder">—</span>
+                )}
               </div>
             ) : (
               <div className={`doctor-inline-order-field doctor-inline-order-quantity ${isStockInsufficient ? 'is-danger' : ''}${!hasEnteredOrder ? ' is-disabled' : ''}`}>
@@ -1676,12 +1683,12 @@ export function UnifiedOrderListEditor({
 
           {isMedication ? (
             entryType === 'HERBAL' ? (
-              <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法/嘱托">
+              <div className={`doctor-inline-order-field doctor-inline-order-instruction${!hasEnteredOrder ? ' is-disabled' : ''}`} title="特殊煎法 (选填)">
                 <input id="doctor-unified-instruction" aria-label="特殊煎法" value={medicationEntry.instruction}
                   disabled={!hasEnteredOrder}
                   list="doctor-herbal-instruction-options"
                   onFocus={(event) => event.currentTarget.select()}
-                  placeholder="如: 先煎、后下" onChange={(event) => updateMedication('instruction', event.target.value)}
+                  placeholder="如: 先煎、后下 (选填)" onChange={(event) => updateMedication('instruction', event.target.value)}
                   onKeyDown={(event) => {
                     if (entryType === 'HERBAL' && event.key === 'Enter' && !event.nativeEvent.isComposing) {
                       event.preventDefault()
@@ -1729,8 +1736,8 @@ export function UnifiedOrderListEditor({
           )}
 
           <div className="doctor-inline-order-status">
-            <StatusBadge tone={groupingSession ? 'success' : 'info'}>
-              {groupingSession ? '成组中' : '录入中'}
+            <StatusBadge tone={groupingSession || entryType === 'HERBAL' ? 'success' : 'info'}>
+              {groupingSession ? '成组中' : entryType === 'HERBAL' ? '组方中' : '录入中'}
             </StatusBadge>
           </div>
           <div className="doctor-inline-order-actions">
@@ -1752,10 +1759,18 @@ export function UnifiedOrderListEditor({
         )}
 
         {entryType === 'HERBAL' && (
-          <div className="doctor-unified-order-subrow doctor-herbal-formula-summary" role="row">
-            <strong>方剂设置</strong>
-            <span>{medicationEntry.herbalDoseCount || '未填'}剂 · {medicationEntry.herbalMethod || '未填写服法'} · {medicationEntry.frequencyCode || '未填写频次'}</span>
-            <small>连续录入下一味时自动保留</small>
+          <div className="doctor-unified-order-subrow doctor-grouping-banner is-herbal" role="status">
+            <span className="doctor-grouping-tip">
+              <strong>草药连续组方中</strong>（整方共 {medicationEntry.herbalDoseCount || 7} 剂 · {medicationEntry.herbalMethod || '水煎服'} · {medicationEntry.frequencyCode || 'BID'}{draftHerbalCount > 0 ? ` · 已加入 ${draftHerbalCount} 味` : ''}）
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="doctor-herbal-finish-btn"
+              onClick={finishHerbalGrouping}
+            >
+              完成组方
+            </Button>
           </div>
         )}
 
@@ -1928,7 +1943,7 @@ export function UnifiedOrderListEditor({
           if (entry.kind === 'service') {
             const svc = entry.value as ServiceRequest
             const groupKind = svc.serviceType === 'LABORATORY' ? 'lab' : svc.serviceType === 'EXAMINATION' ? 'exam' : 'treatment'
-            const defaultTitle = groupKind === 'lab' ? '门诊检验申请单' : groupKind === 'exam' ? '门诊检查申请单' : '门诊治疗单'
+            const defaultTitle = groupKind === 'lab' ? '检验申请' : groupKind === 'exam' ? '检查申请' : '治疗单'
             const title = doc?.label || defaultTitle
             const docLabel = (docItems[0] && documentRows[docItems[0].value.id]?.label) || doc?.shortLabel || doc?.label || title
             const subtotal = (svc.unitPrice || 0) * (svc.quantity || 1)
@@ -1970,7 +1985,7 @@ export function UnifiedOrderListEditor({
           } else {
             const rx = prescriptions.find((p) => p.id === entry.value.prescriptionId)
             const groupKind = isHerbal ? 'herbal' : rx?.categoryCode === 'CHINESE_PATENT' ? 'patent' : 'western'
-            const defaultTitle = isHerbal ? '门诊中药草药处方' : rx?.categoryCode === 'CHINESE_PATENT' ? '门诊中成药处方' : '门诊西药处方'
+            const defaultTitle = isHerbal ? '中药处方' : rx?.categoryCode === 'CHINESE_PATENT' ? '中成药处方' : '西药处方'
             const title = doc?.label || defaultTitle
             const docLabel = (docItems[0] && documentRows[docItems[0].value.id]?.label) || doc?.shortLabel || doc?.label || title
             const subtotal = docItems.reduce((sum, e) => sum + (e.value.unitPrice || 0) * (e.value.quantity || 1), 0)
@@ -2158,7 +2173,7 @@ export function UnifiedOrderListEditor({
             headerNode = (
               <Fragment key="draft-group-herbal">
                 <OrderDocumentGroupHeader
-                  title="门诊中药草药处方（待开立）"
+                  title="中药处方"
                   kind="herbal"
                   isDraft
                   itemCount={catDrafts.length}
@@ -2173,6 +2188,7 @@ export function UnifiedOrderListEditor({
                     instruction={herbalInstruction}
                     frequencyOptions={frequencyOptions}
                     readOnly={readOnly}
+                    isActivelyAdding={isComposerActive && entryType === 'HERBAL'}
                     onUpdateFormula={(updates) => {
                       const nextDoseCount = updates.doseCount !== undefined ? updates.doseCount : herbalDoseCount
                       const nextMethod = updates.method !== undefined ? updates.method : herbalMethod
@@ -2220,6 +2236,8 @@ export function UnifiedOrderListEditor({
                   })}
                   doseCount={herbalDoseCount}
                   readOnly={readOnly}
+                  isActivelyAdding={isComposerActive && entryType === 'HERBAL'}
+                  onAddMoreHerbs={startHerbalGrouping}
                   onRemoveDraft={(id) => setMedicationDrafts((curr) => curr.filter((d) => d.id !== id))}
                   onUpdateDraft={(id, updates) => {
                     setMedicationDrafts((curr) => curr.map((d) => {
@@ -2241,6 +2259,7 @@ export function UnifiedOrderListEditor({
                     }))
                   }}
                 />
+                {!readOnly && isComposerActive && entryType === 'HERBAL' && renderComposer()}
               </Fragment>
             )
           } else if (currCat === 'regular-med') {
@@ -2248,7 +2267,7 @@ export function UnifiedOrderListEditor({
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-med"
-                title="门诊西药/中成药处方（待开立）"
+                title="西药/中成药处方"
                 kind="western"
                 isDraft
                 itemCount={catDrafts.length}
@@ -2262,7 +2281,7 @@ export function UnifiedOrderListEditor({
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-lab"
-                title="门诊检验申请（待开立）"
+                title="检验申请"
                 kind="lab"
                 isDraft
                 itemCount={catDrafts.length}
@@ -2276,7 +2295,7 @@ export function UnifiedOrderListEditor({
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-exam"
-                title="门诊检查申请（待开立）"
+                title="检查申请"
                 kind="exam"
                 isDraft
                 itemCount={catDrafts.length}
@@ -2290,7 +2309,7 @@ export function UnifiedOrderListEditor({
             headerNode = (
               <OrderDocumentGroupHeader
                 key="draft-group-other"
-                title="门诊诊疗医嘱（待开立）"
+                title="诊疗医嘱"
                 kind="treatment"
                 isDraft
                 itemCount={catDrafts.length}
@@ -2410,7 +2429,7 @@ export function UnifiedOrderListEditor({
         return headerNode ? <Fragment key={`draft-frag-${entry.value.id}`}>{headerNode}{rowNode}</Fragment> : rowNode
       })}
 
-      {!readOnly && isComposerActive && !groupingComposerTarget && renderComposer()}
+      {!readOnly && isComposerActive && !groupingComposerTarget && !(entryType === 'HERBAL' && draftHerbalCount > 0) && renderComposer()}
       </div>
 
       {!readOnly && !isComposerActive && !editingDraft && (
@@ -2503,6 +2522,7 @@ function HerbalFormulaHeaderBar({
   frequencyOptions,
   readOnly,
   onUpdateFormula,
+  isActivelyAdding,
 }: {
   doseCount?: number
   method?: string
@@ -2516,18 +2536,30 @@ function HerbalFormulaHeaderBar({
     frequencyCode?: string
     instruction?: string
   }) => void
+  isActivelyAdding?: boolean
 }) {
+  const [isEditing, setIsEditing] = useState(false)
   const [localCount, setLocalCount] = useState<string>(String(doseCount || 7))
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLocalCount(String(doseCount || 7))
   }, [doseCount])
 
+  const effectiveEditing = Boolean(isActivelyAdding || isEditing)
+
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    if (isActivelyAdding) return
+    if (!containerRef.current?.contains(e.relatedTarget as Node)) {
+      setIsEditing(false)
+    }
+  }
+
   if (!onUpdateFormula || readOnly) {
     return (
       <div className="doctor-formula-inline-bar is-readonly" role="region" aria-label="整方属性">
         <div className="doctor-formula-tags">
-          <span className="doctor-formula-tag"><strong>{doseCount || 7}</strong> 剂</span>
+          <span className="doctor-formula-tag is-pill"><strong>{doseCount || 7}</strong> 剂</span>
           <span className="doctor-formula-tag">{method || '水煎服'}</span>
           <span className="doctor-formula-tag">{frequencyCode || 'BID'}</span>
           {instruction && <span className="doctor-formula-tag is-inst">嘱托：{instruction}</span>}
@@ -2536,10 +2568,47 @@ function HerbalFormulaHeaderBar({
     )
   }
 
+  if (!effectiveEditing) {
+    return (
+      <div
+        ref={containerRef}
+        className={`doctor-formula-inline-bar is-reading-mode${isActivelyAdding ? ' is-actively-adding' : ''}`}
+        role="region"
+        aria-label="整方属性（点击或获得焦点可调整）"
+        tabIndex={0}
+        onClick={() => setIsEditing(true)}
+        onFocus={() => setIsEditing(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            setIsEditing(true)
+          }
+        }}
+        title="点击或按回车调整整方付数、煎服法与频次"
+      >
+        <div className="doctor-formula-tags">
+          <span className="doctor-formula-tag is-pill"><strong>{doseCount || 7}</strong> 剂</span>
+          <span className="doctor-formula-tag">{method || '水煎服'}</span>
+          <span className="doctor-formula-tag">{frequencyCode || 'BID'}</span>
+          {instruction ? (
+            <span className="doctor-formula-tag is-inst">嘱托：{instruction}</span>
+          ) : null}
+          <span className="doctor-formula-edit-hint">点击调整</span>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="doctor-formula-inline-bar" role="region" aria-label="整方属性设置">
+    <div
+      ref={containerRef}
+      className={`doctor-formula-inline-bar is-editing-mode${isActivelyAdding ? ' is-actively-adding' : ''}`}
+      role="region"
+      aria-label="整方属性设置"
+      onBlur={handleBlur}
+    >
       <div className="doctor-formula-field">
-        <label htmlFor="formula-dose-count" className="doctor-formula-label">付数/剂数</label>
+        <label htmlFor="formula-dose-count" className="doctor-formula-label">剂数</label>
         <div className="doctor-formula-input-unit">
           <input
             id="formula-dose-count"
@@ -2549,6 +2618,7 @@ function HerbalFormulaHeaderBar({
             step="1"
             className="doctor-formula-input is-count"
             value={localCount}
+            autoFocus={!isActivelyAdding}
             onFocus={(e) => e.currentTarget.select()}
             onChange={(e) => {
               setLocalCount(e.target.value)
@@ -2570,7 +2640,7 @@ function HerbalFormulaHeaderBar({
       </div>
 
       <div className="doctor-formula-field">
-        <label htmlFor="formula-method" className="doctor-formula-label">煎服法</label>
+        <label htmlFor="formula-method" className="doctor-formula-label">煎法</label>
         <select
           id="formula-method"
           className="doctor-formula-select"
@@ -2587,7 +2657,7 @@ function HerbalFormulaHeaderBar({
       </div>
 
       <div className="doctor-formula-field">
-        <label htmlFor="formula-freq" className="doctor-formula-label">服药频次</label>
+        <label htmlFor="formula-freq" className="doctor-formula-label">频次</label>
         <select
           id="formula-freq"
           className="doctor-formula-select is-freq"
@@ -2611,33 +2681,53 @@ function HerbalFormulaHeaderBar({
       </div>
 
       <div className="doctor-formula-field is-instruction">
-        <label htmlFor="formula-instruction" className="doctor-formula-label">整方嘱托</label>
+        <label htmlFor="formula-instruction" className="doctor-formula-label">嘱托</label>
         <input
           id="formula-instruction"
           type="text"
           className="doctor-formula-input is-instruction"
-          placeholder="如：早晚饭后温服，忌辛辣生冷"
+          placeholder="温服/忌辛辣等"
           value={instruction || ''}
           onChange={(e) => onUpdateFormula({ instruction: e.target.value })}
           aria-label="整方嘱托"
         />
       </div>
+
+      {!isActivelyAdding && (
+        <div className="doctor-formula-actions">
+          <Button
+            size="sm"
+            variant="text"
+            className="doctor-formula-done-btn"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsEditing(false)
+            }}
+          >
+            完成
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
 function HerbalPrescriptionMatrix({
   items,
-  doseCount = 7,
+  doseCount: _doseCount,
   readOnly,
+  isActivelyAdding,
   onRemoveDraft,
   onUpdateDraft,
+  onAddMoreHerbs,
 }: {
   items: HerbalMatrixItem[]
   doseCount?: number
   readOnly?: boolean
+  isActivelyAdding?: boolean
   onRemoveDraft?: (id: string) => void
   onUpdateDraft?: (id: string, updates: { doseValue?: number; specialMethod?: string }) => void
+  onAddMoreHerbs?: () => void
 }) {
   const [editingHerbId, setEditingHerbId] = useState<string | null>(null)
   const [editDose, setEditDose] = useState<string>('')
@@ -2654,11 +2744,6 @@ function HerbalPrescriptionMatrix({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [activeMethodMenuId])
-
-  const singleDoseWeight = safeAdd(items.map((item) => item.doseValue), 2)
-  const totalWeight = safeMultiply(singleDoseWeight, doseCount, 2)
-  const singlePrice = safeAdd(items.map((item) => item.price), 4)
-  const totalPrice = safeMultiply(singlePrice, doseCount, 2)
 
   const handleSaveDose = (herbId: string) => {
     const val = parseFloat(editDose)
@@ -2683,7 +2768,7 @@ function HerbalPrescriptionMatrix({
             >
               <div className="doctor-herb-main">
                 <strong className="doctor-herb-name" title={herb.name}>{herb.name}</strong>
-                <div className="doctor-herb-method-wrap">
+                <div className={`doctor-herb-method-wrap${!herb.specialMethod ? ' is-empty' : ''}`}>
                   {herb.specialMethod ? (
                     canEditThisHerb ? (
                       <button
@@ -2805,13 +2890,17 @@ function HerbalPrescriptionMatrix({
             </div>
           )
         })}
-      </div>
-      <div className="doctor-herbal-summary-bar">
-        <span>{doseCount}剂总重 <strong>{formatDose(totalWeight)}g</strong></span>
-        <span className="doctor-metric-divider">|</span>
-        <span>单剂 <strong>¥{singlePrice.toFixed(2)}</strong></span>
-        <span className="doctor-metric-divider">|</span>
-        <span>总金额 <strong className="is-total">¥{totalPrice.toFixed(2)}</strong></span>
+        {!readOnly && onAddMoreHerbs && !isActivelyAdding && (
+          <button
+            type="button"
+            className="doctor-herbal-add-chip is-icon-only"
+            onClick={onAddMoreHerbs}
+            title="继续添加草药"
+            aria-label="继续加药"
+          >
+            <Icon name="add" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -2821,7 +2910,6 @@ function OrderDocumentGroupHeader({
   title,
   docLabel,
   kind,
-  isDraft,
   dept,
   specimen,
   itemCount,
@@ -2880,7 +2968,6 @@ function OrderDocumentGroupHeader({
       <div className="doctor-group-header-left">
         {renderIcon()}
         <strong className="doctor-group-title">{title}</strong>
-        {isDraft && <StatusBadge tone="warning">待确认</StatusBadge>}
         {dept && <span className="doctor-group-tag is-dept">{dept}</span>}
         {specimen && <span className="doctor-group-tag">{specimen}</span>}
         <span className="doctor-group-tag">共 {itemCount} {itemUnit}</span>
@@ -2896,7 +2983,7 @@ function OrderDocumentGroupHeader({
       <div className="doctor-group-header-right">
         {subtotal > 0 && (
           <span className="doctor-group-subtotal">
-            小计 <strong>{formatUnitPrice(subtotal, currencyCode)}</strong>
+            小计 <strong>{formatCurrency(subtotal, currencyCode)}</strong>
           </span>
         )}
         <div className="doctor-group-actions">
@@ -4006,26 +4093,38 @@ function bySequence(left: { sequence?: number }, right: { sequence?: number }) {
 function focusResource(type: OrderEntryType) {
   if (typeof document === 'undefined') return
   const tryFocus = () => {
-    const el = document.getElementById(`doctor-unified-${type}-resource`)
+    const searchInput = document.querySelector<HTMLInputElement>(
+      '.doctor-unified-inline-composer .ui-remote-search__search input, .ui-remote-search__popover .ui-remote-search__search input'
+    )
+    if (searchInput) {
+      searchInput.focus()
+      return true
+    }
+
+    const trigger = document.getElementById(`doctor-unified-${type}-resource`)
       || document.querySelector<HTMLElement>('.doctor-unified-inline-composer .ui-remote-search__trigger')
-    if (el) {
-      el.focus()
-      const searchInput = document.querySelector<HTMLInputElement>('.ui-remote-search__search input')
-      if (searchInput && document.activeElement !== searchInput) {
-        searchInput.focus()
+    if (trigger) {
+      trigger.focus()
+      if (trigger.getAttribute('aria-expanded') !== 'true') {
+        trigger.click()
       }
       return true
     }
     return false
   }
 
-  if (tryFocus()) return
+  tryFocus()
 
   window.requestAnimationFrame(() => {
-    if (tryFocus()) return
+    tryFocus()
     globalThis.setTimeout(() => {
-      if (tryFocus()) return
-      globalThis.setTimeout(tryFocus, 80)
+      tryFocus()
+      const searchInput = document.querySelector<HTMLInputElement>(
+        '.doctor-unified-inline-composer .ui-remote-search__search input, .ui-remote-search__popover .ui-remote-search__search input'
+      )
+      if (searchInput && document.activeElement !== searchInput) {
+        searchInput.focus()
+      }
     }, 40)
   })
 }

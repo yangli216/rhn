@@ -106,6 +106,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final MedicationRouteDirectory medicationRouteDirectory;
     private final MedicationTerminologyDirectory medicationTerminologyDirectory;
     private final MedicationSemanticsService medicationSemantics;
+    private final MedicationStandardService medicationStandards;
 
     public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
@@ -127,7 +128,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         ExecutionContextProvider contextProvider,
                                         OrderFrequencyDirectory orderFrequencyDirectory,
                                         MedicationRouteDirectory medicationRouteDirectory,
-                                        MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics) {
+                                        MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics,
+                                        MedicationStandardService medicationStandards) {
+        this.medicationStandards = medicationStandards;
         this.medicationSemantics = medicationSemantics;
         this.serviceRepository = serviceRepository;
         this.supplyRepository = supplyRepository;
@@ -400,6 +403,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         validateMedication(command);
         var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
         var route = resolveMedicationRoute(context, command.defaultRoute());
+        medicationStandards.validateNew(context.tenantId(), command);
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
             throw conflict("MEDICATION_CODE_DUPLICATE", "当前租户已存在相同通用药品编码");
         }
@@ -417,7 +421,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 frequency == null ? null : frequency.code(),
                 command.chronicDiseaseDrug(), command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
-        item = medicationRepository.save(item);
+        item = medicationRepository.saveAndFlush(item);
+        medicationStandards.link(context.tenantId(), item.id(), command.standardSpecificationId(), context.subjectId());
         medicationSemantics.captureMedication(item);
         attributeSubjectRepository.save(ItemAttributeSubject.medication(
                 context.tenantId(), item.id(), context.subjectId()));
@@ -428,6 +433,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public void validateMedicationForImport(MedicationCommand command) {
         ExecutionContext context = current();
         validateMedication(command);
+        medicationStandards.validateNew(context.tenantId(), command);
         resolveMedicationRoute(context, command.defaultRoute());
         resolveMedicationFrequency(context, command.defaultFrequency(), null);
         if (medicationRepository.existsByTenantIdAndCode(context.tenantId(), command.code())) {
@@ -450,6 +456,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
             throw badRequest("MEDICATION_TYPE_IMMUTABLE", "药品类型创建后不允许直接修改，请新建正确类型的药品主档");
         }
         validateMedication(command);
+        medicationStandards.validateUpdate(context.tenantId(), id, command);
         var frequency = resolveMedicationFrequency(context, command.defaultFrequency(), organizationId);
         var route = resolveMedicationRoute(context, command.defaultRoute());
         medicationSemantics.captureMedication(item);
@@ -540,6 +547,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ExecutionContext context = current();
         Medication medication = medicationRepository.lockByIdAndTenantId(command.medicationId(), context.tenantId())
                 .orElseThrow(() -> notFound("MEDICATION_NOT_FOUND", "未找到通用药品"));
+        medicationStandards.requireLinked(context.tenantId(), medication.id());
         Manufacturer manufacturer = manufacturerRepository.findByIdAndTenantId(command.manufacturerId(), context.tenantId())
                 .orElseThrow(() -> notFound("MANUFACTURER_NOT_FOUND", "未找到生产企业"));
         requireCode(MasterDataDictionaryCodes.STATUS, command.status());
@@ -819,7 +827,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 value.defaultDose(), value.defaultDoseUnit(), value.defaultRoute(),
                 value.defaultFrequencyId(), value.defaultFrequency(), value.chronicDiseaseDrug(), value.singleOrder(), value.status(),
                 classifications.getOrDefault(value.id(), List.of()), allergenConceptIds.getOrDefault(value.id(), List.of()),
-                productViews.getOrDefault(value.id(), List.of()))).toList();
+                productViews.getOrDefault(value.id(), List.of()), medicationStandards.reference(tenantId, value.id()))).toList();
     }
 
     private List<MedicationProductView> productViews(Long tenantId, List<MedicationProduct> products,

@@ -39,14 +39,14 @@ class OutpatientMainFlowTest extends RhnIntegrationTestSupport {
         assertEquals("5mg", spec.path("specification").asString());
         // Local operational configuration is independent of source-verification status.
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .param("organizationId", ORGANIZATION).contentType(MediaType.APPLICATION_JSON).content("""
+                        .param("organizationId", ORGANIZATION).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                           {"code":"%s","name":"氨氯地平（联调）","sdMedicationType":"WESTERN",
                            "sdDoseForm":"TABLET","preparationSpec":"5mg","preparationUnit":"片",
                            "strengthValue":5,"strengthUnit":"mg","defaultDose":5,"defaultDoseUnit":"mg",
                            "defaultRoute":"ORAL","defaultFrequency":"QD","prescriptionDrug":true,
                            "essentialDrug":false,"antimicrobial":false,"skinTestRequired":false,
                            "chronicDiseaseDrug":true,"singleOrder":true,"sdStatus":"ACTIVE"}
-                        """.formatted(spec.path("id").asString())))
+                        """.formatted(spec.path("id").asString()))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         mockMvc.perform(get("/api/platform/master-data/medications/search").with(rhnWorkContext())
                         .param("query", spec.path("id").asString()).param("organizationId", ORGANIZATION))

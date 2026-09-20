@@ -12,8 +12,14 @@ public final class MedicationCandidateEvaluator {
     }
 
     public Result evaluate(RuleSpec rule, List<Long> scope, List<TrialItem> items, Map<Long, MedicationSnapshot> facts, PatientSimulationContext patientContext) {
+        return evaluate(rule, scope, items, facts, patientContext, null);
+    }
+
+    public Result evaluate(RuleSpec rule, List<Long> scope, List<TrialItem> items, Map<Long, MedicationSnapshot> facts,
+            PatientSimulationContext patientContext, Map<Long, String> standardIdentities) {
         var matched=new ArrayList<Integer>(); var reasons=new ArrayList<String>(); var missing=new ArrayList<String>();
-        var groups=new LinkedHashMap<Long,List<Integer>>();
+        var groups=new LinkedHashMap<String,List<Integer>>();
+        var names=new HashMap<String,String>();
         var categoryRows=new ArrayList<Integer>();
         int active=0; int evaluated=0;
         for (int i=0;i<items.size();i++) {
@@ -24,12 +30,21 @@ public final class MedicationCandidateEvaluator {
             }
             active++;
             if (item.medicationId()==null) { missing.add("第 "+(i+1)+" 行缺少通用药 ID"); continue; }
-            if (scope != null && !scope.isEmpty() && !scope.contains(item.medicationId())) continue;
+            if (standardIdentities != null && !standardIdentities.containsKey(item.medicationId())) {
+                missing.add("第 "+(i+1)+" 行缺少已保存的标准规格关联"); continue;
+            }
+            if (scope != null && !scope.isEmpty() && !scope.contains(item.medicationId())
+                    && (standardIdentities == null || scope.stream().noneMatch(id -> Objects.equals(
+                        standardIdentities.get(id), standardIdentities.get(item.medicationId()))))) continue;
             var med=facts.get(item.medicationId());
             if (med==null) { missing.add("第 "+(i+1)+" 行缺少 HIS 药品快照"); continue; }
             evaluated++;
             switch (rule.template() != null ? rule.template() : "") {
-                case "EXACT_GENERIC_DUPLICATE" -> groups.computeIfAbsent(item.medicationId(), k -> new ArrayList<>()).add(i+1);
+                case "EXACT_GENERIC_DUPLICATE" -> {
+                    String identity = standardIdentities == null ? item.medicationId().toString() : standardIdentities.get(item.medicationId());
+                    groups.computeIfAbsent(identity, k -> new ArrayList<>()).add(i+1);
+                    names.putIfAbsent(identity, med.name());
+                }
                 case "CATEGORY_DUPLICATE" -> categoryRows.add(i+1);
                 case "ANTIMICROBIAL_MAX_DAYS" -> {
                     if (!med.antimicrobial()) continue;
@@ -58,7 +73,7 @@ public final class MedicationCandidateEvaluator {
             }
         }
         groups.forEach((id, rows) -> { if (rows.size()>=rule.duplicateCount()) {
-            matched.addAll(rows); reasons.add(facts.get(id).name()+"：同一通用药出现 "+rows.size()+" 次，阈值 "+rule.duplicateCount());
+            matched.addAll(rows); reasons.add(names.get(id)+"：相同标准规格出现 "+rows.size()+" 次，阈值 "+rule.duplicateCount());
         }});
         if ("CATEGORY_DUPLICATE".equals(rule.template()) && categoryRows.size() >= (rule.duplicateCount() > 0 ? rule.duplicateCount() : 2)) {
             matched.addAll(categoryRows);

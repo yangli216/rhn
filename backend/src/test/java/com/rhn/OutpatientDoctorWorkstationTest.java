@@ -128,14 +128,14 @@ class OutpatientDoctorWorkstationTest extends RhnIntegrationTestSupport {
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].substanceCode").value(medicationCode));
 
         String medicationId = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {"code":"%s","name":"测试高风险药","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"TABLET","preparationSpec":"10mg","preparationUnit":"片",
                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                  "skinTestRequired":false,"defaultDose":10,"defaultDoseUnit":"mg",
                                  "defaultRoute":"PO","defaultFrequency":"QD","chronicDiseaseDrug":false,
                                  "singleOrder":false,"sdStatus":"ACTIVE"}
-                                """.formatted(medicationCode)))
+                                """.formatted(medicationCode))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).get("id").asString();
         String prescriptionId = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

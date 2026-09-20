@@ -8820,6 +8820,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/quality/medication-rule-catalog/{key}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ruleCatalogRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/platform/master-data/clinical-semantics/standards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["standards"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ruleCatalogCreateDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ruleCatalog"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/quality/medication-rule-catalog/{key}/commands": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ruleCatalogCommand"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10220,6 +10300,7 @@ export interface components {
             chronicDiseaseDrug?: boolean;
             singleOrder?: boolean;
             sdStatus: string;
+            standardSpecificationId?: string;
         };
         MedicationClassification: {
             /** @example 824633720832983041 */
@@ -10342,8 +10423,7 @@ export interface components {
             classifications?: components["schemas"]["MedicationClassification"][];
             allergenConceptIds?: string[];
             products?: components["schemas"]["MedicationProductView"][];
-            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
-            readonly sdStorageTypeText?: string;
+            standardReference?: components["schemas"]["MedicationStandardReference"];
             /** @description 字典 BD_MASTER_STATUS 的显示文本 */
             readonly sdStatusText?: string;
             /** @description 字典 BD_MEDICATION_TYPE 的显示文本 */
@@ -10352,6 +10432,8 @@ export interface components {
             readonly sdAntimicrobialLevelText?: string;
             /** @description 字典 BD_DOSE_FORM 的显示文本 */
             readonly sdDoseFormText?: string;
+            /** @description 字典 BD_STORAGE_TYPE 的显示文本 */
+            readonly sdStorageTypeText?: string;
         };
         UpdateProductRequest: {
             expectedRevision: number;
@@ -13139,6 +13221,7 @@ export interface components {
             chronicDiseaseDrug?: boolean;
             singleOrder?: boolean;
             sdStatus: string;
+            standardSpecificationId?: string;
         };
         ProductRequest: {
             /** @example 824633720832983041 */
@@ -20382,6 +20465,298 @@ export interface components {
         };
         AnalysisPageArchive: {
             archived?: boolean;
+        };
+        AuditEvent: {
+            /** @example 824633720832983041 */
+            id?: string;
+            operation?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            time?: string;
+            reason?: string;
+        };
+        Review: {
+            versionId?: string;
+            status?: string;
+            action?: string;
+            evidence?: components["schemas"]["Evidence"][];
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            recordedAt?: string;
+            reason?: string;
+        };
+        Catalog: {
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            rules?: components["schemas"]["CatalogEntry"][];
+        };
+        RuleVersion: {
+            /** @example 824633720832983041 */
+            id?: string;
+            definition?: components["schemas"]["RuleDefinition"];
+            /** Format: int32 */
+            version?: number;
+            ruleSetVersion?: string;
+            implementationKey?: string;
+            status?: string;
+            /** @enum {string} */
+            severity?: "INFO" | "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
+            /** @enum {string} */
+            decision?: "PASS" | "WARN" | "REQUIRE_OVERRIDE" | "BLOCK" | "UNAVAILABLE";
+            /** @enum {string} */
+            overridePolicy?: "NOT_ALLOWED" | "ACKNOWLEDGE" | "REASON_REQUIRED";
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            evidence?: components["schemas"]["Evidence"][];
+        };
+        Unit: {
+            id?: string;
+            code?: string;
+            display?: string;
+            dimension?: string;
+            canonicalUnit?: string;
+            conversionFactor?: number;
+            /** Format: int32 */
+            semanticVersion?: number;
+        };
+        StandardFrequency: {
+            system?: string;
+            version?: string;
+            conceptId?: string;
+            status?: string;
+            interpretation?: components["schemas"]["Frequency"];
+        };
+        CatalogCommand: {
+            /** Format: int64 */
+            expectedRevision?: number;
+            operation?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            reason?: string;
+            action?: string;
+            evidence?: components["schemas"]["Evidence"][];
+            standardVerified?: boolean;
+            evidenceVerified?: boolean;
+            mode?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+        };
+        StandardFrequencyView: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            name?: string;
+            standard?: components["schemas"]["StandardFrequency"];
+        };
+        MedicationSnapshot: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            itemTypeId?: string;
+            code?: string;
+            name?: string;
+            aliasName?: string;
+            medicationType?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+            preparationUnit?: string;
+            strengthValue?: number;
+            strengthUnit?: string;
+            storageType?: string;
+            prescriptionDrug?: boolean;
+            essentialDrug?: boolean;
+            antimicrobial?: boolean;
+            antimicrobialLevel?: string;
+            antimicrobialOutpatientAllowed?: boolean;
+            antimicrobialConsultationRequired?: boolean;
+            antimicrobialEmergencyAllowed?: boolean;
+            /** Format: int32 */
+            antimicrobialMaxDays?: number;
+            skinTestRequired?: boolean;
+            skinTestMethod?: string;
+            skinTestSolutionMode?: string;
+            /** Format: int32 */
+            skinTestObservationMinutes?: number;
+            /** Format: int32 */
+            skinTestResultValidityHours?: number;
+            skinTestInstructions?: string;
+            defaultDose?: number;
+            defaultDoseUnit?: string;
+            defaultRoute?: string;
+            /** @example 824633720832983041 */
+            defaultFrequencyId?: string;
+            defaultFrequency?: string;
+            chronicDiseaseDrug?: boolean;
+            singleOrder?: boolean;
+            status?: string;
+        };
+        Candidate: {
+            /** @example 824633720832983041 */
+            id?: string;
+            /** @example 824633720832983041 */
+            parentId?: string;
+            /** Format: int32 */
+            version?: number;
+            requirement?: string;
+            source?: string;
+            model?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            rule?: components["schemas"]["RuleSpec"];
+            medications?: components["schemas"]["Knowledge"][];
+            status?: string;
+        };
+        Frequency: {
+            kind?: string;
+            dailyRateComputable?: boolean;
+            doses?: number;
+            perDays?: number;
+            scheduledTimes?: string[];
+            unknownReason?: string;
+        };
+        Knowledge: {
+            medication?: components["schemas"]["MedicationSnapshot"];
+            /** Format: int64 */
+            revision?: number;
+            semanticStatus?: string;
+            /** Format: date-time */
+            capturedAt?: string;
+            classifications?: components["schemas"]["MedicationClassification"][];
+            allergens?: components["schemas"]["AllergenTerm"][];
+            standardMappings?: components["schemas"]["ItemTermMappingView"][];
+            standardReference?: components["schemas"]["MedicationStandardReference"];
+        };
+        DraftCommand: {
+            /** @example 824633720832983041 */
+            parentId?: string;
+            requirement?: string;
+            source?: string;
+            rule?: components["schemas"]["RuleSpec"];
+            medicationIds?: string[];
+        };
+        CatalogVersion: {
+            id?: string;
+            /** Format: int32 */
+            version?: number;
+            name?: string;
+            reviewStatus?: string;
+            testsPassed?: boolean;
+            origin?: string;
+            candidate?: components["schemas"]["Candidate"];
+            builtin?: components["schemas"]["RuleVersion"];
+            review?: components["schemas"]["Review"];
+        };
+        RuleDefinition: {
+            /** @example 824633720832983041 */
+            id?: string;
+            code?: string;
+            category?: string;
+            title?: string;
+        };
+        MedicationStandardReference: {
+            status?: string;
+            catalogId?: string;
+            catalogVersion?: string;
+            contentHash?: string;
+            entryId?: string;
+            specificationId?: string;
+            /** Format: int32 */
+            semanticVersion?: number;
+            name?: string;
+            doseForm?: string;
+            preparationSpec?: string;
+            presentationUnit?: string;
+            strength?: components["schemas"]["JsonNode"];
+            sourceVerificationStatus?: string;
+            issues?: string[];
+        };
+        CatalogEntry: {
+            key?: string;
+            code?: string;
+            name?: string;
+            origin?: string;
+            /** Format: int64 */
+            revision?: number;
+            versions?: components["schemas"]["CatalogVersion"][];
+            deployments?: components["schemas"]["Deployment"][];
+            history?: components["schemas"]["AuditEvent"][];
+        };
+        MedicationStandardsView: {
+            version?: string;
+            doseUnits?: components["schemas"]["Unit"][];
+            routes?: components["schemas"]["RouteSnapshot"][];
+            frequencies?: components["schemas"]["StandardFrequencyView"][];
+        };
+        RuntimeRecord: {
+            /** @example 824633720832983041 */
+            id?: string;
+            ruleKey?: string;
+            versionId?: string;
+            /** @example 824633720832983041 */
+            deploymentId?: string;
+            /** @example 824633720832983041 */
+            prescriptionId?: string;
+            mode?: string;
+            decision?: string;
+            /** Format: date-time */
+            time?: string;
+            details?: string;
+        };
+        RuleSpec: {
+            template?: string;
+            name?: string;
+            explanation?: string;
+            /** Format: int32 */
+            duplicateCount?: number;
+            message?: string;
+            decision?: string;
+            ruleExpression?: string;
+            categoryName?: string;
+            /** Format: int32 */
+            minAge?: number;
+            /** Format: int32 */
+            maxAge?: number;
+        };
+        Deployment: {
+            /** @example 824633720832983041 */
+            id?: string;
+            versionId?: string;
+            /** Format: int32 */
+            version?: number;
+            mode?: string;
+            status?: string;
+            action?: string;
+            /** @example 824633720832983041 */
+            organizationId?: string;
+            /** @example 824633720832983041 */
+            departmentId?: string;
+            /** Format: date-time */
+            effectiveFrom?: string;
+            /** Format: date-time */
+            effectiveTo?: string;
+            /** @example 824633720832983041 */
+            actorId?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            reason?: string;
+            candidate?: components["schemas"]["Candidate"];
+            executable?: components["schemas"]["RuleVersion"];
         };
     };
     responses: never;
@@ -41561,6 +41936,163 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["AnalysisPageSaved"][];
+                };
+            };
+        };
+    };
+    ruleCatalogRuns: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RuntimeRecord"][];
+                };
+            };
+        };
+    };
+    standards: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["MedicationStandardsView"];
+                };
+            };
+        };
+    };
+    ruleCatalogCreateDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DraftCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Candidate"];
+                };
+            };
+        };
+    };
+    ruleCatalog: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["Catalog"];
+                };
+            };
+        };
+    };
+    ruleCatalogCommand: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description 当前县域医共体租户标识 */
+                "X-Tenant-Id": string;
+                /** @description 调用链关联号；未提供时由服务端生成 */
+                "X-Correlation-Id"?: string;
+                /** @description 当前受信工作机构；任务、通知和门户聚合接口必须提供 */
+                "X-Organization-Id"?: string;
+                /** @description 当前受信工作科室；必须属于当前机构且在用户有效授权范围内 */
+                "X-Department-Id"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CatalogCommand"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["CatalogEntry"];
                 };
             };
         };

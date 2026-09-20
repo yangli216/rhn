@@ -22,7 +22,7 @@ class MedicationCatalogIntegrityTest extends RhnIntegrationTestSupport {
     }
     private JsonNode createMedication(String code) throws Exception {
         return json(mockMvc.perform(post(BASE + "/medications").with(rhnWorkContext())
-            .contentType(MediaType.APPLICATION_JSON).content(medicationInput(code, "粒").toString()))
+            .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput(medicationInput(code, "粒").toString())))
             .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
     }
     private JsonNode product(JsonNode med, String code, String validFrom) throws Exception {
@@ -63,18 +63,20 @@ class MedicationCatalogIntegrityTest extends RhnIntegrationTestSupport {
             .param("status", "SUSPENDED")).andExpect(jsonPath("$.totalElements").value(0));
     }
     @Test
-    void minimum_unit_is_editable_until_a_product_references_it_and_stays_locked_after_suspension() throws Exception {
+    void standard_unit_is_locked_and_product_status_remains_consistent() throws Exception {
         JsonNode med = createMedication(tag);
-        var input = medicationInput(tag, "片"); input.put("expectedRevision", med.path("revision").asLong());
-        med = json(mockMvc.perform(put(BASE + "/medications/" + med.path("id").asString()).with(rhnWorkContext())
-            .contentType(MediaType.APPLICATION_JSON).content(input.toString())).andExpect(status().isOk())
-            .andReturn().getResponse().getContentAsString());
+        var input = (ObjectNode) med.deepCopy(); input.put("expectedRevision", med.path("revision").asLong());
+        input.put("preparationUnit", "片");
+        mockMvc.perform(put(BASE + "/medications/" + med.path("id").asString()).with(rhnWorkContext())
+            .contentType(MediaType.APPLICATION_JSON).content(input.toString())).andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value("MEDICATION_STANDARD_UNIT_MISMATCH"));
+        input.put("preparationUnit", "粒");
         product(med, tag + "P", "2020-01-01");
-        input.put("preparationUnit", "粒"); input.put("expectedRevision", med.path("revision").asLong());
+        input.put("preparationUnit", "片"); input.put("expectedRevision", med.path("revision").asLong());
         mockMvc.perform(put(BASE + "/medications/" + med.path("id").asString()).with(rhnWorkContext())
             .contentType(MediaType.APPLICATION_JSON).content(input.toString()))
             .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDICATION_UNIT_IN_USE"));
-        input.put("preparationUnit", "片"); input.put("sdStatus", "SUSPENDED");
+        input.put("preparationUnit", "粒"); input.put("sdStatus", "SUSPENDED");
         mockMvc.perform(put(BASE + "/medications/" + med.path("id").asString()).with(rhnWorkContext())
             .contentType(MediaType.APPLICATION_JSON).content(input.toString())).andExpect(status().isOk());
         assertThat(search(tag, true).path("totalElements").asInt()).isZero();

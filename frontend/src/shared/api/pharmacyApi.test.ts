@@ -57,4 +57,19 @@ describe('pharmacy ward supply api', () => {
       method: 'POST', body: JSON.stringify({ stockItemId: 'stock-item-1', description: '滚动供药逐行接方' }),
     })
   })
+
+  it('uses one batch trace-code lookup request for a grouped scan', async () => {
+    const request = vi.fn().mockResolvedValue({ codes: [], notFoundCodes: [] })
+    const api = createPharmacyApi({ request } as unknown as ApiClient)
+
+    await api.scanTraceCodes('site-1', ['8690020000000001002', '8690020000000001003'])
+
+    expect(request).toHaveBeenCalledWith('/api/pharmacy/dispense/trace-codes/scan', {
+      method: 'POST',
+      body: JSON.stringify({
+        stockSiteId: 'site-1',
+        traceCodes: ['8690020000000001002', '8690020000000001003'],
+      }),
+    })
+  })
 })

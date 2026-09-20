@@ -12,6 +12,7 @@ import java.util.Optional;
 
 public interface InventoryTraceCodeRepository extends JpaRepository<InventoryTraceCode, Long> {
     Optional<InventoryTraceCode> findByTenantIdAndNormalizedCode(Long tenantId, String normalizedCode);
+    List<InventoryTraceCode> findByTenantIdAndNormalizedCodeIn(Long tenantId, List<String> normalizedCodes);
     List<InventoryTraceCode> findByTenantIdAndGoodsReceiptLineIdOrderById(Long tenantId, Long goodsReceiptLineId);
     List<InventoryTraceCode> findByTenantIdAndCurrentDocumentTypeAndCurrentDocumentIdOrderById(
             Long tenantId, String currentDocumentType, Long currentDocumentId);

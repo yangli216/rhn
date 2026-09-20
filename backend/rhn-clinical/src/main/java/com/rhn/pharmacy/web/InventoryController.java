@@ -11,6 +11,7 @@ import com.rhn.pharmacy.api.PharmacyViews.StockReturnView;
 import com.rhn.pharmacy.api.PharmacyViews.StockBinView;
 import com.rhn.pharmacy.api.PharmacyViews.StockLotView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeBatchScanView;
 import com.rhn.pharmacy.application.InventoryApplicationService;
 import com.rhn.pharmacy.application.DispenseApplicationService;
 import com.rhn.pharmacy.application.InventoryTraceApplicationService;
@@ -131,6 +132,12 @@ public class InventoryController {
         return traceService.scan(stockSiteId, traceCode);
     }
 
+    @PostMapping("/dispense/trace-codes/scan")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
+    TraceCodeBatchScanView scanTraceCodes(@Valid @RequestBody BatchTraceScanRequest input) {
+        return traceService.scanBatch(input.stockSiteId(), input.traceCodes());
+    }
+
     @PostMapping("/dispense-tasks/{taskId}/reservations")
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.PHARMACY_DISPENSE)
     ReservationResultView reserve(@PathVariable Long taskId, @Valid @RequestBody ReserveRequest input) {
@@ -226,6 +233,10 @@ public class InventoryController {
                 dispenserPractitionerId, dispenserAssignmentId, checkerPractitionerId, checkerAssignmentId,
                 description, traceCodeIds == null ? List.of() : traceCodeIds); }
     }
+
+    record BatchTraceScanRequest(
+            @NotNull Long stockSiteId,
+            @NotNull @Size(min = 1, max = 200) List<@NotBlank @Size(max = 256) String> traceCodes) {}
 
     record ReturnLineRequest(
             @NotNull Long originalDispenseLineId,

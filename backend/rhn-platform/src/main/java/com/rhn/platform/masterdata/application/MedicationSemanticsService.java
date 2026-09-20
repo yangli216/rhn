@@ -23,9 +23,11 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
     private final MedicationRepository medications;
     private final ExecutionContextProvider contexts;
     private final JsonCodec json;
+    private final MedicationStandardService standards;
 
     public MedicationSemanticsService(ClinicalSemanticHistory history, MedicationRepository medications,
-                                     ExecutionContextProvider contexts, JsonCodec json) {
+                                     ExecutionContextProvider contexts, JsonCodec json, MedicationStandardService standards) {
+        this.standards = standards;
         this.history = history; this.medications = medications; this.contexts = contexts; this.json = json;
     }
 
@@ -143,6 +145,12 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
         }
         var result = new LinkedHashMap<String, Object>();
         result.put("schemaVersion", SCHEMA);
+        var reference = standards.reference(tenantId, medication.id());
+        result.put("standardReference", reference);
+        if (!reference.linked()) unknown.addAll(reference.issues());
+        var standardFrequency = ClinicalMedicationStandards.frequency(frequency);
+        result.put("standardFrequency", standardFrequency);
+        result.put("standardDose", ClinicalMedicationStandards.dose(dose, doseUnit, reference, standardFrequency));
         result.put("medicationId", medication.id()); result.put("medicationSemanticVersion", medVersion.semanticVersion());
         result.put("versionStatus", "CAPTURED"); result.put("versionRecordedAt", medVersion.recordedAt());
         result.put("source", medVersion.source());
@@ -190,6 +198,7 @@ public class MedicationSemanticsService implements MedicationSemanticDirectory {
 
     private Version medicationVersion(Long tenant, CatalogLifecycleDirectory.MedicationSnapshot medication, Composition mapping) {
         var data = json.readObject(json.write(medication));
+        data.put("standardReference", standards.reference(tenant, medication.id()));
         data.put("ingredients", mapping.components().stream().map(c -> history.latest(tenant, "INGREDIENT", c.ingredientId())
                 .map(v -> json.read(v.snapshot(), Ingredient.class)).orElseThrow()).toList());
         data.put("strengths", mapping.components().stream().map(c -> {

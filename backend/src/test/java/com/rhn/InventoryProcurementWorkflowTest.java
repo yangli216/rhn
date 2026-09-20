@@ -104,6 +104,16 @@ class InventoryProcurementWorkflowTest extends RhnIntegrationTestSupport {
                         .param("stockSiteId", fixture.siteId()).param("query", "TRACE-A"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(1))
                 .andReturn().getResponse().getContentAsString()).get(0);
+        mockMvc.perform(post("/api/pharmacy/dispense/trace-codes/scan").with(rhnWorkContext())
+                        .contentType(MediaType.APPLICATION_JSON).content("""
+                                {"stockSiteId":"%s","traceCodes":["%s","%s","NOT-FOUND-%s"]}
+                                """.formatted(fixture.siteId(), traceA.get("traceCode").asString(),
+                                "TRACE-B1-" + fixture.suffix(), fixture.suffix())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.codes.length()").value(2))
+                .andExpect(jsonPath("$.codes[0].traceCode").value(traceA.get("traceCode").asString()))
+                .andExpect(jsonPath("$.codes[1].traceCode").value("TRACE-B1-" + fixture.suffix()))
+                .andExpect(jsonPath("$.notFoundCodes[0]").value("NOT-FOUND-" + fixture.suffix()));
         JsonNode opened = json(mockMvc.perform(post("/api/pharmacy/inventory/open-packages").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
                                 {"requestCode":"OPEN-TRACE-%s","stockSiteId":"%s","stockBinId":"%s",

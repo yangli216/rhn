@@ -2,6 +2,7 @@ package com.rhn.pharmacy.application;
 
 import com.rhn.pharmacy.api.InventoryTraceViews.ReceiptTraceLineView;
 import com.rhn.pharmacy.api.InventoryTraceViews.ReceiptTraceSummaryView;
+import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeBatchScanView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceCodeView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceDetailView;
 import com.rhn.pharmacy.api.InventoryTraceViews.TraceEventView;
@@ -30,6 +31,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -131,6 +133,27 @@ public class InventoryTraceApplicationService {
                 .filter(value -> stockSiteId.equals(value.stockSiteId()))
                 .orElseThrow(() -> notFound("TRACE_CODE_NOT_FOUND", "当前药房未找到该追溯码"));
         return view(code);
+    }
+
+    @Transactional(readOnly = true)
+    public TraceCodeBatchScanView scanBatch(Long stockSiteId, List<String> traceCodes) {
+        ExecutionContext context = requireContext(); requireSite(context, stockSiteId);
+        Map<String, String> requested = new LinkedHashMap<>();
+        for (String traceCode : traceCodes) {
+            String normalized = normalize(traceCode);
+            requested.putIfAbsent(normalized, traceCode.trim());
+        }
+        List<InventoryTraceCode> found = codeRepository.findByTenantIdAndNormalizedCodeIn(
+                context.tenantId(), List.copyOf(requested.keySet()));
+        Map<String, InventoryTraceCode> foundByCode = new HashMap<>();
+        found.stream().filter(value -> stockSiteId.equals(value.stockSiteId()))
+                .forEach(value -> foundByCode.put(value.normalizedCode(), value));
+        List<TraceCodeView> codes = new ArrayList<>(); List<String> notFoundCodes = new ArrayList<>();
+        requested.forEach((normalized, original) -> {
+            InventoryTraceCode value = foundByCode.get(normalized);
+            if (value == null) notFoundCodes.add(original); else codes.add(view(value));
+        });
+        return new TraceCodeBatchScanView(codes, notFoundCodes);
     }
 
     @Transactional(readOnly = true)

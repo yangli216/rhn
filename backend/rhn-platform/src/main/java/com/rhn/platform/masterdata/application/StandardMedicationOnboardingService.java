@@ -2,7 +2,6 @@ package com.rhn.platform.masterdata.application;
 
 import com.rhn.platform.masterdata.api.MasterDataCommands.MedicationCommand;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
-import com.rhn.platform.masterdata.domain.MedicationStandardSource;
 import com.rhn.platform.masterdata.infrastructure.MedicationRepository;
 import com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -19,9 +18,11 @@ public class StandardMedicationOnboardingService {
     private final MedicationRepository medications;
     private final MasterDataApplicationService master;
     private final ExecutionContextProvider contexts;
+    private final MedicationStandardService standards;
     public StandardMedicationOnboardingService(StandardMedicationCatalogService catalog,
             MedicationStandardSourceRepository sources, MedicationRepository medications,
-            MasterDataApplicationService master, ExecutionContextProvider contexts) {
+            MasterDataApplicationService master, ExecutionContextProvider contexts, MedicationStandardService standards) {
+        this.standards = standards;
         this.catalog = catalog; this.sources = sources; this.medications = medications;
         this.master = master; this.contexts = contexts;
     }
@@ -39,7 +40,7 @@ public class StandardMedicationOnboardingService {
         // Offer legacy and manually created equivalents for explicit reuse; never infer equivalence from name alone.
         return medications.findByTenantIdOrderByName(context.tenantId()).stream()
                 .filter(m -> m.code().equals(specificationId)
-                    || (m.code().startsWith(legacyPrefix) || normalize(m.name()).equals(normalize(entry.path("name").asString())))
+                    || (m.code().equals(entry.path("legacyCode").asString()) || m.code().startsWith(legacyPrefix) || normalize(m.name()).equals(normalize(entry.path("name").asString())))
                         && Objects.equals(m.medicationType(), entry.path("medicationType").asString())
                         && Objects.equals(m.doseForm(), spec.path("doseForm").asString())
                         && normalize(m.preparationSpec()).equals(normalize(spec.path("specification").asString())))
@@ -50,8 +51,6 @@ public class StandardMedicationOnboardingService {
     public MedicationView save(String specificationId, Long medicationId, Long expectedRevision,
             MedicationCommand command, Long organizationId) {
         var context = contexts.requireCurrent();
-        var spec = catalog.specification(specificationId);
-        var summary = catalog.summary();
         var existing = candidates(specificationId, organizationId);
         if (!existing.isEmpty() && (medicationId == null || existing.stream().noneMatch(m -> m.id().equals(medicationId))))
             throw conflict("STANDARD_MEDICATION_REUSE_REQUIRED", "已有同规格药品，请选择已有档案关联，避免重复建档");
@@ -59,16 +58,13 @@ public class StandardMedicationOnboardingService {
             throw badRequest("STANDARD_MEDICATION_LINK_INVALID", "所选药品与标准规格不匹配");
         if (medicationId != null && expectedRevision == null)
             throw badRequest("MEDICATION_REVISION_REQUIRED", "请刷新药品版本后重试");
+        standards.validateSpecification(specificationId, command);
+        command = command.withStandardSpecification(specificationId);
+        if (medicationId != null) standards.link(context.tenantId(), medicationId, specificationId, context.subjectId());
         var saved = medicationId == null ? master.createMedication(command, organizationId)
                 : master.updateMedication(medicationId, expectedRevision, command, organizationId);
-        var mapped = sources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(context.tenantId(),
-                summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), specificationId);
-        if (mapped.isEmpty()) sources.saveAndFlush(new MedicationStandardSource(context.tenantId(), saved.id(),
-                summary.path("catalogId").asString(), summary.path("catalogVersion").asString(),
-                spec.path("entryId").asString(), specificationId, summary.path("contentHash").asString(), context.subjectId()));
-        else if (!mapped.get().medicationId().equals(saved.id()))
-            throw conflict("STANDARD_MEDICATION_ALREADY_LINKED", "标准规格已关联其他药品，请刷新");
-        return saved;
+        standards.link(context.tenantId(), saved.id(), specificationId, context.subjectId());
+        return master.medication(saved.id(), organizationId);
     }
 
     private static String normalize(String value) {

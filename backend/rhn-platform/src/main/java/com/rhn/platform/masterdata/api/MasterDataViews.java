@@ -66,7 +66,7 @@ public final class MasterDataViews {
             @DictionaryBinding(MasterDataDictionaryCodes.STATUS) String sdStatus,
             List<MedicationTerminologyDirectory.MedicationClassification> classifications,
             List<Long> allergenConceptIds,
-            List<MedicationProductView> products) {}
+            List<MedicationProductView> products, MedicationStandardReference standardReference) {}
 
     public record MedicationProductEntryView(MedicationProductView product, MedicationView medication) {}
 

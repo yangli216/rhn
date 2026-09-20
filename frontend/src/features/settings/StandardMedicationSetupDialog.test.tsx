@@ -43,9 +43,12 @@ describe('standard medication operational setup', () => {
   it('keeps the created medication on product failure and retries only product setup', async () => {
     const {masterData,onComplete}=setup()
     expect(await screen.findByDisplayValue(spec.id)).toHaveAttribute('readonly')
+    expect(document.querySelector('input[name="preparationSpec"]')).toHaveAttribute('readonly')
+    expect(document.querySelector('input[name="strengthValue"]')).toHaveAttribute('readonly')
+    expect(document.querySelector('input[name="strengthUnit"]')).toHaveAttribute('readonly')
     submit()
     await screen.findByText('新增药品产品')
-    expect(masterData.saveStandardMedication.mock.calls[0][1]).toMatchObject({code:spec.id,preparationUnit:'片',strengthValue:5})
+    expect(masterData.saveStandardMedication.mock.calls[0][1]).toMatchObject({standardSpecificationId:spec.id,code:spec.id,preparationUnit:'片',strengthValue:5})
     expect(masterData.saveStandardMedication.mock.calls[0][1].defaultDoseUnit).toBeUndefined()
     fill('code','PROD-TEST');fill('quantityFactor','14');fill('purchasePrice','8.4');fill('salePrice','18.6')
     submit()

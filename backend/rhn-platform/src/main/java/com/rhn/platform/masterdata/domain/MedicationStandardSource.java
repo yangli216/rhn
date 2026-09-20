@@ -26,4 +26,9 @@ public class MedicationStandardSource {
         sourceHash = hash; createdAt = Instant.now(); createdBy = actor;
     }
     public Long medicationId() { return medicationId; }
+    public String catalogCode() { return catalogCode; }
+    public String catalogVersion() { return catalogVersion; }
+    public String entryCode() { return entryCode; }
+    public String specificationCode() { return specificationCode; }
+    public String sourceHash() { return sourceHash; }
 }

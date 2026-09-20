@@ -29,7 +29,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
     void medication_product_setup_creates_common_his_profile_atomically() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {
                                   "code":"MED-SETUP-%s","name":"建档测试药品","sdMedicationType":"WESTERN",
                                   "sdDoseForm":"TABLET","preparationSpec":"10mg","preparationUnit":"片",
@@ -37,7 +37,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "skinTestRequired":false,"chronicDiseaseDrug":false,"singleOrder":false,
                                   "sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""
@@ -343,9 +343,9 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         try (var workbook = new org.apache.poi.xssf.usermodel.XSSFWorkbook();
              var output = new ByteArrayOutputStream()) {
             var sheet = workbook.createSheet("药品知识");
-            String[] headers = { "编码", "名称", "药品类型", "处方药", "基本药物", "抗菌药",
+            String[] headers = { "标准规格编码", "剂型", "制剂规格", "制剂单位", "编码", "名称", "药品类型", "处方药", "基本药物", "抗菌药",
                     "需要皮试", "慢病用药", "允许单开", "状态" };
-            String[] values = { code, "批量导入测试药品", "WESTERN", "是", "否", "否",
+            String[] values = { "STD-9405B86DD5B404C44E1B92B5", "CAPSULE", "0.25g", "粒", code, "批量导入测试药品", "WESTERN", "是", "否", "否",
                     "否", "否", "是", "ACTIVE" };
             var header = sheet.createRow(0);
             var row = sheet.createRow(1);
@@ -520,7 +520,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+                        .content(standardMedicationInput("""
                                 {
                                   "code":"MED-ATTR-%s","name":"扩展属性测试药品","aliasName":null,
                                   "sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
@@ -532,7 +532,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String medicationId = medication.get("id").asString();
 
@@ -864,7 +864,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post("/api/platform/master-data/medications")
                         .with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+                        .content(standardMedicationInput("""
                                 {
                                   "code":"MED-NEW-%s",
                                   "name":"头孢呋辛酯片",
@@ -889,7 +889,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "singleOrder":false,
                                   "sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.itemTypeId").value("362387869797012"))
                 .andExpect(jsonPath("$.sdStorageTypeText").value("常温"))
@@ -978,10 +978,10 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
 
         JsonNode herbal = json(mockMvc.perform(post("/api/platform/master-data/medications")
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
-                        .content("""
+                        .content(standardMedicationInput("""
                                 {
                                   "code":"HERBAL-VALID-%s","name":"类型锁定草药","aliasName":null,
-                                  "sdMedicationType":"HERBAL","sdDoseForm":"GRANULE",
+                                  "sdMedicationType":"WESTERN","sdDoseForm":"GRANULE",
                                   "preparationSpec":"切片","preparationUnit":"g",
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
@@ -990,9 +990,9 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,
                                   "sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.itemTypeId").value("362387869797014"))
+                .andExpect(jsonPath("$.itemTypeId").value("362387869797012"))
                 .andReturn().getResponse().getContentAsString());
 
         mockMvc.perform(put("/api/platform/master-data/medications/{id}", herbal.get("id").asString())
@@ -1001,7 +1001,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                 {
                                   "expectedRevision":0,
                                   "code":"HERBAL-VALID-%s","name":"类型锁定草药","aliasName":null,
-                                  "sdMedicationType":"WESTERN","sdDoseForm":"GRANULE",
+                                  "sdMedicationType":"CHINESE_PATENT","sdDoseForm":"GRANULE",
                                   "preparationSpec":"切片","preparationUnit":"g",
                                   "strengthValue":null,"strengthUnit":null,"sdStorageType":"ROOM_TEMPERATURE",
                                   "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
@@ -1094,7 +1094,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
         String assignmentId = assignment.get("id").asString();
 
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications")
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {
                                   "code":"MED-CFG-%s","name":"租户属性测试药品","aliasName":null,
                                   "sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
@@ -1105,7 +1105,7 @@ class BasicDataCenterFoundationTest extends RhnIntegrationTestSupport {
                                   "defaultDoseUnit":"g","defaultRoute":"PO","defaultFrequency":"QD",
                                   "chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String medicationId = medication.get("id").asString();
 

@@ -226,7 +226,7 @@ class PrescriptionService {
                 "medicationCount", drafts.size(),
                 "safetyEvaluationId", safetyEvaluation.evaluationId() == null ? "" : safetyEvaluation.evaluationId(),
                 "safetyDecision", safetyEvaluation.decision().name(),
-                "safetyMode", safetyEvaluation.mode()));
+                "safetyMode", safetyEvaluation.mode(), "safetyHandlingReason", clean(action.reason()) == null ? "" : clean(action.reason())));
         return response(value, safetyEvaluation);
     }
 
@@ -279,6 +279,9 @@ class PrescriptionService {
 
     private void enforceMedicationSafetyGate(MedicationSafetyDecision evaluation, PrescriptionAction action) {
         if ("SHADOW".equalsIgnoreCase(evaluation.mode())) return;
+        if (evaluation.decision() == MedicationSafetyDecision.Status.UNAVAILABLE || evaluation.evaluationId() == null) {
+            throw conflict("MEDICATION_SAFETY_UNAVAILABLE", "正式合理用药规则暂无法完成评价，请核对缺失资料或联系规则管理员后重试");
+        }
         if (evaluation.decision() == MedicationSafetyDecision.Status.BLOCK) {
             throw conflict("MEDICATION_SAFETY_BLOCKED", "合理用药审查未通过，当前处方不能提交");
         }

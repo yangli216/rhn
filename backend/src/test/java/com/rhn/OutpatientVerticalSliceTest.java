@@ -35,7 +35,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String identitySuffix = "%04d".formatted(Math.floorMod((suffix + "RX").hashCode(), 10000));
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {
                                   "code":"MED-GENERIC-%s","name":"通用名处方测试药品","aliasName":"通用处方药",
                                   "sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
@@ -46,7 +46,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                   "defaultRoute":"PO","defaultFrequency":"QD","chronicDiseaseDrug":false,
                                   "singleOrder":false,"sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         String residentId = createResidentForOrdering("33010219920404" + identitySuffix);
         String encounterId = createActiveEncounter(residentId);
@@ -127,7 +127,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         String identitySuffix = "%04d".formatted(Math.floorMod((suffix + "MED").hashCode(), 10000));
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {
                                   "code":"MED-ORDER-%s","name":"处方快照药品","aliasName":"快照药",
                                   "sdMedicationType":"WESTERN","sdDoseForm":"TABLET",
@@ -139,7 +139,7 @@ class OutpatientVerticalSliceTest extends RhnIntegrationTestSupport {
                                   "defaultFrequency":"BID","chronicDiseaseDrug":false,"singleOrder":false,
                                   "sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode manufacturer = json(mockMvc.perform(post("/api/platform/master-data/manufacturers").with(rhnWorkContext())
                         .contentType(MediaType.APPLICATION_JSON).content("""

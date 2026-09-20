@@ -1,6 +1,7 @@
 package com.rhn.pharmacy.application;
 
 import com.rhn.healthcore.api.EncounterCareSettingDirectory;
+import com.rhn.healthcore.api.ResidentDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory;
 import com.rhn.outpatient.api.MedicationRequestDirectory.MedicationRequestSnapshot;
 import com.rhn.outpatient.api.EncounterDirectory;
@@ -16,12 +17,14 @@ import com.rhn.pharmacy.api.PharmacyViews.StockSiteView;
 import com.rhn.pharmacy.api.InpatientMedicationStopDirectory;
 import com.rhn.pharmacy.domain.DispenseTask;
 import com.rhn.pharmacy.domain.DispenseTaskLine;
+import com.rhn.pharmacy.domain.MedicationDispense;
 import com.rhn.pharmacy.domain.PharmacyReview;
 import com.rhn.pharmacy.domain.PharmacyFulfillmentAuthorization;
 import com.rhn.pharmacy.domain.StockItem;
 import com.rhn.pharmacy.domain.StockSite;
 import com.rhn.pharmacy.infrastructure.DispenseTaskLineRepository;
 import com.rhn.pharmacy.infrastructure.DispenseTaskRepository;
+import com.rhn.pharmacy.infrastructure.MedicationDispenseRepository;
 import com.rhn.pharmacy.infrastructure.PharmacyReviewRepository;
 import com.rhn.pharmacy.infrastructure.PharmacyFulfillmentAuthorizationRepository;
 import com.rhn.pharmacy.infrastructure.StockItemRepository;
@@ -69,8 +72,10 @@ public class PharmacyApplicationService {
     private final PharmacyReviewRepository reviewRepository;
     private final PharmacyFulfillmentAuthorizationRepository fulfillmentAuthorizations;
     private final EncounterCareSettingDirectory encounterCareSettings;
+    private final ResidentDirectory residentDirectory;
     private final EncounterDirectory encounterDirectory;
     private final MedicationRequestDirectory requestDirectory;
+    private final MedicationDispenseRepository dispenseRepository;
     private final CatalogLifecycleDirectory catalogDirectory;
     private final OrganizationDirectory organizationDirectory;
     private final DomainEventPublisher eventPublisher;
@@ -87,8 +92,10 @@ public class PharmacyApplicationService {
                                       PharmacyReviewRepository reviewRepository,
                                       PharmacyFulfillmentAuthorizationRepository fulfillmentAuthorizations,
                                       EncounterCareSettingDirectory encounterCareSettings,
+                                      ResidentDirectory residentDirectory,
                                       EncounterDirectory encounterDirectory,
                                       MedicationRequestDirectory requestDirectory,
+                                      MedicationDispenseRepository dispenseRepository,
                                       CatalogLifecycleDirectory catalogDirectory,
                                       OrganizationDirectory organizationDirectory,
                                       DomainEventPublisher eventPublisher,
@@ -102,8 +109,10 @@ public class PharmacyApplicationService {
         this.taskRepository = taskRepository; this.lineRepository = lineRepository;
         this.reviewRepository = reviewRepository; this.fulfillmentAuthorizations = fulfillmentAuthorizations;
         this.encounterCareSettings = encounterCareSettings;
+        this.residentDirectory = residentDirectory;
         this.encounterDirectory = encounterDirectory;
         this.requestDirectory = requestDirectory;
+        this.dispenseRepository = dispenseRepository;
         this.catalogDirectory = catalogDirectory; this.organizationDirectory = organizationDirectory;
         this.eventPublisher = eventPublisher; this.contextProvider = contextProvider; this.jsonCodec = jsonCodec;
         this.routing = routing;
@@ -228,6 +237,7 @@ public class PharmacyApplicationService {
         Map<Long, PharmacyInboxItem> result = new LinkedHashMap<>();
         List<MedicationRequestSnapshot> activeRequests = requestDirectory.activeForPharmacy(organizationId);
         for (MedicationRequestSnapshot request : activeRequests) {
+            var resident = residentDirectory.requireSnapshot(context.tenantId(), request.residentId());
             DispenseTaskLine line = lineRepository
                     .findByTenantIdAndFulfillmentSourceTypeAndFulfillmentSourceId(
                             context.tenantId(), "MEDICATION_REQUEST", request.id())
@@ -236,6 +246,8 @@ public class PharmacyApplicationService {
                 if (visibleInInbox(context, request, currentSite.id())) {
                     result.put(request.id(), new PharmacyInboxItem(
                             request, null, null, null, null, null, null, null,
+                            resident.fullName(), resident.healthRecordNo(), resident.phone(),
+                            null, null, null, null, null, null,
                             clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
                 }
                 continue;
@@ -245,9 +257,14 @@ public class PharmacyApplicationService {
             if (!currentSite.id().equals(task.stockSiteId())) continue;
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
+            MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
             result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(), null,
                     line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
+                    resident.fullName(), resident.healthRecordNo(), resident.phone(),
+                    latestDispense == null ? null : latestDispense.occurredAt(),
+                    latestDispense == null ? null : latestDispense.dispenserPractitionerId(),
+                    line.plannedQuantity(), line.dispensedQuantity(), line.returnedQuantity(), line.dispenseUnitCode(),
                     clinicalContext(context.tenantId(), request), prescriptionRequests(activeRequests, request)));
         }
         for (DispenseTask task : taskRepository.findByTenantIdAndStockSiteIdOrderByCreatedAtDesc(
@@ -257,14 +274,27 @@ public class PharmacyApplicationService {
             var closure = medicationStops.closure(context.tenantId(), line.requestId());
             if (!closure.returnRequired()) continue;
             MedicationRequestSnapshot request = requestDirectory.requireForPharmacy(line.requestId());
+            var resident = residentDirectory.requireSnapshot(context.tenantId(), request.residentId());
             List<PharmacyReview> reviews = reviewRepository.findByTenantIdAndTaskIdOrderByReviewedAt(
                     context.tenantId(), task.id());
+            MedicationDispense latestDispense = latestDispense(context.tenantId(), task.id());
             result.put(request.id(), new PharmacyInboxItem(request, task.id(), task.taskNo(), task.status(),
                     closure.status(), line.stockItemId(), line.productNameSnapshot(),
                     reviews.isEmpty() ? null : reviews.get(reviews.size() - 1).result(),
+                    resident.fullName(), resident.healthRecordNo(), resident.phone(),
+                    latestDispense == null ? null : latestDispense.occurredAt(),
+                    latestDispense == null ? null : latestDispense.dispenserPractitionerId(),
+                    line.plannedQuantity(), line.dispensedQuantity(), line.returnedQuantity(), line.dispenseUnitCode(),
                     clinicalContext(context.tenantId(), request), List.of(request)));
         }
         return new ArrayList<>(result.values());
+    }
+
+    private MedicationDispense latestDispense(Long tenantId, Long taskId) {
+        return dispenseRepository.findByTenantIdAndTaskIdOrderByOccurredAtAscIdAsc(tenantId, taskId).stream()
+                .filter(value -> "DISPENSE".equals(value.dispenseType()) || "REDISPENSE".equals(value.dispenseType()))
+                .reduce((left, right) -> right)
+                .orElse(null);
     }
 
     private PharmacyClinicalContextView clinicalContext(Long tenantId, MedicationRequestSnapshot request) {

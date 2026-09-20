@@ -24,6 +24,7 @@ import {
   Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
 import { MedicationCompositionDialog } from './MedicationCompositionDialog'
+import { ClinicalMedicationStandardsPanel } from './ClinicalMedicationStandardsPanel'
 import { StandardMedicationCatalogPanel } from './StandardMedicationCatalogPanel'
 import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
 import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
@@ -51,7 +52,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const [tab, setTab] = useState<Tab>('disease')
   const [diseaseMode, setDiseaseMode] = useState<DiseaseMode>('terms')
   const [serviceDensity, setServiceDensity] = useState<'two-line' | 'single-line'>('two-line')
-  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product' | 'standard'>('knowledge')
+  const [medicationMode, setMedicationMode] = useState<'knowledge' | 'product' | 'standard' | 'semantics'>('knowledge')
   const [query, setQuery] = useState('')
   const [typeFilter, setTypeFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
@@ -138,7 +139,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
   const pagination = <Pagination page={safePage} totalPages={totalPages} total={count} pageSize={pageSize}
     onPageSizeChange={setPageSize} onChange={setPage} label={`${tabLabel(tab)}列表分页`} />
   useEffect(() => { if (pageDataReady && page !== safePage) setPage(safePage) }, [page, pageDataReady, safePage])
-  const pageActions = tab === 'attribute' || tab === 'operations' || (tab === 'medication' && medicationMode === 'standard') ? undefined : <>
+  const pageActions = tab === 'attribute' || tab === 'operations' || (tab === 'medication' && ['standard', 'semantics'].includes(medicationMode)) ? undefined : <>
     {tab !== 'disease' && <>
       <Button variant="secondary" onClick={() => setDialog(
         <MasterDataImportDialog api={api} importType={tab === 'service' ? 'SERVICE' : 'MEDICATION'}
@@ -156,11 +157,8 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
       if (tab === 'service') setDialog(<ServiceDialog dictionaries={dictionaries.data!}
         onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createService(input, organization.id)
           .then(() => invalidate('诊疗项目已创建')).catch(fail)} />)
-      if (tab === 'medication') setDialog(<MedicationDialog dictionaries={dictionaries.data!} frequencies={frequencies.data ?? []}
-        routes={routes.data ?? []}
-        onClose={() => setDialog(undefined)} onSave={(input) => api.masterData.createMedication(input, organization.id)
-          .then(() => invalidate('通用药品知识已创建')).catch(fail)} />)
-    }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : `新增${tabLabel(tab)}`}</Button>
+      if (tab === 'medication') setMedicationMode('standard')
+    }}><Icon name="add" />{tab === 'disease' && diseaseMode === 'management' ? '新增管理项目' : tab === 'medication' ? '从标准目录建档' : `新增${tabLabel(tab)}`}</Button>
   </>
 
   return <div className="master-data-page">
@@ -190,11 +188,12 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         ]} />}
       {tab === 'medication' && <Tabs value={medicationMode} onChange={setMedicationMode} label="药品目录视图"
         variant="line" className="medication-management-mode" items={[
+          { value: 'semantics', label: '用药标准', meta: '频次 · 给药途径 · 剂量单位' },
           { value: 'standard', label: '标准参考目录', meta: '来源追溯 · 独立规格 · 核验清单' },
           { value: 'knowledge', label: '基本信息视角', meta: '通用知识 · 剂型规格 · 默认用法' },
           { value: 'product', label: '产品信息视角', meta: '厂家产品 · 包装规格 · 批准文号' },
         ]} />}
-      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && medicationMode === 'standard') && <div className="master-data-toolbar">
+      {tab !== 'attribute' && tab !== 'operations' && !(tab === 'medication' && ['standard', 'semantics'].includes(medicationMode)) && <div className="master-data-toolbar">
         <SearchField className="master-data-toolbar__search" label="搜索基础数据" value={query} onChange={setQuery}
           placeholder={tab === 'disease' && diseaseMode === 'management' ? '管理项目名称、编码或说明'
             : tab === 'disease' ? '名称、别名、编码或检索码'
@@ -261,6 +260,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
           targetId={value.id} itemName={value.name} systemType="SERVICE"
           onClose={() => setDialog(undefined)} />)} />}
+      {tab === 'medication' && medicationMode === 'semantics' && <ClinicalMedicationStandardsPanel api={api} organizationId={organization.id} />}
       {tab === 'medication' && medicationMode === 'standard' && <StandardMedicationCatalogPanel api={api}
         setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
         onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
@@ -271,7 +271,7 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
             setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
             await invalidate('药品来源、厂家产品、包装和本院价格已建档，请到药库调入经营目录')
           }} />)} />}
-      {tab === 'medication' && medicationMode !== 'standard' && <MedicationTable values={medications.data?.content}
+      {tab === 'medication' && (medicationMode === 'knowledge' || medicationMode === 'product') && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
         mode={medicationMode} onModeChange={setMedicationMode}
         routes={routes.data ?? []} frequencies={frequencies.data ?? []}
@@ -286,10 +286,15 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="MEDICATION"
           targetId={value.id} itemName={value.name} systemType="MEDICATION"
           onClose={() => setDialog(undefined)} />)}
-        onProduct={(value) => setDialog(<ProductDialog medication={value} manufacturers={manufacturers.data ?? []}
+        onProduct={(value) => {
+          if (value.standardReference?.status !== 'LINKED') {
+            setFeedback(`请先在标准参考目录中为「${value.name}」关联标准规格，再建立产品。`)
+            setMedicationMode('standard'); return
+          }
+          setDialog(<ProductDialog medication={value} manufacturers={manufacturers.data ?? []}
           organization={organization} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.createProductSetup(input)
-            .then(() => invalidate('药品产品、包装和机构价格已创建')).catch(fail)} />)}
+            .then(() => invalidate('药品产品、包装和机构价格已创建')).catch(fail)} />) }}
         onEditProduct={(product, medication) => setDialog(<ProductEditDialog product={product} medication={medication}
           manufacturers={manufacturers.data ?? []} dictionaries={dictionaries.data!} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updateProduct(product.id, product.revision, input, organization.id)
@@ -730,6 +735,7 @@ export function MedicationKnowledgeTable({
 
         <td className="medication-col-status">
           <DataStatus value={value.sdStatus} text={value.sdStatusText} />
+          <small>{{ LINKED: '已关联标准规格', UNMAPPED: '待关联标准规格', AMBIGUOUS: '标准关联冲突', STALE: '标准版本待核对', MISMATCH: '标准规格不一致' }[value.standardReference?.status ?? 'UNMAPPED']}</small>
         </td>
 
         <td className="medication-col-actions">
@@ -2480,7 +2486,7 @@ export function standardMedicationDraft(entry: StandardMedicationDetail, spec: S
   const amount = spec.strength.kind === 'AMOUNT_PER_PRESENTATION' && spec.strength.computable
     && spec.presentationUnit ? spec.strength.numerator : null
   return {
-    code: spec.id, name: entry.name + (spec.substanceQualifier ? `（${spec.substanceQualifier}）` : ''),
+    standardSpecificationId: spec.id, code: spec.id, name: entry.name + (spec.substanceQualifier ? `（${spec.substanceQualifier}）` : ''),
     aliasName: entry.innName || undefined, sdMedicationType: entry.medicationType,
     sdDoseForm: spec.doseForm, preparationSpec: spec.specification,
     preparationUnit: spec.presentationUnit || undefined,
@@ -2528,6 +2534,8 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
   frequencies: ActiveOrderFrequency[]; routes: MedicationRoute[]; value?: MedicationKnowledge; initialValue?: Partial<MedicationInput>;
   onClose: () => void; onSave: (input: MedicationInput) => void | Promise<unknown> }) {
   const initial = value ?? initialValue
+  const standardId = initialValue?.standardSpecificationId ?? value?.standardReference?.specificationId
+  const standardLocked = Boolean(standardId)
   const [medicationType, setMedicationType] = useState(initial?.sdMedicationType ?? 'WESTERN')
   const [antimicrobial, setAntimicrobial] = useState(initial?.antimicrobial ?? false)
   const [antimicrobialLevel, setAntimicrobialLevel] = useState(initial?.sdAntimicrobialLevel ?? 'NON_RESTRICTED')
@@ -2612,8 +2620,8 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
   return <DataFormDialog title={value ? '编辑通用药品知识' : initialValue ? '建立本院药品 · 1/2 药品属性' : '新增通用药品知识'} eyebrow="药品知识层" onClose={onClose}
     size="xwide" className="medication-knowledge-dialog"
     description="通用药品知识不包含厂家和价格信息，产品、包装与机构目录在后续层级维护。"
-    onSubmit={(form) => onSave({ code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
-      sdMedicationType: medicationType, sdDoseForm: optionalText(form, 'sdDoseForm'),
+    onSubmit={(form) => onSave({ standardSpecificationId: standardId, code: (initial?.code || text(form, 'code')).trim(), name: text(form, 'name'), aliasName: optionalText(form, 'aliasName'),
+      sdMedicationType: medicationType, sdDoseForm: standardLocked ? initialValue?.sdDoseForm ?? initial?.sdDoseForm : optionalText(form, 'sdDoseForm'),
       preparationSpec: optionalText(form, 'preparationSpec') || preparationSpec || undefined,
       preparationUnit: optionalText(form, 'preparationUnit') || preparationUnit || undefined,
       strengthValue: herbal ? undefined : (optionalNumber(form, 'strengthValue') ?? (strengthValue ? Number(strengthValue) : undefined)),
@@ -2642,6 +2650,7 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
       chronicDiseaseDrug: (western || chinesePatent) && checked(form, 'chronicDiseaseDrug'),
       singleOrder: checked(form, 'singleOrder'),
       sdStatus: initial?.sdStatus ?? 'ACTIVE' })}>
+    {standardLocked && <Alert tone="info">已关联标准规格 {standardId}，剂型、规格及已定义含量沿用标准目录。默认用量仅用于录入，不代表安全上限。</Alert>}
     <FormSection title="药品身份" description="药品类型决定可维护的业务属性，创建后不可直接修改；类型调整需新建主档并处理替代关系。">
       <FormGrid columns={4}>
         <FormField label="通用药品编码" required><input name="code" defaultValue={initial?.code} disabled={Boolean(value)} readOnly={Boolean(initialValue)}
@@ -2654,16 +2663,16 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
           <StaticSelectControl name="sdMedicationType" value={medicationType}
             onChange={(next) => { setMedicationType(next); if (next !== 'WESTERN') setAntimicrobial(false) }}
             options={dictionaries.BD_MEDICATION_TYPE.map((item) => ({ value: item.code, label: item.name }))}
-            placeholder="请选择药品类型" disabled={Boolean(value)} required />
+            placeholder="请选择药品类型" disabled={Boolean(value) || standardLocked} required />
         </FormField>
         <SelectField name="sdDoseForm" label={doseFormLabel} values={dictionaries.BD_DOSE_FORM}
-          defaultValue={initial?.sdDoseForm ?? (initialValue ? '' : 'TABLET')} />
+          defaultValue={initialValue?.sdDoseForm ?? initial?.sdDoseForm ?? 'TABLET'} disabled={standardLocked} />
         <FormField className="medication-knowledge-dialog__spec" label={specificationLabel} hint="单方制剂推荐按「含量+单位/制剂单位」自动生成；复合制剂可手动录入（如 400mg:57mg/片、5mg/2.5ml 或 复方）。">
           <div className="master-data-spec-field">
-            <input name="preparationSpec" value={preparationSpec}
+            <input name="preparationSpec" value={preparationSpec} readOnly={standardLocked}
               onChange={(e) => { setPreparationSpec(e.target.value); setSpecTouched(true) }}
               placeholder={herbal ? '如 净制、切片' : vaccine ? '如 0.5ml/支' : '如 500mg/片 或 400mg:57mg/片'} />
-            {!herbal && (strengthValue || strengthUnit) && (
+            {!standardLocked && !herbal && (strengthValue || strengthUnit) && (
               <Tooltip content="根据当前含量、含量单位与制剂单位重新生成规格">
                 <Button variant="secondary" className="master-data-spec-gen-btn"
                   aria-label="根据当前含量重新生成制剂规格"
@@ -2683,13 +2692,13 @@ export function MedicationDialog({ dictionaries, frequencies, routes, value, ini
     <FormSection title={`${typeName}属性`} description={typeDescription}>
       <FormGrid columns={4}>
         <FormField label={unitLabel} required={Boolean(initialValue)} hint={value?.products?.length ? '已被厂家产品使用，最小单位禁止修改。' : undefined}><input name="preparationUnit" value={preparationUnit} required={Boolean(initialValue)}
-          readOnly={Boolean(value?.products?.length)} aria-readonly={Boolean(value?.products?.length)}
+          readOnly={Boolean(value?.products?.length) || standardLocked && Boolean(initialValue?.preparationUnit ?? value?.standardReference?.presentationUnit)}
           onChange={(e) => handlePreparationUnitChange(e.target.value)}
           placeholder={herbal ? 'g、袋' : vaccine ? '支、剂' : '片、粒、支'} /></FormField>
         {!herbal && <><FormField label={vaccine ? '每剂含量' : '结构化含量'}><input name="strengthValue" type="number" min="0" step="any"
-          value={strengthValue} onChange={(e) => handleStrengthValueChange(e.target.value)}
+          value={strengthValue} readOnly={standardLocked && Boolean(initialValue?.strengthValue ?? value?.strengthValue)} onChange={(e) => handleStrengthValueChange(e.target.value)}
           placeholder={vaccine ? '如 0.5' : '如 500'} /></FormField>
-        <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" value={strengthUnit}
+        <FormField label={vaccine ? '每剂含量单位' : '含量单位'}><input name="strengthUnit" value={strengthUnit} readOnly={standardLocked && Boolean(initialValue?.strengthUnit ?? value?.strengthUnit)}
           onChange={(e) => handleStrengthUnitChange(e.target.value)}
           placeholder={vaccine ? 'ml、IU' : 'mg、g、IU'} /></FormField></>}
         <FormField label="默认给药途径"><Select name="defaultRoute" value={defaultRoute}

@@ -87,29 +87,41 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
     }
 
     @Test
+    void common_frequency_code_cannot_conflict_with_its_structured_meaning() throws Exception {
+        mockMvc.perform(post("/api/platform/master-data/order-frequencies").with(rhnWorkContext())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                {"code":"Q24H","name":"错误的每十二小时","ruleType":"FIXED_INTERVAL","frequencyCount":1,
+                 "periodValue":12,"periodUnit":"H","anchorType":"ORDER_START","outpatientApplicable":true,
+                 "inpatientApplicable":true,"emergencyApplicable":true,"medicationApplicable":true,"treatmentApplicable":false,
+                 "nursingApplicable":false,"automaticTaskGeneration":true,"sortOrder":1,"status":"ACTIVE","validFrom":"2026-01-01"}
+                """))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("ORDER_FREQUENCY_STANDARD_CONFLICT"));
+    }
+
+    @Test
     void medication_default_frequency_is_a_validated_master_data_reference() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                         {"code":"MED-FREQ-%s","name":"频次引用测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                          "skinTestRequired":false,"defaultDose":1,"defaultDoseUnit":"片","defaultRoute":"PO",
                          "defaultFrequency":"BID","chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
-                        """.formatted(suffix)))
+                        """.formatted(suffix))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.defaultRoute").value("ORAL"))
                 .andExpect(jsonPath("$.defaultFrequency").value("BID"))
                 .andExpect(jsonPath("$.defaultFrequencyId").isNotEmpty());
 
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                         {"code":"MED-BADFREQ-%s","name":"非法频次测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                          "skinTestRequired":false,"defaultFrequency":"UNKNOWN_FREQ",
                          "chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
-                        """.formatted(suffix)))
+                        """.formatted(suffix))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("ORDER_FREQUENCY_INVALID"));
     }
@@ -124,24 +136,24 @@ class OrderFrequencyManagementTest extends RhnIntegrationTestSupport {
 
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                         {"code":"MED-ROUTE-%s","name":"途径引用测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"INJECTION","preparationSpec":"1ml","preparationUnit":"支",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                          "skinTestRequired":false,"defaultDose":1,"defaultDoseUnit":"ml","defaultRoute":"静滴",
                          "defaultFrequency":"QD","chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
-                        """.formatted(suffix)))
+                        """.formatted(suffix))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.defaultRoute").value("IVGTT"));
 
         mockMvc.perform(post("/api/platform/master-data/medications").param("organizationId", ORGANIZATION)
-                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
+                        .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                         {"code":"MED-BADROUTE-%s","name":"非法途径测试药品","sdMedicationType":"WESTERN",
                          "sdDoseForm":"TABLET","preparationSpec":"1g","preparationUnit":"片",
                          "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                          "skinTestRequired":false,"defaultRoute":"随便写",
                          "chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"}
-                        """.formatted(suffix)))
+                        """.formatted(suffix))))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("MEDICATION_ROUTE_INVALID"));
     }

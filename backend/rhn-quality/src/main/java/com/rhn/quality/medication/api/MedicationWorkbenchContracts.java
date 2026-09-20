@@ -14,12 +14,11 @@ public final class MedicationWorkbenchContracts {
             this(template, name, explanation, duplicateCount, message, decision, null, null, null, null);
         }
         public String effectiveExpression() {
-            if (ruleExpression != null && !ruleExpression.isBlank()) return ruleExpression;
             return switch (template != null ? template : "") {
-                case "AGE_CONTRAINDICATION" -> "IF Patient.Age < " + (minAge != null ? minAge : 18) + (categoryName != null ? " AND Medication.Category == '" + categoryName + "'" : "") + " THEN " + decision;
-                case "CATEGORY_DUPLICATE" -> "IF Prescription.Count(Medication.Category == '" + (categoryName != null ? categoryName : "同类药品") + "') >= " + duplicateCount + " THEN " + decision;
+                case "AGE_CONTRAINDICATION" -> "IF Patient.Age < " + (minAge != null ? minAge : 18) + " AND Medication IN SelectedStandardSpecifications" + " THEN " + decision;
+                case "CATEGORY_DUPLICATE" -> "IF Prescription.Count(SelectedStandardSpecifications) >= " + duplicateCount + " THEN " + decision;
                 case "ANTIMICROBIAL_MAX_DAYS" -> "IF Medication.IsAntimicrobial == true AND Prescription.DurationDays > AntimicrobialMaxDays THEN " + decision;
-                default -> "IF Prescription.Count(Medication.Id) >= " + duplicateCount + " THEN " + decision;
+                default -> "IF Prescription.Count(StandardSpecification) >= " + duplicateCount + " THEN " + decision;
             };
         }
     }

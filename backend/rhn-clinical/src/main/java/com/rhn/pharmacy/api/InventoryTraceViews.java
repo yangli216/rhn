@@ -14,6 +14,13 @@ public final class InventoryTraceViews {
                                 String currentDocumentType, Long currentDocumentId, String currentDocumentNo,
                                 Instant receivedAt, Instant issuedAt, Instant updatedAt) {}
 
+    public record TraceCodeBatchScanView(List<TraceCodeView> codes, List<String> notFoundCodes) {
+        public TraceCodeBatchScanView {
+            codes = List.copyOf(codes);
+            notFoundCodes = List.copyOf(notFoundCodes);
+        }
+    }
+
     public record TraceEventView(Long id, String eventType, String fromStatus, String toStatus,
                                  Long fromSiteId, Long toSiteId, Long fromBinId, Long toBinId,
                                  String documentType, Long documentId, String documentNo,

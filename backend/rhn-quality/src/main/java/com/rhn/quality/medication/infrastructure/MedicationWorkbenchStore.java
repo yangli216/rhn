@@ -15,6 +15,25 @@ public class MedicationWorkbenchStore {
         jdbc.update("insert into RHN_AUD_MED_CAND (ID_CAND, ID_TNT, ID_USER_ACTOR, JSON_CONTENT) values (?, ?, ?, ?)",
                 candidate.id(), tenant, actor, json.write(candidate));
     }
+    public List<Candidate> all(Long tenant) {
+        return jdbc.query("select JSON_CONTENT from RHN_AUD_MED_CAND where ID_TNT=? order by ID_CAND desc",
+                (rs,n)->json.read(rs.getString(1),Candidate.class),tenant);
+    }
+    @org.springframework.transaction.annotation.Transactional
+    public Candidate appendVersion(Long tenant, Long actor, Candidate value) {
+        int version=1;
+        if(value.parentId()!=null) {
+            var root=require(tenant,value.parentId());
+            while(root.parentId()!=null) root=require(tenant,root.parentId());
+            jdbc.queryForObject("select ID_CAND from RHN_AUD_MED_CAND where ID_TNT=? and ID_CAND=? for update",Long.class,tenant,root.id());
+            var members=new java.util.HashSet<Long>();members.add(root.id());var all=all(tenant);
+            boolean changed=true;
+            while(changed) { changed=false; for(var c:all) if(c.parentId()!=null && members.contains(c.parentId())) changed|=members.add(c.id()); }
+            version=all.stream().filter(c->members.contains(c.id())).mapToInt(Candidate::version).max().orElse(0)+1;
+        }
+        var saved=new Candidate(value.id(),value.parentId(),version,value.requirement(),value.source(),value.model(),value.createdAt(),value.rule(),value.medications(),value.status());
+        append(tenant,actor,saved);return saved;
+    }
     public void update(Long tenant, Candidate candidate) {
         jdbc.update("update RHN_AUD_MED_CAND set JSON_CONTENT = ? where ID_TNT = ? and ID_CAND = ?",
                 json.write(candidate), tenant, candidate.id());

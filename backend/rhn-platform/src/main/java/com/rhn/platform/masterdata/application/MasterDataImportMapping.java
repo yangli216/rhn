@@ -33,6 +33,7 @@ class MasterDataImportMapping {
             field("mutualRecognitionCode", "互认编码"), field("pregnancyAlert", "孕期提醒"),
             field("attention", "注意事项"), field("examinationNotes", "检查说明"));
     private static final List<Field> MEDICATION_FIELDS = List.of(
+            field("standardSpecificationId", "标准规格编码"),
             field("code", "编码"), field("name", "名称"), field("aliasName", "别名"),
             field("sdMedicationType", "药品类型"), field("sdDoseForm", "剂型"),
             field("preparationSpec", "制剂规格"), field("preparationUnit", "制剂单位"),
@@ -96,7 +97,7 @@ class MasterDataImportMapping {
                 integer(value, "skinTestResultValidityHours"), optional(value, "skinTestInstructions"),
                 decimal(value, "defaultDose"), optional(value, "defaultDoseUnit"), optional(value, "defaultRoute"),
                 optional(value, "defaultFrequency"), bool(value, "chronicDiseaseDrug"), bool(value, "singleOrder"),
-                string(value, "status"));
+                string(value, "status"), optional(value, "standardSpecificationId"));
     }
 
     private ServiceCommand service(Map<String, String> value, List<ImportError> errors) {
@@ -154,7 +155,8 @@ class MasterDataImportMapping {
                 optional(value, "defaultFrequency", 64, errors),
                 requiredBoolean(value, "chronicDiseaseDrug", "慢病用药", errors),
                 requiredBoolean(value, "singleOrder", "允许单开", errors),
-                required(value, "sdStatus", "状态", 32, errors));
+                required(value, "sdStatus", "状态", 32, errors),
+                required(value, "standardSpecificationId", "标准规格编码", 64, errors));
     }
 
     private Map<String, String> canonicalize(String importType, Map<String, String> source) {

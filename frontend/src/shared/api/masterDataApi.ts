@@ -402,7 +402,25 @@ export interface MedicationProduct {
   prices: CatalogPrice[]
 }
 
+export interface MedicationStandardReference {
+  status: 'LINKED' | 'UNMAPPED' | 'AMBIGUOUS' | 'STALE' | 'MISMATCH'
+  catalogId?: string; catalogVersion?: string; contentHash?: string
+  entryId?: string; specificationId?: string; semanticVersion?: number
+  name?: string; doseForm?: string; preparationSpec?: string; presentationUnit?: string
+  sourceVerificationStatus?: string; issues: string[]
+}
+export interface ClinicalMedicationStandards {
+  version: string
+  doseUnits: { id: string; code: string; display: string; dimension: string; canonicalUnit: string; conversionFactor: number; semanticVersion: number }[]
+  routes: MedicationRoute[]
+  frequencies: { id: string; code: string; name: string; standard: {
+    system: string; version: string; conceptId: string | null; status: string
+    interpretation: {kind: string; dailyRateComputable: boolean; doses: number | null; perDays: number | null; unknownReason: string | null}
+  }}[]
+}
+
 export interface MedicationKnowledge {
+  standardReference?: MedicationStandardReference
   id: string
   revision: number
   itemTypeId: string
@@ -532,6 +550,7 @@ export interface ServiceInput {
 }
 
 export interface MedicationInput {
+  standardSpecificationId?: string
   code: string
   name: string
   aliasName?: string
@@ -1389,6 +1408,7 @@ export function createMasterDataApi(client: ApiClient) {
       client.request<MasterDataPage<MedicationKnowledge>>(`/api/platform/master-data/medications/search${queryString({
         query, medicationType, status, organizationId, page: String(page), size: String(size),
       })}`),
+    clinicalMedicationStandards: () => client.request<ClinicalMedicationStandards>('/api/platform/master-data/clinical-semantics/standards'),
     medicationIngredients: () => client.request<MedicationIngredient[]>('/api/platform/master-data/medication-ingredients'),
     createMedicationIngredient: (input: Omit<MedicationIngredient, 'id'>) => client.request<MedicationIngredient>(
       '/api/platform/master-data/medication-ingredients', {method: 'POST', body: JSON.stringify(input)}),

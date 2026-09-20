@@ -1,0 +1,9 @@
+.clinical-medication-standards { display: grid; gap: var(--space-4, 16px); padding: var(--space-4, 16px); }
+.clinical-medication-standards > header { display: flex; justify-content: space-between; align-items: center; gap: var(--space-4, 16px); }
+.clinical-medication-standards h3, .clinical-medication-standards h4 { margin: 0; }
+.clinical-medication-standards p { color: var(--color-text-secondary); margin: 8px 0 12px; }
+.clinical-medication-standards__grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-4, 16px); align-items: start; }
+.clinical-medication-standards__grid > section { min-width: 0; }
+.clinical-medication-standards table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.clinical-medication-standards th, .clinical-medication-standards td { padding: 10px 8px; text-align: left; border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+.clinical-medication-standards small { display: block; color: var(--color-text-secondary); font-size: 12px; margin-top: 4px; }

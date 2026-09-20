@@ -69,7 +69,8 @@ class MedicationSemanticVersionsTest extends RhnIntegrationTestSupport {
         var frozen = freeze(med, frequency("BID", "08:00", "20:00"));
         assertThat(frozen.at("/clinicalSemantics/ingredientIds").size()).isEqualTo(2);
         assertThat(frozen.at("/clinicalSemantics/strengths/0/denominator/clinicalUnit/dimension").asString()).isEqualTo("VOLUME");
-        assertThat(frozen.at("/clinicalSemantics/status").asString()).isEqualTo("VERSIONED");
+        assertThat(frozen.at("/clinicalSemantics/status").asString()).isEqualTo("VERSIONED_PARTIAL");
+        assertThat(frozen.at("/clinicalSemantics/unknownReasons").toString()).contains("STANDARD_REFERENCE_MISSING");
         assertThatThrownBy(() -> semantics.saveComposition(medicationId, new Composition(old.revision(), "旧页面", List.of())))
                 .hasMessageContaining("刷新");
         semantics.saveComposition(medicationId, new Composition(saved.revision(), "修订资料", List.of()));

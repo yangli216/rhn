@@ -132,18 +132,18 @@ export function Dashboard({ api, onStart, onOpenTasks, onNavigate }: {
         <PanelHead title="临床业务直通车与连续照护地图" meta="全县域一体化 · 临床全链路实时互通" />
         <div className="capabilities">
           <QuickAccessCard
-            icon="clinical"
+            icon="stethoscope"
             name="门诊全科工作站"
             desc="排班挂号 · 医生接诊 · 病历处方"
             status="已贯通"
-            onClick={() => onNavigate?.('/outpatient/doctor') ?? onStart()}
+            onClick={() => onNavigate?.('/outpatient/reception')}
           />
           <QuickAccessCard
-            icon="residents"
+            icon="hospital"
             name="住院病区工作站"
             desc="床位看板 · 医嘱流转 · 护理记录"
             status="已贯通"
-            onClick={() => onNavigate?.('/inpatient/doctor')}
+            onClick={() => onNavigate?.('/inpatient/doctor-station')}
           />
           <QuickAccessCard
             icon="pharmacy"

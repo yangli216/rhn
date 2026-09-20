@@ -89,14 +89,14 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         String suffix = suffix(); String residentId = createResident(suffix); String encounterId = startEncounter(residentId);
         recordNoKnownDrugAllergy(residentId, encounterId);
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {"code":"TR-IV-%s","name":"治疗执行测试注射液","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"INJECTION","preparationSpec":"10ml","preparationUnit":"支",
                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":false,
                                  "skinTestRequired":false,"defaultDose":1,"defaultDoseUnit":"支",
                                  "defaultRoute":"IVGTT","defaultFrequency":"QD","chronicDiseaseDrug":false,
                                  "singleOrder":false,"sdStatus":"ACTIVE"}
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode prescription = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -216,15 +216,15 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         String suffix = suffix(); String residentId = createResident(suffix); String encounterId = startEncounter(residentId);
         recordNoKnownDrugAllergy(residentId, encounterId);
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {"code":"TR-SKIN-%s","name":"皮试闭环测试注射剂","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"INJECTION","preparationSpec":"80万U","preparationUnit":"支",
                                  "prescriptionDrug":true,"essentialDrug":false,"antimicrobial":true,
                                  "sdAntimicrobialLevel":"NON_RESTRICTED","skinTestRequired":true,
-                                 "defaultDose":800000,"defaultDoseUnit":"U","defaultRoute":"IM",
+                                 "defaultDose":1,"defaultDoseUnit":"支","defaultRoute":"IM",
                                  "defaultFrequency":"ONCE","chronicDiseaseDrug":false,"singleOrder":false,
                                  "sdStatus":"ACTIVE"}
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.skinTestRequired").value(true))
                 .andReturn().getResponse().getContentAsString());
         JsonNode prescription = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
@@ -234,7 +234,7 @@ class TreatmentExecutionWorkflowTest extends RhnIntegrationTestSupport {
         JsonNode request = json(mockMvc.perform(post("/api/encounters/{id}/medication-requests", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content("""
                                 {"prescriptionId":"%s","medicationId":"%s","quantity":1,"quantityUnit":"支",
-                                 "doseValue":800000,"doseUnit":"U","routeCode":"IM","frequencyCode":"ONCE",
+                                 "doseValue":1,"doseUnit":"支","routeCode":"IM","frequencyCode":"ONCE",
                                  "durationValue":1,"durationUnit":"DAY","substitutionAllowed":false,
                                  "selfProvided":true,"pricingRequired":false,"medicationInstruction":"肌内注射",
                                  "allergyReviewConfirmed":true}

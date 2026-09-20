@@ -210,25 +210,25 @@ const NAVIGATION_NODES: NavigationNode[] = [
   { id: 'tasks', label: '任务中心', icon: 'tasks', badge: '已接入', to: '/tasks', requiredAuthority: 'TASK.READ' },
   {
     id: 'outpatient-services', label: '门诊诊疗', icon: 'clinical', children: [
-      { id: 'outpatient-triage', label: '预检分诊', icon: 'clinical', badge: '四级急慢', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
-      { id: 'outpatient-flow', label: '门诊流转', icon: 'clinical', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-triage', label: '预检分诊', icon: 'emergency', badge: '四级急慢', to: '/outpatient/triage', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-flow', label: '门诊流转', icon: 'refresh', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
-      { id: 'outpatient-reception', label: '门诊医生站', icon: 'clinical', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
+      { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '双模式', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
-      { id: 'diagnostics', label: '检查检验', icon: 'clinical', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
-      { id: 'skin-tests', label: '皮试管理', icon: 'clinical', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
-      { id: 'treatments', label: '治疗执行', icon: 'clinical', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
+      { id: 'diagnostics', label: '检查检验', icon: 'flask', to: '/diagnostics', requiredAuthority: 'DIAGNOSTICS.ACCESS' },
+      { id: 'skin-tests', label: '皮试管理', icon: 'syringe', to: '/skin-tests', requiredAuthority: 'TREATMENT.ACCESS' },
+      { id: 'treatments', label: '治疗执行', icon: 'syringe', to: '/treatments', requiredAuthority: 'TREATMENT.ACCESS' },
       { id: 'clinical-printing', label: '临床打印', icon: 'print', to: '/printing/batches', requiredAuthority: 'TREATMENT.ACCESS' },
     ],
   },
   {
-    id: 'inpatient-services', label: '住院医疗', icon: 'clinical', children: [
+    id: 'inpatient-services', label: '住院医疗', icon: 'hospital', children: [
       { id: 'inpatient-admissions', label: '入院登记', icon: 'residents', to: '/inpatient/admissions', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-admission-query', label: '入院登记查询', icon: 'search', to: '/inpatient/admission-query', requiredAuthority: 'INPATIENT.ACCESS' },
-      { id: 'inpatient-nurse-station', label: '病区护士站', icon: 'clinical', to: '/inpatient/nurse-station', requiredAuthority: 'INPATIENT.ACCESS' },
-      { id: 'inpatient-doctor-station', label: '住院医生站', icon: 'clinical', to: '/inpatient/doctor-station', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-nurse-station', label: '病区护士站', icon: 'bed', to: '/inpatient/nurse-station', requiredAuthority: 'INPATIENT.ACCESS' },
+      { id: 'inpatient-doctor-station', label: '住院医生站', icon: 'stethoscope', to: '/inpatient/doctor-station', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-deposits', label: '预交金管理', icon: 'billing', to: '/inpatient/deposits', requiredAuthority: 'INPATIENT.ACCESS' },
       { id: 'inpatient-billing', label: '住院费用', icon: 'billing', to: '/inpatient/billing', requiredAuthority: 'INPATIENT.ACCESS' },
     ],
@@ -265,15 +265,15 @@ const NAVIGATION_NODES: NavigationNode[] = [
     ],
   },
   {
-    id: 'center-master-data', label: '中心主数据', icon: 'clinical', children: [
-      { id: 'master-data', label: '基础数据中心', icon: 'clinical', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.MANAGE' },
+    id: 'center-master-data', label: '中心主数据', icon: 'database', children: [
+      { id: 'master-data', label: '基础数据中心', icon: 'database', to: '/settings/master-data', requiredAuthority: 'MASTER_DATA.MANAGE' },
       { id: 'business-partners', label: '厂商与供应商', icon: 'pharmacy', to: '/settings/partners', requiredAuthority: 'BUSINESS_PARTNER.ACCESS' },
-      { id: 'medication-workbench', label: '合理用药规则', icon: 'clinical', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
+      { id: 'medication-workbench', label: '合理用药规则', icon: 'pill', to: '/quality/medication-rules', requiredAuthority: 'MASTER_DATA.MANAGE' },
     ],
   },
   {
     id: 'organization-operations', label: '机构运营维护', icon: 'roadmap', children: [
-      { id: 'organization-catalog', label: '机构项目管理', icon: 'clinical', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
+      { id: 'organization-catalog', label: '机构项目管理', icon: 'card', to: '/settings/organization-catalog', requiredAuthority: 'ORG_CATALOG.ACCESS' },
       { id: 'organization', label: '组织与人员', icon: 'residents', to: '/settings/organization', requiredAuthority: 'ORGANIZATION.ACCESS' },
       { id: 'dispense-routes', label: '发药药房设置', icon: 'pharmacy', to: '/settings/dispense-routes', requiredAuthority: 'PHARMACY_ROUTE.READ' },
       { id: 'grid-addresses', label: '网格地址', icon: 'roadmap', to: '/settings/grid-addresses', requiredAuthority: 'GRID_ADDRESS.ACCESS' },
@@ -373,27 +373,27 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/billing/query') return { id: pathname, path: pathname, title: '收费查询', icon: 'search', closeable: true }
   if (pathname === '/billing/refunds') return { id: pathname, path: pathname, title: '退费管理', icon: 'billing', closeable: true }
   if (pathname === '/billing/daily-close') return { id: pathname, path: pathname, title: '日终结账', icon: 'billing', closeable: true }
-  if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'clinical', closeable: true }
-  if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'clinical', closeable: true }
-  if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'clinical', closeable: true }
+  if (pathname === '/diagnostics') return { id: pathname, path: pathname, title: '检查检验', icon: 'flask', closeable: true }
+  if (pathname === '/skin-tests') return { id: pathname, path: pathname, title: '皮试管理', icon: 'syringe', closeable: true }
+  if (pathname === '/treatments') return { id: pathname, path: pathname, title: '治疗执行', icon: 'syringe', closeable: true }
   if (pathname === '/printing/batches') return { id: pathname, path: pathname, title: '临床打印', icon: 'print', closeable: true }
   if (pathname === '/care-management') return { id: pathname, path: pathname, title: '连续照护', icon: 'clinical', closeable: true }
-  if (pathname === '/outpatient/triage') return { id: pathname, path: pathname, title: '预检分诊', icon: 'clinical', closeable: true }
+  if (pathname === '/outpatient/triage') return { id: pathname, path: pathname, title: '预检分诊', icon: 'emergency', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
   if (pathname === '/outpatient/registration-query') return { id: pathname, path: pathname, title: '挂号查询', icon: 'search', closeable: true }
-  if (pathname === '/outpatient/flow') return { id: pathname, path: pathname, title: '门诊流转', icon: 'clinical', closeable: true }
+  if (pathname === '/outpatient/flow') return { id: pathname, path: pathname, title: '门诊流转', icon: 'refresh', closeable: true }
   if (pathname === '/outpatient/appointments') return { id: pathname, path: pathname, title: '预约管理', icon: 'tasks', closeable: true }
-  if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'clinical', closeable: true }
-  if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'residents', closeable: true }
+  if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'tasks', closeable: true }
+  if (pathname === '/outpatient/reception') return { id: pathname, path: pathname, title: '门诊医生站', icon: 'stethoscope', closeable: true }
   if (pathname === '/inpatient') return { id: '/inpatient/admissions', path: '/inpatient/admissions', title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admissions') return { id: pathname, path: pathname, title: '入院登记', icon: 'residents', closeable: true }
   if (pathname === '/inpatient/admission-query') return { id: pathname, path: pathname, title: '入院登记查询', icon: 'search', closeable: true }
-  if (pathname === '/inpatient/nurse-station') return { id: pathname, path: pathname, title: '病区护士站', icon: 'clinical', closeable: true }
-  if (pathname === '/inpatient/doctor-station') return { id: pathname, path: pathname, title: '住院医生站', icon: 'clinical', closeable: true }
+  if (pathname === '/inpatient/nurse-station') return { id: pathname, path: pathname, title: '病区护士站', icon: 'bed', closeable: true }
+  if (pathname === '/inpatient/doctor-station') return { id: pathname, path: pathname, title: '住院医生站', icon: 'stethoscope', closeable: true }
   if (pathname === '/inpatient/deposits') return { id: pathname, path: pathname, title: '预交金管理', icon: 'billing', closeable: true }
   if (pathname === '/inpatient/billing') return { id: pathname, path: pathname, title: '住院费用', icon: 'billing', closeable: true }
-  if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'clinical', closeable: true }
-  if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'clinical', closeable: true }
+  if (pathname === '/settings/master-data') return { id: pathname, path: pathname, title: '基础数据中心', icon: 'database', closeable: true }
+  if (pathname === '/settings/organization-catalog') return { id: pathname, path: pathname, title: '机构项目管理', icon: 'card', closeable: true }
   if (pathname === '/settings/partners') return { id: pathname, path: pathname, title: '厂商与供应商', icon: 'pharmacy', closeable: true }
   if (pathname === '/settings/organization') return { id: pathname, path: pathname, title: '组织与人员', icon: 'residents', closeable: true }
   if (pathname === '/settings/grid-addresses') return { id: pathname, path: pathname, title: '网格地址', icon: 'roadmap', closeable: true }

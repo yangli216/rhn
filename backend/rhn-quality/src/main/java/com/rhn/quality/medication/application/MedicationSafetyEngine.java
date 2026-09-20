@@ -15,12 +15,15 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public final class MedicationSafetyEngine {
-    public static final String VERSION = "qmed-engine-1";
-    public static final String RULE_SET = "qmed-foundation-shadow-v1";
+    public static final String VERSION = "qmed-engine-2";
+    public static final String LEGACY_RULE_SET = "qmed-foundation-shadow-v1";
+    public static final String RULE_SET = "qmed-standard-shadow-v2";
     private final Map<String, MedicationSafetyRule> rules;
+    private final java.util.Set<String> ruleCodes;
 
     public MedicationSafetyEngine(List<MedicationSafetyRule> rules) {
-        this.rules = rules.stream().collect(Collectors.toUnmodifiableMap(MedicationSafetyRule::code, Function.identity()));
+        this.rules = rules.stream().collect(Collectors.toUnmodifiableMap(MedicationSafetyRule::implementationKey, Function.identity()));
+        this.ruleCodes = rules.stream().map(MedicationSafetyRule::code).collect(Collectors.toUnmodifiableSet());
         if (rules.isEmpty()) throw new IllegalArgumentException("A safety engine needs at least one rule");
     }
 
@@ -28,6 +31,7 @@ public final class MedicationSafetyEngine {
     public static MedicationSafetyEngine standard(JsonCodec json) {
         return new MedicationSafetyEngine(List.of(
                 new com.rhn.quality.medication.domain.rule.DuplicateMedicationRule(),
+                new com.rhn.quality.medication.domain.rule.StandardReferenceDuplicateRule(json),
                 new com.rhn.quality.medication.domain.rule.AntimicrobialOutpatientRule(json),
                 new com.rhn.quality.medication.domain.rule.DrugAllergyRule(json),
                 new com.rhn.quality.medication.domain.rule.SkinTestRequirementRule(json),
@@ -58,15 +62,15 @@ public final class MedicationSafetyEngine {
         var codes = versions.stream().map(version -> version.definition().code()).toList();
         var selectedCodes = java.util.Set.copyOf(codes);
         if (codes.isEmpty() || codes.size() != codes.stream().distinct().count()
-                || !rules.keySet().containsAll(selectedCodes)
-                || requireCompleteRuleSet && !rules.keySet().equals(selectedCodes)) {
+                || !ruleCodes.containsAll(selectedCodes)
+                || requireCompleteRuleSet && !ruleCodes.equals(selectedCodes)) {
             return new Result(List.of(), List.of(), List.of("RULE_SET_INCOMPLETE"));
         }
         for (var version : versions.stream().sorted(java.util.Comparator.comparing(v -> v.definition().code())).toList()) {
-            var rule = rules.get(version.definition().code());
+            var rule = rules.get(version.implementationKey());
             String failure = null;
-            if (!RULE_SET.equals(version.ruleSetVersion()) || !version.availableAt(time)
-                    || !rule.implementationKey().equals(version.implementationKey())) {
+            if (rule == null || !List.of(RULE_SET, LEGACY_RULE_SET).contains(version.ruleSetVersion()) || !version.availableAt(time)
+                    || !rule.code().equals(version.definition().code()) || versions.stream().map(RuleVersion::ruleSetVersion).distinct().count() != 1) {
                 failure = "RULE_VERSION_UNAVAILABLE";
             } else {
                 try {
@@ -77,7 +81,7 @@ public final class MedicationSafetyEngine {
                     failure = "RULE_EXECUTION_FAILED";
                 }
             }
-            executions.add(new MedicationSafetyDecision.RuleExecution(rule.code(), version.version(),
+            executions.add(new MedicationSafetyDecision.RuleExecution(version.definition().code(), version.version(),
                     failure == null ? "COMPLETED" : "UNAVAILABLE", failure));
             if (failure != null) failures.add(failure);
         }

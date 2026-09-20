@@ -46,6 +46,10 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
     @Autowired JdbcTemplate jdbc;
     @Autowired PlatformTransactionManager transactions;
 
+    private PrescriptionSafetyRequest legacyRequest(PrescriptionSafetySnapshot input) {
+        return new PrescriptionSafetyRequest(input, MedicationSafetyEngine.LEGACY_RULE_SET);
+    }
+
     @BeforeEach
     void context() {
         when(contexts.requireCurrent()).thenReturn(context(1L, 5L, 6L));
@@ -59,7 +63,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void snapshot_to_rule_to_persistence_round_trip_records_versions_and_evidence() {
         var input = snapshot(item(11, 90L, "DRAFT"), item(12, 90L, "ACTIVE"));
-        var result = safety.evaluate(new PrescriptionSafetyRequest(input));
+        var result = safety.evaluate(legacyRequest(input));
         assertEquals(MedicationSafetyDecision.Status.WARN, result.decision());
         assertEquals("SHADOW", result.mode());
         assertNotNull(result.evaluationId());
@@ -76,10 +80,10 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
 
     @Test
     void pass_still_records_executed_rule_and_missing_data_is_durably_unavailable() {
-        var pass = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"))));
+        var pass = safety.evaluate(legacyRequest(snapshot(item(11, 90L, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.PASS, pass.decision());
         assertEquals(7, pass.ruleExecutions().size());
-        var missing = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, null, "DRAFT"))));
+        var missing = safety.evaluate(legacyRequest(snapshot(item(11, null, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.UNAVAILABLE, missing.decision());
         assertNotNull(missing.evaluationId());
         assertEquals(missing, safety.find(2L, missing.evaluationId()).orElseThrow());
@@ -87,7 +91,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
 
     @Test
     void tenant_prescription_and_work_scope_cannot_cross_evaluation_boundaries() {
-        var request = new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT")));
+        var request = legacyRequest(snapshot(item(11, 90L, "DRAFT")));
         var result = safety.evaluate(request);
         assertTrue(safety.find(999L, result.evaluationId()).isEmpty());
         when(contexts.requireCurrent()).thenReturn(context(99L, 5L, 6L));
@@ -118,7 +122,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
     @Test
     void evaluation_survives_outer_business_transaction_rollback() {
         var result = new TransactionTemplate(transactions).execute(transaction -> {
-            var evaluation = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"), item(12, 90L, "DRAFT"))));
+            var evaluation = safety.evaluate(legacyRequest(snapshot(item(11, 90L, "DRAFT"), item(12, 90L, "DRAFT"))));
             transaction.setRollbackOnly();
             return evaluation;
         });
@@ -149,7 +153,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
         var broken = mock(MedicationEvaluationStore.class);
         doThrow(new DataAccessResourceFailureException("simulated outage")).when(broken).append(any());
         var adapter = new MedicationSafetyAdapter(contexts, registry, broken, codec);
-        var result = adapter.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"))));
+        var result = adapter.evaluate(legacyRequest(snapshot(item(11, 90L, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.UNAVAILABLE, result.decision());
         assertNull(result.evaluationId());
         assertTrue(result.failureCodes().contains("EVALUATION_NOT_PERSISTED"));
@@ -160,7 +164,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
         var broken = mock(MedicationRuleRegistry.class);
         when(broken.load(anyString())).thenThrow(new DataAccessResourceFailureException("simulated outage"));
         var adapter = new MedicationSafetyAdapter(contexts, broken, store, codec);
-        var result = adapter.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"))));
+        var result = adapter.evaluate(legacyRequest(snapshot(item(11, 90L, "DRAFT"))));
         assertEquals(MedicationSafetyDecision.Status.UNAVAILABLE, result.decision());
         assertNotNull(result.evaluationId());
         assertEquals(List.of("RULE_CATALOG_UNAVAILABLE"), result.failureCodes());
@@ -168,7 +172,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
 
     @Test
     void override_storage_enforces_same_tenant_and_same_evaluation_finding() {
-        var result = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 90L, "DRAFT"), item(12, 90L, "DRAFT"))));
+        var result = safety.evaluate(legacyRequest(snapshot(item(11, 90L, "DRAFT"), item(12, 90L, "DRAFT"))));
         var finding = result.findings().getFirst();
         var override = new MedicationSafetyOverride(GlobalIds.next(), 1L, result.evaluationId(), finding.findingId(),
                 7L, "测试关联完整性；不是临床覆盖授权", Instant.now());
@@ -176,7 +180,7 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
                 override.id(), override.tenantId(), override.evaluationId(), override.findingId(), override.actorId(), override.reason(), OffsetDateTime.now());
         assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVERRIDE, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
                 GlobalIds.next(), 99L, result.evaluationId(), finding.findingId(), 7L, "cross tenant", OffsetDateTime.now()));
-        var other = safety.evaluate(new PrescriptionSafetyRequest(snapshot(item(11, 91L, "DRAFT"))));
+        var other = safety.evaluate(legacyRequest(snapshot(item(11, 91L, "DRAFT"))));
         assertThrows(DataAccessException.class, () -> jdbc.update("insert into RHN_AUD_MED_OVERRIDE (ID_OVERRIDE, ID_TNT, ID_EVAL, ID_FINDING, ID_USER_ACTOR, DES_REASON, DT_CREATED) values (?,?,?,?,?,?,?)",
                 GlobalIds.next(), 1L, other.evaluationId(), finding.findingId(), 7L, "wrong evaluation", OffsetDateTime.now()));
         assertThrows(IllegalArgumentException.class, () -> new MedicationSafetyOverride(1L, 1L, 1L, 1L, 1L, "   ", Instant.now()));
@@ -203,6 +207,6 @@ class MedicationSafetyFoundationTest extends RhnIntegrationTestSupport {
                             row.getString("column_name").toUpperCase(java.util.Locale.ROOT), row.getString("remarks")), name);
             assertEquals(expected, actual, name);
         }
-        assertEquals(7, checked);
+        assertEquals(9, checked);
     }
 }

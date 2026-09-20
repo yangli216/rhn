@@ -85,7 +85,7 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
     void medication_configuration_validates_and_persists_governance_rules() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
         mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {
                                   "code":"MED-SAFETY-%s","name":"皮试配置测试药品",
                                   "sdMedicationType":"WESTERN","sdDoseForm":"INJECTION",
@@ -99,7 +99,7 @@ class MedicationSafetyGovernanceTest extends RhnIntegrationTestSupport {
                                   "skinTestInstructions":"按说明书原液点刺",
                                   "chronicDiseaseDrug":false,"singleOrder":true,"sdStatus":"ACTIVE"
                                 }
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.antimicrobialMaxDays").value(5))
                 .andExpect(jsonPath("$.skinTestMethod").value("PRICK"))

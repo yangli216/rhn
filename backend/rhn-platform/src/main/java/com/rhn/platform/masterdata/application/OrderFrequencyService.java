@@ -203,6 +203,10 @@ public class OrderFrequencyService implements OrderFrequencyDirectory {
         }
         if (!command.outpatientApplicable() && !command.inpatientApplicable() && !command.emergencyApplicable()) throw badRequest("ORDER_FREQUENCY_SCENE_REQUIRED", "频次至少适用于一个医疗场景");
         if (!command.medicationApplicable() && !command.treatmentApplicable() && !command.nursingApplicable()) throw badRequest("ORDER_FREQUENCY_ORDER_TYPE_REQUIRED", "频次至少适用于一种医嘱类型");
+        if (!com.rhn.platform.masterdata.api.ClinicalMedicationStandards.commonCodeConsistent(new FrequencySnapshot(
+                1L, 0, command.code(), command.name(), command.shortName(), command.description(), ruleType,
+                command.frequencyCount(), command.periodValue(), periodUnit, anchorType, times, null, command.automaticTaskGeneration())))
+            throw badRequest("ORDER_FREQUENCY_STANDARD_CONFLICT", "常用标准频次编码与结构化含义不一致，请使用正确的次数和周期，或建立独立本地编码");
     }
     private void validateConfiguration(Long tenantId, OrderFrequency frequency, Long currentId, ConfigurationCommand command) {
         if (command.validFrom() == null || command.validTo() != null && command.validTo().isBefore(command.validFrom())) throw badRequest("ORDER_FREQUENCY_CONFIG_PERIOD_INVALID", "配置生效日期不能为空，且失效日期不能早于生效日期");

@@ -226,6 +226,10 @@ export interface InventoryTraceCode {
   status: TraceCodeStatus; currentDocumentType?: string; currentDocumentId?: string
   currentDocumentNo?: string; receivedAt?: string; issuedAt?: string; updatedAt: string
 }
+export interface TraceCodeBatchScanResult {
+  codes: InventoryTraceCode[]
+  notFoundCodes: string[]
+}
 export interface InventoryTraceEvent {
   id: string; eventType: string; fromStatus?: string; toStatus: TraceCodeStatus
   fromSiteId?: string; toSiteId?: string; fromBinId?: string; toBinId?: string
@@ -367,6 +371,15 @@ export interface PharmacyInboxItem {
   stockItemId?: string
   selectedProductName?: string
   latestReviewResult?: PharmacyReviewResult
+  residentName?: string
+  healthRecordNo?: string
+  residentPhone?: string
+  dispensedAt?: string
+  dispenserPractitionerId?: string
+  plannedQuantity?: number
+  dispensedQuantity?: number
+  returnedQuantity?: number
+  dispenseUnitCode?: string
   clinicalContext?: {
     encounterId: string
     encounterNo: string
@@ -891,6 +904,11 @@ export function createPharmacyApi(client: ApiClient) {
     scanTraceCode: (stockSiteId: string, traceCode: string) => client.request<InventoryTraceCode>(
       `/api/pharmacy/dispense/trace-code?stockSiteId=${encodeURIComponent(stockSiteId)}`
         + `&traceCode=${encodeURIComponent(traceCode)}`,
+    ),
+    scanTraceCodes: (stockSiteId: string, traceCodes: string[]) => client.request<TraceCodeBatchScanResult>(
+      '/api/pharmacy/dispense/trace-codes/scan', {
+        method: 'POST', body: JSON.stringify({ stockSiteId, traceCodes }),
+      },
     ),
     openPackages: (stockSiteId: string) => client.request<InventoryOpenPackage[]>(
       `/api/pharmacy/inventory/open-packages?stockSiteId=${encodeURIComponent(stockSiteId)}`,

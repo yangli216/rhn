@@ -26,14 +26,14 @@ class ClinicalPrintBatchTest extends RhnIntegrationTestSupport {
         String encounterId = startEncounter(residentId);
         recordNoKnownDrugAllergy(residentId, encounterId);
         JsonNode medication = json(mockMvc.perform(post("/api/platform/master-data/medications").with(rhnWorkContext())
-                        .contentType(MediaType.APPLICATION_JSON).content("""
+                        .contentType(MediaType.APPLICATION_JSON).content(standardMedicationInput("""
                                 {"code":"PRINT-IV-%s","name":"打印闭环氯化钠注射液","sdMedicationType":"WESTERN",
                                  "sdDoseForm":"INJECTION","preparationSpec":"100ml","preparationUnit":"瓶",
                                  "prescriptionDrug":true,"essentialDrug":true,"antimicrobial":false,
                                  "skinTestRequired":false,"defaultDose":100,"defaultDoseUnit":"ml",
                                  "defaultRoute":"IVGTT","defaultFrequency":"QD","chronicDiseaseDrug":false,
                                  "singleOrder":false,"sdStatus":"ACTIVE"}
-                                """.formatted(suffix)))
+                                """.formatted(suffix))))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString());
         JsonNode prescription = json(mockMvc.perform(post("/api/encounters/{id}/prescriptions", encounterId)
                         .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)

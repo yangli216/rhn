@@ -25,7 +25,9 @@ class MedicationWorkbenchShadowTest {
         var store=mock(MedicationWorkbenchStore.class);var json=mock(JsonCodec.class);
         when(contexts.requireCurrent()).thenReturn(new ExecutionContext(1L,2L,"doctor","test",Set.of("MASTER_DATA.MANAGE")));
         var current=medication(7);var saved=medication(3);
-        var facts=new MedicationKnowledgeDirectory.Knowledge(current,2,"LEGACY",Instant.now(),List.of(),List.of(),List.of());
+        var reference = new com.rhn.platform.masterdata.api.MedicationStandardReference("LINKED", "TEST", "1", "hash", "GEN-1", "STD-1", 1,
+                "标准药品", "CAPSULE", "0.25g", "粒", null, "UNVERIFIED", List.of());
+        var facts=new MedicationKnowledgeDirectory.Knowledge(current,2,"STANDARD_LINKED",Instant.now(),List.of(),List.of(),List.of(),reference);
         var candidate=new Candidate(10L,null,1,"按 HIS 上限检查","制度","model",Instant.now(),
                 new RuleSpec("ANTIMICROBIAL_MAX_DAYS","疗程","HIS 上限",2,"请核对","WARN"),List.of(facts),"CANDIDATE");
         when(store.require(1L,10L)).thenReturn(candidate);
@@ -34,6 +36,8 @@ class MedicationWorkbenchShadowTest {
         var snapshot=new PrescriptionSafetySnapshot(PrescriptionSafetySnapshot.SCHEMA_VERSION,1L,20L,0,30L,40L,50L,60L,"DRAFT",List.of(row));
         when(directory.requireSnapshot(30L,20L)).thenReturn(snapshot);
         when(json.read("historical",MedicationSnapshot.class)).thenReturn(saved);
+        var mapper = new tools.jackson.databind.ObjectMapper();
+        when(json.readTree("historical")).thenReturn(mapper.valueToTree(Map.of("clinicalSemantics", Map.of("standardReference", reference))));
         when(json.write(any())).thenReturn("serialized historical prescription");
         var service=new MedicationWorkbenchService(ai,knowledge,directory,contexts,store,json);
         var preview=service.prescriptionPreview(new ShadowRequest(30L,20L));

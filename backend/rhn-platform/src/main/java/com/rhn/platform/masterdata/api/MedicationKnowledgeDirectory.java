@@ -11,5 +11,12 @@ public interface MedicationKnowledgeDirectory {
                      String semanticStatus, Instant capturedAt,
                      List<MedicationTerminologyDirectory.MedicationClassification> classifications,
                      List<MedicationTerminologyDirectory.AllergenTerm> allergens,
-                     List<StandardMappingViews.ItemTermMappingView> standardMappings) {}
+                     List<StandardMappingViews.ItemTermMappingView> standardMappings, MedicationStandardReference standardReference) {
+        public Knowledge(CatalogLifecycleDirectory.MedicationSnapshot medication, long revision, String semanticStatus, Instant capturedAt,
+                List<MedicationTerminologyDirectory.MedicationClassification> classifications, List<MedicationTerminologyDirectory.AllergenTerm> allergens,
+                List<StandardMappingViews.ItemTermMappingView> standardMappings) {
+            this(medication, revision, semanticStatus, capturedAt, classifications, allergens, standardMappings,
+                    MedicationStandardReference.unavailable("UNMAPPED", "STANDARD_REFERENCE_MISSING"));
+        }
+    }
 }

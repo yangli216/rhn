@@ -27876,5 +27876,93 @@
         "comment": "关联建立人员标识"
       }
     ]
+  },
+  {
+    "logical": "aud.medication_rule_governance",
+    "legacy": "medication_rule_governance",
+    "physical": "RHN_AUD_MED_GOV",
+    "domain": "AUD",
+    "comment": "合理用药规则治理，一行代表一个租户内一条规则的审核、部署及审计状态",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RULE_GOV",
+        "comment": "规则治理标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "rule_key",
+        "physical": "CD_RULE_KEY",
+        "comment": "稳定规则键"
+      },
+      {
+        "logical": "revision",
+        "physical": "REVISION",
+        "comment": "乐观锁版本"
+      },
+      {
+        "logical": "state",
+        "physical": "JSON_STATE",
+        "comment": "审核、部署及操作历史快照"
+      }
+    ]
+  },
+  {
+    "logical": "aud.medication_rule_governance_run",
+    "legacy": "medication_rule_governance_run",
+    "physical": "RHN_AUD_MED_GOV_RUN",
+    "domain": "AUD",
+    "comment": "合理用药规则运行记录，一行代表已部署规则版本对一张处方的一次自动评价",
+    "columns": [
+      {
+        "logical": "id",
+        "physical": "ID_RULE_RUN",
+        "comment": "运行记录标识"
+      },
+      {
+        "logical": "tenant_id",
+        "physical": "ID_TNT",
+        "comment": "租户标识"
+      },
+      {
+        "logical": "rule_key",
+        "physical": "CD_RULE_KEY",
+        "comment": "稳定规则键"
+      },
+      {
+        "logical": "version_code",
+        "physical": "CD_VERSION",
+        "comment": "规则版本键"
+      },
+      {
+        "logical": "mode",
+        "physical": "SD_MODE",
+        "comment": "旁路或正式运行模式"
+      },
+      {
+        "logical": "decision",
+        "physical": "SD_DECISION",
+        "comment": "评价结论"
+      },
+      {
+        "logical": "prescription_id",
+        "physical": "ID_PRESCRIPTION",
+        "comment": "处方标识"
+      },
+      {
+        "logical": "created_at",
+        "physical": "DT_CREATED",
+        "comment": "评价时间"
+      },
+      {
+        "logical": "run",
+        "physical": "JSON_RUN",
+        "comment": "发布版本及评价事实快照"
+      }
+    ]
   }
 ]

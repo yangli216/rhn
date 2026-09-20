@@ -83,6 +83,10 @@ public final class PharmacyViews {
     public record PharmacyInboxItem(
             MedicationRequestSnapshot request, Long taskId, String taskNo, String taskStatus,
             String closureStatus, Long stockItemId, String selectedProductName, String latestReviewResult,
+            String residentName, String healthRecordNo, String residentPhone,
+            Instant dispensedAt, Long dispenserPractitionerId,
+            BigDecimal plannedQuantity, BigDecimal dispensedQuantity, BigDecimal returnedQuantity,
+            String dispenseUnitCode,
             PharmacyClinicalContextView clinicalContext,
             List<MedicationRequestSnapshot> prescriptionRequests) {}
 

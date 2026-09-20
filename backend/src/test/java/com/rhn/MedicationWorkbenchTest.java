@@ -22,10 +22,8 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         {"status":"READY","message":"候选","rule":{"template":"%s","name":"重复核对","explanation":"按通用药标识核对","duplicateCount":%d,"message":"请核对","decision":"%s"}}
         """.formatted(template,count,decision); }
     String medication() throws Exception {
-        var response=mockMvc.perform(get(ROOT+"/medications").param("query","阿莫西林").with(rhnWorkContext()))
-                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        var rows=json(response);assertTrue(rows.size()>0);assertTrue(rows.get(0).has("classifications"));
-        return rows.get(0).path("medication").path("id").asString();
+        var linked=linkStandardMedication("STD-9405B86DD5B404C44E1B92B5", "MED-2026-W006-04");
+        return linked.path("id").asString();
     }
     String generate(String medication) throws Exception {
         var response=mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
@@ -48,6 +46,12 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
         mockMvc.perform(post(ROOT+"/candidates/"+id+"/trial").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"items\":[{\"medicationId\":999,\"status\":\"DRAFT\"}]}"))
                 .andExpect(status().isBadRequest());
+    }
+    @Test void unmapped_medication_is_rejected_before_calling_ai() throws Exception {
+        mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"requirement\":\"重复核对\",\"medicationIds\":[\"362387869795203\"]}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("QMED_STANDARD_REFERENCE_REQUIRED"));
+        verify(ai,never()).generate(anyString(),anyString());
     }
     @Test void unavailable_real_model_never_creates_a_fallback_candidate() throws Exception {
         var med=medication();when(ai.status()).thenReturn(new MedicationRuleAuthoringAi.Status(false,null,"unavailable"));
@@ -134,15 +138,60 @@ class MedicationWorkbenchTest extends RhnIntegrationTestSupport {
                 .andExpect(jsonPath("$.scope").value("ALL"))
                 .andExpect(jsonPath("$.cases.length()").value(7));
     }
+
+    @Test void rule_catalog_keeps_review_and_release_lifecycle_in_one_entry() throws Exception {
+        var candidateId = generate(medication());
+        mockMvc.perform(post(ROOT + "/candidates/" + candidateId + "/suite").with(rhnWorkContext()))
+                .andExpect(status().isOk());
+
+        var catalog = json(mockMvc.perform(get("/api/quality/medication-rule-catalog").with(rhnWorkContext()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        var entry = java.util.stream.StreamSupport.stream(catalog.path("rules").spliterator(), false)
+                .filter(value -> value.path("key").asText().startsWith("CANDIDATE:"))
+                .filter(value -> value.path("versions").toString().contains(candidateId))
+                .findFirst().orElseThrow();
+        var key = entry.path("key").asText();
+        var revision = entry.path("revision").asLong();
+        var submit = """
+                {"expectedRevision":%d,"operation":"SUBMIT","versionId":"%s","reason":"提交药师审核"}
+                """.formatted(revision, candidateId);
+        var inReview = json(mockMvc.perform(post("/api/quality/medication-rule-catalog/{key}/commands", key)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(submit))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("IN_REVIEW", inReview.path("versions").findValue("reviewStatus").asText());
+
+        var approve = """
+                {"expectedRevision":%d,"operation":"APPROVE","versionId":"%s","reason":"完成证据审核",
+                 "action":"WARN","standardVerified":true,"evidenceVerified":true,
+                 "evidence":[{"sourceType":"GUIDELINE","sourceTitle":"院内合理用药制度","sourceVersion":"2026.1",
+                 "sourceLocator":"第 3 章第 2 条","section":"重复用药","excerpt":"同一标准规格重复开立时提醒核对",
+                 "usageScope":"CLINICAL_EVIDENCE"}]}
+                """.formatted(inReview.path("revision").asLong(), candidateId);
+        var approved = json(mockMvc.perform(post("/api/quality/medication-rule-catalog/{key}/commands", key)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(approve))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("APPROVED", approved.path("versions").findValue("reviewStatus").asText());
+
+        var deploy = """
+                {"expectedRevision":%d,"operation":"DEPLOY","versionId":"%s","reason":"启用旁路观察",
+                 "mode":"SHADOW","organizationId":%d,"departmentId":null}
+                """.formatted(approved.path("revision").asLong(), candidateId, Long.parseLong(ORGANIZATION));
+        mockMvc.perform(post("/api/quality/medication-rule-catalog/{key}/commands", key)
+                .with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(deploy))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.deployments[0].mode").value("SHADOW"))
+                .andExpect(jsonPath("$.deployments[0].status").value("ACTIVE"));
+        mockMvc.perform(get("/api/quality/medication-rule-catalog/{key}/runs", key).with(rhnWorkContext()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(0));
+    }
     @Test void rule_expression_generation_and_patient_consultation_simulation() throws Exception {
         when(ai.generate(anyString(),anyString())).thenReturn("""
-            {"status":"READY","message":"已生成规则串","rule":{"template":"AGE_CONTRAINDICATION","name":"未成年禁用喹诺酮类","explanation":"18岁以下禁用","duplicateCount":1,"message":"未成年人禁用","decision":"WARN","ruleExpression":"IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK","categoryName":"喹诺酮类","minAge":18}}
+            {"status":"READY","message":"已生成规则串","rule":{"template":"AGE_CONTRAINDICATION","name":"未成年禁用喹诺酮类","explanation":"18岁以下禁用","duplicateCount":2,"message":"未成年人禁用","decision":"WARN","ruleExpression":"IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK","categoryName":"喹诺酮类","minAge":18}}
             """);
         var med = medication();
         var genRes = mockMvc.perform(post(ROOT+"/generate").with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"requirement\":\"18岁以下未成年人门诊禁用喹诺酮类药物\",\"source\":\"临床药理规范\",\"medicationIds\":[\""+med+"\"]}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.candidate.rule.ruleExpression").value("IF Patient.Age < 18 AND Medication.Category == '喹诺酮类' THEN BLOCK"))
+                .andExpect(jsonPath("$.candidate.rule.ruleExpression").value("IF Patient.Age < 18 AND Medication IN SelectedStandardSpecifications THEN WARN"))
                 .andExpect(jsonPath("$.candidate.rule.minAge").value(18))
                 .andReturn().getResponse().getContentAsString();
         var id = json(genRes).path("candidate").path("id").asString();

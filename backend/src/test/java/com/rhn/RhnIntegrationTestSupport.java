@@ -68,6 +68,53 @@ abstract class RhnIntegrationTestSupport {
                         """);
     }
 
+    @Autowired
+    protected com.rhn.platform.masterdata.application.StandardMedicationCatalogService medicationReferences;
+    @Autowired
+    protected com.rhn.platform.masterdata.infrastructure.MedicationStandardSourceRepository medicationSources;
+
+    /** Business-flow fixtures explicitly adopt an available reference specification; contract tests use raw input. */
+    protected String standardMedicationInput(String input) {
+        var body = (tools.jackson.databind.node.ObjectNode) json(input);
+        var summary = medicationReferences.summary();
+        var entries = medicationReferences.search("", body.path("sdMedicationType").asString(), "STRUCTURED", 0, 100);
+        var specs = new java.util.ArrayList<JsonNode>();
+        for (int page = 0; page < entries.totalPages(); page++) {
+            for (var entry : medicationReferences.search("", body.path("sdMedicationType").asString(), "STRUCTURED", page, 100).content()) {
+                medicationReferences.detail(entry.path("id").asString()).path("specifications").forEach(specs::add);
+            }
+        }
+        var eligible = specs.stream().filter(spec -> spec.path("doseForm").asString().equals(body.path("sdDoseForm").asString()))
+                .filter(spec -> medicationSources.findByTenantIdAndCatalogCodeAndCatalogVersionAndSpecificationCode(Long.valueOf(TENANT),
+                    summary.path("catalogId").asString(), summary.path("catalogVersion").asString(), spec.path("id").asString()).isEmpty()).toList();
+        var spec = eligible.stream().filter(v -> v.path("specification").asString().replace(" ", "")
+                .equalsIgnoreCase(body.path("preparationSpec").asString().replace(" ", ""))).findFirst()
+                .orElseGet(() -> eligible.stream().findFirst().orElseThrow(() -> new IllegalArgumentException("Fixture needs a reference specification")));
+        body.put("standardSpecificationId", spec.path("id").asString());
+        body.put("preparationSpec", spec.path("specification").asString());
+        if (!spec.path("presentationUnit").isNull()) body.put("preparationUnit", spec.path("presentationUnit").asString());
+        var strength = spec.path("strength");
+        body.remove("strengthValue"); body.remove("strengthUnit");
+        if (strength.path("computable").asBoolean() && "AMOUNT_PER_PRESENTATION".equals(strength.path("kind").asString())) {
+            body.put("strengthValue", new java.math.BigDecimal(strength.path("numerator").path("value").asString()));
+            body.put("strengthUnit", strength.path("numerator").path("unit").asString());
+        }
+        return body.toString();
+    }
+
+    protected JsonNode linkStandardMedication(String specificationId, String code) throws Exception {
+        String path = "/api/platform/master-data/medication-standard-catalog/specifications/" + specificationId + "/medications";
+        JsonNode candidates = json(mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get(path)
+                .with(rhnWorkContext())).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode medication = null;
+        for (var candidate : candidates) if (code.equals(candidate.path("code").asString())) medication = candidate;
+        if (medication == null) throw new IllegalArgumentException("Expected reference-compatible fixture: " + code);
+        var body = objectMapper.createObjectNode(); body.set("medication", medication);
+        body.put("medicationId", medication.path("id").asString()); body.put("expectedRevision", medication.path("revision").asLong());
+        return json(mockMvc.perform(post(path).with(rhnWorkContext()).contentType(MediaType.APPLICATION_JSON).content(body.toString()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+    }
+
     protected JsonNode json(String value) {
         return objectMapper.readTree(value);
     }
