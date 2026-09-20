@@ -20,13 +20,15 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class ServiceRequestPrintDataProvider implements PrintDataProvider {
+    private final OrderDocumentInfoSupport documentInfoSupport;
     private final ServiceRequestRepository repository;
     private final EncounterDirectory encounters;
     private final ResidentDirectory residents;
     private final OrganizationDirectory organizations;
 
     ServiceRequestPrintDataProvider(ServiceRequestRepository repository, EncounterDirectory encounters,
-                                    ResidentDirectory residents, OrganizationDirectory organizations) {
+                                    ResidentDirectory residents, OrganizationDirectory organizations, OrderDocumentInfoSupport documentInfoSupport) {
+        this.documentInfoSupport = documentInfoSupport;
         this.repository = repository; this.encounters = encounters;
         this.residents = residents; this.organizations = organizations;
     }
@@ -68,7 +70,9 @@ class ServiceRequestPrintDataProvider implements PrintDataProvider {
         String quantityText = request.quantity().stripTrailingZeros().toPlainString() + " " + request.unitCodeSnapshot();
         payload.put("quantityText", quantityText); payload.put("specimenType", valueOrDash(request.specimenTypeSnapshot()));
         payload.put("examinationType", valueOrDash(request.examinationTypeSnapshot()));
-        payload.put("clinicalDescription", valueOrDash(request.clinicalDescription()));
+        payload.put("documentInfo", documentInfoSupport.read(request.documentInfoJson()));
+        payload.put("examinationPurpose", documentInfoSupport.read(request.documentInfoJson()).examinationPurpose());
+        payload.put("clinicalDescription", valueOrDash(documentInfoSupport.appendSummary(request.clinicalDescription(), request.documentInfoJson())));
         payload.put("reason", valueOrDash(request.reasonText())); payload.put("authoredAt", request.authoredAt());
         payload.put("authoredBy", request.authoredBy()); payload.put("businessDate", request.businessDate());
         payload.put("items", List.of(Map.of("itemCode", request.itemCodeSnapshot(),

@@ -228,6 +228,7 @@ public class DiagnosticExchangeService implements DiagnosticReportDirectory {
         payload.put("localCode", request.localCode()); payload.put("localName", request.localName());
         payload.put("specimenType", request.specimenType()); payload.put("examinationType", request.examinationType());
         payload.put("quantity", request.quantity()); payload.put("unitCode", request.unitCode());
+        payload.put("examinationPurpose", request.examinationPurpose());
         payload.put("clinicalDescription", request.clinicalDescription()); payload.put("reason", request.reason());
         payload.put("performerOrganizationId", request.performerOrganizationId());
         payload.put("performerDepartmentId", request.performerDepartmentId());

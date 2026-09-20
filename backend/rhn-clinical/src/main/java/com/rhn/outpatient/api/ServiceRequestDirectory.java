@@ -19,5 +19,5 @@ public interface ServiceRequestDirectory {
             Long performerOrganizationId, Long performerDepartmentId, LocalDate businessDate,
             Instant authoredAt, Long authoredBy, String reason, String clinicalDescription,
             BigDecimal totalAmount, String currencyCode,
-            String itemAttributeHash, String itemAttributeSnapshot, String standardMappingSnapshot) {}
+            String itemAttributeHash, String itemAttributeSnapshot, String standardMappingSnapshot, String examinationPurpose) {}
 }

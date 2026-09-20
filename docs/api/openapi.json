@@ -37020,6 +37020,15 @@
         "operationId": "analyticsPagesSaved",
         "parameters": [
           {
+            "name": "includeArchived",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
             "name": "X-Tenant-Id",
             "in": "header",
             "description": "当前县域医共体租户标识",
@@ -49921,6 +49930,511 @@
               "*/*": {
                 "schema": {
                   "$ref": "#/components/schemas/MedicationView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounterId}/service-requests/{id}/document-info": {
+      "put": {
+        "tags": [
+          "service-request-controller"
+        ],
+        "operationId": "updateDocumentInfo",
+        "parameters": [
+          {
+            "name": "encounterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderDocumentInfo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceRequestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/encounters/{encounterId}/prescriptions/{id}/document-info": {
+      "put": {
+        "tags": [
+          "prescription-controller"
+        ],
+        "operationId": "updateDocumentInfo_1",
+        "parameters": [
+          {
+            "name": "encounterId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderDocumentInfo"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrescriptionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/pages/saved/{id}": {
+      "put": {
+        "tags": [
+          "analysis-page-controller"
+        ],
+        "operationId": "analyticsPagesUpdate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisPageSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPageSaved"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/pages/saved/{id}/rename": {
+      "post": {
+        "tags": [
+          "analysis-page-controller"
+        ],
+        "operationId": "analyticsPagesRename",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisPageRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPageSaved"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/pages/saved/{id}/archive": {
+      "post": {
+        "tags": [
+          "analysis-page-controller"
+        ],
+        "operationId": "analyticsPagesArchive",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisPageArchive"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisPageSaved"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/analytics/pages/saved/{id}/history": {
+      "get": {
+        "tags": [
+          "analysis-page-controller"
+        ],
+        "operationId": "analyticsPagesHistory",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AnalysisPageSaved"
+                  }
                 }
               }
             }
@@ -75058,6 +75572,12 @@
           },
           "cancelReason": {
             "type": "string"
+          },
+          "documentInfo": {
+            "$ref": "#/components/schemas/OrderDocumentInfo"
+          },
+          "documentInfoEditable": {
+            "type": "boolean"
           }
         }
       },
@@ -75485,6 +76005,12 @@
             "items": {
               "$ref": "#/components/schemas/MedicationRequestResponse"
             }
+          },
+          "safetyEvaluation": {
+            "$ref": "#/components/schemas/MedicationSafetyDecision"
+          },
+          "documentInfo": {
+            "$ref": "#/components/schemas/OrderDocumentInfo"
           }
         }
       },
@@ -79051,6 +79577,18 @@
           "savedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "functionId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "version": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "archived": {
+            "type": "boolean"
           }
         }
       },
@@ -84875,6 +85413,266 @@
         "required": [
           "medication"
         ]
+      },
+      "OrderDocumentInfo": {
+        "type": "object",
+        "properties": {
+          "diagnoses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiagnosisLink"
+            },
+            "maxItems": 30,
+            "minItems": 0
+          },
+          "externalPrescription": {
+            "type": "boolean"
+          },
+          "specialDisease": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 0
+          },
+          "examinationPurpose": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "diagnoses"
+        ]
+      },
+      "UpdateOrderDocumentInfo": {
+        "type": "object",
+        "properties": {
+          "expectedRevision": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "documentInfo": {
+            "$ref": "#/components/schemas/OrderDocumentInfo"
+          }
+        },
+        "required": [
+          "documentInfo",
+          "expectedRevision"
+        ]
+      },
+      "DiagnosisLink": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 0
+          },
+          "display": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 0
+          },
+          "primary": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "display"
+        ]
+      },
+      "MedicationSafetyDecision": {
+        "type": "object",
+        "properties": {
+          "evaluationId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "prescriptionId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "prescriptionRevision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "inputHash": {
+            "type": "string"
+          },
+          "ruleSetVersion": {
+            "type": "string"
+          },
+          "engineVersion": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "WARN",
+              "REQUIRE_OVERRIDE",
+              "BLOCK",
+              "UNAVAILABLE"
+            ]
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            }
+          },
+          "ruleExecutions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RuleExecution"
+            }
+          },
+          "failureCodes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RuleExecution": {
+        "type": "object",
+        "properties": {
+          "ruleCode": {
+            "type": "string"
+          },
+          "ruleVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "outcome": {
+            "type": "string"
+          },
+          "failureCode": {
+            "type": "string"
+          }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "properties": {
+          "findingId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "ruleCode": {
+            "type": "string"
+          },
+          "ruleVersion": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "category": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "INFO",
+              "LOW",
+              "MODERATE",
+              "HIGH",
+              "CRITICAL"
+            ]
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "WARN",
+              "REQUIRE_OVERRIDE",
+              "BLOCK",
+              "UNAVAILABLE"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "medicationRequestIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            }
+          },
+          "overridePolicy": {
+            "type": "string",
+            "enum": [
+              "NOT_ALLOWED",
+              "ACKNOWLEDGE",
+              "REASON_REQUIRED"
+            ]
+          },
+          "suggestedAction": {
+            "type": "string"
+          }
+        }
+      },
+      "Evidence": {
+        "type": "object",
+        "properties": {
+          "sourceType": {
+            "type": "string"
+          },
+          "sourceTitle": {
+            "type": "string"
+          },
+          "sourceVersion": {
+            "type": "string"
+          },
+          "sourceLocator": {
+            "type": "string"
+          },
+          "section": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "usageScope": {
+            "type": "string"
+          }
+        }
+      },
+      "AnalysisPageRename": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "AnalysisPageArchive": {
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": "boolean"
+          }
+        }
       }
     },
     "securitySchemes": {

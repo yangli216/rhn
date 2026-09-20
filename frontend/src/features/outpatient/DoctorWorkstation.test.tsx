@@ -933,6 +933,19 @@ describe('DoctorWorkstation reception flow', () => {
     await waitFor(() => expect(api.encounters.submitPrescription).toHaveBeenCalledWith('encounter-101', 'rx-child', 0))
   })
 
+  it('does not automatically append new medication to a prescription with confirmed document metadata', async () => {
+    const api = createMockApi()
+    api.encounters.createPrescription = vi.fn().mockResolvedValue({ id: 'rx-new', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [] })
+    api.encounters.createMedicationRequest = vi.fn().mockResolvedValue({ id: 'mr-new', status: 'DRAFT' })
+    const drafts = [{ id: 'new', categoryCode: 'WESTERN', routeExecutionType: 'NONE',
+      request: { medicationId: 'm-new', routeCode: 'ORAL', frequencyCode: 'QD', quantity: 1 } }] as any
+    const existing = [{ id: 'rx-existing', categoryCode: 'WESTERN', status: 'DRAFT', medicationRequests: [],
+      documentInfo: { diagnoses: [], externalPrescription: true } }] as any
+    await persistOrderDrafts('enc-1', drafts, [], api, existing)
+    expect(api.encounters.createPrescription).toHaveBeenCalledTimes(1)
+    expect(api.encounters.createMedicationRequest).toHaveBeenCalledWith('enc-1', expect.objectContaining({ prescriptionId: 'rx-new' }))
+  })
+
   it('automatically splits the sixth regular medication into a second prescription', async () => {
     const api = createMockApi()
     let prescriptionSequence = 0

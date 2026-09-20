@@ -69,6 +69,16 @@ class ServiceRequest {
     @Column(name = "QTY_ORDERED", table = "RHN_EX_SVC_REQ", nullable = false, precision = 28, scale = 8) private BigDecimal quantity;
     @Column(name = "DES_CLIN_DESCRIPTION", table = "RHN_EX_SVC_REQ") private String clinicalDescription;
 
+    @jakarta.persistence.Lob @Column(name = "JSON_DOC_INFO") private String documentInfoJson;
+
+    String documentInfoJson() { return documentInfoJson; }
+    void updateDocumentInfo(long expectedRevision, String json) {
+        if (revision != expectedRevision) throw new BusinessException("SERVICE_REQUEST_REVISION_CONFLICT",
+                "申请单已被其他用户修改，请刷新后重试", HttpStatus.CONFLICT);
+        if (!"ACTIVE".equals(status)) throw new BusinessException("SERVICE_REQUEST_STATE_INVALID", "当前申请单不能修改", HttpStatus.CONFLICT);
+        documentInfoJson = json;
+    }
+
     protected ServiceRequest() {}
 
     ServiceRequest(Long tenantId, Long residentId, Long encounterId, String requestNo,

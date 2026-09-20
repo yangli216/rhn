@@ -16,5 +16,5 @@ record ServiceRequestResponse(
         JsonNode itemAttributeSnapshot, String itemAttributeHash, Instant itemAttributeResolvedAt,
         JsonNode standardMappings, String serviceType, String specimenType, String examinationType,
         String clinicalDescription,
-        Instant cancelledAt, Long cancelledBy, String cancelReason) {
+        Instant cancelledAt, Long cancelledBy, String cancelReason, OrderDocumentInfo documentInfo, boolean documentInfoEditable) {
 }

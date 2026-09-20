@@ -54,5 +54,11 @@ public final class AnalysisPage {
     public record Result(Spec spec, LocalDate startDate, LocalDate endDate, String scopeName,
                          String timezone, Instant fetchedAt, List<Series> series) {}
     @Schema(name="AnalysisPageSaved")
-    public record Saved(Long id, Spec spec, Instant savedAt) {}
+    public record Saved(Long id, Spec spec, Instant savedAt, Long functionId, int version, boolean archived) {
+        public Saved(Long id, Spec spec, Instant savedAt) { this(id, spec, savedAt, id, 1, false); }
+    }
+    @Schema(name="AnalysisPageRename")
+    public record Rename(@NotBlank @Size(max=80) String title) {}
+    @Schema(name="AnalysisPageArchive")
+    public record Archive(boolean archived) {}
 }

@@ -10,4 +10,4 @@ record PrescriptionResponse(
         Instant authoredAt, Long authoredBy, Instant submittedAt, Long submittedBy,
         Instant cancelledAt, Long cancelledBy, String cancelReason, String note,
         List<MedicationRequestResponse> medicationRequests,
-        MedicationSafetyDecision safetyEvaluation) {}
+        MedicationSafetyDecision safetyEvaluation, OrderDocumentInfo documentInfo) {}

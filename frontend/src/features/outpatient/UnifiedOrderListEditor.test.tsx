@@ -192,6 +192,19 @@ describe('UnifiedOrderListEditor', () => {
     )
   }
 
+  it('opens a document from its saved order without changing pending drafts', async () => {
+    const onOpenDocument = vi.fn(), setServiceDrafts = vi.fn()
+    renderComponent({ services: [{ id: 's1', serviceType: 'LABORATORY', itemName: '已存血常规', quantity: 1,
+      unitCode: '次', status: 'ACTIVE', authoredAt: '2026-09-19T01:00:00Z' }],
+      serviceDrafts: [{ id: 'draft-s', catalogItemId: 'srv-1', itemName: '血常规五分类', serviceType: 'LABORATORY', quantity: 1, unitCode: '次' }], setServiceDrafts,
+      documentRows: { s1: { key: 'service:s1', label: '检验1', selected: true } }, onOpenDocument })
+    fireEvent.click(screen.getByRole('button', { name: '查看检验1单据信息' }))
+    expect(onOpenDocument).toHaveBeenCalledWith('service:s1')
+    expect(setServiceDrafts).not.toHaveBeenCalled()
+    expect(document.getElementById('order-s1')).toHaveClass('is-document-selected')
+    expect(screen.getByText('血常规五分类')).toBeInTheDocument()
+  })
+
   const ensureComposerOpen = async (user?: ReturnType<typeof userEvent.setup>) => {
     const launcher = screen.queryByRole('button', { name: '新增医嘱' })
     if (launcher) {
@@ -1627,12 +1640,306 @@ describe('UnifiedOrderListEditor', () => {
 
     // 模拟在表格容器上点击（如点击横向滚动条或空白区）
     const tableContainer = document.querySelector('.doctor-unified-order-list')
-    expect(tableContainer).toBeInTheDocument()
     tableContainer?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true }))
     tableContainer?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
 
     // 应当依然保持编辑态
     expect(screen.getByRole('row', { name: '编辑待确认医嘱 注射用头孢曲松钠' })).toBeInTheDocument()
     expect(document.querySelector('.doctor-unified-draft-editor-wrap')).toBeInTheDocument()
+  })
+
+  it('supports typewriter continuous stream entry of herbal medicine with Enter keys and focus loop', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const herb1 = {
+      id: 'm-herb1', code: 'HERB001', name: '黄芪', preparationSpec: '饮片', preparationUnit: 'g',
+      defaultDose: 10, defaultDoseUnit: 'g', defaultRoute: 'ORAL', defaultFrequency: 'BID',
+      sdMedicationType: 'HERBAL', sdMedicationTypeText: '草药', products: [{
+        id: 'product-herb1', code: 'PH001', name: '黄芪饮片', manufacturerName: '中药饮片有限公司',
+        unitCode: 'g', sdStatus: 'ACTIVE', orderable: true, chargeable: true,
+        organizationAdoption: { organizationId: 'org-1', sdStatus: 'ACTIVE', orderable: true, chargeable: true, dispensable: true },
+        packages: [{ id: 'package-herb1', unitCode: 'g', unitName: 'g', packageSpec: '500g/袋',
+          quantityFactor: 1, sdStatus: 'ACTIVE', validFrom: '2020-01-01', defaultDispense: true, defaultSale: true }],
+        prices: [{ id: 'price-herb1', packageId: 'package-herb1', sdStatus: 'ACTIVE', sdPriceType: 'SALE',
+          price: 0.12, currencyCode: 'CNY', validFrom: '2020-01-01' }],
+      }],
+    }
+    vi.mocked(mockApi.encounters.orderableMedications).mockResolvedValue([herb1] as never)
+    renderComponent({ setMedicationDrafts })
+
+    await ensureComposerOpen(user)
+    await user.click(screen.getByRole('combobox', { name: '医嘱类型' }))
+    await user.click(await screen.findByRole('option', { name: '草药' }))
+
+    // 搜索并选择黄芪
+    await user.click(screen.getByRole('combobox', { name: '搜索中草药名称/拼音' }))
+    await user.type(screen.getByPlaceholderText('输入通用名、编码或别名'), '黄芪')
+    await user.click(await screen.findByRole('option', { name: /黄芪/ }))
+
+    // 焦点自动进入每付剂量输入框
+    const doseInput = screen.getByLabelText('每付剂量')
+    await waitFor(() => expect(document.activeElement).toBe(doseInput))
+    expect(doseInput).toHaveValue(10)
+
+    // 在剂量输入框输入 15，并直接按 Enter
+    await user.clear(doseInput)
+    await user.type(doseInput, '15{enter}')
+
+    // 验证黄芪已被成功添加
+    await waitFor(() => expect(setMedicationDrafts).toHaveBeenCalledTimes(1))
+    const firstUpdater = setMedicationDrafts.mock.calls[0][0]
+    const draftsAfterFirst = firstUpdater([])
+    expect(draftsAfterFirst[0]).toMatchObject({
+      medicationName: '黄芪',
+      request: { doseValue: 15, quantity: 105, durationValue: 7 },
+    })
+
+    // 焦点自动流转回到草药搜索框
+    await waitFor(() => {
+      const searchInput = screen.queryByPlaceholderText('输入通用名、编码或别名')
+      const trigger = screen.queryByRole('combobox', { name: '搜索中草药名称/拼音' })
+      expect(document.activeElement === searchInput || document.activeElement === trigger).toBe(true)
+    })
+  })
+
+  it('supports in-place dose editing and special decoction method selection on herbal matrix cards', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const mockHerbalDraft: MedicationPlanDraft = {
+      id: 'draft-herb-1',
+      editorMode: 'herbal',
+      categoryCode: 'HERBAL',
+      medicationName: '黄芪',
+      medicationCode: 'HERB001',
+      unitPrice: 0.12,
+      productName: '黄芪饮片',
+      request: {
+        medicationId: 'm-herb1',
+        catalogItemId: 'srv-1',
+        doseValue: 10,
+        doseUnit: 'g',
+        routeCode: 'ORAL',
+        frequencyCode: 'BID',
+        durationValue: 7,
+        durationUnit: '剂',
+        quantity: 70,
+        quantityUnit: 'g',
+        medicationInstruction: '水煎服',
+        substitutionAllowed: true,
+        selfProvided: false,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊草药处方',
+      },
+    }
+
+    renderComponent({ medicationDrafts: [mockHerbalDraft], setMedicationDrafts })
+
+    // 验证草药矩阵中渲染了黄芪卡片和剂量按钮
+    const doseBtn = screen.getByRole('button', { name: '修改 黄芪 剂量 10g' })
+    expect(doseBtn).toBeInTheDocument()
+
+    // 点击剂量按钮，原地转换为输入框
+    await user.click(doseBtn)
+    const inlineDoseInput = screen.getByRole('spinbutton', { name: '编辑 黄芪 剂量' })
+    expect(inlineDoseInput).toBeInTheDocument()
+    expect(inlineDoseInput).toHaveValue(10)
+
+    // 输入 20 并回车
+    await user.clear(inlineDoseInput)
+    await user.type(inlineDoseInput, '20{enter}')
+
+    // 验证 setMedicationDrafts 接收到了修改后的每剂克数和总克数
+    expect(setMedicationDrafts).toHaveBeenCalled()
+    const updater = setMedicationDrafts.mock.calls[0][0]
+    const updated = updater([mockHerbalDraft])
+    expect(updated[0].request.doseValue).toBe(20)
+    expect(updated[0].request.quantity).toBe(140) // 20g * 7剂
+
+    // 验证特殊煎法添加按钮与切换
+    const addMethodBtn = screen.getByRole('button', { name: '为 黄芪 添加特殊煎法' })
+    await user.click(addMethodBtn)
+    const firstOption = await screen.findByRole('button', { name: '先煎' })
+    await user.click(firstOption)
+
+    const methodUpdater = setMedicationDrafts.mock.calls[1][0]
+    const methodUpdated = methodUpdater([mockHerbalDraft])
+    expect(methodUpdated[0].request.medicationInstruction).toBe('水煎服；先煎')
+  })
+
+  it('allows modifying whole formula attributes outside composer and syncs batch drafts and summary bar', async () => {
+    const user = userEvent.setup()
+    const setMedicationDrafts = vi.fn()
+    const mockHerb1: MedicationPlanDraft = {
+      id: 'draft-herb-1',
+      editorMode: 'herbal',
+      categoryCode: 'HERBAL',
+      medicationCode: 'HERB001',
+      medicationName: '黄芪',
+      unitPrice: 0.18,
+      productName: '黄芪饮片',
+      request: {
+        medicationId: 'm-herb1',
+        catalogItemId: 'srv-1',
+        doseValue: 10,
+        doseUnit: 'g',
+        routeCode: 'ORAL',
+        frequencyCode: 'BID',
+        durationValue: 7,
+        durationUnit: '剂',
+        quantity: 70,
+        quantityUnit: 'g',
+        medicationInstruction: '水煎服；先煎',
+        substitutionAllowed: true,
+        selfProvided: false,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊草药处方',
+      },
+    }
+
+    renderComponent({ medicationDrafts: [mockHerb1], setMedicationDrafts })
+
+    // 验证整方属性设置工具栏存在且可操作
+    const formulaBar = screen.getByRole('region', { name: '整方属性设置' })
+    expect(formulaBar).toBeInTheDocument()
+
+    // 检查付数输入框初始为 7
+    const countInput = screen.getByRole('spinbutton', { name: '整方剂数' })
+    expect(countInput).toHaveValue(7)
+
+    // 修改付数为 14
+    await user.clear(countInput)
+    await user.type(countInput, '14')
+
+    expect(setMedicationDrafts).toHaveBeenCalled()
+    const countUpdater = setMedicationDrafts.mock.calls[setMedicationDrafts.mock.calls.length - 1][0]
+    const countUpdated = countUpdater([mockHerb1])
+    expect(countUpdated[0].request.durationValue).toBe(14)
+    expect(countUpdated[0].request.quantity).toBe(140) // 10g * 14剂
+
+    // 修改煎服法为代煎，保留该药的原有先煎特殊煎法
+    const methodSelect = screen.getByRole('combobox', { name: '整方煎服法' })
+    await user.selectOptions(methodSelect, '代煎')
+    const methodUpdater = setMedicationDrafts.mock.calls[setMedicationDrafts.mock.calls.length - 1][0]
+    const methodUpdated = methodUpdater([mockHerb1])
+    expect(methodUpdated[0].request.medicationInstruction).toBe('代煎；先煎')
+
+    // 修改整方嘱托
+    const instructionInput = screen.getByRole('textbox', { name: '整方嘱托' })
+    await user.type(instructionInput, '早晚温服')
+    const instUpdater = setMedicationDrafts.mock.calls[setMedicationDrafts.mock.calls.length - 1][0]
+    const instUpdated = instUpdater([mockHerb1])
+    expect(instUpdated[0].request.medicationInstruction).toContain('早晚温服')
+  })
+
+  it('verifies dose input step base min="0" step="0.5" on herbal matrix card', async () => {
+    const user = userEvent.setup()
+    const mockHerb: MedicationPlanDraft = {
+      id: 'draft-herb-step',
+      editorMode: 'herbal',
+      categoryCode: 'HERBAL',
+      medicationCode: 'HERB001',
+      medicationName: '黄芪',
+      unitPrice: 0.18,
+      productName: '黄芪饮片',
+      request: {
+        medicationId: 'm-herb1',
+        catalogItemId: 'srv-1',
+        doseValue: 10,
+        doseUnit: 'g',
+        routeCode: 'ORAL',
+        frequencyCode: 'BID',
+        durationValue: 7,
+        durationUnit: '剂',
+        quantity: 70,
+        quantityUnit: 'g',
+        medicationInstruction: '水煎服',
+        substitutionAllowed: true,
+        selfProvided: false,
+        priceType: 'SALE',
+        pricingRequired: true,
+        reason: '门诊草药处方',
+      },
+    }
+
+    renderComponent({ medicationDrafts: [mockHerb] })
+
+    const doseBtn = screen.getByRole('button', { name: '修改 黄芪 剂量 10g' })
+    await user.click(doseBtn)
+
+    const doseInput = screen.getByRole('spinbutton', { name: '编辑 黄芪 剂量' })
+    expect(doseInput).toHaveAttribute('min', '0')
+    expect(doseInput).toHaveAttribute('step', '0.5')
+  })
+
+  it('eliminates floating point precision issues and displays clean weights in summary bar', async () => {
+    // 3 味药：10.1g, 10.0g, 10.6g，JS 浮点相加为 30.700000000000003
+    const mockHerbs: MedicationPlanDraft[] = [
+      {
+        id: 'draft-1',
+        editorMode: 'herbal',
+        categoryCode: 'HERBAL',
+        medicationCode: 'HERB001',
+        medicationName: '黄芪',
+        unitPrice: 0.18,
+        productName: '黄芪饮片',
+        request: {
+          medicationId: 'm-1', catalogItemId: 'srv-1', doseValue: 10.1, doseUnit: 'g',
+          routeCode: 'ORAL', frequencyCode: 'BID', durationValue: 7, durationUnit: '剂',
+          quantity: 70.7, quantityUnit: 'g', medicationInstruction: '水煎服',
+          substitutionAllowed: true, selfProvided: false, priceType: 'SALE', pricingRequired: true,
+          reason: '门诊草药处方',
+        },
+      },
+      {
+        id: 'draft-2',
+        editorMode: 'herbal',
+        categoryCode: 'HERBAL',
+        medicationCode: 'HERB002',
+        medicationName: '党参',
+        unitPrice: 0.20,
+        productName: '党参饮片',
+        request: {
+          medicationId: 'm-2', catalogItemId: 'srv-2', doseValue: 10, doseUnit: 'g',
+          routeCode: 'ORAL', frequencyCode: 'BID', durationValue: 7, durationUnit: '剂',
+          quantity: 70, quantityUnit: 'g', medicationInstruction: '水煎服',
+          substitutionAllowed: true, selfProvided: false, priceType: 'SALE', pricingRequired: true,
+          reason: '门诊草药处方',
+        },
+      },
+      {
+        id: 'draft-3',
+        editorMode: 'herbal',
+        categoryCode: 'HERBAL',
+        medicationCode: 'HERB003',
+        medicationName: '甘草',
+        unitPrice: 0.16,
+        productName: '炙甘草饮片',
+        request: {
+          medicationId: 'm-3', catalogItemId: 'srv-3', doseValue: 10.6, doseUnit: 'g',
+          routeCode: 'ORAL', frequencyCode: 'BID', durationValue: 7, durationUnit: '剂',
+          quantity: 74.2, quantityUnit: 'g', medicationInstruction: '水煎服',
+          substitutionAllowed: true, selfProvided: false, priceType: 'SALE', pricingRequired: true,
+          reason: '门诊草药处方',
+        },
+      },
+    ]
+
+    renderComponent({ medicationDrafts: mockHerbs })
+
+    // 验证底栏已移除“单剂重”，7剂总重为精确的 214.9g，无 0000000000003 异常尾数
+    const summaryBar = document.querySelector('.doctor-herbal-summary-bar')
+    expect(summaryBar).toBeInTheDocument()
+    expect(summaryBar).not.toHaveTextContent('单剂重')
+    expect(summaryBar).toHaveTextContent('7剂总重 214.9g')
+    expect(summaryBar?.textContent).not.toContain('0000000000003')
+
+    // 验证整方属性已内联至单据栏 (OrderDocumentGroupHeader) 中展示
+    const groupHeaderMiddle = document.querySelector('.doctor-group-header-middle')
+    expect(groupHeaderMiddle).toBeInTheDocument()
+    expect(groupHeaderMiddle).toHaveTextContent('付数/剂数')
+    expect(groupHeaderMiddle).toHaveTextContent('煎服法')
+    expect(groupHeaderMiddle).toHaveTextContent('服药频次')
   })
 });

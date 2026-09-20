@@ -32,6 +32,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneOffset.UTC);
 
+    private final OrderDocumentInfoSupport documentInfoSupport;
     private final ServiceRequestRepository repository;
     private final EncounterDirectory encounterDirectory;
     private final CatalogLifecycleDirectory catalogDirectory;
@@ -41,6 +42,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
     private final DomainEventPublisher eventPublisher;
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
+    private final com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments;
 
     ServiceRequestService(ServiceRequestRepository repository, EncounterDirectory encounterDirectory,
                           CatalogLifecycleDirectory catalogDirectory,
@@ -48,7 +50,9 @@ class ServiceRequestService implements ServiceRequestDirectory {
                           ItemStandardMappingDirectory mappingDirectory,
                           OrganizationDirectory organizationDirectory,
                           DomainEventPublisher eventPublisher,
-                          ExecutionContextProvider contextProvider, JsonCodec jsonCodec) {
+                          ExecutionContextProvider contextProvider, JsonCodec jsonCodec, OrderDocumentInfoSupport documentInfoSupport,
+                          com.rhn.outpatient.api.OrderDocumentExecutionDirectory diagnosticDocuments) {
+        this.documentInfoSupport = documentInfoSupport;
         this.repository = repository;
         this.encounterDirectory = encounterDirectory;
         this.catalogDirectory = catalogDirectory;
@@ -58,6 +62,7 @@ class ServiceRequestService implements ServiceRequestDirectory {
         this.eventPublisher = eventPublisher;
         this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
+        this.diagnosticDocuments = diagnosticDocuments;
     }
 
     @Transactional
@@ -142,6 +147,26 @@ class ServiceRequestService implements ServiceRequestDirectory {
         return response(value);
     }
 
+    @Transactional
+    ServiceRequestResponse updateDocumentInfo(Long encounterId, Long id, UpdateOrderDocumentInfo input) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var value = repository.findByIdAndTenantId(id, encounter.tenantId())
+                .filter(item -> item.encounterId().equals(encounterId))
+                .orElseThrow(() -> notFound("ORDER_DOCUMENT_NOT_FOUND", "未找到本次就诊的单据"));
+        if (!List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())) {
+            throw conflict("ORDER_DOCUMENT_TYPE_INVALID", "当前仅支持检验检查申请单信息修改");
+        }
+        diagnosticDocuments.requireAmendable(encounter.tenantId(), id);
+        String json = documentInfoSupport.validateAndWrite(encounter.tenantId(), encounterId,
+                input.documentInfo(), false);
+        var previousInfo = documentInfoSupport.read(value.documentInfoJson());
+        value.updateDocumentInfo(input.expectedRevision(), json);
+        repository.flush();
+        publish(value, "ORDER_DOCUMENT_INFO_UPDATED", "修改单据信息", Map.of("updatedBy", contextProvider.requireCurrent().subjectId(),
+                "before", previousInfo, "after", documentInfoSupport.read(json)));
+        return response(value);
+    }
+
     @Transactional(readOnly = true)
     List<ServiceRequestResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
@@ -177,7 +202,10 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.currencyCode(), jsonCodec.readTree(value.itemAttributeSnapshot()), value.itemAttributeHash(),
                 value.itemAttributeResolvedAt(), jsonCodec.readTree(value.standardMappingSnapshot()),
                 value.serviceTypeSnapshot(), value.specimenTypeSnapshot(), value.examinationTypeSnapshot(),
-                value.clinicalDescription(), value.cancelledAt(), value.cancelledBy(), value.cancelReason());
+                value.clinicalDescription(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(),
+                documentInfoSupport.read(value.documentInfoJson()),
+                "ACTIVE".equals(value.status()) && List.of("LABORATORY", "EXAMINATION").contains(value.serviceTypeSnapshot())
+                        && diagnosticDocuments.isAmendable(value.tenantId(), value.id()));
     }
 
     @Override
@@ -229,7 +257,8 @@ class ServiceRequestService implements ServiceRequestDirectory {
                 value.performerOrganizationId(), value.performerDepartmentId(), value.businessDate(),
                 value.authoredAt(), value.authoredBy(), value.reasonText(), value.clinicalDescription(),
                 value.totalAmount(), value.currencyCode(),
-                value.itemAttributeHash(), value.itemAttributeSnapshot(), value.standardMappingSnapshot());
+                value.itemAttributeHash(), value.itemAttributeSnapshot(), value.standardMappingSnapshot(),
+                documentInfoSupport.read(value.documentInfoJson()).examinationPurpose());
     }
 
     private void publish(ServiceRequest value, String type, String summary, Map<String, Object> details) {

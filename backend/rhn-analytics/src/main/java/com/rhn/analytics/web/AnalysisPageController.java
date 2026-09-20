@@ -25,5 +25,13 @@ public class AnalysisPageController {
     @Operation(operationId="analyticsPagesSave")
     @PostMapping("/saved") public Saved save(@Valid @RequestBody Spec spec){return service.save(spec);}
     @Operation(operationId="analyticsPagesSaved")
-    @GetMapping("/saved") public List<Saved> saved(){return service.saved();}
+    @GetMapping("/saved") public List<Saved> saved(@RequestParam(defaultValue="false") boolean includeArchived){return service.saved(includeArchived);}
+    @Operation(operationId="analyticsPagesUpdate")
+    @PutMapping("/saved/{id}") public Saved update(@PathVariable Long id,@Valid @RequestBody Spec spec){return service.update(id,spec);}
+    @Operation(operationId="analyticsPagesRename")
+    @PostMapping("/saved/{id}/rename") public Saved rename(@PathVariable Long id,@Valid @RequestBody Rename request){return service.rename(id,request.title());}
+    @Operation(operationId="analyticsPagesArchive")
+    @PostMapping("/saved/{id}/archive") public Saved archive(@PathVariable Long id,@RequestBody Archive request){return service.archive(id,request.archived());}
+    @Operation(operationId="analyticsPagesHistory")
+    @GetMapping("/saved/{id}/history") public List<Saved> history(@PathVariable Long id){return service.history(id);}
 }

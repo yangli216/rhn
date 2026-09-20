@@ -429,3 +429,5 @@
   font-weight: var(--font-weight-bold);
   border-top: 1px solid var(--color-border-strong);
 }
+
+.analytics-scope-select { width:260px; }

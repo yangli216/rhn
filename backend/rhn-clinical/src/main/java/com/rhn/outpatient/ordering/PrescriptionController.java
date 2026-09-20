@@ -41,6 +41,12 @@ class PrescriptionController {
         return service.batchOrder(encounterId, request);
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/document-info")
+    PrescriptionResponse updateDocumentInfo(@PathVariable Long encounterId, @PathVariable Long id,
+                                             @Valid @RequestBody UpdateOrderDocumentInfo input) {
+        return service.updateDocumentInfo(encounterId, id, input);
+    }
+
     @GetMapping
     List<PrescriptionResponse> list(@PathVariable Long encounterId) { return service.list(encounterId); }
 

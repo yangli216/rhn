@@ -32,6 +32,7 @@ class PrescriptionService {
     private static final DateTimeFormatter NUMBER_TIME = DateTimeFormatter.ofPattern("yyyyMMddHHmmss")
             .withZone(ZoneOffset.UTC);
 
+    private final OrderDocumentInfoSupport documentInfoSupport;
     private final PrescriptionRepository repository;
     private final MedicationRequestRepository medicationRepository;
     private final MedicationRequestService medicationService;
@@ -51,7 +52,8 @@ class PrescriptionService {
                         OutpatientPrescriptionInventoryDirectory inventoryDirectory,
                         PrescriptionInventoryFreezePolicy freezePolicy,
                         PrescriptionSplitEngine splitEngine,
-                        PrescriptionSafetyEvaluationDirectory safetyEvaluations) {
+                        PrescriptionSafetyEvaluationDirectory safetyEvaluations, OrderDocumentInfoSupport documentInfoSupport) {
+        this.documentInfoSupport = documentInfoSupport;
         this.repository = repository; this.medicationRepository = medicationRepository;
         this.medicationService = medicationService; this.encounterDirectory = encounterDirectory;
         this.organizationDirectory = organizationDirectory; this.eventPublisher = eventPublisher;
@@ -161,6 +163,22 @@ class PrescriptionService {
         return response(value);
     }
 
+    @Transactional
+    PrescriptionResponse updateDocumentInfo(Long encounterId, Long id, UpdateOrderDocumentInfo input) {
+        var encounter = encounterDirectory.requireActiveForOrdering(encounterId);
+        var value = repository.findByIdAndTenantId(id, encounter.tenantId())
+                .filter(item -> item.encounterId().equals(encounterId))
+                .orElseThrow(() -> notFound("ORDER_DOCUMENT_NOT_FOUND", "未找到本次就诊的单据"));
+        String json = documentInfoSupport.validateAndWrite(encounter.tenantId(), encounterId,
+                input.documentInfo(), true);
+        var previousInfo = documentInfoSupport.read(value.documentInfoJson());
+        value.updateDocumentInfo(input.expectedRevision(), json);
+        repository.flush();
+        publish(value, "ORDER_DOCUMENT_INFO_UPDATED", "修改单据信息", Map.of("updatedBy", contextProvider.requireCurrent().subjectId(),
+                "before", previousInfo, "after", documentInfoSupport.read(json)));
+        return response(value);
+    }
+
     @Transactional(readOnly = true)
     List<PrescriptionResponse> list(Long encounterId) {
         var encounter = encounterDirectory.requireAccessible(encounterId);
@@ -256,7 +274,7 @@ class PrescriptionService {
                 value.groupNo(), value.categoryCode(), value.status(), value.performerOrganizationId(),
                 value.performerDepartmentId(), value.authoredAt(), value.authoredBy(), value.submittedAt(),
                 value.submittedBy(), value.cancelledAt(), value.cancelledBy(), value.cancelReason(), value.note(), requests,
-                safetyEvaluation);
+                safetyEvaluation, documentInfoSupport.read(value.documentInfoJson()));
     }
 
     private void enforceMedicationSafetyGate(MedicationSafetyDecision evaluation, PrescriptionAction action) {

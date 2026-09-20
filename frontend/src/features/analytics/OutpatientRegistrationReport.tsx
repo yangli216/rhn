@@ -7,7 +7,7 @@ import {
   offsetDays,
   type DateRange,
 } from '../../shared/utils/dateRange'
-import { Alert, Button, DateRangePicker, Icon, LoadingState, PageHeader } from '../../shared/ui'
+import { Alert, Button, DateRangePicker, Icon, LoadingState, PageHeader, Select } from '../../shared/ui'
 import type { PageResult, PageSpec } from '../../shared/api/analysisPagesApi'
 import './analytics-reports.css'
 
@@ -279,15 +279,15 @@ export function OutpatientRegistrationReport({ api }: { api: RhnApi }) {
 
         <div className="analytics-filter-group">
           <label className="analytics-filter-label">机构与科室范围：</label>
-          <select
-            className="analytics-select-control"
+          <Select
+            className="analytics-scope-select"
             value={scope}
-            onChange={(e) => setScope(e.target.value as 'AUTHORIZED' | 'CURRENT')}
+            onChange={(value) => setScope(value as 'AUTHORIZED' | 'CURRENT')}
             aria-label="科室统计范围"
-          >
-            <option value="AUTHORIZED">全院可访问科室（综合分析）</option>
-            <option value="CURRENT">当前登录科室</option>
-          </select>
+            clearable={false} searchable={false}
+            options={[{ value: 'AUTHORIZED', label: '全院可访问科室（综合分析）' },
+              { value: 'CURRENT', label: '当前登录科室' }]}
+          />
         </div>
 
         <div className="analytics-filter-group analytics-filter-tabs">

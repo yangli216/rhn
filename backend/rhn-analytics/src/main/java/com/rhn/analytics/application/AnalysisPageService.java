@@ -250,7 +250,9 @@ public class AnalysisPageService {
         validate(spec);
         if(spec.measures()!=null) spec.measures().forEach(m->reports.validate(m,spec.dimension().name()));
     }
-    public record Stored(int pageVersion, Spec spec) {}
+    public record Stored(int pageVersion, Spec spec, boolean archived) {
+        public Stored(int pageVersion, Spec spec) { this(pageVersion, spec, false); }
+    }
     @Transactional
     public Saved save(Spec spec) {
         var c=context();validatePlan(spec);dates(spec.period(),LocalDate.now(zone(c)));
@@ -259,20 +261,85 @@ public class AnalysisPageService {
         var catalog=catalogs.findByTenantIdAndCodeAndCatalogVersion(c.tenantId(),catalogCode,1)
                 .orElseGet(()->catalogs.save(new AnalyticsCatalogVersion(c.tenantId(),catalogCode,1,json.write(structured?reports.catalog():metrics()),Instant.now())));
         var draft=drafts.save(new AnalysisDraftVersion(c.tenantId(),GlobalIds.next(),1,c.subjectId(),catalog.id(),json.write(new Stored(structured?2:1,spec)),Instant.now()));
-        return new Saved(draft.id(),spec,draft.createdAt());
+        return new Saved(draft.id(),spec,draft.createdAt(),draft.draftId(),draft.draftVersion(),false);
     }
     @Transactional(readOnly=true)
-    public List<Saved> saved() {
-        var c=context();List<Saved> result=new ArrayList<>();
-        for(var draft:drafts.findTop50ByTenantIdAndOwnerIdOrderByCreatedAtDesc(c.tenantId(),c.subjectId())) {
-            var root=json.readTree(draft.specJson());
-            if(root.path("pageVersion").asInt(0)==1 || root.path("pageVersion").asInt(0)==2) result.add(new Saved(draft.id(),json.read(draft.specJson(),Stored.class).spec(),draft.createdAt()));
-            else if(root.path("pilotVersion").asInt(0)==1) {
-                var s=json.read(draft.specJson(),PilotAnalysisService.Stored.class).analysis();var q=s.query();
-                result.add(new Saved(draft.id(),new Spec(s.title(),s.chart()==PilotAnalysis.Chart.TABLE?Template.LIST:s.chart()==PilotAnalysis.Chart.LINE&&q.dimension()!=PilotAnalysis.Dimension.DEPARTMENT?Template.TREND:Template.COMPARISON,
-                        List.of(q.metric().name()),Dimension.valueOf(q.dimension().name()),q.scope(),new Period(PeriodKind.FIXED,q.startDate(),q.endDate()),10),draft.createdAt()));
-            }
+    public List<Saved> saved() { return saved(false); }
+
+    @Transactional(readOnly=true)
+    public List<Saved> saved(boolean includeArchived) {
+        var c=context();
+        Map<Long, AnalysisDraftVersion> latest=new LinkedHashMap<>();
+        for(var draft:drafts.findByTenantIdAndOwnerIdOrderByCreatedAtDesc(c.tenantId(),c.subjectId())) {
+            latest.merge(draft.draftId(),draft,(a,b)->a.draftVersion()>b.draftVersion()?a:b);
         }
-        return result;
+        return latest.values().stream().map(this::savedView).filter(Objects::nonNull)
+                .filter(item->includeArchived || !item.archived()).toList();
+    }
+
+    @Transactional(readOnly=true)
+    public List<Saved> history(Long id) {
+        var c=context();var source=owned(id,c);
+        return drafts.findByTenantIdAndOwnerIdAndDraftIdOrderByDraftVersionDesc(c.tenantId(),c.subjectId(),source.draftId())
+                .stream().map(this::savedView).filter(Objects::nonNull).toList();
+    }
+
+    @Transactional
+    public Saved update(Long id, Spec spec) {
+        var c=context();var source=currentForUpdate(id,c);
+        if(savedView(source).archived()) throw conflict("ANALYSIS_ARCHIVED","请先恢复已归档功能");
+        validatePlan(spec);dates(spec.period(),LocalDate.now(zone(c)));
+        return append(source,spec,false);
+    }
+
+    @Transactional
+    public Saved rename(Long id, String title) {
+        var c=context();var source=currentForUpdate(id,c);var item=savedView(source);var s=item.spec();
+        if(item.archived()) throw conflict("ANALYSIS_ARCHIVED","请先恢复已归档功能");
+        var renamed=new Spec(title.trim(),s.template(),s.metrics(),s.dimension(),s.scope(),s.period(),s.limit(),s.measures(),s.widgets());
+        return append(source,renamed,false);
+    }
+
+    @Transactional
+    public Saved archive(Long id, boolean archived) {
+        var c=context();var source=currentForUpdate(id,c);return append(source,savedView(source).spec(),archived);
+    }
+
+    private AnalysisDraftVersion owned(Long id, ExecutionContext c) {
+        var value=drafts.findByIdAndTenantId(id,c.tenantId()).filter(v->v.ownerId().equals(c.subjectId()))
+                .orElseThrow(()->notFound("ANALYSIS_NOT_FOUND","未找到当前用户的统计功能"));
+        if(savedView(value)==null) throw notFound("ANALYSIS_NOT_FOUND","未找到统计功能");
+        return value;
+    }
+
+    private AnalysisDraftVersion currentForUpdate(Long id, ExecutionContext c) {
+        var source=owned(id,c);
+        drafts.lockRoot(c.tenantId(),c.subjectId(),source.draftId())
+                .orElseThrow(()->notFound("ANALYSIS_NOT_FOUND","未找到统计功能"));
+        var latest=drafts.findByTenantIdAndOwnerIdAndDraftIdOrderByDraftVersionDesc(c.tenantId(),c.subjectId(),source.draftId()).getFirst();
+        if(!latest.id().equals(id)) throw conflict("ANALYSIS_VERSION_CONFLICT","功能已被修改，请返回功能库刷新后重试；当前修改尚未保存");
+        return source;
+    }
+
+    private Saved append(AnalysisDraftVersion source, Spec spec, boolean archived) {
+        boolean structured=spec.measures()!=null&&!spec.measures().isEmpty();
+        String catalogCode=structured?"analysis-page-fields-v1":"analysis-page-v1";
+        var catalog=catalogs.findByTenantIdAndCodeAndCatalogVersion(source.tenantId(),catalogCode,1)
+                .orElseGet(()->catalogs.save(new AnalyticsCatalogVersion(source.tenantId(),catalogCode,1,json.write(structured?reports.catalog():metrics()),Instant.now())));
+        var value=drafts.save(new AnalysisDraftVersion(source.tenantId(),source.draftId(),source.draftVersion()+1,
+                source.ownerId(),catalog.id(),json.write(new Stored(structured?2:1,spec,archived)),Instant.now()));
+        return savedView(value);
+    }
+
+    private Saved savedView(AnalysisDraftVersion draft) {
+        var root=json.readTree(draft.specJson());Spec spec;boolean archived=false;
+        if(root.path("pageVersion").asInt(0)==1 || root.path("pageVersion").asInt(0)==2) {
+            var stored=json.read(draft.specJson(),Stored.class);spec=stored.spec();archived=stored.archived();
+        } else if(root.path("pilotVersion").asInt(0)==1) {
+            var s=json.read(draft.specJson(),PilotAnalysisService.Stored.class).analysis();var q=s.query();
+            spec=new Spec(s.title(),s.chart()==PilotAnalysis.Chart.TABLE?Template.LIST:s.chart()==PilotAnalysis.Chart.LINE&&q.dimension()!=PilotAnalysis.Dimension.DEPARTMENT?Template.TREND:Template.COMPARISON,
+                    List.of(q.metric().name()),Dimension.valueOf(q.dimension().name()),q.scope(),new Period(PeriodKind.FIXED,q.startDate(),q.endDate()),10);
+        } else return null;
+        return new Saved(draft.id(),spec,draft.createdAt(),draft.draftId(),draft.draftVersion(),archived);
     }
 }

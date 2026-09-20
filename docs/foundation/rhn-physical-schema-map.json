@@ -1122,6 +1122,11 @@
         "logical": "requesting_department_id",
         "physical": "ID_DEPT_REQ",
         "comment": "开立科室标识"
+      },
+      {
+        "logical": "document_info_json",
+        "physical": "JSON_DOC_INFO",
+        "comment": "诊疗申请单据信息JSON"
       }
     ]
   },
@@ -19969,6 +19974,11 @@
         "logical": "requesting_department_id",
         "physical": "ID_DEPT_REQ",
         "comment": "开立科室标识"
+      },
+      {
+        "logical": "document_info_json",
+        "physical": "JSON_DOC_INFO",
+        "comment": "处方单据信息JSON"
       }
     ]
   },

@@ -101,7 +101,16 @@ export interface CancelEncounterResult {
   message: string
 }
 
+export interface OrderDocumentInfo {
+  diagnoses: Array<{ code: string; display: string; primary: boolean }>
+  externalPrescription: boolean
+  specialDisease?: string | null
+  examinationPurpose?: string | null
+}
+
 export interface ServiceRequest {
+  documentInfoEditable?: boolean
+  documentInfo?: OrderDocumentInfo
   id: string
   revision: number
   residentId: string
@@ -283,6 +292,7 @@ export interface MedicationSafetyDecision {
 }
 
 export interface Prescription {
+  documentInfo?: OrderDocumentInfo
   id: string
   revision: number
   residentId: string
@@ -303,6 +313,14 @@ export interface Prescription {
 
 export function createEncountersApi(client: ApiClient) {
   return {
+    updatePrescriptionDocumentInfo: (encounterId: string, id: string, expectedRevision: number, documentInfo: OrderDocumentInfo) =>
+      client.request<Prescription>(`/api/encounters/${encounterId}/prescriptions/${id}/document-info`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision, documentInfo }),
+      }),
+    updateServiceDocumentInfo: (encounterId: string, id: string, expectedRevision: number, documentInfo: OrderDocumentInfo) =>
+      client.request<ServiceRequest>(`/api/encounters/${encounterId}/service-requests/${id}/document-info`, {
+        method: 'PUT', body: JSON.stringify({ expectedRevision, documentInfo }),
+      }),
     directVisitSettings: () => client.request<{ enabled: boolean; catalogItemId?: string | null }>(
       '/api/encounters/direct-visit/settings'),
     directVisit: (input: { residentId: string; encounterId?: string; commandCode: string;

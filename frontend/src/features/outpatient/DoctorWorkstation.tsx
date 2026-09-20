@@ -1,3 +1,4 @@
+import { OrderDocumentSummary, orderDocuments, documentMissing } from './OrderDocuments'
 import type { ClinicalAiFieldStream } from '../../shared/api/clinicalAiStream'
 import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
 import { isAbnormalObservation } from './ai/receptionSceneAssessment'
@@ -1928,7 +1929,8 @@ export async function persistOrderDrafts(
       const prescriptionsByCategory = new Map<string, Prescription[]>()
       const requestsByPrescription = new Map<string, MedicationRequest[]>()
       for (const value of existingPrescriptions) {
-        if (value.status === 'DRAFT') {
+        if (value.status === 'DRAFT' && !value.documentInfo?.externalPrescription
+          && !value.documentInfo?.specialDisease && !value.documentInfo?.diagnoses.length) {
           const values = prescriptionsByCategory.get(value.categoryCode) ?? []
           values.push(value)
           prescriptionsByCategory.set(value.categoryCode, values)
@@ -3370,6 +3372,16 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
 }) {
   const queryClient = useQueryClient()
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [documentKey, setDocumentKey] = useState<string | null>(null)
+  const [documentDirty, setDocumentDirty] = useState(false)
+  const documentNavigation = useRef<((key: string | null) => void) | null>(null)
+  const documentReturnFocus = useRef<HTMLElement | null>(null)
+  const openDocument = (key: string) => {
+    if (documentNavigation.current) { documentNavigation.current(key); return }
+    if (!documentReturnFocus.current) documentReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    setDocumentKey(key)
+  }
+
   const [safetyReviews, setSafetyReviews] = useState<MedicationSafetyDecision[]>([])
   const [ordersHovered, setOrdersHovered] = useState(false)
   const [printPrescription, setPrintPrescription] = useState<Prescription | null>(null)
@@ -3377,6 +3389,8 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   useEffect(() => {
     setReviewOpen(false)
     setSafetyReviews([])
+    setDocumentKey(null)
+    setDocumentDirty(false)
   }, [encounter.id])
   const prescriptions = useQuery({ queryKey: ['doctor-prescriptions', encounter.id], queryFn: () => api.encounters.prescriptions(encounter.id) })
   const services = useQuery({ queryKey: ['doctor-services', encounter.id], queryFn: () => api.encounters.serviceRequests(encounter.id) })
@@ -3461,7 +3475,7 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       await refresh()
     },
   })
-  useEffect(() => onBusyChange(confirmPlan.isPending || saveDraftOrders.isPending), [confirmPlan.isPending, saveDraftOrders.isPending, onBusyChange])
+  useEffect(() => onBusyChange(confirmPlan.isPending || saveDraftOrders.isPending || documentDirty), [confirmPlan.isPending, saveDraftOrders.isPending, documentDirty, onBusyChange])
   const persistedDraftCount = (prescriptions.data ?? []).reduce((sum, value) => sum
     + (value.status === 'DRAFT' ? value.medicationRequests.filter((request) => request.status === 'DRAFT').length : 0), 0)
   const planCount = medicationDrafts.length + serviceDrafts.length + persistedDraftCount
@@ -3471,21 +3485,34 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
   const error = prescriptions.error || services.error || medications.error
     || cancelService.error || cancelMedication.error || saveDraftOrders.error
   const hasAnyOrders = orderCount + planCount > 0
+  const documents = orderDocuments(prescriptions.data ?? [], services.data ?? [])
+  const incompleteDocuments = documents.filter(doc => documentMissing(doc).length > 0)
+  const documentRows = Object.fromEntries(documents.flatMap(doc => doc.items.map(item => [item.id, {
+    key: doc.key, label: doc.shortLabel, selected: doc.key === documentKey,
+  }])))
 
   return <Panel className={`doctor-orders-panel ${!hasAnyOrders ? 'is-empty' : ''} ${ordersHovered ? 'is-hovered' : ''}`}
+    onFocusCapture={(event) => {
+      if (event.target instanceof HTMLElement && event.target.closest('.doctor-unified-orders')
+        && event.target.matches('input, textarea, [contenteditable="true"]')) documentReturnFocus.current = event.target
+    }}
     onMouseEnter={() => setOrdersHovered(true)}
     onMouseLeave={() => setOrdersHovered(false)}>
     <PanelHead title="医嘱和费用信息" meta={<>{orderCount} 项已开立
       {statement.data ? ` · ${money(statement.data.chargeAmount, statement.data.currencyCode)}` : ''}</>}
       actions={editing ? <div className="doctor-order-head-actions">
         <StatusBadge tone={planCount ? 'warning' : 'neutral'}>{planCount} 项待确认</StatusBadge>
-        <Button size="sm" disabled={planCount === 0} onClick={() => setReviewOpen(true)}>审核开立</Button>
+        <Button size="sm" disabled={planCount === 0 || documentDirty} onClick={() => setReviewOpen(true)}>审核开立</Button>
       </div> : undefined} />
     {error && <Alert className="doctor-order-error">{errorMessage(error)}</Alert>}
+    <OrderDocumentSummary documents={documents} selectedKey={documentKey} onSelect={openDocument} />
     <div className="doctor-orders-content">
       {prescriptions.isPending || services.isPending || medications.isPending ? <LoadingState />
         : <UnifiedOrderListEditor aiOrderReview={aiOrderReview} onAiOrderReviewConsumed={onAiOrderReviewConsumed}
-          onAiOrdersPrepared={() => setReviewOpen(true)}
+          onAiOrdersPrepared={() => { if (!documentDirty) setReviewOpen(true) }}
+          documentRows={documentRows} onOpenDocument={openDocument} documentEditing={documentDirty}
+          documents={documents} selectedDocumentKey={documentKey} onSelectDocument={setDocumentKey}
+          onSavedDocument={refresh}
           aiSuggestionSurfaceRef={aiSuggestionSurfaceRef} encounter={encounter} allergies={allergies}
           prescriptions={prescriptions.data ?? []} medications={medications.data ?? []} services={services.data ?? []}
           medicationDrafts={medicationDrafts} setMedicationDrafts={setMedicationDrafts}
@@ -3501,11 +3528,34 @@ function OrdersPanel({ encounter, allergies, api, medicationDrafts, setMedicatio
       onClose={() => { if (!confirmPlan.isPending) { setReviewOpen(false); setSafetyReviews([]) } }}
       footer={<><Button variant="secondary" disabled={confirmPlan.isPending}
         onClick={() => { setReviewOpen(false); setSafetyReviews([]) }}>返回修改</Button>
-        <Button busy={confirmPlan.isPending} disabled={planCount === 0 && safetyReviews.length === 0}
+        <Button busy={confirmPlan.isPending} disabled={saveDraftOrders.isPending || (planCount === 0 && safetyReviews.length === 0)}
           onClick={() => confirmPlan.mutate({ acknowledged: safetyReviews.length > 0 })}>
           {safetyReviews.length > 0 ? '已知晓风险，继续开立' : '确认保存并开立'}
         </Button></>}>
       <div className="doctor-split-review-container">
+        {(medicationDrafts.length > 0 || serviceDrafts.length > 0) && <section className="doctor-document-review">
+          <strong>新医嘱将在保存后生成单据</strong>
+          <p>需要指定关联诊断、外配、特病或检查目的时，可先保存分单再完善。</p>
+          <Button size="sm" variant="secondary" busy={saveDraftOrders.isPending} disabled={confirmPlan.isPending}
+            onClick={async () => {
+              try {
+                await saveDraftOrders.mutateAsync()
+                const latest = orderDocuments(queryClient.getQueryData<Prescription[]>(['doctor-prescriptions', encounter.id]) ?? [],
+                  queryClient.getQueryData<ServiceRequest[]>(['doctor-services', encounter.id]) ?? [])
+                setReviewOpen(false)
+                const target = latest.find(doc => documentMissing(doc).length > 0) || latest[0]
+                if (target) openDocument(target.key)
+              } catch { /* The mutation error is shown in this review. */ }
+            }}>保存分单并完善</Button>
+          {saveDraftOrders.error && <Alert>{errorMessage(saveDraftOrders.error)}</Alert>}
+        </section>}
+        {incompleteDocuments.length > 0 && <section className="doctor-document-review" aria-label="单据信息核对">
+          <strong>单据信息待完善</strong>
+          <p>请核对关联诊断和检查目的；外配、特病仅在适用时填写。</p>
+          {incompleteDocuments.map(doc => <div key={doc.key}><span>{doc.label}：缺少{documentMissing(doc).join('、')}</span>
+            <Button size="sm" variant="text" onClick={() => { setReviewOpen(false); openDocument(doc.key) }}>去完善</Button></div>)}
+        </section>}
+
         {hasUnverifiedAllergyDraft && <Alert tone="warning">
           患者药物过敏信息尚未核验；本次提交是否允许继续由机构的过敏核验参数控制，请尽快补充核验记录。
         </Alert>}

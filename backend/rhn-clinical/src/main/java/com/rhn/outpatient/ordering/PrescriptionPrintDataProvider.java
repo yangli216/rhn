@@ -21,6 +21,7 @@ import static com.rhn.shared.api.BusinessErrors.notFound;
 
 @Service
 class PrescriptionPrintDataProvider implements PrintDataProvider {
+    private final OrderDocumentInfoSupport documentInfoSupport;
     private final PrescriptionRepository repository;
     private final MedicationRequestService medications;
     private final EncounterDirectory encounters;
@@ -29,7 +30,8 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
 
     PrescriptionPrintDataProvider(PrescriptionRepository repository, MedicationRequestService medications,
                                   EncounterDirectory encounters, ResidentDirectory residents,
-                                  OrganizationDirectory organizations) {
+                                  OrganizationDirectory organizations, OrderDocumentInfoSupport documentInfoSupport) {
+        this.documentInfoSupport = documentInfoSupport;
         this.repository = repository; this.medications = medications; this.encounters = encounters;
         this.residents = residents; this.organizations = organizations;
     }
@@ -65,7 +67,8 @@ class PrescriptionPrintDataProvider implements PrintDataProvider {
         payload.put("resident", residentMap(resident)); payload.put("prescriptionNo", prescription.groupNo());
         payload.put("authoredAt", prescription.authoredAt()); payload.put("authoredBy", prescription.authoredBy());
         payload.put("submittedAt", prescription.submittedAt()); payload.put("submittedBy", prescription.submittedBy());
-        payload.put("note", prescription.note()); payload.put("medications", medicationMaps(items));
+        payload.put("documentInfo", documentInfoSupport.read(prescription.documentInfoJson()));
+        payload.put("note", documentInfoSupport.appendSummary(prescription.note(), prescription.documentInfoJson())); payload.put("medications", medicationMaps(items));
         return new PrintDataSnapshot("Prescription", prescription.id(), prescription.revision(),
                 prescription.residentId(), prescription.encounterId(), prescription.performerOrganizationId(),
                 prescription.performerDepartmentId(), "门诊处方-" + prescription.groupNo() + ".pdf", payload);

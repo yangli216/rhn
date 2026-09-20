@@ -30,6 +30,12 @@ class ServiceRequestController {
         return service.create(encounterId, request);
     }
 
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/document-info")
+    ServiceRequestResponse updateDocumentInfo(@PathVariable Long encounterId, @PathVariable Long id,
+                                             @Valid @RequestBody UpdateOrderDocumentInfo input) {
+        return service.updateDocumentInfo(encounterId, id, input);
+    }
+
     @GetMapping
     List<ServiceRequestResponse> list(@PathVariable Long encounterId) {
         return service.list(encounterId);

@@ -36,6 +36,15 @@ class Prescription {
     @Column(name = "DES_CANCEL_REASON") private String cancelReason;
     @Column(name = "DES_NOTE") private String note;
 
+    @jakarta.persistence.Lob @Column(name = "JSON_DOC_INFO") private String documentInfoJson;
+
+    String documentInfoJson() { return documentInfoJson; }
+    void updateDocumentInfo(long expectedRevision, String json) {
+        requireRevision(expectedRevision);
+        if (!"DRAFT".equals(status)) throw state("仅草稿处方可以修改单据信息");
+        documentInfoJson = json;
+    }
+
     protected Prescription() {}
 
     Prescription(Long tenantId, Long residentId, Long encounterId, String groupNo, String categoryCode,

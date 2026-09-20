@@ -130,3 +130,13 @@ describe('OutpatientWorkloadReport', () => {
     })
   })
 })
+
+it('uses the shared scope selector and reloads registration data for the selected scope', async () => {
+  const api = createMockApi()
+  render(<MemoryRouter><OutpatientRegistrationReport api={api}/></MemoryRouter>)
+  const control = screen.getByRole('combobox', { name: '科室统计范围' })
+  expect(control.tagName).not.toBe('SELECT')
+  fireEvent.click(control)
+  fireEvent.click(await screen.findByRole('option', { name: '当前登录科室' }))
+  await waitFor(() => expect(api.analytics.queryPage).toHaveBeenCalledWith(expect.objectContaining({ scope: 'CURRENT' })))
+})
