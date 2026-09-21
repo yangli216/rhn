@@ -9,9 +9,12 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, Select, StatusBadge } from '../../shared/ui'
+import { DateRangePicker } from '../../shared/ui/DateRangePicker'
+import { PHARMACY_QUERY_PRESETS, type DateRange, type PresetKey } from '../../shared/utils/dateRange'
 import { WardDailySupplyPanel } from './WardDailySupplyPanel'
 import { WardMedicationReturnInbox } from './WardMedicationReturnInbox'
 import './pharmacy-dispense-workbench.css'
+import '../../styles/features/pharmacy-warehouse.css'
 
 const taskStatusText: Record<string, string> = {
   PENDING_REVIEW: '待审方', INTERVENTION: '待干预', READY_TO_PICK: '待拣货', PICKING: '拣货中',
@@ -415,21 +418,29 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
   const residentsLookup = useQuery({
     queryKey: ['pharmacy-residents-lookup', organizationId],
     queryFn: () => api.residents.page({ size: 200 }),
-    enabled: mode === 'dispensing',
+    enabled: mode === 'dispensing' || mode === 'query',
   })
 
   const residentMap = useMemo(() => {
-    const map = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
+    const byId = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
+    const byNo = new Map<string, { fullName: string; gender?: string; birthDate?: string; maskedNationalId?: string; phone?: string }>()
     for (const r of residentsLookup.data?.content ?? []) {
-      map.set(r.id, {
+      const info = {
         fullName: r.fullName,
         gender: r.gender,
         birthDate: r.birthDate,
         maskedNationalId: r.maskedNationalId || undefined,
         phone: r.phone,
-      })
+      }
+      byId.set(r.id, info)
+      if (r.healthRecordNo) byNo.set(r.healthRecordNo, info)
     }
-    return map
+    return {
+      get(key?: string) {
+        if (!key) return undefined
+        return byId.get(key) || byNo.get(key)
+      },
+    }
   }, [residentsLookup.data])
 
   // In dispensing mode, we group inbox items by patient
@@ -1149,13 +1160,6 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     setRequestId('')
   }
 
-  const applyPharmacyQuickDate = (days: number) => {
-    const range = pharmacyDateRange(days)
-    setPharmacyQueryDraft((previous) => ({ ...previous, ...range }))
-    setPharmacyQueryFilters((previous) => ({ ...previous, ...range }))
-    setPharmacyQueryPage(0)
-  }
-
   // Calculations for bottom summary in dispensing mode
   const checkedPrescriptions = prescriptionCards.filter((c) => checkedPrescriptionKeys.has(c.key))
   const westernAmount = checkedPrescriptions
@@ -1183,10 +1187,14 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
     const practitionerNames = new Map((practitioners.data ?? []).map((value) => [value.id, value.fullName]))
     const pageStart = queryVisibleInbox.length ? pharmacyQueryPage * pharmacyQueryPageSize + 1 : 0
     const pageEnd = Math.min((pharmacyQueryPage + 1) * pharmacyQueryPageSize, queryVisibleInbox.length)
-    const quickDateOptions = [
-      { days: 1, label: '今日' }, { days: 3, label: '近3天' },
-      { days: 7, label: '近7天' }, { days: 30, label: '近30天' },
-    ]
+
+    const handleDateRangeChange = (range: DateRange, presetKey?: PresetKey) => {
+      setPharmacyQueryDraft((previous) => ({ ...previous, startDate: range.from, endDate: range.to }))
+      if (presetKey) {
+        setPharmacyQueryFilters((previous) => ({ ...previous, startDate: range.from, endDate: range.to }))
+        setPharmacyQueryPage(0)
+      }
+    }
 
     return <div className="pharmacy-query-page">
       <PageHeader eyebrow={copy.eyebrow} title={copy.title}
@@ -1224,30 +1232,20 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
                 onChange={(value) => setPharmacyQueryDraft((previous) => ({ ...previous, status: value as PharmacyQueryStatus }))}
                 clearable={false} searchable={false} options={pharmacyQueryStatusOptions} />
             </label>
-            <label className="pharmacy-query-field pharmacy-query-field--date">
+            <div className="pharmacy-query-field pharmacy-query-field--date">
               <span>发药日期</span>
-              <div className="pharmacy-query-date-range">
-                <input aria-label="发药开始日期" type="date" value={pharmacyQueryDraft.startDate}
-                  onChange={(event) => setPharmacyQueryDraft((previous) => ({ ...previous, startDate: event.target.value }))} />
-                <i>至</i>
-                <input aria-label="发药结束日期" type="date" value={pharmacyQueryDraft.endDate}
-                  onChange={(event) => setPharmacyQueryDraft((previous) => ({ ...previous, endDate: event.target.value }))} />
-              </div>
-            </label>
+              <DateRangePicker
+                value={{ from: pharmacyQueryDraft.startDate, to: pharmacyQueryDraft.endDate }}
+                presets={PHARMACY_QUERY_PRESETS}
+                onChange={handleDateRangeChange}
+                startAriaLabel="发药开始日期"
+                endAriaLabel="发药结束日期"
+              />
+            </div>
             <div className="pharmacy-query-filters__actions">
               <Button onClick={applyPharmacyQuery}><Icon name="search" />查询</Button>
               <Button variant="secondary" onClick={resetPharmacyQuery}>重置</Button>
             </div>
-          </div>
-          <div className="pharmacy-query-quick-dates" aria-label="常用发药日期">
-            <span>快捷日期</span>
-            {quickDateOptions.map((option) => {
-              const range = pharmacyDateRange(option.days)
-              const active = pharmacyQueryFilters.startDate === range.startDate
-                && pharmacyQueryFilters.endDate === range.endDate
-              return <button type="button" key={option.days} className={active ? 'is-active' : ''}
-                onClick={() => applyPharmacyQuickDate(option.days)}>{option.label}</button>
-            })}
           </div>
         </section>
 
@@ -1262,27 +1260,68 @@ export function PharmacyWorkspace({ api, clinicalContext, mode = 'dispensing' }:
               </div>
               {pagedPharmacyQueryInbox.map((item) => {
                 const snapshot = item.request.medicationSnapshot as Record<string, unknown> | undefined
-                const manufacturer = item.request.manufacturerName
-                  ?? snapshot?.manufacturerName ?? snapshot?.manufacturer
-                const productName = item.selectedProductName && item.selectedProductName !== item.request.medicationName
-                  ? item.selectedProductName : item.request.itemName
+                const resId = item.request.residentId || ''
+                const resInfo = residentMap.get(resId) || residentMap.get(item.healthRecordNo)
+                const gender = resInfo?.gender
+                  || (snapshot?.gender as string | undefined)
+                  || (snapshot?.residentGender as string | undefined)
+                const birthDate = resInfo?.birthDate
+                  || (snapshot?.birthDate as string | undefined)
+                  || (snapshot?.residentBirthDate as string | undefined)
+                const genderStr = gender ? genderText(gender) : undefined
+                const ageStr = birthDate ? ageText(birthDate) : undefined
+                const patientMeta = [genderStr, ageStr].filter(Boolean).join(' · ')
+
+                const productName = item.selectedProductName
+                  || item.request.itemName
+                  || (snapshot?.productName as string | undefined)
+                  || item.request.medicationName
+                const genericName = item.request.medicationName
                 const spec = item.request.packageSpec ?? item.request.preparationSpec
+                const manufacturer = (item.request.manufacturerName
+                  ?? snapshot?.manufacturerName ?? (snapshot as any)?.manufacturer ?? '') as string
                 const dispenseUnit = displayUnitName(item.dispenseUnitCode ?? item.request.quantityUnit)
+
+                const specAndMfr = [spec, manufacturer].filter(Boolean).join(' · ')
+                const showGeneric = Boolean(genericName && genericName !== productName)
+
                 return <div role="row" key={item.request.id} className="pharmacy-query-table__row">
                   <time>{item.dispensedAt ? formatTime(item.dispensedAt) : '未发生发药'}</time>
-                  <span className="pharmacy-query-table__patient"><strong>{pharmacyQueryResidentName(item)}</strong>
-                    <small>{[item.healthRecordNo, item.residentPhone].filter(Boolean).join(' · ') || '患者档案信息待补充'}</small></span>
-                  <span className="pharmacy-query-table__drug"><strong>{item.request.medicationName}</strong>
-                    <small>{[productName, spec, manufacturer].filter(Boolean).join(' · ') || '产品信息待补充'}</small></span>
+                  <span className="pharmacy-query-table__patient">
+                    <strong>
+                      {pharmacyQueryResidentName(item)}
+                      {patientMeta && <span className="pharmacy-query-patient-meta">{patientMeta}</span>}
+                    </strong>
+                    <small>{[item.healthRecordNo, item.residentPhone].filter(Boolean).join(' · ') || '患者档案信息待补充'}</small>
+                  </span>
+                  <div className="pharmacy-query-table__drug">
+                    <strong title={productName}>
+                      {productName}
+                      {showGeneric && <span className="pharmacy-query-drug-generic" title={`通用名: ${genericName}`}>（通用名: {genericName}）</span>}
+                    </strong>
+                    <div className="pharmacy-query-drug-spec-mfr" title={specAndMfr || '规格与厂家待补充'}>
+                      {spec && <span className="pharmacy-query-drug-spec">{spec}</span>}
+                      {spec && manufacturer && <span className="pharmacy-query-drug-sep">·</span>}
+                      {manufacturer && <span className="pharmacy-query-drug-mfr">{manufacturer}</span>}
+                      {!spec && !manufacturer && <span className="pharmacy-query-drug-empty">规格与厂家待补充</span>}
+                    </div>
+                  </div>
                   <strong>{formatRequestQuantity(item.request)}</strong>
                   <span className="pharmacy-query-table__quantity"><strong>已发 {formatQuantityWithUnit(
                     item.dispensedQuantity ?? 0, dispenseUnit)}</strong>
                     <small>{(item.returnedQuantity ?? 0) > 0 ? `已退 ${formatQuantityWithUnit(item.returnedQuantity ?? 0, dispenseUnit)}`
                       : `计划 ${formatQuantityWithUnit(item.plannedQuantity ?? item.request.quantity, dispenseUnit)}`}</small></span>
-                  <span className="pharmacy-query-table__usage"><strong>{[item.request.routeName ?? item.request.routeCode,
-                    item.request.frequencyName ?? item.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}</strong>
-                    <small>{item.request.doseValue && item.request.doseUnit
-                      ? `每次 ${formatQuantityWithUnit(item.request.doseValue, displayUnitName(item.request.doseUnit))}` : '剂量未填写'}</small></span>
+                  <div className="pharmacy-query-table__usage">
+                    <strong title={[item.request.routeName ?? item.request.routeCode,
+                      item.request.frequencyName ?? item.request.frequencyCode].filter(Boolean).join(' · ')}>
+                      {[item.request.routeName ?? item.request.routeCode,
+                        item.request.frequencyName ?? item.request.frequencyCode].filter(Boolean).join(' · ') || '未填写'}
+                    </strong>
+                    <strong className="pharmacy-query-usage-dose">
+                      {item.request.doseValue && item.request.doseUnit
+                        ? `每次 ${formatQuantityWithUnit(item.request.doseValue, displayUnitName(item.request.doseUnit))}` : '剂量未填写'}
+                    </strong>
+                  </div>
                   <span>{item.dispenserPractitionerId
                     ? practitionerNames.get(item.dispenserPractitionerId) || '药师信息待补充' : '未发药'}</span>
                   <StatusBadge tone={statusTone(item.taskStatus)}>{taskStatusText[item.taskStatus ?? ''] ?? '待处理'}</StatusBadge>

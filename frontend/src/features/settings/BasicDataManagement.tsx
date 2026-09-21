@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Organization } from '../../shared/model'
 import {
@@ -23,11 +23,20 @@ import {
   Alert, Button, DataTable, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel,
   Pagination, SearchField, Select, StatusBadge, TableShell, Tabs, Tooltip,
 } from '../../shared/ui'
-import { MedicationCompositionDialog } from './MedicationCompositionDialog'
-import { ClinicalMedicationStandardsPanel } from './ClinicalMedicationStandardsPanel'
-import { StandardMedicationCatalogPanel } from './StandardMedicationCatalogPanel'
-import { ItemAttributeConfigurationPanel } from './ItemAttributeConfigurationPanel'
-import { ClinicalServiceConfigurationDialog, OperationalMasterDataPanel } from './OperationalMasterDataPanel'
+import '../../styles/features/operational-master-data.css'
+
+const MedicationCompositionDialog = lazy(() => import('./MedicationCompositionDialog')
+  .then((module) => ({ default: module.MedicationCompositionDialog })))
+const ClinicalMedicationStandardsPanel = lazy(() => import('./ClinicalMedicationStandardsPanel')
+  .then((module) => ({ default: module.ClinicalMedicationStandardsPanel })))
+const StandardMedicationCatalogPanel = lazy(() => import('./StandardMedicationCatalogPanel')
+  .then((module) => ({ default: module.StandardMedicationCatalogPanel })))
+const ItemAttributeConfigurationPanel = lazy(() => import('./ItemAttributeConfigurationPanel')
+  .then((module) => ({ default: module.ItemAttributeConfigurationPanel })))
+const OperationalMasterDataPanel = lazy(() => import('./OperationalMasterDataPanel')
+  .then((module) => ({ default: module.OperationalMasterDataPanel })))
+const ClinicalServiceConfigurationDialog = lazy(() => import('./OperationalMasterDataPanel')
+  .then((module) => ({ default: module.ClinicalServiceConfigurationDialog })))
 
 type Tab = 'disease' | 'service' | 'medication' | 'operations' | 'attribute'
 type DiseaseMode = 'terms' | 'management'
@@ -260,17 +269,25 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
         onMappings={(value) => setDialog(<StandardMappingDialog api={api} subjectType="CATALOG_ITEM"
           targetId={value.id} itemName={value.name} systemType="SERVICE"
           onClose={() => setDialog(undefined)} />)} />}
-      {tab === 'medication' && medicationMode === 'semantics' && <ClinicalMedicationStandardsPanel api={api} organizationId={organization.id} />}
-      {tab === 'medication' && medicationMode === 'standard' && <StandardMedicationCatalogPanel api={api}
-        setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
-        onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
-          entry={entry} spec={spec} organization={organization} dictionaries={dictionaries.data!}
-          manufacturers={manufacturers.data ?? []} frequencies={frequencies.data ?? []} routes={routes.data ?? []}
-          onClose={() => { setDialog(undefined); void queryClient.invalidateQueries({queryKey:['master-data-medications']}) }}
-          onComplete={async (medication) => {
-            setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
-            await invalidate('药品来源、厂家产品、包装和本院价格已建档，请到药库调入经营目录')
-          }} />)} />}
+      {tab === 'medication' && medicationMode === 'semantics' && (
+        <Suspense fallback={<LoadingState label="正在加载临床标准…" />}>
+          <ClinicalMedicationStandardsPanel api={api} organizationId={organization.id} />
+        </Suspense>
+      )}
+      {tab === 'medication' && medicationMode === 'standard' && (
+        <Suspense fallback={<LoadingState label="正在加载标准药品目录…" />}>
+          <StandardMedicationCatalogPanel api={api}
+            setupDisabled={!dictionaries.data || manufacturers.isPending || frequencies.isPending || routes.isPending}
+            onSetup={(entry, spec) => setDialog(<StandardMedicationSetupDialog key={spec.id} api={api}
+              entry={entry} spec={spec} organization={organization} dictionaries={dictionaries.data!}
+              manufacturers={manufacturers.data ?? []} frequencies={frequencies.data ?? []} routes={routes.data ?? []}
+              onClose={() => { setDialog(undefined); void queryClient.invalidateQueries({queryKey:['master-data-medications']}) }}
+              onComplete={async (medication) => {
+                setQuery(medication.code); setTypeFilter(''); setStatusFilter(''); setMedicationMode('product')
+                await invalidate('药品来源、厂家产品、包装和本院价格已建档，请到药库调入经营目录')
+              }} />)} />
+        </Suspense>
+      )}
       {tab === 'medication' && (medicationMode === 'knowledge' || medicationMode === 'product') && <MedicationTable values={medications.data?.content}
         loading={medications.isPending} pagination={pagination}
         mode={medicationMode} onModeChange={setMedicationMode}
@@ -310,12 +327,24 @@ export function BasicDataManagement({ api, organization, onNavigate }: {
           dictionaries={dictionaries.data!} editing={item} onClose={() => setDialog(undefined)}
           onSave={(input) => api.masterData.updatePackage(item.id, input)
             .then(() => invalidate('产品包装已更新')).catch(fail)} />)} />}
-        {tab === 'attribute' && <ItemAttributeConfigurationPanel api={api} />}
-        {tab === 'operations' && dictionaries.data && <OperationalMasterDataPanel api={api}
-          organization={organization} manufacturers={manufacturers.data ?? []} />}
+        {tab === 'attribute' && (
+          <Suspense fallback={<LoadingState label="正在加载属性配置…" />}>
+            <ItemAttributeConfigurationPanel api={api} />
+          </Suspense>
+        )}
+        {tab === 'operations' && dictionaries.data && (
+          <Suspense fallback={<LoadingState label="正在加载运维配置…" />}>
+            <OperationalMasterDataPanel api={api}
+              organization={organization} manufacturers={manufacturers.data ?? []} />
+          </Suspense>
+        )}
       </div>
     </Panel>
-    {dialog}
+    {dialog && (
+      <Suspense fallback={<LoadingState label="正在打开弹窗…" />}>
+        {dialog}
+      </Suspense>
+    )}
   </div>
 }
 

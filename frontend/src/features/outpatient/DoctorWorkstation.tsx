@@ -4,7 +4,7 @@ import { HistoryPrescriptionReference } from './ai/HistoryPrescriptionReference'
 import { isAbnormalObservation } from './ai/receptionSceneAssessment'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -37,7 +37,7 @@ import { requiresBloodPressure } from './bloodPressurePolicy'
 import { encounterStatusPresentation } from '../../shared/presentation'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { exceedsWarning, VITAL_HARD_LIMITS, vitalRule } from '../../shared/validation/businessValidation'
-import { SettlementPaymentPanel, type SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
+import type { SettlementPaymentCommand } from '../../shared/billing/SettlementPaymentPanel'
 import {
   Alert, Button, ClinicalResourceSearch, Dialog, EmptyState, FormField, Icon, LoadingState,
   ObjectContextBar, PageHeader, Panel, PanelHead, Popconfirm, Select, StatusBadge,
@@ -47,17 +47,24 @@ import {
   isInfusionRoute, type MedicationPlanDraft,
 } from './PrescriptionListEditor'
 import { UnifiedOrderListEditor, type AiOrderReviewCommand, type ServicePlanDraft } from './UnifiedOrderListEditor'
-import { ClinicalAiAssistantPanel } from './ai/ClinicalAiAssistantPanel'
 import type { ClinicalAiSurfaceRefs } from './ai/ClinicalAiInlineWorkspace'
 import {
   clinicalAiContextFingerprint, mergeAiDiagnoses, mergeAiRecordDraft, stableClinicalAiFingerprint,
   type ClinicalAiDraftRequest,
 } from './ai/aiDraftAdapter'
 import './waiting/waitingWorkspace.css'
+import '../../styles/features/outpatient-doctor.css'
+import '../../styles/doctor-ai-assistant.css'
 import { DedicatedWaitingWorkspace } from './waiting/DedicatedWaitingWorkspace'
-import { DirectVisitDialog } from './DirectVisitDialog'
 import { QueueCapsuleBar } from './waiting/QueueCapsuleBar'
 import { QueuePeekDrawer } from './waiting/QueuePeekDrawer'
+
+const SettlementPaymentPanel = lazy(() => import('../../shared/billing/SettlementPaymentPanel')
+  .then((module) => ({ default: module.SettlementPaymentPanel })))
+const ClinicalAiAssistantPanel = lazy(() => import('./ai/ClinicalAiAssistantPanel')
+  .then((module) => ({ default: module.ClinicalAiAssistantPanel })))
+const DirectVisitDialog = lazy(() => import('./DirectVisitDialog')
+  .then((module) => ({ default: module.DirectVisitDialog })))
 import { enhanceQueueList } from './waiting/queueDataEnhancer'
 import type { AiPreConsultation, EnhancedQueueItem, VitalsSummary } from './waiting/queueTypes'
 
@@ -187,14 +194,18 @@ export function DoctorWorkstation({ api, clinicalContext, canEdit }: {
       actions={canEdit && directVisitSettings.data?.enabled
         ? <Button onClick={() => setDirectVisitOpen(true)}><Icon name="add" />直接接诊</Button> : undefined} />
     {directVisitSettings.error && <Alert>{errorMessage(directVisitSettings.error)}</Alert>}
-    {directVisitOpen && <DirectVisitDialog api={api} hasServiceFee={Boolean(directVisitSettings.data?.catalogItemId)}
-      onClose={() => setDirectVisitOpen(false)} onReceived={(resident, encounter) => {
-        queryClient.setQueryData<Encounter[]>(['doctor-encounters', resident.id], values =>
-          [encounter, ...(values ?? []).filter(value => value.id !== encounter.id)])
-        void refreshQueue()
-        setDirectVisitOpen(false)
-        setSelected({ resident, encounterId: encounter.id, entryIntent: 'EDIT' })
-      }} />}
+    {directVisitOpen && (
+      <Suspense fallback={null}>
+        <DirectVisitDialog api={api} hasServiceFee={Boolean(directVisitSettings.data?.catalogItemId)}
+          onClose={() => setDirectVisitOpen(false)} onReceived={(resident, encounter) => {
+            queryClient.setQueryData<Encounter[]>(['doctor-encounters', resident.id], values =>
+              [encounter, ...(values ?? []).filter(value => value.id !== encounter.id)])
+            void refreshQueue()
+            setDirectVisitOpen(false)
+            setSelected({ resident, encounterId: encounter.id, entryIntent: 'EDIT' })
+          }} />
+      </Suspense>
+    )}
     {(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error) && <Alert className="ui-page-feedback">
       {errorMessage(queue.error || referralInbox.error || openPatient.error || linkedResident.error || queueAction.error)}</Alert>}
 
@@ -799,19 +810,23 @@ function PatientWorkspace({ resident, encounterId, entryIntent, api, clinicalCon
                 historyEncounters={encounters.data ?? []} />
           </main>
           {editing && encounter.status === 'IN_PROGRESS' && aiContext?.encounterId === encounter.id
-            && aiContext.residentId === encounter.residentId && <ClinicalAiAssistantPanel key={encounter.id}
-              encounter={encounter} currentContext={aiContext} allergies={allergies.data ?? []}
-              allergyState={allergyState} api={api}
-              disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
-              surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail }}
-              onOpenDetail={() => setActiveTool('assistant')}
-              onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
-              onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onFieldStream={setAiFieldStream}
-              existingTreatmentKeys={existingTreatmentKeys}
-              onReviewTreatment={(items, onCompleted) => setAiOrderReview({
-                id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted,
-              })}
-              historyEncounters={encounters.data ?? []} />}
+            && aiContext.residentId === encounter.residentId && (
+              <Suspense fallback={<LoadingState label="正在加载 AI 辅诊…" />}>
+                <ClinicalAiAssistantPanel key={encounter.id}
+                  encounter={encounter} currentContext={aiContext} allergies={allergies.data ?? []}
+                  allergyState={allergyState} api={api}
+                  disabled={outpatientNote?.status === 'SIGNED' || draftState.busy}
+                  surfaces={{ summary: aiNote, note: aiNote, diagnoses: aiDiagnoses, plans: aiPlans, detail: aiDetail }}
+                  onOpenDetail={() => setActiveTool('assistant')}
+                  onOpenHistory={() => setActiveTool('history')} onOpenResults={() => setActiveTool('results')}
+                  onAdoptionBusyChange={setAiAdoptionBusy} onApply={setAiDraft} onFieldStream={setAiFieldStream}
+                  existingTreatmentKeys={existingTreatmentKeys}
+                  onReviewTreatment={(items, onCompleted) => setAiOrderReview({
+                    id: crypto.randomUUID(), encounterId: encounter.id, items, onCompleted,
+                  })}
+                  historyEncounters={encounters.data ?? []} />
+              </Suspense>
+            )}
           {activeTool && <aside className={`doctor-workspace-drawer${activeTool === 'history' ? ' is-history' : ''}${activeTool === 'assistant' ? ' is-assistant' : ''}${activeTool === 'allergy' ? ' is-allergy' : ''}`}
             aria-label={toolLabel(activeTool)}>
             <header><div><span>{activeTool === 'allergy' ? `${resident.fullName} · 患者安全` : '扩展业务'}</span><strong>{toolLabel(activeTool)}</strong></div>
@@ -1141,17 +1156,19 @@ function EncounterCompletionDialog({ encounter, api, signed, ready, busy, error,
             <strong>诊间收款（待结算 {payable.length} 笔）</strong>
           </header>
           <div className="doctor-completion-payment">
-            <SettlementPaymentPanel settlements={payable.map((value) => ({
-              id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
-            }))} methods={(methods.data ?? []).map((value) => ({
-              code: value.code,
-              name: value.name,
-              sortOrder: value.sortOrder,
-              precision: value.attributes?.PAYMENT_PRECISION,
-              roundingMode: value.attributes?.ROUNDING_MODE,
-            }))}
-            orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
-            onSubmit={(command) => createPayment.mutateAsync(command)} />
+            <Suspense fallback={<LoadingState label="正在加载收款组件…" />}>
+              <SettlementPaymentPanel settlements={payable.map((value) => ({
+                id: value.id, code: value.settlementNo, outstandingAmount: value.outstandingAmount, currencyCode: value.currencyCode,
+              }))} methods={(methods.data ?? []).map((value) => ({
+                code: value.code,
+                name: value.name,
+                sortOrder: value.sortOrder,
+                precision: value.attributes?.PAYMENT_PRECISION,
+                roundingMode: value.attributes?.ROUNDING_MODE,
+              }))}
+              orders={orders.data ?? []} busy={createPayment.isPending} sceneLabel="诊间收款"
+              onSubmit={(command) => createPayment.mutateAsync(command)} />
+            </Suspense>
           </div>
         </section>
       )}
@@ -2514,7 +2531,7 @@ function ClinicalRecordPanel({ encounter, birthDate, allergies, allergyState, ap
       ...current,
       { conceptId: selected.id, diagnosisDomain: selected.sdDiagnosisDomain, diagnosisGroupId,
         code: selected.code, display: selected.display, type: 'SECONDARY',
-        managementPrograms: selected.managementPrograms.map((program) => ({ id: program.id, code: program.code,
+        managementPrograms: (selected.managementPrograms ?? []).map((program) => ({ id: program.id, code: program.code,
           name: program.name, managementType: program.sdManagementType, triggerAction: program.sdTriggerAction,
           reportCardType: program.reportCardType, reportDeadlineHours: program.reportDeadlineHours })) },
     ]))

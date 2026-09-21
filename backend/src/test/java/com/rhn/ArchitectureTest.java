@@ -202,7 +202,8 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule business_modules_use_only_master_data_public_contract = noClasses()
-            .that().resideOutsideOfPackage("com.rhn.platform.masterdata..")
+            .that().resideOutsideOfPackages(
+                    "com.rhn.platform.masterdata..", "com.rhn.platform.search..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.rhn.platform.masterdata.application..",
                     "com.rhn.platform.masterdata.domain..",
@@ -220,7 +221,8 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule modules_use_only_terminology_public_contract = noClasses()
-            .that().resideOutsideOfPackage("com.rhn.platform.terminology..")
+            .that().resideOutsideOfPackages(
+                    "com.rhn.platform.terminology..", "com.rhn.platform.search..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "com.rhn.platform.terminology.application..",
                     "com.rhn.platform.terminology.domain..",

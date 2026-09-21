@@ -35,6 +35,7 @@ interface AppointmentEventRepository extends JpaRepository<AppointmentEvent, Lon
 interface PatientRegistrationRepository extends JpaRepository<PatientRegistration, Long> {
     Optional<PatientRegistration> findByTenantIdAndIdempotencyCode(Long tenantId, String idempotencyCode);
     Optional<PatientRegistration> findByTenantIdAndEncounterId(Long tenantId, Long encounterId);
+    List<PatientRegistration> findByTenantIdAndEncounterIdIn(Long tenantId, Collection<Long> encounterIds);
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @org.springframework.data.jpa.repository.Query(
             "select value from PatientRegistration value where value.tenantId = :tenantId and value.encounterId = :encounterId")

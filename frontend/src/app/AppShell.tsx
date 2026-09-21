@@ -1,4 +1,3 @@
-import { MedicationWorkbench } from '../features/quality/MedicationWorkbench'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { lazy, Suspense, useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
@@ -21,6 +20,8 @@ const OutpatientRegistrationReport = lazy(() => import('../features/analytics/Ou
   .then((module) => ({ default: module.OutpatientRegistrationReport })))
 const OutpatientWorkloadReport = lazy(() => import('../features/analytics/OutpatientWorkloadReport')
   .then((module) => ({ default: module.OutpatientWorkloadReport })))
+const MedicationWorkbench = lazy(() => import('../features/quality/MedicationWorkbench')
+  .then((module) => ({ default: module.MedicationWorkbench })))
 
 const DoctorWorkstation = lazy(() => import('../features/outpatient/DoctorWorkstation')
   .then((module) => ({ default: module.DoctorWorkstation })))
@@ -80,6 +81,8 @@ const OutpatientRegistrationWorkspace = lazy(() => import('../features/outpatien
   .then((module) => ({ default: module.OutpatientRegistrationWorkspace })))
 const RegistrationQueryWorkspace = lazy(() => import('../features/outpatient/RegistrationQueryWorkspace')
   .then((module) => ({ default: module.RegistrationQueryWorkspace })))
+const EncounterQueryWorkspace = lazy(() => import('../features/outpatient/EncounterQueryWorkspace')
+  .then((module) => ({ default: module.EncounterQueryWorkspace })))
 const AppointmentManagementWorkspace = lazy(() => import('../features/outpatient/AppointmentManagementWorkspace')
   .then((module) => ({ default: module.AppointmentManagementWorkspace })))
 const OutpatientFlowWorkspace = lazy(() => import('../features/outpatient/OutpatientFlowWorkspace')
@@ -214,6 +217,7 @@ const NAVIGATION_NODES: NavigationNode[] = [
       { id: 'outpatient-flow', label: '门诊流转', icon: 'refresh', to: '/outpatient/flow', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-registration', label: '门诊挂号', icon: 'residents', to: '/outpatient/registration', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-registration-query', label: '挂号查询', icon: 'search', to: '/outpatient/registration-query', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
+      { id: 'outpatient-encounter-query', label: '就诊查询', icon: 'search', to: '/outpatient/encounter-query', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-appointments', label: '预约管理', icon: 'tasks', to: '/outpatient/appointments', requiredAuthority: 'OUTPATIENT_REGISTRATION.ACCESS' },
       { id: 'outpatient-reception', label: '门诊医生站', icon: 'stethoscope', to: '/outpatient/reception', requiredAuthority: 'OUTPATIENT_RECEPTION.ACCESS' },
       { id: 'outpatient-scheduling', label: '排班与号源', icon: 'tasks', badge: '双模式', to: '/outpatient/scheduling', requiredAuthority: 'OUTPATIENT_SCHEDULING.ACCESS' },
@@ -381,6 +385,7 @@ export function tabForPath(pathname: string): WorkspaceTab | null {
   if (pathname === '/outpatient/triage') return { id: pathname, path: pathname, title: '预检分诊', icon: 'emergency', closeable: true }
   if (pathname === '/outpatient/registration') return { id: pathname, path: pathname, title: '门诊挂号', icon: 'residents', closeable: true }
   if (pathname === '/outpatient/registration-query') return { id: pathname, path: pathname, title: '挂号查询', icon: 'search', closeable: true }
+  if (pathname === '/outpatient/encounter-query') return { id: pathname, path: pathname, title: '就诊查询', icon: 'search', closeable: true }
   if (pathname === '/outpatient/flow') return { id: pathname, path: pathname, title: '门诊流转', icon: 'refresh', closeable: true }
   if (pathname === '/outpatient/appointments') return { id: pathname, path: pathname, title: '预约管理', icon: 'tasks', closeable: true }
   if (pathname === '/outpatient/scheduling') return { id: pathname, path: pathname, title: '排班与号源', icon: 'tasks', closeable: true }
@@ -949,6 +954,8 @@ export function AppShell() {
                   <Route path="/outpatient/registration" element={<OutpatientRegistrationWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/registration-query" element={<RegistrationQueryWorkspace api={tabSlot.api}
+                    clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
+                  <Route path="/outpatient/encounter-query" element={<EncounterQueryWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />
                   <Route path="/outpatient/appointments" element={<AppointmentManagementWorkspace api={tabSlot.api}
                     clinicalContext={tabSlot.clinicalContext} onNavigate={(path) => navigate(path)} />} />

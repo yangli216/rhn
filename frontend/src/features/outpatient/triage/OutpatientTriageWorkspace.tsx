@@ -33,6 +33,7 @@ import {
   Switch,
   Tabs,
 } from '../../../shared/ui'
+import '../../../styles/features/outpatient-triage.css'
 import { TriageTicketModal } from './TriageTicketModal'
 import {
   COMMON_SYMPTOM_TAGS,

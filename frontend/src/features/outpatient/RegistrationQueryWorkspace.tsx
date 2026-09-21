@@ -10,6 +10,7 @@ import {
   Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, getTodayRange, Icon, LoadingState, PageHeader, Pagination, Panel, PanelHead, Select,
   StatusBadge, type DateRange,
 } from '../../shared/ui'
+import '../../styles/features/scheduling-registration.css'
 
 const queueStatuses: ReceptionQueueItem['status'][] = [
   'WAITING', 'CALLED', 'SERVING', 'SUSPENDED', 'MISSED', 'COMPLETED', 'CANCELLED',

@@ -11,6 +11,12 @@ export interface CanvasEditorSnapshot {
   changed: boolean
 }
 
+export function prefetchCanvasEditor() {
+  if (typeof window !== 'undefined') {
+    void import('@yangl/canvas-editor/dist/canvas-editor.es.js')
+  }
+}
+
 export function CanvasMedicalRecordEditor({ template, initialData, readOnly, onSnapshot }: {
   template: ITemplateSchema
   initialData?: IEditorData

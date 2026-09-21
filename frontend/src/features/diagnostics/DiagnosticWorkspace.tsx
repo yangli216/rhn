@@ -7,6 +7,7 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import '../../styles/features/diagnostic-execution.css'
 
 const statusText: Record<DiagnosticTaskStatus, string> = {
   WAITING_SETTLEMENT: '待结算', READY: '待执行', COLLECTED: '已采集', IN_PROGRESS: '执行中',

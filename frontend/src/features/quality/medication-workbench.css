@@ -25,8 +25,8 @@
   overflow: hidden !important;
   display: flex !important;
   flex-direction: column !important;
-  padding: 12px 20px 12px !important;
-  gap: 10px !important;
+  padding: 8px 20px 10px !important;
+  gap: 6px !important;
   box-sizing: border-box !important;
   color: var(--color-text, #1e293b);
 }
@@ -34,6 +34,18 @@
 .qmed-workbench > .ui-page-header {
   flex-shrink: 0;
   margin-bottom: 0;
+  min-height: 42px !important;
+  height: 42px;
+  padding-left: 10px;
+}
+
+.qmed-workbench > .ui-page-header h1 {
+  font-size: 18px;
+}
+
+.qmed-workbench > .ui-page-header .ui-page-header__actions .ui-button {
+  min-height: 32px;
+  padding-block: 5px;
 }
 
 /* 顶部极简元数据状态条 (紧凑不占纵向高度) */
@@ -41,6 +53,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.qmed-header-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 4px;
+  color: var(--color-text-secondary, #64748b);
+  white-space: nowrap;
+}
+
+.qmed-header-meta__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.qmed-header-meta__item strong {
+  font-size: 11px;
 }
 
 .qmed-header-actions .qmed-link-btn {
@@ -65,8 +97,9 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 16px;
-  padding: 4px 12px;
+  gap: 14px;
+  min-height: 30px;
+  padding: 3px 10px;
   background: var(--color-surface-subtle, #f8fafc);
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: 6px;
@@ -106,7 +139,7 @@
 .qmed-tabs {
   flex-shrink: 0;
   display: flex;
-  gap: 8px;
+  gap: 4px;
   border-bottom: 2px solid #e2e8f0;
   padding-bottom: 2px;
 }
@@ -115,12 +148,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
+  min-height: 32px;
+  padding: 5px 12px;
   background: none;
   border: none;
   border-bottom: 3px solid transparent;
   margin-bottom: -4px;
-  font-size: 13px;
+  font-size: 12px;
   color: #64748b;
   cursor: pointer;
   border-radius: 6px 6px 0 0;

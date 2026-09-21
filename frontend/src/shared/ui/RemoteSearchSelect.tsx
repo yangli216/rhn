@@ -125,6 +125,11 @@ export function RemoteSearchSelect<T>({
   const normalizedQuery = query.trim()
 
   useEffect(() => {
+    cacheRef.current.clear()
+    requestSequence.current += 1
+  }, [loadOptions])
+
+  useEffect(() => {
     if (!open || normalizedQuery.length < minChars) {
       requestSequence.current += 1
       setOptions([])
@@ -389,7 +394,9 @@ export function RemoteSearchSelect<T>({
           className={`ui-remote-search__option ${index === activeIndex ? 'is-active' : ''} ${value?.value === option.value ? 'is-selected' : ''}`}
           aria-selected={value?.value === option.value}
           disabled={option.disabled}
-          onClick={() => select(option)}
+          onClick={() => {
+            select(option)
+          }}
           onMouseMove={() => { if (!option.disabled && activeIndex !== index) setActiveIndex(index) }}
         >
           <span className="ui-remote-search__option-main" title={option.description}>

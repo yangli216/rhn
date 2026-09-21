@@ -7,6 +7,8 @@ import com.rhn.platform.dictionary.domain.DictionaryChangeTargetType;
 import com.rhn.platform.dictionary.domain.DictionaryChangeType;
 import com.rhn.platform.dictionary.domain.DictionaryScopeType;
 import com.rhn.platform.dictionary.domain.DictionaryStatus;
+import com.rhn.platform.search.api.SearchInputMode;
+import com.rhn.platform.search.api.SearchMatchMode;
 import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
@@ -55,6 +57,8 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
     public static final String SC_RECEPTION_STATUS = "SC_RECEPTION_STATUS";
     public static final String SC_APPOINTMENT_STATUS = "SC_APPOINTMENT_STATUS";
     public static final String SC_APPOINTMENT_SOURCE = "SC_APPOINTMENT_SOURCE";
+    public static final String MASTER_DATA_SEARCH_INPUT_MODE = "MASTER_DATA_SEARCH_INPUT_MODE";
+    public static final String MASTER_DATA_SEARCH_MATCH_MODE = "MASTER_DATA_SEARCH_MATCH_MODE";
     public static final Set<String> PERSISTED_SYSTEM_ENUM_CODES = Set.of(
             PARAM_SCOPE_TYPE, PARAM_VALUE_TYPE, PARAM_CONTROL_TYPE, PARAM_CONFIG_TYPE,
             PARAM_SENSITIVITY, PARAM_DISPLAY_POLICY, PARAM_STATUS, PARAM_VALUE_MODE,
@@ -255,7 +259,17 @@ public class DictionarySystemEnumCatalog implements SystemEnumDirectory {
                             item("INTERNAL", "院内预约", "由院内其他业务工作台发起", 30),
                             item("PATIENT_APP", "患者端", "由患者移动应用发起", 40),
                             item("WECHAT", "微信端", "由微信服务入口发起", 50),
-                            item("THIRD_PARTY", "第三方", "由授权第三方渠道发起", 60)))
+                            item("THIRD_PARTY", "第三方", "由授权第三方渠道发起", 60))),
+            definition(MASTER_DATA_SEARCH_INPUT_MODE, "基础数据检索输入习惯",
+                    "非中文检索词采用的简码类型", SearchInputMode.class, List.of(
+                            item("PINYIN", "拼音首字母", "匹配拼音首字母简码", 10),
+                            item("WUBI", "五笔", "匹配五笔简码", 20),
+                            item("ALL", "全部", "同时匹配拼音、五笔和自定义助记码", 30))),
+            definition(MASTER_DATA_SEARCH_MATCH_MODE, "基础数据检索匹配方式",
+                    "基础数据名称和简码的匹配策略", SearchMatchMode.class, List.of(
+                            item("PREFIX", "左匹配", "从名称或简码开头匹配", 10),
+                            item("CONTAINS", "模糊匹配", "在名称或简码任意位置匹配", 20),
+                            item("SIMILARITY", "相似度", "按编辑距离计算相似结果", 30)))
     );
     private final Map<String, SystemEnumDefinition> definitionsByCode = definitions.stream()
             .collect(Collectors.toUnmodifiableMap(SystemEnumDefinition::code, Function.identity()));

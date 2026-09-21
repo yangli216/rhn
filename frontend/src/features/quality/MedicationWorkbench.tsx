@@ -474,6 +474,16 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
         title="合理用药规则工作台"
         actions={
           <div className="qmed-header-actions">
+            <div className="qmed-header-meta" aria-label="当前规则运行状态">
+              <span className="qmed-header-meta__item">
+                <span className="qmed-kpi-dot" />
+                <span className="qmed-kpi-label">规则集</span>
+                <strong className="qmed-kpi-val text-accent">{activeRules[0]?.ruleSetVersion ?? '—'}</strong>
+              </span>
+              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">运行模式</span><strong className="qmed-kpi-val">旁路监控</strong></span>
+              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">在行规则</span><strong className="qmed-kpi-val">{activeRules.length} 条</strong></span>
+              <span className="qmed-header-meta__item"><span className="qmed-kpi-label">AI</span><strong className="qmed-kpi-val">{aiLoading ? '检测中…' : ai?.available ? ai.model : '未配置'}</strong></span>
+            </div>
             <Link to="/settings/ai-assistant" className="qmed-link-btn" title="配置或更换后台大模型">
               <Icon name="settings" />
               <span>AI助理配置</span>
@@ -501,35 +511,6 @@ export function MedicationWorkbench({ api }: { api: RhnApi }) {
           </div>
         }
       />
-
-      {/* 顶部极简单行运行状态胶囊条 (紧凑不占纵向高度) */}
-      <div className="qmed-kpi-bar">
-        <div className="qmed-kpi-chip">
-          <span className="qmed-kpi-dot" />
-          <span className="qmed-kpi-label">规则集:</span>
-          <span className="qmed-kpi-val text-accent">{activeRules[0]?.ruleSetVersion ?? '—'}</span>
-        </div>
-        <div className="qmed-kpi-chip">
-          <span className="qmed-kpi-label">运行模式:</span>
-          <span className="qmed-kpi-val">旁路监控（不干预临床）</span>
-        </div>
-        <div className="qmed-kpi-chip">
-          <span className="qmed-kpi-label">在行规则:</span>
-          <span className="qmed-kpi-val">{activeRules.length} 条</span>
-        </div>
-        <div className="qmed-kpi-chip">
-          <span className="qmed-kpi-label">AI工坊:</span>
-          <span className="qmed-kpi-val">
-            {aiLoading ? (
-              <span className="qmed-kpi-loading">检测中…</span>
-            ) : ai?.available ? (
-              `直连模型 (${ai.model})`
-            ) : (
-              '未配置'
-            )}
-          </span>
-        </div>
-      </div>
 
       {error && <Alert tone="error">{error}</Alert>}
       {notice && <Alert>{notice}</Alert>}

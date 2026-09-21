@@ -7,6 +7,7 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, Icon, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import '../../styles/features/care-management.css'
 
 const statusText: Record<string, string> = {
   READY: '待复核', IN_PROGRESS: '处理中', WAITING_EXTERNAL: '等待外部', COMPLETED: '已完成',

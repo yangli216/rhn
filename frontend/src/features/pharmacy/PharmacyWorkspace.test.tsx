@@ -459,7 +459,7 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
           },
           taskId: 'task-query-1', taskNo: 'TASK-INTERNAL-001', taskStatus: 'COMPLETED',
           residentName: '李梅', healthRecordNo: 'HR20260001', residentPhone: '13800000000',
-          selectedProductName: '阿莫西林胶囊', dispensedAt: '2026-09-20T06:15:00Z',
+          selectedProductName: '阿莫西林胶囊', dispensedAt: new Date().toISOString(),
           dispenserPractitionerId: 'pharmacist-1', plannedQuantity: 1, dispensedQuantity: 1,
           returnedQuantity: 0, dispenseUnitCode: 'BOX',
           clinicalContext: { encounterId: 'encounter-1', encounterNo: 'OP20260918001', diagnoses: [] },
@@ -483,6 +483,11 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
         assignments: vi.fn().mockResolvedValue([]),
         practitioner: vi.fn().mockResolvedValue({ assignments: [] }),
       },
+      residents: {
+        page: vi.fn().mockResolvedValue({
+          content: [{ id: 'resident-1', fullName: '李梅', gender: 'FEMALE', birthDate: '1985-06-15', phone: '13800000000', healthRecordNo: 'HR20260001' }],
+        }),
+      },
     } as unknown as RhnApi
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
 
@@ -492,9 +497,14 @@ describe('PharmacyWorkspace (Dispensing Mode)', () => {
 
     expect(await screen.findByRole('table', { name: '历史发药记录' })).toBeInTheDocument()
     expect(screen.getByText('李梅')).toBeInTheDocument()
-    expect(screen.getByText(/阿莫西林胶囊 · 0.25g\*24粒\/盒 · 示范制药有限公司/)).toBeInTheDocument()
+    expect(screen.getByText(/女 · \d+岁/)).toBeInTheDocument()
+    expect(screen.getByText('阿莫西林胶囊')).toBeInTheDocument()
+    expect(screen.getByText(/通用名: 阿莫西林/)).toBeInTheDocument()
+    expect(screen.getByText('0.25g*24粒/盒')).toBeInTheDocument()
+    expect(screen.getByText('示范制药有限公司')).toBeInTheDocument()
+    expect(screen.getByText('每次 2粒')).toBeInTheDocument()
     expect(screen.getByText('王药师')).toBeInTheDocument()
-    expect(screen.getByText('今日')).toHaveClass('is-active')
+    expect(screen.getByTitle('点击切换快捷日期范围')).toHaveTextContent('今日')
     expect(screen.getByText('共 1 条')).toBeInTheDocument()
     expect(screen.queryByText('TASK-INTERNAL-001')).not.toBeInTheDocument()
     expect(screen.queryByText('DISPENSE-INTERNAL-001')).not.toBeInTheDocument()

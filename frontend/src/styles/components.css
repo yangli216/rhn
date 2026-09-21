@@ -1033,10 +1033,10 @@ input[type="checkbox"]:disabled {
   height: 1rem;
 }
 
-/* 强制隔离内部 input 样式 */
+/* 强制隔离内部 input 样式并确保年月日及图标完整显示 */
 .ui-date-range-inputs input.ui-date-range-input {
   width: 100% !important;
-  min-width: 0 !important;
+  min-width: 7.2rem !important;
   flex: 1 1 0% !important;
   height: 100% !important;
   min-height: unset !important;
@@ -1108,6 +1108,7 @@ input[type="checkbox"]:disabled {
 }
 
 .ui-date-range-picker--compact .ui-date-range-inputs input.ui-date-range-input {
+  min-width: 5.8rem !important;
   font-size: var(--font-size-small) !important;
 }
 .ui-dictionary-select__error { margin-top: var(--space-1); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); color: var(--color-danger); font-size: var(--font-size-small); font-weight: var(--font-weight-regular); }

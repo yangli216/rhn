@@ -43,7 +43,7 @@ public class QueryPlanner {
         if (scope == null) scope = PlannedScope.defaultDevScope();
         if (today == null) today = LocalDate.now();
 
-        String planId = "plan-" + UUID.randomUUID().toString().substring(0, 8);
+        String planId = "plan-" + Long.toHexString(java.util.concurrent.ThreadLocalRandom.current().nextLong() & 0xFFFFFFFFL);
 
         // 1. 确定主事实实体与表别名 (Primary Fact Entity)
         ResolvedMetric primaryMetric = query.metrics().get(0);

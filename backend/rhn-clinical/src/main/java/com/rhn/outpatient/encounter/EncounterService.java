@@ -755,4 +755,166 @@ public class EncounterService implements EncounterDirectory {
     private String nextEncounterNo() {
         return "OP" + NUMBER_TIME.format(Instant.now()) + com.rhn.shared.id.GlobalIds.randomSuffix(6);
     }
+
+    private static final java.time.ZoneId BUSINESS_ZONE = java.time.ZoneId.of("Asia/Shanghai");
+
+    @Transactional(readOnly = true)
+    public EncounterPageView page(LocalDate dateFrom, LocalDate dateTo, String status, String query, int page, int size,
+                                  boolean organizationScope) {
+        ExecutionContext context = executionContextProvider.requireCurrent();
+        if (context.organizationId() == null) {
+            throw badRequest("ENCOUNTER_CONTEXT_REQUIRED", "查询就诊记录前请先选择机构");
+        }
+        if (!organizationScope && context.departmentId() == null) {
+            throw badRequest("ENCOUNTER_DEPARTMENT_REQUIRED", "按科室查询就诊记录前请先选择科室");
+        }
+
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+
+        LocalDate start = dateFrom == null ? (dateTo == null ? LocalDate.now(BUSINESS_ZONE) : dateTo) : dateFrom;
+        LocalDate end = dateTo == null ? start : dateTo;
+        if (end.isBefore(start)) {
+            LocalDate tmp = start;
+            start = end;
+            end = tmp;
+        }
+        Instant from = start.atStartOfDay(BUSINESS_ZONE).toInstant();
+        Instant to = end.plusDays(1).atStartOfDay(BUSINESS_ZONE).toInstant();
+
+        List<Encounter> encounters = organizationScope
+                ? encounterRepository.findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                        context.tenantId(), context.organizationId(), from, to)
+                : encounterRepository.findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+                        context.tenantId(), context.organizationId(), context.departmentId(), from, to);
+
+        if (encounters.isEmpty()) {
+            return new EncounterPageView(List.of(), safePage, safeSize, 0, 0, safePage == 0, true);
+        }
+
+        List<Long> encounterIds = encounters.stream().map(Encounter::id).toList();
+
+        Map<Long, OutpatientRegistrationDirectory.EncounterRegistrationDetail> registrationDetails =
+                registrationDirectory.findEncounterRegistrationDetails(encounterIds);
+
+        List<EncounterDiagnosis> allDiagnoses = diagnosisRepository
+                .findByTenantIdAndEncounterIdInAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
+                        context.tenantId(), encounterIds, "ENCOUNTER", "ACTIVE");
+        Map<Long, List<EncounterDiagnosis>> diagnosisMap = allDiagnoses.stream()
+                .collect(Collectors.groupingBy(EncounterDiagnosis::encounterId));
+
+        Map<Long, ResidentDirectory.ResidentSnapshot> residentCache = new java.util.HashMap<>();
+        Map<Long, String> departmentCache = new java.util.HashMap<>();
+
+        String normalizedStatus = clean(status);
+        String normalizedQuery = clean(query);
+        if (normalizedQuery != null) {
+            normalizedQuery = normalizedQuery.toLowerCase(java.util.Locale.ROOT);
+        }
+        final String matchQuery = normalizedQuery;
+
+        List<Encounter> filtered = encounters.stream().filter(enc -> {
+            if (normalizedStatus != null && !enc.status().name().equalsIgnoreCase(normalizedStatus)) {
+                return false;
+            }
+            if (matchQuery != null) {
+                if (enc.encounterNo() != null && enc.encounterNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                if (enc.chiefComplaint() != null && enc.chiefComplaint().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+
+                ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
+                        residentDirectory::requireSnapshot);
+                if (res != null) {
+                    if (res.fullName() != null && res.fullName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    if (res.healthRecordNo() != null && res.healthRecordNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    if (res.phone() != null && res.phone().contains(matchQuery)) return true;
+                }
+
+                OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
+                if (regDetail != null) {
+                    if (regDetail.registrationNo() != null && regDetail.registrationNo().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    if (regDetail.practitionerName() != null && regDetail.practitionerName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    if (regDetail.serviceName() != null && regDetail.serviceName().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                }
+
+                if (enc.clinicianId() != null && enc.clinicianId().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+
+                List<EncounterDiagnosis> dxs = diagnosisMap.get(enc.id());
+                if (dxs != null) {
+                    for (EncounterDiagnosis dx : dxs) {
+                        if (dx.display() != null && dx.display().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                        if (dx.code() != null && dx.code().toLowerCase(java.util.Locale.ROOT).contains(matchQuery)) return true;
+                    }
+                }
+
+                return false;
+            }
+            return true;
+        }).toList();
+
+        long totalElements = filtered.size();
+        int totalPages = (int) Math.ceil((double) totalElements / safeSize);
+        int fromIndex = Math.min((int) totalElements, safePage * safeSize);
+        int toIndex = Math.min((int) totalElements, fromIndex + safeSize);
+        List<Encounter> slice = filtered.subList(fromIndex, toIndex);
+
+        List<EncounterQueryItem> content = slice.stream().map(enc -> {
+            ResidentDirectory.ResidentSnapshot res = residentCache.computeIfAbsent(enc.residentId(),
+                    residentDirectory::requireSnapshot);
+            String deptName = departmentCache.computeIfAbsent(enc.departmentId(), id -> {
+                try {
+                    var d = organizationDirectory.requireDepartment(context.tenantId(), enc.organizationId(), id);
+                    return d != null ? d.name() : null;
+                } catch (Exception ignored) {
+                    return null;
+                }
+            });
+
+            OutpatientRegistrationDirectory.EncounterRegistrationDetail regDetail = registrationDetails.get(enc.id());
+            List<EncounterDiagnosis> dxs = diagnosisMap.getOrDefault(enc.id(), List.of());
+            EncounterDiagnosis primaryDx = dxs.stream()
+                    .filter(d -> d.diagnosisType() == EncounterDiagnosis.DiagnosisType.PRIMARY)
+                    .findFirst()
+                    .orElse(dxs.isEmpty() ? null : dxs.getFirst());
+
+            String clinicianName = regDetail != null && regDetail.practitionerName() != null
+                    ? regDetail.practitionerName()
+                    : enc.clinicianId();
+
+            return new EncounterQueryItem(
+                    enc.id(),
+                    enc.encounterNo(),
+                    enc.residentId(),
+                    res != null ? res.healthRecordNo() : null,
+                    res != null ? res.fullName() : null,
+                    res != null ? res.gender() : null,
+                    res != null ? res.birthDate() : null,
+                    res != null ? res.phone() : null,
+                    enc.organizationId(),
+                    enc.departmentId(),
+                    deptName,
+                    enc.registrationId(),
+                    regDetail != null ? regDetail.registrationNo() : null,
+                    enc.registrationSource(),
+                    enc.visitType(),
+                    enc.clinicianId(),
+                    clinicianName,
+                    enc.status().name(),
+                    enc.chiefComplaint(),
+                    enc.systolic(),
+                    enc.diastolic(),
+                    primaryDx != null ? primaryDx.display() : null,
+                    primaryDx != null ? primaryDx.code() : null,
+                    dxs.size(),
+                    regDetail != null ? regDetail.serviceName() : null,
+                    regDetail != null ? regDetail.locationName() : null,
+                    enc.registeredAt(),
+                    enc.startedAt(),
+                    enc.completedAt()
+            );
+        }).toList();
+
+        boolean first = safePage == 0;
+        boolean last = totalPages == 0 || safePage >= totalPages - 1;
+        return new EncounterPageView(content, safePage, safeSize, totalElements, totalPages, first, last);
+    }
 }

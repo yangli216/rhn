@@ -31,6 +31,7 @@ import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemReposit
 import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
 import com.rhn.platform.masterdata.infrastructure.SupplyItemRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
@@ -79,6 +80,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
     private final ExecutionContextProvider contextProvider;
     private final JsonCodec jsonCodec;
     private final MasterDataApplicationService masterDataApplicationService;
+    private final SearchEntryProjectionService searchProjections;
 
     public CatalogLifecycleService(OrganizationCatalogItemRepository adoptionRepository,
                                    CatalogPriceRepository priceRepository,
@@ -93,7 +95,8 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                                    DictionaryDirectory dictionaryDirectory,
                                    OrganizationDirectory organizationDirectory,
                                    ExecutionContextProvider contextProvider, JsonCodec jsonCodec,
-                                   MasterDataApplicationService masterDataApplicationService) {
+                                   MasterDataApplicationService masterDataApplicationService,
+                                   SearchEntryProjectionService searchProjections) {
         this.adoptionRepository = adoptionRepository; this.priceRepository = priceRepository;
         this.batchRepository = batchRepository; this.batchRowRepository = batchRowRepository;
         this.serviceRepository = serviceRepository; this.productRepository = productRepository;
@@ -104,6 +107,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         this.organizationDirectory = organizationDirectory; this.contextProvider = contextProvider;
         this.jsonCodec = jsonCodec;
         this.masterDataApplicationService = masterDataApplicationService;
+        this.searchProjections = searchProjections;
     }
 
     @Transactional(readOnly = true)
@@ -147,7 +151,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         LocalDate today = LocalDate.now();
         if ("SERVICE".equals(itemType)) {
             Page<com.rhn.platform.masterdata.domain.ServiceCatalogItem> result = serviceRepository.search(
-                    context.tenantId(), query, "", "ACTIVE", pageable);
+                    context.tenantId(), query, java.util.List.of(-1L), "", "ACTIVE", pageable);
             List<CatalogAdoptionCandidateView> values = result.getContent().stream().map(value -> candidate(
                     context.tenantId(), organizationId, value.id(), value.code(), value.name(), "SERVICE",
                     value.status(), today)).toList();
@@ -295,6 +299,7 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
         requireOrganizationScope(context, value.organizationId());
         requireLifecycleStatus(status);
         value.changeStatus(expectedRevision, status, validTo, actor(context));
+        searchProjections.synchronizeAdoption(value, actor(context));
         return maintenance(value.catalogItemId(), value.organizationId(), LocalDate.now());
     }
 
@@ -386,6 +391,9 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                     target = createAdoptionValue(context, itemId, input, current,
                             current == null ? null : current.revision());
                 }
+                if ("RETIRE".equals(operationType)) {
+                    searchProjections.synchronizeAdoption(target, actor(context));
+                }
                 rows.add(CatalogChangeBatchRow.succeeded(context.tenantId(), batch.id(), rowNumber, itemId,
                         null, jsonCodec.write(source), "ORGANIZATION_ADOPTION", target.id(), actor(context)));
                 succeeded++;
@@ -468,11 +476,13 @@ public class CatalogLifecycleService implements CatalogLifecycleDirectory {
                     "ADOPTION_REPLACEMENT_ITEM_INVALID", "替代版本必须属于同一目录项目");
             replaced.replace(expectedRevision, input.validFrom(), actor(context));
         }
-        return adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(), actor(context),
+        OrganizationCatalogItem saved = adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(), actor(context),
                 input.organizationId(), catalogItemId, input.defaultDepartmentId(), clean(input.localCode()),
                 clean(input.localName()), input.orderable(), input.executable(), input.chargeable(),
                 input.purchasable(), input.stocked(), input.dispensable(), input.returnable(), input.status(),
                 input.validFrom(), input.validTo(), replaced == null ? null : replaced.id()));
+        searchProjections.synchronizeAdoption(saved, actor(context));
+        return saved;
     }
 
     private CatalogPrice createPriceValue(ExecutionContext context, Long catalogItemId, PriceInput input,

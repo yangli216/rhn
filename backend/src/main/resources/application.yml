@@ -109,6 +109,13 @@ rhn:
         maximum-ttl: ${RHN_DICTIONARY_TRANSLATION_CACHE_MAXIMUM_TTL:PT5M}
   pharmacy:
     require-settlement-authorization: ${RHN_PHARMACY_REQUIRE_SETTLEMENT_AUTHORIZATION:true}
+  search:
+    projection:
+      rebuild-on-startup: ${RHN_SEARCH_PROJECTION_REBUILD_ON_STARTUP:false}
+      rebuild-batch-size: ${RHN_SEARCH_PROJECTION_REBUILD_BATCH_SIZE:500}
+      effective-refresh-enabled: ${RHN_SEARCH_PROJECTION_EFFECTIVE_REFRESH_ENABLED:true}
+      effective-refresh-cron: ${RHN_SEARCH_PROJECTION_EFFECTIVE_REFRESH_CRON:0 5 0 * * *}
+      effective-refresh-zone: ${RHN_SEARCH_PROJECTION_EFFECTIVE_REFRESH_ZONE:Asia/Shanghai}
   realtime:
     connection-timeout-ms: ${RHN_REALTIME_CONNECTION_TIMEOUT_MS:1800000}
     heartbeat-interval-ms: ${RHN_REALTIME_HEARTBEAT_INTERVAL_MS:20000}

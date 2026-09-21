@@ -2,7 +2,9 @@ package com.rhn.outpatient.api;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /** Transaction boundary joining schedule inventory, registration, queue and encounter. */
@@ -42,6 +44,12 @@ public interface OutpatientRegistrationDirectory {
 
     record RegistrationSnapshot(Long registrationId, Long appointmentId, Long scheduleId, Long encounterId,
                                 String registrationNo, String ticketNo, int sequenceNo, String status) {}
+
+    record EncounterRegistrationDetail(Long encounterId, Long registrationId, String registrationNo,
+                                       String ticketNo, Long scheduleId, String serviceName,
+                                       String practitionerName, String locationName) {}
+
+    Map<Long, EncounterRegistrationDetail> findEncounterRegistrationDetails(Collection<Long> encounterIds);
 
     record CancellationSnapshot(Long registrationId, Long appointmentId, Long scheduleId,
                                 String registrationStatus, String queueStatus, String appointmentStatus) {}

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
 import type { InventoryBalance, InventoryTransaction, StockBin, StockItem } from '../../shared/api'
 import type { RhnApi, MedicationProduct } from '../../shared/rhnApi'
@@ -9,10 +9,16 @@ import {
   SearchField, Select, StatusBadge, TreePanel, Pagination,
 } from '../../shared/ui'
 import { WarehouseOperations, type OperationTab } from './WarehouseOperations'
-import { TraceCodeManagement } from './TraceCodeManagement'
-import { InventoryAccuracyManagement } from './InventoryAccuracyManagement'
-import { InventoryPeriodManagement } from './InventoryPeriodManagement'
-import { InventoryPriceAdjustmentManagement } from './InventoryPriceAdjustmentManagement'
+import '../../styles/features/pharmacy-warehouse.css'
+
+const TraceCodeManagement = lazy(() => import('./TraceCodeManagement')
+  .then((module) => ({ default: module.TraceCodeManagement })))
+const InventoryAccuracyManagement = lazy(() => import('./InventoryAccuracyManagement')
+  .then((module) => ({ default: module.InventoryAccuracyManagement })))
+const InventoryPeriodManagement = lazy(() => import('./InventoryPeriodManagement')
+  .then((module) => ({ default: module.InventoryPeriodManagement })))
+const InventoryPriceAdjustmentManagement = lazy(() => import('./InventoryPriceAdjustmentManagement')
+  .then((module) => ({ default: module.InventoryPriceAdjustmentManagement })))
 
 const binTypeText: Record<string, string> = {
   ZONE: '库区', RACK: '货架', BIN: '货位', COUNTER: '柜台', TRANSIT: '在途位',
@@ -173,14 +179,26 @@ export function WarehouseManagement({ api, clinicalContext, onNavigate }: {
                 transactions={transactions.data ?? []} onReceive={(itemId) => {
                   setReceiptItemId(itemId); setReceiptDialogOpen(true)
                 }} isOperator={true} />}
-              {tab === 'trace' && <TraceCodeManagement api={api} siteId={siteId}
-                items={items.data ?? []} bins={bins.data ?? []} />}
-              {tab === 'accuracy' && <InventoryAccuracyManagement api={api} siteId={siteId}
-                items={items.data ?? []} bins={bins.data ?? []} />}
-              {tab === 'period' && <InventoryPeriodManagement api={api} siteId={siteId}
-                items={items.data ?? []} bins={bins.data ?? []} />}
-              {tab === 'price' && <InventoryPriceAdjustmentManagement api={api} siteId={siteId}
-                items={items.data ?? []} bins={bins.data ?? []} balances={balances.data ?? []} />}
+              {tab === 'trace' && (
+                <Suspense fallback={<LoadingState label="正在加载追溯码管理…" />}>
+                  <TraceCodeManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} />
+                </Suspense>
+              )}
+              {tab === 'accuracy' && (
+                <Suspense fallback={<LoadingState label="正在加载账目校验…" />}>
+                  <InventoryAccuracyManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} />
+                </Suspense>
+              )}
+              {tab === 'period' && (
+                <Suspense fallback={<LoadingState label="正在加载库存月结…" />}>
+                  <InventoryPeriodManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} />
+                </Suspense>
+              )}
+              {tab === 'price' && (
+                <Suspense fallback={<LoadingState label="正在加载库存调价…" />}>
+                  <InventoryPriceAdjustmentManagement api={api} siteId={siteId} items={items.data ?? []} bins={bins.data ?? []} balances={balances.data ?? []} />
+                </Suspense>
+              )}
               {(['purchase', 'requisition', 'transfer', 'count'] as ActiveTab[]).includes(tab) && selectedSite &&
                 <WarehouseOperations tab={tab as OperationTab} api={api} site={selectedSite}
                   sites={allSites} items={items.data ?? []} bins={bins.data ?? []} onNavigate={onNavigate} isOperator={true} />}

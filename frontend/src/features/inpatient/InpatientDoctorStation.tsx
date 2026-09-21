@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ClinicalContext } from '../../app/AppShell'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, PageHeader, Tabs } from '../../shared/ui'
+import { prefetchCanvasEditor } from './CanvasMedicalRecordEditor'
+import '../../styles/features/inpatient.css'
 import { InpatientAdmissionDiagnosisPanel } from './InpatientAdmissionDiagnosisPanel'
 import { InpatientDiagnosticResults } from './InpatientDiagnosticResults'
 import { InpatientMedicalRecordWorkspace } from './InpatientMedicalRecordWorkspace'
@@ -19,6 +21,11 @@ export function InpatientDoctorStation({ api, clinicalContext }: {
   const patient = useInpatientPatientSelection(api, clinicalContext, 'ACTIVE', false)
   const [area, setArea] = useState<DoctorArea>('OVERVIEW')
   const [dischargeOpen, setDischargeOpen] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => { prefetchCanvasEditor() }, 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
   return <>
     <PageHeader compact eyebrow="住院医疗 · 临床工作区" title="住院医生站"

@@ -16,12 +16,14 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import com.rhn.platform.tenant.TenantContext;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -792,5 +794,40 @@ public class RegistrationApplicationService implements OutpatientRegistrationDir
             throw badRequest("REGISTRATION_VISIT_TYPE_INVALID", "就诊类型不正确");
         }
         return normalized;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<Long, EncounterRegistrationDetail> findEncounterRegistrationDetails(Collection<Long> encounterIds) {
+        if (encounterIds == null || encounterIds.isEmpty()) return Map.of();
+        Long tenantId = TenantContext.requireTenantId();
+        List<PatientRegistration> regs = registrationRepository.findByTenantIdAndEncounterIdIn(tenantId, encounterIds);
+        if (regs.isEmpty()) return Map.of();
+
+        List<Long> scheduleIds = regs.stream().map(PatientRegistration::scheduleId)
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        Map<Long, ServiceSchedule> scheduleMap = scheduleIds.isEmpty() ? Map.of() :
+                scheduleRepository.findByTenantIdAndIdIn(tenantId, scheduleIds).stream()
+                        .collect(Collectors.toMap(ServiceSchedule::id, s -> s, (a, b) -> a));
+
+        Map<Long, TicketSnapshot> tickets = queueing.findBySources("PAT_REG",
+                regs.stream().map(PatientRegistration::id).toList());
+
+        Map<Long, EncounterRegistrationDetail> result = new HashMap<>();
+        for (PatientRegistration reg : regs) {
+            ServiceSchedule schedule = reg.scheduleId() == null ? null : scheduleMap.get(reg.scheduleId());
+            TicketSnapshot ticket = tickets.get(reg.id());
+            result.put(reg.encounterId(), new EncounterRegistrationDetail(
+                    reg.encounterId(),
+                    reg.id(),
+                    reg.registrationNo(),
+                    ticket == null ? null : ticket.ticketCode(),
+                    reg.scheduleId(),
+                    schedule == null ? null : schedule.serviceName(),
+                    schedule == null ? null : schedule.practitionerName(),
+                    schedule == null ? null : schedule.locationName()
+            ));
+        }
+        return result;
     }
 }

@@ -419,7 +419,71 @@ export function createEncountersApi(client: ApiClient) {
     orderableMedications: (encounterId: string, query?: string) => client.request<OrderableMedicationKnowledge[]>(
       `/api/encounters/${encounterId}/orderable-medications${query ? `?query=${encodeURIComponent(query)}` : ''}`,
     ),
+    page: async (params: {
+      dateFrom?: string
+      dateTo?: string
+      status?: string
+      query?: string
+      page?: number
+      size?: number
+      scope?: 'DEPARTMENT' | 'ORGANIZATION'
+    } = {}) => {
+      const query = new URLSearchParams()
+      if (params.dateFrom) query.set('dateFrom', params.dateFrom)
+      if (params.dateTo) query.set('dateTo', params.dateTo)
+      if (params.status) query.set('status', params.status)
+      if (params.query) query.set('query', params.query)
+      if (params.page !== undefined) query.set('page', String(params.page))
+      if (params.size !== undefined) query.set('size', String(params.size))
+      if (params.scope) query.set('scope', params.scope)
+      const queryStr = query.toString()
+      return client.request<EncounterPageView>(
+        `/api/encounters/page${queryStr ? `?${queryStr}` : ''}`,
+      )
+    },
   }
+}
+
+export interface EncounterQueryItem {
+  id: string
+  encounterNo: string
+  residentId: string
+  healthRecordNo?: string | null
+  residentName?: string | null
+  gender?: string | null
+  birthDate?: string | null
+  phone?: string | null
+  organizationId: string
+  departmentId: string
+  departmentName?: string | null
+  registrationId?: string | null
+  registrationNo?: string | null
+  registrationSource?: string | null
+  visitType?: string | null
+  clinicianId?: string | null
+  clinicianName?: string | null
+  status: string
+  chiefComplaint?: string | null
+  systolic?: number | null
+  diastolic?: number | null
+  primaryDiagnosisName?: string | null
+  primaryDiagnosisCode?: string | null
+  diagnosisCount: number
+  serviceName?: string | null
+  locationName?: string | null
+  registeredAt: string
+  startedAt?: string | null
+  completedAt?: string | null
+}
+
+export interface EncounterPageView {
+  content: EncounterQueryItem[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+  first: boolean
+  last: boolean
 }
 
 export interface BatchOrderMedicationItem {

@@ -9,6 +9,7 @@ import {
   Alert, Button, DateRangePicker, EmptyState, getTodayRange, LoadingState, PageHeader, Pagination, Panel,
   SearchField, StatusBadge, type DateRange, type StatusTone,
 } from '../../shared/ui'
+import '../../styles/features/diagnostic-execution.css'
 
 type FlowFilter = 'ACTIVE' | 'DOWNSTREAM' | 'EXCEPTION' | 'COMPLETED' | 'ALL'
 

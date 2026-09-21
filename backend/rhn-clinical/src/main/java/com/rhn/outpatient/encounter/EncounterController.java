@@ -75,4 +75,18 @@ public class EncounterController {
             @RequestParam(required = false) String query) {
         return encounterService.searchOrderableMedications(encounterId, query);
     }
+
+    @GetMapping("/page")
+    @org.springframework.security.access.prepost.PreAuthorize(
+            "hasAnyAuthority('OUTPATIENT_RECEPTION.ACCESS','OUTPATIENT_REGISTRATION.ACCESS','ROLE_ADMIN')")
+    EncounterPageView page(@RequestParam(required = false) java.time.LocalDate dateFrom,
+                           @RequestParam(required = false) java.time.LocalDate dateTo,
+                           @RequestParam(required = false) String status,
+                           @RequestParam(required = false) String query,
+                           @RequestParam(defaultValue = "0") int page,
+                           @RequestParam(defaultValue = "20") int size,
+                           @RequestParam(defaultValue = "DEPARTMENT") String scope) {
+        return encounterService.page(dateFrom, dateTo, status, query, page, size,
+                "ORGANIZATION".equalsIgnoreCase(scope));
+    }
 }

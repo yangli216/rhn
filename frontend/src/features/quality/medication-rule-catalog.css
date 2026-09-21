@@ -1,21 +1,893 @@
-.qmed-governance { display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; height: 100%; padding: var(--space-4); }
-.qmed-governance h3, .qmed-governance h4 { margin: 0; }
-.qmed-governance p { margin: var(--space-2) 0; color: var(--color-text-secondary); }
-.qmed-governance small { display: block; color: var(--color-text-secondary); font-size: 12px; overflow-wrap: anywhere; }
-.qmed-governance__toolbar, .qmed-governance__filters, .qmed-governance__heading, .qmed-governance__actions, .qmed-governance__badges { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.qmed-governance__toolbar > div:first-child, .qmed-governance__heading > div:first-child { flex: 1; }
-.qmed-governance__filters > :first-child { flex: 1; min-width: 180px; }
-.qmed-governance__filters > .ui-select { min-width: 150px; }
-.qmed-governance__panes { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 2fr); gap: var(--space-4); min-height: 0; flex: 1; }
-.qmed-governance__list, .qmed-governance__detail { overflow: auto; min-height: 0; }
-.qmed-governance__list { display: flex; flex-direction: column; gap: var(--space-2); }
-.qmed-governance__rule { display: grid; gap: var(--space-2); width: 100%; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); color: var(--color-text-primary); text-align: left; cursor: pointer; }
-.qmed-governance__rule.is-selected { border-color: var(--color-brand-primary); background: var(--color-brand-soft); }
-.qmed-governance__detail { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4); border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); }
-.qmed-governance__columns { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-4); }
-.qmed-governance pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; padding: var(--space-3); background: var(--color-surface-subtle); }
-.qmed-governance__release { display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); padding: var(--space-3) 0; border-bottom: 1px solid var(--color-border); }
-.qmed-governance__event { padding: var(--space-2) 0; border-bottom: 1px solid var(--color-border); }
-.qmed-governance__form { display: grid; gap: var(--space-3); }
-.qmed-governance__meds { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--space-2); max-height: 230px; overflow: auto; }
-.qmed-governance__meds label { font-size: 13px; }
+/* ====================================================================
+   合理用药规则目录与治理中枢 (Medication Rule Governance Catalog)
+   桌面级 PC 宽屏高密度临床质控工作台样式
+   ==================================================================== */
+
+.qmed-governance {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+  height: 100%;
+  padding: 2px 0 0;
+  box-sizing: border-box;
+  background: var(--color-canvas);
+  overflow: hidden;
+}
+
+/* 查询栏右侧操作 */
+.qmed-governance__filter-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* 单行紧凑筛选条 (严格控制桌面端宽度，杜绝换行) */
+.qmed-governance__filters {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 42px;
+  padding: 4px 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  flex-wrap: nowrap;
+}
+
+.qmed-governance__filters > .ui-search-field {
+  width: 280px;
+  min-width: 160px;
+  flex: 0 1 280px;
+}
+
+.qmed-governance__filters > .ui-select {
+  width: 140px;
+  min-width: 110px;
+  flex: 0 1 140px;
+}
+
+.qmed-governance__filters-count {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.qmed-governance__filters-count strong {
+  color: var(--color-brand-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 左右分栏工作区 */
+.qmed-governance__panes {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: var(--space-3);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 左侧规则列表面板 */
+.qmed-governance__list-panel {
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  min-height: 0;
+}
+
+.qmed-governance__list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.qmed-governance__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1;
+}
+
+/* 规则卡片 (左侧导航项) */
+.qmed-governance__rule {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  transition: all var(--motion-fast) var(--ease-standard);
+  box-sizing: border-box;
+}
+
+.qmed-governance__rule:hover {
+  border-color: var(--color-brand-highlight);
+  background: var(--color-surface-subtle);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.qmed-governance__rule.is-selected {
+  border-color: var(--color-brand-primary);
+  border-left: 4px solid var(--color-brand-primary);
+  background: var(--color-brand-soft);
+  box-shadow: 0 2px 8px var(--color-brand-halo);
+}
+
+.qmed-governance__rule.is-selected strong {
+  color: var(--color-brand-strong);
+}
+
+.qmed-governance__rule-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.qmed-governance__rule-head strong {
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-body);
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.qmed-governance__rule-code-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qmed-code-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qmed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: var(--font-weight-medium);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-soft);
+  color: var(--color-text-secondary);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.qmed-chip--brand {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-primary);
+}
+
+.qmed-chip--ai {
+  background: var(--color-violet-soft);
+  color: var(--color-violet);
+}
+
+.qmed-governance__rule-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  padding-top: var(--space-1);
+  border-top: 1px dashed var(--color-border);
+}
+
+/* 右侧详情与治理工作区 */
+.qmed-governance__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* 详情顶部核心看板 (Hero) */
+.qmed-detail-hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.qmed-detail-hero__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.qmed-detail-hero__identity {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.qmed-detail-hero__identity h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.qmed-detail-hero__tags {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qmed-detail-hero__version-ctrl {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.qmed-detail-hero__version-ctrl .ui-select {
+  width: 170px;
+}
+
+.qmed-detail-hero__badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qmed-action-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-soft);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+
+/* 操作动作工具栏 */
+.qmed-detail-hero__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding-top: var(--space-1);
+}
+
+.qmed-detail-hero__action-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+/* 运行机制说明条 (Callout) */
+.qmed-runtime-note {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-info);
+  border-radius: var(--radius-md);
+  background: var(--color-info-soft);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.qmed-runtime-note > .ui-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-info);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* 宽屏卡片栅格 (2列并排) */
+.qmed-grid-2col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* 结构化业务卡片 */
+.qmed-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  overflow: hidden;
+}
+
+.qmed-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.qmed-card__header-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qmed-card__header-title h4 {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.qmed-card__header-title .ui-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--color-brand-primary);
+}
+
+.qmed-card__body {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: 1;
+}
+
+.qmed-card__lead {
+  margin: 0;
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body);
+}
+
+/* 适用药品胶囊 */
+.qmed-meds-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.qmed-field-label {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.qmed-med-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-round);
+  background: var(--color-brand-soft);
+  color: var(--color-brand-strong);
+  border: 1px solid var(--color-brand-highlight);
+  line-height: 1.4;
+}
+
+/* 代码与DSL容器 */
+.qmed-code-block {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: #1e293b;
+  overflow: hidden;
+}
+
+.qmed-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  background: #0f172a;
+  border-bottom: 1px solid #334155;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.qmed-code-type {
+  color: #38bdf8;
+  font-weight: var(--font-weight-medium);
+}
+
+.qmed-code-block pre {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #e2e8f0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: transparent;
+}
+
+.qmed-meta-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+/* 内置执行器规范列表 */
+.qmed-builtin-spec {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
+.qmed-kv-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-kv-list > div {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 临床审核证据卡片 */
+.qmed-evidence-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-left: 3px solid var(--color-brand-primary);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-evidence-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.qmed-evidence-card__head strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.qmed-evidence-ver {
+  font-size: 11px;
+  color: var(--color-text-disabled);
+}
+
+.qmed-evidence-card__locator {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.qmed-evidence-card__excerpt {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+  line-height: 1.5;
+  color: var(--color-text-primary);
+  font-style: normal;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.qmed-evidence-card__excerpt .ui-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--color-brand-primary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.qmed-review-stamp {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-success-soft);
+  border: 1px solid color-mix(in srgb, var(--color-success) 20%, transparent);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-small);
+}
+
+.qmed-review-stamp .ui-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-success);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.qmed-review-reason {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.qmed-empty-evidence, .qmed-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+  text-align: center;
+  gap: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-small);
+}
+
+.qmed-empty-evidence .ui-icon, .qmed-empty-state .ui-icon {
+  width: 24px;
+  height: 24px;
+  color: var(--color-text-disabled);
+  margin-bottom: var(--space-1);
+}
+
+/* 发布与运行范围条目 */
+.qmed-deployments-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.qmed-release-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  transition: background var(--motion-fast) var(--ease-standard);
+}
+
+.qmed-release-row.is-builtin {
+  background: var(--color-info-soft);
+  border-color: color-mix(in srgb, var(--color-info) 25%, transparent);
+}
+
+.qmed-release-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.qmed-release-row__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.qmed-release-row__title strong {
+  font-size: var(--font-size-body);
+  color: var(--color-text-primary);
+}
+
+.qmed-ver-tag {
+  display: inline-block;
+  font-family: ui-monospace, monospace;
+  font-weight: var(--font-weight-semibold);
+  font-size: 11px;
+  padding: 1px 6px;
+  background: var(--color-neutral-soft);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+}
+
+.qmed-scope-tag {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.qmed-release-row__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  flex-wrap: wrap;
+}
+
+.qmed-release-row__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* 真实处方观察流水流 */
+.qmed-runs-stream {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.qmed-stream-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  font-size: var(--font-size-small);
+}
+
+.qmed-stream-item__left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qmed-stream-decision {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.qmed-stream-item__right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+}
+
+.qmed-stream-item__right code {
+  font-family: ui-monospace, monospace;
+}
+
+/* 目录治理审计时间线 */
+.qmed-history-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.qmed-history-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-left: var(--space-2);
+}
+
+.qmed-history-item__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-brand-primary);
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.qmed-history-item__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.qmed-history-item__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+  flex-wrap: wrap;
+}
+
+.qmed-history-item__head strong {
+  color: var(--color-text-primary);
+}
+
+.qmed-ver-chip {
+  font-size: 11px;
+  padding: 0 5px;
+  background: var(--color-neutral-soft);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-history-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-primary);
+  background: var(--color-surface-subtle);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+}
+
+.qmed-count-chip {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: var(--radius-round);
+  background: var(--color-neutral-soft);
+  color: var(--color-text-secondary);
+}
+
+/* 弹窗表单样式 */
+.qmed-governance__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+}
+
+.qmed-governance__form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.qmed-governance__check-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-small);
+}
+
+.qmed-governance__check-row label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  color: var(--color-text-primary);
+}
+
+.qmed-governance__meds-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  background: var(--color-surface-subtle);
+}
+
+.qmed-governance__meds-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.qmed-governance__meds-filter .ui-search-field {
+  flex: 1;
+}
+
+.qmed-governance__meds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  max-height: 200px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.qmed-governance__meds label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 3px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.qmed-governance__meds label:hover {
+  background: var(--color-surface-subtle);
+}
+
+.qmed-governance__form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}

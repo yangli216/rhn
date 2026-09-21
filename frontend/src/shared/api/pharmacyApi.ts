@@ -89,6 +89,20 @@ export interface StockItem {
   manufacturerName?: string
 }
 
+export interface ProcurementCatalogItem extends StockItem {
+  supplierSupplyItemId: string
+  agreementPrice?: number
+  taxRate?: number
+}
+
+export interface ReceivableOrderLineOption {
+  purchaseOrderLineId: string
+  remainingQuantity: number
+  unitPrice: number
+  taxRate?: number
+  catalog: ProcurementCatalogItem
+}
+
 export interface StockBin {
   id: string
   revision: number
@@ -858,7 +872,19 @@ export function createPharmacyApi(client: ApiClient) {
       }),
     addSupplierItem: (supplierId: string, input: { catalogItemId: string; packageId: string; agreementPrice: number; taxRate?: number }) => client.request(`/api/pharmacy/suppliers/${supplierId}/supply-items`, { method: 'POST', body: JSON.stringify(input) }),
     supplyItems: (supplierId: string) => client.request<SupplierSupplyItem[]>(`/api/pharmacy/suppliers/${supplierId}/supply-items`),
+    searchProcurementCatalog: (stockSiteId: string, supplierId: string, query: string, businessDate = '') => {
+      const params = new URLSearchParams({ stockSiteId, supplierId, query })
+      if (businessDate) params.set('businessDate', businessDate)
+      return client.request<ProcurementCatalogItem[]>(`/api/pharmacy/procurement-catalog?${params.toString()}`)
+    },
     purchaseOrders: (siteId: string) => client.request<PurchaseOrder[]>(`/api/pharmacy/purchase-orders?stockSiteId=${encodeURIComponent(siteId)}`),
+    receivablePurchaseLines: (orderId: string, query = '', businessDate = '') => {
+      const params = new URLSearchParams({ query })
+      if (businessDate) params.set('businessDate', businessDate)
+      return client.request<ReceivableOrderLineOption[]>(
+        `/api/pharmacy/purchase-orders/${orderId}/receivable-lines?${params.toString()}`,
+      )
+    },
     createPurchaseOrder: (input: { stockSiteId: string; supplierId: string; requestCode: string; expectedDate?: string; description?: string; lines: Array<{ stockItemId: string; packageId: string; orderedQuantity: number; unitPrice: number; taxRate?: number }> }) => client.request<PurchaseOrder>('/api/pharmacy/purchase-orders', { method: 'POST', body: JSON.stringify(input) }),
     submitPurchaseOrder: (id: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/submit`, { method: 'POST' }),
     approvePurchaseOrder: (id: string, reason?: string) => client.request<PurchaseOrder>(`/api/pharmacy/purchase-orders/${id}/approve`, { method: 'POST', body: JSON.stringify({ reason }) }),

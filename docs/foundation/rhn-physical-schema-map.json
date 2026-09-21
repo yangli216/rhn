@@ -27964,5 +27964,34 @@
         "comment": "发布版本及评价事实快照"
       }
     ]
+  },
+  {
+    "logical": "bd.search_entry",
+    "legacy": "search_entry",
+    "physical": "RHN_BD_SEARCH_ENTRY",
+    "domain": "BD",
+    "comment": "基础数据检索条目；一行代表一个标准名称、别名、商品名或机构本地名称的检索投影。",
+    "columns": [
+      {"logical": "id", "physical": "ID_SEARCH_ENTRY", "comment": "检索条目主键"},
+      {"logical": "revision", "physical": "REVISION", "comment": "乐观锁版本"},
+      {"logical": "scope_type", "physical": "SD_SCOPE_TYPE", "comment": "作用域类型：产品、租户或机构"},
+      {"logical": "scope_id", "physical": "ID_SCOPE", "comment": "作用域标识"},
+      {"logical": "tenant_id", "physical": "ID_TNT", "comment": "租户标识；产品级条目为空"},
+      {"logical": "target_type", "physical": "SD_TARGET_TYPE", "comment": "目标类型：概念、通用药品或目录项目"},
+      {"logical": "target_id", "physical": "ID_TARGET", "comment": "目标主键"},
+      {"logical": "name_type", "physical": "SD_NAME_TYPE", "comment": "名称类型"},
+      {"logical": "source_key", "physical": "CD_SOURCE_KEY", "comment": "来源字段稳定键，用于幂等同步"},
+      {"logical": "search_name", "physical": "NA_SEARCH", "comment": "标准化检索名称"},
+      {"logical": "pinyin_code", "physical": "CD_PINYIN", "comment": "拼音首字母简码，不保存完整拼音"},
+      {"logical": "wubi_code", "physical": "CD_WUBI", "comment": "五笔简码"},
+      {"logical": "mnemonic_code", "physical": "CD_MNEMONIC", "comment": "人工或导入助记码"},
+      {"logical": "primary_name", "physical": "FG_PRIMARY", "comment": "是否主名称"},
+      {"logical": "generator_version", "physical": "CD_GEN_VER", "comment": "检索码生成器版本"},
+      {"logical": "status", "physical": "SD_STATUS", "comment": "状态"},
+      {"logical": "created_at", "physical": "DT_CREATED", "comment": "创建时间"},
+      {"logical": "created_by_user_id", "physical": "ID_USER_CREATED", "comment": "创建用户标识"},
+      {"logical": "updated_at", "physical": "DT_UPDATED", "comment": "最后更新时间"},
+      {"logical": "updated_by_user_id", "physical": "ID_USER_UPDATED", "comment": "最后更新用户标识"}
+    ]
   }
 ]

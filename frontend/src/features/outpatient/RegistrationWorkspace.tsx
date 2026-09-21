@@ -18,6 +18,7 @@ import { Alert, Button, Dialog, EmptyState, FormField, Icon, type IconName, Load
   PatientIdentitySearch, type PatientIntakeChannel, type PatientIntakeMeta, Select, StatusBadge } from '../../shared/ui'
 import { pinyinInitials } from '../../shared/ui/pinyinInitials'
 import { parseChineseResidentId } from '../../shared/validation/businessValidation'
+import '../../styles/features/scheduling-registration.css'
 
 export { getCashPresets }
 export type { PatientIntakeChannel, PatientIntakeMeta }

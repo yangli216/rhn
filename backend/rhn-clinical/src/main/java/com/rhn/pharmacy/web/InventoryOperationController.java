@@ -5,6 +5,9 @@ import com.rhn.pharmacy.api.InventoryOperationViews.GoodsReceiptView;
 import com.rhn.pharmacy.api.InventoryOperationViews.PurchaseOrderView;
 import com.rhn.pharmacy.api.InventoryOperationViews.SupplierSupplyItemView;
 import com.rhn.pharmacy.api.InventoryOperationViews.SupplierView;
+import com.rhn.pharmacy.api.ProcurementCatalogDirectory;
+import com.rhn.pharmacy.api.ProcurementCatalogDirectory.ProcurementCatalogOption;
+import com.rhn.pharmacy.api.ProcurementCatalogDirectory.ReceivableOrderLineOption;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.CreateGoodsReceiptCommand;
 import com.rhn.pharmacy.application.InventoryOperationApplicationService.CreatePurchaseOrderCommand;
@@ -37,6 +40,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PutMapping;
+import com.rhn.shared.context.ExecutionContextProvider;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -49,8 +53,16 @@ import java.util.List;
 @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_RECEIVE)
 public class InventoryOperationController {
     private final InventoryOperationApplicationService service;
+    private final ProcurementCatalogDirectory procurementCatalog;
+    private final ExecutionContextProvider contexts;
 
-    public InventoryOperationController(InventoryOperationApplicationService service) { this.service = service; }
+    public InventoryOperationController(InventoryOperationApplicationService service,
+                                        ProcurementCatalogDirectory procurementCatalog,
+                                        ExecutionContextProvider contexts) {
+        this.service = service;
+        this.procurementCatalog = procurementCatalog;
+        this.contexts = contexts;
+    }
 
     @PostMapping("/suppliers")
     @ResponseStatus(HttpStatus.CREATED)
@@ -89,6 +101,16 @@ public class InventoryOperationController {
         return service.supplyItems(supplierId);
     }
 
+    @GetMapping("/procurement-catalog")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    List<ProcurementCatalogOption> procurementCatalog(@RequestParam Long stockSiteId,
+                                                       @RequestParam Long supplierId,
+                                                       @RequestParam(defaultValue = "") String query,
+                                                       @RequestParam(required = false) LocalDate businessDate) {
+        return procurementCatalog.searchPurchasable(contexts.requireCurrent().tenantId(), stockSiteId,
+                supplierId, query, businessDate);
+    }
+
     @PostMapping("/purchase-orders")
     @ResponseStatus(HttpStatus.CREATED)
     PurchaseOrderView createPurchaseOrder(@Valid @RequestBody CreatePurchaseOrderRequest input) {
@@ -99,6 +121,15 @@ public class InventoryOperationController {
     @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
     List<PurchaseOrderView> purchaseOrders(@RequestParam Long stockSiteId) {
         return service.purchaseOrders(stockSiteId);
+    }
+
+    @GetMapping("/purchase-orders/{orderId}/receivable-lines")
+    @PreAuthorize(com.rhn.pharmacy.api.PharmacyPermissions.WAREHOUSE_READ)
+    List<ReceivableOrderLineOption> receivableOrderLines(@PathVariable Long orderId,
+                                                          @RequestParam(defaultValue = "") String query,
+                                                          @RequestParam(required = false) LocalDate businessDate) {
+        return procurementCatalog.searchReceivableOrderLines(contexts.requireCurrent().tenantId(), orderId,
+                query, businessDate);
     }
 
     @PostMapping("/purchase-orders/{orderId}/submit")

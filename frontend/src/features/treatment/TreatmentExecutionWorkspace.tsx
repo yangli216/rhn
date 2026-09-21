@@ -7,6 +7,7 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, StatusBadge } from '../../shared/ui'
+import '../../styles/features/treatment-skintest.css'
 
 const statusText: Record<TreatmentTaskStatus, string> = {
   WAITING_SETTLEMENT: '待结算', WAITING_DISPENSE: '待发药', WAITING_SKIN_TEST: '待皮试', READY: '待执行', IN_PROGRESS: '执行中',

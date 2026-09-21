@@ -31,6 +31,8 @@ import com.rhn.platform.terminology.infrastructure.DiseaseManagementProgramRepos
 import com.rhn.platform.terminology.infrastructure.DiseaseManagementRuleRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetMemberRepository;
 import com.rhn.platform.terminology.infrastructure.ValueSetRepository;
+import com.rhn.platform.search.api.MasterDataSearchDirectory;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.api.BusinessException;
 import com.rhn.shared.api.PageResult;
 import org.springframework.http.HttpStatus;
@@ -66,6 +68,8 @@ public class TerminologyApplicationService implements TerminologyDirectory {
     private final DiseaseManagementProgramRepository managementProgramRepository;
     private final DiseaseManagementMemberRepository managementMemberRepository;
     private final DiseaseManagementRuleRepository managementRuleRepository;
+    private final MasterDataSearchDirectory searchDirectory;
+    private final SearchEntryProjectionService searchProjections;
 
     public TerminologyApplicationService(CodeSystemRepository codeSystemRepository,
                                          ConceptRepository conceptRepository,
@@ -74,7 +78,9 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                                          ValueSetMemberRepository memberRepository,
                                          DiseaseManagementProgramRepository managementProgramRepository,
                                          DiseaseManagementMemberRepository managementMemberRepository,
-                                         DiseaseManagementRuleRepository managementRuleRepository) {
+                                         DiseaseManagementRuleRepository managementRuleRepository,
+                                         MasterDataSearchDirectory searchDirectory,
+                                         SearchEntryProjectionService searchProjections) {
         this.codeSystemRepository = codeSystemRepository;
         this.conceptRepository = conceptRepository;
         this.aliasRepository = aliasRepository;
@@ -83,6 +89,8 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         this.managementProgramRepository = managementProgramRepository;
         this.managementMemberRepository = managementMemberRepository;
         this.managementRuleRepository = managementRuleRepository;
+        this.searchDirectory = searchDirectory;
+        this.searchProjections = searchProjections;
     }
 
     @Transactional
@@ -136,6 +144,7 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         TerminologyCodePolicy.requireConceptCode(system.code(), code);
         Concept concept = conceptRepository.save(new Concept(codeSystemId, code, display, definition,
                 effectiveFrom, effectiveTo));
+        searchProjections.synchronizeConcept(concept, system, List.of(), null);
         return concept.toView(system);
     }
 
@@ -148,9 +157,13 @@ public class TerminologyApplicationService implements TerminologyDirectory {
 
     @Transactional
     public void activateConcept(Long conceptId) {
-        conceptRepository.findById(conceptId)
-                .orElseThrow(() -> notFound("CONCEPT_NOT_FOUND", "未找到术语概念"))
-                .activate();
+        Concept concept = conceptRepository.findById(conceptId)
+                .orElseThrow(() -> notFound("CONCEPT_NOT_FOUND", "未找到术语概念"));
+        concept.activate();
+        CodeSystem system = codeSystemRepository.findById(concept.codeSystemId())
+                .orElseThrow(() -> notFound("CODE_SYSTEM_NOT_FOUND", "未找到编码体系"));
+        searchProjections.synchronizeConcept(concept, system,
+                aliasRepository.findByConceptIdOrderByAliasName(concept.id()), null);
     }
 
     @Transactional
@@ -352,9 +365,12 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         if (systems.isEmpty()) return new DiseaseSearchPage(List.of(), 0, 0, normalizedPage, normalizedSize);
         Map<Long, CodeSystem> systemById = systems.stream()
                 .collect(Collectors.toMap(CodeSystem::id, Function.identity()));
+        String normalizedQuery = query == null ? "" : query.trim();
+        Collection<Long> searchIds = normalizedQuery.isBlank() ? List.of(-1L)
+                : searchDirectory.findMatchingTargetIds("CONCEPT", tenantId, null, null, normalizedQuery);
+        if (searchIds.isEmpty()) searchIds = List.of(-1L);
         Page<Concept> result = conceptRepository.searchDiseases(systemById.keySet(),
-                query == null ? "" : query.trim(), conceptType == null ? "" : conceptType.trim(), status,
-                TerminologyStatus.ACTIVE,
+                normalizedQuery, searchIds, conceptType == null ? "" : conceptType.trim(), status,
                 PageRequest.of(normalizedPage, normalizedSize, Sort.by("display").ascending().and(Sort.by("code"))));
         List<Concept> concepts = result.getContent();
         Map<Long, List<ConceptAlias>> aliases = aliasesByConcept(concepts.stream().map(Concept::id).toList());
@@ -383,7 +399,9 @@ public class TerminologyApplicationService implements TerminologyDirectory {
                 shortDisplay, chapterCode, chapterName, searchCode, effectiveFrom, effectiveTo,
                 status == null ? TerminologyStatus.DRAFT : status));
         saveNewAliases(concept.id(), aliases);
-        return diseaseView(concept, system, aliasRepository.findByConceptIdOrderByAliasName(concept.id()), List.of());
+        List<ConceptAlias> savedAliases = aliasRepository.findByConceptIdOrderByAliasName(concept.id());
+        searchProjections.synchronizeConcept(concept, system, savedAliases, null);
+        return diseaseView(concept, system, savedAliases, List.of());
     }
 
     @Transactional
@@ -397,8 +415,11 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         concept.update(expectedRevision, display, definition, conceptType, shortDisplay, chapterCode,
                 chapterName, searchCode, effectiveFrom, effectiveTo);
         synchronizeAliases(concept.id(), aliases);
-        return diseaseView(concept, requireVisibleDiseaseSystem(tenantId, concept.codeSystemId()),
-                aliasRepository.findByConceptIdOrderByAliasName(concept.id()), programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
+        CodeSystem system = requireVisibleDiseaseSystem(tenantId, concept.codeSystemId());
+        List<ConceptAlias> savedAliases = aliasRepository.findByConceptIdOrderByAliasName(concept.id());
+        searchProjections.synchronizeConcept(concept, system, savedAliases, null);
+        return diseaseView(concept, system, savedAliases,
+                programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
     }
 
     @Transactional
@@ -408,8 +429,11 @@ public class TerminologyApplicationService implements TerminologyDirectory {
         requireRevision(concept, expectedRevision);
         if (replacementConceptId != null) requireDisease(tenantId, replacementConceptId);
         concept.changeStatus(status, replacementConceptId);
-        return diseaseView(concept, requireVisibleDiseaseSystem(tenantId, concept.codeSystemId()),
-                aliasRepository.findByConceptIdOrderByAliasName(concept.id()), programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
+        CodeSystem system = requireVisibleDiseaseSystem(tenantId, concept.codeSystemId());
+        List<ConceptAlias> aliases = aliasRepository.findByConceptIdOrderByAliasName(concept.id());
+        searchProjections.synchronizeConcept(concept, system, aliases, null);
+        return diseaseView(concept, system, aliases,
+                programsForConcept(tenantId, concept.id(), LocalDate.now(), false));
     }
 
     @Override

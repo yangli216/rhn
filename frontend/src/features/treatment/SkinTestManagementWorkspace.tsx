@@ -9,6 +9,7 @@ import { formatTime } from '../../shared/format'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
 import { Alert, BodySiteSelect, Button, EmptyState, FormField, LoadingState, PageHeader, Panel, Select, StatusBadge, UnitNumberInput } from '../../shared/ui'
+import '../../styles/features/treatment-skintest.css'
 
 type StatusFilter = 'ACTIONABLE' | 'OBSERVING' | 'FINISHED' | 'ALL'
 

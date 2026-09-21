@@ -13,6 +13,7 @@ import {
   EmptyState, FormField, GridAddressInput, Icon, IconButton, LoadingState, ObjectContextBar,
   PageHeader, Pagination, Panel, PanelHead, Select, StatusBadge, tableCellClass, TableShell,
 } from '../../shared/ui'
+import '../../styles/features/resident-center.css'
 
 const today = () => new Intl.DateTimeFormat('en-CA', {
   timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',

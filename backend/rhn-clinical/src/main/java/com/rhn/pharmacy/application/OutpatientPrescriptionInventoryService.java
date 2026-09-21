@@ -16,6 +16,7 @@ import com.rhn.platform.masterdata.api.CatalogLifecycleDirectory;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationProductView;
 import com.rhn.platform.masterdata.api.MasterDataViews.MedicationView;
 import com.rhn.platform.masterdata.api.MasterDataViews.PackageView;
+import com.rhn.platform.search.api.MasterDataSearchDirectory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,19 +42,22 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     private final InventoryAvailabilityService availabilityService;
     private final PrescriptionInventoryFreezeRepository freezeRepository;
     private final CatalogLifecycleDirectory catalogLifecycleDirectory;
+    private final MasterDataSearchDirectory searchDirectory;
 
     public OutpatientPrescriptionInventoryService(DispenseRouteRepository dispenseRouteRepository,
                                                    StockSiteRepository stockSiteRepository,
                                                    StockItemRepository stockItemRepository,
                                                    InventoryAvailabilityService availabilityService,
                                                    PrescriptionInventoryFreezeRepository freezeRepository,
-                                                   CatalogLifecycleDirectory catalogLifecycleDirectory) {
+                                                   CatalogLifecycleDirectory catalogLifecycleDirectory,
+                                                   MasterDataSearchDirectory searchDirectory) {
         this.dispenseRouteRepository = dispenseRouteRepository;
         this.stockSiteRepository = stockSiteRepository;
         this.stockItemRepository = stockItemRepository;
         this.availabilityService = availabilityService;
         this.freezeRepository = freezeRepository;
         this.catalogLifecycleDirectory = catalogLifecycleDirectory;
+        this.searchDirectory = searchDirectory;
     }
 
     @Override
@@ -61,6 +65,9 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
     public List<OrderableMedicationView> findOrderableMedications(Long tenantId, Long organizationId,
                                                                  Long departmentId, String query) {
         LocalDate today = LocalDate.now();
+        boolean searching = query != null && !query.isBlank();
+        String normalizedQuery = searching ? query.trim().toLowerCase() : "";
+        int resultLimit = searchDirectory.resolvePreference(tenantId, organizationId, departmentId).resultLimit();
 
         // 1. 获取该门诊科室适用的目标药房站点（优先精确科室路由，其次全院默认通配路由）
         List<DispenseRoute> activeRoutes = dispenseRouteRepository.findByTenantIdAndOrganizationIdOrderByCode(tenantId, organizationId)
@@ -125,6 +132,14 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                     medViewByCatalogItemId.put(pv.id(), mv);
                 }
             }
+            Set<Long> matchingMedicationIds = searching
+                    ? searchDirectory.findMatchingTargetIds("MEDICATION", tenantId, organizationId, departmentId,
+                            query, medViews.stream().map(MedicationView::id).collect(Collectors.toSet()))
+                    : Set.of();
+            Set<Long> matchingProductIds = searching
+                    ? searchDirectory.findMatchingTargetIds("CATALOG_ITEM", tenantId, organizationId, departmentId,
+                            query, catalogItemIds)
+                    : Set.of();
 
             for (StockItem si : stockItems) {
                 BigDecimal availableBaseQty = availableByStockItemId.getOrDefault(si.id(), BigDecimal.ZERO);
@@ -154,16 +169,16 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
                 BigDecimal availablePkgQty = availableBaseQty.divide(factor, 0, RoundingMode.FLOOR);
                 if (availablePkgQty.signum() <= 0) continue; // 关键：可用包装量必须 > 0
 
-                // 匹配检索条件（代码、通用名、别名、规格、商品名）
-                if (query != null && !query.isBlank()) {
-                    String q = query.trim().toLowerCase();
-                    boolean match = (medView.name() != null && medView.name().toLowerCase().contains(q))
-                            || (medView.code() != null && medView.code().toLowerCase().contains(q))
-                            || (medView.aliasName() != null && medView.aliasName().toLowerCase().contains(q))
-                            || (medView.preparationSpec() != null && medView.preparationSpec().toLowerCase().contains(q))
-                            || (matchedProduct != null && matchedProduct.name() != null && matchedProduct.name().toLowerCase().contains(q))
-                            || (matchedProduct != null && matchedProduct.tradeName() != null && matchedProduct.tradeName().toLowerCase().contains(q));
-                    if (!match) continue;
+                if (searching) {
+                    boolean directoryMatch = matchingMedicationIds.contains(medView.id())
+                            || matchingProductIds.contains(si.catalogItemId());
+                    boolean businessFieldMatch = startsWith(medView.code(), normalizedQuery)
+                            || contains(medView.preparationSpec(), normalizedQuery)
+                            || matchedProduct != null && (startsWith(matchedProduct.code(), normalizedQuery)
+                                    || startsWith(matchedProduct.approvalCode(), normalizedQuery)
+                                    || startsWith(matchedProduct.registrationCode(), normalizedQuery)
+                                    || startsWith(matchedProduct.purchaseCode(), normalizedQuery));
+                    if (!directoryMatch && !businessFieldMatch) continue;
                 }
 
                 results.add(new OrderableMedicationView(
@@ -208,7 +223,15 @@ public class OutpatientPrescriptionInventoryService implements OutpatientPrescri
         }
 
         results.sort(Comparator.comparing(OrderableMedicationView::name));
-        return results;
+        return results.stream().limit(resultLimit).toList();
+    }
+
+    private boolean startsWith(String value, String query) {
+        return value != null && value.toLowerCase().startsWith(query);
+    }
+
+    private boolean contains(String value, String query) {
+        return value != null && value.toLowerCase().contains(query);
     }
 
     @Override

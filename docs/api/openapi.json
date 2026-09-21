@@ -50790,6 +50790,202 @@
           }
         }
       }
+    },
+    "/api/pharmacy/procurement-catalog": {
+      "get": {
+        "tags": [
+          "inventory-operation-controller"
+        ],
+        "operationId": "procurementCatalog",
+        "parameters": [
+          {
+            "name": "stockSiteId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "supplierId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProcurementCatalogOption"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pharmacy/purchase-orders/{orderId}/receivable-lines": {
+      "get": {
+        "tags": [
+          "inventory-operation-controller"
+        ],
+        "operationId": "receivableOrderLines",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "824633720832983041",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "query",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          {
+            "name": "businessDate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "X-Tenant-Id",
+            "in": "header",
+            "description": "当前县域医共体租户标识",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Correlation-Id",
+            "in": "header",
+            "description": "调用链关联号；未提供时由服务端生成",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "X-Organization-Id",
+            "in": "header",
+            "description": "当前受信工作机构；任务、通知和门户聚合接口必须提供",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          },
+          {
+            "name": "X-Department-Id",
+            "in": "header",
+            "description": "当前受信工作科室；必须属于当前机构且在用户有效授权范围内",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,18}$"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReceivableOrderLineOption"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -86873,6 +87069,127 @@
           },
           "executable": {
             "$ref": "#/components/schemas/RuleVersion"
+          }
+        }
+      },
+      "ProcurementCatalogOption": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "revision": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "stockSiteId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "catalogItemId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "packageId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "medicationId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "productCode": {
+            "type": "string"
+          },
+          "productName": {
+            "type": "string"
+          },
+          "packageUnitCode": {
+            "type": "string"
+          },
+          "packageUnitName": {
+            "type": "string"
+          },
+          "packageSpec": {
+            "type": "string"
+          },
+          "packageFactor": {
+            "type": "number"
+          },
+          "baseUnitCode": {
+            "type": "string"
+          },
+          "issuePolicy": {
+            "type": "string"
+          },
+          "negativeAllowed": {
+            "type": "boolean"
+          },
+          "lotRequired": {
+            "type": "boolean"
+          },
+          "traceRequired": {
+            "type": "boolean"
+          },
+          "splitAllowed": {
+            "type": "boolean"
+          },
+          "coldChain": {
+            "type": "boolean"
+          },
+          "controlled": {
+            "type": "boolean"
+          },
+          "controlLevel": {
+            "type": "string"
+          },
+          "highAlert": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "manufacturerName": {
+            "type": "string"
+          },
+          "supplierSupplyItemId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "agreementPrice": {
+            "type": "number"
+          },
+          "taxRate": {
+            "type": "number"
+          }
+        }
+      },
+      "ReceivableOrderLineOption": {
+        "type": "object",
+        "properties": {
+          "purchaseOrderLineId": {
+            "type": "string",
+            "example": "824633720832983041",
+            "pattern": "^[1-9][0-9]{0,18}$"
+          },
+          "remainingQuantity": {
+            "type": "number"
+          },
+          "unitPrice": {
+            "type": "number"
+          },
+          "taxRate": {
+            "type": "number"
+          },
+          "catalog": {
+            "$ref": "#/components/schemas/ProcurementCatalogOption"
           }
         }
       }

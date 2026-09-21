@@ -57,6 +57,8 @@ import com.rhn.platform.masterdata.infrastructure.OrganizationCatalogItemReposit
 import com.rhn.platform.masterdata.infrastructure.ServiceCatalogItemRepository;
 import com.rhn.platform.masterdata.infrastructure.SupplyItemRepository;
 import com.rhn.platform.organization.api.OrganizationDirectory;
+import com.rhn.platform.search.api.MasterDataSearchDirectory;
+import com.rhn.platform.search.application.SearchEntryProjectionService;
 import com.rhn.shared.context.ExecutionContext;
 import com.rhn.shared.context.ExecutionContextProvider;
 import com.rhn.shared.api.PageResult;
@@ -107,6 +109,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     private final MedicationTerminologyDirectory medicationTerminologyDirectory;
     private final MedicationSemanticsService medicationSemantics;
     private final MedicationStandardService medicationStandards;
+    private final MasterDataSearchDirectory searchDirectory;
+    private final SearchEntryProjectionService searchProjections;
 
     public MasterDataApplicationService(ServiceCatalogItemRepository serviceRepository,
                                         SupplyItemRepository supplyRepository,
@@ -129,8 +133,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                                         OrderFrequencyDirectory orderFrequencyDirectory,
                                         MedicationRouteDirectory medicationRouteDirectory,
                                         MedicationTerminologyDirectory medicationTerminologyDirectory, MedicationSemanticsService medicationSemantics,
-                                        MedicationStandardService medicationStandards) {
+                                        MedicationStandardService medicationStandards,
+                                        MasterDataSearchDirectory searchDirectory,
+                                        SearchEntryProjectionService searchProjections) {
         this.medicationStandards = medicationStandards;
+        this.searchDirectory = searchDirectory;
+        this.searchProjections = searchProjections;
         this.medicationSemantics = medicationSemantics;
         this.serviceRepository = serviceRepository;
         this.supplyRepository = supplyRepository;
@@ -172,13 +180,14 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     @Transactional(readOnly = true)
     public List<ServiceView> listServices(String query, String serviceType, String status, Long organizationId) {
         ExecutionContext context = current();
+        Set<Long> searchIds = matchingIds("CATALOG_ITEM", query, organizationId, context);
         List<ServiceCatalogItem> items = serviceRepository
                 .findByTenantIdAndItemTypeOrderByName(context.tenantId(), "SERVICE").stream()
                 .filter(value -> blank(serviceType) || serviceType.equals(value.serviceType()))
                 .filter(value -> blank(status) || status.equals(value.status()))
                 .limit(500).toList();
         return serviceViews(context.tenantId(), items, organizationId).stream()
-                .filter(value -> matchesServiceView(query, value))
+                .filter(value -> matchesServiceView(query, value) || searchIds.contains(value.id()))
                 .limit(500)
                 .toList();
     }
@@ -189,7 +198,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ExecutionContext context = current();
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.max(10, Math.min(size, 100));
-        Page<ServiceCatalogItem> result = serviceRepository.search(context.tenantId(), query, serviceType, status,
+        Collection<Long> searchIds = queryIds("CATALOG_ITEM", query, organizationId, context);
+        Page<ServiceCatalogItem> result = serviceRepository.search(context.tenantId(), query, searchIds, serviceType, status,
                 PageRequest.of(normalizedPage, normalizedSize,
                         Sort.by("name").ascending().and(Sort.by("id").ascending())));
         return new PageResult<>(serviceViews(context.tenantId(), result.getContent(), organizationId),
@@ -284,6 +294,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         synchronizeServiceTypeExtension(item, command);
         attributeSubjectRepository.save(ItemAttributeSubject.catalogItem(
                 context.tenantId(), item.id(), context.subjectId()));
+        searchProjections.synchronizeService(item, context.subjectId());
         return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -314,6 +325,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.maxBodySiteCount(), command.mutualRecognitionCode(), command.pregnancyAlert(),
                 command.attention(), command.examinationNotes());
         synchronizeServiceTypeExtension(item, command);
+        searchProjections.synchronizeService(item, context.subjectId());
         return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -324,6 +336,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ServiceCatalogItem item = requireService(context.tenantId(), id);
         requireRevision(item.revision(), expectedRevision, "SERVICE_REVISION_STALE", "诊疗项目已被其他用户修改，请刷新后重试");
         item.changeStatus(expectedRevision, context.subjectId(), status);
+        searchProjections.synchronizeService(item, context.subjectId());
         return serviceViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -331,11 +344,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
     public List<MedicationView> listMedications(String query, String medicationType, String status,
                                                 Long organizationId) {
         ExecutionContext context = current();
+        Set<Long> searchIds = matchingIds("MEDICATION", query, organizationId, context);
         List<Medication> items = medicationRepository.findByTenantIdOrderByName(context.tenantId()).stream()
                 .filter(value -> blank(medicationType) || medicationType.equals(value.medicationType()))
                 .filter(value -> blank(status) || status.equals(value.status()))
                 .filter(value -> matches(query, value.code(), value.name(), value.aliasName(), value.doseForm(),
-                        value.preparationSpec()))
+                        value.preparationSpec()) || searchIds.contains(value.id()))
                 .limit(500).toList();
         return medicationViews(context.tenantId(), items, organizationId);
     }
@@ -357,7 +371,8 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         ExecutionContext context = current();
         int normalizedPage = Math.max(page, 0);
         int normalizedSize = Math.max(10, Math.min(size, 100));
-        Page<Medication> result = medicationRepository.search(context.tenantId(), query, medicationType, status,
+        Collection<Long> searchIds = queryIds("MEDICATION", query, organizationId, context);
+        Page<Medication> result = medicationRepository.search(context.tenantId(), query, searchIds, medicationType, status,
                 PageRequest.of(normalizedPage, normalizedSize,
                         Sort.by("name").ascending().and(Sort.by("id").ascending())));
         return new PageResult<>(medicationViews(context.tenantId(), result.getContent(), organizationId),
@@ -384,8 +399,12 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         var sort = Sort.by("name").ascending().and(Sort.by("id").ascending());
         Long sourceOrganizationId = organizationId == null ? null
                 : organizationDirectory.catalogSourceOrganizationId(tenantId, organizationId);
+        ExecutionContext context = current();
+        Collection<Long> productSearchIds = queryIds("CATALOG_ITEM", query, organizationId, context);
+        Collection<Long> medicationSearchIds = queryIds("MEDICATION", query, organizationId, context);
         var found = productRepository.searchProducts(tenantId, query == null ? null : query.trim(), medicationType,
-                stockable ? "ACTIVE" : status, stockable, dispensable, organizationId, sourceOrganizationId, LocalDate.now(),
+                stockable ? "ACTIVE" : status, productSearchIds, medicationSearchIds, stockable, dispensable,
+                organizationId, sourceOrganizationId, LocalDate.now(),
                 PageRequest.of(Math.max(0, page), limit, sort));
         var medications = medicationViews(tenantId, medicationRepository.findByTenantIdAndIdIn(tenantId,
                 found.getContent().stream().map(MedicationProduct::medicationId).distinct().toList()), organizationId)
@@ -426,6 +445,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         medicationSemantics.captureMedication(item);
         attributeSubjectRepository.save(ItemAttributeSubject.medication(
                 context.tenantId(), item.id(), context.subjectId()));
+        searchProjections.synchronizeMedication(item, context.subjectId());
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -475,6 +495,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.singleOrder(), command.status());
         item.assignDefaultRoute(route == null ? null : route.id(), route == null ? null : route.code());
         medicationSemantics.captureMedication(item);
+        searchProjections.synchronizeMedication(item, context.subjectId());
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -487,6 +508,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         medicationSemantics.captureMedication(item);
         item.changeStatus(expectedRevision, context.subjectId(), status);
         medicationSemantics.captureMedication(item);
+        searchProjections.synchronizeMedication(item, context.subjectId());
         return medicationViews(context.tenantId(), List.of(item), organizationId).getFirst();
     }
 
@@ -576,6 +598,7 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.validTo(), command.indication(), command.instruction()));
         attributeSubjectRepository.save(ItemAttributeSubject.catalogItem(
                 context.tenantId(), product.id(), context.subjectId()));
+        searchProjections.synchronizeProduct(product, context.subjectId());
         return productViews(context.tenantId(), List.of(product), Map.of(manufacturer.id(), manufacturer),
                 organizationId).getFirst();
     }
@@ -634,7 +657,9 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 command.orderable(), command.chargeable(), command.stocked(), command.shelfLifeValue(),
                 command.shelfLifeUnit(), command.status(), command.validFrom(), command.validTo(),
                 command.indication(), command.instruction());
-        return productViews(context.tenantId(), List.of(productRepository.saveAndFlush(product)),
+        product = productRepository.saveAndFlush(product);
+        searchProjections.synchronizeProduct(product, context.subjectId());
+        return productViews(context.tenantId(), List.of(product),
                 Map.of(manufacturer.id(), manufacturer), organizationId).getFirst();
     }
 
@@ -696,11 +721,13 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
                 context.tenantId(), command.organizationId(), catalogItemId).isPresent()) {
             throw conflict("ORGANIZATION_CATALOG_ITEM_EXISTS", "该机构已经采用此目录项，请在后续版本中维护状态");
         }
-        return adoptionView(adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(),
+        OrganizationCatalogItem adoption = adoptionRepository.save(new OrganizationCatalogItem(context.tenantId(),
                 context.subjectId(), command.organizationId(), catalogItemId, command.defaultDepartmentId(),
                 command.localCode(), command.localName(), command.orderable(), command.executable(),
                 command.chargeable(), command.purchasable(), command.stocked(), command.dispensable(),
-                command.returnable(), command.status(), command.validFrom(), command.validTo())));
+                command.returnable(), command.status(), command.validFrom(), command.validTo()));
+        searchProjections.synchronizeAdoption(adoption, context.subjectId());
+        return adoptionView(adoption);
     }
 
     @Transactional
@@ -1105,6 +1132,18 @@ public class MasterDataApplicationService implements ServiceCatalogDirectory {
         return matches(query, value.code(), value.name(), value.serviceSubtype(), value.specimenType(),
                 value.examinationType(), value.accountingCategory(),
                 adoption == null ? null : adoption.localCode(), adoption == null ? null : adoption.localName());
+    }
+
+    private Set<Long> matchingIds(String targetType, String query, Long organizationId, ExecutionContext context) {
+        if (blank(query)) return Set.of();
+        return searchDirectory.findMatchingTargetIds(targetType, context.tenantId(), organizationId,
+                context.departmentId(), query);
+    }
+
+    private Collection<Long> queryIds(String targetType, String query, Long organizationId,
+                                      ExecutionContext context) {
+        Set<Long> result = matchingIds(targetType, query, organizationId, context);
+        return result.isEmpty() ? List.of(-1L) : result;
     }
 
     private boolean blank(String value) { return value == null || value.isBlank(); }

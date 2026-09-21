@@ -15,6 +15,7 @@ import { Alert, Button, EmptyState, LoadingState, PageHeader, Panel, StatusBadge
 import { Icon } from '../../shared/ui/Icon'
 import { age, genderLabel } from '../../shared/format'
 import { BillingQueue, BillingTimeline, money } from './BillingShared'
+import '../../styles/features/billing-settlement.css'
 
 const settlementStatuses = new Set(['PENDING_CHARGE', 'PENDING_INVOICE', 'PENDING_PAYMENT'])
 const draftSettlementId = '__CURRENT_UNINVOICED_CHARGES__'

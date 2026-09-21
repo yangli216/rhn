@@ -7,6 +7,7 @@ import {
 import {
   Alert, Button, FormField, Icon, type IconName, LoadingState, PageHeader, Panel, PanelHead, StatusBadge, Switch, Tabs
 } from '../../shared/ui'
+import '../../styles/ai-configuration.css'
 
 type DraftValue = string | number | boolean
 

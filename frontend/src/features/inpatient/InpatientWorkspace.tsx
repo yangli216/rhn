@@ -7,6 +7,7 @@ import type { Resident } from '../../shared/model'
 import { errorMessage, type RhnApi } from '../../shared/rhnApi'
 import { Alert, Button, Dialog, DictionarySelect, EmptyState, FormField, LoadingState, PageHeader, Panel,
   PatientIdentitySearch, SearchField, Select, StatusBadge } from '../../shared/ui'
+import '../../styles/features/inpatient.css'
 
 const bedStatusText: Record<InpatientBed['displayStatus'], string> = {
   AVAILABLE: '空床', OCCUPIED: '占用', CLEANING: '待清洁', BLOCKED: '封床', MAINTENANCE: '维护',

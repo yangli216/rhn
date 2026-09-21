@@ -30,4 +30,8 @@ interface EncounterRepository extends JpaRepository<Encounter, Long> {
     List<Encounter> findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
             Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive,
             Pageable pageable);
+    List<Encounter> findByTenantIdAndOrganizationIdAndDepartmentIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+            Long tenantId, Long organizationId, Long departmentId, Instant fromInclusive, Instant toExclusive);
+    List<Encounter> findByTenantIdAndOrganizationIdAndRegisteredAtGreaterThanEqualAndRegisteredAtLessThanOrderByRegisteredAtDesc(
+            Long tenantId, Long organizationId, Instant fromInclusive, Instant toExclusive);
 }

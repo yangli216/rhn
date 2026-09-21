@@ -20,6 +20,14 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
     List<Concept> findByCodeSystemIdInOrderByDisplay(Collection<Long> codeSystemIds);
 
     @Query("""
+            select c from Concept c
+            where c.effectiveFrom = :effectiveFrom or c.effectiveTo = :effectiveTo
+            """)
+    Page<Concept> findSearchProjectionTransitions(@Param("effectiveFrom") LocalDate effectiveFrom,
+                                                  @Param("effectiveTo") LocalDate effectiveTo,
+                                                  Pageable pageable);
+
+    @Query("""
             select c from Concept c where c.codeSystemId in :systemIds and c.status = :activeStatus
               and c.effectiveFrom <= :date and (c.effectiveTo is null or c.effectiveTo >= :date)
               and (c.display = :name or c.shortDisplay = :name
@@ -34,18 +42,13 @@ public interface ConceptRepository extends JpaRepository<Concept, Long> {
             where c.codeSystemId in :systemIds
               and (:conceptType is null or :conceptType = '' or c.conceptType = :conceptType)
               and (:status is null or c.status = :status)
-              and (:query is null or :query = '' or lower(c.code) like lower(concat('%', :query, '%'))
-                   or lower(c.display) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(c.shortDisplay, '')) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(c.searchCode, '')) like lower(concat('%', :query, '%'))
-                   or exists (select a.id from ConceptAlias a where a.conceptId = c.id and a.status = :activeStatus
-                       and (lower(a.aliasName) like lower(concat('%', :query, '%'))
-                            or lower(coalesce(a.searchCode, '')) like lower(concat('%', :query, '%')))))
+              and (:query is null or :query = '' or lower(c.code) like lower(concat(:query, '%'))
+                   or c.id in :searchIds)
             """)
     Page<Concept> searchDiseases(@Param("systemIds") Collection<Long> systemIds,
                                  @Param("query") String query,
+                                 @Param("searchIds") Collection<Long> searchIds,
                                  @Param("conceptType") String conceptType,
                                  @Param("status") TerminologyStatus status,
-                                 @Param("activeStatus") TerminologyStatus activeStatus,
                                  Pageable pageable);
 }

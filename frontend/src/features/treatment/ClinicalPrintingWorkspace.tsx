@@ -9,6 +9,7 @@ import {
   Alert, Button, EmptyState, FormField, Icon, IconButton, LoadingState, PageHeader, Panel,
   Select, StatusBadge, Tooltip,
 } from '../../shared/ui'
+import '../../styles/features/clinical-printing.css'
 
 const DOCUMENT_TYPES: Array<{ value: ClinicalPrintDocumentType; label: string; short: string }> = [
   { value: 'ORAL_MEDICATION_CARD', label: '口服药卡', short: '口' },

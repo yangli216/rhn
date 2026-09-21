@@ -1065,7 +1065,7 @@
 .registration-order-actions { min-height: 4.5rem; padding: var(--space-3) var(--space-4); display: flex; align-items: center; justify-content: flex-end; gap: var(--space-4); border-top: 1px solid var(--color-border); background: var(--color-surface-subtle); }
 .registration-order-actions > span { margin-right: auto; color: var(--color-text-secondary); font-size: var(--font-size-small); }
 .registration-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
-.registration-query-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(21rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
+.registration-query-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(23.5rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
 .registration-query-filter-form .ui-field { min-width: 0; margin: 0; }
 .registration-query-filter-form > .ui-field > input, .registration-query-filter-form input:not(.ui-date-range-input) { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .registration-query-filter-form > .ui-field > input:focus, .registration-query-filter-form input:not(.ui-date-range-input):focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
@@ -1085,7 +1085,7 @@
 
 /* Appointment management is a separate operational ledger built on the same scheduling inventory. */
 .appointment-filter-panel { margin-bottom: var(--space-4); flex: none; }
-.appointment-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(21rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
+.appointment-filter-form { padding: var(--space-3) var(--space-4); display: grid; grid-template-columns: minmax(23.5rem, max-content) 11rem minmax(14rem, 1fr) auto; align-items: end; gap: var(--space-3); }
 .appointment-filter-form .ui-field { min-width: 0; margin: 0; }
 .appointment-filter-form > .ui-field > input, .appointment-filter-form input:not(.ui-date-range-input), .appointment-booking-form textarea { width: 100%; min-height: var(--control-height-md); padding: 0 var(--space-3); border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); outline: none; color: var(--color-text-primary); background: var(--color-surface); }
 .appointment-filter-form > .ui-field > input:focus, .appointment-filter-form input:not(.ui-date-range-input):focus, .appointment-booking-form textarea:focus { border-color: var(--color-brand-primary); box-shadow: var(--focus-ring); }
@@ -1111,3 +1111,62 @@
 .appointment-booking-form textarea { min-height: 5.5rem; padding-top: var(--space-2); padding-bottom: var(--space-2); resize: vertical; }
 .appointment-selected-resident { margin: var(--space-4); padding: var(--space-3); display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); border-radius: var(--radius-md); background: var(--color-brand-soft); }
 .appointment-selected-resident span, .appointment-selected-resident small { color: var(--color-text-secondary); font-size: var(--font-size-small); }
+
+/* Encounter query workstation desktop layout */
+.encounter-query-filter-panel { margin-bottom: var(--space-4); flex: none; }
+.encounter-query-filter-form {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(23.5rem, max-content) 9.5rem 9rem minmax(12rem, 1fr) auto;
+  align-items: end;
+  gap: var(--space-3);
+}
+.encounter-query-filter-form .ui-field { min-width: 0; margin: 0; }
+.encounter-query-filter-form > .ui-field > input,
+.encounter-query-filter-form input:not(.ui-date-range-input) {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  outline: none;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+}
+.encounter-query-filter-form > .ui-field > input:focus,
+.encounter-query-filter-form input:not(.ui-date-range-input):focus {
+  border-color: var(--color-brand-primary);
+  box-shadow: var(--focus-ring);
+}
+
+.encounter-today-list { min-width: 76rem; }
+.encounter-today-list__head, .encounter-today-list article {
+  min-height: 4.25rem;
+  padding: 0 var(--space-4);
+  display: grid;
+  grid-template-columns: minmax(10.5rem, 1.05fr) minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(9rem, 0.9fr) minmax(8rem, 0.8fr) minmax(13.5rem, 1.35fr) minmax(9.5rem, 0.95fr) 5.5rem 6.5rem;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+}
+.encounter-today-list__head {
+  min-height: 2.5rem;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-subtle);
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.encounter-today-list__head > span:last-child { text-align: right; justify-self: end; }
+.encounter-today-list article:last-child { border-bottom: 0; }
+.encounter-today-list article > div { min-width: 0; }
+.encounter-today-list article strong, .encounter-today-list article small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.encounter-today-list article small { margin-top: var(--space-1); color: var(--color-text-secondary); font-size: var(--font-size-small); }
+.encounter-no-cell { color: var(--color-brand-primary); font-family: monospace; font-size: var(--font-size-body); font-weight: var(--font-weight-semibold); }
+.encounter-diagnosis-tag { display: inline-flex; align-items: center; gap: var(--space-1); max-width: 100%; }
+.encounter-bp-tag { display: inline-block; font-size: var(--font-size-small); color: var(--color-text-secondary); }
+
+

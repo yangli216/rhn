@@ -12,6 +12,21 @@ import java.util.List;
 import java.util.Optional;
 
 public interface MedicationProductRepository extends JpaRepository<MedicationProduct, Long> {
+    @Query("select p from MedicationProduct p where p.itemType = 'MED_PRODUCT'")
+    List<MedicationProduct> findAllProducts();
+
+    @Query("select p from MedicationProduct p where p.itemType = 'MED_PRODUCT'")
+    Page<MedicationProduct> findAllProducts(Pageable pageable);
+
+    @Query("""
+            select p from MedicationProduct p
+            where p.itemType = 'MED_PRODUCT' and (p.validFrom = :effectiveFrom or p.validTo = :effectiveTo)
+            """)
+    Page<MedicationProduct> findSearchProjectionTransitions(
+            @Param("effectiveFrom") java.time.LocalDate effectiveFrom,
+            @Param("effectiveTo") java.time.LocalDate effectiveTo,
+            Pageable pageable);
+
     List<MedicationProduct> findByTenantIdAndItemTypeOrderByName(Long tenantId, String itemType);
     List<MedicationProduct> findByTenantIdAndMedicationIdIn(Long tenantId, Collection<Long> medicationIds);
     List<MedicationProduct> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
@@ -42,17 +57,16 @@ public interface MedicationProductRepository extends JpaRepository<MedicationPro
               and (:medicationType is null or :medicationType = '' or m.medicationType = :medicationType)
               and (:status is null or :status = '' or p.status = :status)
               and (:query is null or :query = ''
-                or lower(p.code) like lower(concat('%', :query, '%'))
-                or lower(p.name) like lower(concat('%', :query, '%'))
-                or lower(coalesce(p.tradeName, '')) like lower(concat('%', :query, '%'))
-                or lower(coalesce(p.approvalCode, '')) like lower(concat('%', :query, '%'))
+                or lower(p.code) like lower(concat(:query, '%'))
+                or lower(coalesce(p.approvalCode, '')) like lower(concat(:query, '%'))
                 or lower(f.name) like lower(concat('%', :query, '%'))
-                or lower(m.name) like lower(concat('%', :query, '%'))
-                or lower(m.code) like lower(concat('%', :query, '%'))
-                or lower(coalesce(m.aliasName, '')) like lower(concat('%', :query, '%')))
+                or lower(m.code) like lower(concat(:query, '%'))
+                or p.id in :productSearchIds or m.id in :medicationSearchIds)
             """)
     Page<MedicationProduct> searchProducts(@Param("tenantId") Long tenantId, @Param("query") String query,
             @Param("medicationType") String medicationType, @Param("status") String status,
+            @Param("productSearchIds") Collection<Long> productSearchIds,
+            @Param("medicationSearchIds") Collection<Long> medicationSearchIds,
             @Param("stockable") boolean stockable, @Param("dispensable") boolean dispensable,
             @Param("organizationId") Long organizationId, @Param("sourceOrganizationId") Long sourceOrganizationId,
             @Param("at") java.time.LocalDate at, Pageable pageable);

@@ -10,6 +10,24 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      chunkSizeWarningLimit: 600,
+      rollupOptions: {
+        output: mode === 'test' ? {} : {
+          manualChunks(id) {
+            if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/scheduler/')) {
+              return 'vendor-react'
+            }
+            if (id.includes('node_modules/react-router/') || id.includes('node_modules/react-router-dom/')) {
+              return 'vendor-router'
+            }
+            if (id.includes('node_modules/@tanstack/react-query') || id.includes('node_modules/@tanstack/query-core')) {
+              return 'vendor-query'
+            }
+          },
+        },
+      },
+    },
     preview: {
       port: frontendPort,
       strictPort: true,

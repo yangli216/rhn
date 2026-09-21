@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { GoodsReceipt, MedicationProduct, PurchaseOrder, Requisition, StockBin, StockCount, StockItem, StockSite, StockTransfer } from '../../shared/api'
 import type { RhnApi } from '../../shared/rhnApi'
 import { errorMessage } from '../../shared/rhnApi'
-import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
+import { Alert, Button, DatePicker, Dialog, EditableCell, EditableRow, EditableTable, EmptyState, FormField, LoadingState, RemoteSearchSelect, Select, StatusBadge, UnitNumberInput, tableCellClass } from '../../shared/ui'
 import {
   IconBolt,
   IconBuildingStore,
@@ -39,7 +39,10 @@ export function resolveItemDefaultPrices(
   // 2. 供应商协议价
   const targetCatalogId = item.catalogItemId || item.id
   const supply = supplierItems?.find(s => String(s.catalogItemId) === String(targetCatalogId) && (!s.packageId || !item.packageId || String(s.packageId) === String(item.packageId)))
-  const agreementPrice = supply && Number(supply.agreementPrice) > 0 ? Number(supply.agreementPrice) : undefined
+  const embeddedAgreementPrice = Number((item as StockItem & { agreementPrice?: number }).agreementPrice)
+  const agreementPrice = Number.isFinite(embeddedAgreementPrice) && embeddedAgreementPrice >= 0
+    ? embeddedAgreementPrice
+    : supply && Number(supply.agreementPrice) >= 0 ? Number(supply.agreementPrice) : undefined
 
   // 3. 药品主数据标准价格
   const product = products.find(p => String(p.id) === String(targetCatalogId))
@@ -861,12 +864,13 @@ type EntryRow = { key: string; stockItemId: string; quantity: string; price: str
 
 export function MultiItemDialog({
   title, submitText, items, quantityLabel, withPrice = false, showBaseConversion = false,
-  orders = [], products = [], supplierItems,
+  orders = [], products = [], supplierItems, loadItems,
   lead, emptyCopy = '当前没有可选经营项目。', hideReason = false, onClose, onSubmit,
 }: {
   title: string; submitText: string; items: StockItem[]; quantityLabel: string; withPrice?: boolean
   orders?: PurchaseOrder[]; products?: MedicationProduct[]
   supplierItems?: Array<{ catalogItemId?: string; packageId?: string; agreementPrice?: number }>
+  loadItems?: (query: string) => Promise<StockItem[]>
   showBaseConversion?: boolean; lead?: ReactNode; emptyCopy?: string; hideReason?: boolean; onClose: () => void
   onSubmit: (reason: string, rows: ItemRow[]) => Promise<void>
 }) {
@@ -877,12 +881,18 @@ export function MultiItemDialog({
   const [error, setError] = useState<unknown>()
   const [busy, setBusy] = useState(false)
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false)
+  const [remoteItems, setRemoteItems] = useState<StockItem[]>([])
 
   const quantityInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const priceInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
   const selectWrapperRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  const itemMap = useMemo(() => new Map(items.map(item => [item.id, item])), [items])
+  const allItems = useMemo(() => {
+    const values = new Map(items.map(item => [item.id, item]))
+    remoteItems.forEach(item => values.set(item.id, item))
+    return [...values.values()]
+  }, [items, remoteItems])
+  const itemMap = useMemo(() => new Map(allItems.map(item => [item.id, item])), [allItems])
   const itemOptions = useMemo(() => items.map(item => ({
     value: item.id,
     label: item.productName,
@@ -978,6 +988,35 @@ export function MultiItemDialog({
     if (currentRow) {
       focusQuantity(currentRow.key)
     }
+  }
+
+  const loadRemoteItemOptions = useCallback(async (query: string) => {
+    if (!loadItems) return []
+    const values = await loadItems(query)
+    return values.map(item => ({
+      value: item.id,
+      label: item.productName,
+      code: item.productCode,
+      description: [item.packageSpec || item.packageUnitName, item.manufacturerName]
+        .filter(Boolean).join(' · '),
+      raw: item,
+    }))
+  }, [loadItems])
+
+  const handleRemoteItemSelect = (index: number, item?: StockItem) => {
+    if (!item) {
+      updateRow(index, 'stockItemId', '')
+      return
+    }
+    setRemoteItems(current => current.some(value => value.id === item.id) ? current : [...current, item])
+    const defaultPrices = resolveItemDefaultPrices(item, orders, products, supplierItems)
+    setRows(current => current.map((row, rowIndex) => rowIndex === index ? {
+      ...row,
+      stockItemId: item.id,
+      price: defaultPrices.purchasePrice ?? row.price,
+    } : row))
+    const currentRow = rows[index]
+    if (currentRow) focusQuantity(currentRow.key)
   }
 
   const handleQuantityKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
@@ -1084,7 +1123,7 @@ export function MultiItemDialog({
       <input className="ui-field__control" value={reason} onChange={e => setReason(e.target.value)} placeholder="填写本次业务用途（选填）" />
     </FormField>}
 
-    {!items.length ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy={emptyCopy} />
+    {!items.length && !loadItems ? <EmptyState icon="pharmacy" title="暂无可选择的经营项目" copy={emptyCopy} />
       : <div className="warehouse-entry-table-container">
         <div className="warehouse-entry-table-wrap">
           <EditableTable className="warehouse-entry-table" aria-label="药品连续录入" onAppendRow={() => addRow(true)}>
@@ -1109,11 +1148,27 @@ export function MultiItemDialog({
                   <td className="warehouse-entry-index">{index + 1}</td>
                   <EditableCell display={item?.productName} placeholder="输入药品名称、拼音或编码搜索">
                     <div ref={el => { selectWrapperRefs.current[row.key] = el }}>
-                      <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
+                      {loadItems ? <RemoteSearchSelect<StockItem>
+                        value={item ? {
+                          value: item.id,
+                          label: item.productName,
+                          code: item.productCode,
+                          description: [item.packageSpec || item.packageUnitName, item.manufacturerName]
+                            .filter(Boolean).join(' · '),
+                          raw: item,
+                        } : undefined}
+                        onChange={option => handleRemoteItemSelect(index, option?.raw)}
+                        loadOptions={loadRemoteItemOptions}
+                        placeholder="输入药品名称、拼音或编码搜索"
+                        searchPlaceholder="输入名称、编码或简码"
+                        popoverMinWidth={560}
+                        showCode
+                        aria-label={`第${index + 1}行药品`}
+                      /> : <Select searchable showValue popoverMinWidth={520} value={row.stockItemId}
                         aria-label={`第${index + 1}行药品`}
                         onChange={(val) => handleItemSelect(index, val)}
                         placeholder="输入药品名称、拼音或编码搜索"
-                        options={itemOptions} />
+                        options={itemOptions} />}
                     </div>
                   </EditableCell>
                   <td>
@@ -1531,6 +1586,10 @@ export function PurchaseDialog({
   }, [api.pharmacy, supplierId])
 
   const [requestCode] = useState(() => `PO-${crypto.randomUUID()}`)
+  const supportsRemoteCatalog = typeof api.pharmacy?.searchProcurementCatalog === 'function'
+  const loadProcurementItems = useCallback((query: string) => supportsRemoteCatalog
+    ? api.pharmacy.searchProcurementCatalog(site.id, supplierId, query)
+    : Promise.resolve(items), [api.pharmacy, items, site.id, supplierId, supportsRemoteCatalog])
 
   if (!suppliers.length) return <Dialog title="新建采购单" eyebrow="采购作业" onClose={onClose}><EmptyState icon="pharmacy"
     title="请先维护供应商" copy="当前机构没有可用供应商，请先前往基础档案维护。"
@@ -1542,7 +1601,9 @@ export function PurchaseDialog({
       onNavigate={onNavigate} onClose={onClose} onDone={onDone} onSwitchMode={setMode} />
   }
 
-  return <MultiItemDialog title="新建采购计划" submitText={submitNow ? '保存并提交审核' : '保存草稿'} items={items} quantityLabel="采购数量（包装）" withPrice
+  return <MultiItemDialog key={supplierId} title="新建采购计划" submitText={submitNow ? '保存并提交审核' : '保存草稿'}
+    items={supportsRemoteCatalog ? [] : items} loadItems={supportsRemoteCatalog ? loadProcurementItems : undefined}
+    quantityLabel="采购数量（包装）" withPrice
     hideReason={true} orders={orders} products={products} supplierItems={supplierItems}
     lead={<>
       <div className="warehouse-purchase-mode-tabs" role="tablist" aria-label="采购场景模式">

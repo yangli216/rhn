@@ -12,6 +12,7 @@ import {
   Alert, Button, DateRangePicker, Dialog, EmptyState, FormField, Icon, LoadingState, PageHeader, Panel, PanelHead, Select, StatusBadge,
   SCHEDULING_DATE_PRESETS,
 } from '../../shared/ui'
+import '../../styles/features/scheduling-registration.css'
 
 const weekdayOptions = [
   { value: 1, label: '周一' }, { value: 2, label: '周二' }, { value: 3, label: '周三' },

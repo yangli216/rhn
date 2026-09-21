@@ -25,13 +25,12 @@ public interface MedicationRepository extends JpaRepository<Medication, Long> {
             where m.tenantId = :tenantId
               and (:medicationType is null or :medicationType = '' or m.medicationType = :medicationType)
               and (:status is null or :status = '' or m.status = :status)
-              and (:query is null or :query = '' or lower(m.code) like lower(concat('%', :query, '%'))
-                   or lower(m.name) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(m.aliasName, '')) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(m.doseForm, '')) like lower(concat('%', :query, '%'))
-                   or lower(coalesce(m.preparationSpec, '')) like lower(concat('%', :query, '%')))
+              and (:query is null or :query = '' or lower(m.code) like lower(concat(:query, '%'))
+                   or lower(coalesce(m.preparationSpec, '')) like lower(concat('%', :query, '%'))
+                   or m.id in :searchIds)
             """)
     Page<Medication> search(@Param("tenantId") Long tenantId, @Param("query") String query,
+                            @Param("searchIds") java.util.Collection<Long> searchIds,
                             @Param("medicationType") String medicationType, @Param("status") String status,
                             Pageable pageable);
 }

@@ -42,6 +42,7 @@ interface ScheduleGenerationRunRepository extends JpaRepository<ScheduleGenerati
 
 interface ServiceScheduleRepository extends JpaRepository<ServiceSchedule, Long> {
     Optional<ServiceSchedule> findByIdAndTenantId(Long id, Long tenantId);
+    List<ServiceSchedule> findByTenantIdAndIdIn(Long tenantId, Collection<Long> ids);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select value from ServiceSchedule value where value.id = :id and value.tenantId = :tenantId")

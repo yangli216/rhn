@@ -9,4 +9,6 @@ interface EncounterDiagnosisRepository extends JpaRepository<EncounterDiagnosis,
             Long tenantId, Long encounterId, String diagnosisStage);
     List<EncounterDiagnosis> findByTenantIdAndEncounterIdAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
             Long tenantId, Long encounterId, String diagnosisStage, String diagnosisStatus);
+    List<EncounterDiagnosis> findByTenantIdAndEncounterIdInAndDiagnosisStageAndDiagnosisStatusOrderBySortOrderAscRecordedAtAsc(
+            Long tenantId, java.util.Collection<Long> encounterIds, String diagnosisStage, String diagnosisStatus);
 }

@@ -10,6 +10,7 @@ import {
 } from '../../shared/ui'
 import { PrintBusinessMapping } from './PrintBusinessMapping'
 import { PrintDeviceManagement } from './PrintDeviceManagement'
+import '../../styles/features/print-template-management.css'
 
 type LayoutConfig = { paper?: Record<string, unknown>; elements?: Array<Record<string, unknown>>; blocks?: Array<Record<string, unknown>>; title?: string; footer?: boolean }
 type TemplateSelection = { kind: 'DRAFT' | 'PUBLISHED'; id: string }

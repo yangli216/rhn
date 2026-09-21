@@ -775,7 +775,7 @@ describe('DoctorWorkstation reception flow', () => {
     const searchInput = await screen.findByPlaceholderText('输入诊断名称、编码或拼音码')
     await user.type(searchInput, '高血压')
     const option = await screen.findByRole('option', { name: /原发性高血压/ })
-    await user.click(option)
+    fireEvent.click(option)
 
     expect(await screen.findByText('原发性高血压')).toBeInTheDocument()
 

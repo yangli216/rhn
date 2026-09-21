@@ -6,6 +6,7 @@ export interface DateRange {
 export type PresetKey =
   | 'TODAY'
   | 'YESTERDAY'
+  | 'LAST_3_DAYS'
   | 'LAST_7_DAYS'
   | 'THIS_WEEK'
   | 'LAST_WEEK'
@@ -62,6 +63,15 @@ export function getYesterdayRange(): DateRange {
 export function getTodayRange(): DateRange {
   const t = getTodayStr()
   return { from: t, to: t }
+}
+
+/** 近 3 天（包含今天，共 3 天） */
+export function getLast3DaysRange(): DateRange {
+  const now = new Date()
+  return {
+    from: formatDate(offsetDays(now, -2)),
+    to: formatDate(now),
+  }
 }
 
 /** 近 7 天（包含今天，共 7 天） */
@@ -156,6 +166,15 @@ export const DEFAULT_QUERY_PRESETS: PresetOption[] = [
   { key: 'THIS_MONTH', label: '本月', getRange: getThisMonthRange },
   { key: 'LAST_7_DAYS', label: '近7天', getRange: getLast7DaysRange },
   { key: 'LAST_30_DAYS', label: '近30天', getRange: getLast30DaysRange },
+]
+
+/** 药房业务查询预设（今日、近3天、近7天、近30天、本月） */
+export const PHARMACY_QUERY_PRESETS: PresetOption[] = [
+  { key: 'TODAY', label: '今日', getRange: getTodayRange },
+  { key: 'LAST_3_DAYS', label: '近3天', getRange: getLast3DaysRange },
+  { key: 'LAST_7_DAYS', label: '近7天', getRange: getLast7DaysRange },
+  { key: 'LAST_30_DAYS', label: '近30天', getRange: getLast30DaysRange },
+  { key: 'THIS_MONTH', label: '本月', getRange: getThisMonthRange },
 ]
 
 /** 面向未来的业务（如排班/预约）快捷预设 */

@@ -25,7 +25,8 @@ public class MedicationKnowledgeService implements MedicationKnowledgeDirectory 
         this.medications=medications; this.catalog=catalog; this.terminology=terminology; this.mappings=mappings; this.contexts=contexts;
     }
     public List<Knowledge> search(String query) {
-        return medications.search(contexts.requireCurrent().tenantId(), query, null, "ACTIVE", PageRequest.of(0, 40))
+        return medications.search(contexts.requireCurrent().tenantId(), query, List.of(-1L), null, "ACTIVE",
+                        PageRequest.of(0, 40))
                 .stream().map(m -> require(m.id())).toList();
     }
     public Knowledge require(Long id) {

@@ -16,6 +16,7 @@ import {
   PatientIdentitySearch, Select,
   StatusBadge, type DateRange,
 } from '../../shared/ui'
+import '../../styles/features/scheduling-registration.css'
 
 function businessDate(days = 0) {
   return new Intl.DateTimeFormat('en-CA', {
